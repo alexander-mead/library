@@ -1,0 +1,7 @@
+MODULE precision
+
+  IMPLICIT NONE
+  INTEGER, PARAMETER :: sp = KIND(1.0)
+  INTEGER, PARAMETER :: dl = KIND(1.d0)
+
+END MODULE precision
