@@ -4,4 +4,5 @@ MERGE
 *.mod
 *.e
 *.f90~
+*~
 meadlib
