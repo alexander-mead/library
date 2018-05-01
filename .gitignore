@@ -7,3 +7,5 @@ OLD
 *~
 */*.dat
 meadlib
+/adaptive_grid
+/down_sample
