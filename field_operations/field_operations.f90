@@ -186,7 +186,7 @@ CONTAINS
 
   SUBROUTINE sharpen(d,m,L,ibin)
 
-    USE FFT
+    USE fft
     IMPLICIT NONE
     INTEGER :: m
     REAL, INTENT(INOUT) :: d(m,m,m)
@@ -220,7 +220,7 @@ CONTAINS
   SUBROUTINE sharpen_k(dk,m,L,ibin)
 
     USE special_functions
-    USE FFT
+    USE fft
     IMPLICIT NONE
     DOUBLE COMPLEX, INTENT(INOUT) :: dk(m,m,m)
     INTEGER, INTENT(IN) :: m, ibin
@@ -263,7 +263,7 @@ CONTAINS
 
   SUBROUTINE smooth2D(arr,n,r,L)
 
-    USE FFT
+    USE fft
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n
     REAL, INTENT(INOUT) :: arr(n,n)
@@ -324,7 +324,7 @@ CONTAINS
 
   SUBROUTINE smooth3D(arr,m,r,L)
 
-    USE FFT
+    USE fft
     USE special_functions
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: arr(m,m,m)
@@ -547,8 +547,6 @@ CONTAINS
     REAL :: var1, av1, max1, var2, av2, max2
     INTEGER :: i, j, k
 
-    !m=SIZE(d(1,1,:))
-
     IF(talk) THEN
        WRITE(*,*) 'CLIP: Clipping density field'
        WRITE(*,*) 'CLIP: Threshold:', d0
@@ -579,8 +577,6 @@ CONTAINS
 
     IF(talk) WRITE(*,*) 'CLIP: Density field clipped'
 
-    !av2=average(d,m)
-    !var2=variance(d,m)
     av2=mean(splay(d,m1,m2,m3),m1*m2*m3)
     var2=variance(splay(d,m1,m2,m3),m1*m2*m3)
     max2=MAXVAL(d)
@@ -593,6 +589,60 @@ CONTAINS
     END IF
 
   END SUBROUTINE clip
+
+  SUBROUTINE anticlip(d,m1,m2,m3,d0,talk)
+
+    USE statistics
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: d(m1,m2,m3)
+    INTEGER, INTENT(IN) :: m1, m2, m3
+    REAL, INTENT(IN) :: d0
+    LOGICAL, INTENT(IN) :: talk
+    REAL :: var1, av1, min1, var2, av2, min2
+    INTEGER :: i, j, k, m
+
+    IF(talk) THEN
+       WRITE(*,*) 'Anti-clipping over-density field'
+       WRITE(*,*) 'Threshold:', d0
+       WRITE(*,*) 'Mesh:', m
+    END IF
+    
+    av1=mean(splay(d,m1,m2,m3),m1*m2*m3)
+    var1=variance(splay(d,m1,m2,m3),m1*m2*m3)
+    min1=MINVAL(d)
+
+    IF(talk) THEN
+       WRITE(*,*) 'Average over-density pre-clipping:', av1
+       WRITE(*,*) 'Variance in over-density pre-clipping:', var1
+       WRITE(*,*) 'Minimum over-density pre-clipping:', min1
+    END IF
+
+!    dep=0.25*(1.+erf(d0/(sqrt(2.*var1))))**2.
+!    IF(talk==1) WRITE(*,*) 'Expected large-scale power depletion factor:', dep
+
+    !Now do the clipping
+    DO k=1,m
+       DO j=1,m
+          DO i=1,m
+             IF(d(i,j,k)<d0) d(i,j,k)=d0
+          END DO
+       END DO
+    END DO
+
+    IF(talk) WRITE(*,*) 'Over-density field clipped'
+
+    av2=mean(splay(d,m1,m2,m3),m1*m2*m3)
+    var2=variance(splay(d,m1,m2,m3),m1*m2*m3)
+    min2=MINVAL(d)
+
+    IF(talk) THEN
+       WRITE(*,*) 'Average over-density post-clipping:', av2
+       WRITE(*,*) 'Variance in over-density post-clipping:', var2
+       WRITE(*,*) 'Minimum over-density post-clipping:', min2
+       WRITE(*,*)
+    END IF
+
+  END SUBROUTINE anticlip
 
   FUNCTION empty_cells(d,m)
 
@@ -614,8 +664,118 @@ CONTAINS
        END DO
     END DO
 
-    empty_cells=sum
+    empty_cells=INT(sum)
 
   END FUNCTION empty_cells
+
+  SUBROUTINE pk(dk1,dk2,m,L,kmin,kmax,bins,k,pow,nbin)
+
+    !Takes in a dk(m,m,m) array and computes the power spectrum
+    USE table_integer
+    USE constants
+    USE array_operations
+    USE fft
+    IMPLICIT NONE
+    DOUBLE COMPLEX, INTENT(IN) :: dk1(m,m,m), dk2(m,m,m)
+    REAL, ALLOCATABLE, INTENT(OUT) :: pow(:), k(:)
+    INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
+    INTEGER, INTENT(IN) :: m, bins
+    REAL, INTENT(IN) :: L, kmin, kmax
+    INTEGER :: i, ix, iy, iz, n
+    REAL :: kx, ky, kz, kmod  
+    REAL, ALLOCATABLE :: kbin(:)  
+    REAL*8, ALLOCATABLE :: pow8(:), k8(:)    
+    INTEGER*8, ALLOCATABLE :: nbin8(:)
+
+    WRITE(*,*) 'PK: Computing isotropic power spectrum'
+
+    !Allocate arrays used in this calculation
+    ALLOCATE(kbin(bins+1),k(bins))
+    ALLOCATE(pow(bins),nbin(bins))
+    ALLOCATE(k8(bins),pow8(bins),nbin8(bins))
+
+    !Set summation variables to 0.d0
+    k8=0.d0
+    pow8=0.d0
+    nbin8=0
+
+    WRITE(*,*) 'PK: Binning power'
+    WRITE(*,*) 'PK: Mesh:', m
+    WRITE(*,*) 'PK: Bins:', bins
+    WRITE(*,*) 'PK: k_min [h/Mpc]:', kmin
+    WRITE(*,*) 'PK: k_max [h/Mpc]:', kmax
+
+    !Fill array of k bins
+    CALL fill_array(log(kmin),log(kmax),kbin,bins+1)
+    kbin=exp(kbin)
+
+    !Explicitly extend the first and last bins to be sure to include *all* modes
+    !This is necessary due to rounding errors!
+    kbin(1)=kbin(1)*0.999
+    kbin(bins+1)=kbin(bins+1)*1.001    
+
+    !Loop over all elements of dk
+    DO iz=1,m
+       DO iy=1,m
+          DO ix=1,m
+
+             !Cycle for the zero mode (k=0)
+             IF(ix==1 .AND. iy==1 .AND. iz==1) CYCLE
+
+             CALL k_fft(ix,iy,iz,m,kx,ky,kz,kmod,L)
+
+             !Find integer 'n' in bins from place in table
+             IF(kmod>=kbin(1) .AND. kmod<=kbin(bins+1)) THEN
+                n=select_table_integer(kmod,kbin,bins+1,3)
+                IF(n<1 .OR. n>bins) THEN
+                   CYCLE
+                ELSE
+                   k8(n)=k8(n)+kmod
+                   pow8(n)=pow8(n)+REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))               
+                   nbin8(n)=nbin8(n)+1
+                END IF
+             END IF
+
+          END DO
+       END DO
+    END DO
+
+    !Now create the power spectrum and k array
+    DO i=1,bins
+       k(i)=sqrt(kbin(i+1)*kbin(i))
+       IF(nbin8(i)==0) THEN
+          !k(i)=sqrt(kbin(i+1)*kbin(i))       
+          pow8(i)=0.
+       ELSE
+          !k(i)=k8(i)/float(nbin8(i))
+          pow8(i)=pow8(i)/float(nbin8(i))
+          pow8(i)=pow8(i)*((L*k(i))**3.)/(2.*pi**2.)
+       END IF
+    END DO
+
+    !Do this to account for m^3 factors in P(k)
+    pow=REAL(pow8/(DBLE(m)**6))
+    
+    !Divide by 2 because up to now we have double count Hermitian conjugates
+    nbin=INT(nbin8/2)
+
+    !Deallocate arrays
+    DEALLOCATE(kbin,pow8,nbin8,k8)
+
+    WRITE(*,*) 'PK: Power computed'
+    WRITE(*,*) 
+
+  END SUBROUTINE pk
+
+  FUNCTION box_mode_power(dk,m)
+
+    IMPLICIT NONE
+    REAL :: box_mode_power
+    DOUBLE COMPLEX, INTENT(IN) :: dk(m,m,m)
+    INTEGER, INTENT(IN) :: m    
+
+    box_mode_power=REAL(ABS(dk(2,1,1))**2.+ABS(dk(1,2,1))**2.+ABS(dk(1,1,2))**2.)/3.
+
+  END FUNCTION box_mode_power
 
 END MODULE field_operations

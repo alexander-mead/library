@@ -1,4 +1,6 @@
 MODULE gadget
+
+  USE array_operations
   
 CONTAINS
 
@@ -816,239 +818,61 @@ CONTAINS
     WRITE(*,*) ''
 
   END SUBROUTINE slice
-
-!!$  SUBROUTINE pk(dk,m,L,kmin,kmax,bins,k,pow,nbin)
-!!$
-!!$    !Takes in a dk(m,m,m) array and computes the power spectrum
-!!$    USE table_integer
-!!$    USE constants
-!!$    USE array_operations
-!!$    USE fft
-!!$    IMPLICIT NONE
-!!$    DOUBLE COMPLEX, INTENT(IN) :: dk(m,m,m)
-!!$    REAL, ALLOCATABLE, INTENT(OUT) :: pow(:), k(:)
-!!$    INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
-!!$    INTEGER, INTENT(IN) :: m, bins
-!!$    REAL, INTENT(IN) :: L, kmin, kmax
-!!$    INTEGER :: i, ix, iy, iz, n
-!!$    REAL :: kx, ky, kz, kmod  
-!!$    REAL, ALLOCATABLE :: kbin(:)  
-!!$    REAL*8, ALLOCATABLE :: pow8(:), k8(:)    
-!!$    INTEGER*8, ALLOCATABLE :: nbin8(:)
-!!$
-!!$    WRITE(*,*) 'PK: Computing isotropic power spectrum'
-!!$
-!!$    !Allocate arrays used in this calculation
-!!$    ALLOCATE(kbin(bins+1),k(bins))
-!!$    ALLOCATE(pow(bins),nbin(bins))
-!!$    ALLOCATE(k8(bins),pow8(bins),nbin8(bins))
-!!$
-!!$    !Set summation variables to 0.d0
-!!$    k8=0.d0
-!!$    pow8=0.d0
-!!$    nbin8=0
-!!$
-!!$    WRITE(*,*) 'PK: Binning power'
-!!$    WRITE(*,*) 'PK: Mesh:', m
-!!$    WRITE(*,*) 'PK: Bins:', bins
-!!$    WRITE(*,*) 'PK: k_min [h/Mpc]:', kmin
-!!$    WRITE(*,*) 'PK: k_max [h/Mpc]:', kmax
-!!$
-!!$    !Fill array of k bins
-!!$    CALL fill_array(log(kmin),log(kmax),kbin,bins+1)
-!!$    kbin=exp(kbin)
-!!$
-!!$    !Explicitly extend the first and last bins to be sure to include *all* modes
-!!$    !This is necessary due to rounding errors!
-!!$    kbin(1)=kbin(1)*0.999
-!!$    kbin(bins+1)=kbin(bins+1)*1.001    
-!!$
-!!$    !Loop over all elements of dk
-!!$    DO iz=1,m
-!!$       DO iy=1,m
-!!$          DO ix=1,m
-!!$
-!!$             !Cycle for the zero mode (k=0)
-!!$             IF(ix==1 .AND. iy==1 .AND. iz==1) CYCLE
-!!$
-!!$             CALL k_fft(ix,iy,iz,m,kx,ky,kz,kmod,L)
-!!$
-!!$             !Find integer 'n' in bins from place in table
-!!$             IF(kmod>=kbin(1) .AND. kmod<=kbin(bins+1)) THEN
-!!$                n=select_table_integer(kmod,kbin,bins+1,3)
-!!$                IF(n<1 .OR. n>bins) THEN
-!!$                   CYCLE
-!!$                ELSE
-!!$                   k8(n)=k8(n)+kmod
-!!$                   pow8(n)=pow8(n)+ABS(dk(ix,iy,iz))**2                
-!!$                   nbin8(n)=nbin8(n)+1
-!!$                END IF
-!!$             END IF
-!!$
-!!$          END DO
-!!$       END DO
-!!$    END DO
-!!$
-!!$    !Now create the power spectrum and k array
-!!$    DO i=1,bins
-!!$       k(i)=sqrt(kbin(i+1)*kbin(i))
-!!$       IF(nbin8(i)==0) THEN
-!!$          !k(i)=sqrt(kbin(i+1)*kbin(i))       
-!!$          pow8(i)=0.
-!!$       ELSE
-!!$          !k(i)=k8(i)/float(nbin8(i))
-!!$          pow8(i)=pow8(i)/float(nbin8(i))
-!!$          pow8(i)=pow8(i)*((L*k(i))**3.)/(2.*pi**2.)
-!!$       END IF
-!!$    END DO
-!!$
-!!$    !Do this to account for m^3 factors in P(k)
-!!$    pow=REAL(pow8/(DBLE(m)**6))
-!!$    
-!!$    !Divide by 2 because up to now we have double count Hermitian conjugates
-!!$    nbin=INT(nbin8/2)
-!!$
-!!$    !Deallocate arrays
-!!$    DEALLOCATE(kbin,pow8,nbin8,k8)
-!!$
-!!$    WRITE(*,*) 'PK: Power computed'
-!!$    WRITE(*,*) 
-!!$
-!!$  END SUBROUTINE pk
-
-  SUBROUTINE pk(dk1,dk2,m,L,kmin,kmax,bins,k,pow,nbin)
-
-    !Takes in a dk(m,m,m) array and computes the power spectrum
-    USE table_integer
-    USE constants
-    USE array_operations
-    USE fft
-    IMPLICIT NONE
-    DOUBLE COMPLEX, INTENT(IN) :: dk1(m,m,m), dk2(m,m,m)
-    REAL, ALLOCATABLE, INTENT(OUT) :: pow(:), k(:)
-    INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
-    INTEGER, INTENT(IN) :: m, bins
-    REAL, INTENT(IN) :: L, kmin, kmax
-    INTEGER :: i, ix, iy, iz, n
-    REAL :: kx, ky, kz, kmod  
-    REAL, ALLOCATABLE :: kbin(:)  
-    REAL*8, ALLOCATABLE :: pow8(:), k8(:)    
-    INTEGER*8, ALLOCATABLE :: nbin8(:)
-
-    WRITE(*,*) 'PK: Computing isotropic power spectrum'
-
-    !Allocate arrays used in this calculation
-    ALLOCATE(kbin(bins+1),k(bins))
-    ALLOCATE(pow(bins),nbin(bins))
-    ALLOCATE(k8(bins),pow8(bins),nbin8(bins))
-
-    !Set summation variables to 0.d0
-    k8=0.d0
-    pow8=0.d0
-    nbin8=0
-
-    WRITE(*,*) 'PK: Binning power'
-    WRITE(*,*) 'PK: Mesh:', m
-    WRITE(*,*) 'PK: Bins:', bins
-    WRITE(*,*) 'PK: k_min [h/Mpc]:', kmin
-    WRITE(*,*) 'PK: k_max [h/Mpc]:', kmax
-
-    !Fill array of k bins
-    CALL fill_array(log(kmin),log(kmax),kbin,bins+1)
-    kbin=exp(kbin)
-
-    !Explicitly extend the first and last bins to be sure to include *all* modes
-    !This is necessary due to rounding errors!
-    kbin(1)=kbin(1)*0.999
-    kbin(bins+1)=kbin(bins+1)*1.001    
-
-    !Loop over all elements of dk
-    DO iz=1,m
-       DO iy=1,m
-          DO ix=1,m
-
-             !Cycle for the zero mode (k=0)
-             IF(ix==1 .AND. iy==1 .AND. iz==1) CYCLE
-
-             CALL k_fft(ix,iy,iz,m,kx,ky,kz,kmod,L)
-
-             !Find integer 'n' in bins from place in table
-             IF(kmod>=kbin(1) .AND. kmod<=kbin(bins+1)) THEN
-                n=select_table_integer(kmod,kbin,bins+1,3)
-                IF(n<1 .OR. n>bins) THEN
-                   CYCLE
-                ELSE
-                   k8(n)=k8(n)+kmod
-                   pow8(n)=pow8(n)+REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))               
-                   nbin8(n)=nbin8(n)+1
-                END IF
-             END IF
-
-          END DO
-       END DO
-    END DO
-
-    !Now create the power spectrum and k array
-    DO i=1,bins
-       k(i)=sqrt(kbin(i+1)*kbin(i))
-       IF(nbin8(i)==0) THEN
-          !k(i)=sqrt(kbin(i+1)*kbin(i))       
-          pow8(i)=0.
-       ELSE
-          !k(i)=k8(i)/float(nbin8(i))
-          pow8(i)=pow8(i)/float(nbin8(i))
-          pow8(i)=pow8(i)*((L*k(i))**3.)/(2.*pi**2.)
-       END IF
-    END DO
-
-    !Do this to account for m^3 factors in P(k)
-    pow=REAL(pow8/(DBLE(m)**6))
-    
-    !Divide by 2 because up to now we have double count Hermitian conjugates
-    nbin=INT(nbin8/2)
-
-    !Deallocate arrays
-    DEALLOCATE(kbin,pow8,nbin8,k8)
-
-    WRITE(*,*) 'PK: Power computed'
-    WRITE(*,*) 
-
-  END SUBROUTINE pk
   
-  FUNCTION shot_noise(k,L,n)
+  FUNCTION shot_noise_simple(L,n)
 
+    !Calculate simulation shot noise
+    USE constants
+    IMPLICIT NONE
+    REAL :: shot_noise_simple
+    REAL, INTENT(IN) :: L
+    INTEGER*8, INTENT(IN) :: n
+
+    !Calculate number density
+    shot_noise_simple=L**3/REAL(n)
+
+  END FUNCTION shot_noise_simple
+
+  FUNCTION shot_noise(L,m,n)
+
+    !Calculate simulation shot noise
     USE constants
     IMPLICIT NONE
     REAL :: shot_noise
-    REAL, INTENT(IN) :: k, L
+    REAL, INTENT(IN) :: m(n), L
     INTEGER, INTENT(IN) :: n
+    REAL :: Nbar
 
-    shot_noise=((L*k)**3)/(REAL(n)*2.*(pi**2))
-
+    !Calculate the effective mean number of tracers
+    Nbar=sum_double(m,n)**2/sum_double(m**2,n)
+    
+    !Calculate number density
+    shot_noise=L**3/Nbar
+    
   END FUNCTION shot_noise
 
-  SUBROUTINE write_power(k,D2,nbin,nk,np,L,outfile)
-
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: k(nk), D2(nk), L
-    INTEGER, INTENT(IN) :: nbin(nk), nk, np
-    CHARACTER(len=256), INTENT(IN) :: outfile
-    INTEGER :: i
-
-    WRITE(*,*) 'WRITE_POWER: Output file: ', TRIM(outfile)
-    OPEN(7,file=outfile)
-    DO i=1,nk
-       !WRITE(*,*) i
-       IF(nbin(i)==0) THEN
-          CYCLE
-       ELSE
-          WRITE(7,*) k(i), D2(i), shot_noise(k(i),L,np), nbin(i)
-       END IF
-    END DO
-    CLOSE(7)
-    WRITE(*,*) 'WRITE_POWER: Done'
-    WRITE(*,*)
-
-  END SUBROUTINE write_power
+!!$  SUBROUTINE write_power(k,D2,nbin,nk,np,L,outfile)
+!!$
+!!$    IMPLICIT NONE
+!!$    REAL, INTENT(IN) :: k(nk), D2(nk), L
+!!$    INTEGER, INTENT(IN) :: nbin(nk), nk, np
+!!$    CHARACTER(len=256), INTENT(IN) :: outfile
+!!$    INTEGER :: i
+!!$
+!!$    WRITE(*,*) 'WRITE_POWER: Output file: ', TRIM(outfile)
+!!$    OPEN(7,file=outfile)
+!!$    DO i=1,nk
+!!$       !WRITE(*,*) i
+!!$       IF(nbin(i)==0) THEN
+!!$          CYCLE
+!!$       ELSE
+!!$          WRITE(7,*) k(i), D2(i), shot_noise(k(i),L,np), nbin(i)
+!!$       END IF
+!!$    END DO
+!!$    CLOSE(7)
+!!$    WRITE(*,*) 'WRITE_POWER: Done'
+!!$    WRITE(*,*)
+!!$
+!!$  END SUBROUTINE write_power
   
 END MODULE gadget

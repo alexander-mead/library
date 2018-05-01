@@ -44,7 +44,7 @@ CONTAINS
 
   FUNCTION wk_tophat(x)
 
-    !The normlaised Fourier Transform of a top-hat
+    !The normlaised Fourier Transform of a spherical top-hat
     IMPLICIT NONE
     REAL :: wk_tophat
     REAL, INTENT(IN) :: x
@@ -265,6 +265,7 @@ CONTAINS
 
   FUNCTION Bessel(n,x)
 
+    !A Bessel function of order 'n'
     IMPLICIT NONE
     REAL :: Bessel
     REAL :: x
@@ -292,5 +293,45 @@ CONTAINS
     END IF
 
   END FUNCTION Bessel
+
+  FUNCTION Gaussian(x,mu,sigma)
+
+    !A normalised Gaussian
+    IMPLICIT NONE
+    REAL :: Gaussian
+    REAL, INTENT(IN) :: x, mu, sigma
+    REAL :: f1, f2
+    
+    f1=exp(-((x-mu)**2)/(2.*sigma**2))
+    f2=sigma*sqrt(2.*pi)
+
+    Gaussian=f1/f2
+    
+  END FUNCTION Gaussian
+
+  FUNCTION lognormal(x,mu,sigma)
+
+    !A normalised lognormal [x: 0->inf]
+    IMPLICIT NONE
+    REAL :: lognormal
+    REAL, INTENT(IN) :: x, mu, sigma
+
+    lognormal=Gaussian(log(x),log(mu),log(sigma))/x
+
+  END FUNCTION lognormal
+
+  FUNCTION uniform(x,x1,x2)
+
+    IMPLICIT NONE
+    REAL :: uniform
+    REAL, INTENT(IN) :: x, x1, x2
+
+    IF(x<x1 .OR. x>x2) THEN
+       uniform=0.
+    ELSE
+       uniform=1./(x2-x1)
+    END IF
+    
+  END FUNCTION uniform
 
 END MODULE special_functions

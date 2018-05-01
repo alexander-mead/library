@@ -65,7 +65,7 @@ libs+=('fft')
 libs+=('gadget')
 libs+=('owls')
 libs+=('field_operations')
-libs+=('cosmology')
+libs+=('cosmology_functions')
 
 #Numerical recipes
 #nr='/Users/Mead/Physics/numerical_recipes/recipes_compiled'

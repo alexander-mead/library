@@ -265,24 +265,21 @@ CONTAINS
 !!$
 !!$  END SUBROUTINE fill_linear
 
-  SUBROUTINE merge_arrays(a,b,c)
-
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: a(:), b(:)
-    REAL, ALLOCATABLE, INTENT(OUT) :: c(:)
-    INTEGER :: i, na, nb, nc
+  SUBROUTINE merge_arrays(a,na,b,nb,c,nc)
 
     !Takes arrays a and b and merges them together to make c
     !with length SIZE(a)+SIZE(b)
-
-    na=SIZE(a)
-    nb=SIZE(b)
-
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a(na), b(nb)
+    REAL, ALLOCATABLE, INTENT(OUT) :: c(:)
+    INTEGER, INTENT(IN) :: na, nb
+    INTEGER, INTENT(OUT) :: nc
+    INTEGER :: i
+    
     nc=na+nb
 
     IF(ALLOCATED(c)) DEALLOCATE(c)
     ALLOCATE(c(nc))
-    c=0.
 
     DO i=1,na
        c(i)=a(i)
@@ -293,6 +290,25 @@ CONTAINS
     END DO
 
   END SUBROUTINE merge_arrays
+
+  FUNCTION concatenate_arrays(a,na,b,nb)
+
+    !Concatenate arrays a and b to form new array with length SIZE(a)+SIZE(b)
+    IMPLICIT NONE
+    REAL :: concatenate_arrays(na+nb)
+    REAL, INTENT(IN) :: a(na), b(nb)
+    INTEGER, INTENT(IN) :: na, nb
+    INTEGER :: i
+
+    DO i=1,na
+       concatenate_arrays(i)=a(i)
+    END DO
+
+    DO i=1,nb
+       concatenate_arrays(i+na)=b(i)
+    END DO
+
+  END FUNCTION concatenate_arrays
 
   SUBROUTINE fill_array(min,max,arr,n)
 

@@ -54,6 +54,7 @@ CONTAINS
        
        WRITE(*,*) 'READ_MCCARTHY: Minimum particle mass [Msun/h]:', MINVAL(m)
        WRITE(*,*) 'READ_MCCARTHY: Maximum particle mass [Msun/h]:', MAXVAL(m)
+       WRITE(*,*) 'READ_MCCARTHY: Total particle mass [Msun/h]:', SUM(m)
        WRITE(*,*) 'READ_MCCARTHY: Minimum x coordinate [Mpc/h]:', MINVAL(x(1,:))
        WRITE(*,*) 'READ_MCCARTHY: Minimum x coordinate [Mpc/h]:', MAXVAL(x(1,:))
        WRITE(*,*) 'READ_MCCARTHY: Minimum y coordinate [Mpc/h]:', MINVAL(x(2,:))
@@ -130,17 +131,23 @@ CONTAINS
 
   END SUBROUTINE read_mccarthy_gas
 
-  SUBROUTINE convert_kT_to_pressure(kT,mass,n,L,h,m)
+  SUBROUTINE convert_kT_to_electron_pressure(kT,nh,mass,n,L,h,m)
 
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: kT(n)
-    REAL, INTENT(IN) :: mass(n), L, h
+    REAL, INTENT(IN) :: mass(n), nh(n), L, h
     INTEGER, INTENT(IN) :: n, m
     REAL :: V
     DOUBLE PRECISION :: units, kT_dble(n)
+    
+    LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. !Apply a cut in hydrogen density
+    REAL, PARAMETER :: nh_cut=0.1 !Cut in the hydrogen number density [cm^-3]
+
+    !Exclude gas that is sufficiently dense to not be ionised and be forming stars
+    IF(apply_nh_cut) CALL exclude_nh(nh_cut,kT,nh,n)
 
     !Use double precision because all the constants are dreadful
-    kT_dble=kT
+    kT_dble=kT  
 
     !Convert to particle internal energy that needs to be mapped to grid [eV*Msun]
     kT_dble=kT_dble*(mass/mu)*Xe/(Xe+Xi)
@@ -164,9 +171,9 @@ CONTAINS
     kT_dble=kT_dble*units
 
     !Go back to single precision
-    kT=kT_dble
+    kT=REAL(kT_dble)
 
-  END SUBROUTINE convert_kT_to_pressure
+  END SUBROUTINE convert_kT_to_electron_pressure
   
 !!$  SUBROUTINE read_mccarthy_gas_old(x,m,ep,nh,n,infile)
 !!$
@@ -235,7 +242,7 @@ CONTAINS
 
   END SUBROUTINE write_mccarthy
 
-   SUBROUTINE exclude_nh(nhcut,ep,nh,n)
+  SUBROUTINE exclude_nh(nhcut,ep,nh,n)
 
     !Set the electron pressure to zero of any particle that has nh > nhcut
     IMPLICIT NONE

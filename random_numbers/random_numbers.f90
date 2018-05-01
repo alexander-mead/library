@@ -1,5 +1,7 @@
 MODULE random_numbers
 
+  USE constants
+  
   IMPLICIT NONE
   
 CONTAINS
@@ -51,83 +53,81 @@ CONTAINS
 
   END FUNCTION random_integer
 
-  FUNCTION uniform(x1,x2)
+  FUNCTION random_uniform(x1,x2)
 
     !Produces a uniform random number between x1 and x2
     IMPLICIT NONE
-    REAL :: uniform
+    REAL :: random_uniform
     REAL, INTENT(IN) :: x1,x2
     REAL :: rand !I think this needs to be definted for ifort
 
     !Rand is some inbuilt function
-    uniform=x1+(x2-x1)*(rand(0))
+    random_uniform=x1+(x2-x1)*(rand(0))
 
-  END FUNCTION uniform
+  END FUNCTION random_uniform
 
-  FUNCTION Rayleigh(sigma)
+  FUNCTION random_Rayleigh(sigma)
 
     !Produces a Rayleigh-distributed random number
     IMPLICIT NONE
-    REAL :: Rayleigh
+    REAL :: random_Rayleigh
     REAL, INTENT(IN) :: sigma
     REAL, PARAMETER :: small=1e-10
 
     !Problems if small=0. because log(0.) gets called sometimes
-    Rayleigh=sigma*sqrt(-2.*log(uniform(small,1.)))
+    random_Rayleigh=sigma*sqrt(-2.*log(random_uniform(small,1.)))
 
-  END FUNCTION Rayleigh
+  END FUNCTION random_Rayleigh
 
-  FUNCTION Lorentzian()
+  FUNCTION random_Lorentzian()
 
     !Produces a Lorentzian-distributed random number
     IMPLICIT NONE
-    REAL :: Lorentzian
-    REAL, PARAMETER :: pi=3.141592654
+    REAL :: random_Lorentzian
 
-    Lorentzian=tan(uniform(0.,pi/2.))
+    random_Lorentzian=tan(random_uniform(0.,pi/2.))
 
-  END FUNCTION Lorentzian
+  END FUNCTION random_Lorentzian
 
-  FUNCTION Gaussian(mean,sigma)
+  FUNCTION random_Gaussian(mean,sigma)
 
     !This is wasteful as r*sin(theta) is also Gaussian (independantly)!
     !Could be converted to a fuction with two outputs
 
     IMPLICIT NONE
-    REAL :: Gaussian
+    REAL :: random_Gaussian
     REAL, INTENT(IN) :: mean, sigma
     REAL :: r, theta
-    REAL, PARAMETER :: pi=3.141592654
 
-    r=Rayleigh(sigma)
-    theta=uniform(0.,2.*pi)
+    r=random_Rayleigh(sigma)
+    theta=random_uniform(0.,2.*pi)
 
     !Both of these numbers are Gaussian
-    !   Gaussian=r*sin(theta)+mean
-    Gaussian=r*cos(theta)+mean
+    !random_Gaussian=r*sin(theta)+mean
+    random_Gaussian=r*cos(theta)+mean
 
-  END FUNCTION Gaussian
+  END FUNCTION random_Gaussian
 
-  FUNCTION Poisson(mean)
+  FUNCTION random_Poisson(mean)
 
     !Produces a Poisson-distributed random number
     IMPLICIT NONE
-    REAL :: Poisson
+    REAL :: random_Poisson
     REAL, INTENT(IN) :: mean
     REAL, PARAMETER :: small=1e-10
 
-    !There will be problems here is log(0) is ever called
-    poisson=-mean*log(uniform(small,1.))
+    !small is introducted because there will be problems here if log(0) is ever called
+    random_Poisson=-mean*log(random_uniform(small,1.))
 
-  END FUNCTION Poisson
+  END FUNCTION random_Poisson
 
-  FUNCTION polynomial(n)
+  FUNCTION random_polynomial(n)
 
     IMPLICIT NONE
-    REAL :: polynomial, n
+    REAL :: random_polynomial, n
 
-    polynomial=(uniform(0.,1.))**(1./(n+1))
+    random_polynomial=(random_uniform(0.,1.))**(1./(n+1))
 
-  END FUNCTION polynomial
+  END FUNCTION random_polynomial
 
 END MODULE random_numbers

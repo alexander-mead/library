@@ -205,113 +205,113 @@ CONTAINS
 
   END FUNCTION integrate_basic
 
-  FUNCTION integrate_old(a,b,f,acc,iorder)
-
-    !Integrates between a and b until desired accuracy is reached
-    IMPLICIT NONE
-    REAL :: integrate_old
-    REAL, INTENT(IN) :: a, b, acc
-    INTEGER, INTENT(IN) :: iorder
-    INTEGER :: i, j
-    INTEGER :: n
-    REAL :: x, weight, dx
-    DOUBLE PRECISION :: sum1, sum2
-    INTEGER, PARAMETER :: jmax=20
-    INTEGER, PARAMETER :: ninit=8
-
-    INTERFACE
-       FUNCTION f(x)
-         REAL :: f
-         REAL, INTENT(IN) :: x
-       END FUNCTION f
-    END INTERFACE
-
-    IF(a==b) THEN
-
-       integrate_old=0.
-
-    ELSE
-
-       !Set the sum variables
-       sum1=0.d0
-       sum2=0.d0
-
-       DO j=1,jmax
-
-          n=ninit*(2**(j-1))+1
-
-          DO i=1,n
-
-             x=a+(b-a)*REAL(i-1)/REAL(n-1)
-
-             IF(iorder==1) THEN
-                !Composite trapezium weights
-                IF(i==1 .OR. i==n) THEN
-                   weight=0.5
-                ELSE
-                   weight=1.
-                END IF
-             ELSE IF(iorder==2) THEN
-                !Composite extended formula weights
-                IF(i==1 .OR. i==n) THEN
-                   weight=0.416666666666666666
-                ELSE IF(i==2 .OR. i==n-1) THEN
-                   weight=1.083333333333333333
-                ELSE
-                   weight=1.
-                END IF
-             ELSE IF(iorder==3) THEN
-                !Composite Simpson weights
-                IF(i==1 .OR. i==n) THEN
-                   weight=0.375
-                ELSE IF(i==2 .OR. i==n-1) THEN
-                   weight=1.166666666666666666
-                ELSE IF(i==3 .OR. i==n-2) THEN
-                   weight=0.958333333333333333
-                ELSE
-                   weight=1.
-                END IF
-             ELSE IF(iorder==4) THEN
-                !Mead weights, these are less good than the composite Simpson above
-                IF(i==1 .OR. i==n) THEN
-                   weight=0.458333333333333333
-                !ELSE IF(i==2 .OR. i==n-1) THEN
-                !   weight=1.
-                ELSE IF(i==3 .OR. i==n-2) THEN
-                   weight=1.041666666666666666
-                ELSE
-                   weight=1.
-                END IF
-             ELSE
-                STOP 'INTEGERATE: Error, order specified incorrectly'
-             END IF
-             
-             sum2=sum2+weight*f(x)
-
-          END DO
-
-          dx=(b-a)/REAL(n-1)
-          sum2=sum2*dx
-
-          IF(j .NE. 1 .AND. ABS(-1.d0+sum2/sum1)<acc) THEN
-             !integrate_old=REAL(sum2)
-             !WRITE(*,*) 'INTEGRATE_OLD: Order:', iorder
-             !WRITE(*,*) 'INTEGRATE_OLD: Nint:', n
-             EXIT
-          ELSE IF(j==jmax) THEN
-             STOP 'INTEGRATE_OLD: Integration timed out'
-          ELSE
-             sum1=sum2
-             sum2=0.d0
-          END IF
-
-       END DO
-
-       integrate_old=REAL(sum2)
-
-    END IF
-
-  END FUNCTION integrate_old
+!!$  FUNCTION integrate_old(a,b,f,acc,iorder)
+!!$
+!!$    !Integrates between a and b until desired accuracy is reached
+!!$    IMPLICIT NONE
+!!$    REAL :: integrate_old
+!!$    REAL, INTENT(IN) :: a, b, acc
+!!$    INTEGER, INTENT(IN) :: iorder
+!!$    INTEGER :: i, j
+!!$    INTEGER :: n
+!!$    REAL :: x, weight, dx
+!!$    DOUBLE PRECISION :: sum1, sum2
+!!$    INTEGER, PARAMETER :: jmax=20
+!!$    INTEGER, PARAMETER :: ninit=8
+!!$
+!!$    INTERFACE
+!!$       FUNCTION f(x)
+!!$         REAL :: f
+!!$         REAL, INTENT(IN) :: x
+!!$       END FUNCTION f
+!!$    END INTERFACE
+!!$
+!!$    IF(a==b) THEN
+!!$
+!!$       integrate_old=0.
+!!$
+!!$    ELSE
+!!$
+!!$       !Set the sum variables
+!!$       sum1=0.d0
+!!$       sum2=0.d0
+!!$
+!!$       DO j=1,jmax
+!!$
+!!$          n=ninit*(2**(j-1))+1
+!!$
+!!$          DO i=1,n
+!!$
+!!$             x=a+(b-a)*REAL(i-1)/REAL(n-1)
+!!$
+!!$             IF(iorder==1) THEN
+!!$                !Composite trapezium weights
+!!$                IF(i==1 .OR. i==n) THEN
+!!$                   weight=0.5
+!!$                ELSE
+!!$                   weight=1.
+!!$                END IF
+!!$             ELSE IF(iorder==2) THEN
+!!$                !Composite extended formula weights
+!!$                IF(i==1 .OR. i==n) THEN
+!!$                   weight=0.416666666666666666
+!!$                ELSE IF(i==2 .OR. i==n-1) THEN
+!!$                   weight=1.083333333333333333
+!!$                ELSE
+!!$                   weight=1.
+!!$                END IF
+!!$             ELSE IF(iorder==3) THEN
+!!$                !Composite Simpson weights
+!!$                IF(i==1 .OR. i==n) THEN
+!!$                   weight=0.375
+!!$                ELSE IF(i==2 .OR. i==n-1) THEN
+!!$                   weight=1.166666666666666666
+!!$                ELSE IF(i==3 .OR. i==n-2) THEN
+!!$                   weight=0.958333333333333333
+!!$                ELSE
+!!$                   weight=1.
+!!$                END IF
+!!$             ELSE IF(iorder==4) THEN
+!!$                !Mead weights, these are less good than the composite Simpson above
+!!$                IF(i==1 .OR. i==n) THEN
+!!$                   weight=0.458333333333333333
+!!$                !ELSE IF(i==2 .OR. i==n-1) THEN
+!!$                !   weight=1.
+!!$                ELSE IF(i==3 .OR. i==n-2) THEN
+!!$                   weight=1.041666666666666666
+!!$                ELSE
+!!$                   weight=1.
+!!$                END IF
+!!$             ELSE
+!!$                STOP 'INTEGERATE: Error, order specified incorrectly'
+!!$             END IF
+!!$             
+!!$             sum2=sum2+weight*f(x)
+!!$
+!!$          END DO
+!!$
+!!$          dx=(b-a)/REAL(n-1)
+!!$          sum2=sum2*dx
+!!$
+!!$          IF(j .NE. 1 .AND. ABS(-1.d0+sum2/sum1)<acc) THEN
+!!$             !integrate_old=REAL(sum2)
+!!$             !WRITE(*,*) 'INTEGRATE_OLD: Order:', iorder
+!!$             !WRITE(*,*) 'INTEGRATE_OLD: Nint:', n
+!!$             EXIT
+!!$          ELSE IF(j==jmax) THEN
+!!$             STOP 'INTEGRATE_OLD: Integration timed out'
+!!$          ELSE
+!!$             sum1=sum2
+!!$             sum2=0.d0
+!!$          END IF
+!!$
+!!$       END DO
+!!$
+!!$       integrate_old=REAL(sum2)
+!!$
+!!$    END IF
+!!$
+!!$  END FUNCTION integrate_old
 
   FUNCTION integrate(a,b,f,acc,iorder)
 
