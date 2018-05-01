@@ -1,0 +1,6 @@
+BACKUP
+OLD
+*.mod
+*/*.e
+*/OLD
+*/BACKUP

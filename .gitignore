@@ -1,11 +1,7 @@
 BACKUP
 OLD
+MERGE
 *.mod
-*/*.e
-*/OLD
-*/BACKUP
-*~
-*/*.dat
+*.e
+*.f90~
 meadlib
-adaptive_grid
-down_sample

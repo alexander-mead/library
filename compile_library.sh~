@@ -65,7 +65,7 @@ libs+=('fft')
 libs+=('gadget')
 libs+=('owls')
 libs+=('field_operations')
-libs+=('cosmology_functions')
+libs+=('cosmology')
 
 #Numerical recipes
 #nr='/Users/Mead/Physics/numerical_recipes/recipes_compiled'
@@ -92,11 +92,9 @@ fi
 for i in "${libs[@]}"; do
     echo 'Compiling:' $i
     if [ $fast_slow -eq 1 ]; then
-	#$compiler $i/$i.f90 $normal -lfftw3 -O3 -c
-	$compiler $i.f90 $normal -O3 -c
+	$compiler $i/$i.f90 $normal -lfftw3 -O3 -c
     else
-	#$compiler $i/$i.f90 $normal $slow -lfftw3 -c
-	$compiler $i.f90 $normal $slow -c
+	$compiler $i/$i.f90 $normal $slow -lfftw3 -c
     fi
 done
 
