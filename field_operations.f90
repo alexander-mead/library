@@ -17,7 +17,7 @@ CONTAINS
     !Output unformatted data
     WRITE(*,*) 'READ_FIELD: Binary input: ', TRIM(infile)
     WRITE(*,*) 'READ_FIELD: Mesh size:', m
-    OPEN(7,file=infile,form='unformatted')
+    OPEN(7,file=infile,form='unformatted',access='stream') !CAREFUL - I added access='stream' without checking
     READ(7) d
     CLOSE(7)
     WRITE(*,*) 'READ_FIELD: Minval:', MINVAL(d)
@@ -44,7 +44,7 @@ CONTAINS
     !Input unformatted data
     WRITE(*,*) 'READ_FIELD: Binary input: ', TRIM(infile)
     WRITE(*,*) 'READ_FIELD: Mesh size:', m
-    OPEN(7,file=infile,form='unformatted',access='stream')
+    OPEN(7,file=infile,form='unformatted',access='stream') !CAREFUL - I added access='stream' without checking
     READ(7) d8
     CLOSE(7)
     d=REAL(d8)
@@ -70,7 +70,8 @@ CONTAINS
     WRITE(*,*) 'WRITE_FIELD: Mesh size:', m
     WRITE(*,*) 'WRITE_FIELD: Minval:', MINVAL(d)
     WRITE(*,*) 'WRITE_FIELD: Maxval:', MAXVAL(d)
-    OPEN(7,file=outfile,form='unformatted',access='stream')
+    WRITE(*,*) 'WRITE_FIELD: Using new version with access=stream'
+    OPEN(7,file=outfile,form='unformatted',access='stream') !CAREFUL - I added access='stream' without checking
     WRITE(7) d
     CLOSE(7)
     WRITE(*,*) 'WRITE_FIELD: Done'

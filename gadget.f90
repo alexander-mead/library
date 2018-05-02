@@ -50,7 +50,7 @@ CONTAINS
     ALLOCATE(x(3,n),v(3,n),id(n))
 
     !Read in the binary data, skip the header line
-    OPEN(7,file=infile,form='unformatted')
+    OPEN(7,file=infile,form='unformatted',status='old') !CAREFUL - I added status='old' without checking
     READ(7)
     READ(7) x
     READ(7) v
