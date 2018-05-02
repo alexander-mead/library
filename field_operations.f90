@@ -70,7 +70,7 @@ CONTAINS
     WRITE(*,*) 'WRITE_FIELD: Mesh size:', m
     WRITE(*,*) 'WRITE_FIELD: Minval:', MINVAL(d)
     WRITE(*,*) 'WRITE_FIELD: Maxval:', MAXVAL(d)
-    OPEN(7,file=outfile,form='unformatted')
+    OPEN(7,file=outfile,form='unformatted',access='stream')
     WRITE(7) d
     CLOSE(7)
     WRITE(*,*) 'WRITE_FIELD: Done'

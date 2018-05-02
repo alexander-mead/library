@@ -34,24 +34,23 @@ MODULE table_integer
     INTEGER :: linear_table_integer
     INTEGER, INTENT(IN) :: n
     REAL, INTENT(IN) :: x, xtab(n)
-    REAL :: x1, x2, xn
-    REAL :: acc
+    REAL :: x1, xn
+    
+    !REAL, PARAMETER :: acc=1e-3 !Test for linear table
 
     !Returns the integer (table position) below the value of x
     !eg. if x(3)=6. and x(4)=7. and x=6.5 this will return 6
     !Assumes table is organised linearly (care for logs)
 
-    !n=SIZE(xtab)
+    !Tests for linear table integer
+    !x1=xtab(1)
+    !x2=xtab(2)
+    !xn=xtab(n)
+    !IF(x1>xn) STOP 'LINEAR_TABLE_INTEGER: Error, table in the wrong order'
+    !IF(ABS(-1.+float(n-1)*(x2-x1)/(xn-x1))>acc) STOP 'LINEAR_TABLE_INTEGER: Error, table does not seem to be linear'
+
     x1=xtab(1)
-    x2=xtab(2)
     xn=xtab(n)
-
-    !Test for linear table
-    acc=0.001
-
-    IF(x1>xn) STOP 'LINEAR_TABLE_INTEGER :: table in the wrong order'
-    IF(ABS(-1.+float(n-1)*(x2-x1)/(xn-x1))>acc) STOP 'LINEAR_TABLE_INTEGER :: table does not seem to be linear'
-
     linear_table_integer=1+FLOOR(float(n-1)*(x-x1)/(xn-x1))
 
   END FUNCTION linear_table_integer

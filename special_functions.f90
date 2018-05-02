@@ -309,14 +309,14 @@ CONTAINS
     
   END FUNCTION Gaussian
 
-  FUNCTION lognormal(x,mu,sigma)
+  FUNCTION lognormal(x,mu,siglog)
 
     !A normalised lognormal [x: 0->inf]
     IMPLICIT NONE
     REAL :: lognormal
-    REAL, INTENT(IN) :: x, mu, sigma
+    REAL, INTENT(IN) :: x, mu, siglog
 
-    lognormal=Gaussian(log(x),log(mu),log(sigma))/x
+    lognormal=Gaussian(log(x),log(mu),siglog)/x
 
   END FUNCTION lognormal
 
