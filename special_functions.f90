@@ -322,6 +322,7 @@ CONTAINS
 
   FUNCTION uniform(x,x1,x2)
 
+    !A normalised one-dimensional top-hat function between x1 and x2
     IMPLICIT NONE
     REAL :: uniform
     REAL, INTENT(IN) :: x, x1, x2
@@ -333,5 +334,60 @@ CONTAINS
     END IF
     
   END FUNCTION uniform
+
+  FUNCTION Rayleigh(x,sigma)
+
+    !A normalised Rayleigh distribution
+    IMPLICIT NONE
+    REAL :: Rayleigh
+    REAL, INTENT(IN) :: x, sigma
+
+    Rayleigh=x*exp(-(x**2)/(2.*(sigma**2)))/(sigma**2)
+    
+  END FUNCTION Rayleigh
+
+  FUNCTION Poisson(n,nbar)
+
+    !The normalised discrete Poisson probability distribution
+    IMPLICIT NONE
+    REAL :: Poisson
+    INTEGER, INTENT(IN) :: n, nbar
+
+    Poisson=exp(-REAL(nbar))*(nbar**n)/factorial(n)
+    
+  END FUNCTION Poisson
+
+  FUNCTION exponential(x,mean)
+
+    !The normalised exponential distribution
+    IMPLICIT NONE
+    REAL :: exponential
+    REAL, INTENT(IN) :: x, mean
+
+    exponential=exp(-x/mean)/mean
+
+  END FUNCTION exponential
+
+  FUNCTION Lorentzian(x)
+
+    !A normalised Lorentzian distribution
+    IMPLICIT NONE
+    REAL :: Lorentzian
+    REAL, INTENT(IN) :: x
+
+    Lorentzian=2./(pi*(1.+x**2))
+    
+  END FUNCTION Lorentzian
+
+  FUNCTION polynomial(x,n)
+
+    !A normalised polynomial distribution [x:0->1]
+    IMPLICIT NONE
+    REAL :: polynomial
+    REAL, INTENT(IN) :: x, n
+
+    polynomial=(n+1.)*x**n
+
+  END FUNCTION polynomial
 
 END MODULE special_functions

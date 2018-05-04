@@ -90,12 +90,24 @@ CONTAINS
   END FUNCTION random_Lorentzian
 
   FUNCTION random_Gaussian(mean,sigma)
-
-    !This is wasteful as r*sin(theta) is also Gaussian (independantly)!
-    !Could be converted to a fuction with two outputs
-
+    
+    !Gets a single Gaussian random number
     IMPLICIT NONE
     REAL :: random_Gaussian
+    REAL, INTENT(IN) :: mean, sigma
+    REAL :: r, theta, G(2)
+
+    !This is wasteful as r*sin(theta) is also Gaussian (independantly)!
+    G=random_Gaussian_both(mean,sigma)
+    random_Gaussian=G(1)
+
+  END FUNCTION random_Gaussian
+
+  FUNCTION random_Gaussian_both(mean,sigma)
+    
+    !Gets a pair of Gaussian random numbers
+    IMPLICIT NONE
+    REAL :: random_Gaussian_both(2)
     REAL, INTENT(IN) :: mean, sigma
     REAL :: r, theta
 
@@ -103,26 +115,28 @@ CONTAINS
     theta=random_uniform(0.,2.*pi)
 
     !Both of these numbers are Gaussian
-    !random_Gaussian=r*sin(theta)+mean
-    random_Gaussian=r*cos(theta)+mean
+    random_Gaussian_both(1)=r*sin(theta)+mean
+    random_Gaussian_both(2)=r*cos(theta)+mean
 
-  END FUNCTION random_Gaussian
+  END FUNCTION random_Gaussian_both
 
-  FUNCTION random_Poisson(mean)
+  FUNCTION random_exponential(mean)
 
-    !Produces a Poisson-distributed random number
+    !Produces a exponentially-distributed random number
     IMPLICIT NONE
-    REAL :: random_Poisson
+    REAL :: random_exponential
     REAL, INTENT(IN) :: mean
-    REAL, PARAMETER :: small=1e-10
 
     !small is introducted because there will be problems here if log(0) is ever called
-    random_Poisson=-mean*log(random_uniform(small,1.))
+    REAL, PARAMETER :: small=1e-10
+  
+    random_exponential=-mean*log(random_uniform(small,1.))
 
-  END FUNCTION random_Poisson
+  END FUNCTION random_exponential
 
   FUNCTION random_polynomial(n)
 
+    !Generate a polynomailly distributed number [x:0->1]
     IMPLICIT NONE
     REAL :: random_polynomial, n
 
