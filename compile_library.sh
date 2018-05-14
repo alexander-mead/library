@@ -18,6 +18,9 @@ else
     exit 1
 fi
 
+#Print compiler version to screen
+$compiler --version
+
 #Check the fast-slow option is either 1 or 0
 fast_slow=$2
 if [ -z $fast_slow ]; then
