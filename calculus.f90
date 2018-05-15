@@ -326,6 +326,7 @@ CONTAINS
     REAL :: x, dx
     REAL :: f1, f2, fx
     DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+    
     INTEGER, PARAMETER :: jmin=5
     INTEGER, PARAMETER :: jmax=30
 
@@ -411,6 +412,103 @@ CONTAINS
 
   END FUNCTION integrate
 
+!!$  FUNCTION integrate_pointer(a,b,f,acc,iorder)
+!!$
+!!$    !Integrates between a and b until desired accuracy is reached
+!!$    !Stores information to reduce function calls
+!!$    IMPLICIT NONE
+!!$    REAL :: integrate_pointer
+!!$    REAL, INTENT(IN) :: a, b, acc
+!!$    INTEGER, INTENT(IN) :: iorder
+!!$    INTEGER :: i, j
+!!$    INTEGER :: n
+!!$    REAL :: x, dx
+!!$    REAL :: f1, f2, fx
+!!$    DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+!!$    INTEGER, PARAMETER :: jmin=5
+!!$    INTEGER, PARAMETER :: jmax=30
+!!$
+!!$    ABSTRACT INTERFACE
+!!$       FUNCTION f(x)
+!!$         REAL :: f
+!!$         REAL, INTENT(IN) :: x
+!!$       END FUNCTION f
+!!$    END INTERFACE
+!!$
+!!$    procedure (func), pointer :: f_ptr => null ()
+!!$
+!!$    IF(a==b) THEN
+!!$
+!!$       !Fix the answer to zero if the integration limits are identical
+!!$       integrate_pointer=0.
+!!$
+!!$    ELSE
+!!$
+!!$       !Set the sum variable for the integration
+!!$       sum_2n=0.d0
+!!$       sum_n=0.d0
+!!$       sum_old=0.d0
+!!$       sum_new=0.d0
+!!$
+!!$       DO j=1,jmax
+!!$          
+!!$          !Note, you need this to be 1+2**n for some integer n
+!!$          !j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+!!$          n=1+2**(j-1)
+!!$
+!!$          !Calculate the dx interval for this value of 'n'
+!!$          dx=(b-a)/REAL(n-1)
+!!$
+!!$          IF(j==1) THEN
+!!$             
+!!$             !The first go is just the trapezium of the end points
+!!$             f1=f(a)
+!!$             f2=f(b)
+!!$             sum_2n=0.5d0*(f1+f2)*dx
+!!$             sum_new=sum_2n
+!!$             
+!!$          ELSE
+!!$
+!!$             !Loop over only new even points to add these to the integral
+!!$             DO i=2,n,2
+!!$                x=a+(b-a)*REAL(i-1)/REAL(n-1)
+!!$                fx=f(x)
+!!$                sum_2n=sum_2n+fx
+!!$             END DO
+!!$
+!!$             !Now create the total using the old and new parts
+!!$             sum_2n=sum_n/2.d0+sum_2n*dx
+!!$
+!!$             !Now calculate the new sum depending on the integration order
+!!$             IF(iorder==1) THEN  
+!!$                sum_new=sum_2n
+!!$             ELSE IF(iorder==3) THEN         
+!!$                sum_new=(4.d0*sum_2n-sum_n)/3.d0 !This is Simpson's rule and cancels error
+!!$             ELSE
+!!$                STOP 'INTEGRATE_POINTER: Error, iorder specified incorrectly'
+!!$             END IF
+!!$
+!!$          END IF
+!!$
+!!$          IF((j>=jmin) .AND. (ABS(-1.d0+sum_new/sum_old)<acc)) THEN
+!!$             EXIT
+!!$          ELSE IF(j==jmax) THEN
+!!$             STOP 'INTEGRATE_POINTER: Integration timed out'
+!!$          ELSE
+!!$             !Integral has not converged so store old sums and reset sum variables
+!!$             sum_old=sum_new
+!!$             sum_n=sum_2n
+!!$             sum_2n=0.d0
+!!$          END IF
+!!$
+!!$       END DO
+!!$
+!!$       integrate_pointer=REAL(sum_new)
+!!$
+!!$    END IF
+!!$
+!!$  END FUNCTION integrate_pointer
+
   FUNCTION integrate_log(a,b,f,acc,iorder,ilog)
 
     !Integrates between a and b until desired accuracy is reached!
@@ -421,6 +519,7 @@ CONTAINS
     INTEGER :: i, j, n
     REAL :: x, weight, dx, lima, limb 
     DOUBLE PRECISION :: sum1, sum2
+    
     INTEGER, PARAMETER :: jmax=20
     INTEGER, PARAMETER :: ninit=8
 
@@ -540,6 +639,7 @@ CONTAINS
     REAL :: x1, x2, x3, x4
     REAL :: y1, y2, y3, y4
     DOUBLE PRECISION :: sum1, sum2
+    
     INTEGER, PARAMETER :: jmax=20
     INTEGER, PARAMETER :: ni=1
 
@@ -629,6 +729,7 @@ CONTAINS
     REAL :: dy, alim, blim
     REAL :: x, y, weight
     DOUBLE PRECISION :: sum1, sum2
+    
     INTEGER, PARAMETER :: jmax=20
     INTEGER, PARAMETER :: ninit=8
 
