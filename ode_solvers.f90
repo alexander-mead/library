@@ -6,41 +6,44 @@ CONTAINS
 
   SUBROUTINE ODE(x,v,t,ti,tf,xi,vi,fx,fv,n,imeth,ilog)
 
+    !Solves 2nd order ODE x''(t) from ti to tf and creates arrays of x, v, t values
+    !I have sometimes called this ODE_crass
+    !It has a fixed number of time steps, n
     IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:), v(:), t(:)
     REAL, INTENT(IN) :: xi, vi, ti, tf
-    INTEGER, INTENT(IN) :: imeth, n
+    INTEGER, INTENT(IN) :: n, imeth
     LOGICAL, INTENT(IN) :: ilog
-    REAL :: dt, x4, v4, t4
-    REAL :: kx1, kx2, kx3, kx4, kv1, kv2, kv3, kv4
-    REAL, ALLOCATABLE :: x(:), v(:), t(:)
+    !REAL :: dt, x4, v4, t4
+    !REAL :: kx1, kx2, kx3, kx4, kv1, kv2, kv3, kv4    
     DOUBLE PRECISION, ALLOCATABLE :: x8(:), v8(:), t8(:)
     INTEGER :: i
 
+    !imeth sets ODE solving method
+    !imeth = 1: Crude method
+    !imeth = 2: Mid-point method
+    !imeth = 3: Runge-Kutta
+    
     INTERFACE
-       
-       FUNCTION fx(xval,vval,tval)
+
+       !fx is what x' is equal to
+       FUNCTION fx(x,v,t)
          REAL :: fx
-         REAL, INTENT(IN) :: xval, tval, vval
+         REAL, INTENT(IN) :: x, v, t
        END FUNCTION fx
-       
-       FUNCTION fv(xval,vval,tval)
+
+       !fv is what v' is equal to
+       FUNCTION fv(x,v,t)
          REAL :: fv
-         REAL, INTENT(IN) :: xval, tval, vval
+         REAL, INTENT(IN) :: x, v, t
        END FUNCTION fv
        
     END INTERFACE
-    
-    !Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
-    !xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
-    !fx is what x' is equal to
-    !fv is what v' is equal to
-    !n is the number of time-steps used in the calculation (user defined, thus crass)
-    !imeth selects method
 
-    !This has not been tested very thoroughly
-
+    !Allocate arrays
     ALLOCATE(x8(n),v8(n),t8(n))
 
+    !xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
     x8(1)=xi
     v8(1)=vi
 
@@ -54,53 +57,55 @@ CONTAINS
 
     DO i=1,n-1
 
-       x4=REAL(x8(i))
-       v4=REAL(v8(i))
-       t4=REAL(t8(i))
+       CALL ODE_advance(x8(i),x8(i+1),v8(i),v8(i+1),t8(i),t8(i+1),fx,fv,imeth)
 
-       !Time steps are varible length in the log case
-       dt=REAL(t8(i+1)-t8(i))
-
-       IF(imeth==1) THEN
-
-          !Crude method!
-          kx1=dt*fx(x4,v4,t4)
-          kv1=dt*fv(x4,v4,t4)
-
-          x8(i+1)=x8(i)+kx1
-          v8(i+1)=v8(i)+kv1
-
-       ELSE IF(imeth==2) THEN
-
-          !Mid-point method!
-          kx1=dt*fx(x4,v4,t4)
-          kv1=dt*fv(x4,v4,t4)
-          kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-          kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-
-          x8(i+1)=x8(i)+kx2
-          v8(i+1)=v8(i)+kv2
-
-       ELSE IF(imeth==3) THEN
-
-          !RK4 (Holy Christ, this is so fast compared to above methods)!
-          kx1=dt*fx(x4,v4,t4)
-          kv1=dt*fv(x4,v4,t4)
-          kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-          kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-          kx3=dt*fx(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
-          kv3=dt*fv(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
-          kx4=dt*fx(x4+kx3,v4+kv3,t4+dt)
-          kv4=dt*fv(x4+kx3,v4+kv3,t4+dt)
-
-          x8(i+1)=x8(i)+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
-          v8(i+1)=v8(i)+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
-
-       ELSE
-
-          STOP 'ODE: Error, imeth specified incorrectly'
-
-       END IF
+!!$       x4=REAL(x8(i))
+!!$       v4=REAL(v8(i))
+!!$       t4=REAL(t8(i))
+!!$
+!!$       !Time steps are varible length in the log case
+!!$       dt=REAL(t8(i+1)-t8(i))
+!!$
+!!$       IF(imeth==1) THEN
+!!$
+!!$          !Crude method!
+!!$          kx1=dt*fx(x4,v4,t4)
+!!$          kv1=dt*fv(x4,v4,t4)
+!!$
+!!$          x8(i+1)=x8(i)+kx1
+!!$          v8(i+1)=v8(i)+kv1
+!!$
+!!$       ELSE IF(imeth==2) THEN
+!!$
+!!$          !Mid-point method!
+!!$          kx1=dt*fx(x4,v4,t4)
+!!$          kv1=dt*fv(x4,v4,t4)
+!!$          kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
+!!$          kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
+!!$
+!!$          x8(i+1)=x8(i)+kx2
+!!$          v8(i+1)=v8(i)+kv2
+!!$
+!!$       ELSE IF(imeth==3) THEN
+!!$
+!!$          !RK4 (Holy Christ, this is so fast compared to above methods)!
+!!$          kx1=dt*fx(x4,v4,t4)
+!!$          kv1=dt*fv(x4,v4,t4)
+!!$          kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
+!!$          kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
+!!$          kx3=dt*fx(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
+!!$          kv3=dt*fv(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
+!!$          kx4=dt*fx(x4+kx3,v4+kv3,t4+dt)
+!!$          kv4=dt*fv(x4+kx3,v4+kv3,t4+dt)
+!!$
+!!$          x8(i+1)=x8(i)+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
+!!$          v8(i+1)=v8(i)+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
+!!$
+!!$       ELSE
+!!$
+!!$          STOP 'ODE: Error, imeth specified incorrectly'
+!!$
+!!$       END IF
 
     END DO
 
@@ -115,36 +120,39 @@ CONTAINS
 
   SUBROUTINE ODE_adaptive(x,v,t,ti,tf,xi,vi,fx,fv,acc,imeth,ilog)
 
+    !Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
+    !acc is the desired accuracy across the entire solution
+    !time steps are increased until convergence is achieved
     IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:), t(:), v(:)
     REAL, INTENT(IN) :: xi, vi, ti, tf, acc
     INTEGER, INTENT(IN) :: imeth
     LOGICAL, INTENT(IN) :: ilog
-    REAL :: dt, x4, v4, t4
-    REAL :: kx1, kx2, kx3, kx4, kv1, kv2, kv3, kv4
-    DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)
-    REAL, ALLOCATABLE :: x(:), t(:), v(:)
+    !REAL :: dt, x4, v4, t4
+    !REAL :: kx1, kx2, kx3, kx4, kv1, kv2, kv3, kv4
+    DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)    
     INTEGER :: i, j, n, k, np, ifail, kn
    
     INTEGER, PARAMETER :: jmax=30
     INTEGER, PARAMETER :: ninit=100
 
-    !Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
-    !xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
-    !fx is what x' is equal to
-    !fv is what v' is equal to
-    !acc is the desired accuracy across the entire solution
-    !imeth selects method
+    !imeth sets ODE solving method
+    !imeth = 1: Crude method
+    !imeth = 2: Mid-point method
+    !imeth = 3: Runge-Kutta   
 
     INTERFACE
-       
-       FUNCTION fx(xval,vval,tval)
+
+       !fx is what x' is equal to
+       FUNCTION fx(x,v,t)
          REAL :: fx
-         REAL, INTENT(IN) :: xval, tval, vval
+         REAL, INTENT(IN) :: x, v, t
        END FUNCTION fx
-       
-       FUNCTION fv(xval,vval,tval)
+
+       !fv is what v' is equal to
+       FUNCTION fv(x,v,t)
          REAL :: fv
-         REAL, INTENT(IN) :: xval, tval, vval
+         REAL, INTENT(IN) :: x, v, t
        END FUNCTION fv
        
     END INTERFACE
@@ -159,6 +167,7 @@ CONTAINS
        v8=0.d0
        t8=0.d0
 
+       !xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
        x8(1)=xi
        v8(1)=vi
 
@@ -174,52 +183,54 @@ CONTAINS
 
        DO i=1,n-1
 
-          x4=REAL(x8(i))
-          v4=REAL(v8(i))
-          t4=REAL(t8(i))
-
-          dt=REAL(t8(i+1)-t8(i))
-
-          IF(imeth==1) THEN
-
-             !Crude method!
-             kx1=dt*fx(x4,v4,t4)
-             kv1=dt*fv(x4,v4,t4)
-             
-             x8(i+1)=x8(i)+kx1
-             v8(i+1)=v8(i)+kv1
-
-          ELSE IF(imeth==2) THEN
-
-             !Mid-point method!
-             kx1=dt*fx(x4,v4,t4)
-             kv1=dt*fv(x4,v4,t4)
-             kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-             kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-             
-             x8(i+1)=x8(i)+kx2
-             v8(i+1)=v8(i)+kv2
-
-          ELSE IF(imeth==3) THEN
-
-             !RK4 (Holy Christ, this is so fast compared to above methods)!
-             kx1=dt*fx(x4,v4,t4)
-             kv1=dt*fv(x4,v4,t4)
-             kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-             kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-             kx3=dt*fx(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
-             kv3=dt*fv(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
-             kx4=dt*fx(x4+kx3,v4+kv3,t4+dt)
-             kv4=dt*fv(x4+kx3,v4+kv3,t4+dt)
-
-             x8(i+1)=x8(i)+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
-             v8(i+1)=v8(i)+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
-
-          ELSE
-
-             STOP 'ODE: Error, imeth specified incorrectly'
-
-          END IF
+          CALL ODE_advance(x8(i),x8(i+1),v8(i),v8(i+1),t8(i),t8(i+1),fx,fv,imeth)
+          
+!!$          x4=REAL(x8(i))
+!!$          v4=REAL(v8(i))
+!!$          t4=REAL(t8(i))
+!!$
+!!$          dt=REAL(t8(i+1)-t8(i))
+!!$
+!!$          IF(imeth==1) THEN
+!!$
+!!$             !Crude method!
+!!$             kx1=dt*fx(x4,v4,t4)
+!!$             kv1=dt*fv(x4,v4,t4)
+!!$             
+!!$             x8(i+1)=x8(i)+kx1
+!!$             v8(i+1)=v8(i)+kv1
+!!$
+!!$          ELSE IF(imeth==2) THEN
+!!$
+!!$             !Mid-point method!
+!!$             kx1=dt*fx(x4,v4,t4)
+!!$             kv1=dt*fv(x4,v4,t4)
+!!$             kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
+!!$             kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
+!!$             
+!!$             x8(i+1)=x8(i)+kx2
+!!$             v8(i+1)=v8(i)+kv2
+!!$
+!!$          ELSE IF(imeth==3) THEN
+!!$
+!!$             !RK4 (Holy Christ, this is so fast compared to above methods)!
+!!$             kx1=dt*fx(x4,v4,t4)
+!!$             kv1=dt*fv(x4,v4,t4)
+!!$             kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
+!!$             kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
+!!$             kx3=dt*fx(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
+!!$             kv3=dt*fv(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
+!!$             kx4=dt*fx(x4+kx3,v4+kv3,t4+dt)
+!!$             kv4=dt*fv(x4+kx3,v4+kv3,t4+dt)
+!!$
+!!$             x8(i+1)=x8(i)+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
+!!$             v8(i+1)=v8(i)+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
+!!$
+!!$          ELSE
+!!$
+!!$             STOP 'ODE: Error, imeth specified incorrectly'
+!!$
+!!$          END IF
           
        END DO
 
@@ -268,5 +279,80 @@ CONTAINS
     END DO
 
   END SUBROUTINE ODE_adaptive
+
+  SUBROUTINE ODE_advance(x1,x2,v1,v2,t1,t2,fx,fv,imeth)
+
+    IMPLICIT NONE
+    DOUBLE PRECISION, INTENT(IN) :: x1, v1, t1, t2
+    DOUBLE PRECISION, INTENT(OUT) :: x2, v2
+    INTEGER, INTENT(IN) :: imeth
+    REAL :: x, v, t, dt
+    REAL :: kx1, kx2, kx3, kx4
+    REAL :: kv1, kv2, kv3, kv4
+
+     INTERFACE
+
+       !fx is what x' is equal to
+       FUNCTION fx(x,v,t)
+         REAL :: fx
+         REAL, INTENT(IN) :: x, v, t
+       END FUNCTION fx
+
+       !fv is what v' is equal to
+       FUNCTION fv(x,v,t)
+         REAL :: fv
+         REAL, INTENT(IN) :: x, v, t
+       END FUNCTION fv
+       
+    END INTERFACE
+    
+    x=REAL(x1)
+    v=REAL(v1)
+    t=REAL(t1)
+
+    dt=REAL(t2-t1)
+
+    IF(imeth==1) THEN
+
+       !Crude method!
+       kx1=dt*fx(x,v,t)
+       kv1=dt*fv(x,v,t)
+
+       x2=x1+kx1
+       v2=v1+kv1
+
+    ELSE IF(imeth==2) THEN
+
+       !Mid-point method!
+       kx1=dt*fx(x,v,t)
+       kv1=dt*fv(x,v,t)
+       kx2=dt*fx(x+kx1/2.,v+kv1/2.,t+dt/2.)
+       kv2=dt*fv(x+kx1/2.,v+kv1/2.,t+dt/2.)
+
+       x2=x1+kx2
+       v2=v1+kv2
+
+    ELSE IF(imeth==3) THEN
+
+       !RK4 (Holy Christ, this is so fast compared to above methods)!
+       kx1=dt*fx(x,v,t)
+       kv1=dt*fv(x,v,t)
+       kx2=dt*fx(x+kx1/2.,v+kv1/2.,t+dt/2.)
+       kv2=dt*fv(x+kx1/2.,v+kv1/2.,t+dt/2.)
+       kx3=dt*fx(x+kx2/2.,v+kv2/2.,t+dt/2.)
+       kv3=dt*fv(x+kx2/2.,v+kv2/2.,t+dt/2.)
+       kx4=dt*fx(x+kx3,v+kv3,t+dt)
+       kv4=dt*fv(x+kx3,v+kv3,t+dt)
+
+       x2=x1+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
+       v2=v1+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
+
+    ELSE
+
+       STOP 'ODE_ADVANCE: Error, imeth specified incorrectly'
+
+    END IF
+
+  END SUBROUTINE ODE_advance
 
 END MODULE ODE_solvers
