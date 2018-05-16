@@ -18,15 +18,16 @@ MODULE cosmology_functions
      REAL :: Om_ws, as, a1n, a2n !Derived DE parameters
      REAL :: alpha, eps, Gamma, M0, Astar, whim !Baryon parameters
      REAL :: mgal !HOD parameters
+     INTEGER :: iw !Switches
      REAL, ALLOCATABLE :: sigma(:), r_sigma(:) !Arrays for sigma(R)
      REAL, ALLOCATABLE :: a_growth(:), growth(:), growth_rate(:), acc_growth(:) !Arrays for growth
      REAL, ALLOCATABLE :: r(:), a_r(:) !Arrays for distance
      REAL, ALLOCATABLE :: plin(:), k_plin(:) !Arrays for input linear P(k)
-     INTEGER :: iw !Switches
-     INTEGER :: nsig, ng, nr, nplin !Array entries
+     REAL, ALLOCATABLE :: a_dcDv(:), dc(:), Dv(:) !Arrays for spherical-collapse parameters
+     INTEGER :: n_sigma, n_growth, n_r, nplin, n_dcDv !Array entries
      REAL :: gnorm
      CHARACTER(len=256) :: name = ""
-     LOGICAL :: has_distance, has_growth, has_sigma
+     LOGICAL :: has_distance, has_growth, has_sigma, has_spherical
      LOGICAL :: is_normalised, is_init, external_plin     
   END TYPE cosmology
 
@@ -109,8 +110,9 @@ CONTAINS
     cosm%has_distance=.FALSE.
     cosm%has_growth=.FALSE.
     cosm%has_sigma=.FALSE.
+    cosm%has_spherical=.FALSE.
     cosm%is_normalised=.FALSE.
-    cosm%external_plin=.FALSE.
+    cosm%external_plin=.FALSE.    
 
     IF(icosmo==0) THEN
        STOP 'Need to implement user decision here'
@@ -314,7 +316,7 @@ CONTAINS
     cosm%Om=cosm%Om_m+cosm%Om_v+cosm%Om_r+cosm%Om_w
     cosm%Om_k=1.-cosm%Om
     cosm%k=(cosm%Om-1.)/(Hdist**2)
-    
+
     IF(verbose_cosmology) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_c:', REAL(cosm%Om_c)
        WRITE(*,*) 'INIT_COSMOLOGY: Omega:', REAL(cosm%Om)
@@ -347,13 +349,13 @@ CONTAINS
        !a1=astar**nstar
        !Xstar=Xstar**(-nstar/6.)
        Xs=Xs**(cosm%ns/6.)
-            
+
        !Top and bottom of fraction
        !f1=2.-a1*Xstar*(1.+1./a1)
        !f2=Xstar*(1.+1./a1)-2.
        f1=cosm%a1n*(2.*Xs-(1.+cosm%a1n))
        f2=(1.+cosm%a1n)-2.*Xs*cosm%a1n
-       
+
        !Finally! a2
        cosm%a2n=f1/f2
        !IF(a2<a1) a2=a1
@@ -497,6 +499,17 @@ CONTAINS
 
   END FUNCTION Hubble2
 
+  FUNCTION Hubble2_norad(a,cosm)
+
+    IMPLICIT NONE
+    REAL :: Hubble2_norad
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(IN) :: cosm
+
+    Hubble2_norad=Hubble2(a,cosm)-cosm%Om_r*a**(-4)
+    
+  END FUNCTION Hubble2_norad
+
   FUNCTION Hubble2a4_highz(cosm)
 
     !Calculates Hubble^2a^4 in units such that H^2(z=0)=1.
@@ -526,6 +539,17 @@ CONTAINS
 
   END FUNCTION AH
 
+  FUNCTION AH_norad(a,cosm)
+
+    IMPLICIT NONE
+    REAL :: AH_norad
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(IN) :: cosm
+
+    AH_norad=AH(a,cosm)+cosm%Om_r*a**(-4)
+    
+  END FUNCTION AH_norad
+
   FUNCTION Omega_m(a,cosm)
 
     !This calculates Omega_m variations with z!
@@ -537,6 +561,18 @@ CONTAINS
     Omega_m=cosm%Om_m*a**(-3)/Hubble2(a,cosm)
 
   END FUNCTION Omega_m
+
+  FUNCTION Omega_m_norad(a,cosm)
+
+    !This calculates Omega_m variations with z!
+    IMPLICIT NONE
+    REAL :: Omega_m_norad
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(IN) :: cosm
+
+    Omega_m_norad=cosm%Om_m*a**(-3)/Hubble2_norad(a,cosm)
+
+  END FUNCTION Omega_m_norad
 
   FUNCTION Omega_nu(a,cosm)
 
@@ -694,7 +730,7 @@ CONTAINS
        w_de_total=w_de(a,cosm)*Omega_w(a,cosm)-Omega_v(a,cosm)
        w_de_total=w_de_total/(Omega_w(a,cosm)+Omega_v(a,cosm))
     END IF
-       
+
   END FUNCTION w_de_total
 
   FUNCTION w_eff(a,cosm)
@@ -713,7 +749,7 @@ CONTAINS
   END FUNCTION w_eff
 
   FUNCTION X_de(a,cosm)
-    
+
     !Redshift scaling for dark energy (i.e., if w=0 x(a)=a^-3, if w=-1 x(a)=const etc.)
     IMPLICIT NONE
     REAL :: X_de
@@ -755,27 +791,122 @@ CONTAINS
           STOP 'X_DE: Error, something went wrong'
        END IF
     ELSE
-       STOP 'X_DE: Error, iw not specified correctly'
+       !Generally true, doing this integration can make calculations very slow
+       !Difficult to implement into library because of cosm dependence of w_de
+       !See the commented out bit below
+       !X_de=(a**(-3))*exp(3.*integrate_log(a,1.,integrand_de,acc,3,1))
+       STOP 'X_DE: Error, this integration routine has not been tested'
+       X_de=(a**(-3))*exp(3.*integrate_de(a,1.,cosm,acc_cosm,3))
 !!$    ELSE
-!!$       !Generally true, doing this integration can make calculations very slow
-!!$       !Difficult to implement into library because of cosm dependence of w_de
-!!$       !See the commented out bit below
-!!$       !X_de=(a**(-3))*exp(3.*integrate_log(a,1.,integrand_de,acc,3,1))
+!!$       STOP 'X_DE: Error, iw not specified correctly'
     END IF
 
-!!$  FUNCTION integrand_de(a)!,cosm)
-!!$
-!!$    !The integrand for the X_de(a) integral
-!!$    IMPLICIT NONE
-!!$    REAL :: integrand_de
-!!$    REAL, INTENT(IN) :: a
-!!$    !TYPE(cosmology), INTENT(IN) :: cosm
-!!$
-!!$    integrand_de=w_de(a,cosm)/a
-!!$
-!!$  END FUNCTION integrand_de
-
   END FUNCTION X_de
+
+  FUNCTION integrand_de(a,cosm)
+
+    !The integrand for the X_de(a) integral
+    IMPLICIT NONE
+    REAL :: integrand_de
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(IN) :: cosm
+
+    integrand_de=w_de(a,cosm)/a
+
+  END FUNCTION integrand_de
+
+  FUNCTION integrate_de(a,b,cosm,acc,iorder)
+
+    !Integrates between a and b until desired accuracy is reached
+    !Stores information to reduce function calls
+    IMPLICIT NONE
+    REAL :: integrate_de
+    REAL, INTENT(IN) :: a, b, acc
+    TYPE(cosmology), INTENT(IN) :: cosm
+    INTEGER, INTENT(IN) :: iorder
+    INTEGER :: i, j
+    INTEGER :: n
+    REAL :: x, dx
+    REAL :: f1, f2, fx
+    DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+
+    INTEGER, PARAMETER :: jmin=5
+    INTEGER, PARAMETER :: jmax=30
+
+    IF(a==b) THEN
+
+       !Fix the answer to zero if the integration limits are identical
+       integrate_de=0.
+
+    ELSE
+
+       !Set the sum variable for the integration
+       sum_2n=0.d0
+       sum_n=0.d0
+       sum_old=0.d0
+       sum_new=0.d0
+
+       DO j=1,jmax
+
+          !Note, you need this to be 1+2**n for some integer n
+          !j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+          n=1+2**(j-1)
+
+          !Calculate the dx interval for this value of 'n'
+          dx=(b-a)/REAL(n-1)
+
+          IF(j==1) THEN
+
+             !The first go is just the trapezium of the end points
+             f1=integrand_de(a,cosm)
+             f2=integrand_de(b,cosm)
+             sum_2n=0.5d0*(f1+f2)*dx
+             sum_new=sum_2n
+
+          ELSE
+
+             !Loop over only new even points to add these to the integral
+             DO i=2,n,2
+                x=a+(b-a)*REAL(i-1)/REAL(n-1)
+                fx=integrand_de(x,cosm)
+                sum_2n=sum_2n+fx
+             END DO
+
+             !Now create the total using the old and new parts
+             sum_2n=sum_n/2.d0+sum_2n*dx
+
+             !Now calculate the new sum depending on the integration order
+             IF(iorder==1) THEN  
+                sum_new=sum_2n
+             ELSE IF(iorder==3) THEN         
+                sum_new=(4.d0*sum_2n-sum_n)/3.d0 !This is Simpson's rule and cancels error
+             ELSE
+                STOP 'INTEGRATE: Error, iorder specified incorrectly'
+             END IF
+
+          END IF
+
+          IF((j>=jmin) .AND. (ABS(-1.d0+sum_new/sum_old)<acc)) THEN
+             !jmin avoids spurious early convergence
+             !integrate=REAL(sum_new)
+             !WRITE(*,*) 'INTEGRATE: Nint:', n
+             EXIT
+          ELSE IF(j==jmax) THEN
+             STOP 'INTEGRATE: Integration timed out'
+          ELSE
+             !Integral has not converged so store old sums and reset sum variables
+             sum_old=sum_new
+             sum_n=sum_2n
+             sum_2n=0.d0
+          END IF
+
+       END DO
+
+       integrate_de=REAL(sum_new)
+
+    END IF
+
+  END FUNCTION integrate_de
 
   FUNCTION redshift_a(a)
 
@@ -822,7 +953,7 @@ CONTAINS
     REAL, INTENT(IN) :: r
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    redshift_r=redshift_a(find(r,cosm%r,cosm%a_r,cosm%nr,3,3,2))
+    redshift_r=redshift_a(find(r,cosm%r,cosm%a_r,cosm%n_r,3,3,2))
 
   END FUNCTION redshift_r
 
@@ -985,7 +1116,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%has_distance .EQV. .FALSE.) CALL init_distances(cosm)
-    comoving_distance=find(a,cosm%a_r,cosm%r,cosm%nr,3,3,2)
+    comoving_distance=find(a,cosm%a_r,cosm%r,cosm%n_r,3,3,2)
 
   END FUNCTION comoving_distance
 
@@ -1058,17 +1189,17 @@ CONTAINS
        WRITE(*,*) 'INIT_DISTANCE: minimum a:', REAL(amin)
        WRITE(*,*) 'INIT_DISTANCE: maximum a:', REAL(amax)
     END IF
-    cosm%nr=nr
-    CALL fill_array(amin,amax,cosm%a_r,cosm%nr)
+    cosm%n_r=nr
+    CALL fill_array(amin,amax,cosm%a_r,cosm%n_r)
     IF(ALLOCATED(cosm%r)) DEALLOCATE(cosm%r)
-    ALLOCATE(cosm%r(cosm%nr))
+    ALLOCATE(cosm%r(cosm%n_r))
 
     !Now do the r(z) calculation
-    DO i=1,cosm%nr
+    DO i=1,cosm%n_r
        cosm%r(i)=integrate_distance(cosm%a_r(i),1.,cosm,acc_cosm)
     END DO
     IF(verbose_cosmology) THEN
-       WRITE(*,*) 'INIT_DISTANCE: minimum r [Mpc/h]:', REAL(cosm%r(cosm%nr))
+       WRITE(*,*) 'INIT_DISTANCE: minimum r [Mpc/h]:', REAL(cosm%r(cosm%n_r))
        WRITE(*,*) 'INIT_DISTANCE: maximum r [Mpc/h]:', REAL(cosm%r(1))
     END IF
 
@@ -1097,7 +1228,7 @@ CONTAINS
     output='projection/distance.dat'
     WRITE(*,*) 'WRITE_DISTANCE: Writing r(a): ', TRIM(output)
     OPEN(7,file=output)
-    DO i=1,cosm%nr
+    DO i=1,cosm%n_r
        z=redshift_a(cosm%a_r(i))
        WRITE(7,*) z, cosm%r(i), f_k(cosm%r(i),cosm)
     END DO
@@ -1114,9 +1245,9 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     age_of_universe=cosmic_time(1.,cosm)
-    
+
   END FUNCTION age_of_universe
-  
+
   FUNCTION cosmic_time(a,cosm)
 
     !The age of the universe at scale-factor 'a'
@@ -1126,7 +1257,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     cosmic_time=integrate_time(0.,a,cosm,acc_cosm)
-    
+
   END FUNCTION cosmic_time
 
   FUNCTION look_back_time(a,cosm)
@@ -1138,7 +1269,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     look_back_time=integrate_time(a,1.,cosm,acc_cosm)
-    
+
   END FUNCTION look_back_time
 
   FUNCTION integrate_time(a,b,cosm,acc)
@@ -1444,13 +1575,13 @@ CONTAINS
     REAL, PARAMETER :: rsplit=1e-2 !Scale split between integration methods
 
     IF(cosm%is_normalised .EQV. .FALSE.) CALL normalise_power(cosm)
-    
+
     !These must be not allocated before sigma calculations otherwise when sigma(r) is called
     !otherwise sigma(R) looks for the result in the tables
     IF(ALLOCATED(cosm%r_sigma)) DEALLOCATE(cosm%r_sigma)
     IF(ALLOCATED(cosm%sigma))   DEALLOCATE(cosm%sigma)
 
-    cosm%nsig=nsig
+    cosm%n_sigma=nsig
     ALLOCATE(rtab(nsig),sigtab(nsig))
 
     IF(verbose_cosmology) THEN
@@ -1509,7 +1640,7 @@ CONTAINS
 
     IF(cosm%is_normalised .EQV. .FALSE.) CALL normalise_power(cosm)
     IF(cosm%has_sigma .EQV. .FALSE.) CALL init_sigma(cosm)
-    sigma=grow(a,cosm)*exp(find(log(r),cosm%r_sigma,cosm%sigma,cosm%nsig,3,3,2))
+    sigma=grow(a,cosm)*exp(find(log(r),cosm%r_sigma,cosm%sigma,cosm%n_sigma,3,3,2))
 
   END FUNCTION sigma
 
@@ -1906,7 +2037,7 @@ CONTAINS
 
     IF(cosm%is_normalised .EQV. .FALSE.) CALL normalise_power(cosm)
     sigmaV=sigmaV_integral(R,a,cosm,acc_cosm)
-    
+
   END FUNCTION sigmaV
 
   FUNCTION sigmaV_integral(R,a,cosm,acc)
@@ -2051,7 +2182,7 @@ CONTAINS
     IF(a==1.) THEN
        grow=1.
     ELSE       
-       grow=find(a,cosm%a_growth,cosm%growth,cosm%ng,3,3,2)
+       grow=exp(find(log(a),cosm%a_growth,cosm%growth,cosm%n_growth,3,3,2))
     END IF
 
   END FUNCTION grow
@@ -2063,10 +2194,9 @@ CONTAINS
     REAL :: ungrow
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
-
-    IF(cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)    
+   
     ungrow=cosm%gnorm*grow(a,cosm)
-    
+
   END FUNCTION ungrow
 
   FUNCTION growth_rate(a,cosm)
@@ -2078,8 +2208,8 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)    
-    growth_rate=find(a,cosm%a_growth,cosm%growth_rate,cosm%ng,3,3,2)
-    
+    growth_rate=exp(find(log(a),cosm%a_growth,cosm%growth_rate,cosm%n_growth,3,3,2))
+
   END FUNCTION growth_rate
 
   FUNCTION acc_growth(a,cosm)
@@ -2091,8 +2221,8 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)    
-    acc_growth=find(a,cosm%a_growth,cosm%acc_growth,cosm%ng,3,3,2)
-    
+    acc_growth=exp(find(log(a),cosm%a_growth,cosm%acc_growth,cosm%n_growth,3,3,2))
+
   END FUNCTION acc_growth
 
   FUNCTION growint(a,cosm,acc)
@@ -2212,7 +2342,7 @@ CONTAINS
     END IF
 
     !Note the minus sign here
-    growint_integrand=-(Omega_m(a,cosm)**gam)/a
+    growint_integrand=-(Omega_m_norad(a,cosm)**gam)/a
 
   END FUNCTION growint_integrand
 
@@ -2224,7 +2354,6 @@ CONTAINS
     IMPLICIT NONE
     !LOGICAL, INTENT(IN) :: verbose
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    TYPE(cosmology) :: cosm_norad
     INTEGER :: i, na
     REAL :: a, norm
     REAL, ALLOCATABLE :: d_tab(:), v_tab(:), a_tab(:)
@@ -2243,11 +2372,13 @@ CONTAINS
     dinit=ainit
     vinit=1.
 
-    cosm_norad=cosm
-    cosm_norad%Om_r=0.
+    !Setup a cosmology with no radiation parameter for this integration
+    !cosm_norad=cosm
+    !cosm_norad%Om_r=0.
 
     IF(verbose_cosmology) WRITE(*,*) 'INIT_GROWTH: Solving growth equation'
-    CALL ode_growth(d_tab,v_tab,a_tab,0.,ainit,amax,dinit,vinit,acc_cosm,3,cosm_norad)
+    !CALL ODE_adaptive_cosmology(d_tab,v_tab,0.,a_tab,cosm_norad,ainit,amax,dinit,vinit,fd,fv,acc_cosm,3,.FALSE.)
+    CALL ODE_adaptive_cosmology(d_tab,v_tab,0.,a_tab,cosm,ainit,amax,dinit,vinit,fd,fv,acc_cosm,3,.FALSE.)
     IF(verbose_cosmology) WRITE(*,*) 'INIT_GROWTH: ODE done'
     na=SIZE(a_tab)
 
@@ -2265,7 +2396,7 @@ CONTAINS
     IF(ALLOCATED(cosm%growth))      DEALLOCATE(cosm%growth)
     IF(ALLOCATED(cosm%growth_rate)) DEALLOCATE(cosm%growth_rate)
     IF(ALLOCATED(cosm%acc_growth))  DEALLOCATE(cosm%acc_growth)
-    cosm%ng=n
+    cosm%n_growth=n
 
     !This downsamples the tables that come out of the ODE solver (which can be a bit long)
     !Could use some table-interpolation routine here to save time
@@ -2283,122 +2414,604 @@ CONTAINS
 
     !Table integration to calculate G(a)=int_0^a g(a')/a' da'
     ALLOCATE(cosm%acc_growth(n))
+    cosm%acc_growth=0.
+    
     !Do the integral up to table position i
-    DO i=1,n    
+    !This fills the accumulated growth table
+    DO i=1,n
+
+       !Do the integral using the arrays
        IF(i>1) THEN
           cosm%acc_growth(i)=integrate_table(cosm%a_growth,cosm%gnorm*cosm%growth/cosm%a_growth,n,1,i,3)
        END IF
-       !Add on the section that is missing from the beginning
+       
+       !Them add on the section that is missing from the beginning
        !NB. g(a=0)/0 = 1, so you just add on a rectangle of height g*a/a=g
-       cosm%acc_growth(i)=cosm%acc_growth(i)+cosm%growth(1)
+       cosm%acc_growth(i)=cosm%acc_growth(i)+cosm%gnorm*cosm%growth(1)
+       !WRITE(*,*) i, cosm%a_growth(i), cosm%gnorm*cosm%growth(i), cosm%acc_growth(i)
+       
     END DO
+    !STOP
+
+    !Write some more stuff about accumulated growth to the screen
     bigG0=find(1.,cosm%a_growth,cosm%acc_growth,n,3,3,2)
     IF(verbose_cosmology) THEN
        WRITE(*,*) 'INIT_GROWTH: integrated growth at z=0:', bigG0
        WRITE(*,*)
     END IF
 
+    !Make the tables log for easier interpolation
+    cosm%a_growth=log(cosm%a_growth)
+    cosm%growth=log(cosm%growth)
+    cosm%growth_rate=log(cosm%growth_rate)
+    cosm%acc_growth=log(cosm%acc_growth)
+
+    !Set the flag to true so that this subroutine is only called once!
     cosm%has_growth=.TRUE.
 
   END SUBROUTINE init_growth
 
-  SUBROUTINE ode_growth(x,v,t,kk,ti,tf,xi,vi,acc,imeth,cosm)
+  FUNCTION fd(d,v,k,a,cosm)
 
-    !Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values 
+    !Needed for growth function solution
+    !This is the fd in \dot{\delta}=fd
     IMPLICIT NONE
-    REAL :: xi, ti, tf, dt, acc, vi, x4, v4, t4, kk
-    REAL :: kx1, kx2, kx3, kx4, kv1, kv2, kv3, kv4
-    REAL, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)
-    REAL, ALLOCATABLE :: x(:), v(:), t(:)
-    INTEGER :: i, j, k, n, np, ifail, kn, imeth
+    REAL :: fd
+    REAL, INTENT(IN) :: d, v, k, a
+    REAL :: crap
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    INTEGER, PARAMETER :: jmax=30
-    INTEGER, PARAMETER :: ninit=100
+    !To prevent compile-time warnings
+    crap=d
+    crap=k
+    crap=cosm%A
+    crap=a    
+
+    fd=v
+
+  END FUNCTION fd
+
+  FUNCTION fv(d,v,k,a,cosm)
+
+    !Needed for growth function solution
+    !This is the fv in \ddot{\delta}=fv
+    IMPLICIT NONE
+    REAL :: fv
+    REAL, INTENT(IN) :: d, v, k, a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: f1, f2
+    REAL :: crap
+
+    !To prevent compile-time warning
+    crap=k
+
+    f1=3.*Omega_m_norad(a,cosm)*d/(2.*(a**2))
+    f2=(2.+AH_norad(a,cosm)/Hubble2_norad(a,cosm))*(v/a)
+    fv=f1-f2
+
+  END FUNCTION fv
+
+  FUNCTION fvnl(d,v,k,a,cosm)
+
+    !Function used for ODE solver in non-linear growth calculation
+    IMPLICIT NONE
+    REAL :: fvnl
+    REAL, INTENT(IN) :: d, v, k, a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: f1, f2, f3
+    REAL :: crap
+
+    !To prevent compile-time warning
+    crap=k
+
+    !f1=3.*omega_c(a)*(1.+mu(a))*d*(1.+d)/(2.*(a**2.))
+    !f1=3.*Omega_m(a,cosm)*G_nl(d,a,cosm)*d*(1.+d)/(2.*(a**2.))
+    f1=3.*Omega_m_norad(a,cosm)*d*(1.+d)/(2.*(a**2))
+    f2=-(2.+AH_norad(a,cosm)/Hubble2_norad(a,cosm))*(v/a)
+    f3=4.*(v**2)/(3.*(1.+d))
+
+    fvnl=f1+f2+f3
+
+  END FUNCTION fvnl
+
+  FUNCTION dc_NakamuraSuto(a,cosm)
+
+    !Nakamura & Suto (1997) fitting formula for LCDM
+    IMPLICIT NONE
+    REAL :: dc_NakamuraSuto
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(IN) :: cosm
+
+    dc_NakamuraSuto=dc0*(1.+0.0123*log10(Omega_m_norad(a,cosm)))
+
+  END FUNCTION dc_NakamuraSuto
+
+  FUNCTION Dv_BryanNorman(a,cosm)
+
+    !Bryan & Norman (1998) spherical over-density fitting function
+    IMPLICIT NONE
+    REAL :: Dv_BryanNorman
+    REAL :: x, Om_m
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(IN) :: cosm
+
+    Om_m=Omega_m_norad(a,cosm)
+    x=Om_m-1.
+
+    IF(cosm%Om_v==0. .AND. cosm%Om_w==0.) THEN
+       !Open model results
+       Dv_BryanNorman=Dv0+60.*x-32.*x**2
+       Dv_BryanNorman=Dv_BryanNorman/Om_m
+    ELSE
+       !LCDM results
+       Dv_BryanNorman=Dv0+82.*x-39.*x**2
+       Dv_BryanNorman=Dv_BryanNorman/Om_m
+    END IF
+
+  END FUNCTION Dv_BryanNorman
+
+  FUNCTION dc_Mead(a,cosm)
+
+    !delta_c fitting function from Mead (2017)
+    IMPLICIT NONE
+    REAL :: dc_Mead
+    REAL, INTENT(IN) :: a !scale factor
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: lg, bG, Om_m
+
+    !See Appendix A of Mead (2016) for naming convention
+    REAL, PARAMETER :: p10=-0.0069
+    REAL, PARAMETER :: p11=-0.0208
+    REAL, PARAMETER :: p12=0.0312
+    REAL, PARAMETER :: p13=0.0021
+    INTEGER, PARAMETER :: a1=1
+    REAL, PARAMETER :: p20=0.0001
+    REAL, PARAMETER :: p21=-0.0647
+    REAL, PARAMETER :: p22=-0.0417
+    REAL, PARAMETER :: p23=0.0646
+    INTEGER, PARAMETER :: a2=0
+
+    lg=ungrow(a,cosm)
+    bG=acc_growth(a,cosm)
+    Om_m=Omega_m_norad(a,cosm)
+
+    !WRITE(*,*) 'DC_STUFF:', a, lg, bG, Om_m
+
+    dc_Mead=1.
+    dc_Mead=dc_Mead+f_Mead(lg/a,bG/a,p10,p11,p12,p13)*log10(Om_m)**a1
+    dc_Mead=dc_Mead+f_Mead(lg/a,bG/a,p20,p21,p22,p23)
+    dc_Mead=dc_Mead*dc0
+
+  END FUNCTION dc_Mead
+
+  FUNCTION Dv_Mead(a,cosm)
+
+    !Delta_v fitting function from Mead (2017)
+    IMPLICIT NONE
+    REAL :: Dv_Mead
+    REAL, INTENT(IN) :: a !scale factor
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: lg, bG, Om_m
+
+    !See Appendix A of Mead (2017) for naming convention
+    REAL, PARAMETER :: p30=-0.79
+    REAL, PARAMETER :: p31=-10.17
+    REAL, PARAMETER :: p32=2.51
+    REAL, PARAMETER :: p33=6.51
+    INTEGER, PARAMETER :: a3=1
+    REAL, PARAMETER :: p40=-1.89
+    REAL, PARAMETER :: p41=0.38
+    REAL, PARAMETER :: p42=18.8
+    REAL, PARAMETER :: p43=-15.87
+    INTEGER, PARAMETER :: a4=2
+
+    lg=ungrow(a,cosm)
+    bG=acc_growth(a,cosm)
+    Om_m=Omega_m_norad(a,cosm)
+
+    Dv_Mead=1.
+    Dv_Mead=Dv_Mead+f_Mead(lg/a,bG/a,p30,p31,p32,p33)*log10(Om_m)**a3
+    Dv_Mead=Dv_Mead+f_Mead(lg/a,bG/a,p40,p41,p42,p43)*log10(Om_m)**a4
+    Dv_Mead=Dv_Mead*Dv0
+
+  END FUNCTION Dv_Mead
+
+  PURE FUNCTION f_Mead(x,y,p0,p1,p2,p3)
+
+    !Equation A3 in Mead (2017)
+    IMPLICIT NONE
+    REAL :: f_Mead
+    REAL, INTENT(IN) :: x, y
+    REAL, INTENT(IN) :: p0, p1, p2, p3
+
+    f_Mead=p0+p1*(1.-x)+p2*(1.-x)**2+p3*(1.-y)
+
+  END FUNCTION f_Mead
+
+  REAL FUNCTION dc_spherical(a,cosm)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+
+    IF(cosm%has_spherical .EQV. .FALSE.) CALL init_spherical_collapse(cosm)
+    
+    IF(a<cosm%a_dcDv(1)) THEN
+       dc_spherical=dc0
+    ELSE
+       dc_spherical=find(log(a),log(cosm%a_dcDv),cosm%dc,cosm%n_dcDv,3,3,2)
+    END IF
+
+  END FUNCTION dc_spherical
+
+  REAL FUNCTION Dv_spherical(a,cosm)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+
+    IF(cosm%has_spherical .EQV. .FALSE.) CALL init_spherical_collapse(cosm)
+    
+    IF(a<cosm%a_dcDv(1)) THEN
+       Dv_spherical=Dv0
+    ELSE
+       Dv_spherical=find(log(a),log(cosm%a_dcDv),cosm%Dv,cosm%n_dcDv,3,3,2)
+    END IF
+
+  END FUNCTION Dv_spherical
+
+  SUBROUTINE init_spherical_collapse(cosm)
+
+    IMPLICIT NONE
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: dinit, ainit, vinit, ac, dc
+    REAL :: av, a_rmax, d_rmax, Dv, rmax, rv
+    REAL, ALLOCATABLE :: d(:), a(:), v(:)
+    REAL, ALLOCATABLE :: dnl(:), vnl(:), rnl(:)
+    REAL, ALLOCATABLE :: a_coll(:), r_coll(:)
+    INTEGER :: i, j, k, k2
+    !INTEGER :: iw, img
+    !TYPE(cosmology) :: cosm_norad
+    !INTEGER :: icol    
+
+    REAL, PARAMETER :: amax=2. !Maximum scale factor to consider
+    REAL, PARAMETER :: dmin=1e-7 !Minimum starting value for perturbation
+    REAL, PARAMETER :: dmax=1e-3 !Maximum starting value for perturbation
+    INTEGER, PARAMETER :: m=128 !Number of collapse scale-factors to try to calculate (you usually get fewer)
+    INTEGER, PARAMETER :: n=1e5 !Number of points for ODE calculations (needs to be large (~1e5) to capture final stages of collapse
+
+    IF(verbose_cosmology) WRITE(*,*) 'SPHERICAL_COLLAPSE: Doing integration'
+
+    !icol=0
+
+    !Number of collapse 'a' to calculate
+    !Actually you get fewer than this because some d do not collapse (DE)
+    !dmin=1e-7
+    !dmax=1e-3
+    !m=100
+    IF(ALLOCATED(cosm%a_dcDv)) DEALLOCATE(cosm%a_dcDv)
+    IF(ALLOCATED(cosm%dc)) DEALLOCATE(cosm%dc)
+    IF(ALLOCATED(cosm%Dv)) DEALLOCATE(cosm%Dv)
+    ALLOCATE(cosm%a_dcDv(m),cosm%dc(m),cosm%Dv(m))
+    cosm%a_dcDv=0.
+    cosm%dc=0.
+    cosm%Dv=0.
+
+    IF(verbose_cosmology) THEN
+       WRITE(*,*) 'SPHERICAL_COLLAPSE: delta min', dmin
+       WRITE(*,*) 'SPHERICAL_COLLAPSE: delta max', dmax
+       WRITE(*,*) 'SPHERICAL_COLLAPSE: number of collapse points attempted', m
+    END IF
+
+    !BCs for integration. Note ainit=dinit means that collapse should occur around a=1 for dmin
+    !amax should be slightly greater than 1 to ensure at least a few points for a>0.9 (i.e not to miss out a=1)
+    !vinit=1 is EdS growing mode solution
+    ainit=dmin
+    !amax=2.
+    vinit=1.*(dmin/ainit)
+
+    !Setup a cosmology with no radiation parameter for this integration
+    !cosm_norad=cosm
+    !cosm_norad%Om_r=0.
+
+    DO j=1,m       
+
+       !log range of initial delta
+       dinit=progression_log(dmin,dmax,j,m)
+
+       !WRITE(*,*) j, dinit
+
+       !Do both with the same a1 and a2 and using the same number of time steps
+       !This means that arrays a, and anl will be identical, which simplifies calculation
+       !CALL ode_crass(dnl,vnl,a,0.,ainit,amax,dinit,vinit,n,3,1,1,cosm)
+       CALL ODE_spherical(dnl,vnl,0.,a,cosm,ainit,amax,dinit,vinit,fd,fvnl,n,3,.TRUE.)
+       DEALLOCATE(a)
+       !CALL ode_crass(d,v,a,0.,ainit,amax,dinit,vinit,n,3,0,1,cosm)
+       CALL ODE_spherical(d,v,0.,a,cosm,ainit,amax,dinit,vinit,fd,fv,n,3,.TRUE.)
+
+       !DO i=1,n
+       !   WRITE(*,*) a(i), d(i), dnl(i)
+       !END DO
+
+       !If this condtion is met then collapse occured some time a<amax
+       IF(dnl(n)==0.) THEN
+
+          !! delta_c calcualtion !!
+
+          ALLOCATE(rnl(n))
+
+          rnl=a*(1.+dnl)**(-1./3.)
+
+          !Find the collapse point (very crude)
+          !More accurate calculations seem to be worse
+          !I think this is due to the fact that delta spikes very quickly
+          DO i=1,n
+             IF(dnl(i)==0.) THEN
+                !k is the new maxium size of the arrays
+                k=i-1
+                EXIT
+             END IF
+          END DO
+
+          !Cut away parts of the arrays for a>ac
+          !WRITE(*,*) 'MK:', n, k
+          CALL amputate(a,n,k)
+          CALL amputate(d,n,k)
+          CALL amputate(dnl,n,k)
+          CALL amputate(rnl,n,k)
+
+          !Collapse has occured so use previous a as ac and d as dc
+          ac=a(k)
+          dc=d(k)
+
+          !! !!
+
+          !! Now to Delta_v calculation !!
+
+          !Find the a values when the perturbation is maximum size
+          a_rmax=maximum(a,rnl,k)
+
+          !Find the over-density at this point
+          d_rmax=exp(find(log(a_rmax),log(a),log(dnl),SIZE(a),1,3,2))
+
+          !Find the maximum radius
+          rmax=find(log(a_rmax),log(a),rnl,SIZE(a),1,3,2)
+
+          !The radius of the perturbation when it is virialised is half maximum
+          !This might not be appropriate for LCDM models (or anything with DE)
+          rv=rmax/2.
+
+          !Need to assign new arrays for the collapse branch of r such that it is monotonic
+          k2=int_split(d_rmax,dnl,k)
+
+          !Allocate collapse branch arrays
+          ALLOCATE(a_coll(k-k2+1),r_coll(k-k2+1))
+
+          !Fill collapse branch arrays
+          DO i=k2,k
+             a_coll(i-k2+1)=a(i)
+             r_coll(i-k2+1)=rnl(i)
+          END DO
+
+          !Find the scale factor when the perturbation has reached virial radius
+          av=exp(find(rv,r_coll,log(a_coll),SIZE(r_coll),3,3,2))
+
+          !Deallocate collapse branch arrays
+          DEALLOCATE(a_coll,r_coll)
+
+          !Spherical model approximation is that perturbation is at virial radius when
+          !'collapse' is considered to have occured, which has already been calculated
+          Dv=exp(find(log(av),log(a),log(dnl),SIZE(a),1,3,2))*(ac/av)**3.
+          Dv=Dv+1.
+
+          !!
+
+          !WRITE(*,*) j, ac, dc, Dv
+
+          cosm%a_dcDv(j)=ac
+          cosm%dc(j)=dc
+          cosm%Dv(j)=Dv
+
+          DEALLOCATE(rnl)
+
+       END IF
+
+       !Deallocate arrays ready for next calculation
+       DEALLOCATE(d,v,a)
+       DEALLOCATE(dnl,vnl)
+
+    END DO
+
+    IF(verbose_cosmology) WRITE(*,*) 'SPHERICAL COLLAPSE: calculation complete'
+
+    CALL reverse(cosm%a_dcDv,m)
+    CALL reverse(cosm%dc,m)
+    CALL reverse(cosm%Dv,m)
+
+    IF(verbose_cosmology) THEN
+       WRITE(*,*) '===================================='
+       WRITE(*,*) 'Point  scalefactor  delta_c  Delta_v'
+       WRITE(*,*) '===================================='
+       DO i=1,m
+          IF(cosm%a_dcDv(i)==0.) EXIT
+          WRITE(*,fmt='(I5,F13.4,F9.4,F9.1)') i, cosm%a_dcDv(i), cosm%dc(i), cosm%Dv(i)
+       END DO
+       WRITE(*,*) '===================================='
+    END IF
+
+    !Calculate the maximum sizes for these new arrays
+    DO i=1,m
+       IF(cosm%a_dcDv(i)==0.) EXIT
+    END DO
+    cosm%n_dcDv=i-1
+
+    IF(verbose_cosmology) THEN
+       WRITE(*,*) 'SPHERICAL_COLLAPSE: number of collapse points:', cosm%n_dcDv
+       WRITE(*,*)
+    END IF
+
+    !WRITE(*,*) 'CRUD:', m, cosm%n_dcDv
+    CALL amputate(cosm%a_dcDv,m,cosm%n_dcDv)
+    CALL amputate(cosm%dc,m,cosm%n_dcDv)
+    CALL amputate(cosm%Dv,m,cosm%n_dcDv)
+
+    cosm%has_spherical=.TRUE.
+
+  END SUBROUTINE init_spherical_collapse
+
+  SUBROUTINE ODE_spherical(x,v,kk,t,cosm,ti,tf,xi,vi,fx,fv,n,imeth,ilog)
+
+    !Solves 2nd order ODE x''(t) from ti to tf and creates arrays of x, v, t values
+    !I have sometimes called this ODE_crass
+    !It has a fixed number of time steps, n
+    IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:), v(:), t(:)
+    REAL, INTENT(IN) :: kk, xi, vi, ti, tf
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    INTEGER, INTENT(IN) :: imeth, n
+    LOGICAL, INTENT(IN) :: ilog
+    !REAL :: dt, x4, v4, t4
+    !REAL :: kx1, kx2, kx3, kx4, kv1, kv2, kv3, kv4      
+    DOUBLE PRECISION, ALLOCATABLE :: x8(:), v8(:), t8(:)
+    INTEGER :: i
+
+    !imeth sets ODE solving method
+    !imeth = 1: Crude method
+    !imeth = 2: Mid-point method
+    !imeth = 3: Runge-Kutta
+
+    INTERFACE
+
+       !fx is what x' is equal to
+       FUNCTION fx(x,v,k,t,cosm)
+         IMPORT :: cosmology
+         REAL :: fx
+         REAL, INTENT(IN) :: x, v, k, t
+         TYPE(cosmology), INTENT(INOUT) :: cosm
+       END FUNCTION fx
+
+       !fv is what v' is equal to
+       FUNCTION fv(x,v,k,t,cosm)
+         IMPORT :: cosmology
+         REAL :: fv
+         REAL, INTENT(IN) :: x, v, k, t
+         TYPE(cosmology), INTENT(INOUT) :: cosm
+       END FUNCTION fv
+
+    END INTERFACE
+
+    !Allocate arrays
+    ALLOCATE(x8(n),v8(n),t8(n))
+
+    !Need to be set to zero for this to work in the spherical-collapse case
+    x8=0.d0
+    v8=0.d0
+    t8=0.d0
 
     !xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
-    !fx is what x' is equal to
-    !fv is what v' is equal to
-    !acc is the desired accuracy across the entire solution
-    !imeth selects method
+    x8(1)=xi
+    v8(1)=vi
+
+    !Fill time array
+    IF(ilog) THEN
+       CALL fill_array8(log(ti),log(tf),t8,n)
+       t8=exp(t8)
+    ELSE
+       CALL fill_array8(ti,tf,t8,n)
+    END IF
+
+    DO i=1,n-1
+       
+       CALL ODE_advance_cosmology(x8(i),x8(i+1),v8(i),v8(i+1),t8(i),t8(i+1),fx,fv,imeth,kk,cosm)
+       
+       !Needed to escape from the ODE solver when the perturbation is ~collapsed
+       IF(x8(i+1)>1e8) EXIT
+       
+    END DO
 
     IF(ALLOCATED(x)) DEALLOCATE(x)
     IF(ALLOCATED(v)) DEALLOCATE(v)
     IF(ALLOCATED(t)) DEALLOCATE(t)
+    ALLOCATE(x(n),v(n),t(n))
+    x=REAL(x8)
+    v=REAL(v8)
+    t=REAL(t8)
+
+    !WRITE(*,*) 'ODE: Integration complete in steps:', n
+
+  END SUBROUTINE ODE_spherical
+
+  SUBROUTINE ODE_adaptive_cosmology(x,v,kk,t,cosm,ti,tf,xi,vi,fx,fv,acc,imeth,ilog)
+
+    !Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
+    !acc is the desired accuracy across the entire solution
+    !time steps are increased until convergence is achieved
+    IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:), t(:), v(:)
+    REAL, INTENT(IN) :: kk, xi, vi, ti, tf, acc
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    INTEGER, INTENT(IN) :: imeth
+    LOGICAL, INTENT(IN) :: ilog
+    !REAL :: dt, x4, v4, t4
+    !REAL :: kx1, kx2, kx3, kx4, kv1, kv2, kv3, kv4
+    DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)      
+    INTEGER :: i, j, n, k, np, ifail, kn
+
+    INTEGER, PARAMETER :: jmax=30
+    INTEGER, PARAMETER :: ninit=100
+
+    !imeth sets ODE solving method
+    !imeth = 1: Crude method
+    !imeth = 2: Mid-point method
+    !imeth = 3: Runge-Kutta   
+
+    INTERFACE
+
+       !fx is what x' is equal to
+       FUNCTION fx(x,v,k,t,cosm)
+         IMPORT :: cosmology
+         REAL :: fx
+         REAL, INTENT(IN) :: x, v, k, t
+         TYPE(cosmology), INTENT(INOUT) :: cosm
+       END FUNCTION fx
+
+       !fv is what v' is equal to
+       FUNCTION fv(x,v,k,t,cosm)
+         IMPORT :: cosmology
+         REAL :: fv
+         REAL, INTENT(IN) :: x, v, k, t
+         TYPE(cosmology), INTENT(INOUT) :: cosm
+       END FUNCTION fv
+
+    END INTERFACE
 
     DO j=1,jmax
 
-       !Set the number of points for the forward integration
-       n=ninit*(2**(j-1))
-       n=n+1  
+       n=1+ninit*(2**(j-1))
 
-       !Allocate arrays
-       ALLOCATE(x8(n),t8(n),v8(n))
+       ALLOCATE(x8(n),v8(n),t8(n))
 
-       !Set the arrays to initialy be zeroes (is this neceseary?)
-       x8=0.
-       t8=0.
-       v8=0.
+       x8=0.d0
+       v8=0.d0
+       t8=0.d0
 
-       !Set the intial conditions at the intial time
+       !xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
        x8(1)=xi
        v8(1)=vi
 
-       !Fill up a table for the time values
-       CALL fill_array(ti,tf,t8,n)
+       !Fill time array
+       IF(ilog) THEN
+          CALL fill_array8(log(ti),log(tf),t8,n)
+          t8=exp(t8)
+       ELSE
+          CALL fill_array8(ti,tf,t8,n)
+       END IF
 
-       !Set the time interval
-       dt=(tf-ti)/float(n-1)
-
-       !Intially fix this to zero. It will change to 1 if method is a 'failure'
        ifail=0
 
        DO i=1,n-1
-
-          x4=real(x8(i))
-          v4=real(v8(i))
-          t4=real(t8(i))
-
-          IF(imeth==1) THEN
-
-             !Crude method
-             kx1=dt*fd(x4,v4,kk,t4,cosm)
-             kv1=dt*fv(x4,v4,kk,t4,cosm)
-
-             x8(i+1)=x8(i)+kx1
-             v8(i+1)=v8(i)+kv1
-
-          ELSE IF(imeth==2) THEN
-
-             !Mid-point method
-             !2017/06/18 - There was a bug in this part before. Luckily it was not used. Thanks Dipak Munshi.
-             kx1=dt*fd(x4,v4,kk,t4,cosm)
-             kv1=dt*fv(x4,v4,kk,t4,cosm)
-             kx2=dt*fd(x4+kx1/2.,v4+kv1/2.,kk,t4+dt/2.,cosm)
-             kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,kk,t4+dt/2.,cosm)
-
-             x8(i+1)=x8(i)+kx2
-             v8(i+1)=v8(i)+kv2
-
-          ELSE IF(imeth==3) THEN
-
-             !4th order Runge-Kutta method (fast!)
-             kx1=dt*fd(x4,v4,kk,t4,cosm)
-             kv1=dt*fv(x4,v4,kk,t4,cosm)
-             kx2=dt*fd(x4+kx1/2.,v4+kv1/2.,kk,t4+dt/2.,cosm)
-             kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,kk,t4+dt/2.,cosm)
-             kx3=dt*fd(x4+kx2/2.,v4+kv2/2.,kk,t4+dt/2.,cosm)
-             kv3=dt*fv(x4+kx2/2.,v4+kv2/2.,kk,t4+dt/2.,cosm)
-             kx4=dt*fd(x4+kx3,v4+kv3,kk,t4+dt,cosm)
-             kv4=dt*fv(x4+kx3,v4+kv3,kk,t4+dt,cosm)
-
-             x8(i+1)=x8(i)+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.
-             v8(i+1)=v8(i)+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.
-
-          END IF
-
-          !t8(i+1)=t8(i)+dt
-
+          !CALL ODE_advance_cosmology(x1,x2,v1,v2,t1,t2,fx,fv,imeth)
+          CALL ODE_advance_cosmology(x8(i),x8(i+1),v8(i),v8(i+1),t8(i),t8(i+1),fx,fv,imeth,kk,cosm)
        END DO
 
        IF(j==1) ifail=1
@@ -2427,13 +3040,19 @@ CONTAINS
        END IF
 
        IF(ifail==0) THEN
-          ALLOCATE(x(n),t(n),v(n))
-          x=real(x8)
-          v=real(v8)
-          t=real(t8)
+          WRITE(*,*) 'ODE: Integration complete in steps:', n-1
+          WRITE(*,*)
+          IF(ALLOCATED(x)) DEALLOCATE(x)
+          IF(ALLOCATED(v)) DEALLOCATE(v)
+          IF(ALLOCATED(t)) DEALLOCATE(t)
+          ALLOCATE(x(n),v(n),t(n))
+          x=REAL(x8)
+          v=REAL(v8)
+          t=REAL(t8)
           EXIT
        END IF
 
+       WRITE(*,*) 'ODE: Integration at:', n-1
        ALLOCATE(xh(n),th(n),vh(n))
        xh=x8
        vh=v8
@@ -2442,161 +3061,87 @@ CONTAINS
 
     END DO
 
-  END SUBROUTINE ode_growth
+  END SUBROUTINE ODE_adaptive_cosmology
 
-  FUNCTION fd(d,v,k,a,cosm)
+  SUBROUTINE ODE_advance_cosmology(x1,x2,v1,v2,t1,t2,fx,fv,imeth,k,cosm)
 
     IMPLICIT NONE
-    REAL :: fd
-    REAL, INTENT(IN) :: d, v, k, a
-    REAL :: crap
+    DOUBLE PRECISION, INTENT(IN) :: x1, v1, t1, t2
+    DOUBLE PRECISION, INTENT(OUT) :: x2, v2
+    INTEGER, INTENT(IN) :: imeth
+    REAL, INTENT(IN) :: k
     TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: x, v, t, dt
+    REAL :: kx1, kx2, kx3, kx4
+    REAL :: kv1, kv2, kv3, kv4
 
-    !To prevent compile-time warnings
-    crap=d
-    crap=k
-    crap=cosm%A
-    crap=a
+    INTERFACE
 
-    !Needed for growth function solution
-    !This is the fd in \dot{\delta}=fd
+       !fx is what x' is equal to
+       FUNCTION fx(x,v,k,t,cosm)
+         IMPORT :: cosmology
+         REAL :: fx
+         REAL, INTENT(IN) :: x, v, k, t
+         TYPE(cosmology), INTENT(INOUT) :: cosm
+       END FUNCTION fx
 
-    fd=v
+       !fv is what v' is equal to
+       FUNCTION fv(x,v,k,t,cosm)
+         IMPORT :: cosmology
+         REAL :: fv
+         REAL, INTENT(IN) :: x, v, k, t
+         TYPE(cosmology), INTENT(INOUT) :: cosm
+       END FUNCTION fv
 
-  END FUNCTION fd
+    END INTERFACE
 
-  FUNCTION fv(d,v,k,a,cosm)
+    x=REAL(x1)
+    v=REAL(v1)
+    t=REAL(t1)
 
-    IMPLICIT NONE
-    REAL :: fv
-    REAL, INTENT(IN) :: d, v, k, a
-    REAL :: f1, f2
-    REAL :: crap
-    TYPE(cosmology), INTENT(INOUT) :: cosm
+    dt=REAL(t2-t1)
 
-    !To prevent compile-time warning
-    crap=k
+    IF(imeth==1) THEN
 
-    !Needed for growth function solution
-    !This is the fv in \ddot{\delta}=fv
+       !Crude method!
+       kx1=dt*fx(x,v,k,t,cosm)
+       kv1=dt*fv(x,v,k,t,cosm)
 
-    f1=3.*Omega_m(a,cosm)*d/(2.*(a**2))
-    f2=(2.+AH(a,cosm)/Hubble2(a,cosm))*(v/a)
+       x2=x1+kx1
+       v2=v1+kv1
 
-    fv=f1-f2
+    ELSE IF(imeth==2) THEN
 
-  END FUNCTION fv
+       !Mid-point method!
+       kx1=dt*fx(x,v,k,t,cosm)
+       kv1=dt*fv(x,v,k,t,cosm)
+       kx2=dt*fx(x+kx1/2.,v+kv1/2.,k,t+dt/2.,cosm)
+       kv2=dt*fv(x+kx1/2.,v+kv1/2.,k,t+dt/2.,cosm)
 
-  FUNCTION dc_NakamuraSuto(a,cosm)
+       x2=x1+kx2
+       v2=v1+kv2
 
-    !Nakamura & Suto (1997) fitting formula for LCDM
-    IMPLICIT NONE
-    REAL :: dc_NakamuraSuto
-    REAL, INTENT(IN) :: a
-    TYPE(cosmology), INTENT(IN) :: cosm
+    ELSE IF(imeth==3) THEN
 
-    dc_NakamuraSuto=dc0*(1.+0.0123*log10(Omega_m(a,cosm)))
+       !RK4 (Holy Christ, this is so fast compared to above methods)!
+       kx1=dt*fx(x,v,k,t,cosm)
+       kv1=dt*fv(x,v,k,t,cosm)
+       kx2=dt*fx(x+kx1/2.,v+kv1/2.,k,t+dt/2.,cosm)
+       kv2=dt*fv(x+kx1/2.,v+kv1/2.,k,t+dt/2.,cosm)
+       kx3=dt*fx(x+kx2/2.,v+kv2/2.,k,t+dt/2.,cosm)
+       kv3=dt*fv(x+kx2/2.,v+kv2/2.,k,t+dt/2.,cosm)
+       kx4=dt*fx(x+kx3,v+kv3,k,t+dt,cosm)
+       kv4=dt*fv(x+kx3,v+kv3,k,t+dt,cosm)
 
-  END FUNCTION dc_NakamuraSuto
+       x2=x1+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
+       v2=v1+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
 
-  FUNCTION Dv_BryanNorman(a,cosm)
-
-    !Bryan & Norman (1998) spherical over-density fitting function
-    IMPLICIT NONE
-    REAL :: Dv_BryanNorman
-    REAL :: x, Om_m
-    REAL, INTENT(IN) :: a
-    TYPE(cosmology), INTENT(IN) :: cosm
-
-    Om_m=Omega_m(a,cosm)
-    x=Om_m-1.
-
-    IF(cosm%Om_v==0. .AND. cosm%Om_w==0.) THEN
-       !Open model results
-       Dv_BryanNorman=Dv0+60.*x-32.*x**2
-       Dv_BryanNorman=Dv_BryanNorman/Om_m
     ELSE
-       !LCDM results
-       Dv_BryanNorman=Dv0+82.*x-39.*x**2
-       Dv_BryanNorman=Dv_BryanNorman/Om_m
+
+       STOP 'ODE_ADVANCE: Error, imeth specified incorrectly'
+
     END IF
 
-  END FUNCTION Dv_BryanNorman
-
-  FUNCTION dc_Mead(a,cosm)
-
-      !delta_c fitting function from Mead (2017)
-      IMPLICIT NONE
-      REAL :: dc_Mead
-      REAL, INTENT(IN) :: a !scale factor
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: lg, bg, Om_m
-
-      !See Appendix A of Mead (2016) for naming convention
-      REAL, PARAMETER :: p10=-0.0069
-      REAL, PARAMETER :: p11=-0.0208
-      REAL, PARAMETER :: p12=0.0312
-      REAL, PARAMETER :: p13=0.0021
-      INTEGER, PARAMETER :: a1=1
-      REAL, PARAMETER :: p20=0.0001
-      REAL, PARAMETER :: p21=-0.0647
-      REAL, PARAMETER :: p22=-0.0417
-      REAL, PARAMETER :: p23=0.0646
-      INTEGER, PARAMETER :: a2=0
-
-      lg=ungrow(a,cosm)
-      bg=acc_growth(a,cosm)
-      Om_m=Omega_m(a,cosm)
-
-      dc_Mead=1.
-      dc_Mead=dc_Mead+f_Mead(lg/a,bG/a,p10,p11,p12,p13)*log10(Om_m)**a1
-      dc_Mead=dc_Mead+f_Mead(lg/a,bG/a,p20,p21,p22,p23)
-      dc_Mead=dc_Mead*dc0
-    
-    END FUNCTION dc_Mead
-
-    FUNCTION Dv_Mead(a,cosm)
-
-      !Delta_v fitting function from Mead (2017)
-      IMPLICIT NONE
-      REAL :: Dv_Mead
-      REAL, INTENT(IN) :: a !scale factor
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: lg, bg, Om_m
-
-      !See Appendix A of Mead (2017) for naming convention
-      REAL, PARAMETER :: p30=-0.79
-      REAL, PARAMETER :: p31=-10.17
-      REAL, PARAMETER :: p32=2.51
-      REAL, PARAMETER :: p33=6.51
-      INTEGER, PARAMETER :: a3=1
-      REAL, PARAMETER :: p40=-1.89
-      REAL, PARAMETER :: p41=0.38
-      REAL, PARAMETER :: p42=18.8
-      REAL, PARAMETER :: p43=-15.87
-      INTEGER, PARAMETER :: a4=2
-
-      lg=ungrow(a,cosm)
-      bg=acc_growth(a,cosm)
-      Om_m=Omega_m(a,cosm)
-
-      Dv_Mead=1.
-      Dv_Mead=Dv_Mead+f_Mead(lg/a,bG/a,p30,p31,p32,p33)*log10(Om_m)**a3
-      Dv_Mead=Dv_Mead+f_Mead(lg/a,bG/a,p40,p41,p42,p43)*log10(Om_m)**a4
-      Dv_Mead=Dv_Mead*Dv0
-    
-    END FUNCTION Dv_Mead
-    
-    PURE FUNCTION f_Mead(x,y,p0,p1,p2,p3)
-
-      !Equation A3 in Mead (2017)
-      IMPLICIT NONE
-      REAL :: f_Mead
-      REAL, INTENT(IN) :: x, y
-      REAL, INTENT(IN) :: p0, p1, p2, p3
-
-      f_Mead=p0+p1*(1.-x)+p2*(1.-x)**2+p3*(1.-y)
-      
-    END FUNCTION f_Mead
+  END SUBROUTINE ODE_advance_cosmology
 
 END MODULE cosmology_functions
