@@ -34,7 +34,7 @@ CONTAINS
     !ifind = 2 => find x in xtab by crudely searching from x(1) to x(n)
     !ifind = 3 => find x in xtab using midpoint splitting (iterations=CEILING(log2(n)))
 
-    !imeth = 1 => Uses cubic polynomials for interpolation
+    !imeth = 1 => Uses standard polynomials for interpolation
     !imeth = 2 => Uses Lagrange polynomials for interpolation
 
     ALLOCATE(xtab(n),ytab(n))
