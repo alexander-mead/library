@@ -95,7 +95,7 @@ CONTAINS
     IMPLICIT NONE
     REAL :: random_Gaussian
     REAL, INTENT(IN) :: mean, sigma
-    REAL :: r, theta, G(2)
+    REAL :: G(2)
 
     !This is wasteful as r*sin(theta) is also Gaussian (independantly)!
     G=random_Gaussian_both(mean,sigma)
