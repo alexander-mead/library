@@ -336,7 +336,7 @@ CONTAINS
 
   END SUBROUTINE fill_array
 
-  SUBROUTINE fill_array8(min,max,arr,n)
+  SUBROUTINE fill_array_double(min,max,arr,n)
 
     !Fills array 'arr' in equally spaced intervals
     !I'm not sure if inputting an array like this is okay
@@ -360,7 +360,7 @@ CONTAINS
        END DO
     END IF
 
-  END SUBROUTINE fill_array8
+  END SUBROUTINE fill_array_double
 
   FUNCTION progression(xmin,xmax,i,n)
 
