@@ -6,115 +6,60 @@ CONTAINS
 
   SUBROUTINE ODE(x,v,t,ti,tf,xi,vi,fx,fv,n,imeth,ilog)
 
-    !Solves 2nd order ODE x''(t) from ti to tf and creates arrays of x, v, t values
-    !I have sometimes called this ODE_crass
-    !It has a fixed number of time steps, n
+    !Solves 2nd order ODE d2x/dt2 from ti to tf and creates arrays of x, v, t values
+    !I have sometimes called this ODE_crass because it has a fixed number of time steps, n
     IMPLICIT NONE
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:), v(:), t(:)
     REAL, INTENT(IN) :: xi, vi, ti, tf
     INTEGER, INTENT(IN) :: n, imeth
-    LOGICAL, INTENT(IN) :: ilog
-    !REAL :: dt, x4, v4, t4
-    !REAL :: kx1, kx2, kx3, kx4, kv1, kv2, kv3, kv4    
+    LOGICAL, INTENT(IN) :: ilog   
     DOUBLE PRECISION, ALLOCATABLE :: x8(:), v8(:), t8(:)
     INTEGER :: i
 
-    !imeth sets ODE solving method
-    !imeth = 1: Crude method
-    !imeth = 2: Mid-point method
-    !imeth = 3: Runge-Kutta
-    
     INTERFACE
 
-       !fx is what x' is equal to
+       !fx is what dx/dt is equal to
+       !this is almost always just v
        FUNCTION fx(x,v,t)
          REAL :: fx
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fx
 
-       !fv is what v' is equal to
+       !fv is what dv/dt is equal to
        FUNCTION fv(x,v,t)
          REAL :: fv
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fv
-       
+
     END INTERFACE
 
-    !Allocate arrays
+    !Allocate arrays for double-precision storage
     ALLOCATE(x8(n),v8(n),t8(n))
 
     !xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
     x8(1)=xi
     v8(1)=vi
 
-    !Fill time array
+    !Fill the time array
     IF(ilog) THEN
-       CALL fill_array8(log(ti),log(tf),t8,n)
+       CALL fill_array_double(log(ti),log(tf),t8,n)
        t8=exp(t8)
     ELSE
-       CALL fill_array8(ti,tf,t8,n)
+       CALL fill_array_double(ti,tf,t8,n)
     END IF
 
+    !Advance the system through all n-1 time steps
     DO i=1,n-1
-
        CALL ODE_advance(x8(i),x8(i+1),v8(i),v8(i+1),t8(i),t8(i+1),fx,fv,imeth)
-
-!!$       x4=REAL(x8(i))
-!!$       v4=REAL(v8(i))
-!!$       t4=REAL(t8(i))
-!!$
-!!$       !Time steps are varible length in the log case
-!!$       dt=REAL(t8(i+1)-t8(i))
-!!$
-!!$       IF(imeth==1) THEN
-!!$
-!!$          !Crude method!
-!!$          kx1=dt*fx(x4,v4,t4)
-!!$          kv1=dt*fv(x4,v4,t4)
-!!$
-!!$          x8(i+1)=x8(i)+kx1
-!!$          v8(i+1)=v8(i)+kv1
-!!$
-!!$       ELSE IF(imeth==2) THEN
-!!$
-!!$          !Mid-point method!
-!!$          kx1=dt*fx(x4,v4,t4)
-!!$          kv1=dt*fv(x4,v4,t4)
-!!$          kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-!!$          kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-!!$
-!!$          x8(i+1)=x8(i)+kx2
-!!$          v8(i+1)=v8(i)+kv2
-!!$
-!!$       ELSE IF(imeth==3) THEN
-!!$
-!!$          !RK4 (Holy Christ, this is so fast compared to above methods)!
-!!$          kx1=dt*fx(x4,v4,t4)
-!!$          kv1=dt*fv(x4,v4,t4)
-!!$          kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-!!$          kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-!!$          kx3=dt*fx(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
-!!$          kv3=dt*fv(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
-!!$          kx4=dt*fx(x4+kx3,v4+kv3,t4+dt)
-!!$          kv4=dt*fv(x4+kx3,v4+kv3,t4+dt)
-!!$
-!!$          x8(i+1)=x8(i)+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
-!!$          v8(i+1)=v8(i)+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
-!!$
-!!$       ELSE
-!!$
-!!$          STOP 'ODE: Error, imeth specified incorrectly'
-!!$
-!!$       END IF
-
     END DO
 
+    !Allocate arrays for final solution and copy double-precision to single-precision
     ALLOCATE(x(n),v(n),t(n))
     x=REAL(x8)
     v=REAL(v8)
     t=REAL(t8)
 
-    WRITE(*,*) 'ODE: Integration complete in steps:', n
+    !WRITE(*,*) 'ODE: Integration complete in steps:', n
 
   END SUBROUTINE ODE
 
@@ -128,41 +73,39 @@ CONTAINS
     REAL, INTENT(IN) :: xi, vi, ti, tf, acc
     INTEGER, INTENT(IN) :: imeth
     LOGICAL, INTENT(IN) :: ilog
-    !REAL :: dt, x4, v4, t4
-    !REAL :: kx1, kx2, kx3, kx4, kv1, kv2, kv3, kv4
     DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)    
     INTEGER :: i, j, n, k, np, ifail, kn
-   
-    INTEGER, PARAMETER :: jmax=30
-    INTEGER, PARAMETER :: ninit=100
 
-    !imeth sets ODE solving method
-    !imeth = 1: Crude method
-    !imeth = 2: Mid-point method
-    !imeth = 3: Runge-Kutta   
+    INTEGER, PARAMETER :: jmax=30 !Maximum number of goes
+    INTEGER, PARAMETER :: ninit=100 !Initial number of points
 
     INTERFACE
 
-       !fx is what x' is equal to
+       !fx is what dx/dt is equal to
+       !this is almost always just v
        FUNCTION fx(x,v,t)
          REAL :: fx
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fx
 
-       !fv is what v' is equal to
+       !fv is what dv/dt is equal to
        FUNCTION fv(x,v,t)
          REAL :: fv
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fv
-       
+
     END INTERFACE
 
+    !Loop over attemps for number of time steps
     DO j=1,jmax
 
+       !Set the number of time steps; always 1+m*(2**n)
        n=1+ninit*(2**(j-1))
 
+       !Allocate double-precision arrays
        ALLOCATE(x8(n),v8(n),t8(n))
 
+       !Set the array entries to zero manually
        x8=0.d0
        v8=0.d0
        t8=0.d0
@@ -171,97 +114,60 @@ CONTAINS
        x8(1)=xi
        v8(1)=vi
 
-       !Fill time array
+       !Fill time-step array
        IF(ilog) THEN
-          CALL fill_array8(log(ti),log(tf),t8,n)
+          CALL fill_array_double(log(ti),log(tf),t8,n)
           t8=exp(t8)
        ELSE
-          CALL fill_array8(ti,tf,t8,n)
+          CALL fill_array_double(ti,tf,t8,n)
        END IF
 
+       !Set the fail flag
        ifail=0
 
+       !Loop over all time steps
        DO i=1,n-1
-
           CALL ODE_advance(x8(i),x8(i+1),v8(i),v8(i+1),t8(i),t8(i+1),fx,fv,imeth)
-          
-!!$          x4=REAL(x8(i))
-!!$          v4=REAL(v8(i))
-!!$          t4=REAL(t8(i))
-!!$
-!!$          dt=REAL(t8(i+1)-t8(i))
-!!$
-!!$          IF(imeth==1) THEN
-!!$
-!!$             !Crude method!
-!!$             kx1=dt*fx(x4,v4,t4)
-!!$             kv1=dt*fv(x4,v4,t4)
-!!$             
-!!$             x8(i+1)=x8(i)+kx1
-!!$             v8(i+1)=v8(i)+kv1
-!!$
-!!$          ELSE IF(imeth==2) THEN
-!!$
-!!$             !Mid-point method!
-!!$             kx1=dt*fx(x4,v4,t4)
-!!$             kv1=dt*fv(x4,v4,t4)
-!!$             kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-!!$             kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-!!$             
-!!$             x8(i+1)=x8(i)+kx2
-!!$             v8(i+1)=v8(i)+kv2
-!!$
-!!$          ELSE IF(imeth==3) THEN
-!!$
-!!$             !RK4 (Holy Christ, this is so fast compared to above methods)!
-!!$             kx1=dt*fx(x4,v4,t4)
-!!$             kv1=dt*fv(x4,v4,t4)
-!!$             kx2=dt*fx(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-!!$             kv2=dt*fv(x4+kx1/2.,v4+kv1/2.,t4+dt/2.)
-!!$             kx3=dt*fx(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
-!!$             kv3=dt*fv(x4+kx2/2.,v4+kv2/2.,t4+dt/2.)
-!!$             kx4=dt*fx(x4+kx3,v4+kv3,t4+dt)
-!!$             kv4=dt*fv(x4+kx3,v4+kv3,t4+dt)
-!!$
-!!$             x8(i+1)=x8(i)+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
-!!$             v8(i+1)=v8(i)+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
-!!$
-!!$          ELSE
-!!$
-!!$             STOP 'ODE: Error, imeth specified incorrectly'
-!!$
-!!$          END IF
-          
        END DO
 
+       !Automatically fail on the first go
        IF(j==1) ifail=1
 
+       !Check accuracy of result compared to previous go
        IF(j .NE. 1) THEN
 
+          !This is the number of points in the previous try
           np=1+(n-1)/2
 
-          DO k=1,1+(n-1)/2
+          !Loop over the number of points in the previous attempt; k
+          DO k=1,np
 
+             !kn is k-new
              kn=2*k-1
 
+             !If still okay then check the result
              IF(ifail==0) THEN
 
+                !Fail conditions (is the first part of this not dodgy?)
                 IF(xh(k)>acc .AND. x8(kn)>acc .AND. (ABS(xh(k)/x8(kn))-1.)>acc) ifail=1
                 IF(vh(k)>acc .AND. v8(kn)>acc .AND. (ABS(vh(k)/v8(kn))-1.)>acc) ifail=1
 
+                !Deallocate arrays and exit loop if a failure has occured
                 IF(ifail==1) THEN
                    DEALLOCATE(xh,th,vh)
                    EXIT
                 END IF
 
              END IF
+             
           END DO
 
        END IF
 
+       !If the integration was successful then fill single-precicion arrays with solution and exit
        IF(ifail==0) THEN
-          WRITE(*,*) 'ODE: Integration complete in steps:', n-1
-          WRITE(*,*)
+          !WRITE(*,*) 'ODE: Integration complete in steps:', n-1
+          !WRITE(*,*)
           ALLOCATE(x(n),t(n),v(n))
           x=REAL(x8)
           v=REAL(v8)
@@ -269,7 +175,7 @@ CONTAINS
           EXIT
        END IF
 
-       WRITE(*,*) 'ODE: Integration at:', n-1
+       !Otherwise allocate arrays to store this solution and move on to the next attempt
        ALLOCATE(xh(n),th(n),vh(n))
        xh=x8
        vh=v8
@@ -282,6 +188,7 @@ CONTAINS
 
   SUBROUTINE ODE_advance(x1,x2,v1,v2,t1,t2,fx,fv,imeth)
 
+    !Advances the ODE system from t1 to t2, updating x1 to x2 and v1 to v2
     IMPLICIT NONE
     DOUBLE PRECISION, INTENT(IN) :: x1, v1, t1, t2
     DOUBLE PRECISION, INTENT(OUT) :: x2, v2
@@ -290,40 +197,47 @@ CONTAINS
     REAL :: kx1, kx2, kx3, kx4
     REAL :: kv1, kv2, kv3, kv4
 
-     INTERFACE
+    !imeth sets ODE solving method
+    !imeth = 1: Crude method
+    !imeth = 2: Mid-point method
+    !imeth = 3: Runge-Kutta
 
-       !fx is what x' is equal to
+    INTERFACE
+
+       !fx is what dx/dt is equal to; this is almost always just v for 2ODE
        FUNCTION fx(x,v,t)
          REAL :: fx
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fx
 
-       !fv is what v' is equal to
+       !fv is what dv/dt is equal to
        FUNCTION fv(x,v,t)
          REAL :: fv
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fv
-       
+
     END INTERFACE
-    
+
+    !Set x, v, t to be the initial state of the system
     x=REAL(x1)
     v=REAL(v1)
     t=REAL(t1)
 
+    !Calculate dt between the final and intial state
     dt=REAL(t2-t1)
 
+    !Crude method
     IF(imeth==1) THEN
 
-       !Crude method!
        kx1=dt*fx(x,v,t)
        kv1=dt*fv(x,v,t)
-
+       
        x2=x1+kx1
        v2=v1+kv1
 
+       !Mid-point method
     ELSE IF(imeth==2) THEN
 
-       !Mid-point method!
        kx1=dt*fx(x,v,t)
        kv1=dt*fv(x,v,t)
        kx2=dt*fx(x+kx1/2.,v+kv1/2.,t+dt/2.)
@@ -332,9 +246,9 @@ CONTAINS
        x2=x1+kx2
        v2=v1+kv2
 
+       !4th order Rungge-Kutta
     ELSE IF(imeth==3) THEN
 
-       !RK4 (Holy Christ, this is so fast compared to above methods)!
        kx1=dt*fx(x,v,t)
        kv1=dt*fv(x,v,t)
        kx2=dt*fx(x+kx1/2.,v+kv1/2.,t+dt/2.)
