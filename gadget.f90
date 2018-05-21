@@ -815,7 +815,7 @@ CONTAINS
     END DO
     CLOSE(10)
     WRITE(*,*) 'Slice written: ', filename
-    WRITE(*,*) ''
+    WRITE(*,*)
 
   END SUBROUTINE slice
   
