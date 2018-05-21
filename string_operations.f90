@@ -18,7 +18,7 @@ CONTAINS
 
     IMPLICIT NONE
     CHARACTER(len=256) :: number_file
-    CHARACTER(len=256), INTENT(IN) :: fbase, fext
+    CHARACTER(len=*), INTENT(IN) :: fbase, fext
     INTEGER, INTENT(IN) :: i
     CHARACTER(len=8) num
 
@@ -40,7 +40,7 @@ CONTAINS
 
     IMPLICIT NONE
     CHARACTER(len=256) ::number_file2
-    CHARACTER(len=256), INTENT(IN) :: fbase, fext, mid
+    CHARACTER(len=*), INTENT(IN) :: fbase, fext, mid
     INTEGER, INTENT(IN) :: i1, i2
     CHARACTER(len=8) :: num1, num2
 
@@ -70,7 +70,7 @@ CONTAINS
     !Num specifies the number of digits
     IMPLICIT NONE
     CHARACTER(len=256) :: number_file_zeroes
-    CHARACTER(len=256), INTENT(IN) :: fbase, fext
+    CHARACTER(len=*), INTENT(IN) :: fbase, fext
     CHARACTER(len=4) :: num4
     CHARACTER(len=3) :: num3
     CHARACTER(len=2) :: num2
