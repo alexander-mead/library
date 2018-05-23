@@ -2385,7 +2385,7 @@ CONTAINS
     REAL, PARAMETER :: dmin=1e-7 !Minimum starting value for perturbation
     REAL, PARAMETER :: dmax=1e-3 !Maximum starting value for perturbation
     INTEGER, PARAMETER :: m=128 !Number of collapse scale-factors to try to calculate (you usually get fewer)
-    INTEGER, PARAMETER :: n=1e5 !Number of points for ODE calculations (needs to be large (~1e5) to capture final stages of collapse
+    INTEGER, PARAMETER :: n=100000 !Number of points for ODE calculations (needs to be large (~1e5) to capture final stages of collapse
 
     IF(verbose_cosmology) WRITE(*,*) 'SPHERICAL_COLLAPSE: Doing integration'
 
