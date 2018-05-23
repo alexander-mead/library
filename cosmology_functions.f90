@@ -2376,10 +2376,7 @@ CONTAINS
     REAL, ALLOCATABLE :: d(:), a(:), v(:)
     REAL, ALLOCATABLE :: dnl(:), vnl(:), rnl(:)
     REAL, ALLOCATABLE :: a_coll(:), r_coll(:)
-    INTEGER :: i, j, k, k2
-    !INTEGER :: iw, img
-    !TYPE(cosmology) :: cosm_norad
-    !INTEGER :: icol    
+    INTEGER :: i, j, k, k2   
 
     REAL, PARAMETER :: amax=2. !Maximum scale factor to consider
     REAL, PARAMETER :: dmin=1e-7 !Minimum starting value for perturbation
@@ -2389,13 +2386,7 @@ CONTAINS
 
     IF(verbose_cosmology) WRITE(*,*) 'SPHERICAL_COLLAPSE: Doing integration'
 
-    !icol=0
-
-    !Number of collapse 'a' to calculate
-    !Actually you get fewer than this because some d do not collapse (DE)
-    !dmin=1e-7
-    !dmax=1e-3
-    !m=100
+    !Allocate arrays
     IF(ALLOCATED(cosm%a_dcDv)) DEALLOCATE(cosm%a_dcDv)
     IF(ALLOCATED(cosm%dc)) DEALLOCATE(cosm%dc)
     IF(ALLOCATED(cosm%Dv)) DEALLOCATE(cosm%Dv)
@@ -2411,36 +2402,23 @@ CONTAINS
     END IF
 
     !BCs for integration. Note ainit=dinit means that collapse should occur around a=1 for dmin
-    !amax should be slightly greater than 1 to ensure at least a few points for a>0.9 (i.e not to miss out a=1)
-    !vinit=1 is EdS growing mode solution
+    !amax should be slightly greater than 1 to ensure at least a few points for a>0.9 (i.e not to miss out a=1)    
     ainit=dmin
-    !amax=2.
-    vinit=1.*(dmin/ainit)
+    vinit=1.*(dmin/ainit) !vinit=1 is EdS growing mode solution
 
-    !Setup a cosmology with no radiation parameter for this integration
-    !cosm_norad=cosm
-    !cosm_norad%Om_r=0.
-
+    !Now loop over all initial density fluctuations
     DO j=1,m       
 
        !log range of initial delta
        dinit=progression_log(dmin,dmax,j,m)
 
-       !WRITE(*,*) j, dinit
-
        !Do both with the same a1 and a2 and using the same number of time steps
        !This means that arrays a, and anl will be identical, which simplifies calculation
-       !CALL ode_crass(dnl,vnl,a,0.,ainit,amax,dinit,vinit,n,3,1,1,cosm)
        CALL ODE_spherical(dnl,vnl,0.,a,cosm,ainit,amax,dinit,vinit,fd,fvnl,n,3,.TRUE.)
        DEALLOCATE(a)
-       !CALL ode_crass(d,v,a,0.,ainit,amax,dinit,vinit,n,3,0,1,cosm)
        CALL ODE_spherical(d,v,0.,a,cosm,ainit,amax,dinit,vinit,fd,fv,n,3,.TRUE.)
 
-       !DO i=1,n
-       !   WRITE(*,*) a(i), d(i), dnl(i)
-       !END DO
-
-       !If this condtion is met then collapse occured some time a<amax
+       !If this condition is met then collapse occured some time a<amax
        IF(dnl(n)==0.) THEN
 
           !! delta_c calcualtion !!
@@ -2461,7 +2439,6 @@ CONTAINS
           END DO
 
           !Cut away parts of the arrays for a>ac
-          !WRITE(*,*) 'MK:', n, k
           CALL amputate(a,n,k)
           CALL amputate(d,n,k)
           CALL amputate(dnl,n,k)
@@ -2513,8 +2490,6 @@ CONTAINS
 
           !!
 
-          !WRITE(*,*) j, ac, dc, Dv
-
           cosm%a_dcDv(j)=ac
           cosm%dc(j)=dc
           cosm%Dv(j)=Dv
@@ -2557,7 +2532,6 @@ CONTAINS
        WRITE(*,*)
     END IF
 
-    !WRITE(*,*) 'CRUD:', m, cosm%n_dcDv
     CALL amputate(cosm%a_dcDv,m,cosm%n_dcDv)
     CALL amputate(cosm%dc,m,cosm%n_dcDv)
     CALL amputate(cosm%Dv,m,cosm%n_dcDv)
