@@ -144,4 +144,16 @@ CONTAINS
 
   END FUNCTION random_polynomial
 
+  FUNCTION random_phase()
+
+    !Get a complex phase with theta between 0 and 2pi
+    IMPLICIT NONE
+    COMPLEX :: random_phase
+    REAL :: angle
+
+    angle=random_uniform(0.,2.*pi)
+    random_phase=CMPLX(cos(angle),sin(angle))
+
+  END FUNCTION random_phase
+
 END MODULE random_numbers
