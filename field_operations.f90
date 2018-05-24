@@ -1,6 +1,129 @@
 MODULE field_operations
-  
+
 CONTAINS
+
+  REAL FUNCTION random_mode_amplitude(k,L,ktab,Pktab,nk)
+
+    !This calculates the Fourier amplitudes of the density field
+    USE interpolate
+    USE constants
+    USE random_numbers
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: k, L, ktab(nk), Pktab(nk)
+    INTEGER, INTENT(IN) :: nk
+    REAL :: sigma
+
+    LOGICAL, PARAMETER :: use_average=.FALSE.
+
+    !Sigma parameter in the Rayleigh distribution
+    sigma=sqrt(2.*(pi**2)*find(k,ktab,Pktab,nk,3,3,2)/(L*k)**3)
+
+    IF(use_average) THEN
+       !Fixed mode amplitudes       
+       !dkmod=sigma!*sqrt(pi/2.) !FUDGE to match NgenIC!
+       random_mode_amplitude=sigma*sqrt(2.) !FUDGE to match CAMB (something to do with average of Rayleigh?)
+    ELSE
+       !dkmod=rayleigh(sigma)/2. !FUDGE to match NgenIC!
+       random_mode_amplitude=random_Rayleigh(sigma) !Matches CAMB
+    END IF
+
+  END FUNCTION random_mode_amplitude
+
+  SUBROUTINE make_Gaussian_random_field(d,m,L,ktab,Pktab,nk)
+
+    !Uses a tablulated P(k) to make a Gaussian Random Field realisation
+    USE fft
+    USE random_numbers
+    IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(INOUT) :: d(:,:,:)
+    DOUBLE COMPLEX, ALLOCATABLE :: dc(:,:,:)
+    REAL, INTENT(IN) :: ktab(nk), Pktab(nk), L
+    INTEGER, INTENT(IN) :: m, nk
+    INTEGER :: ix, iy, iz, ixx, iyy, izz
+    REAL :: kx, ky, kz, k
+    REAL :: amp
+    COMPLEX :: rot
+
+    ALLOCATE(dc(m,m,m))
+
+    WRITE(*,*) 'MAKE_GRF: Creating realisation of density field'
+
+    !This fills up displacement array in all of k space!
+    DO iz=1,m
+       DO iy=1,m
+          DO ix=1,m
+
+             CALL k_fft(ix,iy,iz,m,kx,ky,kz,k,L)
+
+             IF(ix==1 .AND. iy==1 .AND. iz==1) THEN
+
+                !Set the zero mode to zero
+                dc(ix,iy,iz)=0.d0
+
+             ELSE IF(ix==1+m/2 .OR. iy==1+m/2 .OR. iz==1+m/2) THEN 
+
+                !Sets Nyquist modes to 0.!
+                !Maybe all modes with mod(k)>k_ny should be set to 0.?!
+                !Bridit Falck wrote a 'corner modes' paper about this
+                !https://arxiv.org/abs/1610.04862
+                dc(ix,iy,iz)=0.d0
+
+             ELSE
+
+                !Get mode amplitudes and phases
+                amp=random_mode_amplitude(k,L,ktab,Pktab,nk)
+                rot=random_phase()
+
+                !Assign values to the density field
+                dc(ix,iy,iz)=amp*rot
+
+             END IF
+
+          END DO
+       END DO
+    END DO
+
+    WRITE(*,*) 'MAKE_GRF: Done'
+
+    WRITE(*,*) 'MAKE_GRF: Enforcing Hermiticity'
+
+    !Enforce Hermiticity - probably could save a load of operations above
+    DO iz=1,m
+       DO iy=1,m
+          DO ix=1,m
+
+             ixx=m-ix+2
+             iyy=m-iy+2
+             izz=m-iz+2
+
+             IF(ix==1) ixx=1
+             IF(iy==1) iyy=1
+             IF(iz==1) izz=1
+
+             !Do the enforcing
+             dc(ix,iy,iz)=CONJG(dc(ixx,iyy,izz))
+
+          END DO
+       END DO
+    END DO
+
+    !Is this a good idea?
+    dc=CONJG(dc)
+
+    WRITE(*,*) 'MAKE_GRF: Hermitian density field generated'
+
+    WRITE(*,*) 'MAKE_GRF: Transform to real space'
+
+    !FT the displacement field from k-space to real space!
+    CALL fft3(dc,dc,m,m,m,1)
+
+    ALLOCATE(d(m,m,m))
+    d=REAL(REAL(dc))
+
+    WRITE(*,*) 'MAKE_GRF: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE make_Gaussian_random_field
 
   SUBROUTINE read_field(d,m,infile)
 
@@ -26,7 +149,7 @@ CONTAINS
     WRITE(*,*) 'READ_FIELD: Variance:', variance(splay(d,m,m,m),m**3)
     WRITE(*,*) 'READ_FIELD: Done'
     WRITE(*,*)
-    
+
   END SUBROUTINE read_field
 
   SUBROUTINE read_field8(d,m,infile)
@@ -58,7 +181,8 @@ CONTAINS
 
   END SUBROUTINE read_field8
 
-  SUBROUTINE write_field(d,m,outfile)
+  !Used to be called write_field
+  SUBROUTINE write_3D_field_binary(d,m,outfile)
 
     !Write out a binary 'field' file
     IMPLICIT NONE    
@@ -66,20 +190,21 @@ CONTAINS
     INTEGER, INTENT(IN) :: m
     CHARACTER(len=256), INTENT(IN) :: outfile
 
-    WRITE(*,*) 'WRITE_FIELD: Binary output: ', TRIM(outfile)
-    WRITE(*,*) 'WRITE_FIELD: Mesh size:', m
-    WRITE(*,*) 'WRITE_FIELD: Minval:', MINVAL(d)
-    WRITE(*,*) 'WRITE_FIELD: Maxval:', MAXVAL(d)
-    WRITE(*,*) 'WRITE_FIELD: Using new version with access=stream'
+    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Binary output: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Mesh size:', m
+    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Minval:', MINVAL(d)
+    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Maxval:', MAXVAL(d)
+    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Using new version with access=stream'
     OPEN(7,file=outfile,form='unformatted',access='stream')
     WRITE(7) d
     CLOSE(7)
-    WRITE(*,*) 'WRITE_FIELD: Done'
+    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Done'
     WRITE(*,*)
 
-  END SUBROUTINE write_field
+  END SUBROUTINE write_3D_field_binary
 
-  SUBROUTINE print_2D_field(d,m,L,outfile)
+  !Used to be called print_2D_field
+  SUBROUTINE write_2D_field_ascii(d,m,L,outfile)
 
     IMPLICIT NONE
     REAL, INTENT(IN) :: d(m,m), L
@@ -88,8 +213,8 @@ CONTAINS
     INTEGER :: i, j
     REAL :: x, y
 
-    WRITE(*,*) 'PRINT_2D_FIELD: Writing to: ', TRIM(outfile)
-    
+    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Writing to: ', TRIM(outfile)
+
     OPEN(8,file=outfile)
     DO j=1,m
        DO i=1,m
@@ -109,12 +234,13 @@ CONTAINS
     END DO
     CLOSE(8)
 
-    WRITE(*,*) 'PRINT_2D_FIELD: Done'
+    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Done'
     WRITE(*,*)
 
-  END SUBROUTINE print_2D_field
+  END SUBROUTINE write_2D_field_ascii
 
-  SUBROUTINE print_projected_field(d,m,L,nz,outfile)
+  !Used to be called print_projected_field
+  SUBROUTINE write_3D_field_projection_ascii(d,m,L,nz,outfile)
 
     IMPLICIT NONE
     REAL, INTENT(IN) :: d(m,m,m), L
@@ -124,9 +250,9 @@ CONTAINS
     REAL :: x, y
     REAL :: sum
 
-    WRITE(*,*) 'PRINT_PROJECTED_FIELD: Writing to: ', TRIM(outfile)
-    WRITE(*,*) 'PRINT_PROJECTED_FIELD: Cells projecting:', nz
-    
+    WRITE(*,*) 'WRITE_3D_FIELD_PROJECTION_ASCII: Writing to: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_3D_FIELD_PROJECTION_ASCII: Cells projecting:', nz
+
     OPEN(8,file=outfile)
     DO j=1,m
        DO i=1,m
@@ -146,14 +272,14 @@ CONTAINS
     END DO
     CLOSE(8)
 
-    WRITE(*,*) 'PRINT_PROJECTED_FIELD: Done'
+    WRITE(*,*) 'WRITE_3D_FIELD_PROJECTION_ASCII: Done'
     WRITE(*,*)
-    
-  END SUBROUTINE print_projected_field
+
+  END SUBROUTINE write_3D_field_projection_ascii
 
   SUBROUTINE compress_field(d,ds,m)
 
-    !Shrinks the field size by a factor of 2
+    !Shrinks a 3D field size by a factor of 2
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: m
     REAL, INTENT(IN) :: d(m,m,m)
@@ -259,7 +385,7 @@ CONTAINS
           END DO
        END DO
     END DO
-    
+
   END SUBROUTINE sharpen_k
 
   SUBROUTINE smooth2D(arr,n,r,L)
@@ -346,7 +472,7 @@ CONTAINS
     !Move to Fourier space
     CALL fft3(ac,ac_out,m,m,m,-1)
     ac=ac_out
-    
+
     DO k=1,m
        DO j=1,m
           DO i=1,m
@@ -359,7 +485,7 @@ CONTAINS
     !Move back to real space
     CALL fft3(ac,ac_out,m,m,m,1)
     ac=ac_out
-    
+
     !Normalise post Fourier transform!
     ac=ac/(REAL(m)**3)
 
@@ -398,7 +524,7 @@ CONTAINS
              is(3)=k
 
              DO d=1,3
-                
+
                 !Get coordinates of position on the stack
                 !This changes coordiantes from stack to simulation coordinates
                 xb(d)=x(d)+Ls*(0.5+float(is(d)-1))/float(ms)-Ls/2.
@@ -415,7 +541,7 @@ CONTAINS
                 ib(d)=CEILING(float(mb)*xb(d)/Lb)
 
              END DO
-             
+
              !Add the value to the stack
              !Should there be a volume factor here?
              stack(is(1),is(2),is(3))=stack(is(1),is(2),is(3))+back(ib(1),ib(2),ib(3))
@@ -423,7 +549,7 @@ CONTAINS
           END DO
        END DO
     END DO
-       
+
   END SUBROUTINE add_to_stack_3D
 
   SUBROUTINE project_3D_to_2D(d3d,d2d,m)
@@ -454,7 +580,7 @@ CONTAINS
 
   SUBROUTINE field_correlation_function(r_array,xi_array,n_array,n,d,m,L)
 
-    USE gadget
+    USE simulations
     USE table_integer
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, m
@@ -607,7 +733,7 @@ CONTAINS
        WRITE(*,*) 'Threshold:', d0
        WRITE(*,*) 'Mesh:', m
     END IF
-    
+
     av1=mean(splay(d,m1,m2,m3),m1*m2*m3)
     var1=variance(splay(d,m1,m2,m3),m1*m2*m3)
     min1=MINVAL(d)
@@ -618,8 +744,8 @@ CONTAINS
        WRITE(*,*) 'Minimum over-density pre-clipping:', min1
     END IF
 
-!    dep=0.25*(1.+erf(d0/(sqrt(2.*var1))))**2.
-!    IF(talk==1) WRITE(*,*) 'Expected large-scale power depletion factor:', dep
+    !    dep=0.25*(1.+erf(d0/(sqrt(2.*var1))))**2.
+    !    IF(talk==1) WRITE(*,*) 'Expected large-scale power depletion factor:', dep
 
     !Now do the clipping
     DO k=1,m
@@ -669,9 +795,17 @@ CONTAINS
 
   END FUNCTION empty_cells
 
-  SUBROUTINE pk(dk1,dk2,m,L,kmin,kmax,bins,k,pow,nbin)
+  !SUBROUTINE pk(dk1,dk2,m,L,kmin,kmax,bins,k,pow,nbin)
+  SUBROUTINE compute_power_spectrum(dk1,dk2,m,L,kmin,kmax,bins,k,pow,nbin)
 
     !Takes in a dk(m,m,m) array and computes the power spectrum
+    !dk1 - Fourier components of field 1
+    !dk2 - field 2
+    !m - mesh size for fields
+    !L - box size in Mpc/h
+    !kmin - minimum wavenumber
+    !kmax - maximum wavenumber
+    !bins - number of k bins
     USE table_integer
     USE constants
     USE array_operations
@@ -756,7 +890,7 @@ CONTAINS
 
     !Do this to account for m^3 factors in P(k)
     pow=REAL(pow8/(DBLE(m)**6))
-    
+
     !Divide by 2 because up to now we have double count Hermitian conjugates
     nbin=INT(nbin8/2)
 
@@ -766,7 +900,381 @@ CONTAINS
     WRITE(*,*) 'PK: Power computed'
     WRITE(*,*) 
 
-  END SUBROUTINE pk
+  END SUBROUTINE compute_power_spectrum
+
+  SUBROUTINE compute_power_spectrum_pole(d,L,ipole,iz,kmin,kmax,bins,kval,pow,nbin)
+
+    USE constants
+    USE special_functions
+    USE fft
+    IMPLICIT NONE
+    INTEGER :: i, j, k, m, n
+    REAL :: kx, ky, kz, kmod, mu
+    REAL, INTENT(IN) :: kmin, kmax
+    REAL, INTENT(IN) :: L
+    REAL, ALLOCATABLE :: kbin(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: pow(:), kval(:)
+    REAL*8, ALLOCATABLE :: pow8(:), kval8(:)
+    INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
+    INTEGER*8, ALLOCATABLE :: nbin8(:)
+    INTEGER, INTENT(IN) :: iz, ipole, bins
+    DOUBLE COMPLEX, INTENT(IN) :: d(:,:,:)
+
+    WRITE(*,*) 'Computing isotropic power spectrum'
+
+    ALLOCATE(kbin(bins+1),kval(bins))
+    ALLOCATE(pow(bins),nbin(bins))
+    ALLOCATE(pow8(bins),nbin8(bins),kval8(bins))
+
+    kval=0.
+    pow=0.
+    nbin=0
+
+    kval8=0.d0
+    pow8=0.d0
+    nbin8=0
+
+    WRITE(*,*) 'Binning power'
+    WRITE(*,*) 'Bins:', bins
+    WRITE(*,*) 'k_min:', kmin
+    WRITE(*,*) 'k_max:', kmax
+
+    !Log-spaced bins
+    DO i=1,bins+1
+       kbin(i)=exp(log(kmin)+log(kmax/kmin)*float(i-1)/float(bins))
+    END DO
+
+    !Explicitly extend the bins to be sure to include all modes
+    !This is necessary due to rounding errors!
+    !    kbin(1)=kbin(1)*0.999
+    !    kbin(bins+1)=kbin(bins+1)*1.001
+
+    m=SIZE(d(:,1,1))
+
+    WRITE(*,*) 'Mesh:', m
+
+    DO k=1,m
+       DO j=1,m
+          DO i=1,m
+
+             IF(i==1 .AND. j==1 .AND. k==1) CYCLE
+
+             CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
+
+             IF(iz==1) THEN
+                mu=kx/kmod
+             ELSE IF(iz==2) THEN
+                mu=ky/kmod
+             ELSE IF(iz==3) THEN
+                mu=kz/kmod
+             END IF
+
+             !             DO o=1,bins
+             !                IF(kmod>=kbin(o) .AND. kmod<=kbin(o+1)) THEN
+             !                   pow8(o)=pow8(o)+(ABS(d(i,j,k))**2.)*legendre(ipole,mu)*(2.*float(ipole)+1.)!/2.
+             !                   kval(o)=kval(o)+kmod
+             !                   nbin8(o)=nbin8(o)+1
+             !                   EXIT
+             !                END IF
+             !             END DO
+
+             !Find integer automatically from place in table. Assumes log-spaced bins
+             !Recently implemented (27/08/15) so could be a source of bugs
+             !Differences will appear due to k modes that are on the boundary
+             n=1+FLOOR(float(bins)*log(kmod/kmin)/log(kmax/kmin))
+             IF(n<1 .OR. n>bins) THEN
+                CYCLE
+             ELSE
+                pow8(n)=pow8(n)+(ABS(d(i,j,k))**2.)*Legendre_polynomial(ipole,mu)*(2.*float(ipole)+1.)
+                kval8(n)=kval8(n)+kmod
+                nbin8(n)=nbin8(n)+1
+             END IF
+
+          END DO
+       END DO
+    END DO
+
+    DO i=1,bins
+       !       kval(i)=(kbin(i+1)+kbin(i))/2.
+       !       kval(i)=sqrt(kbin(i+1)*kbin(i))
+       IF(nbin8(i)==0) THEN
+          kval(i)=(kbin(i+1)+kbin(i))/2.
+          !       kval(i)=sqrt(kbin(i+1)*kbin(i))
+          pow8(i)=0.
+       ELSE
+          !          kval(i)=(kbin(i+1)+kbin(i))/2.
+          kval(i)=kval8(i)/float(nbin8(i))
+          pow8(i)=pow8(i)/float(nbin8(i))
+          pow8(i)=pow8(i)*((L*kval(i))**3.)/(2.*pi**2.)
+       END IF
+    END DO
+
+    pow=pow8/(float(m)**6.)
+
+    !Divide by 2 because double count Hermitian conjugates
+    nbin=nbin8/2
+
+    DEALLOCATE(kbin,pow8,nbin8,kval8)
+
+    WRITE(*,*) 'Power computed'
+    WRITE(*,*) 
+
+  END SUBROUTINE compute_power_spectrum_pole
+
+  SUBROUTINE compute_power_spectrum_rsd(d,L,kmin,kmax,bins,kv,mu,pow,nbin,iz)
+
+    USE constants
+    USE fft
+    IMPLICIT NONE
+    INTEGER :: i, j, k, m, ii, jj, bins, iz
+    REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, mus
+    REAL, ALLOCATABLE :: pow(:,:), kv(:), kbin(:), mu(:), mubin(:)
+    REAL*8, ALLOCATABLE :: pow8(:,:)
+    INTEGER, ALLOCATABLE :: nbin(:,:)
+    INTEGER*8, ALLOCATABLE :: nbin8(:,:)
+    DOUBLE COMPLEX :: d(:,:,:)
+
+    WRITE(*,*) 'Computing RSD power spectrum'
+
+    ALLOCATE(kbin(bins+1),mubin(bins+1),kv(bins),mu(bins))
+    ALLOCATE(pow(bins,bins),nbin(bins,bins))
+    ALLOCATE(pow8(bins,bins),nbin8(bins,bins))
+
+    kbin=0.
+    mubin=0.
+    kv=0.
+    mu=0.
+    pow=0.
+    nbin=0
+
+    pow8=0.d0
+    nbin8=0
+
+    WRITE(*,*) 'Binning power'
+    WRITE(*,*) 'Bins:', bins
+    WRITE(*,*) 'k_min:', kmin
+    WRITE(*,*) 'k_max:', kmax
+
+    a=kmin
+    b=kmax
+
+    a=log10(a)
+    b=log10(b)
+
+    DO i=1,bins+1
+       kbin(i)=a+(b-a)*float(i-1)/float(bins)
+    END DO
+
+    DO i=1,bins+1
+       mubin(i)=float(i-1)/float(bins)
+    END DO
+
+    DO i=1,bins
+       kv(i)=(kbin(i)+kbin(i+1))/2.
+       mu(i)=(mubin(i)+mubin(i+1))/2.
+    END DO
+
+    kbin=10.**kbin
+    kv=10.**kv
+
+    !Explicitly extend the bins to be sure to include all modes
+    !This is necessary due to rounding errors!
+    kbin(1)=kbin(1)*0.999
+    kbin(bins+1)=kbin(bins+1)*1.001
+    mubin(1)=-0.001
+    mubin(bins+1)=1.001
+
+    m=SIZE(d(:,1,1))
+
+    WRITE(*,*) 'Mesh:', m
+
+    DO k=1,m
+       DO j=1,m
+          DO i=1,m
+
+             IF(i==1 .AND. j==1 .AND. k==1) CYCLE
+
+             CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
+
+             IF(iz==1) THEN
+                mus=kx/kmod
+             ELSE IF(iz==2) THEN
+                mus=ky/kmod
+             ELSE IF(iz==3) THEN
+                mus=kz/kmod
+             END IF
+
+             mus=ABS(mus)
+
+             !             WRITE(*,*) mus, kbin(1), kbin(2), kmod
+             !             IF(i==10) STOP
+
+             DO jj=1,bins
+                IF(kmod>=kbin(jj) .AND. kmod<=kbin(jj+1)) THEN                
+                   DO ii=1,bins
+                      IF(mus>=mubin(ii) .AND. mus<=mubin(ii+1)) THEN
+                         pow8(ii,jj)=pow8(ii,jj)+ABS(d(i,j,k))**2.
+                         nbin8(ii,jj)=nbin8(ii,jj)+1
+                         EXIT
+                      END IF
+                   END DO
+                   EXIT
+                END IF
+             END DO
+
+          END DO
+       END DO
+    END DO
+
+    DO jj=1,bins
+       DO ii=1,bins
+          IF(nbin8(ii,jj)==0) THEN
+             pow8(ii,jj)=0.
+          ELSE
+             pow8(ii,jj)=pow8(ii,jj)/float(nbin8(ii,jj))
+             pow8(ii,jj)=pow8(ii,jj)*((L*kv(jj))**3.)/(2.*pi**2.)
+          END IF
+       END DO
+    END DO
+
+    pow=pow8/(float(m)**6.)
+
+    !Divide by 2 because double count Hermitian conjugates
+    nbin=nbin8/2
+
+    WRITE(*,*) 'Power computed'
+    WRITE(*,*) 
+
+  END SUBROUTINE compute_power_spectrum_rsd
+
+  SUBROUTINE compute_power_spectrum_rsd2(d,L,kmin,kmax,bins,kpar,kper,pow,nbin,iz)
+
+    USE constants
+    USE fft
+    IMPLICIT NONE
+    INTEGER :: i, j, k, m, ii, jj, bins, iz
+    REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, kpers, kpars
+    REAL, ALLOCATABLE :: pow(:,:), kpar(:), kparbin(:), kper(:), kperbin(:)
+    REAL*8, ALLOCATABLE :: pow8(:,:)
+    INTEGER, ALLOCATABLE :: nbin(:,:)
+    INTEGER*8, ALLOCATABLE :: nbin8(:,:)
+    DOUBLE COMPLEX :: d(:,:,:)
+
+    !    STOP 'Not updated according to JAP prescription'
+
+    WRITE(*,*) 'Computing rsd power spectrum'
+
+    ALLOCATE(kparbin(bins+1),kperbin(bins+1),kpar(bins),kper(bins))
+    ALLOCATE(pow(bins,bins),nbin(bins,bins))
+    ALLOCATE(pow8(bins,bins),nbin8(bins,bins))
+
+    kparbin=0.
+    kperbin=0.
+    kpar=0.
+    kper=0.
+    pow=0.
+    nbin=0
+
+    pow8=0.d0
+    nbin8=0
+
+    WRITE(*,*) 'Binning power'
+    WRITE(*,*) 'Bins:', bins
+    WRITE(*,*) 'k_min:', kmin
+    WRITE(*,*) 'k_max:', kmax
+
+    a=kmin
+    b=kmax
+
+    a=log10(a)
+    b=log10(b)
+
+    DO i=1,bins+1
+       kparbin(i)=a+(b-a)*float(i-1)/float(bins)
+    END DO
+
+    DO i=1,bins
+       kpar(i)=(kparbin(i)+kparbin(i+1))/2.
+    END DO
+
+    kparbin=10.**kparbin
+    kpar=10.**kpar
+
+    !Explicitly extend the bins to be sure to include all modes
+    !This is necessary due to rounding errors!
+    kparbin(1)=kparbin(1)*0.999
+    kparbin(bins+1)=kparbin(bins+1)*1.001
+
+    kperbin=kparbin
+    kper=kpar
+
+    m=SIZE(d(:,1,1))
+
+    WRITE(*,*) 'Mesh:', m
+
+    DO k=1,m
+       DO j=1,m
+          DO i=1,m
+
+             IF(i==1 .AND. j==1 .AND. k==1) CYCLE
+
+             CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
+
+             IF(iz==1) THEN
+                kpars=ABS(kx)
+                kpers=sqrt(ky**2.+kz**2.)
+             ELSE IF(iz==2) THEN
+                kpars=ABS(ky)
+                kpers=sqrt(kz**2.+kx**2.)
+             ELSE IF(iz==3) THEN
+                kpars=ABS(kz)
+                kpers=sqrt(kx**2.+ky**2.)
+             END IF
+
+             DO jj=1,bins
+                IF(kpars>=kparbin(jj) .AND. kpars<=kparbin(jj+1)) THEN                
+                   DO ii=1,bins
+                      IF(kpers>=kperbin(ii) .AND. kpers<=kperbin(ii+1)) THEN
+                         pow8(ii,jj)=pow8(ii,jj)+ABS(d(i,j,k))**2.
+                         nbin8(ii,jj)=nbin8(ii,jj)+1
+                         EXIT
+                      END IF
+                   END DO
+                   EXIT
+                END IF
+             END DO
+
+          END DO
+       END DO
+    END DO
+
+    !    DO jj=1,bins
+    !       DO ii=1,bins
+    !          pow(ii,jj)=pow(ii,jj)/log(kperbin(ii+1)/kperbin(ii))
+    !          pow(ii,jj)=pow(ii,jj)/log(kparbin(jj+1)/kparbin(jj))
+    !       END DO
+    !    END DO
+
+    DO jj=1,bins
+       DO ii=1,bins
+          IF(nbin8(ii,jj)==0) THEN
+             pow8(ii,jj)=0.
+          ELSE
+             pow8(ii,jj)=pow8(ii,jj)/float(nbin8(ii,jj))
+             pow8(ii,jj)=pow8(ii,jj)*(L**3.*kpar(jj)*kper(ii)**2.)/(2.*pi**2.)
+          END IF
+       END DO
+    END DO
+
+    pow=pow8/(float(m)**6.)
+
+    !Divide by 2 because double count Hermitian conjugates
+    nbin=nbin8/2
+
+    WRITE(*,*) 'Power computed'
+    WRITE(*,*) 
+
+  END SUBROUTINE compute_power_spectrum_rsd2
 
   FUNCTION box_mode_power(dk,m)
 
