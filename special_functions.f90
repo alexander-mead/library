@@ -4,6 +4,25 @@ MODULE special_functions
 
 CONTAINS
 
+  FUNCTION Legendre_Polynomial(n,x)
+
+    IMPLICIT NONE
+    REAL :: Legendre_Polynomial
+    REAL, INTENT(IN) :: x
+    INTEGER, INTENT(IN) :: n
+
+    IF(n==0) THEN
+       Legendre_Polynomial=1.
+    ELSE IF(n==2) THEN
+       Legendre_Polynomial=(3.*(x**2.)-1.)/2.
+    ELSE IF(n==4) THEN
+       Legendre_Polynomial=(35.*(x**4.)-30.*(x**2.)+3.)/8.
+    ELSE
+       STOP 'LEGENDRE_POLYNOMIAL: polynomial of this order not stored'
+    END IF
+
+  END FUNCTION Legendre_Polynomial
+
   FUNCTION factorial(n)
 
     IMPLICIT NONE
