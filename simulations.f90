@@ -4,36 +4,277 @@ MODULE simulations
 
 CONTAINS
 
+  SUBROUTINE write_power_spectrum(x,n,L,m,nk,outfile)
+
+    USE constants
+    USE field_operations
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x(3,n), L
+    INTEGER, INTENT(IN) :: n, m, nk
+    CHARACTER(len=*), INTENT(IN) :: outfile
+    INTEGER :: i
+    DOUBLE COMPLEX :: dk(m,m,m)
+    REAL :: k(nk), Pk(nk)
+    INTEGER :: nbin(nk)
+    REAL :: kmin, kmax, shot
+
+    CALL sharp_Fourier_density_contrast(x,n,L,dk,m)
+
+    kmin=twopi/L
+    kmax=REAL(m)*pi/L
+    CALL compute_power_spectrum(dk,dk,m,L,kmin,kmax,nk,k,Pk,nbin)
+
+    WRITE(*,*) 'WRITE_POWER_SPECTRUM: Outfile: ', TRIM(outfile)
+
+    shot=shot_noise_simple(L,INT8(n))
+    OPEN(7,file=outfile)
+    DO i=1,nk
+       IF(nbin(i)==0) CYCLE
+       WRITE(7,*) k(i), Pk(i), shot_noise_k(k(i),shot), nbin(i)
+    END DO
+    CLOSE(7)
+
+    WRITE(*,*) 'WRITE_POWER_SPECTRUM: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE write_power_spectrum
+
+  SUBROUTINE sharp_Fourier_density_contrast(x,n,L,dk,m)
+
+    USE fft
+    USE field_operations
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x(3,n), L
+    INTEGER, INTENT(IN) :: n, m
+    DOUBLE COMPLEX, INTENT(OUT) :: dk(m,m,m)
+    REAL :: w(n), dbar
+    REAL :: d(m,m,m)
+    DOUBLE COMPLEX :: dk_out(m,m,m)
+
+    !Things that would like to be PARAMETERS
+    INTEGER :: ibin=2 !Set the binning strategy
+    
+    !Assign weight=1 and bin the particles
+    w=1.
+    CALL particle_bin(x,n,L,w,d,m,ibin)
+    dbar=REAL(n)/REAL(m)**3
+    d=d/dbar
+
+    dk=d
+    CALL fft3(dk,dk_out,m,m,m,-1)
+    dk=dk_out
+
+    CALL sharpen_k(dk,m,L,ibin)    
+    
+  END SUBROUTINE sharp_Fourier_density_contrast
+
+  SUBROUTINE write_density_slice_ascii(x,n,z1,z2,L,m,outfile)
+
+    !Write out a slice of density field
+    !x(n), y(n), z(n): particle positions
+    !x1->x2, y1->y2, z1->z2: range for the slice
+    !L: box size [Mpc/h]
+    !s: Smoothing length [Mpc/h]
+    !m: mesh size for the density field
+    !outfile: output file
+    USE field_operations
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x(3,n), L
+    REAL, INTENT(IN) :: z1, z2    
+    INTEGER, INTENT(IN) :: n, m
+    REAL :: d(m,m)
+    CHARACTER(len=*), INTENT(IN) :: outfile
+    REAL :: xp, yp, smoothing
+    INTEGER :: i, j    
+
+    !Make the projected 2D density  
+    CALL make_projected_density(x,n,z1,z2,L,d,m)
+
+    !Smooth the density field
+    smoothing=L/REAL(m) !Set the smoothing scale to be the mesh size
+    CALL smooth2D(d,m,smoothing,L)
+
+    !Write out to file
+    WRITE(*,*) 'WRITE_DENSITY_SLICE_ASCII: Writing density map'
+    WRITE(*,*) 'WRITE_DENSITY_SLICE_ASCII: File: ', TRIM(outfile)
+    OPEN(9,file=outfile)
+    DO i=1,m
+       DO j=1,m
+          !xp=(REAL(i)-0.5)/REAL(m)
+          !yp=(REAL(j)-0.5)/REAL(m)
+          xp=cell_position(i,L,m)
+          yp=cell_position(j,L,m)
+          WRITE(9,*) xp, yp, d(i,j)
+       END DO
+    END DO
+    CLOSE(9)
+
+    !DEALLOCATE(d)
+
+    WRITE(*,*) 'WRITE_DENSITY_SLICE_ASCII: Done'
+    WRITE(*,*)  
+
+  END SUBROUTINE write_density_slice_ascii
+
+  SUBROUTINE make_projected_density(x,n,z1,z2,L,d,m)
+
+    !Write out a slice of density field
+    !x(n), y(n), z(n): particle positions
+    !x1->x2, y1->y2, z1->z2: range for the slice
+    !L: box size [Mpc/h]
+    !m: mesh size for the density field
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x(3,n), L
+    REAL, INTENT(IN) :: z1, z2
+    REAL, INTENT(OUT) :: d(m,m)
+    INTEGER, INTENT(IN) :: n, m
+    REAL :: vfac, dbar
+    REAL, ALLOCATABLE :: x2D(:,:)
+    INTEGER :: i, i2D, n2D
+    INTEGER :: ibin
+
+    !Count the number of particles falling into the slice
+    n2D=0
+    DO i=1,n
+       IF(x(3,i)>=z1 .AND. x(3,i)<=z2) n2D=n2D+1
+    END DO
+    ALLOCATE(x2D(2,n2D))
+
+    !Make the 2D position array
+    i2D=0
+    DO i=1,n
+       IF(x(3,i)>=z1 .AND. x(3,i)<=z2) THEN
+          i2D=i2D+1
+          x2D(1,i2D)=x(1,i)
+          x2D(2,i2D)=x(2,i)
+       END IF         
+    END DO
+    
+    !Bin for the 2D density field and convert to relative density
+    !ALLOCATE(d(m,m))
+    ibin=2
+    CALL particle_bin_2D(x2D,n2D,L,d,m,ibin)
+    DEALLOCATE(x2D)
+    vfac=(z2-z1)/L
+    dbar=(REAL(n)*vfac)/REAL(m**2)
+    d=d/dbar
+
+    WRITE(*,*) 'MAKE_PROJECTED_DENSITY: Thickness in z [Mpc/h]:', z2-z1
+    WRITE(*,*) 'MAKE_PROJECTED_DENSITY: Volume factor:', vfac
+    WRITE(*,*) 'MAKE_PROJECTED_DENSITY: Mean cell particle density:', dbar
+    WRITE(*,*) 'MAKE_PROJECTED_DENSITY: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE make_projected_density
+
+  SUBROUTINE Zeldovich_ICs(x,v,n,L,logk_tab,logPk_tab,nk,vfac,m)
+
+    USE field_operations
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: x(3,n), v(3,n)
+    REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L, vfac
+    INTEGER, INTENT(IN) :: n, m, nk
+    REAL :: f(3,m,m,m), ips, maxf
+
+    !Make the displacement field
+    CALL generate_displacement_fields(f,m,L,logk_tab,logPk_tab,nk)
+
+    !Calculate some useful things
+    ips=L/REAL(n**(1./3.)) !Mean ID inter-particle spacing
+    maxf=MAXVAL(f) !Maximum value of 1D displacement    
+
+    !Calculate the particle velocities first
+    CALL Zeldovich_velocity(x,v,n,L,vfac*f,m)
+
+    !Then do the particle positions
+    CALL Zeldovich_displacement(x,n,L,f,m)
+
+    !Write some useful things to the screen
+    WRITE(*,*) 'ZELDOVICH_ICS: Max 1D displacement [Mpc/h]:', maxf
+    WRITE(*,*) 'ZELDOVICH_ICS: Inter-particle spacing [Mpc/h]:', ips
+    WRITE(*,*) 'ZELDOVICH_ICS: Max 1D displacement in units of the IPS:', maxf/ips
+    WRITE(*,*) 'ZELDOVICH_ICS: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE Zeldovich_ICs
+
   SUBROUTINE Zeldovich_displacement(x,n,L,s,m)
 
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n)
     REAL, INTENT(IN) :: s(3,m,m,m), L
-    INTEGER, INTENT(IN) :: n,m
-    INTEGER :: i, ix(3)
+    INTEGER, INTENT(IN) :: n, m
+    INTEGER :: i, j, ix(3)
+
+    WRITE(*,*) 'ZELDOVICH_DISPLACEMENT: Displacing particles'
 
     !Loop over all particles
     DO i=1,n
-       ix=NGP_cell(x(:,i),L,m) !Find the integer-coordinates for which cell you are in
+       DO j=1,3
+          ix(j)=NGP_cell(x(j,i),L,m) !Find the integer-coordinates for which cell you are in
+       END DO
        x(:,i)=x(:,i)+s(:,ix(1),ix(2),ix(3)) !Do the displacement
     END DO
+
+    CALL replace(x,n,L)
+
+    WRITE(*,*) 'ZELDOVICH_DISPLACEMENT: Done'
+    WRITE(*,*)
     
   END SUBROUTINE Zeldovich_displacement
 
-  FUNCTION NGP_cell(x,L,m)
+  SUBROUTINE Zeldovich_velocity(x,v,n,L,s,m)
+
+    IMPLICIT NONE
+    REAL, INTENT(OUT) :: v(3,n)
+    REAL, INTENT(IN) :: x(3,n), s(3,m,m,m), L
+    INTEGER, INTENT(IN) :: n, m
+    INTEGER :: i, j, ix(3)
+
+    WRITE(*,*) 'ZELDOVICH_VELOCITY: Assigining particle velocties'
+    WRITE(*,*) 'ZELDOVICH_VELOCITY: Any previous velocity set to zero'
+
+    !Loop over all particles
+    DO i=1,n
+       DO j=1,3
+          ix(j)=NGP_cell(x(j,i),L,m) !Find the integer-coordinates for which cell you are in
+       END DO
+       v(:,i)=s(:,ix(1),ix(2),ix(3)) !Assign the velocity
+    END DO
+
+    WRITE(*,*) 'ZELDOVICH_VELOCITY: Done'
+    WRITE(*,*)
+    
+  END SUBROUTINE Zeldovich_velocity
+
+  INTEGER FUNCTION NGP_cell(x,L,m)
 
     !Find the integer coordinates of the cell the particle x is in
     IMPLICIT NONE
-    INTEGER :: NGP_cell(3)
-    REAL, INTENT(IN) :: x(3), L
+    REAL, INTENT(IN) :: x, L
     INTEGER, INTENT(IN) :: m
-    INTEGER :: i
 
-    DO i=1,3
-       NGP_cell(i)=NINT(0.5+m*x(i)/L)
-    END DO
+    NGP_cell=NINT(0.5+m*x/L)
+
+    IF(NGP_cell<1 .OR. NGP_cell>m) THEN
+       WRITE(*,*) 'NGP_CELL: Particle position [Mpc/h]:', x
+       WRITE(*,*) 'NGP_CELL: Box size [Mpc/h]:', L
+       WRITE(*,*) 'NGP_CELL: Mesh size:', m 
+       WRITE(*,*) 'NGP_CELL: Assigned cell:', NGP_cell
+       STOP 'NGP_CELL: Error, the assigned cell position is outside the mesh'
+    END IF
     
   END FUNCTION NGP_cell
+
+  REAL FUNCTION cell_position(i,L,m)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: L
+    INTEGER, INTENT(IN) :: i, m
+
+    cell_position=L*(i-0.5)/REAL(m)
+
+  END FUNCTION cell_position
   
   SUBROUTINE generate_randoms(x,n,L)
 
@@ -44,12 +285,25 @@ CONTAINS
     REAL, INTENT(IN) :: L
     INTEGER, INTENT(IN) :: n
     INTEGER :: i, j
+    REAL :: dx
 
+    !To prevent the particle being exactly at zero
+    dx=L/1e8
+
+    !Set the random-number generator
+    !CALL RNG_set(0)
+
+    WRITE(*,*) 'GENERATE_RANDOMS: Generating a uniform-random particle distribution'
+
+    !Loop over all particles and coordinates and assign randomly
     DO i=1,n
        DO j=1,3
-          x(j,i)=random_uniform(0.,L)
+          x(j,i)=random_uniform(dx,L)
        END DO
     END DO
+
+    WRITE(*,*) 'GENERATE_RANDOMS: Done'
+    WRITE(*,*)
 
   END SUBROUTINE generate_randoms
 
@@ -66,20 +320,26 @@ CONTAINS
     m=NINT(n**(1./3.))
     IF(m**3 .NE. n) STOP 'GENERATE_GRID: Error, you need a cubic number of particles for a grid'
 
-    !Set the particle counting variable to zero
-    i=0
+    WRITE(*,*) 'GENERATE_GRID: Generating a grid particle distribution'
 
     !Loop over all particles
+    i=0 !Set the particle counting variable to zero
     DO iz=1,m
        DO iy=1,m
           DO ix=1,m
              i=i+1 !Increment the particle counter
-             x(1,i)=L*(ix-0.5)/REAL(m) !Assign x
-             x(2,i)=L*(iy-0.5)/REAL(m) !Assign y
-             x(3,i)=L*(iz-0.5)/REAL(m) !Assign z
+             !x(1,i)=L*(ix-0.5)/REAL(m) !Assign x
+             !x(2,i)=L*(iy-0.5)/REAL(m) !Assign y
+             !x(3,i)=L*(iz-0.5)/REAL(m) !Assign z
+             x(1,i)=cell_position(ix,L,m)
+             x(2,i)=cell_position(iy,L,m)
+             x(3,i)=cell_position(iz,L,m)
           END DO
        END DO
     END DO
+
+    WRITE(*,*) 'GENERATE_GRID: Done'
+    WRITE(*,*)
     
   END SUBROUTINE generate_grid
 
@@ -105,6 +365,8 @@ CONTAINS
     dx=L/REAL(m)
     dx=dx/2.
 
+    WRITE(*,*) 'GENERATE_POOR_GLASS: Generating a poor man glass from the grid'
+
     !Loop over the particles and do the displacement
     DO i=1,n
        DO j=1,3
@@ -112,20 +374,23 @@ CONTAINS
        END DO
     END DO
 
+    WRITE(*,*) 'GENERATE_POOR_GLASS: Done'
+    WRITE(*,*)
+
   END SUBROUTINE generate_poor_glass
 
   SUBROUTINE sparse_sample(x,v,n,f)
 
-    USE random_numbers
+    !USE random_numbers
     IMPLICIT NONE
     REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:), v(:,:)
-    REAL, ALLOCATABLE :: x_old(:,:), v_old(:,:)
+    REAL :: x_old(3,n), v_old(3,n)
     REAL, INTENT(IN) :: f
     INTEGER, INTENT(INOUT) :: n
     INTEGER :: keep(n), n_old, j, i
     REAL :: rand
 
-    CALL RNG_set(0)
+    !CALL RNG_set(0)
     
     n_old=n
 
@@ -136,14 +401,12 @@ CONTAINS
 
     DO i=1,n_old
        
-       IF(random_uniform(0.,1.)<f) THEN
+       IF(rand(0)<f) THEN
           n=n+1
           keep(i)=1
        END IF
 
     END DO
-    
-    ALLOCATE(x_old(3,n_old),v_old(3,n_old))
 
     x_old=x
     v_old=v
@@ -167,12 +430,10 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE(x_old,v_old)
-
     WRITE(*,*) 'Complete'
     WRITE(*,*) 'Before:', n_old
     WRITE(*,*) 'After:', n
-    WRITE(*,*) 'Ratio:', float(n)/float(n_old)
+    WRITE(*,*) 'Ratio:', REAL(n)/REAL(n_old)
     WRITE(*,*)    
 
   END SUBROUTINE sparse_sample
@@ -194,6 +455,149 @@ CONTAINS
     END DO
 
   END SUBROUTINE replace
+
+  SUBROUTINE particle_bin_2D(x,n,L,d,m,ibin)
+
+    !Bin particle properties onto a mesh, summing as you go
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: n, m
+    INTEGER, INTENT(INOUT) :: ibin
+    REAL, INTENT(OUT) :: d(m,m)
+    REAL, INTENT(IN) :: x(2,n), L
+
+    IF(ibin==-1) THEN
+       WRITE(*,*) 'Choose binning strategy'
+       WRITE(*,*) '1 - NGP'
+       WRITE(*,*) '2 - CIC'
+       READ(*,*) ibin
+       WRITE(*,*)
+    END IF
+
+    IF(ibin==1) THEN
+       CALL NGP2D(x,n,L,d,m)
+    ELSE IF(ibin==2) THEN
+       CALL CIC2D(x,n,L,d,m)
+    ELSE
+       STOP 'PARTICLE_BIN: Error, ibin not specified correctly'
+    END IF
+
+  END SUBROUTINE particle_bin_2D
+
+  SUBROUTINE NGP2D(x,n,L,d,m)
+
+    !Nearest-grid-point binning routine
+    USE statistics
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x(2,n), L
+    INTEGER, INTENT(IN) :: n, m
+    REAL, INTENT(OUT) :: d(m,m)
+    INTEGER :: i, ix, iy
+
+    WRITE(*,*) 'NGP2D: Binning particles and creating field'
+    WRITE(*,*) 'NGP2D: Cells:', m
+
+    !Set array to zero explicitly
+    d=0.
+
+    DO i=1,n
+
+       !ix=CEILING(x(1,i)*REAL(m)/L)
+       !iy=CEILING(x(2,i)*REAL(m)/L)
+       ix=NGP_cell(x(1,i),L,m)
+       iy=NGP_cell(x(2,i),L,m)
+
+!!$       IF(ix>m .OR. ix<1) THEN
+!!$          WRITE(*,*) 'x:', i, x(1,i)
+!!$          STOP 'NGP2D: Warning, point outside box'
+!!$       END IF
+!!$
+!!$       IF(iy>m .OR. iy<1) THEN
+!!$          WRITE(*,*) 'y:', i, x(2,i)
+!!$          STOP 'NGP: Warning, point outside box'
+!!$       END IF
+
+       d(ix,iy)=d(ix,iy)+1.
+
+    END DO
+
+!!$    WRITE(*,*) 'NGP2D: Average:', mean(d,m)
+!!$    WRITE(*,*) 'NGP2D: RMS:', sqrt(variance(d,m))
+!!$    WRITE(*,*) 'NGP2D: Minimum:', MINVAL(REAL(d))
+!!$    WRITE(*,*) 'NGP2D: Maximum:', MAXVAL(REAL(d))
+    WRITE(*,*) 'NGP2D: Binning complete'
+    WRITE(*,*)
+
+  END SUBROUTINE NGP2D
+
+  SUBROUTINE CIC2D(x,n,L,d,m)
+
+    !This could probably be usefully combined with CIC somehow
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x(2,n), L
+    INTEGER, INTENT(IN) :: n, m
+    REAL, INTENT(OUT) :: d(m,m)
+    INTEGER :: i, ix, iy, ixn, iyn
+    REAL :: dx, dy
+
+    WRITE(*,*) 'CIC2D: Binning particles and creating density field'
+    WRITE(*,*) 'CIC2D: Cells:', m
+
+    !Set array to zero explicitly
+    d=0.
+
+    DO i=1,n
+
+       !ix=CEILING(x(1,i)*REAL(m)/L)
+       !iy=CEILING(x(2,i)*REAL(m)/L)
+       ix=NGP_cell(x(1,i),L,m)
+       iy=NGP_cell(x(2,i),L,m)
+
+!!$       IF(ix>m .OR. ix<1) THEN
+!!$          WRITE(*,*) 'x:', i, x(1,i), ix
+!!$          STOP 'CIC2D: Warning, point outside box'
+!!$       END IF
+!!$
+!!$       IF(iy>m .OR. iy<1) THEN
+!!$          WRITE(*,*) 'y:', i, x(2,i), iy
+!!$          STOP 'CIC2D: Warning, point outside box'
+!!$       END IF
+
+       !dx, dy in cell units, away from cell centre
+       dx=(x(1,i)/L)*REAL(m)-(REAL(ix)-0.5)
+       dy=(x(2,i)/L)*REAL(m)-(REAL(iy)-0.5)
+
+       !Find CIC weights in x
+       IF(dx>0.) THEN
+          ixn=ix+1
+          IF(ixn>m) ixn=1
+       ELSE
+          ixn=ix-1
+          dx=-dx  
+          IF(ixn<1) ixn=m    
+       END IF
+
+       !Find CIC weights in y
+       IF(dy>=0.) THEN
+          iyn=iy+1
+          IF(iyn>m) iyn=1
+       ELSE
+          iyn=iy-1
+          dy=-dy
+          IF(iyn<1) iyn=m
+       END IF
+
+       !Carry out CIC binning
+       d(ix,iy)=d(ix,iy)+(1.-dx)*(1.-dy)
+       d(ix,iyn)=d(ix,iyn)+(1.-dx)*dy
+       d(ixn,iy)=d(ixn,iy)+dx*(1.-dy)
+       d(ixn,iyn)=d(ixn,iyn)+dx*dy
+
+    END DO
+
+    WRITE(*,*) 'CIC2D: Binning complete'
+    WRITE(*,*)
+
+  END SUBROUTINE CIC2D
 
   SUBROUTINE particle_bin(x,n,L,w,d,m,ibin)
 
@@ -282,13 +686,14 @@ CONTAINS
     WRITE(*,*) 'NGP: Binning particles and creating field'
     WRITE(*,*) 'NGP: Cells:', m
 
+    !Set array to zero explicitly
     d=0.
 
     DO i=1,n
 
-       ix=CEILING(x(1,i)*float(m)/L)
-       iy=CEILING(x(2,i)*float(m)/L)
-       iz=CEILING(x(3,i)*float(m)/L)
+       ix=CEILING(x(1,i)*REAL(m)/L)
+       iy=CEILING(x(2,i)*REAL(m)/L)
+       iz=CEILING(x(3,i)*REAL(m)/L)
 
        IF(ix>m .OR. ix<1) THEN
           WRITE(*,*) 'x:', i, x(1,i)
@@ -333,14 +738,15 @@ CONTAINS
     WRITE(*,*) 'CIC: Binning particles and creating field'
     WRITE(*,*) 'CIC: Cells:', m
 
+    !Set array to zero explicitly
     d=0.
 
     DO i=1,n
 
-       ix=CEILING(x(1,i)*float(m)/L)
-       iy=CEILING(x(2,i)*float(m)/L)
-       iz=CEILING(x(3,i)*float(m)/L)
-
+       ix=CEILING(x(1,i)*REAL(m)/L)
+       iy=CEILING(x(2,i)*REAL(m)/L)
+       iz=CEILING(x(3,i)*REAL(m)/L)
+       
        IF(ix>m .OR. ix<1) THEN
           WRITE(*,*) 'x:', i, x(1,i)
           STOP 'CIC: Warning, point outside box'
@@ -357,9 +763,9 @@ CONTAINS
        END IF
 
        !dx, dy, dz in box units
-       dx=(x(1,i)/L)*float(m)-(float(ix)-0.5)
-       dy=(x(2,i)/L)*float(m)-(float(iy)-0.5)
-       dz=(x(3,i)/L)*float(m)-(float(iz)-0.5)
+       dx=(x(1,i)/L)*REAL(m)-(REAL(ix)-0.5)
+       dy=(x(2,i)/L)*REAL(m)-(REAL(iy)-0.5)
+       dz=(x(3,i)/L)*REAL(m)-(REAL(iz)-0.5)
 
        IF(dx>=0.) THEN
           ixn=ix+1
@@ -411,85 +817,13 @@ CONTAINS
 
   END SUBROUTINE CIC
 
-  SUBROUTINE CIC2D(x,y,L,d,m)
-
-    !This could probably be usefully combined with CIC somehow
-    IMPLICIT NONE
-    INTEGER :: ix, iy, ixn, iyn
-    INTEGER :: i, n
-    INTEGER, INTENT(IN) :: m
-    REAL, INTENT(IN) :: x(:), y(:), L
-    REAL, ALLOCATABLE, INTENT(INOUT) :: d(:,:)
-    REAL :: dx, dy
-
-    WRITE(*,*) 'CIC: Binning particles and creating density field'
-    WRITE(*,*) 'CIC: Cells:', m
-
-    IF(ALLOCATED(d)) DEALLOCATE(d)
-    ALLOCATE(d(m,m))
-    d=0.
-
-    n=SIZE(x)
-
-    DO i=1,n
-
-       ix=CEILING(x(i)*float(m)/L)
-       iy=CEILING(y(i)*float(m)/L)
-
-       IF(ix>m .OR. ix<1) THEN
-          WRITE(*,*) 'x:', i, x(i), ix
-          STOP 'CIC: Warning, point outside box'
-       END IF
-
-       IF(iy>m .OR. iy<1) THEN
-          WRITE(*,*) 'y:', i, y(i), iy
-          STOP 'CIC: Warning, point outside box'
-       END IF
-
-       !dx, dy in cell units, away from cell centre
-       dx=(x(i)/L)*float(m)-(float(ix)-0.5)
-       dy=(y(i)/L)*float(m)-(float(iy)-0.5)
-
-       !Find CIC weights in x
-       IF(dx>0.) THEN
-          ixn=ix+1
-          IF(ixn>m) ixn=1
-       ELSE
-          ixn=ix-1
-          dx=-dx  
-          IF(ixn<1) ixn=m    
-       END IF
-
-       !Find CIC weights in y
-       IF(dy>=0.) THEN
-          iyn=iy+1
-          IF(iyn>m) iyn=1
-       ELSE
-          iyn=iy-1
-          dy=-dy
-          IF(iyn<1) iyn=m
-       END IF
-
-       !Carry out CIC binning
-       d(ix,iy)=d(ix,iy)+(1.-dx)*(1.-dy)
-       d(ix,iyn)=d(ix,iyn)+(1.-dx)*dy
-       d(ixn,iy)=d(ixn,iy)+dx*(1.-dy)
-       d(ixn,iyn)=d(ixn,iyn)+dx*dy
-
-    END DO
-
-    WRITE(*,*) 'CIC: Binning complete'
-    WRITE(*,*)
-
-  END SUBROUTINE CIC2D
-
   SUBROUTINE SOD(x,n,L,w,d,m,Rs)
 
     !Spherical density routine
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n
-    REAL, ALLOCATABLE, INTENT(INOUT) :: d(:,:,:)
-    REAL, ALLOCATABLE :: xc(:,:,:,:)
+    REAL, INTENT(OUT) :: d(m,m,m)
+    REAL :: xc(3,m,m,m)
     REAL, INTENT(IN) :: x(3,n), L, w(n), Rs
     REAL :: r, dx, dy, dz
     INTEGER :: i, j, k, ix, iy, iz, jx, jy, jz, kx, ky, kz
@@ -498,16 +832,19 @@ CONTAINS
     WRITE(*,*) 'SOD: Binning particles and creating density field'
     WRITE(*,*) 'SOD: Cells:', m
 
-    ALLOCATE(d(m,m,m),xc(3,m,m,m))
+    !ALLOCATE(d(m,m,m),xc(3,m,m,m))
     d=0.
 
     !Fill array with sphere centre positions
-    DO i=1,m
+    DO k=1,m
        DO j=1,m
-          DO k=1,m
-             xc(1,i,j,k)=L*(float(i)-0.5)/float(m)
-             xc(2,i,j,k)=L*(float(j)-0.5)/float(m)
-             xc(3,i,j,k)=L*(float(k)-0.5)/float(m)
+          DO i=1,m
+             !xc(1,i,j,k)=L*(REAL(i)-0.5)/REAL(m)
+             !xc(2,i,j,k)=L*(REAL(j)-0.5)/REAL(m)
+             !xc(3,i,j,k)=L*(REAL(k)-0.5)/REAL(m)
+             xc(1,i,j,k)=cell_position(i,L,m)
+             xc(2,i,j,k)=cell_position(j,L,m)
+             xc(3,i,j,k)=cell_position(k,L,m)
           END DO
        END DO
     END DO
@@ -518,9 +855,9 @@ CONTAINS
        !WRITE(*,*) 'Particle coordinates:', i, x(1,i), x(2,i), x(3,i)
 
        !Coordinate of nearest mesh cell
-       ix=CEILING(x(1,i)*float(m)/L)
-       iy=CEILING(x(2,i)*float(m)/L)
-       iz=CEILING(x(3,i)*float(m)/L)
+       ix=CEILING(x(1,i)*REAL(m)/L)
+       iy=CEILING(x(2,i)*REAL(m)/L)
+       iz=CEILING(x(3,i)*REAL(m)/L)
 
        !WRITE(*,*) 'Mesh cell coordinates:', ix, iy, iz
 
@@ -735,7 +1072,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: m(n), min, max
     INTEGER, INTENT(IN) :: n
-    LOGICAL, ALLOCATABLE, INTENT(OUT) :: okay(:)
+    LOGICAL, INTENT(OUT) :: okay(n)
     INTEGER :: i, o
 
     WRITE(*,*) 'CUT: Imposing property cut'    
@@ -743,7 +1080,7 @@ CONTAINS
     WRITE(*,*) 'CUT: Maximum value:', max
     WRITE(*,*) 'CUT: Original number of objects', n
 
-    ALLOCATE(okay(n))
+    !ALLOCATE(okay(n))
     okay=.FALSE.
 
     DO i=1,n
@@ -793,31 +1130,32 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: z, Om_m, Om_v
 
-    Hubble2_simple=(Om_m*(1.+z)**3.)+Om_v+((1.-Om_m-Om_v)*(1.+z)**2.)
+    Hubble2_simple=Om_m*(1.+z)**3+Om_v+(1.-Om_m-Om_v)*(1.+z)**2
 
   END FUNCTION Hubble2_simple
 
-  SUBROUTINE slice(x,x1,x2,y,y1,y2,z,z1,z2,filename)
+  !Used to be called slice
+  SUBROUTINE write_slice_ascii(x,x1,x2,y,y1,y2,z,z1,z2,filename)
 
     IMPLICIT NONE
     REAL, INTENT(IN) :: x1, x2, y1, y2, z1, z2
-    CHARACTER(len=64), INTENT(IN) :: filename
+    CHARACTER(len=*), INTENT(IN) :: filename
     REAL, INTENT(IN) :: x(:), y(:), z(:)
     INTEGER :: i
 
-    WRITE(*,*) 'Writing slice'
+    WRITE(*,*) 'WRITE_SLICE_ASCII: Writing slice'
     OPEN(10,file=filename)
-    WRITE(*,*) 'Thickness in z/(Mpc/h):', (z2-z1)
+    WRITE(*,*) 'WRITE_SLICE_ASCII: Thickness in z [Mpc/h]:', (z2-z1)
     DO i=1,SIZE(x)
        IF(x1<x(i) .AND. x(i)<=x2 .AND. y1<y(i) .AND. y(i)<=y2 .AND. z1<z(i) .AND. z(i)<=z2) THEN
           WRITE(10,*) x(i), y(i), z(i)
        END IF
     END DO
     CLOSE(10)
-    WRITE(*,*) 'Slice written: ', filename
+    WRITE(*,*) 'WRITE_SLICE_ASCII: Slice written: ', TRIM(filename)
     WRITE(*,*)
 
-  END SUBROUTINE slice
+  END SUBROUTINE write_slice_ascii
 
   REAL FUNCTION shot_noise_simple(L,n)
 
@@ -854,8 +1192,93 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: k, shot
 
-    shot_noise_k=shot*4.*pi*(k/(2.*pi))**3
+    shot_noise_k=shot*4.*pi*(k/twopi)**3
 
   END FUNCTION shot_noise_k
+
+  SUBROUTINE field_correlation_function(r_array,xi_array,n_array,n,d,m,L)
+
+    USE field_operations
+    USE table_integer
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: n, m
+    REAL, INTENT(OUT) :: xi_array(n)
+    REAL, INTENT(IN) :: L, d(m,m,m), r_array(n)
+    INTEGER*8, INTENT(OUT) :: n_array(n)
+    REAL:: rmin, rmax
+    DOUBLE PRECISION :: xi8_array(n)
+    INTEGER :: i1, i2, i3, j1, j2, j3, i(3), j(3), k, dim
+    REAL :: r, x1(3), x2(3)
+
+    !This double counts, so time could be at least halved
+    !Also could be parrallelised
+    !Also could just not be complete shit, but it should get the job done
+
+    rmin=r_array(1)
+    rmax=r_array(n)
+
+    WRITE(*,*) 'CORRELATION_FUNCTION: rmin [Mpc/h]:', rmin
+    WRITE(*,*) 'CORRELATION_FUNCTION: rmax [Mpc/h]:', rmax
+    WRITE(*,*) 'CORRELATION_FUNCTION: number of r bins:', n
+
+    !ALLOCATE(xi8_array(n))
+    xi8_array=0.d0
+    n_array=0
+
+    DO i3=1,m
+       DO i2=1,m
+          DO i1=1,m
+
+             i(1)=i1
+             i(2)=i2
+             i(3)=i3
+             !x1(1)=L*(i1-0.5)/float(m)
+             !x1(2)=L*(j1-0.5)/float(m)
+             !x1(3)=L*(k1-0.5)/float(m)
+             DO dim=1,3
+                x1(dim)=L*(i(dim)-0.5)/float(m)
+             END DO
+
+             DO j3=1,m
+                DO j2=1,m
+                   DO j1=1,m
+
+                      j(1)=j1
+                      j(2)=j2
+                      j(3)=j3
+                      !x2(1)=L*(i2-0.5)/float(m)
+                      !x2(2)=L*(j2-0.5)/float(m)
+                      !x2(3)=L*(k2-0.5)/float(m)
+                      DO dim=1,3
+                         x2(dim)=L*(j(dim)-0.5)/float(m)
+                      END DO
+
+                      r=periodic_distance(x1,x2,L)
+
+                      IF(r<rmin .OR. r>rmax) THEN
+                         CYCLE
+                      ELSE
+                         k=select_table_integer(r,r_array,n,3)
+                         IF(k<1 .OR. k>n) STOP 'Integer finding has fucked up'
+                         xi8_array(k)=xi8_array(k)+d(i(1),i(2),i(3))*d(j(1),j(2),j(3))
+                         n_array(k)=n_array(k)+1
+                      END IF
+
+                   END DO
+                END DO
+             END DO
+
+          END DO
+       END DO
+    END DO
+
+    xi_array=REAL(xi8_array/float(n_array))
+
+    !DEALLOCATE(xi8_array)
+
+    WRITE(*,*) 'CORRELATION_FUNCTION: done'
+    WRITE(*,*)
+
+  END SUBROUTINE field_correlation_function
 
 END MODULE simulations

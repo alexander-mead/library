@@ -2,51 +2,66 @@ MODULE field_operations
 
 CONTAINS
 
-  REAL FUNCTION random_mode_amplitude(k,L,ktab,Pktab,nk)
+  REAL FUNCTION random_mode_amplitude(k,L,logk_tab,logPk_tab,nk)
 
     !This calculates the Fourier amplitudes of the density field
     USE interpolate
     USE constants
     USE random_numbers
     IMPLICIT NONE
-    REAL, INTENT(IN) :: k, L, ktab(nk), Pktab(nk)
+    REAL, INTENT(IN) :: k, L, logk_tab(nk), logPk_tab(nk)
     INTEGER, INTENT(IN) :: nk
     REAL :: sigma
 
     LOGICAL, PARAMETER :: use_average=.FALSE.
 
+    !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
+
     !Sigma parameter in the Rayleigh distribution
-    sigma=sqrt(2.*(pi**2)*find(k,ktab,Pktab,nk,3,3,2)/(L*k)**3)
+    sigma=sqrt(exp(find(log(k),logk_tab,logPk_tab,nk,3,3,2))/(4.*pi*(L*k/(2.*pi))**3))
 
     IF(use_average) THEN
        !Fixed mode amplitudes       
-       !dkmod=sigma!*sqrt(pi/2.) !FUDGE to match NgenIC!
-       random_mode_amplitude=sigma*sqrt(2.) !FUDGE to match CAMB (something to do with average of Rayleigh?)
+       random_mode_amplitude=sigma
     ELSE
-       !dkmod=rayleigh(sigma)/2. !FUDGE to match NgenIC!
-       random_mode_amplitude=random_Rayleigh(sigma) !Matches CAMB
+       !Correctly assigned random mode amplitudes
+       random_mode_amplitude=random_Rayleigh(sigma)/sqrt(2.) !sqrt(2) is a FUDGE (something to do with average of Rayleigh?)
     END IF
+
+    !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
 
   END FUNCTION random_mode_amplitude
 
-  SUBROUTINE make_Gaussian_random_field(d,m,L,ktab,Pktab,nk)
+  COMPLEX FUNCTION random_complex_phase()
+
+    !Get a complex phase with theta between 0 and 2pi
+    USE constants
+    USE random_numbers
+    IMPLICIT NONE
+    REAL :: theta
+
+    theta=random_uniform(0.,twopi)
+    random_complex_phase=CMPLX(cos(theta),sin(theta))
+
+  END FUNCTION random_complex_phase
+
+  SUBROUTINE make_Gaussian_random_modes(dk,m,L,logk_tab,logPk_tab,nk)
 
     !Uses a tablulated P(k) to make a Gaussian Random Field realisation
     USE fft
     USE random_numbers
     IMPLICIT NONE
-    REAL, ALLOCATABLE, INTENT(INOUT) :: d(:,:,:)
-    DOUBLE COMPLEX, ALLOCATABLE :: dc(:,:,:)
-    REAL, INTENT(IN) :: ktab(nk), Pktab(nk), L
+    DOUBLE COMPLEX, INTENT(OUT) :: dk(m,m,m)
+    REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L
     INTEGER, INTENT(IN) :: m, nk
     INTEGER :: ix, iy, iz, ixx, iyy, izz
     REAL :: kx, ky, kz, k
     REAL :: amp
     COMPLEX :: rot
 
-    ALLOCATE(dc(m,m,m))
+    dk=(0.d0,0.d0)
 
-    WRITE(*,*) 'MAKE_GRF: Creating realisation of density field'
+    WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Creating Fourier realisation of Gaussian field'
 
     !This fills up displacement array in all of k space!
     DO iz=1,m
@@ -58,7 +73,7 @@ CONTAINS
              IF(ix==1 .AND. iy==1 .AND. iz==1) THEN
 
                 !Set the zero mode to zero
-                dc(ix,iy,iz)=0.d0
+                dk(ix,iy,iz)=0.d0
 
              ELSE IF(ix==1+m/2 .OR. iy==1+m/2 .OR. iz==1+m/2) THEN 
 
@@ -66,16 +81,16 @@ CONTAINS
                 !Maybe all modes with mod(k)>k_ny should be set to 0.?!
                 !Bridit Falck wrote a 'corner modes' paper about this
                 !https://arxiv.org/abs/1610.04862
-                dc(ix,iy,iz)=0.d0
+                dk(ix,iy,iz)=0.d0
 
              ELSE
 
                 !Get mode amplitudes and phases
-                amp=random_mode_amplitude(k,L,ktab,Pktab,nk)
-                rot=random_phase()
+                amp=random_mode_amplitude(k,L,logk_tab,logPk_tab,nk)
+                rot=random_complex_phase()
 
                 !Assign values to the density field
-                dc(ix,iy,iz)=amp*rot
+                dk(ix,iy,iz)=amp*rot
 
              END IF
 
@@ -83,9 +98,8 @@ CONTAINS
        END DO
     END DO
 
-    WRITE(*,*) 'MAKE_GRF: Done'
-
-    WRITE(*,*) 'MAKE_GRF: Enforcing Hermiticity'
+    WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Done'
+    WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Enforcing Hermiticity'
 
     !Enforce Hermiticity - probably could save a load of operations above
     DO iz=1,m
@@ -101,29 +115,111 @@ CONTAINS
              IF(iz==1) izz=1
 
              !Do the enforcing
-             dc(ix,iy,iz)=CONJG(dc(ixx,iyy,izz))
+             dk(ix,iy,iz)=CONJG(dk(ixx,iyy,izz))
 
           END DO
        END DO
     END DO
 
     !Is this a good idea?
-    dc=CONJG(dc)
+    dk=CONJG(dk)
 
-    WRITE(*,*) 'MAKE_GRF: Hermitian density field generated'
+    WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Hermitian field generated'
+    WRITE(*,*)
 
-    WRITE(*,*) 'MAKE_GRF: Transform to real space'
+  END SUBROUTINE make_Gaussian_random_modes
+
+  SUBROUTINE make_Gaussian_random_field(d,m,L,logk_tab,logPk_tab,nk)
+
+    !Uses a tablulated P(k) to make a Gaussian Random Field realisation
+    USE fft
+    USE random_numbers
+    IMPLICIT NONE
+    REAL, INTENT(OUT) :: d(m,m,m)
+    DOUBLE COMPLEX :: dk(m,m,m), dk_new(m,m,m)
+    REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L
+    INTEGER, INTENT(IN) :: m, nk
+
+    CALL make_Gaussian_random_modes(dk,m,L,logk_tab,logPk_tab,nk)
+
+    WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_FIELD: Transform to real space'
 
     !FT the displacement field from k-space to real space!
-    CALL fft3(dc,dc,m,m,m,1)
+    CALL fft3(dk,dk_new,m,m,m,1)
+    dk=dk_new
+    d=REAL(REAL(dk))
 
-    ALLOCATE(d(m,m,m))
-    d=REAL(REAL(dc))
-
-    WRITE(*,*) 'MAKE_GRF: Done'
+    WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_FIELD: Done'
     WRITE(*,*)
 
   END SUBROUTINE make_Gaussian_random_field
+
+  SUBROUTINE generate_displacement_fields(f,m,L,logk_tab,logPk_tab,nk)
+
+    USE fft
+    USE array_operations
+    !USE statistics
+    IMPLICIT NONE
+    REAL, INTENT(OUT) :: f(3,m,m,m)
+    INTEGER, INTENT(IN) :: m, nk
+    REAL, INTENT(IN) :: L, logk_tab(nk), logPk_tab(nk)
+    DOUBLE COMPLEX :: d(m,m,m), dk(m,m,m), fk(3,m,m,m)
+    INTEGER :: i, ix, iy, iz
+    REAL :: kx, ky, kz, k
+
+    CALL make_Gaussian_random_modes(dk,m,L,logk_tab,logPk_tab,nk)
+
+    WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Creating realisation of displacement field'
+
+    !This fills up displacement array in all of k space!
+    DO iz=1,m
+       DO iy=1,m
+          DO ix=1,m
+
+             !Get the wave vectors
+             CALL k_fft(ix,iy,iz,m,kx,ky,kz,k,L)
+
+             IF(ix==1 .AND. iy==1 .AND. iz==1) THEN
+
+                !Set the DC mode to zero
+                fk(1,ix,iy,iz)=0.d0
+                fk(2,ix,iy,iz)=0.d0
+                fk(3,ix,iy,iz)=0.d0
+
+             ELSE IF(ix==1+m/2 .OR. iy==1+m/2 .OR. iz==1+m/2) THEN 
+
+                !Sets Nyquist modes to 0.!
+                !Maybe all modes with mod(k)>k_ny should be set to 0.?!
+                !Bridit Falck wrote a 'corner modes' paper about this
+                !https://arxiv.org/abs/1610.04862
+                fk(1,ix,iy,iz)=0.d0
+                fk(2,ix,iy,iz)=0.d0
+                fk(3,ix,iy,iz)=0.d0
+
+             ELSE
+
+                !Assign values to the displacement field
+                fk(1,ix,iy,iz)=(0.d0,-1.d0)*dk(ix,iy,iz)*kx/k**2
+                fk(2,ix,iy,iz)=(0.d0,-1.d0)*dk(ix,iy,iz)*ky/k**2
+                fk(3,ix,iy,iz)=(0.d0,-1.d0)*dk(ix,iy,iz)*kz/k**2
+
+             END IF
+
+          END DO
+       END DO
+    END DO
+    WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Fourier displacement fields done'
+
+    DO i=1,3
+       dk=fk(i,:,:,:)
+       CALL fft3(dk,d,m,m,m,1)
+       f(i,:,:,:)=REAL(REAL(d(:,:,:)))
+    END DO
+
+    WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Real-space displacement fields generated'
+    WRITE(*,*)
+
+  END SUBROUTINE generate_displacement_fields
 
   SUBROUTINE read_field(d,m,infile)
 
@@ -132,10 +228,8 @@ CONTAINS
     USE statistics
     IMPLICIT NONE
     CHARACTER(len=256), INTENT(IN) :: infile
-    REAL, ALLOCATABLE, INTENT(OUT) :: d(:,:,:)
+    REAL, INTENT(OUT) :: d(m,m,m)
     INTEGER, INTENT(IN) :: m
-
-    ALLOCATE(d(m,m,m))
 
     !Output unformatted data
     WRITE(*,*) 'READ_FIELD: Binary input: ', TRIM(infile)
@@ -158,11 +252,9 @@ CONTAINS
     USE statistics
     IMPLICIT NONE
     CHARACTER(len=256), INTENT(IN) :: infile
-    REAL, ALLOCATABLE, INTENT(OUT) :: d(:,:,:)
-    DOUBLE PRECISION, ALLOCATABLE :: d8(:,:,:)
+    REAL, INTENT(OUT) :: d(m,m,m)
+    DOUBLE PRECISION :: d8(m,m,m)
     INTEGER, INTENT(IN) :: m
-
-    ALLOCATE(d(m,m,m),d8(m,m,m))
 
     !Input unformatted data
     WRITE(*,*) 'READ_FIELD: Binary input: ', TRIM(infile)
@@ -171,7 +263,6 @@ CONTAINS
     READ(7) d8
     CLOSE(7)
     d=REAL(d8)
-    DEALLOCATE(d8)
     WRITE(*,*) 'READ_FIELD: Minval:', MINVAL(d)
     WRITE(*,*) 'READ_FIELD: Maxval:', MAXVAL(d)
     WRITE(*,*) 'READ_FIELD: Average:', REAL(mean(splay(d,m,m,m),m**3))
@@ -221,12 +312,6 @@ CONTAINS
 
           x=L*(REAL(i)-0.5)/REAL(m)
           y=L*(REAL(j)-0.5)/REAL(m)
-
-          !sum=0.
-          !DO k=1,nz
-          !   sum=sum+d(i,j,k)
-          !END DO
-          !sum=sum/float(nz)
 
           WRITE(8,*) x, y, d(i,j)
 
@@ -319,7 +404,7 @@ CONTAINS
     REAL, INTENT(INOUT) :: d(m,m,m)
     REAL, INTENT(IN) :: L
     INTEGER, INTENT(IN) :: ibin
-    DOUBLE COMPLEX :: dc(m,m,m), dcout(m,m,m)
+    DOUBLE COMPLEX :: dk(m,m,m), dkout(m,m,m)
 
     !ibin = 1 NGP
     !ibin = 2 CIC
@@ -327,17 +412,17 @@ CONTAINS
     WRITE(*,*) 'SHARPEN: Correcting for binning by sharpening field'
     WRITE(*,*) 'SHARPEN: Mesh size:', m
 
-    dc=d
+    dk=d
 
-    CALL fft3(dc,dcout,m,m,m,-1)
-    dc=dcout
+    CALL fft3(dk,dkout,m,m,m,-1)
+    dk=dkout
 
-    CALL sharpen_k(dc,m,L,ibin)
+    CALL sharpen_k(dk,m,L,ibin)
 
-    CALL fft3(dc,dcout,m,m,m,1)
-    dc=dcout
+    CALL fft3(dk,dkout,m,m,m,1)
+    dk=dkout
 
-    d=REAL(REAL(dc))/REAL(m**3)
+    d=REAL(REAL(dk))/REAL(m**3)
 
     WRITE(*,*) 'SHARPEN: Sharpening complete'
     WRITE(*,*)
@@ -388,66 +473,110 @@ CONTAINS
 
   END SUBROUTINE sharpen_k
 
-  SUBROUTINE smooth2D(arr,n,r,L)
+  SUBROUTINE smooth2D(d,m,r,L)
 
+    !arr(n,n): input array of size n x n
+    !r: smoothing scale in Mpc/h
+    !L: box size in Mpc/h
     USE fft
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n
-    REAL, INTENT(INOUT) :: arr(n,n)
+    REAL, INTENT(INOUT) :: d(m,m)
     REAL, INTENT(IN) :: r, L
-    REAL :: kx, ky, kz, kmod
-    DOUBLE COMPLEX, ALLOCATABLE :: ac(:,:), acout(:,:)
-    INTEGER :: i, j, m
+    INTEGER, INTENT(IN) :: m
+    REAL :: kx, ky, kz, k
+    DOUBLE COMPLEX :: dc(m,m), dk(m,m)
+    INTEGER :: i, j
 
-    WRITE(*,*) 'Smoothing array'
-    WRITE(*,*) 'Smoothing scale [Mpc/h]:', r
+    WRITE(*,*) 'SMOOTH2D: Smoothing array'
+    WRITE(*,*) 'SMOOTH2D: Assuming array is periodic'
+    WRITE(*,*) 'SMOOTH2D: Smoothing scale [Mpc/h]:', r
 
-    !For padding, I cant imagine that x2 would ever be insufficient!
-    m=2*n
-
-    ALLOCATE(ac(m,m),acout(m,m))
-
-    !Not sure if this is necessary
-    ac=(0.d0,0.d0)
-    acout=(0.d0,0.d0)
-
-    !Put image into complex array, padded with 0s where image is not!
-    DO j=1,n
-       DO i=1,n
-          ac(i,j)=arr(i,j)
-       END DO
-    END DO
-
-    CALL fft2(ac,acout,n,n,-1)
-    ac=acout
-
-    !Smoothing length in terms of image(m x m) size!
-    !r=pix/float(m)
+    dc=d
+    CALL fft2(dc,dk,m,m,-1)
 
     DO j=1,m
        DO i=1,m
-          CALL k_fft(i,j,1,m,kx,ky,kz,kmod,L*2)
-          ac(i,j)=ac(i,j)*exp(-((kmod*r)**2.)/2.)          
+          CALL k_fft(i,j,1,m,kx,ky,kz,k,L)
+          dk(i,j)=dk(i,j)*exp(-((k*r)**2)/2.)
        END DO
     END DO
 
-    CALL fft2(ac,acout,n,n,1)
-    ac=acout
+    !Normalise post Fourier transform
+    CALL fft2(dk,dc,m,m,1)
+    dc=dc/REAL(m**2)
+    d=REAL(REAL(dc))
 
-    !Normalise post Fourier transform!
-    ac=ac/(REAL(m)**2)
-
-    !Retrieve smooth image from complex array!
-    DO j=1,n
-       DO i=1,n
-          arr(i,j)=REAL(REAL(ac(i,j)))
-       END DO
-    END DO
-
-    WRITE(*,*) 'Done'
+    WRITE(*,*) 'SMOOTH2D: Done'
     WRITE(*,*)
 
   END SUBROUTINE smooth2D
+
+!!$  SUBROUTINE smooth2D_nonperiodic(arr,n,r,L)
+!!$
+!!$    !arr(n,n): input array of size n x n
+!!$    !r: smoothing scale in Mpc/h
+!!$    !L: box size in Mpc/h
+!!$    USE fft
+!!$    IMPLICIT NONE
+!!$    INTEGER, INTENT(IN) :: n
+!!$    REAL, INTENT(INOUT) :: arr(n,n)
+!!$    REAL, INTENT(IN) :: r, L
+!!$    REAL :: kx, ky, kz, k
+!!$    DOUBLE COMPLEX, ALLOCATABLE :: ac(:,:), ac_out(:,:)
+!!$    INTEGER :: i, j, m
+!!$
+!!$    INTEGER, PARAMETER :: pad=2 !Padding because we generally will not be continuous
+!!$
+!!$    WRITE(*,*) 'SMOOTH2D: Smoothing array'
+!!$    WRITE(*,*) 'SMOOTH2D: Smoothing scale [Mpc/h]:', r
+!!$
+!!$    !For padding, I cant imagine that x2 would ever be insufficient!
+!!$    m=pad*n
+!!$
+!!$    ALLOCATE(ac(m,m),ac_out(m,m))
+!!$
+!!$    !Not sure if this is necessary
+!!$    ac=(0.d0,0.d0)
+!!$    ac_out=(0.d0,0.d0)
+!!$
+!!$    !Put image into complex array, padded with zeroes where image is not!
+!!$    DO j=1,n
+!!$       DO i=1,n
+!!$          ac(i,j)=arr(i,j)
+!!$       END DO
+!!$    END DO
+!!$
+!!$    CALL fft2(ac,ac_out,m,m,-1)
+!!$    ac=ac_out
+!!$
+!!$    !Smoothing length in terms of image(m x m) size!
+!!$    !r=pix/float(m)
+!!$    DO j=1,m
+!!$       DO i=1,m
+!!$          CALL k_fft(i,j,1,m,kx,ky,kz,k,pad*L)
+!!$          ac(i,j)=ac(i,j)*exp(-((k*r)**2)/2.)
+!!$       END DO
+!!$    END DO
+!!$
+!!$    CALL fft2(ac,ac_out,m,m,1)
+!!$    ac=ac_out
+!!$    DEALLOCATE(ac_out)
+!!$
+!!$    !Normalise post Fourier transform!
+!!$    ac=ac/REAL(m**2)
+!!$
+!!$    !Retrieve smooth image from complex array!
+!!$    !Need a loop because arr and ac will have different sizes
+!!$    DO j=1,n
+!!$       DO i=1,n
+!!$          arr(i,j)=REAL(REAL(ac(i,j)))
+!!$       END DO
+!!$    END DO
+!!$
+!!$    WRITE(*,*) 'SMOOTH2D: Done'
+!!$    WRITE(*,*)
+!!$
+!!$  END SUBROUTINE smooth2D_nonperiodic
 
   SUBROUTINE smooth3D(arr,m,r,L)
 
@@ -462,10 +591,6 @@ CONTAINS
     INTEGER :: i, j, k
 
     WRITE(*,*) 'Smoothing array'
-
-    !Allocate complex array
-    !ALLOCATE(ac(m,m,m))
-    !ac=(0.d0,0.d0)
 
     ac=arr
 
@@ -557,11 +682,10 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: d3d(m,m,m)
     INTEGER, INTENT(IN) :: m
-    REAL, ALLOCATABLE, INTENT(OUT) :: d2d(:,:)
+    REAL, INTENT(OUT) :: d2d(m,m)
     INTEGER :: i, j, k
 
     WRITE(*,*) 'PROJECT_3D_TO_2D: Projecting 3D stack into 2D'
-    ALLOCATE(d2d(m,m))
     d2d=0.
     DO i=1,m
        DO j=1,m
@@ -577,91 +701,6 @@ CONTAINS
     WRITE(*,*)
 
   END SUBROUTINE project_3D_to_2D
-
-  SUBROUTINE field_correlation_function(r_array,xi_array,n_array,n,d,m,L)
-
-    USE simulations
-    USE table_integer
-    IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, m
-    REAL, INTENT(OUT) :: xi_array(n)
-    REAL, INTENT(IN) :: L, d(m,m,m), r_array(n)
-    INTEGER*8, INTENT(OUT) :: n_array(n)
-    REAL:: rmin, rmax
-    DOUBLE PRECISION, ALLOCATABLE :: xi8_array(:)
-    INTEGER :: i1, i2, i3, j1, j2, j3, i(3), j(3), k, dim
-    REAL :: r, x1(3), x2(3)
-
-    !This double counts, so time could be at least halved
-    !Also could be parrallelised
-    !Also could just not be complete shit, but it should get the job done
-
-    rmin=r_array(1)
-    rmax=r_array(n)
-
-    WRITE(*,*) 'CORRELATION_FUNCTION: rmin [Mpc/h]:', rmin
-    WRITE(*,*) 'CORRELATION_FUNCTION: rmax [Mpc/h]:', rmax
-    WRITE(*,*) 'CORRELATION_FUNCTION: number of r bins:', n
-
-    ALLOCATE(xi8_array(n))
-    xi8_array=0.d0
-    n_array=0
-
-    DO i3=1,m
-       DO i2=1,m
-          DO i1=1,m
-
-             i(1)=i1
-             i(2)=i2
-             i(3)=i3
-             !x1(1)=L*(i1-0.5)/float(m)
-             !x1(2)=L*(j1-0.5)/float(m)
-             !x1(3)=L*(k1-0.5)/float(m)
-             DO dim=1,3
-                x1(dim)=L*(i(dim)-0.5)/float(m)
-             END DO
-
-             DO j3=1,m
-                DO j2=1,m
-                   DO j1=1,m
-
-                      j(1)=j1
-                      j(2)=j2
-                      j(3)=j3
-                      !x2(1)=L*(i2-0.5)/float(m)
-                      !x2(2)=L*(j2-0.5)/float(m)
-                      !x2(3)=L*(k2-0.5)/float(m)
-                      DO dim=1,3
-                         x2(dim)=L*(j(dim)-0.5)/float(m)
-                      END DO
-
-                      r=periodic_distance(x1,x2,L)
-
-                      IF(r<rmin .OR. r>rmax) THEN
-                         CYCLE
-                      ELSE
-                         k=select_table_integer(r,r_array,n,3)
-                         IF(k<1 .OR. k>n) STOP 'Integer finding has fucked up'
-                         xi8_array(k)=xi8_array(k)+d(i(1),i(2),i(3))*d(j(1),j(2),j(3))
-                         n_array(k)=n_array(k)+1
-                      END IF
-
-                   END DO
-                END DO
-             END DO
-
-          END DO
-       END DO
-    END DO
-
-    xi_array=REAL(xi8_array/float(n_array))
-
-    DEALLOCATE(xi8_array)
-
-    WRITE(*,*) 'CORRELATION_FUNCTION: done'
-    WRITE(*,*)
-
-  END SUBROUTINE field_correlation_function
 
   SUBROUTINE clip(d,m1,m2,m3,d0,talk)
 
@@ -812,22 +851,22 @@ CONTAINS
     USE fft
     IMPLICIT NONE
     DOUBLE COMPLEX, INTENT(IN) :: dk1(m,m,m), dk2(m,m,m)
-    REAL, ALLOCATABLE, INTENT(OUT) :: pow(:), k(:)
-    INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
+    REAL, INTENT(OUT) :: pow(bins), k(bins)
+    INTEGER, INTENT(OUT) :: nbin(bins)
     INTEGER, INTENT(IN) :: m, bins
     REAL, INTENT(IN) :: L, kmin, kmax
     INTEGER :: i, ix, iy, iz, n
     REAL :: kx, ky, kz, kmod  
     REAL, ALLOCATABLE :: kbin(:)  
-    REAL*8, ALLOCATABLE :: pow8(:), k8(:)    
-    INTEGER*8, ALLOCATABLE :: nbin8(:)
+    DOUBLE PRECISION :: pow8(bins), k8(bins)    
+    INTEGER*8 :: nbin8(bins)
 
     WRITE(*,*) 'PK: Computing isotropic power spectrum'
 
     !Allocate arrays used in this calculation
-    ALLOCATE(kbin(bins+1),k(bins))
-    ALLOCATE(pow(bins),nbin(bins))
-    ALLOCATE(k8(bins),pow8(bins),nbin8(bins))
+    !ALLOCATE(kbin(bins+1),k(bins))
+    !ALLOCATE(pow(bins),nbin(bins))
+    !ALLOCATE(k8(bins),pow8(bins),nbin8(bins))
 
     !Set summation variables to 0.d0
     k8=0.d0
@@ -892,10 +931,10 @@ CONTAINS
     pow=REAL(pow8/(DBLE(m)**6))
 
     !Divide by 2 because up to now we have double count Hermitian conjugates
-    nbin=INT(nbin8/2)
+    nbin=INT(nbin8)/2
 
     !Deallocate arrays
-    DEALLOCATE(kbin,pow8,nbin8,k8)
+    !DEALLOCATE(kbin,pow8,nbin8,k8)
 
     WRITE(*,*) 'PK: Power computed'
     WRITE(*,*) 
@@ -912,19 +951,19 @@ CONTAINS
     REAL :: kx, ky, kz, kmod, mu
     REAL, INTENT(IN) :: kmin, kmax
     REAL, INTENT(IN) :: L
-    REAL, ALLOCATABLE :: kbin(:)
-    REAL, ALLOCATABLE, INTENT(OUT) :: pow(:), kval(:)
-    REAL*8, ALLOCATABLE :: pow8(:), kval8(:)
-    INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
-    INTEGER*8, ALLOCATABLE :: nbin8(:)
+    REAL :: kbin(bins+1)
+    REAL, INTENT(OUT) :: pow(bins), kval(bins)
+    DOUBLE PRECISION :: pow8(bins), kval8(bins)
+    INTEGER, INTENT(OUT) :: nbin(bins)
+    INTEGER*8 :: nbin8(bins)
     INTEGER, INTENT(IN) :: iz, ipole, bins
     DOUBLE COMPLEX, INTENT(IN) :: d(:,:,:)
 
     WRITE(*,*) 'Computing isotropic power spectrum'
 
-    ALLOCATE(kbin(bins+1),kval(bins))
-    ALLOCATE(pow(bins),nbin(bins))
-    ALLOCATE(pow8(bins),nbin8(bins),kval8(bins))
+    !ALLOCATE(kbin(bins+1),kval(bins))
+    !ALLOCATE(pow(bins),nbin(bins))
+    !ALLOCATE(pow8(bins),nbin8(bins),kval8(bins))
 
     kval=0.
     pow=0.
@@ -1003,18 +1042,18 @@ CONTAINS
           pow8(i)=0.
        ELSE
           !          kval(i)=(kbin(i+1)+kbin(i))/2.
-          kval(i)=kval8(i)/float(nbin8(i))
+          kval(i)=REAL(kval8(i))/REAL(nbin8(i))
           pow8(i)=pow8(i)/float(nbin8(i))
           pow8(i)=pow8(i)*((L*kval(i))**3.)/(2.*pi**2.)
        END IF
     END DO
 
-    pow=pow8/(float(m)**6.)
+    pow=REAL(pow8)/(REAL(m)**6)
 
     !Divide by 2 because double count Hermitian conjugates
-    nbin=nbin8/2
+    nbin=INT(nbin8)/2
 
-    DEALLOCATE(kbin,pow8,nbin8,kval8)
+    !DEALLOCATE(kbin,pow8,nbin8,kval8)
 
     WRITE(*,*) 'Power computed'
     WRITE(*,*) 
@@ -1028,17 +1067,17 @@ CONTAINS
     IMPLICIT NONE
     INTEGER :: i, j, k, m, ii, jj, bins, iz
     REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, mus
-    REAL, ALLOCATABLE :: pow(:,:), kv(:), kbin(:), mu(:), mubin(:)
-    REAL*8, ALLOCATABLE :: pow8(:,:)
-    INTEGER, ALLOCATABLE :: nbin(:,:)
-    INTEGER*8, ALLOCATABLE :: nbin8(:,:)
+    REAL :: pow(bins,bins), kv(bins), kbin(bins+1), mu(bins), mubin(bins+1)
+    DOUBLE PRECISION :: pow8(bins,bins)
+    INTEGER :: nbin(bins,bins)
+    INTEGER*8 :: nbin8(bins,bins)
     DOUBLE COMPLEX :: d(:,:,:)
 
     WRITE(*,*) 'Computing RSD power spectrum'
 
-    ALLOCATE(kbin(bins+1),mubin(bins+1),kv(bins),mu(bins))
-    ALLOCATE(pow(bins,bins),nbin(bins,bins))
-    ALLOCATE(pow8(bins,bins),nbin8(bins,bins))
+    !ALLOCATE(kbin(bins+1),mubin(bins+1),kv(bins),mu(bins))
+    !ALLOCATE(pow(bins,bins),nbin(bins,bins))
+    !ALLOCATE(pow8(bins,bins),nbin8(bins,bins))
 
     kbin=0.
     mubin=0.
@@ -1102,6 +1141,8 @@ CONTAINS
                 mus=ky/kmod
              ELSE IF(iz==3) THEN
                 mus=kz/kmod
+             ELSE
+                STOP 'COMPUTE_POWER_SPECTRUM_RSD: Error, iz not specified correctly'
              END IF
 
              mus=ABS(mus)
@@ -1137,10 +1178,10 @@ CONTAINS
        END DO
     END DO
 
-    pow=pow8/(float(m)**6.)
+    pow=REAL(pow8)/(REAL(m)**6)
 
     !Divide by 2 because double count Hermitian conjugates
-    nbin=nbin8/2
+    nbin=INT(nbin8)/2
 
     WRITE(*,*) 'Power computed'
     WRITE(*,*) 
@@ -1154,19 +1195,19 @@ CONTAINS
     IMPLICIT NONE
     INTEGER :: i, j, k, m, ii, jj, bins, iz
     REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, kpers, kpars
-    REAL, ALLOCATABLE :: pow(:,:), kpar(:), kparbin(:), kper(:), kperbin(:)
-    REAL*8, ALLOCATABLE :: pow8(:,:)
-    INTEGER, ALLOCATABLE :: nbin(:,:)
-    INTEGER*8, ALLOCATABLE :: nbin8(:,:)
+    REAL :: pow(bins,bins), kpar(bins), kparbin(bins+1), kper(bins), kperbin(bins+1)
+    DOUBLE PRECISION :: pow8(bins,bins)
+    INTEGER :: nbin(bins,bins)
+    INTEGER*8 :: nbin8(bins,bins)
     DOUBLE COMPLEX :: d(:,:,:)
 
     !    STOP 'Not updated according to JAP prescription'
 
     WRITE(*,*) 'Computing rsd power spectrum'
 
-    ALLOCATE(kparbin(bins+1),kperbin(bins+1),kpar(bins),kper(bins))
-    ALLOCATE(pow(bins,bins),nbin(bins,bins))
-    ALLOCATE(pow8(bins,bins),nbin8(bins,bins))
+    !ALLOCATE(kparbin(bins+1),kperbin(bins+1),kpar(bins),kper(bins))
+    !ALLOCATE(pow(bins,bins),nbin(bins,bins))
+    !ALLOCATE(pow8(bins,bins),nbin8(bins,bins))
 
     kparbin=0.
     kperbin=0.
@@ -1229,6 +1270,8 @@ CONTAINS
              ELSE IF(iz==3) THEN
                 kpars=ABS(kz)
                 kpers=sqrt(kx**2.+ky**2.)
+             ELSE
+                STOP 'COMPUTE_POWER_SPECTRUM_RSD2: Error, iz not specified correctly'
              END IF
 
              DO jj=1,bins
@@ -1266,10 +1309,10 @@ CONTAINS
        END DO
     END DO
 
-    pow=pow8/(float(m)**6.)
+    pow=REAL(pow8)/(REAL(m)**6)
 
     !Divide by 2 because double count Hermitian conjugates
-    nbin=nbin8/2
+    nbin=INT(nbin8)/2
 
     WRITE(*,*) 'Power computed'
     WRITE(*,*) 

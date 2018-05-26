@@ -31,13 +31,14 @@ CONTAINS
     om_m=REAL(om_m8)
     om_v=REAL(om_v8)
     h=REAL(h8)
+    L=REAL(L8)/Lunit
 
     !Multiply the masses by 1e10 to get in units of M_sun/h
     m=REAL(massarr(2))*Munit
     WRITE(*,*) 'READ_GADGET: Particle number:', np(2)
     WRITE(*,*) 'READ_GADGET: Which is:', nint(np(2)**(1./3.)), 'cubed.'
-    WRITE(*,*) 'READ_GADGET: Particle mass (M_sun/h):', m
-    WRITE(*,*) 'READ_GADGET: Box size (Mpc/h):', L
+    WRITE(*,*) 'READ_GADGET: Particle mass [M_sun/h]:', m
+    WRITE(*,*) 'READ_GADGET: Box size [Mpc/h]:', L
     WRITE(*,*) 'READ_GADGET: a:', a
     WRITE(*,*) 'READ_GADGET: z:', z
     WRITE(*,*) 'READ_GADGET: Om_m:', om_m
@@ -59,7 +60,6 @@ CONTAINS
 
     !kpc -> Mpc conversion!
     x=x/Lunit
-    L=REAL(L8)/Lunit
 
     !Change from weird Gadget units to peculiar velocities
     v=v*sqrt(REAL(a8))
@@ -100,10 +100,10 @@ CONTAINS
     
     WRITE(*,*) 'WRITE_GADGET: Particle number:', n
     WRITE(*,*) 'WRITE_GADGET: Which is:', nint(n**(1./3.)), 'cubed'
-    WRITE(*,*) 'WRITE_GADGET: Box size (Mpc/h):', L
+    WRITE(*,*) 'WRITE_GADGET: Box size [Mpc/h]:', L
     WRITE(*,*) 'WRITE_GADGET: a:', a
     WRITE(*,*) 'WRITE_GADGET: z:', z
-    WRITE(*,*) 'WRITE_GADGET: Particle mass:', m
+    WRITE(*,*) 'WRITE_GADGET: Particle mass [Msun/h]:', m
     WRITE(*,*) 'WRITE_GADGET: Om_m:', om_m
     WRITE(*,*) 'WRITE_GADGET: Om_v:', om_v
 

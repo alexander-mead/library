@@ -85,22 +85,22 @@ CONTAINS
        WRITE(*,*) 'FFT2: Error - need to specify forwards or backwards'
     END IF
 
-    WRITE(*,*) 'FFT2: Starting FFT - creating plan'
+    !WRITE(*,*) 'FFT2: Starting FFT - creating plan'
     IF(ifb==-1) THEN
-       call dfftw_plan_dft_2d(plan,nx,ny,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
+       CALL dfftw_plan_dft_2d(plan,nx,ny,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
     ELSE IF(ifb==1) THEN
-       call dfftw_plan_dft_2d(plan,nx,ny,in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
+       CALL dfftw_plan_dft_2d(plan,nx,ny,in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
     END IF
 
     !This computes the FFT!
-    WRITE(*,*) 'FFT2: Executing FFTW'
-    call dfftw_execute(plan)
-    WRITE(*,*) 'FFT2: FFTW complete'
+    !WRITE(*,*) 'FFT2: Executing FFTW'
+    CALL dfftw_execute(plan)
+    !WRITE(*,*) 'FFT2: FFTW complete'
 
     !And this destroys the plan!
-    call dfftw_destroy_plan(plan)
-    WRITE(*,*) 'FFT2: Plan destroyed'
-    WRITE(*,*)
+    CALL dfftw_destroy_plan(plan)
+    !WRITE(*,*) 'FFT2: Plan destroyed'
+    !WRITE(*,*)
 
   END SUBROUTINE FFT2
 
@@ -120,18 +120,18 @@ CONTAINS
 
     !WRITE(*,*) 'Starting FFT - creating plan'
     IF(ifb==-1) THEN
-       call dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
+       CALL dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
     ELSE IF(ifb==1) THEN
-       call dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
+       CALL dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
     END IF
 
     !This computes the FFT!
     !WRITE(*,*) 'Executing FFTW'
-    call dfftw_execute(plan)
+    CALL dfftw_execute(plan)
     !WRITE(*,*) 'FFTW complete'
 
     !And this destroys the plan!
-    call dfftw_destroy_plan(plan)
+    CALL dfftw_destroy_plan(plan)
     !WRITE(*,*) 'Plan destroyed'
     !WRITE(*,*) ''
 

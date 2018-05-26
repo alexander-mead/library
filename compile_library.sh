@@ -64,14 +64,14 @@ libs+=('numerology')
 libs+=('calculus')
 libs+=('calculus_table')
 libs+=('fitting')
+libs+=('orbits')
 libs+=('camb_stuff')
+libs+=('cosmology_functions')
 libs+=('fft')
 libs+=('gadget')
 libs+=('owls')
-libs+=('simulations')
 libs+=('field_operations')
-libs+=('cosmology_functions')
-libs+=('orbits')
+libs+=('simulations')
 
 #Numerical recipes
 #nr='/Users/Mead/Physics/numerical_recipes/recipes_compiled'

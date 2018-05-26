@@ -1,7 +1,5 @@
 MODULE random_numbers
 
-  USE constants
-  
   IMPLICIT NONE
   
 CONTAINS
@@ -59,7 +57,7 @@ CONTAINS
     IMPLICIT NONE
     REAL :: random_uniform
     REAL, INTENT(IN) :: x1,x2
-    REAL :: rand !I think this needs to be definted for ifort
+    REAL :: rand !I think this needs to be defined for ifort
 
     !Rand is some inbuilt function
     random_uniform=x1+(x2-x1)*(rand(0))
@@ -82,6 +80,7 @@ CONTAINS
   FUNCTION random_Lorentzian()
 
     !Produces a Lorentzian-distributed random number
+    USE constants
     IMPLICIT NONE
     REAL :: random_Lorentzian
 
@@ -97,34 +96,34 @@ CONTAINS
     REAL, INTENT(IN) :: mean, sigma
     REAL :: G(2)
 
-    !This is wasteful as r*sin(theta) is also Gaussian (independantly)!
-    G=random_Gaussian_both(mean,sigma)
+    !This is wasteful as there is a second, independent Gaussian random number
+    G=random_Gaussian_pair(mean,sigma)
     random_Gaussian=G(1)
 
   END FUNCTION random_Gaussian
 
-  FUNCTION random_Gaussian_both(mean,sigma)
+  FUNCTION random_Gaussian_pair(mean,sigma)
     
     !Gets a pair of Gaussian random numbers
+    USE constants
     IMPLICIT NONE
-    REAL :: random_Gaussian_both(2)
+    REAL :: random_Gaussian_pair(2)
     REAL, INTENT(IN) :: mean, sigma
     REAL :: r, theta
 
     r=random_Rayleigh(sigma)
-    theta=random_uniform(0.,2.*pi)
+    theta=random_uniform(0.,twopi)
 
     !Both of these numbers are Gaussian
-    random_Gaussian_both(1)=r*sin(theta)+mean
-    random_Gaussian_both(2)=r*cos(theta)+mean
+    random_Gaussian_pair(1)=r*sin(theta)+mean
+    random_Gaussian_pair(2)=r*cos(theta)+mean
 
-  END FUNCTION random_Gaussian_both
+  END FUNCTION random_Gaussian_pair
 
-  FUNCTION random_exponential(mean)
+  REAL FUNCTION random_exponential(mean)
 
     !Produces a exponentially-distributed random number
     IMPLICIT NONE
-    REAL :: random_exponential
     REAL, INTENT(IN) :: mean
 
     !small is introducted because there will be problems here if log(0) is ever called
@@ -134,26 +133,23 @@ CONTAINS
 
   END FUNCTION random_exponential
 
-  FUNCTION random_polynomial(n)
+  REAL FUNCTION random_polynomial(n)
 
     !Generate a polynomailly distributed number [x:0->1]
     IMPLICIT NONE
-    REAL :: random_polynomial, n
+    REAL, INTENT(IN) :: n
 
     random_polynomial=(random_uniform(0.,1.))**(1./(n+1))
 
   END FUNCTION random_polynomial
 
-  FUNCTION random_phase()
+  REAL FUNCTION random_theta()
 
-    !Get a complex phase with theta between 0 and 2pi
+    !A random spherical angle such that the space is equally populated
     IMPLICIT NONE
-    COMPLEX :: random_phase
-    REAL :: angle
 
-    angle=random_uniform(0.,2.*pi)
-    random_phase=CMPLX(cos(angle),sin(angle))
+    random_theta=acos(random_uniform(-1.,1.))
 
-  END FUNCTION random_phase
+  END FUNCTION random_theta
 
 END MODULE random_numbers

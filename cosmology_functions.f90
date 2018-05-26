@@ -448,7 +448,6 @@ CONTAINS
   FUNCTION comoving_critical_density(a,cosm)
 
     !Comoving critical density in (Msun/h) / (Mpc/h)^3
-    !This constant is (3/8pi) x H0^2/G
     IMPLICIT NONE
     REAL :: comoving_critical_density
     REAL, INTENT(IN) :: a
@@ -461,7 +460,6 @@ CONTAINS
   FUNCTION physical_critical_density(a,cosm)
 
     !Physical critical density in (Msun/h) / (Mpc/h)^3
-    !This constant is (3/8pi) x H0^2/G
     IMPLICIT NONE
     REAL :: physical_critical_density
     REAL, INTENT(IN) :: a
@@ -474,7 +472,6 @@ CONTAINS
   FUNCTION comoving_matter_density(cosm)
 
     !Comoving matter density in (Msun/h) / (Mpc/h)^3
-    !This constant is (3/8pi) x H0^2/G x Omega_m(z=0)
     !Not a function of redshift!
     IMPLICIT NONE
     REAL :: comoving_matter_density
@@ -487,7 +484,6 @@ CONTAINS
   FUNCTION physical_matter_density(a,cosm)
 
     !Physical matter density in (Msun/h) / (Mpc/h)^3
-    !This constant is (3/8pi) x H0^2/G x Omega_m(z=0)
     IMPLICIT NONE
     REAL :: physical_matter_density
     REAL, INTENT(IN) :: a
@@ -1172,6 +1168,26 @@ CONTAINS
     Tk=Tk_eh(k,cosm)
 
   END FUNCTION Tk
+
+  REAL FUNCTION Tk_defw(k,cosm)
+
+    !This function was written by John Peacock
+    !The DEFW transfer function approximation
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: k
+    TYPE(cosmology), INTENT(IN) :: cosm
+    REAL :: keff, q, tk
+    DOUBLE PRECISION :: q8, tk8
+
+    keff=0.172+0.011*log(cosm%gamma/0.36)*log(cosm%gamma/0.36)
+    q=1.e-20 + k/cosm%gamma
+    q8=1.e-20 + keff/cosm%gamma
+    tk=1./(1.+(6.4*q+(3.0*q)**1.5+(1.7*q)**2)**1.13)**(1./1.13)
+    tk8=1./(1.+(6.4*q8+(3.0*q8)**1.5+(1.7*q8)**2)**1.13)**(1./1.13)
+
+    tk_defw=tk/REAL(tk8)
+
+  END FUNCTION Tk_defw
 
   FUNCTION Tk_eh(yy,cosm)
 
