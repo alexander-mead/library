@@ -88,20 +88,6 @@ CONTAINS
 
   END FUNCTION random_Lorentzian
 
-  FUNCTION random_Gaussian(mean,sigma)
-    
-    !Gets a single Gaussian random number
-    IMPLICIT NONE
-    REAL :: random_Gaussian
-    REAL, INTENT(IN) :: mean, sigma
-    REAL :: G(2)
-
-    !This is wasteful as there is a second, independent Gaussian random number
-    G=random_Gaussian_pair(mean,sigma)
-    random_Gaussian=G(1)
-
-  END FUNCTION random_Gaussian
-
   FUNCTION random_Gaussian_pair(mean,sigma)
     
     !Gets a pair of Gaussian random numbers
@@ -119,6 +105,34 @@ CONTAINS
     random_Gaussian_pair(2)=r*cos(theta)+mean
 
   END FUNCTION random_Gaussian_pair
+
+  FUNCTION random_Gaussian(mean,sigma)
+    
+    !Gets a single Gaussian random number
+    IMPLICIT NONE
+    REAL :: random_Gaussian
+    REAL, INTENT(IN) :: mean, sigma
+    REAL :: G(2)
+
+    !This is wasteful as there is a second, independent Gaussian random number
+    G=random_Gaussian_pair(mean,sigma)
+    random_Gaussian=G(1)
+
+  END FUNCTION random_Gaussian
+
+  FUNCTION random_lognormal(mean,logsig)
+    
+    !Gets a single Gaussian random number
+    IMPLICIT NONE
+    REAL :: random_lognormal
+    REAL, INTENT(IN) :: mean, logsig
+    REAL :: G(2)
+
+    !This is wasteful as there is a second, independent Gaussian random number
+    G=random_Gaussian_pair(log(mean),logsig)
+    random_lognormal=exp(G(1))
+
+  END FUNCTION random_lognormal
 
   REAL FUNCTION random_exponential(mean)
 

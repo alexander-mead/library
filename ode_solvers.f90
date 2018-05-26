@@ -13,7 +13,8 @@ CONTAINS
     REAL, INTENT(IN) :: xi, vi, ti, tf
     INTEGER, INTENT(IN) :: n, imeth
     LOGICAL, INTENT(IN) :: ilog   
-    DOUBLE PRECISION, ALLOCATABLE :: x8(:), v8(:), t8(:)
+    DOUBLE PRECISION :: x8(n), v8(n)
+    DOUBLE PRECISION, ALLOCATABLE :: t8(:)
     INTEGER :: i
 
     INTERFACE
@@ -32,9 +33,6 @@ CONTAINS
        END FUNCTION fv
 
     END INTERFACE
-
-    !Allocate arrays for double-precision storage
-    ALLOCATE(x8(n),v8(n),t8(n))
 
     !xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
     x8(1)=xi

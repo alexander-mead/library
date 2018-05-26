@@ -50,14 +50,15 @@ CONTAINS
     REAL, INTENT(IN) :: xmin, xmax, data(m)
     INTEGER, INTENT(IN) :: n, m
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
-    INTEGER, ALLOCATABLE, INTENT(OUT) :: hist(:)
+    INTEGER, INTENT(OUT) :: hist(n)
     INTEGER :: i, j
 
     WRITE(*,*) 'HISTOGRAM: Assiging arrays'
 
     !Fill the table for the xrange and allocate the histogram array
     CALL fill_array(xmin,xmax,x,n+1)
-    ALLOCATE(hist(n))
+
+    !Set the histogram to zero
     hist=0
 
     WRITE(*,*) 'HISTOGRAM: Constructing histogram'

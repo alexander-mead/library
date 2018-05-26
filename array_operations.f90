@@ -98,9 +98,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: n
     REAL, INTENT(INOUT) :: arry(n)
     INTEGER :: i
-    REAL, ALLOCATABLE :: hold(:) 
-
-    ALLOCATE(hold(n))
+    REAL :: hold(n) 
 
     hold=arry
 
@@ -108,32 +106,7 @@ CONTAINS
        arry(i)=hold(n-i+1)
     END DO
 
-    DEALLOCATE(hold)
-
   END SUBROUTINE reverse
-
-!!$  SUBROUTINE reverse(arry)
-!!$
-!!$    IMPLICIT NONE
-!!$    INTEGER :: n, i
-!!$    REAL, ALLOCATABLE :: hold(:)
-!!$    REAL :: arry(:)
-!!$
-!!$    !This reverses the contents of arry!
-!!$
-!!$    n=SIZE(arry)
-!!$
-!!$    ALLOCATE(hold(n))
-!!$
-!!$    hold=arry
-!!$
-!!$    DO i=1,n
-!!$       arry(i)=hold(n-i+1)
-!!$    END DO
-!!$
-!!$    DEALLOCATE(hold)
-!!$
-!!$  END SUBROUTINE reverse
 
   FUNCTION splay(a,n1,n2,n3)
 
@@ -145,13 +118,7 @@ CONTAINS
 
     !This splays out a 3d array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
 
-    !n1=SIZE(a,1)
-    !n2=SIZE(a,2)
-    !n3=SIZE(a,3)
-
-    !ALLOCATE(b(n1*n2*n3))
-
-    !b=0.
+    !Set sum integer to zero
     ii=0
 
     DO i=1,n1
@@ -170,9 +137,9 @@ CONTAINS
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, ilog
     REAL, INTENT(IN) :: a(:)
-    REAL, ALLOCATABLE :: b(:), c(:)
+    REAL, INTENT(OUT) :: b(n), c(n)
     REAL :: a1, a2, min, max
-    REAL, ALLOCATABLE :: binlim(:)
+    REAL :: binlim(n+1)
     INTEGER :: i, j
 
     min=a1
@@ -181,8 +148,6 @@ CONTAINS
     WRITE(*,*) 'Binning'
     WRITE(*,*) 'Min:', min
     WRITE(*,*) 'Max:', max
-
-    ALLOCATE(binlim(n+1),b(n),c(n))
 
     IF(ilog==1) THEN
        min=log10(min)
@@ -214,56 +179,10 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE(binlim)
-
     WRITE(*,*) 'Binning complete'
     WRITE(*,*)
 
   END SUBROUTINE binning
-
-!!$  SUBROUTINE fill_array(array,min,max,n,ilog)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL, ALLOCATABLE :: array(:)
-!!$    REAL :: min, max
-!!$    REAL :: a, b
-!!$    INTEGER :: n, ilog
-!!$    INTEGER :: i
-!!$
-!!$    IF(ilog==1) THEN
-!!$       a=log10(min)
-!!$       b=log10(max)
-!!$    ELSE
-!!$       a=min
-!!$       b=max
-!!$    END IF
-!!$
-!!$    ALLOCATE(array(n))
-!!$
-!!$    DO i=1,n
-!!$       array(i)=a+(b-a)*float(i-1)/float(n-1)
-!!$    END DO
-!!$
-!!$    IF(ilog==1) array=10.**array
-!!$
-!!$  END SUBROUTINE fill_array
-!!$
-!!$  SUBROUTINE fill_linear(a,b,arr)
-!!$
-!!$    IMPLICIT NONE
-!!$    INTEGER :: i, n
-!!$    REAL, INTENT(IN) :: a, b
-!!$    REAL, INTENT(OUT) :: arr(:)
-!!$
-!!$    n=SIZE(arr)
-!!$      
-!!$    arr=0.
-!!$
-!!$    DO i=1,n
-!!$       arr(i)=a+(b-a)*float(i-1)/float(n-1)
-!!$    END DO
-!!$
-!!$  END SUBROUTINE fill_linear
 
   SUBROUTINE merge_arrays(a,na,b,nb,c,nc)
 
@@ -317,7 +236,7 @@ CONTAINS
     IMPLICIT NONE
     INTEGER :: i
     REAL, INTENT(IN) :: min, max
-    REAL, ALLOCATABLE, INTENT(INOUT) :: arr(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: arr(:)
     INTEGER, INTENT(IN) :: n
 
     !Allocate the array, and deallocate it if it is full

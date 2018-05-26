@@ -109,8 +109,6 @@ CONTAINS
     END DO
     CLOSE(9)
 
-    !DEALLOCATE(d)
-
     WRITE(*,*) 'WRITE_DENSITY_SLICE_ASCII: Done'
     WRITE(*,*)  
 
@@ -151,7 +149,6 @@ CONTAINS
     END DO
     
     !Bin for the 2D density field and convert to relative density
-    !ALLOCATE(d(m,m))
     ibin=2
     CALL particle_bin_2D(x2D,n2D,L,d,m,ibin)
     DEALLOCATE(x2D)
@@ -167,17 +164,18 @@ CONTAINS
 
   END SUBROUTINE make_projected_density
 
-  SUBROUTINE Zeldovich_ICs(x,v,n,L,logk_tab,logPk_tab,nk,vfac,m)
+  SUBROUTINE Zeldovich_ICs(x,v,n,L,logk_tab,logPk_tab,nk,vfac,m,use_average)
 
     USE field_operations
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n), v(3,n)
     REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L, vfac
     INTEGER, INTENT(IN) :: n, m, nk
+    LOGICAL, INTENT(IN) :: use_average
     REAL :: f(3,m,m,m), ips, maxf
 
     !Make the displacement field
-    CALL generate_displacement_fields(f,m,L,logk_tab,logPk_tab,nk)
+    CALL generate_displacement_fields(f,m,L,logk_tab,logPk_tab,nk,use_average)
 
     !Calculate some useful things
     ips=L/REAL(n**(1./3.)) !Mean ID inter-particle spacing
@@ -832,7 +830,6 @@ CONTAINS
     WRITE(*,*) 'SOD: Binning particles and creating density field'
     WRITE(*,*) 'SOD: Cells:', m
 
-    !ALLOCATE(d(m,m,m),xc(3,m,m,m))
     d=0.
 
     !Fill array with sphere centre positions
@@ -1080,7 +1077,6 @@ CONTAINS
     WRITE(*,*) 'CUT: Maximum value:', max
     WRITE(*,*) 'CUT: Original number of objects', n
 
-    !ALLOCATE(okay(n))
     okay=.FALSE.
 
     DO i=1,n
@@ -1221,7 +1217,6 @@ CONTAINS
     WRITE(*,*) 'CORRELATION_FUNCTION: rmax [Mpc/h]:', rmax
     WRITE(*,*) 'CORRELATION_FUNCTION: number of r bins:', n
 
-    !ALLOCATE(xi8_array(n))
     xi8_array=0.d0
     n_array=0
 
@@ -1273,8 +1268,6 @@ CONTAINS
     END DO
 
     xi_array=REAL(xi8_array/float(n_array))
-
-    !DEALLOCATE(xi8_array)
 
     WRITE(*,*) 'CORRELATION_FUNCTION: done'
     WRITE(*,*)

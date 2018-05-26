@@ -13,7 +13,7 @@ CONTAINS
     REAL :: derivative_table
     INTEGER, INTENT(IN) :: n
     REAL, INTENT(IN) :: x, xin(n), yin(n)
-    REAL, ALLOCATABLE ::  xtab(:), ytab(:)
+    REAL ::  xtab(n), ytab(n)
     REAL :: a, b, c, d
     REAL :: x1, x2, x3, x4
     REAL :: y1, y2, y3, y4
@@ -31,8 +31,6 @@ CONTAINS
     !iorder = 1 => linear interpolation
     !iorder = 2 => quadratic interpolation
     !iorder = 3 => cubic interpolation
-    
-    ALLOCATE(xtab(n),ytab(n))
 
     xtab=xin
     ytab=yin

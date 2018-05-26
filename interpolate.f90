@@ -13,7 +13,7 @@ CONTAINS
     REAL :: find
     INTEGER, INTENT(IN) :: n
     REAL, INTENT(IN) :: x, xin(n), yin(n)
-    REAL, ALLOCATABLE ::  xtab(:), ytab(:)
+    REAL ::  xtab(n), ytab(n)
     REAL :: a, b, c, d
     REAL :: x1, x2, x3, x4
     REAL :: y1, y2, y3, y4
@@ -36,8 +36,6 @@ CONTAINS
 
     !imeth = 1 => Uses standard polynomials for interpolation
     !imeth = 2 => Uses Lagrange polynomials for interpolation
-
-    ALLOCATE(xtab(n),ytab(n))
 
     xtab=xin
     ytab=yin
@@ -261,7 +259,7 @@ CONTAINS
     REAL :: find2d
     INTEGER, INTENT(IN) :: nx, ny
     REAL, INTENT(IN) :: x, xin(nx), y, yin(ny), fin(nx,ny)
-    REAL, ALLOCATABLE ::  xtab(:), ytab(:), ftab(:,:)
+    REAL ::  xtab(nx), ytab(ny), ftab(nx,ny)
     REAL :: a, b, c, d
     REAL :: x1, x2, x3, x4
     REAL :: y1, y2, y3, y4
@@ -295,8 +293,6 @@ CONTAINS
     !imeth = 2 => Uses Lagrange polynomials for interpolation
 
     IF(imeth==2) STOP 'No Lagrange polynomials for you'
-
-    ALLOCATE(xtab(nx),ytab(ny),ftab(nx,ny))
 
     xtab=xin
     ytab=yin

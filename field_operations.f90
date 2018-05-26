@@ -2,7 +2,7 @@ MODULE field_operations
 
 CONTAINS
 
-  REAL FUNCTION random_mode_amplitude(k,L,logk_tab,logPk_tab,nk)
+  REAL FUNCTION random_mode_amplitude(k,L,logk_tab,logPk_tab,nk,use_average)
 
     !This calculates the Fourier amplitudes of the density field
     USE interpolate
@@ -10,10 +10,9 @@ CONTAINS
     USE random_numbers
     IMPLICIT NONE
     REAL, INTENT(IN) :: k, L, logk_tab(nk), logPk_tab(nk)
+    LOGICAL, INTENT(IN) :: use_average
     INTEGER, INTENT(IN) :: nk
     REAL :: sigma
-
-    LOGICAL, PARAMETER :: use_average=.FALSE.
 
     !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
 
@@ -45,7 +44,7 @@ CONTAINS
 
   END FUNCTION random_complex_phase
 
-  SUBROUTINE make_Gaussian_random_modes(dk,m,L,logk_tab,logPk_tab,nk)
+  SUBROUTINE make_Gaussian_random_modes(dk,m,L,logk_tab,logPk_tab,nk,use_average)
 
     !Uses a tablulated P(k) to make a Gaussian Random Field realisation
     USE fft
@@ -54,6 +53,7 @@ CONTAINS
     DOUBLE COMPLEX, INTENT(OUT) :: dk(m,m,m)
     REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L
     INTEGER, INTENT(IN) :: m, nk
+    LOGICAL, INTENT(IN) :: use_average
     INTEGER :: ix, iy, iz, ixx, iyy, izz
     REAL :: kx, ky, kz, k
     REAL :: amp
@@ -62,6 +62,9 @@ CONTAINS
     dk=(0.d0,0.d0)
 
     WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Creating Fourier realisation of Gaussian field'
+    WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Using average mode power:', use_average
+    WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Mesh size:', m
+    WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Box size [Mpc/h]:', L
 
     !This fills up displacement array in all of k space!
     DO iz=1,m
@@ -86,7 +89,7 @@ CONTAINS
              ELSE
 
                 !Get mode amplitudes and phases
-                amp=random_mode_amplitude(k,L,logk_tab,logPk_tab,nk)
+                amp=random_mode_amplitude(k,L,logk_tab,logPk_tab,nk,use_average)
                 rot=random_complex_phase()
 
                 !Assign values to the density field
@@ -129,7 +132,7 @@ CONTAINS
 
   END SUBROUTINE make_Gaussian_random_modes
 
-  SUBROUTINE make_Gaussian_random_field(d,m,L,logk_tab,logPk_tab,nk)
+  SUBROUTINE make_Gaussian_random_field(d,m,L,logk_tab,logPk_tab,nk,use_average)
 
     !Uses a tablulated P(k) to make a Gaussian Random Field realisation
     USE fft
@@ -139,8 +142,9 @@ CONTAINS
     DOUBLE COMPLEX :: dk(m,m,m), dk_new(m,m,m)
     REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L
     INTEGER, INTENT(IN) :: m, nk
+    LOGICAL, INTENT(IN) :: use_average
 
-    CALL make_Gaussian_random_modes(dk,m,L,logk_tab,logPk_tab,nk)
+    CALL make_Gaussian_random_modes(dk,m,L,logk_tab,logPk_tab,nk,use_average)
 
     WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_FIELD: Transform to real space'
 
@@ -154,7 +158,7 @@ CONTAINS
 
   END SUBROUTINE make_Gaussian_random_field
 
-  SUBROUTINE generate_displacement_fields(f,m,L,logk_tab,logPk_tab,nk)
+  SUBROUTINE generate_displacement_fields(f,m,L,logk_tab,logPk_tab,nk,use_average)
 
     USE fft
     USE array_operations
@@ -163,11 +167,12 @@ CONTAINS
     REAL, INTENT(OUT) :: f(3,m,m,m)
     INTEGER, INTENT(IN) :: m, nk
     REAL, INTENT(IN) :: L, logk_tab(nk), logPk_tab(nk)
+    LOGICAL, INTENT(IN) :: use_average
     DOUBLE COMPLEX :: d(m,m,m), dk(m,m,m), fk(3,m,m,m)
     INTEGER :: i, ix, iy, iz
     REAL :: kx, ky, kz, k
 
-    CALL make_Gaussian_random_modes(dk,m,L,logk_tab,logPk_tab,nk)
+    CALL make_Gaussian_random_modes(dk,m,L,logk_tab,logPk_tab,nk,use_average)
 
     WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Creating realisation of displacement field'
 
@@ -216,6 +221,8 @@ CONTAINS
        f(i,:,:,:)=REAL(REAL(d(:,:,:)))
     END DO
 
+    WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Minimum 1D displacement [Mpc/h]:', MINVAL(f)
+    WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Maximum 1D displacement [Mpc/h]:', MAXVAL(f)
     WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Real-space displacement fields generated'
     WRITE(*,*)
 
@@ -273,7 +280,7 @@ CONTAINS
   END SUBROUTINE read_field8
 
   !Used to be called write_field
-  SUBROUTINE write_3D_field_binary(d,m,outfile)
+  SUBROUTINE write_field_binary(d,m,outfile)
 
     !Write out a binary 'field' file
     IMPLICIT NONE    
@@ -281,18 +288,18 @@ CONTAINS
     INTEGER, INTENT(IN) :: m
     CHARACTER(len=256), INTENT(IN) :: outfile
 
-    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Binary output: ', TRIM(outfile)
-    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Mesh size:', m
-    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Minval:', MINVAL(d)
-    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Maxval:', MAXVAL(d)
-    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Using new version with access=stream'
+    WRITE(*,*) 'WRITE_FIELD_BINARY: Binary output: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_FIELD_BINARY: Mesh size:', m
+    WRITE(*,*) 'WRITE_FIELD_BINARY: Minval:', MINVAL(d)
+    WRITE(*,*) 'WRITE_FIELD_BINARY: Maxval:', MAXVAL(d)
+    WRITE(*,*) 'WRITE_FIELD_BINARY: Using new version with access=stream'
     OPEN(7,file=outfile,form='unformatted',access='stream')
     WRITE(7) d
     CLOSE(7)
     WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Done'
     WRITE(*,*)
 
-  END SUBROUTINE write_3D_field_binary
+  END SUBROUTINE write_field_binary
 
   !Used to be called print_2D_field
   SUBROUTINE write_2D_field_ascii(d,m,L,outfile)
@@ -863,11 +870,6 @@ CONTAINS
 
     WRITE(*,*) 'PK: Computing isotropic power spectrum'
 
-    !Allocate arrays used in this calculation
-    !ALLOCATE(kbin(bins+1),k(bins))
-    !ALLOCATE(pow(bins),nbin(bins))
-    !ALLOCATE(k8(bins),pow8(bins),nbin8(bins))
-
     !Set summation variables to 0.d0
     k8=0.d0
     pow8=0.d0
@@ -933,9 +935,6 @@ CONTAINS
     !Divide by 2 because up to now we have double count Hermitian conjugates
     nbin=INT(nbin8)/2
 
-    !Deallocate arrays
-    !DEALLOCATE(kbin,pow8,nbin8,k8)
-
     WRITE(*,*) 'PK: Power computed'
     WRITE(*,*) 
 
@@ -960,10 +959,6 @@ CONTAINS
     DOUBLE COMPLEX, INTENT(IN) :: d(:,:,:)
 
     WRITE(*,*) 'Computing isotropic power spectrum'
-
-    !ALLOCATE(kbin(bins+1),kval(bins))
-    !ALLOCATE(pow(bins),nbin(bins))
-    !ALLOCATE(pow8(bins),nbin8(bins),kval8(bins))
 
     kval=0.
     pow=0.
@@ -1053,8 +1048,6 @@ CONTAINS
     !Divide by 2 because double count Hermitian conjugates
     nbin=INT(nbin8)/2
 
-    !DEALLOCATE(kbin,pow8,nbin8,kval8)
-
     WRITE(*,*) 'Power computed'
     WRITE(*,*) 
 
@@ -1074,10 +1067,6 @@ CONTAINS
     DOUBLE COMPLEX :: d(:,:,:)
 
     WRITE(*,*) 'Computing RSD power spectrum'
-
-    !ALLOCATE(kbin(bins+1),mubin(bins+1),kv(bins),mu(bins))
-    !ALLOCATE(pow(bins,bins),nbin(bins,bins))
-    !ALLOCATE(pow8(bins,bins),nbin8(bins,bins))
 
     kbin=0.
     mubin=0.
@@ -1204,10 +1193,6 @@ CONTAINS
     !    STOP 'Not updated according to JAP prescription'
 
     WRITE(*,*) 'Computing rsd power spectrum'
-
-    !ALLOCATE(kparbin(bins+1),kperbin(bins+1),kpar(bins),kper(bins))
-    !ALLOCATE(pow(bins,bins),nbin(bins,bins))
-    !ALLOCATE(pow8(bins,bins),nbin8(bins,bins))
 
     kparbin=0.
     kperbin=0.
