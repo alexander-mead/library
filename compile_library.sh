@@ -115,12 +115,19 @@ for i in "${libs[@]}"; do
 	$compiler $i.f90 $normal $slow -c
     fi
 done
+echo ''
+
+echo 'Modules compiled'
+echo ''
 
 #Make the big library from all the .o files
 ar rc $meadlib *.o
+echo 'Library compiled'
+echo ''
 
 #Remove all the .o files
 rm *.o
 
 #Final white-space
+echo 'Done'
 echo ''
