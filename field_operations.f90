@@ -293,7 +293,7 @@ CONTAINS
     WRITE(*,*) 'WRITE_FIELD_BINARY: Minval:', MINVAL(d)
     WRITE(*,*) 'WRITE_FIELD_BINARY: Maxval:', MAXVAL(d)
     WRITE(*,*) 'WRITE_FIELD_BINARY: Using new version with access=stream'
-    OPEN(7,file=outfile,form='unformatted',access='stream')
+    OPEN(7,file=outfile,form='unformatted',access='stream',status='replace')
     WRITE(7) d
     CLOSE(7)
     WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Done'
