@@ -81,7 +81,7 @@ libs+=('simulations')
 
 #Normal or slow gfortran compile options
 if [ "$compiler_name" == "gfortran" ] || [ "$compiler_name" == "gcc" ] ; then    
-    normal='-Warray-bounds -ffree-line-length-none -fmax-errors=4 -ffpe-trap=invalid,zero,overflow -fimplicit-none'   
+    normal='-Warray-bounds -ffree-line-length-none -fmax-errors=4 -ffpe-trap=invalid,zero,overflow -fimplicit-none -std=gnu'   
     slow='-Wall -fcheck=all -fbounds-check -fbacktrace -Og' #Could add -g to generate 'debug symbols' and get .dSYM directory (?)
 fi
 
