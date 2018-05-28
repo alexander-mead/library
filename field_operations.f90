@@ -241,7 +241,7 @@ CONTAINS
     !Output unformatted data
     WRITE(*,*) 'READ_FIELD: Binary input: ', TRIM(infile)
     WRITE(*,*) 'READ_FIELD: Mesh size:', m
-    OPEN(7,file=infile,form='unformatted',access='stream')
+    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) d
     CLOSE(7)
     WRITE(*,*) 'READ_FIELD: Minval:', MINVAL(d)
@@ -266,7 +266,7 @@ CONTAINS
     !Input unformatted data
     WRITE(*,*) 'READ_FIELD: Binary input: ', TRIM(infile)
     WRITE(*,*) 'READ_FIELD: Mesh size:', m
-    OPEN(7,file=infile,form='unformatted',access='stream')
+    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) d8
     CLOSE(7)
     d=REAL(d8)

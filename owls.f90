@@ -231,7 +231,7 @@ CONTAINS
     WRITE(*,*) 'WRITE_MCCARTHY: Which is ~', NINT(n**(1./3.)), 'cubed.'
 
     !Need to read in 'n' again with stream access
-    OPEN(7,file=outfile,form='unformatted',access='stream')
+    OPEN(7,file=outfile,form='unformatted',access='stream',status='replace')
     WRITE(7) n
     WRITE(7) m/mfac
     WRITE(7) x

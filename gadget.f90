@@ -110,7 +110,7 @@ CONTAINS
     !x=x*1000.
     !v=v/sqrt(a)
 
-    OPEN(7,file=outfile,form='unformatted')
+    OPEN(7,file=outfile,form='unformatted',status='replace')
     WRITE(7) np, massarr, a8, z8, crapi, crapi, np, crapi, crapi, L8, om_m8, om_v8, h8, crap8
     WRITE(7) x*Lunit
     WRITE(7) v/sqrt(a)
