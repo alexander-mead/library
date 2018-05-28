@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#Initial white-space
+echo ''
+
 #Set the compiler and check it is either gfortran or ifort
 compiler_name=$1
 if [ -z compiler_name ]; then
@@ -12,7 +15,7 @@ elif [ "$compiler_name" = "ifort" ]; then
     compiler=ifort
 elif [ "$compiler_name" = "gcc" ]; then
     #Tilman's gcc on Jade
-    compiler='/home/tilman/lib/gcc/bin/gcc'    
+    compiler=gcc    
 else
     echo 'Please specify a supported compiler'
     exit 1
@@ -77,7 +80,7 @@ libs+=('simulations')
 #nr='/Users/Mead/Physics/numerical_recipes/recipes_compiled'
 
 #Normal or slow gfortran compile options
-if [ "$compiler_name" = "gfortran" ]; then    
+if [ "$compiler_name" == "gfortran" ] || [ "$compiler_name" == "gcc" ] ; then    
     normal='-Warray-bounds -ffree-line-length-none -fmax-errors=4 -ffpe-trap=invalid,zero,overflow -fimplicit-none'   
     slow='-Wall -fcheck=all -fbounds-check -fbacktrace -Og' #Could add -g to generate 'debug symbols' and get .dSYM directory (?)
 fi
@@ -89,16 +92,17 @@ if [ "$compiler_name" = "ifort" ]; then
 fi
 
 #Normal or slow gcc compile options
-if [ "$compiler_name" = "gcc" ]; then    
-    normal='-Warray-bounds -ffree-line-length-none -fmax-errors=4 -ffpe-trap=invalid,zero,overflow -fimplicit-none'   
-    slow='-Wall -fcheck=all -fbounds-check -fbacktrace -Og' #Could add -g to generate 'debug symbols' and get .dSYM directory (?)
-fi
+#if [ "$compiler_name" = "gcc" ]; then    
+#    normal='-Warray-bounds -ffree-line-length-none -fmax-errors=4 -ffpe-trap=invalid,zero,overflow -fimplicit-none'   
+#    slow='-Wall -fcheck=all -fbounds-check -fbacktrace -Og' #Could add -g to generate 'debug symbols' and get .dSYM directory (?)
+#fi
 
 #Write out compile flags
 echo 'Normal compiler flags:' $normal
 if [ $fast_slow -eq 0 ]; then
     echo 'Slow compiler flags:' $slow
 fi
+echo ''
 
 #Loop over and compile all libraries
 for i in "${libs[@]}"; do
@@ -117,3 +121,6 @@ ar rc $meadlib *.o
 
 #Remove all the .o files
 rm *.o
+
+#Final white-space
+echo ''
