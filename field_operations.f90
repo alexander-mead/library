@@ -940,7 +940,7 @@ CONTAINS
 
   END SUBROUTINE compute_power_spectrum
 
-  SUBROUTINE compute_power_spectrum_pole(d,L,ipole,iz,kmin,kmax,bins,kval,pow,nbin)
+  SUBROUTINE compute_power_spectrum_pole(d,L,ipole,iz,kmin,kmax,nk,kval,pow,nmodes)
 
     USE constants
     USE array_operations
@@ -951,26 +951,26 @@ CONTAINS
     REAL :: kx, ky, kz, kmod, mu
     REAL, INTENT(IN) :: kmin, kmax
     REAL, INTENT(IN) :: L
-    REAL :: kbin(bins+1)
-    REAL, INTENT(OUT) :: pow(bins), kval(bins)
-    DOUBLE PRECISION :: pow8(bins), kval8(bins)
-    INTEGER, INTENT(OUT) :: nbin(bins)
-    INTEGER*8 :: nbin8(bins)
-    INTEGER, INTENT(IN) :: iz, ipole, bins
+    REAL :: kbin(nk+1)
+    REAL, INTENT(OUT) :: pow(nk), kval(nk)
+    DOUBLE PRECISION :: pow8(nk), kval8(nk)
+    INTEGER, INTENT(OUT) :: nmodes(nk)
+    INTEGER*8 :: nmodes8(nk)
+    INTEGER, INTENT(IN) :: iz, ipole, nk
     DOUBLE COMPLEX, INTENT(IN) :: d(:,:,:)
 
     WRITE(*,*) 'Computing isotropic power spectrum'
 
     kval=0.
     pow=0.
-    nbin=0
+    nmodes=0
 
     kval8=0.d0
     pow8=0.d0
-    nbin8=0
+    nmodes8=0
 
     WRITE(*,*) 'Binning power'
-    WRITE(*,*) 'Bins:', bins
+    WRITE(*,*) 'Bins:', nk
     WRITE(*,*) 'k_min:', kmin
     WRITE(*,*) 'k_max:', kmax
 
@@ -978,7 +978,7 @@ CONTAINS
     !DO i=1,bins+1
     !   kbin(i)=exp(log(kmin)+log(kmax/kmin)*float(i-1)/float(bins))
     !END DO
-    kbin(i)=progression_log(kmin,kmax,i,bins+1)
+    kbin(i)=progression_log(kmin,kmax,i,nk+1)
 
     !Explicitly extend the bins to be sure to include all modes
     !This is necessary due to rounding errors!
@@ -1017,30 +1017,30 @@ CONTAINS
              !Find integer automatically from place in table. Assumes log-spaced bins
              !Recently implemented (27/08/15) so could be a source of bugs
              !Differences will appear due to k modes that are on the boundary
-             n=1+FLOOR(REAL(bins)*log(kmod/kmin)/log(kmax/kmin))
-             IF(n<1 .OR. n>bins) THEN
+             n=1+FLOOR(REAL(nk)*log(kmod/kmin)/log(kmax/kmin))
+             IF(n<1 .OR. n>nk) THEN
                 CYCLE
              ELSE
                 pow8(n)=pow8(n)+(ABS(d(i,j,k))**2.)*Legendre_polynomial(ipole,mu)*(2.*REAL(ipole)+1.)
                 kval8(n)=kval8(n)+kmod
-                nbin8(n)=nbin8(n)+1
+                nmodes8(n)=nmodes8(n)+1
              END IF
 
           END DO
        END DO
     END DO
 
-    DO i=1,bins
+    DO i=1,nk
        !       kval(i)=(kbin(i+1)+kbin(i))/2.
        !       kval(i)=sqrt(kbin(i+1)*kbin(i))
-       IF(nbin8(i)==0) THEN
+       IF(nmodes8(i)==0) THEN
           kval(i)=(kbin(i+1)+kbin(i))/2.
           !       kval(i)=sqrt(kbin(i+1)*kbin(i))
           pow8(i)=0.
        ELSE
           !          kval(i)=(kbin(i+1)+kbin(i))/2.
-          kval(i)=REAL(kval8(i))/REAL(nbin8(i))
-          pow8(i)=pow8(i)/REAL(nbin8(i))
+          kval(i)=REAL(kval8(i))/REAL(nmodes8(i))
+          pow8(i)=pow8(i)/REAL(nmodes8(i))
           pow8(i)=pow8(i)*((L*kval(i))**3.)/(2.*pi**2.)
        END IF
     END DO
@@ -1048,7 +1048,7 @@ CONTAINS
     pow=REAL(pow8)/(REAL(m)**6)
 
     !Divide by 2 because double count Hermitian conjugates
-    nbin=INT(nbin8)/2
+    nmodes=INT(nmodes8)/2
 
     WRITE(*,*) 'Power computed'
     WRITE(*,*) 
