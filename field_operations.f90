@@ -842,7 +842,7 @@ CONTAINS
   END FUNCTION empty_cells
 
   !SUBROUTINE pk(dk1,dk2,m,L,kmin,kmax,bins,k,pow,nbin)
-  SUBROUTINE compute_power_spectrum(dk1,dk2,m,L,kmin,kmax,bins,k,pow,nbin)
+  SUBROUTINE compute_power_spectrum(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes)
 
     !Takes in a dk(m,m,m) array and computes the power spectrum
     !dk1 - Fourier components of field 1
@@ -851,44 +851,44 @@ CONTAINS
     !L - box size in Mpc/h
     !kmin - minimum wavenumber
     !kmax - maximum wavenumber
-    !bins - number of k bins
+    !nk - number of k bins
     USE table_integer
     USE constants
     USE array_operations
     USE fft
     IMPLICIT NONE
     DOUBLE COMPLEX, INTENT(IN) :: dk1(m,m,m), dk2(m,m,m)
-    REAL, INTENT(OUT) :: pow(bins), k(bins)
-    INTEGER, INTENT(OUT) :: nbin(bins)
-    INTEGER, INTENT(IN) :: m, bins
+    REAL, INTENT(OUT) :: pow(nk), k(nk)
+    INTEGER, INTENT(OUT) :: nmodes(nk)
+    INTEGER, INTENT(IN) :: m, nk
     REAL, INTENT(IN) :: L, kmin, kmax
     INTEGER :: i, ix, iy, iz, n
     REAL :: kx, ky, kz, kmod  
     REAL, ALLOCATABLE :: kbin(:)  
-    DOUBLE PRECISION :: pow8(bins), k8(bins)    
-    INTEGER*8 :: nbin8(bins)
+    DOUBLE PRECISION :: pow8(nk), k8(nk)    
+    INTEGER*8 :: nmodes8(nk)
 
     WRITE(*,*) 'PK: Computing isotropic power spectrum'
 
     !Set summation variables to 0.d0
     k8=0.d0
     pow8=0.d0
-    nbin8=0
+    nmodes8=0
 
     WRITE(*,*) 'PK: Binning power'
     WRITE(*,*) 'PK: Mesh:', m
-    WRITE(*,*) 'PK: Bins:', bins
+    WRITE(*,*) 'PK: Bins:', nk
     WRITE(*,*) 'PK: k_min [h/Mpc]:', kmin
     WRITE(*,*) 'PK: k_max [h/Mpc]:', kmax
 
     !Fill array of k bins
-    CALL fill_array(log(kmin),log(kmax),kbin,bins+1)
+    CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
     kbin=exp(kbin)
 
     !Explicitly extend the first and last bins to be sure to include *all* modes
     !This is necessary due to rounding errors!
     kbin(1)=kbin(1)*0.999
-    kbin(bins+1)=kbin(bins+1)*1.001    
+    kbin(nk+1)=kbin(nk+1)*1.001    
 
     !Loop over all elements of dk
     DO iz=1,m
@@ -901,14 +901,14 @@ CONTAINS
              CALL k_fft(ix,iy,iz,m,kx,ky,kz,kmod,L)
 
              !Find integer 'n' in bins from place in table
-             IF(kmod>=kbin(1) .AND. kmod<=kbin(bins+1)) THEN
-                n=select_table_integer(kmod,kbin,bins+1,3)
-                IF(n<1 .OR. n>bins) THEN
+             IF(kmod>=kbin(1) .AND. kmod<=kbin(nk+1)) THEN
+                n=select_table_integer(kmod,kbin,nk+1,3)
+                IF(n<1 .OR. n>nk) THEN
                    CYCLE
                 ELSE
                    k8(n)=k8(n)+kmod
                    pow8(n)=pow8(n)+REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))               
-                   nbin8(n)=nbin8(n)+1
+                   nmodes8(n)=nmodes8(n)+1
                 END IF
              END IF
 
@@ -917,14 +917,14 @@ CONTAINS
     END DO
 
     !Now create the power spectrum and k array
-    DO i=1,bins
+    DO i=1,nk
        k(i)=sqrt(kbin(i+1)*kbin(i))
-       IF(nbin8(i)==0) THEN
+       IF(nmodes8(i)==0) THEN
           !k(i)=sqrt(kbin(i+1)*kbin(i))       
           pow8(i)=0.
        ELSE
           !k(i)=k8(i)/float(nbin8(i))
-          pow8(i)=pow8(i)/REAL(nbin8(i))
+          pow8(i)=pow8(i)/REAL(nmodes8(i))
           pow8(i)=pow8(i)*((L*k(i))**3.)/(2.*pi**2.)
        END IF
     END DO
@@ -933,7 +933,7 @@ CONTAINS
     pow=REAL(pow8/(DBLE(m)**6))
 
     !Divide by 2 because up to now we have double count Hermitian conjugates
-    nbin=INT(nbin8)/2
+    nmodes=INT(nmodes8)/2
 
     WRITE(*,*) 'PK: Power computed'
     WRITE(*,*) 
