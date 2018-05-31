@@ -9,7 +9,7 @@ CONTAINS
     USE file_info
     USE constants
     IMPLICIT NONE
-    CHARACTER(len=256), INTENT(IN) :: infile
+    CHARACTER(len=*), INTENT(IN) :: infile
     REAL, ALLOCATABLE, INTENT(OUT) :: k(:), p(:)
     INTEGER, INTENT(OUT) :: n
     INTEGER :: i

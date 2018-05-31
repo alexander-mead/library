@@ -2,11 +2,11 @@ MODULE file_info
 
 CONTAINS
 
-  FUNCTION file_length(file_name)
+  INTEGER FUNCTION file_length(file_name)
 
     IMPLICIT NONE
-    CHARACTER(len=256) :: file_name
-    INTEGER :: n, file_length
+    CHARACTER(len=*), INTENT(IN) :: file_name
+    INTEGER :: n
 
     WRITE(*,*) 'FILE_LENGTH: File: ', TRIM(file_name)
     OPEN(7,file=file_name)

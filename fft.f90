@@ -20,13 +20,13 @@ CONTAINS
 
     IF(MOD(m,2) .NE. 0) STOP 'K_FFT: Fourier transform does not have an even mesh'
 
-    kx=float(ix-1)
-    ky=float(iy-1)
-    kz=float(iz-1)
+    kx=REAL(ix-1)
+    ky=REAL(iy-1)
+    kz=REAL(iz-1)
 
-    IF(ix>m/2+1) kx=-float(m-ix+1)
-    IF(iy>m/2+1) ky=-float(m-iy+1)
-    IF(iz>m/2+1) kz=-float(m-iz+1)
+    IF(ix>m/2+1) kx=-REAL(m-ix+1)
+    IF(iy>m/2+1) ky=-REAL(m-iy+1)
+    IF(iz>m/2+1) kz=-REAL(m-iz+1)
 
     kx=kx*2.*pi/L
     ky=ky*2.*pi/L

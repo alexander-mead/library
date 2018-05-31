@@ -51,7 +51,7 @@ MODULE table_integer
 
     x1=xtab(1)
     xn=xtab(n)
-    linear_table_integer=1+FLOOR(float(n-1)*(x-x1)/(xn-x1))
+    linear_table_integer=1+FLOOR(REAL(n-1)*(x-x1)/(xn-x1))
 
   END FUNCTION linear_table_integer
 

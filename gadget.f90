@@ -7,7 +7,7 @@ CONTAINS
   SUBROUTINE read_gadget(x,v,id,L,om_m,om_v,h,m,a,z,n,infile)
 
     IMPLICIT NONE
-    CHARACTER(len=256), INTENT(IN) :: infile
+    CHARACTER(len=*), INTENT(IN) :: infile
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:), v(:,:)
     INTEGER, ALLOCATABLE, INTENT(OUT) :: id(:)
     REAL, INTENT(OUT) :: L, z, a, om_m, om_v, h, m
@@ -75,7 +75,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: n, id(n)
     REAL, INTENT(IN) :: x(3,n), v(3,n)
     REAL, INTENT(IN) :: L, a, z, om_m, om_v, h, m
-    CHARACTER(len=256) :: outfile
+    CHARACTER(len=*), INTENT(IN) :: outfile
     DOUBLE PRECISION :: massarr(6), z8, a8, L8, om_m8, om_v8, h8, crap8(12)
     INTEGER :: np(6), crapi
 
@@ -130,7 +130,7 @@ CONTAINS
 
     USE file_info
     IMPLICIT NONE
-    CHARACTER(len=256), INTENT(IN) :: infile
+    CHARACTER(len=*), INTENT(IN) :: infile
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:), v(:,:), m(:)
     REAL, ALLOCATABLE, INTENT(OUT) :: disp(:), c(:), env(:), Dv(:), rmax(:), avg_r(:), rms_r(:)
     INTEGER, ALLOCATABLE, INTENT(OUT) :: npart(:)
@@ -164,7 +164,7 @@ CONTAINS
 
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n
-    CHARACTER(len=256), INTENT(IN) :: outfile
+    CHARACTER(len=*), INTENT(IN) :: outfile
     REAL, INTENT(IN) :: x(3,n), v(3,n), m(n)
     REAL, INTENT(IN) :: disp(n), c(n), env(n), Dv(n), rmax(n), avg_r(n), rms_r(n)
     INTEGER, INTENT(IN) :: npart(n)

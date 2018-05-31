@@ -20,7 +20,7 @@ CONTAINS
    SUBROUTINE read_mccarthy(x,m,n,infile)
 
     IMPLICIT NONE
-    CHARACTER(len=256), INTENT(IN) :: infile
+    CHARACTER(len=*), INTENT(IN) :: infile
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:), m(:)
     INTEGER, INTENT(OUT) :: n
     REAL, PARAMETER :: mfac=1e10
@@ -72,7 +72,7 @@ CONTAINS
   SUBROUTINE read_mccarthy_gas(x,m,kT,nh,n,infile)
 
     IMPLICIT NONE
-    CHARACTER(len=256), INTENT(IN) :: infile
+    CHARACTER(len=*), INTENT(IN) :: infile
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:), m(:), nh(:), kT(:)
     REAL, ALLOCATABLE :: ep(:)
     INTEGER, INTENT(OUT) :: n
@@ -220,7 +220,7 @@ CONTAINS
   SUBROUTINE write_mccarthy(x,m,n,outfile)
 
     IMPLICIT NONE
-    CHARACTER(len=256), INTENT(IN) :: outfile
+    CHARACTER(len=*), INTENT(IN) :: outfile
     REAL, INTENT(IN) :: x(3,n), m(n)
     INTEGER, INTENT(IN) :: n
     REAL, PARAMETER :: mfac=1e10

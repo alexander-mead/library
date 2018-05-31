@@ -328,14 +328,20 @@ CONTAINS
     
   END FUNCTION Gaussian
 
-  FUNCTION lognormal(x,mu,siglog)
+  FUNCTION lognormal(x,mean_x,sigma_lnx)
 
-    !A normalised lognormal [x: 0->inf]
+    !A normalised lognormal [x: 0->inf], function of x
+    !mean_x: <x>
+    !log_sigma is sigma for ln(x)
     IMPLICIT NONE
     REAL :: lognormal
-    REAL, INTENT(IN) :: x, mu, siglog
+    REAL, INTENT(IN) :: x, mean_x, sigma_lnx
+    REAL :: mu, sigma
+    
+    sigma=sigma_lnx
+    mu=log(mean_x)-0.5*sigma**2
 
-    lognormal=Gaussian(log(x),log(mu),siglog)/x
+    lognormal=Gaussian(log(x),mu,sigma)/x
 
   END FUNCTION lognormal
 

@@ -37,17 +37,12 @@ CONTAINS
     INTEGER :: random_integer
     INTEGER, INTENT(IN) :: i1, i2
     INTEGER :: n
-    REAL :: ran
     REAL :: rand !Necessary to define for ifort
 
     !Range for the number
     n=1+i2-i1
 
-    !Random number between 0 and 1
-    !Do I really need both 'ran' and 'rand'?
-    ran=rand(0)
-
-    random_integer=i1-1+CEILING(ran*float(n))
+    random_integer=i1-1+CEILING(rand(0)*REAL(n))
 
   END FUNCTION random_integer
 
@@ -120,16 +115,21 @@ CONTAINS
 
   END FUNCTION random_Gaussian
 
-  FUNCTION random_lognormal(mean,logsig)
+  FUNCTION random_lognormal(mean_x,sigma_lnx)
     
     !Gets a single Gaussian random number
+    !mean_x: <x>
+    !sigma_lnx: rms of the logarithm of x
     IMPLICIT NONE
     REAL :: random_lognormal
-    REAL, INTENT(IN) :: mean, logsig
-    REAL :: G(2)
+    REAL, INTENT(IN) :: mean_x, sigma_lnx
+    REAL :: mu, sigma, G(2)
+
+    sigma=sigma_lnx
+    mu=log(mean_x)-0.5*sigma**2
 
     !This is wasteful as there is a second, independent Gaussian random number
-    G=random_Gaussian_pair(log(mean),logsig)
+    G=random_Gaussian_pair(mu,sigma)
     random_lognormal=exp(G(1))
 
   END FUNCTION random_lognormal

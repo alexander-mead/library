@@ -1355,8 +1355,8 @@ CONTAINS
     DO i=1,nsig
 
        !Equally spaced r in log
-       !r=exp(log(rmin)+log(rmax/rmin)*float(i-1)/float(nsig-1))
-       r=exp(progression(log(rmin),log(rmax),i,nsig))
+       !r=exp(progression(log(rmin),log(rmax),i,nsig))
+       r=progression_log(rmin,rmax,i,nsig)
 
        !sig=sigma(r,0.,cosm)
        IF(r>=rsplit) THEN

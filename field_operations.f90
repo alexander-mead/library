@@ -234,7 +234,7 @@ CONTAINS
     USE array_operations
     USE statistics
     IMPLICIT NONE
-    CHARACTER(len=256), INTENT(IN) :: infile
+    CHARACTER(len=*), INTENT(IN) :: infile
     REAL, INTENT(OUT) :: d(m,m,m)
     INTEGER, INTENT(IN) :: m
 
@@ -258,7 +258,7 @@ CONTAINS
     USE array_operations
     USE statistics
     IMPLICIT NONE
-    CHARACTER(len=256), INTENT(IN) :: infile
+    CHARACTER(len=*), INTENT(IN) :: infile
     REAL, INTENT(OUT) :: d(m,m,m)
     DOUBLE PRECISION :: d8(m,m,m)
     INTEGER, INTENT(IN) :: m
@@ -286,7 +286,7 @@ CONTAINS
     IMPLICIT NONE    
     REAL, INTENT(IN) :: d(m,m,m)
     INTEGER, INTENT(IN) :: m
-    CHARACTER(len=256), INTENT(IN) :: outfile
+    CHARACTER(len=*), INTENT(IN) :: outfile
 
     WRITE(*,*) 'WRITE_FIELD_BINARY: Binary output: ', TRIM(outfile)
     WRITE(*,*) 'WRITE_FIELD_BINARY: Mesh size:', m
@@ -307,7 +307,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: d(m,m), L
     INTEGER, INTENT(IN) :: m
-    CHARACTER(len=256), INTENT(IN) :: outfile
+    CHARACTER(len=*), INTENT(IN) :: outfile
     INTEGER :: i, j
     REAL :: x, y
 
@@ -337,7 +337,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: d(m,m,m), L
     INTEGER, INTENT(IN) :: m, nz
-    CHARACTER(len=256), INTENT(IN) :: outfile
+    CHARACTER(len=*), INTENT(IN) :: outfile
     INTEGER :: i, j, k
     REAL :: x, y
     REAL :: sum
@@ -356,7 +356,7 @@ CONTAINS
           DO k=1,nz
              sum=sum+d(i,j,k)
           END DO
-          sum=sum/float(nz)
+          sum=sum/REAL(nz)
 
           WRITE(8,*) x, y, sum
 
@@ -659,7 +659,7 @@ CONTAINS
 
                 !Get coordinates of position on the stack
                 !This changes coordiantes from stack to simulation coordinates
-                xb(d)=x(d)+Ls*(0.5+float(is(d)-1))/float(ms)-Ls/2.
+                xb(d)=x(d)+Ls*(0.5+REAL(is(d)-1))/REAL(ms)-Ls/2.
 
                 !Bring the coordinates back into the simulation box if they are outside
                 IF(xb(d)<=0.) THEN
@@ -670,7 +670,7 @@ CONTAINS
 
                 !Find the integer coordinates of mesh cell in the background mesh
                 !This is just an NGP-type scheme. Could/should be improved?
-                ib(d)=CEILING(float(mb)*xb(d)/Lb)
+                ib(d)=CEILING(REAL(mb)*xb(d)/Lb)
 
              END DO
 
@@ -924,7 +924,7 @@ CONTAINS
           pow8(i)=0.
        ELSE
           !k(i)=k8(i)/float(nbin8(i))
-          pow8(i)=pow8(i)/float(nbin8(i))
+          pow8(i)=pow8(i)/REAL(nbin8(i))
           pow8(i)=pow8(i)*((L*k(i))**3.)/(2.*pi**2.)
        END IF
     END DO
@@ -943,6 +943,7 @@ CONTAINS
   SUBROUTINE compute_power_spectrum_pole(d,L,ipole,iz,kmin,kmax,bins,kval,pow,nbin)
 
     USE constants
+    USE array_operations
     USE special_functions
     USE fft
     IMPLICIT NONE
@@ -974,9 +975,10 @@ CONTAINS
     WRITE(*,*) 'k_max:', kmax
 
     !Log-spaced bins
-    DO i=1,bins+1
-       kbin(i)=exp(log(kmin)+log(kmax/kmin)*float(i-1)/float(bins))
-    END DO
+    !DO i=1,bins+1
+    !   kbin(i)=exp(log(kmin)+log(kmax/kmin)*float(i-1)/float(bins))
+    !END DO
+    kbin(i)=progression_log(kmin,kmax,i,bins+1)
 
     !Explicitly extend the bins to be sure to include all modes
     !This is necessary due to rounding errors!
@@ -1015,11 +1017,11 @@ CONTAINS
              !Find integer automatically from place in table. Assumes log-spaced bins
              !Recently implemented (27/08/15) so could be a source of bugs
              !Differences will appear due to k modes that are on the boundary
-             n=1+FLOOR(float(bins)*log(kmod/kmin)/log(kmax/kmin))
+             n=1+FLOOR(REAL(bins)*log(kmod/kmin)/log(kmax/kmin))
              IF(n<1 .OR. n>bins) THEN
                 CYCLE
              ELSE
-                pow8(n)=pow8(n)+(ABS(d(i,j,k))**2.)*Legendre_polynomial(ipole,mu)*(2.*float(ipole)+1.)
+                pow8(n)=pow8(n)+(ABS(d(i,j,k))**2.)*Legendre_polynomial(ipole,mu)*(2.*REAL(ipole)+1.)
                 kval8(n)=kval8(n)+kmod
                 nbin8(n)=nbin8(n)+1
              END IF
@@ -1038,7 +1040,7 @@ CONTAINS
        ELSE
           !          kval(i)=(kbin(i+1)+kbin(i))/2.
           kval(i)=REAL(kval8(i))/REAL(nbin8(i))
-          pow8(i)=pow8(i)/float(nbin8(i))
+          pow8(i)=pow8(i)/REAL(nbin8(i))
           pow8(i)=pow8(i)*((L*kval(i))**3.)/(2.*pi**2.)
        END IF
     END DO
@@ -1057,6 +1059,7 @@ CONTAINS
 
     USE constants
     USE fft
+    USE array_operations
     IMPLICIT NONE
     INTEGER :: i, j, k, m, ii, jj, bins, iz
     REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, mus
@@ -1089,13 +1092,15 @@ CONTAINS
     a=log10(a)
     b=log10(b)
 
-    DO i=1,bins+1
-       kbin(i)=a+(b-a)*float(i-1)/float(bins)
-    END DO
+    !DO i=1,bins+1
+    !   kbin(i)=a+(b-a)*float(i-1)/float(bins)
+    !END DO
+    kbin(i)=progression(a,b,i,bins+1)
 
-    DO i=1,bins+1
-       mubin(i)=float(i-1)/float(bins)
-    END DO
+    !DO i=1,bins+1
+    !   mubin(i)=float(i-1)/float(bins)
+    !END DO
+    mubin(i)=progression(0.,1.,i,bins+1)
 
     DO i=1,bins
        kv(i)=(kbin(i)+kbin(i+1))/2.
@@ -1161,7 +1166,7 @@ CONTAINS
           IF(nbin8(ii,jj)==0) THEN
              pow8(ii,jj)=0.
           ELSE
-             pow8(ii,jj)=pow8(ii,jj)/float(nbin8(ii,jj))
+             pow8(ii,jj)=pow8(ii,jj)/REAL(nbin8(ii,jj))
              pow8(ii,jj)=pow8(ii,jj)*((L*kv(jj))**3.)/(2.*pi**2.)
           END IF
        END DO
@@ -1181,6 +1186,7 @@ CONTAINS
 
     USE constants
     USE fft
+    USE array_operations
     IMPLICIT NONE
     INTEGER :: i, j, k, m, ii, jj, bins, iz
     REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, kpers, kpars
@@ -1215,9 +1221,10 @@ CONTAINS
     a=log10(a)
     b=log10(b)
 
-    DO i=1,bins+1
-       kparbin(i)=a+(b-a)*float(i-1)/float(bins)
-    END DO
+    !DO i=1,bins+1
+    !   kparbin(i)=a+(b-a)*float(i-1)/float(bins)
+    !END DO
+    kparbin(i)=progression(a,b,i,bins+1)
 
     DO i=1,bins
        kpar(i)=(kparbin(i)+kparbin(i+1))/2.
@@ -1288,7 +1295,7 @@ CONTAINS
           IF(nbin8(ii,jj)==0) THEN
              pow8(ii,jj)=0.
           ELSE
-             pow8(ii,jj)=pow8(ii,jj)/float(nbin8(ii,jj))
+             pow8(ii,jj)=pow8(ii,jj)/REAL(nbin8(ii,jj))
              pow8(ii,jj)=pow8(ii,jj)*(L**3.*kpar(jj)*kper(ii)**2.)/(2.*pi**2.)
           END IF
        END DO

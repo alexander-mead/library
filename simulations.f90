@@ -1019,7 +1019,7 @@ CONTAINS
     LOGICAL, INTENT(IN) :: okay(n)
     REAL, INTENT(IN) :: rmin, rmax, L   
     INTEGER, INTENT(IN) :: n
-    CHARACTER(len=256), INTENT(IN) :: outfile
+    CHARACTER(len=*), INTENT(IN) :: outfile
     !REAL, ALLOCATABLE, INTENT(OUT) :: pairs(:,:)
     !INTEGER, INTENT(OUT) :: np
     INTEGER :: i, j, np
@@ -1227,11 +1227,9 @@ CONTAINS
              i(1)=i1
              i(2)=i2
              i(3)=i3
-             !x1(1)=L*(i1-0.5)/float(m)
-             !x1(2)=L*(j1-0.5)/float(m)
-             !x1(3)=L*(k1-0.5)/float(m)
+             
              DO dim=1,3
-                x1(dim)=L*(i(dim)-0.5)/float(m)
+                x1(dim)=L*(i(dim)-0.5)/REAL(m)
              END DO
 
              DO j3=1,m
@@ -1241,11 +1239,9 @@ CONTAINS
                       j(1)=j1
                       j(2)=j2
                       j(3)=j3
-                      !x2(1)=L*(i2-0.5)/float(m)
-                      !x2(2)=L*(j2-0.5)/float(m)
-                      !x2(3)=L*(k2-0.5)/float(m)
+
                       DO dim=1,3
-                         x2(dim)=L*(j(dim)-0.5)/float(m)
+                         x2(dim)=L*(j(dim)-0.5)/REAL(m)
                       END DO
 
                       r=periodic_distance(x1,x2,L)
@@ -1267,7 +1263,7 @@ CONTAINS
        END DO
     END DO
 
-    xi_array=REAL(xi8_array/float(n_array))
+    xi_array=REAL(xi8_array/REAL(n_array))
 
     WRITE(*,*) 'CORRELATION_FUNCTION: done'
     WRITE(*,*)

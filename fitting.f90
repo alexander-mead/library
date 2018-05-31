@@ -8,6 +8,7 @@ CONTAINS
 
   SUBROUTINE adapt_1(xmin,func,min,max,ref,ngrid,nref)
 
+    USE array_operations
     IMPLICIT NONE
     REAL, INTENT(OUT) :: xmin
     REAL, INTENT(IN) :: min, max, ref
@@ -41,7 +42,8 @@ CONTAINS
 
        DO i=1,ngrid
 
-          x=x1+(x2-x1)*float(i-1)/float(ngrid-1)
+          !x=x1+(x2-x1)*float(i-1)/float(ngrid-1)
+          x=progression(x1,x2,i,ngrid)
           fom=func(x)
 
           IF(i==1 .OR. fom<fommin) THEN
@@ -66,6 +68,7 @@ CONTAINS
 
   SUBROUTINE adapt_3(xmin,func,min,max,ref,ngrid,nref)
 
+    USE array_operations
     IMPLICIT NONE
     REAL, INTENT(OUT) :: xmin(3)
     REAL, INTENT(IN) :: min(3), max(3), ref(3)
@@ -96,15 +99,19 @@ CONTAINS
 
        DO i=1,ngrid(1)
 
-          x(1)=x1(1)+(x2(1)-x1(1))*float(i-1)/float(ngrid(1)-1)
+          !x(1)=x1(1)+(x2(1)-x1(1))*float(i-1)/float(ngrid(1)-1)
+          x(1)=progression(x1(1),x2(1),i,ngrid(1))
 
           DO j=1,ngrid(2)
 
-             x(2)=x1(2)+(x2(2)-x1(2))*float(j-1)/float(ngrid(2)-1)
+             !x(2)=x1(2)+(x2(2)-x1(2))*float(j-1)/float(ngrid(2)-1)
+             x(2)=progression(x1(2),x2(2),j,ngrid(2))
+          
             
              DO k=1,ngrid(3)
                 
-                x(3)=x1(3)+(x2(3)-x1(3))*float(k-1)/float(ngrid(3)-1)
+                !x(3)=x1(3)+(x2(3)-x1(3))*float(k-1)/float(ngrid(3)-1)
+                x(3)=progression(x1(3),x2(3),k,ngrid(3))
 
                 fom=func(x)
                 
@@ -139,6 +146,7 @@ CONTAINS
   SUBROUTINE grid_fit_1(Amin,Amax,Asteps,x,y)
 
     !This fits a one parameter model
+    USE array_operations
     IMPLICIT NONE
     REAL, INTENT(IN) :: Amin, Amax
     REAL, INTENT(IN) :: x(:), y(:)
@@ -150,7 +158,8 @@ CONTAINS
 
     DO j=1,Asteps
 
-       A=Amin+(Amax-Amin)*(float(j-1)/(Asteps-1))
+       !A=Amin+(Amax-Amin)*(float(j-1)/(Asteps-1))
+       A=progression(Amin,Amax,j,Asteps)
 
        fom=0.
 

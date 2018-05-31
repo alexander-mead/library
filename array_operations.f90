@@ -58,7 +58,7 @@ CONTAINS
     INTEGER :: i, j
 
     DO i=1,n2
-       j=1+CEILING(float((n1-1)*(i-1))/float(n2-1))
+       j=1+CEILING(REAL((n1-1)*(i-1))/REAL(n2-1))
        arr2(i)=arr1(j)
     END DO
 
@@ -139,7 +139,7 @@ CONTAINS
     REAL, INTENT(IN) :: a(:)
     REAL, INTENT(OUT) :: b(n), c(n)
     REAL :: a1, a2, min, max
-    REAL :: binlim(n+1)
+    REAL, ALLOCATABLE :: binlim(:)
     INTEGER :: i, j
 
     min=a1
@@ -155,9 +155,10 @@ CONTAINS
     END IF
 
     !This sets the limits for the bins!
-    DO i=1,n+1
-       binlim(i)=min+(max-min)*float(i-1)/float(n)
-    END DO
+    !DO i=1,n+1
+    !   binlim(i)=min+(max-min)*REAL(i-1)/REAL(n)
+    !END DO
+    CALL fill_array(min,max,binlim,n+1)
 
     !This sets the centre value for each bin!
     DO i=1,n
