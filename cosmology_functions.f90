@@ -24,11 +24,12 @@ MODULE cosmology_functions
      REAL, ALLOCATABLE :: r(:), a_r(:) !Arrays for distance
      REAL, ALLOCATABLE :: plin(:), k_plin(:) !Arrays for input linear P(k)
      REAL, ALLOCATABLE :: a_dcDv(:), dc(:), Dv(:) !Arrays for spherical-collapse parameters
-     INTEGER :: n_sigma, n_growth, n_r, nplin, n_dcDv !Array entries
+     INTEGER :: n_sigma, n_growth, n_r, n_plin, n_dcDv !Array entries
      REAL :: gnorm
      CHARACTER(len=256) :: name = ""
-     LOGICAL :: has_distance, has_growth, has_sigma, has_spherical
-     LOGICAL :: is_normalised, is_init, external_plin     
+     LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power
+     LOGICAL :: is_normalised, is_init
+     LOGICAL :: external_plin     
   END TYPE cosmology
 
 CONTAINS
@@ -114,6 +115,7 @@ CONTAINS
     cosm%has_distance=.FALSE.
     cosm%has_growth=.FALSE.
     cosm%has_sigma=.FALSE.
+    cosm%has_power=.FALSE.
     cosm%has_spherical=.FALSE.
     cosm%is_normalised=.FALSE.
     cosm%external_plin=.FALSE.    
@@ -1285,9 +1287,9 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     REAL, PARAMETER :: kmax=1e8
-    !LOGICAL, PARAMETER :: verbose=.TRUE.
 
-    !IF(cosm%has_power .EQV. .FALSE.) CALL init_power(cosm)
+    !Using init_power seems to provide no significant speed improvements to HMx
+    !IF((cosm%has_power .EQV. .FALSE.) .AND. (cosm%external_plin .EQV. .FALSE.)) CALL init_power(cosm)
 
     IF(k==0.) THEN
        !If p_lin happens to be foolishly called for 0 mode
@@ -1301,8 +1303,8 @@ CONTAINS
        !If investigating effects caused by a finite box size
        p_lin=0.
     ELSE
-       IF(cosm%external_plin) THEN
-          p_lin=cosm%A**2*exp(find(log(k),cosm%k_plin,cosm%plin,cosm%nplin,3,3,2))
+       IF(cosm%external_plin .OR. cosm%has_power) THEN
+          p_lin=cosm%A**2*exp(find(log(k),cosm%k_plin,cosm%plin,cosm%n_plin,3,3,2))
        ELSE
           !In this case get the power from the transfer function
           p_lin=(cosm%A**2)*(Tk(k,cosm)**2)*(k**(cosm%n+3.))
@@ -1312,6 +1314,34 @@ CONTAINS
     END IF
 
   END FUNCTION p_lin
+
+  SUBROUTINE init_power(cosm)
+
+    IMPLICIT NONE
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    INTEGER :: i
+    REAL :: k
+    
+    REAL, PARAMETER :: kmin=1e-3
+    REAL, PARAMETER :: kmax=1e2
+    INTEGER, PARAMETER :: n_plin=256
+
+    cosm%n_plin=n_plin
+    
+    ALLOCATE(cosm%k_plin(cosm%n_plin),cosm%plin(cosm%n_plin))
+
+    DO i=1,cosm%n_plin
+       k=progression_log(kmin,kmax,i,cosm%n_plin)
+       cosm%k_plin(i)=k
+       cosm%plin(i)=(Tk(k,cosm)**2)*k**(cosm%n+3.)
+    END DO
+
+    cosm%k_plin=log(cosm%k_plin)
+    cosm%plin=log(cosm%plin)
+
+    cosm%has_power=.TRUE.
+    
+  END SUBROUTINE init_power
 
   SUBROUTINE init_sigma(cosm)
 
