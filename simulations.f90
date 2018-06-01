@@ -14,8 +14,8 @@ CONTAINS
     CHARACTER(len=*), INTENT(IN) :: outfile
     INTEGER :: i
     DOUBLE COMPLEX :: dk(m,m,m)
-    REAL :: k(nk), Pk(nk)
-    INTEGER :: nbin(nk)
+    REAL, ALLOCATABLE :: k(:), Pk(:)
+    INTEGER, ALLOCATABLE :: nbin(:)
     REAL :: kmin, kmax, shot
 
     CALL sharp_Fourier_density_contrast(x,n,L,dk,m)

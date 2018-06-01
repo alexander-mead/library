@@ -858,8 +858,8 @@ CONTAINS
     USE fft
     IMPLICIT NONE
     DOUBLE COMPLEX, INTENT(IN) :: dk1(m,m,m), dk2(m,m,m)
-    REAL, INTENT(OUT) :: pow(:), k(:)
-    INTEGER, INTENT(OUT) :: nmodes(nk)
+    REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:), k(:)
+    INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:)
     INTEGER, INTENT(IN) :: m, nk
     REAL, INTENT(IN) :: L, kmin, kmax
     INTEGER :: i, ix, iy, iz, n
@@ -920,6 +920,12 @@ CONTAINS
        END DO
     END DO
 
+    !Deallocate and reallocate arrays
+    IF(ALLOCATED(k))      DEALLOCATE(k)
+    IF(ALLOCATED(pow))    DEALLOCATE(pow)
+    IF(ALLOCATED(nmodes)) DEALLOCATE(nmodes)
+    ALLOCATE(k(nk),pow(nk),nmodes(nk))
+
     !Now create the power spectrum and k array
     DO i=1,nk
        k(i)=sqrt(kbin(i+1)*kbin(i))
@@ -929,7 +935,7 @@ CONTAINS
        ELSE
           !k(i)=k8(i)/float(nbin8(i))
           pow8(i)=pow8(i)/REAL(nmodes8(i))
-          pow8(i)=pow8(i)*((L*k(i))**3.)/(2.*pi**2.)
+          pow8(i)=pow8(i)*((L*k(i))**3)/(2.*pi**2)
        END IF
     END DO
 
@@ -944,24 +950,25 @@ CONTAINS
 
   END SUBROUTINE compute_power_spectrum
 
-  SUBROUTINE compute_power_spectrum_pole(d,L,ipole,iz,kmin,kmax,nk,kval,pow,nmodes)
+  SUBROUTINE compute_power_spectrum_pole(d,m,L,ipole,iz,kmin,kmax,nk,kval,pow,nmodes)
 
     USE constants
     USE array_operations
     USE special_functions
     USE fft
     IMPLICIT NONE
-    INTEGER :: i, j, k, m, n
-    REAL :: kx, ky, kz, kmod, mu
-    REAL, INTENT(IN) :: kmin, kmax
-    REAL, INTENT(IN) :: L
+    DOUBLE COMPLEX, INTENT(IN) :: d(m,m,m)
+    REAL, INTENT(IN) :: kmin, kmax, L
+    INTEGER, INTENT(IN) :: iz, ipole, nk, m
+    REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:), kval(:)
+    INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:)
+    INTEGER :: i, j, k, n
+    REAL :: kx, ky, kz, kmod, mu    
     REAL :: kbin(nk+1)
-    REAL, INTENT(OUT) :: pow(nk), kval(nk)
     DOUBLE PRECISION :: pow8(nk), kval8(nk)
-    INTEGER, INTENT(OUT) :: nmodes(nk)
     INTEGER*8 :: nmodes8(nk)
-    INTEGER, INTENT(IN) :: iz, ipole, nk
-    DOUBLE COMPLEX, INTENT(IN) :: d(:,:,:)
+
+    STOP 'COMPUTE_POWER_SPECTRUM_POLE: Check this very carefully'
 
     WRITE(*,*) 'Computing isotropic power spectrum'
 
@@ -989,7 +996,7 @@ CONTAINS
     !    kbin(1)=kbin(1)*0.999
     !    kbin(bins+1)=kbin(bins+1)*1.001
 
-    m=SIZE(d(:,1,1))
+    !m=SIZE(d(:,1,1))
 
     WRITE(*,*) 'Mesh:', m
 
@@ -1034,18 +1041,19 @@ CONTAINS
        END DO
     END DO
 
+    !Deallocate and re-allocate arrays
+    IF(ALLOCATED(kval))    DEALLOCATE(kval)
+    IF(ALLOCATED(pow))    DEALLOCATE(pow)
+    IF(ALLOCATED(nmodes)) DEALLOCATE(nmodes)
+    ALLOCATE(kval(nk),pow(nk),nmodes(nk))
+    
     DO i=1,nk
-       !       kval(i)=(kbin(i+1)+kbin(i))/2.
-       !       kval(i)=sqrt(kbin(i+1)*kbin(i))
+       kval(i)=(kbin(i+1)+kbin(i))/2.
        IF(nmodes8(i)==0) THEN
-          kval(i)=(kbin(i+1)+kbin(i))/2.
-          !       kval(i)=sqrt(kbin(i+1)*kbin(i))
           pow8(i)=0.
        ELSE
-          !          kval(i)=(kbin(i+1)+kbin(i))/2.
-          kval(i)=REAL(kval8(i))/REAL(nmodes8(i))
           pow8(i)=pow8(i)/REAL(nmodes8(i))
-          pow8(i)=pow8(i)*((L*kval(i))**3.)/(2.*pi**2.)
+          pow8(i)=pow8(i)*((L*kval(i))**3)/(2.*pi**2)
        END IF
     END DO
 
@@ -1072,6 +1080,8 @@ CONTAINS
     INTEGER :: nmodes(nk,nk)
     INTEGER*8 :: nmodes8(nk,nk)
     DOUBLE COMPLEX :: d(:,:,:)
+
+    STOP 'COMPUTE_POWER_SPECTRUM_RSD: Check this very carefully'
 
     WRITE(*,*) 'Computing RSD power spectrum'
 
@@ -1200,7 +1210,7 @@ CONTAINS
     INTEGER*8 :: nmodes8(nk,nk)
     DOUBLE COMPLEX :: d(:,:,:)
 
-    !    STOP 'Not updated according to JAP prescription'
+    STOP 'COMPUTE_POWER_SPECTRUM_RSD2: Check this very carefully'
 
     WRITE(*,*) 'Computing rsd power spectrum'
 
