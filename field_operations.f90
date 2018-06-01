@@ -858,7 +858,7 @@ CONTAINS
     USE fft
     IMPLICIT NONE
     DOUBLE COMPLEX, INTENT(IN) :: dk1(m,m,m), dk2(m,m,m)
-    REAL, INTENT(OUT) :: pow(nk), k(nk)
+    REAL, INTENT(OUT) :: pow(:), k(:)
     INTEGER, INTENT(OUT) :: nmodes(nk)
     INTEGER, INTENT(IN) :: m, nk
     REAL, INTENT(IN) :: L, kmin, kmax
@@ -868,18 +868,20 @@ CONTAINS
     DOUBLE PRECISION :: pow8(nk), k8(nk)    
     INTEGER*8 :: nmodes8(nk)
 
-    WRITE(*,*) 'PK: Computing isotropic power spectrum'
+    REAL, PARAMETER :: dbin=1e-3
+
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Computing isotropic power spectrum'
 
     !Set summation variables to 0.d0
     k8=0.d0
     pow8=0.d0
     nmodes8=0
 
-    WRITE(*,*) 'PK: Binning power'
-    WRITE(*,*) 'PK: Mesh:', m
-    WRITE(*,*) 'PK: Bins:', nk
-    WRITE(*,*) 'PK: k_min [h/Mpc]:', kmin
-    WRITE(*,*) 'PK: k_max [h/Mpc]:', kmax
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Binning power'
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Mesh:', m
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Bins:', nk
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: k_min [h/Mpc]:', kmin
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: k_max [h/Mpc]:', kmax
 
     !Fill array of k bins
     CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
@@ -887,14 +889,16 @@ CONTAINS
 
     !Explicitly extend the first and last bins to be sure to include *all* modes
     !This is necessary due to rounding errors!
-    kbin(1)=kbin(1)*0.999
-    kbin(nk+1)=kbin(nk+1)*1.001    
+    kbin(1)=kbin(1)*(1.-dbin)
+    kbin(nk+1)=kbin(nk+1)*(1.+dbin)    
 
     !Loop over all elements of dk
     DO iz=1,m
        DO iy=1,m
           DO ix=1,m
 
+             !WRITE(*,*) ix, iy, iz
+             
              !Cycle for the zero mode (k=0)
              IF(ix==1 .AND. iy==1 .AND. iz==1) CYCLE
 
@@ -935,7 +939,7 @@ CONTAINS
     !Divide by 2 because up to now we have double count Hermitian conjugates
     nmodes=INT(nmodes8)/2
 
-    WRITE(*,*) 'PK: Power computed'
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Power computed'
     WRITE(*,*) 
 
   END SUBROUTINE compute_power_spectrum
