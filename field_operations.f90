@@ -1055,18 +1055,18 @@ CONTAINS
 
   END SUBROUTINE compute_power_spectrum_pole
 
-  SUBROUTINE compute_power_spectrum_rsd(d,L,kmin,kmax,bins,kv,mu,pow,nbin,iz)
+  SUBROUTINE compute_power_spectrum_rsd(d,L,kmin,kmax,nk,kv,mu,pow,nmodes,iz)
 
     USE constants
     USE fft
     USE array_operations
     IMPLICIT NONE
-    INTEGER :: i, j, k, m, ii, jj, bins, iz
+    INTEGER :: i, j, k, m, ii, jj, nk, iz
     REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, mus
-    REAL :: pow(bins,bins), kv(bins), kbin(bins+1), mu(bins), mubin(bins+1)
-    DOUBLE PRECISION :: pow8(bins,bins)
-    INTEGER :: nbin(bins,bins)
-    INTEGER*8 :: nbin8(bins,bins)
+    REAL :: pow(nk,nk), kv(nk), kbin(nk+1), mu(nk), mubin(nk+1)
+    DOUBLE PRECISION :: pow8(nk,nk)
+    INTEGER :: nmodes(nk,nk)
+    INTEGER*8 :: nmodes8(nk,nk)
     DOUBLE COMPLEX :: d(:,:,:)
 
     WRITE(*,*) 'Computing RSD power spectrum'
@@ -1076,13 +1076,13 @@ CONTAINS
     kv=0.
     mu=0.
     pow=0.
-    nbin=0
+    nmodes=0
 
     pow8=0.d0
-    nbin8=0
+    nmodes8=0
 
     WRITE(*,*) 'Binning power'
-    WRITE(*,*) 'Bins:', bins
+    WRITE(*,*) 'Bins:', nk
     WRITE(*,*) 'k_min:', kmin
     WRITE(*,*) 'k_max:', kmax
 
@@ -1095,14 +1095,14 @@ CONTAINS
     !DO i=1,bins+1
     !   kbin(i)=a+(b-a)*float(i-1)/float(bins)
     !END DO
-    kbin(i)=progression(a,b,i,bins+1)
+    kbin(i)=progression(a,b,i,nk+1)
 
     !DO i=1,bins+1
     !   mubin(i)=float(i-1)/float(bins)
     !END DO
-    mubin(i)=progression(0.,1.,i,bins+1)
+    mubin(i)=progression(0.,1.,i,nk+1)
 
-    DO i=1,bins
+    DO i=1,nk
        kv(i)=(kbin(i)+kbin(i+1))/2.
        mu(i)=(mubin(i)+mubin(i+1))/2.
     END DO
@@ -1113,9 +1113,9 @@ CONTAINS
     !Explicitly extend the bins to be sure to include all modes
     !This is necessary due to rounding errors!
     kbin(1)=kbin(1)*0.999
-    kbin(bins+1)=kbin(bins+1)*1.001
+    kbin(nk+1)=kbin(nk+1)*1.001
     mubin(1)=-0.001
-    mubin(bins+1)=1.001
+    mubin(nk+1)=1.001
 
     m=SIZE(d(:,1,1))
 
@@ -1144,12 +1144,12 @@ CONTAINS
              !             WRITE(*,*) mus, kbin(1), kbin(2), kmod
              !             IF(i==10) STOP
 
-             DO jj=1,bins
+             DO jj=1,nk
                 IF(kmod>=kbin(jj) .AND. kmod<=kbin(jj+1)) THEN                
-                   DO ii=1,bins
+                   DO ii=1,nk
                       IF(mus>=mubin(ii) .AND. mus<=mubin(ii+1)) THEN
                          pow8(ii,jj)=pow8(ii,jj)+ABS(d(i,j,k))**2.
-                         nbin8(ii,jj)=nbin8(ii,jj)+1
+                         nmodes8(ii,jj)=nmodes8(ii,jj)+1
                          EXIT
                       END IF
                    END DO
@@ -1161,12 +1161,12 @@ CONTAINS
        END DO
     END DO
 
-    DO jj=1,bins
-       DO ii=1,bins
-          IF(nbin8(ii,jj)==0) THEN
+    DO jj=1,nk
+       DO ii=1,nk
+          IF(nmodes8(ii,jj)==0) THEN
              pow8(ii,jj)=0.
           ELSE
-             pow8(ii,jj)=pow8(ii,jj)/REAL(nbin8(ii,jj))
+             pow8(ii,jj)=pow8(ii,jj)/REAL(nmodes8(ii,jj))
              pow8(ii,jj)=pow8(ii,jj)*((L*kv(jj))**3.)/(2.*pi**2.)
           END IF
        END DO
@@ -1175,25 +1175,25 @@ CONTAINS
     pow=REAL(pow8)/(REAL(m)**6)
 
     !Divide by 2 because double count Hermitian conjugates
-    nbin=INT(nbin8)/2
+    nmodes=INT(nmodes8)/2
 
     WRITE(*,*) 'Power computed'
     WRITE(*,*) 
 
   END SUBROUTINE compute_power_spectrum_rsd
 
-  SUBROUTINE compute_power_spectrum_rsd2(d,L,kmin,kmax,bins,kpar,kper,pow,nbin,iz)
+  SUBROUTINE compute_power_spectrum_rsd2(d,L,kmin,kmax,nk,kpar,kper,pow,nmodes,iz)
 
     USE constants
     USE fft
     USE array_operations
     IMPLICIT NONE
-    INTEGER :: i, j, k, m, ii, jj, bins, iz
+    INTEGER :: i, j, k, m, ii, jj, nk, iz
     REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, kpers, kpars
-    REAL :: pow(bins,bins), kpar(bins), kparbin(bins+1), kper(bins), kperbin(bins+1)
-    DOUBLE PRECISION :: pow8(bins,bins)
-    INTEGER :: nbin(bins,bins)
-    INTEGER*8 :: nbin8(bins,bins)
+    REAL :: pow(nk,nk), kpar(nk), kparbin(nk+1), kper(nk), kperbin(nk+1)
+    DOUBLE PRECISION :: pow8(nk,nk)
+    INTEGER :: nmodes(nk,nk)
+    INTEGER*8 :: nmodes8(nk,nk)
     DOUBLE COMPLEX :: d(:,:,:)
 
     !    STOP 'Not updated according to JAP prescription'
@@ -1205,13 +1205,13 @@ CONTAINS
     kpar=0.
     kper=0.
     pow=0.
-    nbin=0
+    nmodes=0
 
     pow8=0.d0
-    nbin8=0
+    nmodes8=0
 
     WRITE(*,*) 'Binning power'
-    WRITE(*,*) 'Bins:', bins
+    WRITE(*,*) 'Bins:', nk
     WRITE(*,*) 'k_min:', kmin
     WRITE(*,*) 'k_max:', kmax
 
@@ -1224,9 +1224,9 @@ CONTAINS
     !DO i=1,bins+1
     !   kparbin(i)=a+(b-a)*float(i-1)/float(bins)
     !END DO
-    kparbin(i)=progression(a,b,i,bins+1)
+    kparbin(i)=progression(a,b,i,nk+1)
 
-    DO i=1,bins
+    DO i=1,nk
        kpar(i)=(kparbin(i)+kparbin(i+1))/2.
     END DO
 
@@ -1236,7 +1236,7 @@ CONTAINS
     !Explicitly extend the bins to be sure to include all modes
     !This is necessary due to rounding errors!
     kparbin(1)=kparbin(1)*0.999
-    kparbin(bins+1)=kparbin(bins+1)*1.001
+    kparbin(nk+1)=kparbin(nk+1)*1.001
 
     kperbin=kparbin
     kper=kpar
@@ -1266,12 +1266,12 @@ CONTAINS
                 STOP 'COMPUTE_POWER_SPECTRUM_RSD2: Error, iz not specified correctly'
              END IF
 
-             DO jj=1,bins
+             DO jj=1,nk
                 IF(kpars>=kparbin(jj) .AND. kpars<=kparbin(jj+1)) THEN                
-                   DO ii=1,bins
+                   DO ii=1,nk
                       IF(kpers>=kperbin(ii) .AND. kpers<=kperbin(ii+1)) THEN
                          pow8(ii,jj)=pow8(ii,jj)+ABS(d(i,j,k))**2.
-                         nbin8(ii,jj)=nbin8(ii,jj)+1
+                         nmodes8(ii,jj)=nmodes8(ii,jj)+1
                          EXIT
                       END IF
                    END DO
@@ -1290,12 +1290,12 @@ CONTAINS
     !       END DO
     !    END DO
 
-    DO jj=1,bins
-       DO ii=1,bins
-          IF(nbin8(ii,jj)==0) THEN
+    DO jj=1,nk
+       DO ii=1,nk
+          IF(nmodes8(ii,jj)==0) THEN
              pow8(ii,jj)=0.
           ELSE
-             pow8(ii,jj)=pow8(ii,jj)/REAL(nbin8(ii,jj))
+             pow8(ii,jj)=pow8(ii,jj)/REAL(nmodes8(ii,jj))
              pow8(ii,jj)=pow8(ii,jj)*(L**3.*kpar(jj)*kper(ii)**2.)/(2.*pi**2.)
           END IF
        END DO
@@ -1304,7 +1304,7 @@ CONTAINS
     pow=REAL(pow8)/(REAL(m)**6)
 
     !Divide by 2 because double count Hermitian conjugates
-    nbin=INT(nbin8)/2
+    nmodes=INT(nmodes8)/2
 
     WRITE(*,*) 'Power computed'
     WRITE(*,*) 
