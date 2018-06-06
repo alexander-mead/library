@@ -10,7 +10,7 @@ CONTAINS
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: seed
     INTEGER :: int, timearray(3)
-    REAL :: rand !Necessary to define for ifort 
+    REAL*4 :: rand !Necessary to define for ifort 
 
     WRITE(*,*) 'RNG_SET: Initialising random number generator'
     WRITE(*,*) 'RNG_SET: seed:', seed
@@ -37,7 +37,7 @@ CONTAINS
     INTEGER :: random_integer
     INTEGER, INTENT(IN) :: i1, i2
     INTEGER :: n
-    REAL :: rand !Necessary to define for ifort
+    REAL*4 :: rand !Necessary to define for ifort
 
     !Range for the number
     n=1+i2-i1
@@ -52,7 +52,7 @@ CONTAINS
     IMPLICIT NONE
     REAL :: random_uniform
     REAL, INTENT(IN) :: x1,x2
-    REAL :: rand !I think this needs to be defined for ifort
+    REAL*4 :: rand !I think this needs to be defined for ifort
 
     !Rand is some inbuilt function
     random_uniform=x1+(x2-x1)*(rand(0))

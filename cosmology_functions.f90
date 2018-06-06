@@ -600,11 +600,10 @@ CONTAINS
     
   END FUNCTION AH_norad
 
-  FUNCTION Omega_m(a,cosm)
+  REAL FUNCTION Omega_m(a,cosm)
 
-    !This calculates Omega_m variations with z!
+    !This calculates Omega_m variations with a
     IMPLICIT NONE
-    REAL :: Omega_m
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -612,11 +611,11 @@ CONTAINS
 
   END FUNCTION Omega_m
 
-  FUNCTION Omega_m_norad(a,cosm)
+  REAL FUNCTION Omega_m_norad(a,cosm)
 
-    !This calculates Omega_m variations with z!
+    !This calculates Omega_m variations with a, but ignoring any radiation component
+    !This ensures that Omega_m_norad(a->0) -> 1
     IMPLICIT NONE
-    REAL :: Omega_m_norad
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -624,11 +623,32 @@ CONTAINS
 
   END FUNCTION Omega_m_norad
 
-  FUNCTION Omega_nu(a,cosm)
+  REAL FUNCTION Omega_b(a,cosm)
 
-    !This calculates Omega_m variations with z!
+    !This calculates Omega_m variations with a
     IMPLICIT NONE
-    REAL :: Omega_nu
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+
+    Omega_b=cosm%Om_b*a**(-3)/Hubble2(a,cosm)
+
+  END FUNCTION Omega_b
+
+  REAL FUNCTION Omega_c(a,cosm)
+
+    !This calculates Omega_c variations with a
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+
+    Omega_c=cosm%Om_c*a**(-3)/Hubble2(a,cosm)
+
+  END FUNCTION Omega_c
+
+  REAL FUNCTION Omega_nu(a,cosm)
+
+    !This calculates Omega_nu variations with a, assuming that nu scales like matter
+    IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -636,11 +656,10 @@ CONTAINS
 
   END FUNCTION Omega_nu
 
-  FUNCTION Omega_r(a,cosm)
+  REAL FUNCTION Omega_r(a,cosm)
 
-    !This calculates Omega_r variations with z!
+    !This calculates Omega_r variations with a
     IMPLICIT NONE
-    REAL :: Omega_r
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -649,11 +668,10 @@ CONTAINS
 
   END FUNCTION Omega_r
 
-  FUNCTION Omega_v(a,cosm)
+  REAL FUNCTION Omega_v(a,cosm)
 
-    !This calculates Omega_v variations with z!
+    !This calculates Omega_v variations with a
     IMPLICIT NONE
-    REAL :: Omega_v
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -661,11 +679,10 @@ CONTAINS
 
   END FUNCTION Omega_v
 
-  FUNCTION Omega_w(a,cosm)
+  REAL FUNCTION Omega_w(a,cosm)
 
-    !This calculates Omega_w variations with z!
+    !This calculates Omega_w variations with a
     IMPLICIT NONE
-    REAL :: Omega_w
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -673,11 +690,9 @@ CONTAINS
 
   END FUNCTION Omega_w
 
-  FUNCTION Omega(a,cosm)
+  REAL FUNCTION Omega(a,cosm)
 
-    !This calculates total Omega variations with z!
-    IMPLICIT NONE
-    REAL :: Omega
+    !This calculates total Omega variations with a
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1410,7 +1425,7 @@ CONTAINS
     !Having nsig as a 2** number is most efficient for the look-up routines
     !rmin and rmax need to be decided in advance and are chosen such that
     !R vs. sigma(R) is a power-law below and above these values of R   
-    INTEGER, PARAMETER :: nsig=64 !Number of entries for sigma(R) tables
+    INTEGER, PARAMETER :: nsig=128 !Number of entries for sigma(R) tables
     REAL, PARAMETER :: rmin=1e-4 !Minimum r value (NB. sigma(R) needs to be power-law below)
     REAL, PARAMETER :: rmax=1e3 !Maximum r value (NB. sigma(R) needs to be power-law above)
     REAL, PARAMETER :: rsplit=1e-2 !Scale split between integration methods
@@ -1511,8 +1526,7 @@ CONTAINS
     REAL :: k, y, w_hat
 
     INTERFACE
-       FUNCTION f(x)
-         REAL :: f
+       REAL FUNCTION f(x)
          REAL, INTENT(IN) :: x
        END FUNCTION f
     END INTERFACE
@@ -1520,10 +1534,10 @@ CONTAINS
     !Integrand to the sigma integral in terms of t. Defined by k=(1/t-1)/f(R) where f(R) is *any* function
 
     IF(t==0.) THEN
-       !t=0 corresponds to k=infintiy when W(kR)=0.
+       !t=0 corresponds to k=infintiy when W(kR)=0
        sigma_integrand_transformed=0.
     ELSE IF(t==1.) THEN
-       !t=1 corresponds to k=0. when P(k)=0.
+       !t=1 corresponds to k=0 when P(k)=0
        sigma_integrand_transformed=0.
     ELSE
        !f(R) can be *any* function of R here to improve integration speed
