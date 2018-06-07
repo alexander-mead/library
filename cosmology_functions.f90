@@ -7,7 +7,7 @@ MODULE cosmology_functions
 
   !Contains cosmological parameters that need only be calculated once
   TYPE cosmology     
-     REAL :: Om_m, Om_b, Om_v, Om_w, Om_nu, h, n, sig8, w, wa !Primary parameters
+     REAL :: Om_m, Om_b, Om_v, Om_w, Om_nu, h, n, sig8, w, wa, m_wdm !Primary parameters
      REAL :: z_CMB, T_CMB, neff, Om_r, age, horizon !Secondary parameters
      REAL :: Om, k, Om_k, Om_c, A !Derived parameters
      REAL :: a1, a2, ns, ws, am, dm, wm !DE parameters     
@@ -23,6 +23,7 @@ MODULE cosmology_functions
      INTEGER :: n_sigma, n_growth, n_r, n_plin, n_dcDv !Array entries
      REAL :: gnorm
      CHARACTER(len=256) :: name = ""
+     LOGICAL :: wdm
      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power
      LOGICAL :: is_init, is_normalised
      LOGICAL :: external_plin     
@@ -46,7 +47,7 @@ CONTAINS
     REAL :: Om_c, Om_g_h2, rho_g
 
     !Names of pre-defined cosmologies    
-    INTEGER, PARAMETER :: ncosmo=13
+    INTEGER, PARAMETER :: ncosmo=14
     CHARACTER(len=256) :: names(0:ncosmo)
     names(0)='User defined'
     names(1)='Boring'
@@ -62,6 +63,7 @@ CONTAINS
     names(11)='IDE10'
     names(12)='LCDM (user)'
     names(13)='w(a)CDM (user)'
+    names(14)='Boring WDM'
 
     IF(icosmo==-1) THEN
        WRITE(*,*) 'ASSIGN_COSMOLOGY: Choose cosmological model'
@@ -87,12 +89,16 @@ CONTAINS
     cosm%n=0.96
     cosm%w=-1.
     cosm%wa=0.
-    cosm%T_CMB=2.725
-    cosm%z_CMB=1100.
+    cosm%T_CMB=2.725 !CMB temperature in K
+    cosm%z_CMB=1100. !Redshift of the last-scatting surface
     cosm%neff=3.046
 
     !Default dark energy is Lambda
     cosm%iw=1
+
+    !Default to have no WDM
+    cosm%wdm=.FALSE.
+    cosm%m_wdm=1. !WDM mass in keV
 
     !Initially set the normalisation to 1
     cosm%A=1.
@@ -214,6 +220,8 @@ CONTAINS
        READ(*,*) cosm%w
        WRITE(*,*) 'wa:'
        READ(*,*) cosm%wa
+    ELSE IF(icosmo==14) THEN
+       cosm%wdm=.TRUE.
     ELSE
        STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly'
     END IF
@@ -255,9 +263,12 @@ CONTAINS
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w_a:', REAL(cosm%wa)
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'sigma_8:', REAL(cosm%sig8)
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_s:', REAL(cosm%n)
-    WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'T_CMB / K:', REAL(cosm%T_CMB)
+    WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'T_CMB [K]:', REAL(cosm%T_CMB)
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'z_CMB:', REAL(cosm%z_CMB)
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_eff:', REAL(cosm%neff)
+    IF(cosm%wdm) THEN
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', REAL(cosm%m_wdm)
+    END IF
     WRITE(*,*) '===================================='
     WRITE(*,*) 'COSMOLOGY: Derived parameters'
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega:', cosm%Om
@@ -1226,6 +1237,9 @@ CONTAINS
 
     Tk=Tk_eh(k,cosm)
 
+    !Damp if considering WDM
+    IF(cosm%wdm) Tk=Tk*Tk_wdm(k,cosm)
+
   END FUNCTION Tk
 
   REAL FUNCTION Tk_defw(k,cosm)
@@ -1334,6 +1348,23 @@ CONTAINS
 
   END FUNCTION TK_EH
 
+  REAL FUNCTION Tk_wdm(k,cosm)
+
+    !Warm dark matter 'correction' to the standard transfer function
+    !This version and equation references were taken from arxiv:1605.05973
+    !Originally from Bode et al. (2001; arixv:0010389)
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: k
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: alpha, mu
+
+    alpha=0.074*0.7*cosm%m_wdm**(-1.15) !alpha from equation (5), units Mpc/h
+    mu=1.12 !mu from equation (4), dimensionless
+
+    Tk_wdm=(1.+(alpha*k)**(2.*mu))**(-5./mu) !Equation (2)
+    
+  END FUNCTION Tk_wdm
+
   FUNCTION p_lin(k,a,cosm)
 
     !Linear matter power spectrum
@@ -1432,6 +1463,8 @@ CONTAINS
 
     !IF(cosm%is_normalised .EQV. .FALSE.) CALL normalise_power(cosm)
 
+    IF(cosm%wdm) STOP 'INIT_SIGMA: This will crash with WDM'
+
     !Deallocate tables if they are already allocated
     IF(ALLOCATED(cosm%log_r_sigma)) DEALLOCATE(cosm%log_r_sigma)
     IF(ALLOCATED(cosm%log_sigma))   DEALLOCATE(cosm%log_sigma)
@@ -1453,6 +1486,7 @@ CONTAINS
        !Equally spaced r in log
        r=progression_log(rmin,rmax,i,nsig)
 
+       !Integration method changes depending on r to make this as fast as possible
        IF(r>=rsplit) THEN
           sigma=sqrt(sigma_integral0(r,1.,cosm,acc_cosm))
        ELSE IF(r<rsplit) THEN
