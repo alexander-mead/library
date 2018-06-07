@@ -30,10 +30,10 @@ MODULE cosmology_functions
   END TYPE cosmology
 
   !Global parameters
-  REAL, PARAMETER :: acc_cosm=1e-4
+  REAL, PARAMETER :: acc_cosm=1e-4 !Accuacy for the integrations
   INTEGER, PARAMETER :: ibox=0 !Consider the simulation volume
   REAL, PARAMETER :: Lbox=400. !Simulation box size
-  LOGICAL, PARAMETER :: verbose_cosmology=.TRUE.
+  LOGICAL, PARAMETER :: verbose_cosmology=.TRUE. !Global verbose parameter
 
 CONTAINS
 
