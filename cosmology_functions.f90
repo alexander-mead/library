@@ -5,11 +5,12 @@ MODULE cosmology_functions
 
   IMPLICIT NONE
 
-  !Contains cosmological parameters that need only be calculated once
+  !Contains cosmological parameters that only need to be calculated once
   TYPE cosmology     
-     REAL :: Om_m, Om_b, Om_v, Om_w, Om_nu, h, n, sig8, w, wa, m_wdm !Primary parameters
+     REAL :: Om_m, Om_b, Om_v, Om_w, Om_nu, h, n, sig8, w, wa, m_wdm, YHe !Primary parameters
      REAL :: z_CMB, T_CMB, neff, Om_r, age, horizon !Secondary parameters
      REAL :: Om, k, Om_k, Om_c, A !Derived parameters
+     REAL :: YH, mue, mup, epfac !Derived thermal parameters
      REAL :: a1, a2, ns, ws, am, dm, wm !DE parameters     
      REAL :: Om_ws, as, a1n, a2n !Derived DE parameters
      REAL :: alpha, eps, Gamma, M0, Astar, whim !Baryon parameters
@@ -99,6 +100,9 @@ CONTAINS
     !Default to have no WDM
     cosm%wdm=.FALSE.
     cosm%m_wdm=1. !WDM mass in keV
+
+    !Gas parameters
+    cosm%YHe=0.24 !Helium mass fraction
 
     !Initially set the normalisation to 1
     cosm%A=1.
@@ -230,10 +234,8 @@ CONTAINS
     rho_g=(4.*SBconst*cosm%T_CMB**4/c_light**3)
     Om_g_h2=rho_g*(8.*pi*bigG/3.)/H0**2
     cosm%Om_r=Om_g_h2*(1.+0.227*cosm%neff)/cosm%h**2
-    !cosm%Om_r=0.
 
-    !Correction to for radiation to maintain flatness
-    !cosm%Om_m=cosm%Om_m-cosm%Om_r
+    !Correction to vacuum density in order for radiation to maintain flatness
     cosm%Om_v=cosm%Om_v-cosm%Om_r
 
     WRITE(*,*) 'ASSIGN_COSMOLOGY: Cosmology assigned'
@@ -266,6 +268,7 @@ CONTAINS
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'T_CMB [K]:', REAL(cosm%T_CMB)
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'z_CMB:', REAL(cosm%z_CMB)
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_eff:', REAL(cosm%neff)
+    WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Y_He:', REAL(cosm%YHe)
     IF(cosm%wdm) THEN
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', REAL(cosm%m_wdm)
     END IF
@@ -274,7 +277,11 @@ CONTAINS
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega:', cosm%Om
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_c:', cosm%Om_c
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_k:', cosm%Om_k
-    WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [Mpc/h]^-2:', REAL(cosm%k)       
+    WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [Mpc/h]^-2:', REAL(cosm%k)
+    WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Y_H:', REAL(cosm%YH)
+    WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_p:', REAL(cosm%mup)
+    WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_e:', REAL(cosm%mue)
+    WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'ep_fac:', REAL(cosm%epfac)
     WRITE(*,*) '===================================='
     IF(cosm%iw==1) THEN
        WRITE(*,*) 'COSMOLOGY: Vacuum energy'
@@ -349,6 +356,19 @@ CONTAINS
        WRITE(*,*) 'INIT_COSMOLOGY: k [Mpc/h]^-2:', REAL(cosm%k)
     END IF
 
+    !Gas parameters
+    cosm%YH=1.-cosm%YHe !Hydrogen mass density
+    cosm%mup=4./(5.*cosm%YH+3.) !Nuclear mass per particle
+    cosm%mue=2./(1.+cosm%YH) !Nuclear mass per electron
+    cosm%epfac=2.*(1.+cosm%YH)/(5.*cosm%YH+3.) !Thermal -> electron pressure conversion (P_e = epfac*P_th)
+
+    IF(verbose_cosmology) THEN
+       WRITE(*,*) 'INIT_COSMOLOGY: Y_H:', REAL(cosm%YH)
+       WRITE(*,*) 'INIT_COSMOLOGY: mu_p:', REAL(cosm%mup)
+       WRITE(*,*) 'INIT_COSMOLOGY: mu_e:', REAL(cosm%mue)
+       WRITE(*,*) 'INIT_COSMOLOGY: ep_fac:', REAL(cosm%epfac)
+    END IF
+    
     cosm%is_init=.TRUE.
 
     !Dark energy models
