@@ -90,7 +90,7 @@ CONTAINS
     cosm%n=0.96
     cosm%w=-1.
     cosm%wa=0.
-    cosm%T_CMB=2.725 !CMB temperature in K
+    cosm%T_CMB=2.725 !CMB temperature [K]
     cosm%z_CMB=1100. !Redshift of the last-scatting surface
     cosm%neff=3.046
 
@@ -99,7 +99,7 @@ CONTAINS
 
     !Default to have no WDM
     cosm%wdm=.FALSE.
-    cosm%m_wdm=1. !WDM mass in keV
+    cosm%m_wdm=1. !WDM mass [keV]
 
     !Gas parameters
     cosm%YHe=0.24 !Helium mass fraction
@@ -108,17 +108,20 @@ CONTAINS
     cosm%A=1.
 
     !Default values of baryon parameters
+    !TODO: These should eventually be HMx parameters
     cosm%alpha=0.52
     cosm%eps=1.
     cosm%Gamma=1.17
-    cosm%M0=1e14
-    cosm%Astar=0.02
-    cosm%whim=1e6
+    cosm%M0=1e14 !Halo mass that has lost half gas
+    cosm%Astar=0.02 !Maximum star-formation efficiency
+    cosm%whim=1e6 !WHIM temperature [K]
 
     !Default values of the HOD parameters
+    !TODO: These should eventually be HMx parameters
     cosm%mgal=1e13
 
     !Default values for the HI parameters
+    !TODO: These should eventually be HMx parameters
     cosm%HImin=1e9
     cosm%HImax=1e12
 
@@ -358,9 +361,9 @@ CONTAINS
 
     !Gas parameters
     cosm%YH=1.-cosm%YHe !Hydrogen mass density
-    cosm%mup=4./(5.*cosm%YH+3.) !Nuclear mass per particle
-    cosm%mue=2./(1.+cosm%YH) !Nuclear mass per electron
-    cosm%epfac=2.*(1.+cosm%YH)/(5.*cosm%YH+3.) !Thermal -> electron pressure conversion (P_e = epfac*P_th)
+    cosm%mup=4./(5.*cosm%YH+3.) !Nuclear mass per particle (~0.588 if fH=0.76)
+    cosm%mue=2./(1.+cosm%YH) !Nuclear mass per electron (~1.136 if fH=0.76)
+    cosm%epfac=2.*(1.+cosm%YH)/(5.*cosm%YH+3.) !Thermal -> electron pressure conversion (P_e = epfac*P_th; ~0.518 if fH=0.76)
 
     IF(verbose_cosmology) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: Y_H:', REAL(cosm%YH)

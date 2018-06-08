@@ -97,30 +97,32 @@ CONTAINS
     READ(7) n
     READ(7) m
     READ(7) x
-    READ(7) ep !electron pressure in erg/cm^3
-    READ(7) nh !hydrogen number density in /cm^3
+    READ(7) ep !physical electron pressure for the particle in erg/cm^3
+    READ(7) nh !hydrogen number density for the partcle in /cm^3
     CLOSE(7)
 
     !Convert masses into Solar masses
     m=m*mfac
 
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Calculating kT from electron pressure'
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Calculating kT from physical electron pressure'
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Note that the electron pressure is *not* comoving'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'READ_MCCARTHY_GAS: YH:', fh
     WRITE(*,*) 'READ_MCCARTHY_GAS: mu_H:', mu
     WRITE(*,*) 'READ_MCCARTHY_GAS: Xe:', Xe
     WRITE(*,*) 'READ_MCCARTHY_GAS: Xi:', Xi
     
-    !Convert the electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT
+    !Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT
     !Units of kT will be [erg]
     !This is the temperature of gas particles (equal for all species)
+    !Temperature is neither comoving nor physical
     ALLOCATE(kT(n))
     kT=((Xe+Xi)/Xe)*(ep/nh)*mu*fh
 
     !Convert internal energy from erg to eV
     kT=kT/eV_erg
 
-    !Deallocate the electron pressure array
+    !Deallocate the physical electron pressure array
     DEALLOCATE(ep)
 
     !Write information to the screen
@@ -141,7 +143,7 @@ CONTAINS
 
   END SUBROUTINE read_mccarthy_gas
 
-  SUBROUTINE convert_kT_to_electron_pressure(kT,nh,mass,n,L,h,m)
+  SUBROUTINE convert_kT_to_comoving_electron_pressure(kT,nh,mass,n,L,h,m)
 
     USE constants
     IMPLICIT NONE
@@ -152,34 +154,36 @@ CONTAINS
     DOUBLE PRECISION :: units, kT_dble(n)
     
     LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. !Apply a cut in hydrogen density
-    REAL, PARAMETER :: nh_cut=0.1 !Cut in the hydrogen number density [cm^-3]
+    REAL, PARAMETER :: nh_cut=0.1 !Cut in the hydrogen number density [cm^-3] gas denser than this is not ionised
 
     !Exclude gas that is sufficiently dense to not be ionised and be forming stars
     IF(apply_nh_cut) CALL exclude_nh(nh_cut,kT,nh,n)
 
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Converting kT to electron pressure'
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Converting kT to comoving electron pressure'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Using numbers appropriate for BAHAMAS'
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: YH:', fh
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Note that this is COMOVING'
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Y_H:', fh
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_H:', mu
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xe:', Xe
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xi:', Xi
 
     !Use double precision because all the constants are dreadful
-    kT_dble=kT  
+    kT_dble=kT
 
-    !Convert to particle internal energy that needs to be mapped to grid [eV*Msun]
+    !Convert to particle internal energy [Msun*eV] that needs to be mapped to grid [eV*Msun]
     kT_dble=kT_dble*(mass/mu)*Xe/(Xe+Xi)
 
-    !Cell volume in [(Mpc/h)^3]
+    !Comoving cell volume in [(Mpc/h)^3]
     V=(L/REAL(m))**3
 
-    !Cell volume in [Mpc^3]
+    !Comoving cell volume in [Mpc^3] note that this removes h factors
     V=V/h**3
 
-    !This is now electron pressure in [Msun*eV/Mpc^3]
+    !This is now comoving electron pressure in [Msun*eV/Mpc^3]
     kT_dble=kT_dble/V
 
-    !Convert units of electron pressure to [eV/cm^3]
+    !Convert units of comoving electron pressure to [eV/cm^3]
+    !Note that there are no h factors here
     units=msun
     units=units/mp
     units=units/(Mpc/cm)
@@ -193,7 +197,7 @@ CONTAINS
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Done'
     WRITE(*,*)
 
-  END SUBROUTINE convert_kT_to_electron_pressure
+  END SUBROUTINE convert_kT_to_comoving_electron_pressure
 
   SUBROUTINE write_mccarthy(x,m,n,outfile)
 
