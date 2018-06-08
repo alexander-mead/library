@@ -32,7 +32,8 @@ MODULE constants
 
   !Weirdly specific things
   REAL, PARAMETER :: fh=0.76 !Hydrogen mass fraction
-  REAL, PARAMETER :: mue=2./(1.+fh) !Nucleons per electron (~1.136 if fh=0.76)
-  REAL, PARAMETER :: epfac=(5.*fh+3.)/(2.*(fh+1.)) !Conversion between thermal and electron pressure
+  REAL, PARAMETER :: mup=4./(5.*fh+3.) !Nuclear mass per particle (~0.588 if fh=0.76)
+  REAL, PARAMETER :: mue=2./(1.+fh) !Nuclear mass per electron (~1.136 if fh=0.76)
+  REAL, PARAMETER :: epfac=(5.*fh+3.)/(2.*(fh+1.)) !Electrons per total number of particles (P_th = P_e * epfac; ~1.932 if fh=0.76)
   
 END MODULE constants
