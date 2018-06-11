@@ -1,7 +1,16 @@
-FC = gfortran
-FFLAGS = -Warray-bounds -fmax-errors=4 -ffpe-trap=invalid,zero,overflow -fimplicit-none -O3 -std=gnu -ffree-line-length-none 
+# Makefile for meadlib
 
-meadlib:precision.o \
+# Set the Fortran compiler
+FC = gfortran
+
+# Default Fortran compile flags
+FFLAGS = -Warray-bounds -fmax-errors=4 -ffpe-trap=invalid,zero,overflow -fimplicit-none -std=gnu -ffree-line-length-none
+
+# Debug flags
+DEBUG_FLAGS = -Wall -fcheck=all -fbounds-check -fbacktrace -Og
+
+# All the object files that the library is composed of 
+OBJS =  precision.o \
 	constants.o \
 	fix_polynomial.o \
 	array_operations.o \
@@ -28,8 +37,20 @@ meadlib:precision.o \
 	sorting.o \
 	string_operations.o \
 	field_operations.o \
-	simulations.o
-	ar rc meadlib *.o
+	simulations
+
+# Default compile option
+all: FFLAGS += -O3
+all: meadlib
+
+# Debug mode
+debug: FFLAGS += $(DEBUG_FLAGS)
+debug: meadlib
+
+# Make the library
+meadlib: $(OBJS).o
+	$(FC) --version
+	ar rc meadlib $(OBJS).o
 
 array_operations.o: fix_polynomial.mod array_operations.f90
 	$(FC) $(FFLAGS) -c array_operations.f90
@@ -115,6 +136,7 @@ table_integer.o: table_integer.f90
 vectors.o: vectors.f90
 	$(FC) $(FFLAGS) -c vectors.f90
 
+# Clean up
 clean:
 	rm meadlib
 	rm *.mod
