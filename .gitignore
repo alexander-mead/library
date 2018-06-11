@@ -2,6 +2,7 @@ BACKUP
 OLD
 MERGE
 *.mod
+*.o
 *.e
 *.f90~
 *~
