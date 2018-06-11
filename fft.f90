@@ -1,6 +1,6 @@
 MODULE fft
 
-  !This use statement seems not to be necessary any more
+  !This use statement seems not to be necessary any more, not sure why
   !USE iso_c_binding
 
   !Include the FFTW libraray locations
@@ -16,7 +16,6 @@ CONTAINS
     INTEGER, INTENT(IN) :: ix, iy, iz, m
     REAL, INTENT(IN) :: L
     REAL, INTENT(OUT) :: kx, ky, kz, kmod
-    !REAL, PARAMETER :: pi=3.141592654
 
     IF(MOD(m,2) .NE. 0) STOP 'K_FFT: Fourier transform does not have an even mesh'
 
@@ -40,7 +39,6 @@ CONTAINS
 
     !Wraps the 1D FFT
     IMPLICIT NONE
-    !INCLUDE '/usr/local/include/fftw3.f' !Mac
     DOUBLE COMPLEX, INTENT(IN) :: in(nx)
     DOUBLE COMPLEX, INTENT(OUT) :: out(nx)
     INTEGER, INTENT(IN) :: ifb
@@ -51,29 +49,28 @@ CONTAINS
        WRITE(*,*) 'FFT1: Error - need to specify forwards or backwards'
     END IF
 
-    WRITE(*,*) 'FFT1: Starting FFT - creating plan'
+    !WRITE(*,*) 'FFT1: Starting FFT - creating plan'
     IF(ifb==-1) THEN
-       call dfftw_plan_dft_1d(plan,nx,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
+       CALL dfftw_plan_dft_1d(plan,nx,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
     ELSE IF(ifb==1) THEN
-       call dfftw_plan_dft_1d(plan,nx,in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
+       CALL dfftw_plan_dft_1d(plan,nx,in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
     END IF
 
     !This computes the FFT!
-    WRITE(*,*) 'FFT1: Executing FFTW'
-    call dfftw_execute(plan)
-    WRITE(*,*) 'FFT1: FFTW complete'
+    !WRITE(*,*) 'FFT1: Executing FFTW'
+    CALL dfftw_execute(plan)
+    !WRITE(*,*) 'FFT1: FFTW complete'
 
     !And this destroys the plan!
-    call dfftw_destroy_plan(plan)
-    WRITE(*,*) 'FFT1: Plan destroyed'
-    WRITE(*,*)
+    CALL dfftw_destroy_plan(plan)
+    !WRITE(*,*) 'FFT1: Plan destroyed'
+    !WRITE(*,*)
 
   END SUBROUTINE FFT1
 
   SUBROUTINE FFT2(in,out,nx,ny,ifb)
 
     !Wraps the 2D FFT
-    !INCLUDE '/usr/local/include/fftw3.f' !Mac
     IMPLICIT NONE
     DOUBLE COMPLEX, INTENT(IN) :: in(nx,ny)
     DOUBLE COMPLEX, INTENT(OUT) :: out(nx,ny)
@@ -107,7 +104,6 @@ CONTAINS
   SUBROUTINE FFT3(in,out,nx,ny,nz,ifb)
 
     IMPLICIT NONE
-    !INCLUDE '/usr/local/include/fftw3.f' !Mac
     DOUBLE COMPLEX, INTENT(IN)  :: in(nx,ny,nz)
     DOUBLE COMPLEX, INTENT(OUT) :: out(nx,ny,nz)
     INTEGER, INTENT(IN) :: nx, ny, nz
