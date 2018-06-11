@@ -1,5 +1,6 @@
 MODULE random_numbers
 
+  !TODO: Think about using intrinsic 'random_number' instead of 'rand()'
   IMPLICIT NONE
   
 CONTAINS
@@ -10,7 +11,7 @@ CONTAINS
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: seed
     INTEGER :: int, timearray(3)
-    REAL*4 :: rand !Necessary to define for ifort 
+    REAL*4 :: rand !Necessary to define for ifort, also the *4 is necessary
 
     WRITE(*,*) 'RNG_SET: Initialising random number generator'
     WRITE(*,*) 'RNG_SET: seed:', seed
