@@ -3,7 +3,7 @@
 # Set the Fortran compiler
 FC = gfortran
 
-# Default Fortran compile flags
+# Standard Fortran compile flags
 FFLAGS = -Warray-bounds -fmax-errors=4 -ffpe-trap=invalid,zero,overflow -fimplicit-none -std=gnu -ffree-line-length-none
 
 # Debug flags
