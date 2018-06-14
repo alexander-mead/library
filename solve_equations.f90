@@ -1,12 +1,11 @@
 MODULE solve_equations
-
-  USE interpolate
   
 CONTAINS
 
   FUNCTION find_solve(a,xtab,ytab,n)
 
     !Solves y(x)=a for x
+    USE interpolate
     IMPLICIT NONE
     REAL :: find_solve
     REAL, INTENT(IN) :: a, xtab(n), ytab(n)
@@ -16,11 +15,11 @@ CONTAINS
     
   END FUNCTION find_solve
 
-  FUNCTION bisect_solve(xtab,ytab,n,acc)
-
-    USE logical_operations
+  FUNCTION bisect_solve(xtab,ytab,n,acc)   
 
     !Solves y(x)=0 for x, f(x) should be monotonic and cross f=0. once only
+    USE logical_operations
+    USE interpolate
     IMPLICIT NONE
     REAL :: bisect_solve
     REAL, INTENT(IN) :: xtab(n), ytab(n)
@@ -41,7 +40,6 @@ CONTAINS
        i=i+1
        x=0.5*(x1+x2)
        y=find(x,xtab,ytab,n,3,3,2)
-       WRITE(*,*) i, x
        IF(ABS(y)<acc) THEN
           EXIT
        ELSE IF(positive(y1) .EQV. positive(y)) THEN
