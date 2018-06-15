@@ -10,7 +10,7 @@ MODULE cosmology_functions
      REAL :: Om_m, Om_b, Om_v, Om_w, Om_nu, h, n, sig8, w, wa, m_wdm, YHe !Primary parameters
      REAL :: z_CMB, T_CMB, neff, Om_r, age, horizon !Secondary parameters
      REAL :: Om, k, Om_k, Om_c, A !Derived parameters
-     REAL :: YH, mue, mup, epfac !Derived thermal parameters
+     REAL :: YH, mue, mup, !epfac !Derived thermal parameters
      REAL :: a1, a2, ns, ws, am, dm, wm !DE parameters     
      REAL :: Om_ws, as, a1n, a2n !Derived DE parameters
      REAL :: alpha, eps, Gamma, M0, Astar, whim !Baryon parameters
@@ -92,17 +92,15 @@ CONTAINS
     cosm%wa=0.
     cosm%T_CMB=2.725 !CMB temperature [K]
     cosm%z_CMB=1100. !Redshift of the last-scatting surface
-    cosm%neff=3.046
+    cosm%neff=3.046 !Effective number of relativistic neutrinos
+    cosm%YHe=0.24 !Helium mass fraction
 
     !Default dark energy is Lambda
     cosm%iw=1
 
     !Default to have no WDM
     cosm%wdm=.FALSE.
-    cosm%m_wdm=1. !WDM mass [keV]
-
-    !Gas parameters
-    cosm%YHe=0.24 !Helium mass fraction
+    cosm%m_wdm=1. !WDM mass [keV]   
 
     !Initially set the normalisation to 1
     cosm%A=1.
@@ -284,7 +282,7 @@ CONTAINS
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Y_H:', REAL(cosm%YH)
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_p:', REAL(cosm%mup)
     WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_e:', REAL(cosm%mue)
-    WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'ep_fac:', REAL(cosm%epfac)
+    !WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'ep_fac:', REAL(cosm%epfac)
     WRITE(*,*) '===================================='
     IF(cosm%iw==1) THEN
        WRITE(*,*) 'COSMOLOGY: Vacuum energy'
@@ -363,13 +361,13 @@ CONTAINS
     cosm%YH=1.-cosm%YHe !Hydrogen mass density
     cosm%mup=4./(5.*cosm%YH+3.) !Nuclear mass per particle (~0.588 if fH=0.76)
     cosm%mue=2./(1.+cosm%YH) !Nuclear mass per electron (~1.136 if fH=0.76)
-    cosm%epfac=2.*(1.+cosm%YH)/(5.*cosm%YH+3.) !Thermal -> electron pressure conversion; ratio of electron density to total particle density; (~0.518 if fH=0.76)
+    !cosm%epfac=2.*(1.+cosm%YH)/(5.*cosm%YH+3.) !Thermal -> electron pressure conversion; ratio of electron density to total particle density; (~0.518 if fH=0.76)
 
     IF(verbose_cosmology) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: Y_H:', REAL(cosm%YH)
        WRITE(*,*) 'INIT_COSMOLOGY: mu_p:', REAL(cosm%mup)
        WRITE(*,*) 'INIT_COSMOLOGY: mu_e:', REAL(cosm%mue)
-       WRITE(*,*) 'INIT_COSMOLOGY: ep_fac:', REAL(cosm%epfac)
+       !WRITE(*,*) 'INIT_COSMOLOGY: ep_fac:', REAL(cosm%epfac)
     END IF
     
     cosm%is_init=.TRUE.
