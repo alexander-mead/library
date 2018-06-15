@@ -342,10 +342,9 @@ CONTAINS
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: Xs, f1, f2
-    !REAL :: sigi
 
     !Derived cosmological parameters    
-    cosm%Om_c=cosm%Om_m-cosm%Om_b-cosm%Om_nu!-cosm%Om_r
+    cosm%Om_c=cosm%Om_m-cosm%Om_b-cosm%Om_nu
     cosm%Om=cosm%Om_m+cosm%Om_v+cosm%Om_r+cosm%Om_w
     cosm%Om_k=1.-cosm%Om
     cosm%k=(cosm%Om-1.)/(Hdist**2)
@@ -511,7 +510,7 @@ CONTAINS
        WRITE(*,*) 'NORMALISE_POWER: Normalisation factor:', REAL(cosm%A)
        WRITE(*,*) 'NORMALISE_POWER: Target sigma_8:', REAL(cosm%sig8)
        WRITE(*,*) 'NORMALISE_POWER: Final sigma_8 (calculated):', REAL(sigi)
-       WRITE(*,*) 'NORMALISE_POWER: Complete'
+       WRITE(*,*) 'NORMALISE_POWER: Done'
        WRITE(*,*)
     END IF
 
@@ -2315,6 +2314,11 @@ CONTAINS
 
     !Set the flag to true so that this subroutine is only called once
     cosm%has_growth=.TRUE.
+
+    IF(verbose_cosmology) THEN
+       WRITE(*,*) 'INIT_GROWTH: Done'
+       WRITE(*,*)
+    END IF
 
   END SUBROUTINE init_growth
 
