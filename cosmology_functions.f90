@@ -10,7 +10,7 @@ MODULE cosmology_functions
      REAL :: Om_m, Om_b, Om_v, Om_w, Om_nu, h, n, sig8, w, wa, m_wdm, YHe !Primary parameters
      REAL :: z_CMB, T_CMB, neff, Om_r, age, horizon !Secondary parameters
      REAL :: Om, k, Om_k, Om_c, A !Derived parameters
-     REAL :: YH, mue, mup, !epfac !Derived thermal parameters
+     REAL :: YH, mue, mup!, epfac !Derived thermal parameters
      REAL :: a1, a2, ns, ws, am, dm, wm !DE parameters     
      REAL :: Om_ws, as, a1n, a2n !Derived DE parameters
      REAL :: alpha, eps, Gamma, M0, Astar, whim !Baryon parameters
