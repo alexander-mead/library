@@ -136,7 +136,7 @@ CONTAINS
     INTEGER, INTENT(INOUT) :: icosmo
     LOGICAL, INTENT(IN) :: verbose
     INTEGER :: i
-    REAL :: Om_c, Om_g_h2, rho_g
+    REAL :: Om_c
 
     !Names of pre-defined cosmologies    
     INTEGER, PARAMETER :: ncosmo=14
