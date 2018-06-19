@@ -545,20 +545,9 @@ CONTAINS
 
     DO i=1,n
 
-       !ix=CEILING(x(1,i)*REAL(m)/L)
-       !iy=CEILING(x(2,i)*REAL(m)/L)
+       ! Get the cell interger coordinates
        ix=NGP_cell(x(1,i),L,m)
        iy=NGP_cell(x(2,i),L,m)
-
-!!$       IF(ix>m .OR. ix<1) THEN
-!!$          WRITE(*,*) 'x:', i, x(1,i), ix
-!!$          STOP 'CIC2D: Warning, point outside box'
-!!$       END IF
-!!$
-!!$       IF(iy>m .OR. iy<1) THEN
-!!$          WRITE(*,*) 'y:', i, x(2,i), iy
-!!$          STOP 'CIC2D: Warning, point outside box'
-!!$       END IF
 
        !dx, dy in cell units, away from cell centre
        dx=(x(1,i)/L)*REAL(m)-(REAL(ix)-0.5)
@@ -1001,7 +990,6 @@ CONTAINS
              IF(r>=rmin .AND. r<=rmax) THEN
                 !CALL add_to_array(x(:,i),x(:,j),pairs,np)
                 np=np+1
-                !WRITE(*,*) i, j, r
                 WRITE(7,*) x(1,i), x(2,i), x(3,i), x(1,j), x(2,j), x(3,j)
              END IF
           END IF
@@ -1145,42 +1133,55 @@ CONTAINS
 
   END FUNCTION shot_noise_k
 
-  SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,dcc,fac,x,n,L,outfile)    
+  SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,n,L,outfile)    
 
     USE string_operations
     USE field_operations
     IMPLICIT NONE
-    REAL, INTENT(IN) :: xc, yc, Lsub, z1, z2, dcc, fac
-    INTEGER, INTENT(IN) :: m, n
+    REAL, INTENT(IN) :: xc, yc, Lsub, z1, z2
+    INTEGER, INTENT(IN) :: m, n, r
     REAL, INTENT(IN) :: x(3,n), L
     CHARACTER(len=*), INTENT(IN) :: outfile
 
-    REAL :: x1, x2, y1, y2, Lx, Ly, Lz, delta, dc, nbar, npexp
+    REAL :: x1, x2, y1, y2, Lx, Ly, Lz, delta, nbar, npexp
     INTEGER :: np
     INTEGER :: m1, m2, m3, m4, m5
     INTEGER :: i, j
     REAL, ALLOCATABLE :: y(:,:), d(:,:)
+    REAL, ALLOCATABLE :: c1(:,:), c2(:,:), c3(:,:), c4(:,:), c5(:,:)
     REAL, ALLOCATABLE :: d1(:,:), d2(:,:), d3(:,:), d4(:,:), d5(:,:)
+    REAL, ALLOCATABLE :: di(:,:,:), ci(:,:,:)
     CHARACTER(len=256) :: base, ext, output
 
-    LOGICAL, PARAMETER :: test=.FALSE.
+    !INTEGER, PARAMETER :: r=4 ! Number of refinements
+    REAL, PARAMETER :: dc=4. ! Refinement conditions (particles-per-cell)
+    REAL, PARAMETER :: fcell=1. ! Smoothing factor over cell sizes (maybe should be set to 1; 0.75 looks okay)
+    LOGICAL, PARAMETER :: test=.FALSE. ! Activate test mode
 
+    IF(r>4) STOP 'ADAPTIVE_DENSITY: Error, too many refinement leves requested. Maximum is 4'
+
+    ! Write information to screen
     WRITE(*,*) 'ADAPTIVE_DENSITY: Adaptive density field generator'
+    WRITE(*,*) 'ADAPTIVE_DENISTY: Refinement conditions (particles-per-cell):', dc
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Smoothing factor in cell size:', fcell
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Number of refinements:', r
+    WRITE(*,*)
 
-    !Calculate the 2D average particle number density
+    ! Calculate the 2D average particle number density
     nbar=REAL(n)/L**2
 
-    !Set the region boundaries in Mpc/h
+    ! Set the region boundaries in Mpc/h
     x1=xc-Lsub/2.
     x2=xc+Lsub/2.
     y1=yc-Lsub/2.
     y2=yc+Lsub/2.
 
-    !Set the region thicknesses
+    ! Set the region thicknesses
     Lx=x2-x1
     Ly=y2-y1
     Lz=z2-z1
 
+    ! Write information to screen
     WRITE(*,*) 'ADAPTIVE_DENSITY: Subvolume:'
     WRITE(*,*) 'ADAPTIVE_DENSITY: x1:', x1
     WRITE(*,*) 'ADAPTIVE_DENSITY: x2:', x2
@@ -1191,8 +1192,9 @@ CONTAINS
     WRITE(*,*) 'ADAPTIVE_DENSITY: z1:', z1
     WRITE(*,*) 'ADAPTIVE_DENSITY: z2:', z2
     WRITE(*,*) 'ADAPTIVE_DENSITY: Lz:', Lz
+    WRITE(*,*)
 
-    !First pass to count the number of particles in the region
+    ! First pass to count the number of particles in the region
     np=0
     DO i=1,n
        IF(x(1,i)>x1 .AND. x(1,i)<x2 .AND. x(2,i)>y1 .AND. x(2,i)<y2 .AND. x(3,i)>z1 .AND. x(3,i)<z2) THEN
@@ -1200,274 +1202,603 @@ CONTAINS
        END IF
     END DO
 
+    ! Caclulate density statistics
     npexp=REAL(n)*(Lx*Ly*Lz/L**3.)
     delta=-1.+REAL(np)/REAL(npexp)
-
     WRITE(*,*) 'ADAPTIVE_DENSITY: Density statistics'
     WRITE(*,*) 'ADAPTIVE_DENSITY: Particles in region:', np
     WRITE(*,*) 'ADAPTIVE_DENSITY: Expectation of partilces in region:', npexp
     WRITE(*,*) 'ADAPTIVE_DENSITY: Region over-density:', delta
+    WRITE(*,*)
 
     ALLOCATE(y(2,np))
 
-    !Secon pass to add particles in the region to 2D array y
+    ! Second pass to add particles in the region to 2D array y
     j=0
     DO i=1,n
        IF(x(1,i)>x1 .AND. x(1,i)<x2 .AND. x(2,i)>y1 .AND. x(2,i)<y2 .AND. x(3,i)>z1 .AND. x(3,i)<z2) THEN
           j=j+1
-          y(1,j)=x(1,i)
-          y(2,j)=x(2,i)
+          y(1,j)=x(1,i)-xc+Lsub/2.
+          y(2,j)=x(2,i)-yc+Lsub/2.
        END IF
     END DO
 
-    !Change so that particles in the region are now in array x
-    !DEALLOCATE(x)
-    !ALLOCATE(x(3,np))
-    !x=y
-    !DEALLOCATE(y)
-    !L=Lsub
-    !n=np
-
-    !Make x into a 2D particle array
-    !ALLOCATE(y(2,n))
-    !DO i=1,n
-    !   y(1,i)=x(1,i)-x1
-    !   y(2,i)=x(2,i)-y1
-    !   IF(i<20) WRITE(*,*) y(1,i), x(1,i)
-    !END DO
-    !DEALLOCATE(x)
-    !ALLOCATE(x(2,n))
-    !x=y
-    !DEALLOCATE(y)
-
-    !Set the sizes of all of the adaptive meshes
+    ! Set the sizes of all of the adaptive meshes, which all differ by a factor of 2
+    ! m1=m, m2=m/2, m3=m/4, m4=m/8, m5=m/16
     m1=m
     m2=m1/2
     m3=m2/2
     m4=m3/2
     m5=m4/2
 
+    ! Write out sizes to screen
     WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 1:', m1
     WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 2:', m2
     WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 3:', m3
     WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 4:', m4
     WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 5:', m5
-
-    ALLOCATE(d1(m1,m1))
-    ALLOCATE(d2(m2,m2))
-    ALLOCATE(d3(m3,m3))
-    ALLOCATE(d4(m4,m4))
-    ALLOCATE(d5(m5,m5))
-
-    !Do CIC binning on each mesh resolution
-    !Note well. These CIC routines assume the volume is periodic
-    !This means you may get some weird edge effects
-    CALL CIC2D(y,np,Lsub,d1,m1)
-    CALL CIC2D(y,np,Lsub,d2,m2)
-    CALL CIC2D(y,np,Lsub,d3,m3)
-    CALL CIC2D(y,np,Lsub,d4,m4)
-    CALL CIC2D(y,np,Lsub,d5,m5)
-
-    !Convert to over-densities (1+delta)
-    d1=(d1/((Lsub/REAL(m1))**2))/nbar
-    d2=(d2/((Lsub/REAL(m2))**2))/nbar
-    d3=(d3/((Lsub/REAL(m3))**2))/nbar
-    d4=(d4/((Lsub/REAL(m4))**2))/nbar
-    d5=(d5/((Lsub/REAL(m5))**2))/nbar
-
-    !Write out density statistics on each mesh
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m1
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d1)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d1)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m2
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d2)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d2)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m3
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d3)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d3)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m4
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d4)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d4)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m5
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d5)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d5)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Recommended refinement level:', 1+CEILING(log10(MAXVAL(d1)))
     WRITE(*,*)
 
-    IF(test) THEN
-       !Write out each mesh
+    ! Allocate arrays for particle counts and overdensity
+    ! This is very ugly, but I do not think it can be avoided with d(5,m,m) because m are all different
+    ! Could remove count array if necessary, but including it makes the calculation more obvious
+    ALLOCATE(d1(m1,m1),c1(m1,m1))
+    ALLOCATE(d2(m2,m2),c2(m2,m2))
+    ALLOCATE(d3(m3,m3),c3(m3,m3))
+    ALLOCATE(d4(m4,m4),c4(m4,m4))
+    ALLOCATE(d5(m5,m5),c5(m5,m5))    
+
+    ! Do CIC binning on each mesh resolution
+    ! These CIC routines assume the volume is periodic, so you get some weird edge effects
+    CALL CIC2D(y,np,Lsub,c1,m1)
+    CALL CIC2D(y,np,Lsub,c2,m2)
+    CALL CIC2D(y,np,Lsub,c3,m3)
+    CALL CIC2D(y,np,Lsub,c4,m4)
+    CALL CIC2D(y,np,Lsub,c5,m5)
+
+    ! Convert to overdensities (1+delta = rho/rhobar)
+    ! Could certainly save memory here by having d1=c1, but having the c arrays makes the calculation more obvious
+    d1=(c1/((Lsub/REAL(m1))**2))/nbar
+    d2=(c2/((Lsub/REAL(m2))**2))/nbar
+    d3=(c3/((Lsub/REAL(m3))**2))/nbar
+    d4=(c4/((Lsub/REAL(m4))**2))/nbar
+    d5=(c5/((Lsub/REAL(m5))**2))/nbar
+
+    ! Smooth density fields
+    CALL smooth2D(d1,m1,fcell*Lsub/REAL(m1),Lsub)
+    CALL smooth2D(d2,m2,fcell*Lsub/REAL(m2),Lsub)
+    CALL smooth2D(d3,m3,fcell*Lsub/REAL(m3),Lsub)
+    CALL smooth2D(d4,m4,fcell*Lsub/REAL(m4),Lsub)
+    CALL smooth2D(d5,m5,fcell*Lsub/REAL(m5),Lsub)
+
+    ! Write out density statistics on each mesh
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m1
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(c1)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(c1)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(d1)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(d1)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m2
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(c2)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(c2)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(d2)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(d2)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m3
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(c3)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(c3)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(d3)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(d3)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m4
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(c4)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(c4)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(d4)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(d4)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m5
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(c5)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(c5)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(d5)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(d5)
+    WRITE(*,*)
+
+    ! Write out each mesh if testing
+    IF(test) THEN       
+       
        base='density_'
        ext='.dat'
+       
        output=number_file_zeroes(base,m1,4,ext)
        WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_density(d1,L,output)
+       CALL write_2D_field_ascii(d1,m1,Lsub,output)
+       
        output=number_file_zeroes(base,m2,4,ext)
        WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_density(d2,L,output)
-       output=number_file_zeroes(base,m3,4,ext)
+       CALL write_2D_field_ascii(d2,m2,Lsub,output)
+       
+       output=number_file_zeroes(base,m3,4,ext)       
        WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_density(d3,L,output)
+       CALL write_2D_field_ascii(d3,m3,Lsub,output)
+       
        output=number_file_zeroes(base,m4,4,ext)
        WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_density(d4,L,output)
+       CALL write_2D_field_ascii(d4,m4,Lsub,output)
+       
        output=number_file_zeroes(base,m5,4,ext)
        WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_density(d5,L,output)
+       CALL write_2D_field_ascii(d5,m5,Lsub,output)
+       
     END IF
 
-    !The exact details of the refinement here could certainly be improved
-    !This would involve fiddling with dc and fac
-    !Also all the refinements could be put in a loop
+    ! No refinement required
+    IF(r==0) THEN
+       
+       ALLOCATE(d(m,m))
+       d=d1
 
-    !First refinement
+    ! Start the refinements
+    ELSE
+       
+       ! First refinement
+       IF(r>=4) THEN     
 
-    !Allocate d with the size of the second-corsest image
-    ALLOCATE(d(m4,m4))
-    dc=dcc
+          ! Allocate d with the size of the second-corsest image
+          ALLOCATE(d(m4,m4))
+          DO i=1,m5
+             DO j=1,m5
+                IF(c5(i,j)<dc) THEN
+                   ! Use coarser density
+                   d(2*i-1,2*j-1)=d5(i,j)
+                   d(2*i,2*j-1)=d5(i,j)
+                   d(2*i-1,2*j)=d5(i,j)
+                   d(2*i,2*j)=d5(i,j)
+                ELSE
+                   ! Use finer density
+                   d(2*i-1,2*j-1)=d4(2*i-1,2*j)
+                   d(2*i,2*j-1)=d4(2*i,2*j-1)
+                   d(2*i-1,2*j)=d4(2*i-1,2*j)
+                   d(2*i,2*j)=d4(2*i,2*j)
+                END IF
+             END DO
+          END DO
 
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Initial refinement 1+delta:', dc
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Refinement factor:', fac
+       END IF
 
-    DO i=1,m5
-       DO j=1,m5
-          IF(d5(i,j)<dc) THEN
-             !Use coarser density
-             d(2*i-1,2*j-1)=d5(i,j)
-             d(2*i,2*j-1)=d5(i,j)
-             d(2*i-1,2*j)=d5(i,j)
-             d(2*i,2*j)=d5(i,j)
-          ELSE
-             !Use finer density
-             d(2*i-1,2*j-1)=d4(2*i-1,2*j)
-             d(2*i,2*j-1)=d4(2*i,2*j-1)
-             d(2*i-1,2*j)=d4(2*i-1,2*j)
-             d(2*i,2*j)=d4(2*i,2*j)
-             !Stops it being below the threshold (looks grainy)
-             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
-             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
-             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
-             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+       ! Second refinement
+       IF(r>=3) THEN
+
+          IF(ALLOCATED(d)) THEN
+             d4=d
+             DEALLOCATE(d)
           END IF
-       END DO
-    END DO
+          ALLOCATE(d(m3,m3))
+          DO i=1,m4
+             DO j=1,m4
+                IF(c4(i,j)<dc) THEN
+                   ! Use coarser density
+                   d(2*i-1,2*j-1)=d4(i,j)
+                   d(2*i,2*j-1)=d4(i,j)
+                   d(2*i-1,2*j)=d4(i,j)
+                   d(2*i,2*j)=d4(i,j)
+                ELSE
+                   ! Use finer density
+                   d(2*i-1,2*j-1)=d3(2*i-1,2*j)
+                   d(2*i,2*j-1)=d3(2*i,2*j-1)
+                   d(2*i-1,2*j)=d3(2*i-1,2*j)
+                   d(2*i,2*j)=d3(2*i,2*j)
+                END IF
+             END DO
+          END DO
 
-    !Second refinement
-    d4=d
-    DEALLOCATE(d)
-    ALLOCATE(d(m3,m3))
-    dc=fac*dc
+       END IF
 
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Second refinement 1+delta:', dc
+       ! Third refinement
+       IF(r>=2) THEN
 
-    DO i=1,m4
-       DO j=1,m4
-          IF(d4(i,j)<dc) THEN
-             !Use coarser density
-             d(2*i-1,2*j-1)=d4(i,j)
-             d(2*i,2*j-1)=d4(i,j)
-             d(2*i-1,2*j)=d4(i,j)
-             d(2*i,2*j)=d4(i,j)
-          ELSE
-             !Use finer density
-             d(2*i-1,2*j-1)=d3(2*i-1,2*j)
-             d(2*i,2*j-1)=d3(2*i,2*j-1)
-             d(2*i-1,2*j)=d3(2*i-1,2*j)
-             d(2*i,2*j)=d3(2*i,2*j)
-             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
-             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
-             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
-             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+          IF(ALLOCATED(d)) THEN
+             d3=d
+             DEALLOCATE(d)
           END IF
-       END DO
-    END DO
+          ALLOCATE(d(m2,m2))
+          DO i=1,m3
+             DO j=1,m3
+                IF(c3(i,j)<dc) THEN
+                   ! Use coarser density
+                   d(2*i-1,2*j-1)=d3(i,j)
+                   d(2*i,2*j-1)=d3(i,j)
+                   d(2*i-1,2*j)=d3(i,j)
+                   d(2*i,2*j)=d3(i,j)
+                ELSE
+                   ! Use finer density
+                   d(2*i-1,2*j-1)=d2(2*i-1,2*j)
+                   d(2*i,2*j-1)=d2(2*i,2*j-1)
+                   d(2*i-1,2*j)=d2(2*i-1,2*j)
+                   d(2*i,2*j)=d2(2*i,2*j)
+                END IF
+             END DO
+          END DO
 
-    !Third refinement
-    d3=d
-    DEALLOCATE(d)
-    ALLOCATE(d(m2,m2))
-    dc=fac*dc
+       END IF
 
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Third refinement 1+delta:', dc
+       ! Fourth refinement
+       IF(r>=1) THEN
 
-    DO i=1,m3
-       DO j=1,m3
-          IF(d3(i,j)<dc) THEN
-             !Use coarser density
-             d(2*i-1,2*j-1)=d3(i,j)
-             d(2*i,2*j-1)=d3(i,j)
-             d(2*i-1,2*j)=d3(i,j)
-             d(2*i,2*j)=d3(i,j)
-          ELSE
-             !Use finer density
-             d(2*i-1,2*j-1)=d2(2*i-1,2*j)
-             d(2*i,2*j-1)=d2(2*i,2*j-1)
-             d(2*i-1,2*j)=d2(2*i-1,2*j)
-             d(2*i,2*j)=d2(2*i,2*j)
-             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
-             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
-             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
-             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+          IF(ALLOCATED(d)) THEN
+             d2=d
+             DEALLOCATE(d)
           END IF
-       END DO
-    END DO
+          ALLOCATE(d(m1,m1))
+          DO i=1,m2
+             DO j=1,m2
+                IF(c2(i,j)<dc) THEN
+                   ! Use coarser density
+                   d(2*i-1,2*j-1)=d2(i,j)
+                   d(2*i,2*j-1)=d2(i,j)
+                   d(2*i-1,2*j)=d2(i,j)
+                   d(2*i,2*j)=d2(i,j)
+                ELSE
+                   ! Use finer density
+                   d(2*i-1,2*j-1)=d1(2*i-1,2*j)
+                   d(2*i,2*j-1)=d1(2*i,2*j-1)
+                   d(2*i-1,2*j)=d1(2*i-1,2*j)
+                   d(2*i,2*j)=d1(2*i,2*j)
+                END IF
+             END DO
+          END DO
 
-    !Fourth refinement
-    d2=d
-    DEALLOCATE(d)
-    ALLOCATE(d(m1,m1))
-    dc=fac*dc
+       END IF
 
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Fourth refinement 1+delta:', dc
+    END IF
 
-    DO i=1,m2
-       DO j=1,m2
-          IF(d2(i,j)<dc) THEN
-             !Use coarser density
-             d(2*i-1,2*j-1)=d2(i,j)
-             d(2*i,2*j-1)=d2(i,j)
-             d(2*i-1,2*j)=d2(i,j)
-             d(2*i,2*j)=d2(i,j)
-          ELSE
-             !Use finer density
-             d(2*i-1,2*j-1)=d1(2*i-1,2*j)
-             d(2*i,2*j-1)=d1(2*i,2*j-1)
-             d(2*i-1,2*j)=d1(2*i-1,2*j)
-             d(2*i,2*j)=d1(2*i,2*j)
-             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
-             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
-             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
-             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
-          END IF
-       END DO
-    END DO
-
+    ! Write info to screen
     WRITE(*,*) 'ADAPTIVE_DENSITY: Adaptive density field'
     WRITE(*,*) 'ADAPTIVE_DENSITY: Max density:', MAXVAL(d)
     WRITE(*,*) 'ADAPTIVE_DENSITY: Min density:', MINVAL(d)
     WRITE(*,*)
 
-    IF(test) THEN
-       output='density.dat'
-       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_2D_field_ascii(d,m1,L,output)
-    END IF
-
-    !Smooth density field on scales of cells
-    CALL smooth2D(d,m1,L/REAL(m1),L)
+    ! Ensure all cells are positive (note this is to make pretty pictures, not for science)
     DO i=1,m1
        DO j=1,m1
           IF(d(i,j)<0.) d(i,j)=0.
        END DO
     END DO
+
+    ! Write field statistics
     WRITE(*,*) 'ADAPTIVE_DENSITY: Smoothed adaptive density field'
     WRITE(*,*) 'ADAPTIVE_DENSITY: Max density:', MAXVAL(d)
     WRITE(*,*) 'ADAPTIVE_DENSITY: Min density:', MINVAL(d)
     WRITE(*,*)
 
-    CALL write_2D_field_ascii(d,m1,L,outfile)
+    ! Finally write out an ascii file for plotting
+    CALL write_2D_field_ascii(d,m1,Lsub,outfile)
     WRITE(*,*) 'ADAPTIVE_DENSITY: Done'
     WRITE(*,*)
 
   END SUBROUTINE adaptive_density
+
+!!$  SUBROUTINE adaptive_density_original(xc,yc,Lsub,z1,z2,m,dcc,fac,x,n,L,outfile)    
+!!$
+!!$    USE string_operations
+!!$    USE field_operations
+!!$    IMPLICIT NONE
+!!$    REAL, INTENT(IN) :: xc, yc, Lsub, z1, z2, dcc, fac
+!!$    INTEGER, INTENT(IN) :: m, n
+!!$    REAL, INTENT(IN) :: x(3,n), L
+!!$    CHARACTER(len=*), INTENT(IN) :: outfile
+!!$
+!!$    REAL :: x1, x2, y1, y2, Lx, Ly, Lz, delta, dc, nbar, npexp
+!!$    INTEGER :: np
+!!$    INTEGER :: m1, m2, m3, m4, m5
+!!$    INTEGER :: i, j
+!!$    REAL, ALLOCATABLE :: y(:,:), d(:,:)
+!!$    REAL, ALLOCATABLE :: d1(:,:), d2(:,:), d3(:,:), d4(:,:), d5(:,:)
+!!$    CHARACTER(len=256) :: base, ext, output
+!!$
+!!$    REAL :: fcell=1. ! Smoothing factor over cell sizes (maybe should be set to 1; 0.75 looks okay)
+!!$    LOGICAL, PARAMETER :: test=.TRUE. ! Activate test mode
+!!$
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Adaptive density field generator'
+!!$
+!!$    ! Calculate the 2D average particle number density
+!!$    nbar=REAL(n)/L**2
+!!$
+!!$    ! Set the region boundaries in Mpc/h
+!!$    x1=xc-Lsub/2.
+!!$    x2=xc+Lsub/2.
+!!$    y1=yc-Lsub/2.
+!!$    y2=yc+Lsub/2.
+!!$
+!!$    ! Set the region thicknesses
+!!$    Lx=x2-x1
+!!$    Ly=y2-y1
+!!$    Lz=z2-z1
+!!$
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Subvolume:'
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: x1:', x1
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: x2:', x2
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Lx:', Lx
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: y1:', y1
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: y2:', y2
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Ly:', Ly
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: z1:', z1
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: z2:', z2
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Lz:', Lz
+!!$    WRITE(*,*)
+!!$
+!!$    ! First pass to count the number of particles in the region
+!!$    np=0
+!!$    DO i=1,n
+!!$       IF(x(1,i)>x1 .AND. x(1,i)<x2 .AND. x(2,i)>y1 .AND. x(2,i)<y2 .AND. x(3,i)>z1 .AND. x(3,i)<z2) THEN
+!!$          np=np+1
+!!$       END IF
+!!$    END DO
+!!$
+!!$    npexp=REAL(n)*(Lx*Ly*Lz/L**3.)
+!!$    delta=-1.+REAL(np)/REAL(npexp)
+!!$
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Density statistics'
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Particles in region:', np
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Expectation of partilces in region:', npexp
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Region over-density:', delta
+!!$    WRITE(*,*)
+!!$
+!!$    ALLOCATE(y(2,np))
+!!$
+!!$    ! Second pass to add particles in the region to 2D array y
+!!$    j=0
+!!$    DO i=1,n
+!!$       IF(x(1,i)>x1 .AND. x(1,i)<x2 .AND. x(2,i)>y1 .AND. x(2,i)<y2 .AND. x(3,i)>z1 .AND. x(3,i)<z2) THEN
+!!$          j=j+1
+!!$          y(1,j)=x(1,i)
+!!$          y(2,j)=x(2,i)
+!!$       END IF
+!!$    END DO
+!!$
+!!$    ! Set the sizes of all of the adaptive meshes
+!!$    m1=m
+!!$    m2=m1/2
+!!$    m3=m2/2
+!!$    m4=m3/2
+!!$    m5=m4/2
+!!$
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 1:', m1
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 2:', m2
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 3:', m3
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 4:', m4
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 5:', m5
+!!$    WRITE(*,*)
+!!$
+!!$    ALLOCATE(d1(m1,m1))
+!!$    ALLOCATE(d2(m2,m2))
+!!$    ALLOCATE(d3(m3,m3))
+!!$    ALLOCATE(d4(m4,m4))
+!!$    ALLOCATE(d5(m5,m5))
+!!$
+!!$    ! Do CIC binning on each mesh resolution
+!!$    ! Note well. These CIC routines assume the volume is periodic
+!!$    ! This means you may get some weird edge effects
+!!$    CALL CIC2D(y,np,Lsub,d1,m1)
+!!$    CALL CIC2D(y,np,Lsub,d2,m2)
+!!$    CALL CIC2D(y,np,Lsub,d3,m3)
+!!$    CALL CIC2D(y,np,Lsub,d4,m4)
+!!$    CALL CIC2D(y,np,Lsub,d5,m5)
+!!$
+!!$    ! Convert to over-densities (1+delta = rho/rhobar)
+!!$    d1=(d1/((Lsub/REAL(m1))**2))/nbar
+!!$    d2=(d2/((Lsub/REAL(m2))**2))/nbar
+!!$    d3=(d3/((Lsub/REAL(m3))**2))/nbar
+!!$    d4=(d4/((Lsub/REAL(m4))**2))/nbar
+!!$    d5=(d5/((Lsub/REAL(m5))**2))/nbar
+!!$
+!!$    ! Smooth density fields
+!!$    CALL smooth2D(d1,m1,fcell*Lsub/REAL(m1),Lsub)
+!!$    CALL smooth2D(d2,m2,fcell*Lsub/REAL(m2),Lsub)
+!!$    CALL smooth2D(d3,m3,fcell*Lsub/REAL(m3),Lsub)
+!!$    CALL smooth2D(d4,m4,fcell*Lsub/REAL(m4),Lsub)
+!!$    CALL smooth2D(d5,m5,fcell*Lsub/REAL(m5),Lsub)
+!!$
+!!$    ! Write out density statistics on each mesh
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m1
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d1)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d1)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m2
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d2)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d2)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m3
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d3)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d3)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m4
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d4)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d4)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m5
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d5)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d5)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Recommended refinement level:', 1+CEILING(log10(MAXVAL(d1)))
+!!$    WRITE(*,*)
+!!$
+!!$    IF(test) THEN
+!!$       ! Write out each mesh if testing
+!!$       
+!!$       base='density_'
+!!$       ext='.dat'
+!!$       
+!!$       output=number_file_zeroes(base,m1,4,ext)
+!!$       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+!!$       CALL write_2D_field_ascii(d1,m1,Lsub,output)
+!!$       
+!!$       output=number_file_zeroes(base,m2,4,ext)
+!!$       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+!!$       CALL write_2D_field_ascii(d2,m2,Lsub,output)
+!!$       
+!!$       output=number_file_zeroes(base,m3,4,ext)       
+!!$       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+!!$       CALL write_2D_field_ascii(d3,m3,Lsub,output)
+!!$       
+!!$       output=number_file_zeroes(base,m4,4,ext)
+!!$       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+!!$       CALL write_2D_field_ascii(d4,m4,Lsub,output)
+!!$       
+!!$       output=number_file_zeroes(base,m5,4,ext)
+!!$       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+!!$       CALL write_2D_field_ascii(d5,m5,Lsub,output)
+!!$       
+!!$    END IF
+!!$
+!!$    ! The exact details of the refinement here could certainly be improved
+!!$    ! This would involve fiddling with dc and fac
+!!$    ! Also all the refinements could be put in a loop
+!!$
+!!$    ! First refinement
+!!$
+!!$    ! Allocate d with the size of the second-corsest image
+!!$    ALLOCATE(d(m4,m4))
+!!$    dc=dcc
+!!$
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Initial refinement 1+delta:', dc
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Refinement factor:', fac
+!!$
+!!$    DO i=1,m5
+!!$       DO j=1,m5
+!!$          IF(d5(i,j)<dc) THEN
+!!$             ! Use coarser density
+!!$             d(2*i-1,2*j-1)=d5(i,j)
+!!$             d(2*i,2*j-1)=d5(i,j)
+!!$             d(2*i-1,2*j)=d5(i,j)
+!!$             d(2*i,2*j)=d5(i,j)
+!!$          ELSE
+!!$             ! Use finer density
+!!$             d(2*i-1,2*j-1)=d4(2*i-1,2*j)
+!!$             d(2*i,2*j-1)=d4(2*i,2*j-1)
+!!$             d(2*i-1,2*j)=d4(2*i-1,2*j)
+!!$             d(2*i,2*j)=d4(2*i,2*j)
+!!$             ! Stops it being below the threshold (looks grainy)
+!!$             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
+!!$             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
+!!$             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
+!!$             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+!!$          END IF
+!!$       END DO
+!!$    END DO
+!!$
+!!$    ! Second refinement
+!!$    d4=d
+!!$    DEALLOCATE(d)
+!!$    ALLOCATE(d(m3,m3))
+!!$    dc=fac*dc
+!!$
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Second refinement 1+delta:', dc
+!!$
+!!$    DO i=1,m4
+!!$       DO j=1,m4
+!!$          IF(d4(i,j)<dc) THEN
+!!$             ! Use coarser density
+!!$             d(2*i-1,2*j-1)=d4(i,j)
+!!$             d(2*i,2*j-1)=d4(i,j)
+!!$             d(2*i-1,2*j)=d4(i,j)
+!!$             d(2*i,2*j)=d4(i,j)
+!!$          ELSE
+!!$             ! Use finer density
+!!$             d(2*i-1,2*j-1)=d3(2*i-1,2*j)
+!!$             d(2*i,2*j-1)=d3(2*i,2*j-1)
+!!$             d(2*i-1,2*j)=d3(2*i-1,2*j)
+!!$             d(2*i,2*j)=d3(2*i,2*j)
+!!$             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
+!!$             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
+!!$             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
+!!$             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+!!$          END IF
+!!$       END DO
+!!$    END DO
+!!$
+!!$    ! Third refinement
+!!$    d3=d
+!!$    DEALLOCATE(d)
+!!$    ALLOCATE(d(m2,m2))
+!!$    dc=fac*dc
+!!$
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Third refinement 1+delta:', dc
+!!$
+!!$    DO i=1,m3
+!!$       DO j=1,m3
+!!$          IF(d3(i,j)<dc) THEN
+!!$             ! Use coarser density
+!!$             d(2*i-1,2*j-1)=d3(i,j)
+!!$             d(2*i,2*j-1)=d3(i,j)
+!!$             d(2*i-1,2*j)=d3(i,j)
+!!$             d(2*i,2*j)=d3(i,j)
+!!$          ELSE
+!!$             ! Use finer density
+!!$             d(2*i-1,2*j-1)=d2(2*i-1,2*j)
+!!$             d(2*i,2*j-1)=d2(2*i,2*j-1)
+!!$             d(2*i-1,2*j)=d2(2*i-1,2*j)
+!!$             d(2*i,2*j)=d2(2*i,2*j)
+!!$             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
+!!$             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
+!!$             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
+!!$             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+!!$          END IF
+!!$       END DO
+!!$    END DO
+!!$
+!!$    ! Fourth refinement
+!!$    d2=d
+!!$    DEALLOCATE(d)
+!!$    ALLOCATE(d(m1,m1))
+!!$    dc=fac*dc
+!!$
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Fourth refinement 1+delta:', dc
+!!$
+!!$    DO i=1,m2
+!!$       DO j=1,m2
+!!$          IF(d2(i,j)<dc) THEN
+!!$             ! Use coarser density
+!!$             d(2*i-1,2*j-1)=d2(i,j)
+!!$             d(2*i,2*j-1)=d2(i,j)
+!!$             d(2*i-1,2*j)=d2(i,j)
+!!$             d(2*i,2*j)=d2(i,j)
+!!$          ELSE
+!!$             ! Use finer density
+!!$             d(2*i-1,2*j-1)=d1(2*i-1,2*j)
+!!$             d(2*i,2*j-1)=d1(2*i,2*j-1)
+!!$             d(2*i-1,2*j)=d1(2*i-1,2*j)
+!!$             d(2*i,2*j)=d1(2*i,2*j)
+!!$             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
+!!$             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
+!!$             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
+!!$             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+!!$          END IF
+!!$       END DO
+!!$    END DO
+!!$
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Adaptive density field'
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Max density:', MAXVAL(d)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Min density:', MINVAL(d)
+!!$    WRITE(*,*)
+!!$
+!!$    IF(test) THEN
+!!$       output='density.dat'
+!!$       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+!!$       CALL write_2D_field_ascii(d,m1,Lsub,output)
+!!$    END IF
+!!$
+!!$    ! Smooth density field on scales of cells
+!!$    CALL smooth2D(d,m1,fcell*Lsub/REAL(m1),Lsub)
+!!$
+!!$    ! Ensure all cells are positive (note this is to make pretty pictures, not for science)
+!!$    DO i=1,m1
+!!$       DO j=1,m1
+!!$          IF(d(i,j)<0.) d(i,j)=0.
+!!$       END DO
+!!$    END DO
+!!$
+!!$    ! Write field statistics
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Smoothed adaptive density field'
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Max density:', MAXVAL(d)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Min density:', MINVAL(d)
+!!$    WRITE(*,*)
+!!$
+!!$    ! Finally write out an ascii file for plotting
+!!$    CALL write_2D_field_ascii(d,m1,Lsub,outfile)
+!!$    WRITE(*,*) 'ADAPTIVE_DENSITY: Done'
+!!$    WRITE(*,*)
+!!$
+!!$  END SUBROUTINE adaptive_density_original
 
 END MODULE simulations
