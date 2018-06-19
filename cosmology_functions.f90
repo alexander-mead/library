@@ -142,7 +142,7 @@ CONTAINS
     REAL :: Om_c
 
     !Names of pre-defined cosmologies    
-    INTEGER, PARAMETER :: ncosmo=15
+    INTEGER, PARAMETER :: ncosmo=21
     CHARACTER(len=256) :: names(0:ncosmo)
     names(0)='User defined'
     names(1)='Boring'
@@ -160,6 +160,12 @@ CONTAINS
     names(13)='w(a)CDM (user)'
     names(14)='Boring WDM'
     names(15)='EdS'
+    names(16)='Boring - w = -0.7'
+    names(17)='Boring - w = -1.3'
+    names(18)='Boring - w = -1; wa = 0.5'
+    names(19)='Boring - w = -1; wa = -0.5'
+    names(20)='Boring - w = -0.7; wa = -1.5'
+    names(21)='Boring - w = -0.7; wa = 0.5'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_COSMOLOGY: Assigning cosmological model parameters'
 
@@ -315,10 +321,26 @@ CONTAINS
        WRITE(*,*) 'wa:'
        READ(*,*) cosm%wa
     ELSE IF(icosmo==14) THEN
+       !WDM
        cosm%inv_m_wdm=1.
     ELSE IF(icosmo==15) THEN
+       !EdS
        cosm%Om_m=1.
        cosm%Om_v=0.
+    ELSE IF(icosmo==16) THEN
+       w=-0.7
+    ELSE IF(icosmo==17) THEN
+       w=-1.3
+    ELSE IF(icosmo==18) THEN
+       wa=0.5
+    ELSE IF(icosmo==19) THEN
+       wa=-0.5
+    ELSE IF(icosmo==20) THEN
+       w=-0.7
+       wa=-1.5
+    ELSE IF(icosmo==21) THEN
+       w=-1.3
+       wa=0.5
     ELSE
        STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly'
     END IF
