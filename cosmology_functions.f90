@@ -7,24 +7,23 @@ MODULE cosmology_functions
 
   ! Contains cosmological parameters that only need to be calculated once
   TYPE cosmology     
-     REAL :: Om_m, Om_b, Om_v, Om_w, Om_nu, h, n, sig8, w, wa, inv_m_wdm, YH !Primary parameters
-     REAL :: Om_v_unmodified !Needed for radiation correction
-     REAL :: z_CMB, T_CMB, neff, Om_r, age, horizon !Secondary parameters
-     REAL :: Om, k, Om_k, Om_c, A !Derived parameters
-     REAL :: mue, mup!, epfac !Derived thermal parameters
-     REAL :: a1, a2, ns, ws, am, dm, wm !DE parameters     
-     REAL :: Om_ws, as, a1n, a2n !Derived DE parameters
-     REAL :: alpha, eps, Gamma, M0, Astar, whim !Baryon parameters
-     REAL :: mgal, HImin, HImax !HOD parameters
-     INTEGER :: iw !Switches
-     REAL, ALLOCATABLE :: log_sigma(:), log_r_sigma(:) !Arrays for sigma(R)
-     REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) !Arrays for growth
-     REAL, ALLOCATABLE :: r(:), a_r(:) !Arrays for distance
-     REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:) !Arrays for input linear P(k)
-     REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:) !Arrays for spherical-collapse parameters
-     INTEGER :: n_sigma, n_growth, n_r, n_plin, n_dcDv !Array entries
-     REAL :: gnorm
-     CHARACTER(len=256) :: name = ""
+     REAL :: Om_m, Om_b, Om_v, Om_w, Om_nu, h, n, sig8, w, wa, inv_m_wdm, YH ! Primary parameters
+     REAL :: A, z_CMB, T_CMB, neff ! Less primary parameters
+     REAL :: Om, k, Om_k, Om_c, Om_r, Om_v_mod, age, horizon ! Derived parameters
+     REAL :: mue, mup ! Derived thermal parameters
+     REAL :: a1, a2, ns, ws, am, dm, wm ! DE parameters     
+     REAL :: Om_ws, as, a1n, a2n ! Derived DE parameters
+     REAL :: alpha, eps, Gamma, M0, Astar, whim ! Baryon parameters
+     REAL :: mgal, HImin, HImax ! HOD parameters
+     INTEGER :: iw ! Switches
+     REAL, ALLOCATABLE :: log_sigma(:), log_r_sigma(:) ! Arrays for sigma(R)
+     REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
+     REAL, ALLOCATABLE :: r(:), a_r(:) ! Arrays for distance
+     REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:) ! Arrays for input linear P(k)
+     REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:) ! Arrays for spherical-collapse parameters
+     INTEGER :: n_sigma, n_growth, n_r, n_plin, n_dcDv ! Array entries
+     REAL :: gnorm ! Growth-factor normalisation
+     CHARACTER(len=256) :: name ! Name for cosmological model
      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power
      LOGICAL :: is_init, is_normalised
      LOGICAL :: external_plin
@@ -48,31 +47,35 @@ CONTAINS
        WRITE(*,*) 'COSMOLOGY: ', TRIM(cosm%name)
        WRITE(*,*) '===================================='
        WRITE(*,*) 'COSMOLOGY: Standard parameters'
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_m:', REAL(cosm%Om_m)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_b:', REAL(cosm%Om_b)    
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v:', REAL(cosm%Om_v)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_w:', REAL(cosm%Om_w)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'h:', REAL(cosm%h)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w_0:', REAL(cosm%w)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w_a:', REAL(cosm%wa)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'sigma_8:', REAL(cosm%sig8)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_s:', REAL(cosm%n)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'T_CMB [K]:', REAL(cosm%T_CMB)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'z_CMB:', REAL(cosm%z_CMB)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_eff:', REAL(cosm%neff)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Y_H:', REAL(cosm%YH)
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_m:', cosm%Om_m
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_b:', cosm%Om_b  
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v:', cosm%Om_v
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_w:', cosm%Om_w
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'h:', cosm%h
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w_0:', cosm%w
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w_a:', cosm%wa
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'sigma_8:', cosm%sig8
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_s:', cosm%n
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'T_CMB [K]:', cosm%T_CMB
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'z_CMB:', cosm%z_CMB
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_eff:', cosm%neff
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Y_H:', cosm%YH
        IF(cosm%inv_m_wdm .NE. 0.) THEN
-          WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', REAL(1./cosm%inv_m_wdm)
+          WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', 1./cosm%inv_m_wdm
        END IF
        WRITE(*,*) '===================================='
        WRITE(*,*) 'COSMOLOGY: Derived parameters'
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_r:', REAL(cosm%Om_r)
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_r:', cosm%Om_r
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega:', cosm%Om
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_c:', cosm%Om_c
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_k:', cosm%Om_k
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [Mpc/h]^-2:', REAL(cosm%k)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_p:', REAL(cosm%mup)
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_e:', REAL(cosm%mue)
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v'':', cosm%Om_v_mod
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [Mpc/h]^-2:', cosm%k
+       IF(cosm%Om_k .NE. 0.) THEN
+          WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k_rad [Mpc/h]:', 1./sqrt(cosm%k)
+       END IF
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_p:', cosm%mup
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_e:', cosm%mue
        WRITE(*,*) '===================================='
        IF(cosm%iw==1) THEN
           WRITE(*,*) 'COSMOLOGY: Vacuum energy'
@@ -139,7 +142,7 @@ CONTAINS
     REAL :: Om_c
 
     !Names of pre-defined cosmologies    
-    INTEGER, PARAMETER :: ncosmo=14
+    INTEGER, PARAMETER :: ncosmo=15
     CHARACTER(len=256) :: names(0:ncosmo)
     names(0)='User defined'
     names(1)='Boring'
@@ -156,6 +159,7 @@ CONTAINS
     names(12)='LCDM (user)'
     names(13)='w(a)CDM (user)'
     names(14)='Boring WDM'
+    names(15)='EdS'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_COSMOLOGY: Assigning cosmological model parameters'
 
@@ -312,13 +316,12 @@ CONTAINS
        READ(*,*) cosm%wa
     ELSE IF(icosmo==14) THEN
        cosm%inv_m_wdm=1.
+    ELSE IF(icosmo==15) THEN
+       cosm%Om_m=1.
+       cosm%Om_v=0.
     ELSE
        STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly'
     END IF
-
-    !Need do this because Omega_v is changed later to maintain flatness
-    cosm%Om_v_unmodified=cosm%Om_v
-    cosm%Om_v=0.
 
     IF(cosm%verbose) THEN
        WRITE(*,*) 'ASSIGN_COSMOLOGY: Cosmology: ', TRIM(cosm%name)
@@ -348,20 +351,20 @@ CONTAINS
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_r:', cosm%Om_r  
        WRITE(*,*) 'INIT_COSMOLOGY: Altering vacuum density to account for radiation'
-       WRITE(*,*) 'INIT_COSMOLOGY: Omega_v prior to change:', cosm%Om_v_unmodified
+       WRITE(*,*) 'INIT_COSMOLOGY: Omega_v prior to change:', cosm%Om_v
     END IF
 
     ! Correction to vacuum density in order for radiation to maintain flatness
-    cosm%Om_v=cosm%Om_v_unmodified-cosm%Om_r    
+    cosm%Om_v_mod=cosm%Om_v-cosm%Om_r    
 
     If(cosm%verbose) THEN
-       WRITE(*,*) 'INIT_COSMOLOGY: Omega_v post change:', cosm%Om_v
+       WRITE(*,*) 'INIT_COSMOLOGY: Omega_v post change:', cosm%Om_v_mod
        WRITE(*,*) 'INIT_COSMOLOGY: Calculating derived parameters'
     END IF
 
     ! Derived cosmological parameters    
     cosm%Om_c=cosm%Om_m-cosm%Om_b-cosm%Om_nu
-    cosm%Om=cosm%Om_m+cosm%Om_v+cosm%Om_r+cosm%Om_w
+    cosm%Om=cosm%Om_m+cosm%Om_v_mod+cosm%Om_r+cosm%Om_w
     cosm%Om_k=1.-cosm%Om
     cosm%k=(cosm%Om-1.)/(Hdist**2)
 
@@ -369,7 +372,9 @@ CONTAINS
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_c:', REAL(cosm%Om_c)
        WRITE(*,*) 'INIT_COSMOLOGY: Omega:', REAL(cosm%Om)
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_k:', REAL(cosm%Om_k)
-       WRITE(*,*) 'INIT_COSMOLOGY: k [Mpc/h]^-2:', REAL(cosm%k)
+       IF(cosm%Om_k .NE. 0.) THEN
+          WRITE(*,*) 'INIT_COSMOLOGY: k_rad [Mpc/h]:', 1./sqrt(REAL(cosm%k))
+       END IF
     END IF
 
     ! Gas parameters
@@ -552,7 +557,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%is_init .EQV. .FALSE.) STOP 'HUBBLE2: Error, cosmology is not initialised'
-    Hubble2=cosm%Om_m*a**(-3)+cosm%Om_nu*a**(-3)+cosm%Om_r*a**(-4)+cosm%Om_v+cosm%Om_w*X_de(a,cosm)+(1.-cosm%om)*a**(-2)
+    Hubble2=cosm%Om_m*a**(-3)+cosm%Om_nu*a**(-3)+cosm%Om_r*a**(-4)+cosm%Om_v_mod+cosm%Om_w*X_de(a,cosm)+(1.-cosm%om)*a**(-2)
 
   END FUNCTION Hubble2
 
@@ -591,7 +596,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%is_init .EQV. .FALSE.) STOP 'AH: Error, cosmology is not initialised'
-    AH=cosm%Om_m*a**(-3)+cosm%Om_nu*a**(-3)+2.*cosm%Om_r*a**(-4)-2.*cosm%Om_v+cosm%Om_w*(1.+3.*w_de(a,cosm))*X_de(a,cosm)
+    AH=cosm%Om_m*a**(-3)+cosm%Om_nu*a**(-3)+2.*cosm%Om_r*a**(-4)-2.*cosm%Om_v_mod+cosm%Om_w*(1.+3.*w_de(a,cosm))*X_de(a,cosm)
     AH=-AH/2.
 
   END FUNCTION AH
@@ -682,7 +687,7 @@ CONTAINS
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    Omega_v=cosm%Om_v/Hubble2(a,cosm)
+    Omega_v=cosm%Om_v_mod/Hubble2(a,cosm)
 
   END FUNCTION Omega_v
 
@@ -707,31 +712,6 @@ CONTAINS
     Omega=Omega_m(a,cosm)+Omega_nu(a,cosm)+Omega_r(a,cosm)+Omega_v(a,cosm)+Omega_w(a,cosm)
 
   END FUNCTION Omega
-
-!!$  FUNCTION w_de(a,cosm)
-!!$
-!!$    !w(a) for DE models
-!!$    IMPLICIT NONE
-!!$    REAL :: w_de
-!!$    REAL, INTENT(IN) :: a
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$
-!!$    w_de=cosm%w+(1.-a)*cosm%wa
-!!$
-!!$  END FUNCTION w_de
-!!$
-!!$  FUNCTION X_de(a,cosm)
-!!$
-!!$    !The time evolution for Om_w for w(a) DE models
-!!$    !X_de = rho_w(z)/rho_w(z=0)
-!!$    IMPLICIT NONE
-!!$    REAL :: X_de
-!!$    REAL, INTENT(IN) :: a
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$
-!!$    X_de=(a**(-3.*(1.+cosm%w+cosm%wa)))*exp(-3.*cosm%wa*(1.-a))
-!!$
-!!$  END FUNCTION X_de
 
   FUNCTION w_de(a,cosm)
 
@@ -796,7 +776,7 @@ CONTAINS
 
     IF(cosm%Om_nu .NE. 0.) STOP 'W_DE_TOTAL: Error, does not support massive neutrinos'
 
-    IF(cosm%Om_v==0. .AND. cosm%Om_w==0.) THEN
+    IF(cosm%Om_v_mod==0. .AND. cosm%Om_w==0.) THEN
        w_de_total=-1.
     ELSE
        w_de_total=w_de(a,cosm)*Omega_w(a,cosm)-Omega_v(a,cosm)
@@ -896,11 +876,6 @@ CONTAINS
        WRITE(*,*) 'REDSHIFT_A: a', a
        STOP 'REDSHIFT_A: Error, routine called with weird a'
     END IF
-
-    !IF(a==0.) THEN
-    !   WRITE(*,*) 'REDSHIFT_A: a', a
-    !   STOP 'REDSHIFT_A: Error, routine called with a=0'
-    !END IF
 
     redshift_a=-1.+1./a
 
@@ -1103,6 +1078,7 @@ CONTAINS
 
   FUNCTION age_of_universe(cosm)
 
+    ! The total age of the universe
     IMPLICIT NONE
     REAL :: age_of_universe
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1153,52 +1129,6 @@ CONTAINS
 
   END FUNCTION time_integrand
 
-!!$  SUBROUTINE random_cosmology(cosm)
-!!$
-!!$    !Generate some random cosmological parameter
-!!$    USE random_numbers
-!!$    IMPLICIT NONE
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    REAL :: Om_m_min, Om_m_max, Om_b_min, Om_b_max, n_min, n_max
-!!$    REAL :: w_min, w_max, h_min, h_max, sig8_min, sig8_max, wa_min, wa_max
-!!$
-!!$    !Needs to be set to normalise P_lin
-!!$    cosm%A=1.
-!!$
-!!$    Om_m_min=0.1
-!!$    Om_m_max=1.
-!!$    cosm%Om_m=random_uniform(Om_m_min,Om_m_max)
-!!$
-!!$    cosm%Om_v=1.-cosm%Om_m
-!!$
-!!$    Om_b_min=0.005
-!!$    Om_b_max=MIN(0.095,cosm%Om_m)
-!!$    cosm%Om_b=random_uniform(Om_b_min,Om_b_max)
-!!$
-!!$    cosm%Om_c=cosm%Om_m-cosm%Om_b
-!!$
-!!$    n_min=0.5
-!!$    n_max=1.5
-!!$    cosm%n=random_uniform(n_min,n_max)
-!!$
-!!$    h_min=0.4
-!!$    h_max=1.2
-!!$    cosm%h=random_uniform(h_min,h_max)
-!!$
-!!$    w_min=-1.5
-!!$    w_max=-0.5
-!!$    cosm%w=random_uniform(w_min,w_max)
-!!$
-!!$    wa_min=-1.
-!!$    wa_max=-cosm%w*0.8
-!!$    cosm%wa=random_uniform(wa_min,wa_max)
-!!$
-!!$    sig8_min=0.2
-!!$    sig8_max=1.5
-!!$    cosm%sig8=random_uniform(sig8_min,sig8_max)
-!!$
-!!$  END SUBROUTINE random_cosmology
-
   FUNCTION Tk(k,cosm)
 
     ! Transfer function selection
@@ -1238,8 +1168,8 @@ CONTAINS
     USE special_functions
 
     ! Eisenstein & Hu fitting function (arXiv: 9709112)
-    ! JP - the astonishing D.J. Eisenstein & W. Hu fitting formula (ApJ 496 605 [1998])
-    ! JP - remember I use k/h, whereas they use pure k, Om_m is cdm + baryons
+    ! JP: the astonishing D.J. Eisenstein & W. Hu fitting formula (ApJ 496 605 [1998])
+    ! JP: remember I use k/h, whereas they use pure k, Om_m is cdm + baryons
     IMPLICIT NONE
     REAL :: Tk_eh
     REAL, INTENT(IN) :: yy
@@ -2139,7 +2069,7 @@ CONTAINS
     Om_mz=Omega_m_norad(a,cosm)
     Om_vz=Omega_v(a,cosm)+Omega_w(a,cosm)
     Om_m=cosm%Om_m
-    Om_v=cosm%Om_v+cosm%Om_w
+    Om_v=cosm%Om_v_mod+cosm%Om_w
 
     !Now call CPT twice, second time to normalise it
     growth_CPT=CPT(a,Om_mz,Om_vz)/CPT(1.,Om_m,Om_v)
@@ -2361,7 +2291,7 @@ CONTAINS
     Om_m=Omega_m_norad(a,cosm)
     x=Om_m-1.
 
-    IF(cosm%Om_v==0. .AND. cosm%Om_w==0.) THEN
+    IF(cosm%Om_v_mod==0. .AND. cosm%Om_w==0.) THEN
        !Open model results
        Dv_BryanNorman=Dv0+60.*x-32.*x**2
        Dv_BryanNorman=Dv_BryanNorman/Om_m

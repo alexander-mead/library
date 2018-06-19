@@ -1336,4 +1336,131 @@ CONTAINS
 
   END FUNCTION box_mode_power
 
+  FUNCTION periodic_distance(x1,x2,L)
+
+    !Calculates the distance between x1 and x2 assuming
+    !that they are coordinates in a periodic box
+    !This is in field_operations because it needs coordinates, *not* necessarily particles
+    IMPLICIT NONE
+    REAL :: periodic_distance
+    REAL, INTENT(IN) :: x1(3), x2(3), L
+    REAL :: dx(3)
+    INTEGER :: i
+
+    !Initially dx is just the absolute vector difference
+    dx=ABS(x2-x1)
+
+    !Now check if any legs are greater than half-box size
+    !Note the Cartesian distance *cannot* be larger than L/2
+    DO i=1,3
+       IF(dx(i)>L/2.) THEN
+          dx(i)=L-dx(i)
+          !ELSE IF(dx(j)<-L/2.) THEN
+          !   dx(j)=dx(j)+L
+       END IF
+    END DO
+
+    periodic_distance=sqrt(dx(1)**2+dx(2)**2+dx(3)**2)
+
+  END FUNCTION periodic_distance
+
+  FUNCTION periodic_mean(x1,x2,L)
+
+    !Calculates the periodic mean of two coordinates in a box
+    !This is in field_operations because it needs coordinates, *not* necessarily particles
+    IMPLICIT NONE
+    REAL :: periodic_mean(3)
+    REAL, INTENT(IN) :: x1(3), x2(3), L
+    REAL :: dx(3)
+    INTEGER :: i
+
+    !Initially dx is just the absolute vector difference
+    dx=ABS(x2-x1)
+
+    DO i=1,3
+       periodic_mean(i)=0.5*(x1(i)+x2(i))
+       IF(dx(i)>L/2.) THEN
+          periodic_mean(i)=periodic_mean(i)+L/2.
+       END IF
+    END DO
+
+  END FUNCTION periodic_mean
+
+  SUBROUTINE field_correlation_function(r_array,xi_array,n_array,n,d,m,L)
+
+    USE table_integer
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: n, m
+    REAL, INTENT(OUT) :: xi_array(n)
+    REAL, INTENT(IN) :: L, d(m,m,m), r_array(n)
+    INTEGER*8, INTENT(OUT) :: n_array(n)
+    REAL:: rmin, rmax
+    DOUBLE PRECISION :: xi8_array(n)
+    INTEGER :: i1, i2, i3, j1, j2, j3, i(3), j(3), k, dim
+    REAL :: r, x1(3), x2(3)
+
+    !This double counts, so time could be at least halved
+    !Also could be parrallelised
+    !Also could just not be complete shit, but it should get the job done
+
+    rmin=r_array(1)
+    rmax=r_array(n)
+
+    WRITE(*,*) 'CORRELATION_FUNCTION: rmin [Mpc/h]:', rmin
+    WRITE(*,*) 'CORRELATION_FUNCTION: rmax [Mpc/h]:', rmax
+    WRITE(*,*) 'CORRELATION_FUNCTION: number of r bins:', n
+
+    xi8_array=0.d0
+    n_array=0
+
+    DO i3=1,m
+       DO i2=1,m
+          DO i1=1,m
+
+             i(1)=i1
+             i(2)=i2
+             i(3)=i3
+             
+             DO dim=1,3
+                x1(dim)=L*(i(dim)-0.5)/REAL(m)
+             END DO
+
+             DO j3=1,m
+                DO j2=1,m
+                   DO j1=1,m
+
+                      j(1)=j1
+                      j(2)=j2
+                      j(3)=j3
+
+                      DO dim=1,3
+                         x2(dim)=L*(j(dim)-0.5)/REAL(m)
+                      END DO
+
+                      r=periodic_distance(x1,x2,L)
+
+                      IF(r<rmin .OR. r>rmax) THEN
+                         CYCLE
+                      ELSE
+                         k=select_table_integer(r,r_array,n,3)
+                         IF(k<1 .OR. k>n) STOP 'Integer finding has fucked up'
+                         xi8_array(k)=xi8_array(k)+d(i(1),i(2),i(3))*d(j(1),j(2),j(3))
+                         n_array(k)=n_array(k)+1
+                      END IF
+
+                   END DO
+                END DO
+             END DO
+
+          END DO
+       END DO
+    END DO
+
+    xi_array=REAL(xi8_array/REAL(n_array))
+
+    WRITE(*,*) 'CORRELATION_FUNCTION: done'
+    WRITE(*,*)
+
+  END SUBROUTINE field_correlation_function
+
 END MODULE field_operations

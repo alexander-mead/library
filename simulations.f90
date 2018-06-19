@@ -53,7 +53,7 @@ CONTAINS
 
     !Things that would like to be PARAMETERS
     INTEGER :: ibin=2 !Set the binning strategy
-    
+
     !Assign weight=1 and bin the particles
     w=1.
     CALL particle_bin(x,n,L,w,d,m,ibin)
@@ -65,7 +65,7 @@ CONTAINS
     dk=dk_out
 
     CALL sharpen_k(dk,m,L,ibin)    
-    
+
   END SUBROUTINE sharp_Fourier_density_contrast
 
   SUBROUTINE write_density_slice_ascii(x,n,z1,z2,L,m,outfile)
@@ -145,9 +145,9 @@ CONTAINS
           i2D=i2D+1
           x2D(1,i2D)=x(1,i)
           x2D(2,i2D)=x(2,i)
-       END IF         
+       END IF
     END DO
-    
+
     !Bin for the 2D density field and convert to relative density
     ibin=2
     CALL particle_bin_2D(x2D,n2D,L,d,m,ibin)
@@ -218,7 +218,7 @@ CONTAINS
 
     WRITE(*,*) 'ZELDOVICH_DISPLACEMENT: Done'
     WRITE(*,*)
-    
+
   END SUBROUTINE Zeldovich_displacement
 
   SUBROUTINE Zeldovich_velocity(x,v,n,L,s,m)
@@ -242,7 +242,7 @@ CONTAINS
 
     WRITE(*,*) 'ZELDOVICH_VELOCITY: Done'
     WRITE(*,*)
-    
+
   END SUBROUTINE Zeldovich_velocity
 
   INTEGER FUNCTION NGP_cell(x,L,m)
@@ -261,7 +261,7 @@ CONTAINS
        WRITE(*,*) 'NGP_CELL: Assigned cell:', NGP_cell
        STOP 'NGP_CELL: Error, the assigned cell position is outside the mesh'
     END IF
-    
+
   END FUNCTION NGP_cell
 
   REAL FUNCTION cell_position(i,L,m)
@@ -273,7 +273,7 @@ CONTAINS
     cell_position=L*(i-0.5)/REAL(m)
 
   END FUNCTION cell_position
-  
+
   SUBROUTINE generate_randoms(x,n,L)
 
     !Generate random x,y,z positions in a cube of size L^3
@@ -338,7 +338,7 @@ CONTAINS
 
     WRITE(*,*) 'GENERATE_GRID: Done'
     WRITE(*,*)
-    
+
   END SUBROUTINE generate_grid
 
   SUBROUTINE generate_poor_glass(x,n,L)
@@ -389,7 +389,7 @@ CONTAINS
     REAL :: rand
 
     !CALL RNG_set(0)
-    
+
     n_old=n
 
     keep=0
@@ -398,7 +398,7 @@ CONTAINS
     WRITE(*,*) 'Sparse sampling'
 
     DO i=1,n_old
-       
+
        IF(rand(0)<f) THEN
           n=n+1
           keep(i)=1
@@ -744,7 +744,7 @@ CONTAINS
        ix=CEILING(x(1,i)*REAL(m)/L)
        iy=CEILING(x(2,i)*REAL(m)/L)
        iz=CEILING(x(3,i)*REAL(m)/L)
-       
+
        IF(ix>m .OR. ix<1) THEN
           WRITE(*,*) 'x:', i, x(1,i)
           STOP 'CIC: Warning, point outside box'
@@ -964,56 +964,9 @@ CONTAINS
 
   END SUBROUTINE SOD
 
-  FUNCTION periodic_distance(x1,x2,L)
-
-    !Calculates the distance between x1 and x2 assuming
-    !that they are coordinates in a periodic box
-    IMPLICIT NONE
-    REAL :: periodic_distance
-    REAL, INTENT(IN) :: x1(3), x2(3), L
-    REAL :: dx(3)
-    INTEGER :: i
-
-    !Initially dx is just the absolute vector difference
-    dx=ABS(x2-x1)
-
-    !Now check if any legs are greater than half-box size
-    !Note the Cartesian distance *cannot* be larger than L/2
-    DO i=1,3
-       IF(dx(i)>L/2.) THEN
-          dx(i)=L-dx(i)
-          !ELSE IF(dx(j)<-L/2.) THEN
-          !   dx(j)=dx(j)+L
-       END IF
-    END DO
-
-    periodic_distance=sqrt(dx(1)**2+dx(2)**2+dx(3)**2)
-
-  END FUNCTION periodic_distance
-
-  FUNCTION periodic_mean(x1,x2,L)
-
-    !Calculates the periodic mean of two coordinates in a box
-    IMPLICIT NONE
-    REAL :: periodic_mean(3)
-    REAL, INTENT(IN) :: x1(3), x2(3), L
-    REAL :: dx(3)
-    INTEGER :: i
-
-    !Initially dx is just the absolute vector difference
-    dx=ABS(x2-x1)
-
-    DO i=1,3
-       periodic_mean(i)=0.5*(x1(i)+x2(i))
-       IF(dx(i)>L/2.) THEN
-          periodic_mean(i)=periodic_mean(i)+L/2.
-       END IF
-    END DO
-
-  END FUNCTION periodic_mean
-
   SUBROUTINE find_pairs(x,okay,n,rmin,rmax,L,outfile)!pairs,np)
 
+    USE field_operations
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(3,n)
     LOGICAL, INTENT(IN) :: okay(n)
@@ -1192,82 +1145,329 @@ CONTAINS
 
   END FUNCTION shot_noise_k
 
-  SUBROUTINE field_correlation_function(r_array,xi_array,n_array,n,d,m,L)
+  SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,dcc,fac,x,n,L,outfile)    
 
+    USE string_operations
     USE field_operations
-    USE table_integer
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, m
-    REAL, INTENT(OUT) :: xi_array(n)
-    REAL, INTENT(IN) :: L, d(m,m,m), r_array(n)
-    INTEGER*8, INTENT(OUT) :: n_array(n)
-    REAL:: rmin, rmax
-    DOUBLE PRECISION :: xi8_array(n)
-    INTEGER :: i1, i2, i3, j1, j2, j3, i(3), j(3), k, dim
-    REAL :: r, x1(3), x2(3)
+    REAL, INTENT(IN) :: xc, yc, Lsub, z1, z2, dcc, fac
+    INTEGER, INTENT(IN) :: m, n
+    REAL, INTENT(IN) :: x(3,n), L
+    CHARACTER(len=*), INTENT(IN) :: outfile
 
-    !This double counts, so time could be at least halved
-    !Also could be parrallelised
-    !Also could just not be complete shit, but it should get the job done
+    REAL :: x1, x2, y1, y2, Lx, Ly, Lz, delta, dc, nbar, npexp
+    INTEGER :: np
+    INTEGER :: m1, m2, m3, m4, m5
+    INTEGER :: i, j
+    REAL, ALLOCATABLE :: y(:,:), d(:,:)
+    REAL, ALLOCATABLE :: d1(:,:), d2(:,:), d3(:,:), d4(:,:), d5(:,:)
+    CHARACTER(len=256) :: base, ext, output
 
-    rmin=r_array(1)
-    rmax=r_array(n)
+    LOGICAL, PARAMETER :: test=.FALSE.
 
-    WRITE(*,*) 'CORRELATION_FUNCTION: rmin [Mpc/h]:', rmin
-    WRITE(*,*) 'CORRELATION_FUNCTION: rmax [Mpc/h]:', rmax
-    WRITE(*,*) 'CORRELATION_FUNCTION: number of r bins:', n
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Adaptive density field generator'
 
-    xi8_array=0.d0
-    n_array=0
+    !Calculate the 2D average particle number density
+    nbar=REAL(n)/L**2
 
-    DO i3=1,m
-       DO i2=1,m
-          DO i1=1,m
+    !Set the region boundaries in Mpc/h
+    x1=xc-Lsub/2.
+    x2=xc+Lsub/2.
+    y1=yc-Lsub/2.
+    y2=yc+Lsub/2.
 
-             i(1)=i1
-             i(2)=i2
-             i(3)=i3
-             
-             DO dim=1,3
-                x1(dim)=L*(i(dim)-0.5)/REAL(m)
-             END DO
+    !Set the region thicknesses
+    Lx=x2-x1
+    Ly=y2-y1
+    Lz=z2-z1
 
-             DO j3=1,m
-                DO j2=1,m
-                   DO j1=1,m
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Subvolume:'
+    WRITE(*,*) 'ADAPTIVE_DENSITY: x1:', x1
+    WRITE(*,*) 'ADAPTIVE_DENSITY: x2:', x2
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Lx:', Lx
+    WRITE(*,*) 'ADAPTIVE_DENSITY: y1:', y1
+    WRITE(*,*) 'ADAPTIVE_DENSITY: y2:', y2
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Ly:', Ly
+    WRITE(*,*) 'ADAPTIVE_DENSITY: z1:', z1
+    WRITE(*,*) 'ADAPTIVE_DENSITY: z2:', z2
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Lz:', Lz
 
-                      j(1)=j1
-                      j(2)=j2
-                      j(3)=j3
+    !First pass to count the number of particles in the region
+    np=0
+    DO i=1,n
+       IF(x(1,i)>x1 .AND. x(1,i)<x2 .AND. x(2,i)>y1 .AND. x(2,i)<y2 .AND. x(3,i)>z1 .AND. x(3,i)<z2) THEN
+          np=np+1
+       END IF
+    END DO
 
-                      DO dim=1,3
-                         x2(dim)=L*(j(dim)-0.5)/REAL(m)
-                      END DO
+    npexp=REAL(n)*(Lx*Ly*Lz/L**3.)
+    delta=-1.+REAL(np)/REAL(npexp)
 
-                      r=periodic_distance(x1,x2,L)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Density statistics'
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Particles in region:', np
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Expectation of partilces in region:', npexp
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Region over-density:', delta
 
-                      IF(r<rmin .OR. r>rmax) THEN
-                         CYCLE
-                      ELSE
-                         k=select_table_integer(r,r_array,n,3)
-                         IF(k<1 .OR. k>n) STOP 'Integer finding has fucked up'
-                         xi8_array(k)=xi8_array(k)+d(i(1),i(2),i(3))*d(j(1),j(2),j(3))
-                         n_array(k)=n_array(k)+1
-                      END IF
+    ALLOCATE(y(2,np))
 
-                   END DO
-                END DO
-             END DO
+    !Secon pass to add particles in the region to 2D array y
+    j=0
+    DO i=1,n
+       IF(x(1,i)>x1 .AND. x(1,i)<x2 .AND. x(2,i)>y1 .AND. x(2,i)<y2 .AND. x(3,i)>z1 .AND. x(3,i)<z2) THEN
+          j=j+1
+          y(1,j)=x(1,i)
+          y(2,j)=x(2,i)
+       END IF
+    END DO
 
-          END DO
+    !Change so that particles in the region are now in array x
+    !DEALLOCATE(x)
+    !ALLOCATE(x(3,np))
+    !x=y
+    !DEALLOCATE(y)
+    !L=Lsub
+    !n=np
+
+    !Make x into a 2D particle array
+    !ALLOCATE(y(2,n))
+    !DO i=1,n
+    !   y(1,i)=x(1,i)-x1
+    !   y(2,i)=x(2,i)-y1
+    !   IF(i<20) WRITE(*,*) y(1,i), x(1,i)
+    !END DO
+    !DEALLOCATE(x)
+    !ALLOCATE(x(2,n))
+    !x=y
+    !DEALLOCATE(y)
+
+    !Set the sizes of all of the adaptive meshes
+    m1=m
+    m2=m1/2
+    m3=m2/2
+    m4=m3/2
+    m5=m4/2
+
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 1:', m1
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 2:', m2
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 3:', m3
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 4:', m4
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 5:', m5
+
+    ALLOCATE(d1(m1,m1))
+    ALLOCATE(d2(m2,m2))
+    ALLOCATE(d3(m3,m3))
+    ALLOCATE(d4(m4,m4))
+    ALLOCATE(d5(m5,m5))
+
+    !Do CIC binning on each mesh resolution
+    !Note well. These CIC routines assume the volume is periodic
+    !This means you may get some weird edge effects
+    CALL CIC2D(y,np,Lsub,d1,m1)
+    CALL CIC2D(y,np,Lsub,d2,m2)
+    CALL CIC2D(y,np,Lsub,d3,m3)
+    CALL CIC2D(y,np,Lsub,d4,m4)
+    CALL CIC2D(y,np,Lsub,d5,m5)
+
+    !Convert to over-densities (1+delta)
+    d1=(d1/((Lsub/REAL(m1))**2))/nbar
+    d2=(d2/((Lsub/REAL(m2))**2))/nbar
+    d3=(d3/((Lsub/REAL(m3))**2))/nbar
+    d4=(d4/((Lsub/REAL(m4))**2))/nbar
+    d5=(d5/((Lsub/REAL(m5))**2))/nbar
+
+    !Write out density statistics on each mesh
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m1
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d1)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d1)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m2
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d2)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d2)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m3
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d3)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d3)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m4
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d4)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d4)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m5
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max dens:', MAXVAL(d5)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min dens:', MINVAL(d5)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Recommended refinement level:', 1+CEILING(log10(MAXVAL(d1)))
+    WRITE(*,*)
+
+    IF(test) THEN
+       !Write out each mesh
+       base='density_'
+       ext='.dat'
+       output=number_file_zeroes(base,m1,4,ext)
+       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       CALL write_density(d1,L,output)
+       output=number_file_zeroes(base,m2,4,ext)
+       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       CALL write_density(d2,L,output)
+       output=number_file_zeroes(base,m3,4,ext)
+       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       CALL write_density(d3,L,output)
+       output=number_file_zeroes(base,m4,4,ext)
+       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       CALL write_density(d4,L,output)
+       output=number_file_zeroes(base,m5,4,ext)
+       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       CALL write_density(d5,L,output)
+    END IF
+
+    !The exact details of the refinement here could certainly be improved
+    !This would involve fiddling with dc and fac
+    !Also all the refinements could be put in a loop
+
+    !First refinement
+
+    !Allocate d with the size of the second-corsest image
+    ALLOCATE(d(m4,m4))
+    dc=dcc
+
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Initial refinement 1+delta:', dc
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Refinement factor:', fac
+
+    DO i=1,m5
+       DO j=1,m5
+          IF(d5(i,j)<dc) THEN
+             !Use coarser density
+             d(2*i-1,2*j-1)=d5(i,j)
+             d(2*i,2*j-1)=d5(i,j)
+             d(2*i-1,2*j)=d5(i,j)
+             d(2*i,2*j)=d5(i,j)
+          ELSE
+             !Use finer density
+             d(2*i-1,2*j-1)=d4(2*i-1,2*j)
+             d(2*i,2*j-1)=d4(2*i,2*j-1)
+             d(2*i-1,2*j)=d4(2*i-1,2*j)
+             d(2*i,2*j)=d4(2*i,2*j)
+             !Stops it being below the threshold (looks grainy)
+             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
+             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
+             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
+             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+          END IF
        END DO
     END DO
 
-    xi_array=REAL(xi8_array/REAL(n_array))
+    !Second refinement
+    d4=d
+    DEALLOCATE(d)
+    ALLOCATE(d(m3,m3))
+    dc=fac*dc
 
-    WRITE(*,*) 'CORRELATION_FUNCTION: done'
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Second refinement 1+delta:', dc
+
+    DO i=1,m4
+       DO j=1,m4
+          IF(d4(i,j)<dc) THEN
+             !Use coarser density
+             d(2*i-1,2*j-1)=d4(i,j)
+             d(2*i,2*j-1)=d4(i,j)
+             d(2*i-1,2*j)=d4(i,j)
+             d(2*i,2*j)=d4(i,j)
+          ELSE
+             !Use finer density
+             d(2*i-1,2*j-1)=d3(2*i-1,2*j)
+             d(2*i,2*j-1)=d3(2*i,2*j-1)
+             d(2*i-1,2*j)=d3(2*i-1,2*j)
+             d(2*i,2*j)=d3(2*i,2*j)
+             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
+             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
+             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
+             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+          END IF
+       END DO
+    END DO
+
+    !Third refinement
+    d3=d
+    DEALLOCATE(d)
+    ALLOCATE(d(m2,m2))
+    dc=fac*dc
+
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Third refinement 1+delta:', dc
+
+    DO i=1,m3
+       DO j=1,m3
+          IF(d3(i,j)<dc) THEN
+             !Use coarser density
+             d(2*i-1,2*j-1)=d3(i,j)
+             d(2*i,2*j-1)=d3(i,j)
+             d(2*i-1,2*j)=d3(i,j)
+             d(2*i,2*j)=d3(i,j)
+          ELSE
+             !Use finer density
+             d(2*i-1,2*j-1)=d2(2*i-1,2*j)
+             d(2*i,2*j-1)=d2(2*i,2*j-1)
+             d(2*i-1,2*j)=d2(2*i-1,2*j)
+             d(2*i,2*j)=d2(2*i,2*j)
+             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
+             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
+             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
+             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+          END IF
+       END DO
+    END DO
+
+    !Fourth refinement
+    d2=d
+    DEALLOCATE(d)
+    ALLOCATE(d(m1,m1))
+    dc=fac*dc
+
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Fourth refinement 1+delta:', dc
+
+    DO i=1,m2
+       DO j=1,m2
+          IF(d2(i,j)<dc) THEN
+             !Use coarser density
+             d(2*i-1,2*j-1)=d2(i,j)
+             d(2*i,2*j-1)=d2(i,j)
+             d(2*i-1,2*j)=d2(i,j)
+             d(2*i,2*j)=d2(i,j)
+          ELSE
+             !Use finer density
+             d(2*i-1,2*j-1)=d1(2*i-1,2*j)
+             d(2*i,2*j-1)=d1(2*i,2*j-1)
+             d(2*i-1,2*j)=d1(2*i-1,2*j)
+             d(2*i,2*j)=d1(2*i,2*j)
+             IF(d(2*i-1,2*j-1)<dc) d(2*i-1,2*j-1)=dc
+             IF(d(2*i,2*j-1)<dc)   d(2*i,2*j-1)=dc
+             IF(d(2*i-1,2*j)<dc)   d(2*i-1,2*j)=dc
+             IF(d(2*i,2*j)<dc)     d(2*i,2*j)=dc
+          END IF
+       END DO
+    END DO
+
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Adaptive density field'
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max density:', MAXVAL(d)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min density:', MINVAL(d)
     WRITE(*,*)
 
-  END SUBROUTINE field_correlation_function
+    IF(test) THEN
+       output='density.dat'
+       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       CALL write_2D_field_ascii(d,m1,L,output)
+    END IF
+
+    !Smooth density field on scales of cells
+    CALL smooth2D(d,m1,L/REAL(m1),L)
+    DO i=1,m1
+       DO j=1,m1
+          IF(d(i,j)<0.) d(i,j)=0.
+       END DO
+    END DO
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Smoothed adaptive density field'
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max density:', MAXVAL(d)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min density:', MINVAL(d)
+    WRITE(*,*)
+
+    CALL write_2D_field_ascii(d,m1,L,outfile)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE adaptive_density
 
 END MODULE simulations
