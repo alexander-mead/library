@@ -328,19 +328,19 @@ CONTAINS
        cosm%Om_m=1.
        cosm%Om_v=0.
     ELSE IF(icosmo==16) THEN
-       w=-0.7
+       cosm%w=-0.7
     ELSE IF(icosmo==17) THEN
-       w=-1.3
+       cosm%w=-1.3
     ELSE IF(icosmo==18) THEN
-       wa=0.5
+       cosm%wa=0.5
     ELSE IF(icosmo==19) THEN
-       wa=-0.5
+       cosm%wa=-0.5
     ELSE IF(icosmo==20) THEN
-       w=-0.7
-       wa=-1.5
+       cosm%w=-0.7
+       cosm%wa=-1.5
     ELSE IF(icosmo==21) THEN
-       w=-1.3
-       wa=0.5
+       cosm%w=-1.3
+       cosm%wa=0.5
     ELSE
        STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly'
     END IF
