@@ -127,9 +127,9 @@ CONTAINS
     REAL, INTENT(OUT) :: d(m,m)
     INTEGER, INTENT(IN) :: n, m
     REAL :: vfac, dbar
-    REAL, ALLOCATABLE :: x2D(:,:)
-    INTEGER :: i, i2D, n2D
-    INTEGER :: ibin
+    REAL, ALLOCATABLE :: x2D(:,:), w2D(:)
+    INTEGER :: i, i2D, n2D    
+    INTEGER :: ibin=2 ! CIC binning (cannot be PARAMETER)
 
     !Count the number of particles falling into the slice
     n2D=0
@@ -149,8 +149,9 @@ CONTAINS
     END DO
 
     !Bin for the 2D density field and convert to relative density
-    ibin=2
-    CALL particle_bin_2D(x2D,n2D,L,d,m,ibin)
+    ALLOCATE(w2D(n2D))
+    w2D=1.
+    CALL particle_bin_2D(x2D,n2D,L,w2D,d,m,ibin)
     DEALLOCATE(x2D)
     vfac=(z2-z1)/L
     dbar=(REAL(n)*vfac)/REAL(m**2)
@@ -454,14 +455,14 @@ CONTAINS
 
   END SUBROUTINE replace
 
-  SUBROUTINE particle_bin_2D(x,n,L,d,m,ibin)
+  SUBROUTINE particle_bin_2D(x,n,L,w,d,m,ibin)
 
     !Bin particle properties onto a mesh, summing as you go
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, m
     INTEGER, INTENT(INOUT) :: ibin
     REAL, INTENT(OUT) :: d(m,m)
-    REAL, INTENT(IN) :: x(2,n), L
+    REAL, INTENT(IN) :: x(2,n), w(n), L
 
     IF(ibin==-1) THEN
        WRITE(*,*) 'Choose binning strategy'
@@ -472,21 +473,21 @@ CONTAINS
     END IF
 
     IF(ibin==1) THEN
-       CALL NGP2D(x,n,L,d,m)
+       CALL NGP2D(x,n,L,w,d,m)
     ELSE IF(ibin==2) THEN
-       CALL CIC2D(x,n,L,d,m)
+       CALL CIC2D(x,n,L,w,d,m)
     ELSE
        STOP 'PARTICLE_BIN: Error, ibin not specified correctly'
     END IF
 
   END SUBROUTINE particle_bin_2D
 
-  SUBROUTINE NGP2D(x,n,L,d,m)
+  SUBROUTINE NGP2D(x,n,L,w,d,m)
 
     !Nearest-grid-point binning routine
     USE statistics
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x(2,n), L
+    REAL, INTENT(IN) :: x(2,n), w(n), L
     INTEGER, INTENT(IN) :: n, m
     REAL, INTENT(OUT) :: d(m,m)
     INTEGER :: i, ix, iy
@@ -499,39 +500,23 @@ CONTAINS
 
     DO i=1,n
 
-       !ix=CEILING(x(1,i)*REAL(m)/L)
-       !iy=CEILING(x(2,i)*REAL(m)/L)
        ix=NGP_cell(x(1,i),L,m)
        iy=NGP_cell(x(2,i),L,m)
 
-!!$       IF(ix>m .OR. ix<1) THEN
-!!$          WRITE(*,*) 'x:', i, x(1,i)
-!!$          STOP 'NGP2D: Warning, point outside box'
-!!$       END IF
-!!$
-!!$       IF(iy>m .OR. iy<1) THEN
-!!$          WRITE(*,*) 'y:', i, x(2,i)
-!!$          STOP 'NGP: Warning, point outside box'
-!!$       END IF
-
-       d(ix,iy)=d(ix,iy)+1.
+       d(ix,iy)=d(ix,iy)+w(i)
 
     END DO
 
-!!$    WRITE(*,*) 'NGP2D: Average:', mean(d,m)
-!!$    WRITE(*,*) 'NGP2D: RMS:', sqrt(variance(d,m))
-!!$    WRITE(*,*) 'NGP2D: Minimum:', MINVAL(REAL(d))
-!!$    WRITE(*,*) 'NGP2D: Maximum:', MAXVAL(REAL(d))
     WRITE(*,*) 'NGP2D: Binning complete'
     WRITE(*,*)
 
   END SUBROUTINE NGP2D
 
-  SUBROUTINE CIC2D(x,n,L,d,m)
+  SUBROUTINE CIC2D(x,n,L,w,d,m)
 
     !This could probably be usefully combined with CIC somehow
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x(2,n), L
+    REAL, INTENT(IN) :: x(2,n), w(n), L
     INTEGER, INTENT(IN) :: n, m
     REAL, INTENT(OUT) :: d(m,m)
     INTEGER :: i, ix, iy, ixn, iyn
@@ -574,10 +559,10 @@ CONTAINS
        END IF
 
        !Carry out CIC binning
-       d(ix,iy)=d(ix,iy)+(1.-dx)*(1.-dy)
-       d(ix,iyn)=d(ix,iyn)+(1.-dx)*dy
-       d(ixn,iy)=d(ixn,iy)+dx*(1.-dy)
-       d(ixn,iyn)=d(ixn,iyn)+dx*dy
+       d(ix,iy)=d(ix,iy)+(1.-dx)*(1.-dy)*w(i)
+       d(ix,iyn)=d(ix,iyn)+(1.-dx)*dy*w(i)
+       d(ixn,iy)=d(ixn,iy)+dx*(1.-dy)*w(i)
+       d(ixn,iyn)=d(ixn,iyn)+dx*dy*w(i)
 
     END DO
 
@@ -618,7 +603,7 @@ CONTAINS
     !Bin particle properties onto a mesh, averaging properties over cells
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, m, ibin
-    REAL, INTENT(INOUT) :: d(m,m,m)
+    REAL, INTENT(OUT) :: d(m,m,m)
     REAL, INTENT(IN) :: x(3,n), L, w(n)
     REAL :: number(m,m,m), one(n)
     INTEGER :: i, j, k, sum
@@ -665,10 +650,9 @@ CONTAINS
     USE statistics
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, m
-    INTEGER :: i
-    REAL, INTENT(INOUT) :: d(m,m,m)
-    REAL, INTENT(IN) :: x(3,n), L, w(n)
-    INTEGER :: ix, iy, iz
+    REAL, INTENT(OUT) :: d(m,m,m)
+    REAL, INTENT(IN) :: x(3,n), w(n), L
+    INTEGER :: i, ix, iy, iz
 
     WRITE(*,*) 'NGP: Binning particles and creating field'
     WRITE(*,*) 'NGP: Cells:', m
@@ -717,7 +701,7 @@ CONTAINS
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, m
     REAL, INTENT(IN) :: x(3,n), L, w(n)
-    REAL, INTENT(INOUT) :: d(m,m,m)
+    REAL, INTENT(OUT) :: d(m,m,m)
     INTEGER :: ix, iy, iz, ixn, iyn, izn
     INTEGER :: i
     REAL :: dx, dy, dz
@@ -1133,21 +1117,22 @@ CONTAINS
 
   END FUNCTION shot_noise_k
 
-  SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,n,L,outfile)    
+  SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,outfile)    
 
+    USE array_operations
     USE string_operations
     USE field_operations
     IMPLICIT NONE
     REAL, INTENT(IN) :: xc, yc, Lsub, z1, z2
     INTEGER, INTENT(IN) :: m, n, r
-    REAL, INTENT(IN) :: x(3,n), L
+    REAL, INTENT(IN) :: x(3,n), w(n), L
     CHARACTER(len=*), INTENT(IN) :: outfile
 
     REAL :: x1, x2, y1, y2, Lx, Ly, Lz, delta, nbar, npexp
     INTEGER :: np
     INTEGER :: m1, m2, m3, m4, m5
     INTEGER :: i, j
-    REAL, ALLOCATABLE :: y(:,:), d(:,:)
+    REAL, ALLOCATABLE :: y(:,:), d(:,:), u(:)
     REAL, ALLOCATABLE :: c1(:,:), c2(:,:), c3(:,:), c4(:,:), c5(:,:)
     REAL, ALLOCATABLE :: d1(:,:), d2(:,:), d3(:,:), d4(:,:), d5(:,:)
     REAL, ALLOCATABLE :: di(:,:,:), ci(:,:,:)
@@ -1157,6 +1142,7 @@ CONTAINS
     REAL, PARAMETER :: dc=4. ! Refinement conditions (particles-per-cell)
     REAL, PARAMETER :: fcell=1. ! Smoothing factor over cell sizes (maybe should be set to 1; 0.75 looks okay)
     LOGICAL, PARAMETER :: test=.FALSE. ! Activate test mode
+    INTEGER :: ibin=2 ! CIC binning (cannot be parameter, but would like to be)
 
     IF(r>4) STOP 'ADAPTIVE_DENSITY: Error, too many refinement leves requested. Maximum is 4'
 
@@ -1168,7 +1154,10 @@ CONTAINS
     WRITE(*,*)
 
     ! Calculate the 2D average particle number density
-    nbar=REAL(n)/L**2
+    !nbar=REAL(n)/L**2
+    !WRITE(*,*) 'nbar 1:', nbar
+    nbar=SUM_DOUBLE(w,n)/L**2
+    WRITE(*,*) 'nbar 2:', nbar
 
     ! Set the region boundaries in Mpc/h
     x1=xc-Lsub/2.
@@ -1211,7 +1200,7 @@ CONTAINS
     WRITE(*,*) 'ADAPTIVE_DENSITY: Region over-density:', delta
     WRITE(*,*)
 
-    ALLOCATE(y(2,np))
+    ALLOCATE(y(2,np),u(np))
 
     ! Second pass to add particles in the region to 2D array y
     j=0
@@ -1220,6 +1209,7 @@ CONTAINS
           j=j+1
           y(1,j)=x(1,i)-xc+Lsub/2.
           y(2,j)=x(2,i)-yc+Lsub/2.
+          u(j)=w(i)
        END IF
     END DO
 
@@ -1250,11 +1240,16 @@ CONTAINS
 
     ! Do CIC binning on each mesh resolution
     ! These CIC routines assume the volume is periodic, so you get some weird edge effects
-    CALL CIC2D(y,np,Lsub,c1,m1)
-    CALL CIC2D(y,np,Lsub,c2,m2)
-    CALL CIC2D(y,np,Lsub,c3,m3)
-    CALL CIC2D(y,np,Lsub,c4,m4)
-    CALL CIC2D(y,np,Lsub,c5,m5)
+    !CALL CIC2D(y,np,Lsub,u,c1,m1)
+    !CALL CIC2D(y,np,Lsub,u,c2,m2)
+    !CALL CIC2D(y,np,Lsub,u,c3,m3)
+    !CALL CIC2D(y,np,Lsub,u,c4,m4)
+    !CALL CIC2D(y,np,Lsub,u,c5,m5)
+    CALL particle_bin_2D(y,np,Lsub,u,c1,m1,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u,c2,m2,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u,c3,m3,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u,c4,m4,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u,c5,m5,ibin)
 
     ! Convert to overdensities (1+delta = rho/rhobar)
     ! Could certainly save memory here by having d1=c1, but having the c arrays makes the calculation more obvious
