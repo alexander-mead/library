@@ -1117,7 +1117,7 @@ CONTAINS
 
   END FUNCTION shot_noise_k
 
-  SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,outfile)    
+  SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,nbar,outfile)    
 
     USE array_operations
     USE string_operations
@@ -1125,10 +1125,10 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: xc, yc, Lsub, z1, z2
     INTEGER, INTENT(IN) :: m, n, r
-    REAL, INTENT(IN) :: x(3,n), w(n), L
+    REAL, INTENT(IN) :: x(3,n), w(n), L, nbar
     CHARACTER(len=*), INTENT(IN) :: outfile
 
-    REAL :: x1, x2, y1, y2, Lx, Ly, Lz, delta, nbar, npexp
+    REAL :: x1, x2, y1, y2, Lx, Ly, Lz, delta, npexp
     INTEGER :: np
     INTEGER :: m1, m2, m3, m4, m5
     INTEGER :: i, j
@@ -1156,8 +1156,8 @@ CONTAINS
     ! Calculate the 2D average particle number density
     !nbar=REAL(n)/L**2
     !WRITE(*,*) 'nbar 1:', nbar
-    nbar=SUM_DOUBLE(w,n)/L**2
-    WRITE(*,*) 'nbar 2:', nbar
+    !nbar=SUM_DOUBLE(w,n)/L**2
+    !WRITE(*,*) 'nbar 2:', nbar
 
     ! Set the region boundaries in Mpc/h
     x1=xc-Lsub/2.
