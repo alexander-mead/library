@@ -250,10 +250,17 @@ CONTAINS
 
     !Find the integer coordinates of the cell the particle x is in
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x, L
-    INTEGER, INTENT(IN) :: m
+    REAL, INTENT(IN) :: x ! Particle position
+    REAL, INTENT(IN) :: L ! Box size
+    INTEGER, INTENT(IN) :: m ! Number of mesh cells in grid
 
-    NGP_cell=NINT(0.5+m*x/L)
+    IF(x==0.) THEN
+       !Catch this edge case
+       NGP_cell=1
+    ELSE
+       !NGP_cell=NINT(0.5+m*x/L)
+       NGP_cell=CEILING(x*REAL(m)/L)
+    END IF    
 
     IF(NGP_cell<1 .OR. NGP_cell>m) THEN
        WRITE(*,*) 'NGP_CELL: Particle position [Mpc/h]:', x
@@ -439,7 +446,8 @@ CONTAINS
 
   SUBROUTINE replace(x,n,L)
 
-    !Ensures/enforces periodicity by cycling particles round that may have strayed
+    ! Ensures/enforces periodicity by cycling particles round that may have strayed
+    ! This forces all particles to be 0<=x<L, so they cannot be exactly at x=L
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n)
     REAL, INTENT(IN) :: L
@@ -448,8 +456,8 @@ CONTAINS
 
     DO i=1,n
        DO j=1,3
-          IF(x(j,i)>L)   x(j,i)=x(j,i)-L
-          IF(x(j,i)<=0.) x(j,i)=x(j,i)+L
+          IF(x(j,i)>=L) x(j,i)=x(j,i)-L
+          IF(x(j,i)<0.) x(j,i)=x(j,i)+L
        END DO
     END DO
 
@@ -662,24 +670,27 @@ CONTAINS
 
     DO i=1,n
 
-       ix=CEILING(x(1,i)*REAL(m)/L)
-       iy=CEILING(x(2,i)*REAL(m)/L)
-       iz=CEILING(x(3,i)*REAL(m)/L)
+       !ix=CEILING(x(1,i)*REAL(m)/L)
+       !iy=CEILING(x(2,i)*REAL(m)/L)
+       !iz=CEILING(x(3,i)*REAL(m)/L)
+       ix=NGP_cell(x(1,i),L,m)
+       iy=NGP_cell(x(2,i),L,m)
+       iz=NGP_cell(x(3,i),L,m)
 
-       IF(ix>m .OR. ix<1) THEN
-          WRITE(*,*) 'x:', i, x(1,i)
-          STOP 'NGP: Warning, point outside box'
-       END IF
+       !IF(ix>m .OR. ix<1) THEN
+       !   WRITE(*,*) 'x:', i, x(1,i)
+       !   STOP 'NGP: Warning, point outside box'
+       !END IF
 
-       IF(iy>m .OR. iy<1) THEN
-          WRITE(*,*) 'y:', i, x(2,i)
-          STOP 'NGP: Warning, point outside box'
-       END IF
+       !IF(iy>m .OR. iy<1) THEN
+       !   WRITE(*,*) 'y:', i, x(2,i)
+       !   STOP 'NGP: Warning, point outside box'
+       !END IF
 
-       IF(iz>m .OR. iz<1) THEN
-          WRITE(*,*) 'z:', i, x(3,i)
-          STOP 'NGP: Warning, point outside box'
-       END IF
+       !IF(iz>m .OR. iz<1) THEN
+       !   WRITE(*,*) 'z:', i, x(3,i)
+       !   STOP 'NGP: Warning, point outside box'
+       !END IF
 
        d(ix,iy,iz)=d(ix,iy,iz)+w(i)
 
@@ -714,24 +725,27 @@ CONTAINS
 
     DO i=1,n
 
-       ix=CEILING(x(1,i)*REAL(m)/L)
-       iy=CEILING(x(2,i)*REAL(m)/L)
-       iz=CEILING(x(3,i)*REAL(m)/L)
+       !ix=CEILING(x(1,i)*REAL(m)/L)
+       !iy=CEILING(x(2,i)*REAL(m)/L)
+       !iz=CEILING(x(3,i)*REAL(m)/L)
+       ix=NGP_cell(x(1,i),L,m)
+       iy=NGP_cell(x(2,i),L,m)
+       iz=NGP_cell(x(3,i),L,m)
 
-       IF(ix>m .OR. ix<1) THEN
-          WRITE(*,*) 'x:', i, x(1,i)
-          STOP 'CIC: Warning, point outside box'
-       END IF
+       !IF(ix>m .OR. ix<1) THEN
+       !   WRITE(*,*) 'x:', i, x(1,i)
+       !   STOP 'CIC: Warning, point outside box'
+       !END IF
 
-       IF(iy>m .OR. iy<1) THEN
-          WRITE(*,*) 'y:', i, x(2,i)
-          STOP 'CIC: Warning, point outside box'
-       END IF
+       !IF(iy>m .OR. iy<1) THEN
+       !   WRITE(*,*) 'y:', i, x(2,i)
+       !   STOP 'CIC: Warning, point outside box'
+       !END IF
 
-       IF(iz>m .OR. iz<1) THEN
-          WRITE(*,*) 'z:', i, x(3,i)
-          STOP 'CIC: Warning, point outside box'
-       END IF
+       !IF(iz>m .OR. iz<1) THEN
+       !   WRITE(*,*) 'z:', i, x(3,i)
+       !   STOP 'CIC: Warning, point outside box'
+       !END IF
 
        !dx, dy, dz in box units
        dx=(x(1,i)/L)*REAL(m)-(REAL(ix)-0.5)
@@ -825,29 +839,32 @@ CONTAINS
        !WRITE(*,*) 'Particle coordinates:', i, x(1,i), x(2,i), x(3,i)
 
        !Coordinate of nearest mesh cell
-       ix=CEILING(x(1,i)*REAL(m)/L)
-       iy=CEILING(x(2,i)*REAL(m)/L)
-       iz=CEILING(x(3,i)*REAL(m)/L)
+       !ix=CEILING(x(1,i)*REAL(m)/L)
+       !iy=CEILING(x(2,i)*REAL(m)/L)
+       !iz=CEILING(x(3,i)*REAL(m)/L)
+       ix=NGP_cell(x(1,i),L,m)
+       iy=NGP_cell(x(2,i),L,m)
+       iz=NGP_cell(x(3,i),L,m)
 
        !WRITE(*,*) 'Mesh cell coordinates:', ix, iy, iz
 
        !Check that particles are within box
-       IF(ix>m .OR. ix<1) THEN
-          WRITE(*,*) 'x:', i, x(1,i)
-          STOP 'SOD: Error, particle outside box'
-       END IF
+       !IF(ix>m .OR. ix<1) THEN
+       !   WRITE(*,*) 'x:', i, x(1,i)
+       !   STOP 'SOD: Error, particle outside box'
+       !END IF
 
        !Check that particles are within box
-       IF(iy>m .OR. iy<1) THEN
-          WRITE(*,*) 'y:', i, x(2,i)
-          STOP 'SOD: Error, particle outside box'
-       END IF
+       !IF(iy>m .OR. iy<1) THEN
+       !   WRITE(*,*) 'y:', i, x(2,i)
+       !   STOP 'SOD: Error, particle outside box'
+       !END IF
 
        !Check that particles are within box
-       IF(iz>m .OR. iz<1) THEN
-          WRITE(*,*) 'z:', i, x(3,i)
-          STOP 'SOD: Error, particle outside box'
-       END IF
+       !IF(iz>m .OR. iz<1) THEN
+       !   WRITE(*,*) 'z:', i, x(3,i)
+       !   STOP 'SOD: Error, particle outside box'
+       !END IF
 
        !See if particle is within spheres of over 27 neighbouring spheres
        DO jx=-1,1
