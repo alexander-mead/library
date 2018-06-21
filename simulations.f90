@@ -1109,9 +1109,11 @@ CONTAINS
 
   REAL FUNCTION shot_noise_k(k,shot)
 
+    !Calculates shot noise as Delta^2(k)
     USE constants
     IMPLICIT NONE
-    REAL, INTENT(IN) :: k, shot
+    REAL, INTENT(IN) :: k ! Wave vector [h/Mpc]
+    REAL, INTENT(IN) :: shot ! The constant shot-noise term: P(k)
 
     shot_noise_k=shot*4.*pi*(k/twopi)**3
 
@@ -1119,14 +1121,23 @@ CONTAINS
 
   SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,nbar,outfile)    
 
+    ! Makes a pretty picture of a density field but uses adaptive meshes to make it nice    
     USE array_operations
     USE string_operations
-    USE field_operations
+    USE field_operations    
     IMPLICIT NONE
-    REAL, INTENT(IN) :: xc, yc, Lsub, z1, z2
-    INTEGER, INTENT(IN) :: m, n, r
-    REAL, INTENT(IN) :: x(3,n), w(n), L, nbar
-    CHARACTER(len=*), INTENT(IN) :: outfile
+    
+    REAL, INTENT(IN) :: xc, yc ! Coordinates of image centre [Mpc/h]
+    REAL, INTENT(IN) :: Lsub ! Size of image [Mpc/h]
+    REAL, INTENT(IN) :: z1, z2 ! Front and back of image [Mpc/h]
+    INTEGER, INTENT(IN) :: m ! Image size in pixels (e.g., 2048)
+    INTEGER, INTENT(IN) :: r ! Integer number of levels of refinement
+    INTEGER, INTENT(IN) :: n ! Number of particles
+    REAL, INTENT(IN) :: x(3,n) ! P article position array [Mpc/h]
+    REAL, INTENT(IN) :: w(n) ! Weight array (e.g., mass, or just an array of ones)
+    REAL, INTENT(IN) :: L ! Box size [Mpc/h]
+    REAL, INTENT(IN) :: nbar ! Average 2D density
+    CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
 
     REAL :: x1, x2, y1, y2, Lx, Ly, Lz, delta, npexp
     INTEGER :: np
@@ -1138,7 +1149,6 @@ CONTAINS
     REAL, ALLOCATABLE :: di(:,:,:), ci(:,:,:)
     CHARACTER(len=256) :: base, ext, output
 
-    !INTEGER, PARAMETER :: r=4 ! Number of refinements
     REAL, PARAMETER :: dc=4. ! Refinement conditions (particles-per-cell)
     REAL, PARAMETER :: fcell=1. ! Smoothing factor over cell sizes (maybe should be set to 1; 0.75 looks okay)
     LOGICAL, PARAMETER :: test=.FALSE. ! Activate test mode
@@ -1152,12 +1162,6 @@ CONTAINS
     WRITE(*,*) 'ADAPTIVE_DENSITY: Smoothing factor in cell size:', fcell
     WRITE(*,*) 'ADAPTIVE_DENSITY: Number of refinements:', r
     WRITE(*,*)
-
-    ! Calculate the 2D average particle number density
-    !nbar=REAL(n)/L**2
-    !WRITE(*,*) 'nbar 1:', nbar
-    !nbar=SUM_DOUBLE(w,n)/L**2
-    !WRITE(*,*) 'nbar 2:', nbar
 
     ! Set the region boundaries in Mpc/h
     x1=xc-Lsub/2.
@@ -1240,11 +1244,6 @@ CONTAINS
 
     ! Do CIC binning on each mesh resolution
     ! These CIC routines assume the volume is periodic, so you get some weird edge effects
-    !CALL CIC2D(y,np,Lsub,u,c1,m1)
-    !CALL CIC2D(y,np,Lsub,u,c2,m2)
-    !CALL CIC2D(y,np,Lsub,u,c3,m3)
-    !CALL CIC2D(y,np,Lsub,u,c4,m4)
-    !CALL CIC2D(y,np,Lsub,u,c5,m5)
     CALL particle_bin_2D(y,np,Lsub,u,c1,m1,ibin)
     CALL particle_bin_2D(y,np,Lsub,u,c2,m2,ibin)
     CALL particle_bin_2D(y,np,Lsub,u,c3,m3,ibin)
