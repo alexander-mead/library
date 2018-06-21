@@ -359,4 +359,35 @@ CONTAINS
 
   END FUNCTION maximum
 
+   SUBROUTINE mask(okay,m,n,min,max)
+
+    ! Flags objects that make the cut as 'okay'
+    ! Can be applied to any scalar array, not just mass
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: m(n), min, max
+    INTEGER, INTENT(IN) :: n
+    LOGICAL, INTENT(OUT) :: okay(n)
+    INTEGER :: i, o
+
+    WRITE(*,*) 'CUT: Imposing property cut'    
+    WRITE(*,*) 'CUT: Minimum value:', min
+    WRITE(*,*) 'CUT: Maximum value:', max
+    WRITE(*,*) 'CUT: Original number of objects', n
+
+    okay=.FALSE.
+
+    DO i=1,n
+       IF(m(i)>=min .AND. m(i)<=max) okay(i)=.TRUE.
+    END DO
+
+    o=COUNT(okay)
+
+    WRITE(*,*) 'CUT: Final number of objects:', o
+    WRITE(*,*) 'CUT: Fraction remaining:', REAL(o)/REAL(n)
+    WRITE(*,*) 'CUT: Fraction culled:', 1.-REAL(o)/REAL(n)
+    WRITE(*,*) 'CUT: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE mask
+
 END MODULE array_operations

@@ -2,6 +2,42 @@ MODULE field_operations
 
 CONTAINS
 
+    INTEGER FUNCTION NGP_cell(x,L,m)
+
+    !Find the integer coordinates of the cell the particle x is in
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x ! Particle position
+    REAL, INTENT(IN) :: L ! Box size
+    INTEGER, INTENT(IN) :: m ! Number of mesh cells in grid
+
+    IF(x==0.) THEN
+       !Catch this edge case
+       NGP_cell=1
+    ELSE
+       !NGP_cell=NINT(0.5+m*x/L)
+       NGP_cell=CEILING(x*REAL(m)/L)
+    END IF    
+
+    IF(NGP_cell<1 .OR. NGP_cell>m) THEN
+       WRITE(*,*) 'NGP_CELL: Particle position [Mpc/h]:', x
+       WRITE(*,*) 'NGP_CELL: Box size [Mpc/h]:', L
+       WRITE(*,*) 'NGP_CELL: Mesh size:', m 
+       WRITE(*,*) 'NGP_CELL: Assigned cell:', NGP_cell
+       STOP 'NGP_CELL: Error, the assigned cell position is outside the mesh'
+    END IF
+
+  END FUNCTION NGP_cell
+
+  REAL FUNCTION cell_position(i,L,m)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: L
+    INTEGER, INTENT(IN) :: i, m
+
+    cell_position=L*(i-0.5)/REAL(m)
+
+  END FUNCTION cell_position
+
   REAL FUNCTION random_mode_amplitude(k,L,logk_tab,logPk_tab,nk,use_average)
 
     !This calculates the Fourier amplitudes of the density field
@@ -317,8 +353,10 @@ CONTAINS
     DO j=1,m
        DO i=1,m
 
-          x=L*(REAL(i)-0.5)/REAL(m)
-          y=L*(REAL(j)-0.5)/REAL(m)
+          !x=L*(REAL(i)-0.5)/REAL(m)
+          !y=L*(REAL(j)-0.5)/REAL(m)
+          x=cell_position(i,L,m)
+          y=cell_position(i,L,m)
 
           WRITE(8,*) x, y, d(i,j)
 
@@ -349,8 +387,10 @@ CONTAINS
     DO j=1,m
        DO i=1,m
 
-          x=L*(REAL(i)-0.5)/REAL(m)
-          y=L*(REAL(j)-0.5)/REAL(m)
+          !x=L*(REAL(i)-0.5)/REAL(m)
+          !y=L*(REAL(j)-0.5)/REAL(m)
+          x=cell_position(i,L,m)
+          y=cell_position(i,L,m)
 
           sum=0.
           DO k=1,nz
@@ -1422,7 +1462,8 @@ CONTAINS
              i(3)=i3
              
              DO dim=1,3
-                x1(dim)=L*(i(dim)-0.5)/REAL(m)
+                !x1(dim)=L*(i(dim)-0.5)/REAL(m)
+                x1(dim)=cell_position(i(dim),L,m)
              END DO
 
              DO j3=1,m
@@ -1434,7 +1475,9 @@ CONTAINS
                       j(3)=j3
 
                       DO dim=1,3
-                         x2(dim)=L*(j(dim)-0.5)/REAL(m)
+                         ! This could/should be cell position function
+                         !x2(dim)=L*(j(dim)-0.5)/REAL(m)
+                         x2(dim)=cell_position(j(dim),L,m)
                       END DO
 
                       r=periodic_distance(x1,x2,L)
