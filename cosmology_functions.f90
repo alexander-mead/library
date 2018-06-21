@@ -42,6 +42,7 @@ CONTAINS
     ! Prints the cosmological parameters to the screen
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL, PARAMETER :: small=1e-5
 
     IF(cosm%verbose) THEN
        WRITE(*,*) 'COSMOLOGY: ', TRIM(cosm%name)
@@ -71,8 +72,8 @@ CONTAINS
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_k:', cosm%Om_k
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v'':', cosm%Om_v_mod
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [Mpc/h]^-2:', cosm%k
-       IF(cosm%Om_k .NE. 0.) THEN
-          WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k_rad [Mpc/h]:', 1./sqrt(cosm%k)
+       IF(ABS(cosm%k)>small) THEN
+          WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k_rad [Mpc/h]:', 1./sqrt(ABS(cosm%k))
        END IF
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_p:', cosm%mup
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_e:', cosm%mue
@@ -328,19 +329,43 @@ CONTAINS
        cosm%Om_m=1.
        cosm%Om_v=0.
     ELSE IF(icosmo==16) THEN
+       !w = -0.7
+       cosm%iw=4
        cosm%w=-0.7
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
     ELSE IF(icosmo==17) THEN
+       !w = -1.3
+       cosm%iw=4
        cosm%w=-1.3
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
     ELSE IF(icosmo==18) THEN
+       !wa = 0.5
+       cosm%iw=3
        cosm%wa=0.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
     ELSE IF(icosmo==19) THEN
+       !wa = -0.5
+       cosm%iw=3
        cosm%wa=-0.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
     ELSE IF(icosmo==20) THEN
+       !w = -0.7; wa = -1.5
+       cosm%iw=3
        cosm%w=-0.7
        cosm%wa=-1.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
     ELSE IF(icosmo==21) THEN
+       !w = -1.3; wa = 0.5
+       cosm%iw=3
        cosm%w=-1.3
        cosm%wa=0.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
     ELSE
        STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly'
     END IF
@@ -362,6 +387,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: Xs, f1, f2
     REAL :: rho_g, Om_g_h2
+    REAL, PARAMETER :: small=1e-5
 
     IF(cosm%verbose) WRITE(*,*) 'INIT_COSMOLOGY: Calcuating radiation density'
 
@@ -391,11 +417,12 @@ CONTAINS
     cosm%k=(cosm%Om-1.)/(Hdist**2)
 
     IF(cosm%verbose) THEN
-       WRITE(*,*) 'INIT_COSMOLOGY: Omega_c:', REAL(cosm%Om_c)
-       WRITE(*,*) 'INIT_COSMOLOGY: Omega:', REAL(cosm%Om)
-       WRITE(*,*) 'INIT_COSMOLOGY: Omega_k:', REAL(cosm%Om_k)
-       IF(cosm%Om_k .NE. 0.) THEN
-          WRITE(*,*) 'INIT_COSMOLOGY: k_rad [Mpc/h]:', 1./sqrt(REAL(cosm%k))
+       WRITE(*,*) 'INIT_COSMOLOGY: Omega_c:', cosm%Om_c
+       WRITE(*,*) 'INIT_COSMOLOGY: Omega:', cosm%Om
+       WRITE(*,*) 'INIT_COSMOLOGY: Omega_k:', cosm%Om_k
+       WRITE(*,*) 'INIT_COSMOLOGY: k [Mpc/h]^-2:', cosm%k
+       IF(ABS(cosm%k)>small) THEN
+          WRITE(*,*) 'INIT_COSMOLOGY: k_rad [Mpc/h]:', 1./sqrt(ABS(cosm%k))
        END IF
     END IF
 
@@ -404,8 +431,8 @@ CONTAINS
     cosm%mue=2./(1.+cosm%YH) ! Nuclear mass per electron (~1.136 if fH=0.76)
 
     IF(cosm%verbose) THEN
-       WRITE(*,*) 'INIT_COSMOLOGY: mu_p:', REAL(cosm%mup)
-       WRITE(*,*) 'INIT_COSMOLOGY: mu_e:', REAL(cosm%mue)
+       WRITE(*,*) 'INIT_COSMOLOGY: mu_p:', cosm%mup
+       WRITE(*,*) 'INIT_COSMOLOGY: mu_e:', cosm%mue
     END IF
     
     cosm%is_init=.TRUE.
@@ -835,8 +862,6 @@ CONTAINS
     IF(cosm%iw==1) THEN
        ! LCDM
        X_de=1.
-    ELSE IF(cosm%iw==2) THEN
-       STOP 'X_DE: Error, need to support explicit integration here'
     ELSE IF(cosm%iw==3) THEN
        ! w(a)CDM
        X_de=(a**(-3.*(1.+cosm%w+cosm%wa)))*exp(-3.*cosm%wa*(1.-a))
@@ -866,9 +891,6 @@ CONTAINS
        END IF
     ELSE
        ! Generally true, doing this integration can make calculations very slow
-       ! Difficult to implement into library because of cosm dependence of w_de
-       ! See the commented out bit below
-       ! X_de=(a**(-3))*exp(3.*integrate_log(a,1.,integrand_de,acc,3,1))
        STOP 'X_DE: Error, this integration routine has not been tested'
        X_de=(a**(-3))*exp(3.*integrate_cosm(a,1.,integrand_de,cosm,acc_cosm,3))
     END IF
