@@ -12,6 +12,7 @@ DEBUG_FLAGS = -Wall -fcheck=all -fbounds-check -fbacktrace -Og
 # All the object files that the library is composed of 
 OBJS =  precision.o \
 	constants.o \
+	logical_operations.o \
 	fix_polynomial.o \
 	array_operations.o \
 	calculus.o \
@@ -27,7 +28,6 @@ OBJS =  precision.o \
 	statistics.o \
 	fitting.o \
 	gadget.o \
-	logical_operations.o \
 	numerology.o \
 	ode_solvers.o \
 	vectors.o \

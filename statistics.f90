@@ -50,7 +50,7 @@ CONTAINS
     REAL, INTENT(IN) :: xmin, xmax, data(m)
     INTEGER, INTENT(IN) :: n, m
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
-    INTEGER, INTENT(OUT) :: hist(n)
+    INTEGER, ALLOCATABLE, INTENT(OUT) :: hist(:)
     INTEGER :: i, j
 
     WRITE(*,*) 'HISTOGRAM: Assiging arrays'
@@ -59,15 +59,15 @@ CONTAINS
     CALL fill_array(xmin,xmax,x,n+1)
 
     !Set the histogram to zero
+    IF(ALLOCATED(hist)) DEALLOCATE(hist)
+    ALLOCATE(hist(n))
     hist=0
 
     WRITE(*,*) 'HISTOGRAM: Constructing histogram'
 
     !Make the histogram from the data
     DO i=1,m
-       IF(data(i)<xmin) THEN
-          CYCLE
-       ELSE IF(data(i)>xmax) THEN
+       IF(data(i)<xmin .OR. data(i)>xmax) THEN
           CYCLE
        ELSE
           j=select_table_integer(data(i),x,n,1)

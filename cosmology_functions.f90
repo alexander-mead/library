@@ -15,7 +15,8 @@ MODULE cosmology_functions
      REAL :: Om_ws, as, a1n, a2n ! Derived DE parameters
      REAL :: alpha, eps, Gamma, M0, Astar, whim ! Baryon parameters
      REAL :: mgal, HImin, HImax ! HOD parameters
-     INTEGER :: iw ! Switches
+     REAL :: Lbox ! Box size
+     INTEGER :: iw, ibox ! Switches
      REAL, ALLOCATABLE :: log_sigma(:), log_r_sigma(:) ! Arrays for sigma(R)
      REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
      REAL, ALLOCATABLE :: r(:), a_r(:) ! Arrays for distance
@@ -32,8 +33,6 @@ MODULE cosmology_functions
 
   ! Global parameters
   REAL, PARAMETER :: acc_cosm=1e-4 !Accuacy for the integrations
-  INTEGER, PARAMETER :: ibox=0 !Consider the simulation volume
-  REAL, PARAMETER :: Lbox=400. !Simulation box size
 
 CONTAINS
 
@@ -143,14 +142,14 @@ CONTAINS
     REAL :: Om_c
 
     !Names of pre-defined cosmologies    
-    INTEGER, PARAMETER :: ncosmo=21
+    INTEGER, PARAMETER :: ncosmo=23
     CHARACTER(len=256) :: names(0:ncosmo)
     names(0)='User defined'
     names(1)='Boring'
     names(2)='WMAP7 (cosmo-OWLS version; 1312.5462)'
     names(3)='Planck 2013 (cosmo-OWLS version; 1312.5462)'
     names(4)='WMAP9 (BAHAMAS version: 1712.02411)'
-    names(5)='Boring open model'
+    names(5)='Open'
     names(6)='Einstein de-Sitter'
     names(7)='IDE I (user)'
     names(8)='IDE II (user)'
@@ -159,14 +158,16 @@ CONTAINS
     names(11)='IDE10'
     names(12)='LCDM (user)'
     names(13)='w(a)CDM (user)'
-    names(14)='Boring WDM'
+    names(14)='WDM'
     names(15)='EdS'
-    names(16)='Boring - w = -0.7'
-    names(17)='Boring - w = -1.3'
-    names(18)='Boring - w = -1; wa = 0.5'
-    names(19)='Boring - w = -1; wa = -0.5'
-    names(20)='Boring - w = -0.7; wa = -1.5'
-    names(21)='Boring - w = -0.7; wa = 0.5'
+    names(16)='Boring: w = -0.7'
+    names(17)='Boring: w = -1.3'
+    names(18)='Boring: w = -1; wa = 0.5'
+    names(19)='Boring: w = -1; wa = -0.5'
+    names(20)='Boring: w = -0.7; wa = -1.5'
+    names(21)='Boring: w = -0.7; wa = 0.5'
+    names(22)='IDE3'
+    names(23)='IDE10'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_COSMOLOGY: Assigning cosmological model parameters'
 
@@ -228,6 +229,10 @@ CONTAINS
     !TODO: These should eventually be HMx parameters
     cosm%HImin=1e9
     cosm%HImax=1e12
+
+    ! Consider box size
+    cosm%ibox=0
+    cosm%Lbox=400.
 
     IF(icosmo==0) THEN
        STOP 'TODO: implement user decision here'
@@ -366,6 +371,23 @@ CONTAINS
        cosm%wa=0.5
        cosm%Om_w=cosm%Om_v
        cosm%Om_v=0.
+    ELSE IF(icosmo==22 .OR. icosmo==23) THEN
+       !IDE II models
+       cosm%iw=6
+       cosm%Om_m=0.3
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0. !No vacuum necessary here
+       IF(icosmo==22) THEN
+          !IDE 3
+          cosm%ns=3
+          cosm%as=0.01
+          cosm%Om_ws=0.1
+       ELSE IF(icosmo==23) THEN
+          !IDE 10
+          cosm%ns=10
+          cosm%as=0.1
+          cosm%Om_ws=0.02
+       END IF       
     ELSE
        STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly'
     END IF
@@ -916,9 +938,9 @@ CONTAINS
     REAL :: redshift_a
     REAL, INTENT(IN) :: a
 
-    IF(a==0. .OR. a>1.) THEN
+    IF(a==0.) THEN
        WRITE(*,*) 'REDSHIFT_A: a', a
-       STOP 'REDSHIFT_A: Error, routine called with weird a'
+       STOP 'REDSHIFT_A: Error, routine called with a = 0'
     END IF
 
     redshift_a=-1.+1./a
@@ -932,9 +954,9 @@ CONTAINS
     REAL :: scale_factor_z
     REAL, INTENT(IN) :: z
 
-    IF(z<0.) THEN
+    IF(z<-1.) THEN
        WRITE(*,*) 'SCALE_FACTOR_Z: z', z
-       STOP 'SCALE_FACTOR_Z: Error, routine called for z<0'
+       STOP 'SCALE_FACTOR_Z: Error, routine called for z < -1'
     END IF
 
     scale_factor_z=1./(1.+z)
@@ -1335,7 +1357,7 @@ CONTAINS
        ! Avoids some issues if p_lin is called for very (absurdly) high k values
        ! For some reason crashes can occur if this is the case
        p_lin=0.
-    ELSE IF(ibox==1 .AND. k<2.*pi/Lbox) THEN
+    ELSE IF(cosm%ibox==1 .AND. k<twopi/cosm%Lbox) THEN
        ! If investigating effects caused by a finite box size
        p_lin=0.
     ELSE

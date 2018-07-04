@@ -14,23 +14,25 @@ CONTAINS
     CHARACTER(len=*), INTENT(IN) :: outfile
     INTEGER :: i
     DOUBLE COMPLEX :: dk(m,m,m)
-    REAL, ALLOCATABLE :: k(:), Pk(:)
+    REAL, ALLOCATABLE :: k(:), Pk(:), sig(:)
     INTEGER, ALLOCATABLE :: nbin(:)
     REAL :: kmin, kmax, shot
 
-    CALL sharp_Fourier_density_contrast(x,n,L,dk,m)
+!!$    CALL sharp_Fourier_density_contrast(x,n,L,dk,m)
+!!$
+!!$    kmin=twopi/L
+!!$    kmax=REAL(m)*pi/L
+!!$    CALL compute_power_spectrum(dk,dk,m,L,kmin,kmax,nk,k,Pk,nbin,sig)
 
-    kmin=twopi/L
-    kmax=REAL(m)*pi/L
-    CALL compute_power_spectrum(dk,dk,m,L,kmin,kmax,nk,k,Pk,nbin)
-
+    CALL power_spectrum_particles(x,n,L,m,nk,k,Pk,nbin,sig)
+    
     WRITE(*,*) 'WRITE_POWER_SPECTRUM: Outfile: ', TRIM(outfile)
 
     shot=shot_noise_simple(L,INT8(n))
     OPEN(7,file=outfile)
     DO i=1,nk
        IF(nbin(i)==0) CYCLE
-       WRITE(7,*) k(i), Pk(i), shot_noise_k(k(i),shot), nbin(i)
+       WRITE(7,*) k(i), Pk(i), shot_noise_k(k(i),shot), nbin(i), sig(i)
     END DO
     CLOSE(7)
 
@@ -38,6 +40,26 @@ CONTAINS
     WRITE(*,*)
 
   END SUBROUTINE write_power_spectrum
+
+  SUBROUTINE power_spectrum_particles(x,n,L,m,nk,k,Pk,nbin,sig)
+
+    USE constants
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x(3,n), L
+    INTEGER, INTENT(IN) :: n, m, nk
+    REAL, ALLOCATABLE, INTENT(OUT) :: k(:), Pk(:), sig(:)
+    INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
+    INTEGER :: i
+    DOUBLE COMPLEX :: dk(m,m,m)    
+    REAL :: kmin, kmax, shot
+
+    CALL sharp_Fourier_density_contrast(x,n,L,dk,m)
+
+    kmin=twopi/L
+    kmax=REAL(m)*pi/L
+    CALL compute_power_spectrum(dk,dk,m,L,kmin,kmax,nk,k,Pk,nbin,sig)
+
+  END SUBROUTINE power_spectrum_particles
 
   SUBROUTINE sharp_Fourier_density_contrast(x,n,L,dk,m)
 
@@ -63,7 +85,7 @@ CONTAINS
     CALL fft3(dk,dk_out,m,m,m,-1)
     dk=dk_out
 
-    CALL sharpen_k(dk,m,L,ibin)    
+    CALL sharpen_k(dk,m,L,ibin)
 
   END SUBROUTINE sharp_Fourier_density_contrast
 
@@ -229,6 +251,9 @@ CONTAINS
 
     WRITE(*,*) 'ZELDOVICH_VELOCITY: Assigining particle velocties'
     WRITE(*,*) 'ZELDOVICH_VELOCITY: Any previous velocity set to zero'
+    WRITE(*,*) 'ZELDOVICH_VELOCITY: Number of particles:', n
+    WRITE(*,*) 'ZELDOVICH_VELOCITY: Mesh size:', m
+    WRITE(*,*) 'ZELDOVICH_VELOCITY: Box size [Mpc/h]:', L
 
     !Loop over all particles
     DO i=1,n
@@ -261,6 +286,7 @@ CONTAINS
     !CALL RNG_set(0)
 
     WRITE(*,*) 'GENERATE_RANDOMS: Generating a uniform-random particle distribution'
+    WRITE(*,*) 'GENERATE_RANDOMS: Number of particles:', n
 
     !Loop over all particles and coordinates and assign randomly
     DO i=1,n
@@ -288,6 +314,10 @@ CONTAINS
     IF(m**3 .NE. n) STOP 'GENERATE_GRID: Error, you need a cubic number of particles for a grid'
 
     WRITE(*,*) 'GENERATE_GRID: Generating a grid particle distribution'
+    WRITE(*,*) 'GENERATE_GRID: Number of particles (should be a cube number):', n
+    WRITE(*,*) 'GENERATE_GRID: Mesh size:', m
+    WRITE(*,*) 'GENERATE_GRID: Mesh size cubed (should eqaul number of particles):', m**3
+    WRITE(*,*) 'GENERATE_GRID: Box size [Mpc/h]:', L
 
     !Loop over all particles
     i=0 !Set the particle counting variable to zero
@@ -295,9 +325,6 @@ CONTAINS
        DO iy=1,m
           DO ix=1,m
              i=i+1 !Increment the particle counter
-             !x(1,i)=L*(ix-0.5)/REAL(m) !Assign x
-             !x(2,i)=L*(iy-0.5)/REAL(m) !Assign y
-             !x(3,i)=L*(iz-0.5)/REAL(m) !Assign z
              x(1,i)=cell_position(ix,L,m)
              x(2,i)=cell_position(iy,L,m)
              x(3,i)=cell_position(iz,L,m)
@@ -333,6 +360,11 @@ CONTAINS
     dx=dx/2.
 
     WRITE(*,*) 'GENERATE_POOR_GLASS: Generating a poor man glass from the grid'
+    WRITE(*,*) 'GENERATE_POOR_GLASS: Number of particles:', n
+    WRITE(*,*) 'GENERATE_POOR_GLASS: Cube root of number of particles:', m
+    WRITE(*,*) 'GENERATE_POOR_GLASS: Box size [Mpc/h]:', L
+    WRITE(*,*) 'GENERATE_POOR_GLASS: Cell size [Mpc/h]', 2.*dx
+    WRITE(*,*) 'GENERATE_POOR_GLASS: Maximum displacement [Mpc/h]', dx
 
     !Loop over the particles and do the displacement
     DO i=1,n
@@ -1037,17 +1069,17 @@ CONTAINS
 
   END FUNCTION shot_noise_simple
 
-  REAL FUNCTION shot_noise(L,m,n)
+  REAL FUNCTION shot_noise(L,w,n)
 
-    !Calculate simulation shot noise
+    !Calculate simulation shot noise constant P(k) for weighted tracers
     USE array_operations
     IMPLICIT NONE
-    REAL, INTENT(IN) :: m(n), L
+    REAL, INTENT(IN) :: w(n), L
     INTEGER, INTENT(IN) :: n
     REAL :: Nbar
 
     !Calculate the effective mean number of tracers
-    Nbar=sum_double(m,n)**2/sum_double(m**2,n)
+    Nbar=sum_double(w,n)**2/sum_double(w**2,n)
 
     !Calculate number density
     shot_noise=L**3/Nbar

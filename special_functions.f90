@@ -4,10 +4,33 @@ MODULE special_functions
 
 CONTAINS
 
-  FUNCTION Legendre_Polynomial(n,x)
+  REAL FUNCTION sigmoid_tanh(x)
+
+    ! A function that smoothly transitions from 0 to 1 around x
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x
+
+    sigmoid_tanh=0.5*(1.+tanh(x))
+    
+  END FUNCTION sigmoid_tanh
+
+  REAL FUNCTION sigmoid_log(x,a)
+
+    ! A function that smoothly transitions from 0 to 1 around x
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x, a
+    REAL :: xp, xm
+
+    xp=x**a
+    xm=x**(-a)
+    
+    sigmoid_log=0.5*(1.+(xp-xm)/(xp+xm))
+    
+  END FUNCTION sigmoid_log
+
+  REAL FUNCTION Legendre_Polynomial(n,x)
 
     IMPLICIT NONE
-    REAL :: Legendre_Polynomial
     REAL, INTENT(IN) :: x
     INTEGER, INTENT(IN) :: n
 
@@ -23,10 +46,9 @@ CONTAINS
 
   END FUNCTION Legendre_Polynomial
 
-  FUNCTION factorial(n)
+  INTEGER FUNCTION factorial(n)
 
     IMPLICIT NONE
-    INTEGER :: factorial
     INTEGER, INTENT(IN) :: n 
     INTEGER*8 :: factorial8    
     INTEGER :: i
@@ -43,11 +65,10 @@ CONTAINS
 
   END FUNCTION factorial
 
-  FUNCTION sinc(x)
+  REAL FUNCTION sinc(x)
 
     !sinc function
     IMPLICIT NONE
-    REAL :: sinc
     REAL, INTENT(IN) :: x
     REAL, PARAMETER :: dx=1e-3
 
@@ -61,11 +82,10 @@ CONTAINS
 
   END FUNCTION sinc
 
-  FUNCTION wk_tophat(x)
+  REAL FUNCTION wk_tophat(x)
 
     !The normlaised Fourier Transform of a spherical top-hat
     IMPLICIT NONE
-    REAL :: wk_tophat
     REAL, INTENT(IN) :: x
     REAL, PARAMETER :: dx=1e-3
 
@@ -78,16 +98,14 @@ CONTAINS
 
   END FUNCTION wk_tophat
 
-  FUNCTION apodise(x,x1,x2,n)
+  REAL FUNCTION apodise(x,x1,x2,n)
 
     !Apodises a function between x1 and x2
     !Goes to one smoothly at x1
     !Goes to zero linearly at x2, so the gradient change is discontinous
     !n govenrns the severity of the transition
     IMPLICIT NONE
-    REAL :: apodise
     REAL, INTENT(IN) :: x, x1, x2, n
-    !REAL, PARAMETER :: pi=3.141592654
 
     IF(n<=0.) STOP 'APODISE: Error, n must be greater than zero'
 
@@ -102,15 +120,13 @@ CONTAINS
 
   END FUNCTION apodise
 
-  FUNCTION smoothapodise(x,x1,x2,n)
+  REAL FUNCTION smoothapodise(x,x1,x2,n)
 
     !Apodises a function between x1 and x2
     !Goes to one smoothly at x1 and zero smoothly at x2
     !n govenrns the severity of the transition
     IMPLICIT NONE
-    REAL :: smoothapodise
     REAL, INTENT(IN) :: x, x1, x2, n
-    !REAL, PARAMETER :: pi=3.141592654
 
     IF(n<=0.) STOP 'APODISE: Error, n must be greater than zero'
 
@@ -125,15 +141,13 @@ CONTAINS
 
   END FUNCTION smoothapodise
 
-  FUNCTION blob(x,x1,x2,n)
+  REAL FUNCTION blob(x,x1,x2,n)
 
     !Makes a blob between x1 and x2, with zero elsewhere
     !Blob goes to zero linearly at x1 and x2, so the gradient change is discontinous
     !n governs the severity (blobiness) of the blob
     IMPLICIT NONE
-    REAL :: blob
     REAL, INTENT(IN) :: x, x1, x2, n
-    !REAL, PARAMETER :: pi=3.141592654
 
     IF(n<=0.) STOP 'APODISE: Error, n must be greater than zero'
 
@@ -148,15 +162,13 @@ CONTAINS
 
   END FUNCTION blob
 
-  FUNCTION smoothblob(x,x1,x2,n)
+  REAL FUNCTION smoothblob(x,x1,x2,n)
 
     !Makes a blob between x1 and x2, with zero elsewhere
     !Blob goes to zero smoothly at x1 and x2
     !n governs the severity (blobiness) of the blob
     IMPLICIT NONE
-    REAL :: smoothblob
     REAL, INTENT(IN) :: x, x1, x2, n
-    !REAL, PARAMETER :: pi=3.141592654
 
     IF(n<=0.) STOP 'APODISE: Error, n must be greater than zero'
 
@@ -165,16 +177,15 @@ CONTAINS
     ELSE IF(x>x2) THEN
        smoothblob=0.
     ELSE
-       smoothblob=(1.+cos(2.*pi*(x-x1)/(x2-x1)))/2.
+       smoothblob=(1.+cos(twopi*(x-x1)/(x2-x1)))/2.
        smoothblob=(1.-smoothblob)**n
     END IF
 
   END FUNCTION smoothblob
 
-  FUNCTION Si(x)
+  REAL FUNCTION Si(x)
 
     !Calculates the 'sine integral' function Si(x)
-    REAL :: Si
     REAL, INTENT(IN) :: x
     DOUBLE PRECISION :: x2, y, f, g, si8
 
@@ -227,10 +238,9 @@ CONTAINS
 
   END FUNCTION Si
 
-  FUNCTION Ci(x)
+  REAL FUNCTION Ci(x)
 
     !Calculates the 'cosine integral' function Ci(x)
-    REAL :: Ci
     REAL, INTENT(IN) :: x
     DOUBLE PRECISION :: x2, y, f, g, ci8
 
@@ -280,13 +290,12 @@ CONTAINS
 
   END FUNCTION Ci
 
-  FUNCTION Bessel(n,x)
+  REAL FUNCTION Bessel(n,x)
 
     !A Bessel function of order 'n'
     IMPLICIT NONE
-    REAL :: Bessel
-    REAL :: x
-    INTEGER :: n
+    REAL, INTENT(IN) :: x
+    INTEGER, INTENT(IN) :: n
 
     REAL, PARAMETER :: xlarge=1.e15
 
@@ -311,28 +320,26 @@ CONTAINS
 
   END FUNCTION Bessel
 
-  FUNCTION Gaussian(x,mu,sigma)
+  REAL FUNCTION Gaussian(x,mu,sigma)
 
     !A normalised Gaussian
     IMPLICIT NONE
-    REAL :: Gaussian
     REAL, INTENT(IN) :: x, mu, sigma
     REAL :: f1, f2
 
     f1=exp(-((x-mu)**2)/(2.*sigma**2))
-    f2=sigma*sqrt(2.*pi)
+    f2=sigma*sqrt(twopi)
 
     Gaussian=f1/f2
 
   END FUNCTION Gaussian
 
-  FUNCTION lognormal(x,mean_x,sigma_lnx)
+  REAL FUNCTION lognormal(x,mean_x,sigma_lnx)
 
     !A normalised lognormal [x: 0->inf], function of x
     !mean_x: <x>
     !log_sigma is sigma for ln(x)
     IMPLICIT NONE
-    REAL :: lognormal
     REAL, INTENT(IN) :: x, mean_x, sigma_lnx
     REAL :: mu, sigma
 
@@ -343,11 +350,10 @@ CONTAINS
 
   END FUNCTION lognormal
 
-  FUNCTION uniform(x,x1,x2)
+  REAL FUNCTION uniform(x,x1,x2)
 
     !A normalised one-dimensional top-hat function between x1 and x2
     IMPLICIT NONE
-    REAL :: uniform
     REAL, INTENT(IN) :: x, x1, x2
 
     IF(x<x1 .OR. x>x2) THEN
@@ -358,55 +364,50 @@ CONTAINS
 
   END FUNCTION uniform
 
-  FUNCTION Rayleigh(x,sigma)
+  REAL FUNCTION Rayleigh(x,sigma)
 
-    !A normalised Rayleigh distribution
+    ! A normalised Rayleigh distribution
     IMPLICIT NONE
-    REAL :: Rayleigh
     REAL, INTENT(IN) :: x, sigma
 
     Rayleigh=x*exp(-(x**2)/(2.*(sigma**2)))/(sigma**2)
 
   END FUNCTION Rayleigh
 
-  FUNCTION Poisson(n,nbar)
+  REAL FUNCTION Poisson(n,nbar)
 
-    !The normalised discrete Poisson probability distribution
+    ! The normalised discrete Poisson probability distribution
     IMPLICIT NONE
-    REAL :: Poisson
     INTEGER, INTENT(IN) :: n, nbar
 
     Poisson=exp(-REAL(nbar))*(nbar**n)/factorial(n)
 
   END FUNCTION Poisson
 
-  FUNCTION exponential(x,mean)
+  REAL FUNCTION exponential(x,mean)
 
     !The normalised exponential distribution
     IMPLICIT NONE
-    REAL :: exponential
     REAL, INTENT(IN) :: x, mean
 
     exponential=exp(-x/mean)/mean
 
   END FUNCTION exponential
 
-  FUNCTION Lorentzian(x)
+  REAL FUNCTION Lorentzian(x)
 
     !A normalised Lorentzian distribution
     IMPLICIT NONE
-    REAL :: Lorentzian
     REAL, INTENT(IN) :: x
 
     Lorentzian=2./(pi*(1.+x**2))
 
   END FUNCTION Lorentzian
 
-  FUNCTION polynomial(x,n)
+  REAL FUNCTION polynomial(x,n)
 
     !A normalised polynomial distribution [x:0->1]
     IMPLICIT NONE
-    REAL :: polynomial
     REAL, INTENT(IN) :: x, n
 
     polynomial=(n+1.)*x**n

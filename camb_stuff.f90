@@ -32,7 +32,7 @@ CONTAINS
     END DO
     CLOSE(7)
 
-    p=4.*pi*p*(k**3)/(2.*pi)**3
+    p=4.*pi*p*(k**3)/twopi**3
 
   END SUBROUTINE read_CAMB_Pk
 
