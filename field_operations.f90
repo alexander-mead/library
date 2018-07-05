@@ -2,7 +2,7 @@ MODULE field_operations
 
 CONTAINS
 
-    INTEGER FUNCTION NGP_cell(x,L,m)
+  INTEGER FUNCTION NGP_cell(x,L,m)
 
     ! Find the integer coordinates of the cell that coordinate x is in
     IMPLICIT NONE
@@ -15,7 +15,7 @@ CONTAINS
        NGP_cell=1
     ELSE
        NGP_cell=CEILING(x*REAL(m)/L)
-    END IF    
+    END IF
 
     IF(NGP_cell<1 .OR. NGP_cell>m) THEN
        WRITE(*,*) 'NGP_CELL: Particle position [Mpc/h]:', x
@@ -947,7 +947,7 @@ CONTAINS
     DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f 
     INTEGER*8 :: nmodes8(nk)
     !LOGICAL, ALLOCATABLE :: element(:,:,:)
-    
+
     REAL, PARAMETER :: dbin=1e-3 ! Bin slop parameter for first and last bin edges
     LOGICAL, PARAMETER :: logmeank=.FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
     !INTEGER, PARAMETER :: mn=m/2+1 ! Nyquist cell
@@ -979,7 +979,7 @@ CONTAINS
     mn=m/2+1
     !ALLOCATE(element(0:mn-1,0:mn-1,0:mn-1))
     !element=.TRUE.
-    
+
     ! Loop over all independent elements of dk
     DO iz=1,m
        DO iy=1,m
@@ -1004,21 +1004,21 @@ CONTAINS
 
              !IF(element(ixx,iyy,izz)) THEN
 
-                !element(ixx,iyy,izz)=.FALSE.
+             !element(ixx,iyy,izz)=.FALSE.
 
-                ! Find integer 'n' in bins from place in table
-                IF(kmod>=kbin(1) .AND. kmod<=kbin(nk+1)) THEN
-                   n=select_table_integer(kmod,kbin,nk+1,3)
-                   IF(n<1 .OR. n>nk) THEN
-                      CYCLE
-                   ELSE
-                      k8(n)=k8(n)+kmod
-                      f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
-                      pow8(n)=pow8(n)+f
-                      sigma8(n)=sigma8(n)+f**2
-                      nmodes8(n)=nmodes8(n)+1
-                   END IF
+             ! Find integer 'n' in bins from place in table
+             IF(kmod>=kbin(1) .AND. kmod<=kbin(nk+1)) THEN
+                n=select_table_integer(kmod,kbin,nk+1,3)
+                IF(n<1 .OR. n>nk) THEN
+                   CYCLE
+                ELSE
+                   k8(n)=k8(n)+kmod
+                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
+                   pow8(n)=pow8(n)+f
+                   sigma8(n)=sigma8(n)+f**2
+                   nmodes8(n)=nmodes8(n)+1
                 END IF
+             END IF
 
              !END IF
 
@@ -1098,7 +1098,7 @@ CONTAINS
     LOGICAL, PARAMETER :: logmeank=.FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
 
     WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Computing isotropic power spectrum'
-    STOP 'COMPUTE_POWER_SPECTRUM_REAL: Error, this is counting modes incorrectly'
+    !STOP 'COMPUTE_POWER_SPECTRUM_REAL: Error, this is counting modes incorrectly'
 
     ! Set summation variables to 0.d0
     k8=0.d0
@@ -1119,15 +1119,23 @@ CONTAINS
     ! Explicitly extend the first and last bins to be sure to include *all* modes
     ! This is necessary due to rounding errors
     kbin(1)=kbin(1)*(1.-dbin)
-    kbin(nk+1)=kbin(nk+1)*(1.+dbin)    
+    kbin(nk+1)=kbin(nk+1)*(1.+dbin)
+
+    ! Cell location of Nyquist
+    mn=m/2+1
 
     ! Loop over all independent elements of dk
-    DO iz=1,m/2+1
-       DO iy=1,m/2+1
-          DO ix=1,m/2+1
-             
+    DO iz=1,m
+       DO iy=1,m
+          DO ix=1,mn
+
              ! Cycle for the zero mode: k=0
              IF(ix==1 .AND. iy==1 .AND. iz==1) CYCLE
+
+             ! Cycle for the repeated zero modes and Nyquist modes
+             ! I *think* this is correct to avoid double counting zero modes and Nyquist modes
+             ! For example 0,1,0 is the same as 0,-1,0
+             IF((ix==1 .OR. ix==mn) .AND. (iy>mn .OR. iz>mn)) CYCLE
 
              CALL k_fft(ix,iy,iz,m,kx,ky,kz,kmod,L)
 
@@ -1178,7 +1186,7 @@ CONTAINS
              sigma8(i)=sqrt(sigma8(i)-pow8(i)**2) ! Create biased estimate of sigma
              sigma8(i)=sigma8(i)*REAL(nmodes8(i))/REAL(nmodes8(i)-1) ! Correct for bias
              sigma8(i)=sigma8(i)/sqrt(REAL(nmodes8(i))) ! Conver to error on the mean
-          END IF          
+          END IF
           Dk=4.*pi*((L*k(i))**3)/twopi**3 ! Factor to convert P(k) -> Delta^2(k)
           pow8(i)=pow8(i)*Dk ! Convert to Delta^2(k)
           sigma8(i)=sigma8(i)*Dk ! Convert to Delta^2(k)
@@ -1294,7 +1302,7 @@ CONTAINS
     IF(ALLOCATED(pow))    DEALLOCATE(pow)
     IF(ALLOCATED(nmodes)) DEALLOCATE(nmodes)
     ALLOCATE(kval(nk),pow(nk),nmodes(nk))
-    
+
     DO i=1,nk
        kval(i)=(kbin(i+1)+kbin(i))/2.
        IF(nmodes8(i)==0) THEN
@@ -1668,7 +1676,7 @@ CONTAINS
              i(1)=i1
              i(2)=i2
              i(3)=i3
-             
+
              DO dim=1,3
                 !x1(dim)=L*(i(dim)-0.5)/REAL(m)
                 x1(dim)=cell_position(i(dim),L,m)
