@@ -1088,7 +1088,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:)
     INTEGER, INTENT(IN) :: m, nk
     REAL, INTENT(IN) :: L, kmin, kmax
-    INTEGER :: i, ix, iy, iz, n
+    INTEGER :: i, ix, iy, iz, n, mn
     REAL :: kx, ky, kz, kmod  
     REAL, ALLOCATABLE :: kbin(:)  
     DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f, Dk
