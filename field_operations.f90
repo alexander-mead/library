@@ -1036,7 +1036,8 @@ CONTAINS
     DO i=1,nk       
        IF(nmodes8(i)==0) THEN
           k(i)=sqrt(kbin(i+1)*kbin(i))       
-          pow8(i)=0.
+          pow8(i)=0.d0
+          sigma8(i)=0.d0
        ELSE
           IF(logmeank) THEN
              k(i)=sqrt(kbin(i+1)*kbin(i))             
@@ -1146,7 +1147,7 @@ CONTAINS
                    CYCLE
                 ELSE
                    k8(n)=k8(n)+kmod
-                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/DBLE(m)**6
+                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
                    pow8(n)=pow8(n)+f
                    sigma8(n)=sigma8(n)+f**2
                    nmodes8(n)=nmodes8(n)+1
@@ -1192,9 +1193,6 @@ CONTAINS
           sigma8(i)=sigma8(i)*Dk ! Convert to Delta^2(k)
        END IF
     END DO
-
-    ! Do this to account for m^3 factors in P(k)
-    !pow=REAL(pow8/(DBLE(m)**6))
 
     ! Convert back to standard precision
     pow=REAL(pow8)
