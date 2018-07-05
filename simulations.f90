@@ -13,16 +13,9 @@ CONTAINS
     INTEGER, INTENT(IN) :: n, m, nk
     CHARACTER(len=*), INTENT(IN) :: outfile
     INTEGER :: i
-    DOUBLE COMPLEX :: dk(m,m,m)
     REAL, ALLOCATABLE :: k(:), Pk(:), sig(:)
     INTEGER, ALLOCATABLE :: nbin(:)
-    REAL :: kmin, kmax, shot
-
-!!$    CALL sharp_Fourier_density_contrast(x,n,L,dk,m)
-!!$
-!!$    kmin=twopi/L
-!!$    kmax=REAL(m)*pi/L
-!!$    CALL compute_power_spectrum(dk,dk,m,L,kmin,kmax,nk,k,Pk,nbin,sig)
+    REAL :: shot
 
     CALL power_spectrum_particles(x,n,L,m,nk,k,Pk,nbin,sig)
     
@@ -49,9 +42,8 @@ CONTAINS
     INTEGER, INTENT(IN) :: n, m, nk
     REAL, ALLOCATABLE, INTENT(OUT) :: k(:), Pk(:), sig(:)
     INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
-    INTEGER :: i
-    DOUBLE COMPLEX :: dk(m,m,m)    
-    REAL :: kmin, kmax, shot
+    DOUBLE COMPLEX :: dk(m,m,m)
+    REAL :: kmin, kmax
 
     CALL sharp_Fourier_density_contrast(x,n,L,dk,m)
 
@@ -120,8 +112,6 @@ CONTAINS
     OPEN(9,file=outfile)
     DO i=1,m
        DO j=1,m
-          !xp=(REAL(i)-0.5)/REAL(m)
-          !yp=(REAL(j)-0.5)/REAL(m)
           xp=cell_position(i,L,m)
           yp=cell_position(j,L,m)
           WRITE(9,*) xp, yp, d(i,j)
@@ -485,7 +475,7 @@ CONTAINS
 
   SUBROUTINE NGP2D(x,n,L,w,d,m)
 
-    !Nearest-grid-point binning routine
+    ! Nearest-grid-point binning routine
     USE statistics
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(2,n), w(n), L
@@ -496,14 +486,16 @@ CONTAINS
     WRITE(*,*) 'NGP2D: Binning particles and creating field'
     WRITE(*,*) 'NGP2D: Cells:', m
 
-    !Set array to zero explicitly
+    ! Set array to zero explicitly
     d=0.
 
     DO i=1,n
 
+       ! Get the integer coordinates of the cell
        ix=NGP_cell(x(1,i),L,m)
        iy=NGP_cell(x(2,i),L,m)
 
+       ! Do the binning
        d(ix,iy)=d(ix,iy)+w(i)
 
     END DO
@@ -515,7 +507,7 @@ CONTAINS
 
   SUBROUTINE CIC2D(x,n,L,w,d,m)
 
-    !This could probably be usefully combined with CIC somehow
+    ! This could probably be usefully combined with CIC somehow
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(2,n), w(n), L
     INTEGER, INTENT(IN) :: n, m
@@ -526,7 +518,7 @@ CONTAINS
     WRITE(*,*) 'CIC2D: Binning particles and creating density field'
     WRITE(*,*) 'CIC2D: Cells:', m
 
-    !Set array to zero explicitly
+    ! Set array to zero explicitly
     d=0.
 
     DO i=1,n
@@ -535,11 +527,11 @@ CONTAINS
        ix=NGP_cell(x(1,i),L,m)
        iy=NGP_cell(x(2,i),L,m)
 
-       !dx, dy in cell units, away from cell centre
+       ! dx, dy in cell units, away from cell centre
        dx=(x(1,i)/L)*REAL(m)-(REAL(ix)-0.5)
        dy=(x(2,i)/L)*REAL(m)-(REAL(iy)-0.5)
 
-       !Find CIC weights in x
+       ! Find CIC weights in x
        IF(dx>0.) THEN
           ixn=ix+1
           IF(ixn>m) ixn=1
@@ -549,7 +541,7 @@ CONTAINS
           IF(ixn<1) ixn=m    
        END IF
 
-       !Find CIC weights in y
+       ! Find CIC weights in y
        IF(dy>=0.) THEN
           iyn=iy+1
           IF(iyn>m) iyn=1
@@ -559,7 +551,7 @@ CONTAINS
           IF(iyn<1) iyn=m
        END IF
 
-       !Carry out CIC binning
+       ! Carry out CIC binning
        d(ix,iy)=d(ix,iy)+(1.-dx)*(1.-dy)*w(i)
        d(ix,iyn)=d(ix,iyn)+(1.-dx)*dy*w(i)
        d(ixn,iy)=d(ixn,iy)+dx*(1.-dy)*w(i)
@@ -647,7 +639,7 @@ CONTAINS
 
   SUBROUTINE NGP(x,n,L,w,d,m)
 
-    !Nearest-grid-point binning routine
+    ! Nearest-grid-point binning routine
     USE statistics
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, m
@@ -658,33 +650,17 @@ CONTAINS
     WRITE(*,*) 'NGP: Binning particles and creating field'
     WRITE(*,*) 'NGP: Cells:', m
 
-    !Set array to zero explicitly
+    ! Set array to zero explicitly
     d=0.
 
     DO i=1,n
 
-       !ix=CEILING(x(1,i)*REAL(m)/L)
-       !iy=CEILING(x(2,i)*REAL(m)/L)
-       !iz=CEILING(x(3,i)*REAL(m)/L)
+       ! Get integer coordiante of the cell
        ix=NGP_cell(x(1,i),L,m)
        iy=NGP_cell(x(2,i),L,m)
        iz=NGP_cell(x(3,i),L,m)
 
-       !IF(ix>m .OR. ix<1) THEN
-       !   WRITE(*,*) 'x:', i, x(1,i)
-       !   STOP 'NGP: Warning, point outside box'
-       !END IF
-
-       !IF(iy>m .OR. iy<1) THEN
-       !   WRITE(*,*) 'y:', i, x(2,i)
-       !   STOP 'NGP: Warning, point outside box'
-       !END IF
-
-       !IF(iz>m .OR. iz<1) THEN
-       !   WRITE(*,*) 'z:', i, x(3,i)
-       !   STOP 'NGP: Warning, point outside box'
-       !END IF
-
+       ! Bin
        d(ix,iy,iz)=d(ix,iy,iz)+w(i)
 
     END DO
@@ -700,7 +676,7 @@ CONTAINS
 
   SUBROUTINE CIC(x,n,L,w,d,m)
 
-    !Cloud-in-cell binning routine
+    ! Cloud-in-cell binning routine
     USE statistics
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, m
@@ -713,34 +689,17 @@ CONTAINS
     WRITE(*,*) 'CIC: Binning particles and creating field'
     WRITE(*,*) 'CIC: Cells:', m
 
-    !Set array to zero explicitly
+    ! Set array to zero explicitly
     d=0.
 
     DO i=1,n
 
-       !ix=CEILING(x(1,i)*REAL(m)/L)
-       !iy=CEILING(x(2,i)*REAL(m)/L)
-       !iz=CEILING(x(3,i)*REAL(m)/L)
+       ! Integer coordinates of the cell the particle is in
        ix=NGP_cell(x(1,i),L,m)
        iy=NGP_cell(x(2,i),L,m)
        iz=NGP_cell(x(3,i),L,m)
 
-       !IF(ix>m .OR. ix<1) THEN
-       !   WRITE(*,*) 'x:', i, x(1,i)
-       !   STOP 'CIC: Warning, point outside box'
-       !END IF
-
-       !IF(iy>m .OR. iy<1) THEN
-       !   WRITE(*,*) 'y:', i, x(2,i)
-       !   STOP 'CIC: Warning, point outside box'
-       !END IF
-
-       !IF(iz>m .OR. iz<1) THEN
-       !   WRITE(*,*) 'z:', i, x(3,i)
-       !   STOP 'CIC: Warning, point outside box'
-       !END IF
-
-       !dx, dy, dz in box units
+       ! dx, dy, dz in box units
        dx=(x(1,i)/L)*REAL(m)-(REAL(ix)-0.5)
        dy=(x(2,i)/L)*REAL(m)-(REAL(iy)-0.5)
        dz=(x(3,i)/L)*REAL(m)-(REAL(iz)-0.5)
@@ -772,20 +731,19 @@ CONTAINS
           IF(izn<1) izn=m
        END IF
 
+       ! Do the CIC binning
        d(ix,iy,iz)=d(ix,iy,iz)+(1.-dx)*(1.-dy)*(1.-dz)*w(i)
-
        d(ix,iy,izn)=d(ix,iy,izn)+(1.-dx)*(1.-dy)*dz*w(i)
        d(ix,iyn,iz)=d(ix,iyn,iz)+(1.-dx)*dy*(1.-dz)*w(i)
        d(ixn,iy,iz)=d(ixn,iy,iz)+dx*(1.-dy)*(1.-dz)*w(i)
-
        d(ix,iyn,izn)=d(ix,iyn,izn)+(1.-dx)*dy*dz*w(i)
        d(ixn,iyn,iz)=d(ixn,iyn,iz)+dx*dy*(1.-dz)*w(i)
        d(ixn,iy,izn)=d(ixn,iy,izn)+dx*(1.-dy)*dz*w(i)
-
        d(ixn,iyn,izn)=d(ixn,iyn,izn)+dx*dy*dz*w(i)
 
     END DO
 
+    ! Write out some statistics to screen
     WRITE(*,*) 'CIC: Average:', mean(d,m)
     WRITE(*,*) 'CIC: RMS:', sqrt(variance(d,m))
     WRITE(*,*) 'CIC: Minimum:', MINVAL(REAL(d))
@@ -797,7 +755,7 @@ CONTAINS
 
   SUBROUTINE SOD(x,n,L,w,d,m,Rs)
 
-    !Spherical density routine
+    ! Spherical density routine
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n
     REAL, INTENT(OUT) :: d(m,m,m)
@@ -812,13 +770,10 @@ CONTAINS
 
     d=0.
 
-    !Fill array with sphere centre positions
+    ! Fill array with sphere centre positions
     DO k=1,m
        DO j=1,m
           DO i=1,m
-             !xc(1,i,j,k)=L*(REAL(i)-0.5)/REAL(m)
-             !xc(2,i,j,k)=L*(REAL(j)-0.5)/REAL(m)
-             !xc(3,i,j,k)=L*(REAL(k)-0.5)/REAL(m)
              xc(1,i,j,k)=cell_position(i,L,m)
              xc(2,i,j,k)=cell_position(j,L,m)
              xc(3,i,j,k)=cell_position(k,L,m)
@@ -826,45 +781,20 @@ CONTAINS
        END DO
     END DO
 
-    !Loop over all particles and assign to spheres
+    ! Loop over all particles and assign to spheres
     DO i=1,n
 
-       !WRITE(*,*) 'Particle coordinates:', i, x(1,i), x(2,i), x(3,i)
-
-       !Coordinate of nearest mesh cell
-       !ix=CEILING(x(1,i)*REAL(m)/L)
-       !iy=CEILING(x(2,i)*REAL(m)/L)
-       !iz=CEILING(x(3,i)*REAL(m)/L)
+       ! Coordinate of nearest mesh cell
        ix=NGP_cell(x(1,i),L,m)
        iy=NGP_cell(x(2,i),L,m)
        iz=NGP_cell(x(3,i),L,m)
 
-       !WRITE(*,*) 'Mesh cell coordinates:', ix, iy, iz
-
-       !Check that particles are within box
-       !IF(ix>m .OR. ix<1) THEN
-       !   WRITE(*,*) 'x:', i, x(1,i)
-       !   STOP 'SOD: Error, particle outside box'
-       !END IF
-
-       !Check that particles are within box
-       !IF(iy>m .OR. iy<1) THEN
-       !   WRITE(*,*) 'y:', i, x(2,i)
-       !   STOP 'SOD: Error, particle outside box'
-       !END IF
-
-       !Check that particles are within box
-       !IF(iz>m .OR. iz<1) THEN
-       !   WRITE(*,*) 'z:', i, x(3,i)
-       !   STOP 'SOD: Error, particle outside box'
-       !END IF
-
-       !See if particle is within spheres of over 27 neighbouring spheres
+       ! See if particle is within spheres of over 27 neighbouring spheres
        DO jx=-1,1
           DO jy=-1,1
              DO jz=-1,1
 
-                !Find the x integer for the sphere
+                ! Find the x integer for the sphere
                 kx=ix+jx
                 IF(kx<1) THEN
                    kx=kx+m
@@ -872,7 +802,7 @@ CONTAINS
                    kx=kx-m
                 END IF
 
-                !Find the y integer for the sphere
+                ! Find the y integer for the sphere
                 ky=iy+jy
                 IF(ky<1) THEN
                    ky=ky+m
@@ -880,18 +810,17 @@ CONTAINS
                    ky=ky-m
                 END IF
 
-                !Find the z integer for the sphere
+                ! Find the z integer for the sphere
                 kz=iz+jz
                 IF(kz<1) THEN
                    kz=kz+m
                 ELSE IF(kz>m) THEN
                    kz=kz-m
                 END IF
-                !Done
 
                 !WRITE(*,*) 'Mesh:', jx, jy, jz, kx, ky, kz
 
-                !Calculate the displacement between the particle and the sphere centre
+                ! Calculate the displacement between the particle and the sphere centre
                 dx=x(1,i)-xc(1,kx,ky,kz)
                 dy=x(2,i)-xc(2,kx,ky,kz)
                 dz=x(3,i)-xc(3,kx,ky,kz)
@@ -1124,7 +1053,7 @@ CONTAINS
     REAL, ALLOCATABLE :: y(:,:), d(:,:), u(:)
     REAL, ALLOCATABLE :: c1(:,:), c2(:,:), c3(:,:), c4(:,:), c5(:,:)
     REAL, ALLOCATABLE :: d1(:,:), d2(:,:), d3(:,:), d4(:,:), d5(:,:)
-    REAL, ALLOCATABLE :: di(:,:,:), ci(:,:,:)
+    !REAL, ALLOCATABLE :: di(:,:,:), ci(:,:,:)
     CHARACTER(len=256) :: base, ext, output
 
     REAL, PARAMETER :: dc=4. ! Refinement conditions (particles-per-cell)

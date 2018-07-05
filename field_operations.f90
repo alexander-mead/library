@@ -40,7 +40,7 @@ CONTAINS
 
   REAL FUNCTION random_mode_amplitude(k,L,logk_tab,logPk_tab,nk,use_average)
 
-    !This calculates the Fourier amplitudes of the density field
+    ! This calculates the Fourier amplitudes of the density field
     USE interpolate
     USE constants
     USE random_numbers
@@ -52,15 +52,15 @@ CONTAINS
 
     !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
 
-    !Sigma parameter in the Rayleigh distribution
+    ! Sigma parameter in the Rayleigh distribution
     sigma=sqrt(exp(find(log(k),logk_tab,logPk_tab,nk,3,3,2))/(4.*pi*(L*k/twopi)**3))
 
     IF(use_average) THEN
-       !Fixed mode amplitudes       
+       ! Fixed mode amplitudes       
        random_mode_amplitude=sigma
     ELSE
-       !Correctly assigned random mode amplitudes
-       random_mode_amplitude=random_Rayleigh(sigma)/sqrt(2.) !sqrt(2) is a FUDGE (something to do with average of Rayleigh?)
+       ! Correctly assigned random mode amplitudes
+       random_mode_amplitude=random_Rayleigh(sigma)/sqrt(2.) ! sqrt(2) is a FUDGE (something to do with average of Rayleigh?)
     END IF
 
     !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
@@ -69,7 +69,7 @@ CONTAINS
 
   COMPLEX FUNCTION random_complex_phase()
 
-    !Get a complex phase with theta between 0 and 2pi
+    ! Get a complex phase with theta between 0 and 2pi
     USE constants
     USE random_numbers
     IMPLICIT NONE
@@ -82,7 +82,7 @@ CONTAINS
 
   SUBROUTINE make_Gaussian_random_modes(dk,m,L,logk_tab,logPk_tab,nk,use_average)
 
-    !Uses a tablulated P(k) to make a Gaussian Random Field realisation
+    ! Uses a tablulated P(k) to make a Gaussian Random Field realisation
     USE fft
     USE random_numbers
     IMPLICIT NONE
@@ -102,7 +102,7 @@ CONTAINS
     WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Mesh size:', m
     WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Box size [Mpc/h]:', L
 
-    !This fills up displacement array in all of k space!
+    ! This fills up displacement array in all of k space!
     DO iz=1,m
        DO iy=1,m
           DO ix=1,m
@@ -111,24 +111,24 @@ CONTAINS
 
              IF(ix==1 .AND. iy==1 .AND. iz==1) THEN
 
-                !Set the zero mode to zero
+                ! Set the zero mode to zero
                 dk(ix,iy,iz)=0.d0
 
              ELSE IF(ix==1+m/2 .OR. iy==1+m/2 .OR. iz==1+m/2) THEN 
 
-                !Sets Nyquist modes to 0.!
-                !Maybe all modes with mod(k)>k_ny should be set to 0.?!
-                !Bridit Falck wrote a 'corner modes' paper about this
-                !https://arxiv.org/abs/1610.04862
+                ! Sets Nyquist modes to 0.!
+                ! Maybe all modes with mod(k)>k_ny should be set to 0.?!
+                ! Bridit Falck wrote a 'corner modes' paper about this
+                ! https://arxiv.org/abs/1610.04862
                 dk(ix,iy,iz)=0.d0
 
              ELSE
 
-                !Get mode amplitudes and phases
+                ! Get mode amplitudes and phases
                 amp=random_mode_amplitude(k,L,logk_tab,logPk_tab,nk,use_average)
                 rot=random_complex_phase()
 
-                !Assign values to the density field
+                ! Assign values to the density field
                 dk(ix,iy,iz)=amp*rot
 
              END IF
@@ -140,7 +140,7 @@ CONTAINS
     WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Done'
     WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Enforcing Hermiticity'
 
-    !Enforce Hermiticity - probably could save a load of operations above
+    ! Enforce Hermiticity - probably could save a load of operations above
     DO iz=1,m
        DO iy=1,m
           DO ix=1,m
@@ -153,14 +153,14 @@ CONTAINS
              IF(iy==1) iyy=1
              IF(iz==1) izz=1
 
-             !Do the enforcing
+             ! Do the enforcing
              dk(ix,iy,iz)=CONJG(dk(ixx,iyy,izz))
 
           END DO
        END DO
     END DO
 
-    !Is this a good idea?
+    ! Is this a good idea?
     dk=CONJG(dk)
 
     WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_MODES: Hermitian field generated'
@@ -170,7 +170,7 @@ CONTAINS
 
   SUBROUTINE make_Gaussian_random_field(d,m,L,logk_tab,logPk_tab,nk,use_average)
 
-    !Uses a tablulated P(k) to make a Gaussian Random Field realisation
+    ! Uses a tablulated P(k) to make a Gaussian Random Field realisation
     USE fft
     USE random_numbers
     IMPLICIT NONE
@@ -184,7 +184,7 @@ CONTAINS
 
     WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_FIELD: Transform to real space'
 
-    !FT the displacement field from k-space to real space!
+    ! FT the displacement field from k-space to real space!
     CALL fft3(dk,dk_new,m,m,m,1)
     dk=dk_new
     d=REAL(REAL(dk))
@@ -198,7 +198,6 @@ CONTAINS
 
     USE fft
     USE array_operations
-    !USE statistics
     IMPLICIT NONE
     REAL, INTENT(OUT) :: f(3,m,m,m)
     INTEGER, INTENT(IN) :: m, nk
@@ -212,12 +211,12 @@ CONTAINS
 
     WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Creating realisation of displacement field'
 
-    !This fills up displacement array in all of k space!
+    ! This fills up displacement array in all of k space!
     DO iz=1,m
        DO iy=1,m
           DO ix=1,m
 
-             !Get the wave vectors
+             ! Get the wave vectors
              CALL k_fft(ix,iy,iz,m,kx,ky,kz,k,L)
 
              IF(ix==1 .AND. iy==1 .AND. iz==1) THEN
@@ -229,17 +228,17 @@ CONTAINS
 
              ELSE IF(ix==1+m/2 .OR. iy==1+m/2 .OR. iz==1+m/2) THEN 
 
-                !Sets Nyquist modes to 0.!
-                !Maybe all modes with mod(k)>k_ny should be set to 0.?!
-                !Bridit Falck wrote a 'corner modes' paper about this
-                !https://arxiv.org/abs/1610.04862
+                ! Sets Nyquist modes to 0.!
+                ! Maybe all modes with mod(k)>k_ny should be set to 0.?!
+                ! Bridit Falck wrote a 'corner modes' paper about this
+                ! https://arxiv.org/abs/1610.04862
                 fk(1,ix,iy,iz)=0.d0
                 fk(2,ix,iy,iz)=0.d0
                 fk(3,ix,iy,iz)=0.d0
 
              ELSE
 
-                !Assign values to the displacement field
+                ! Assign values to the displacement field
                 fk(1,ix,iy,iz)=(0.d0,-1.d0)*dk(ix,iy,iz)*kx/k**2
                 fk(2,ix,iy,iz)=(0.d0,-1.d0)*dk(ix,iy,iz)*ky/k**2
                 fk(3,ix,iy,iz)=(0.d0,-1.d0)*dk(ix,iy,iz)*kz/k**2
@@ -266,7 +265,7 @@ CONTAINS
 
   SUBROUTINE read_field(d,m,infile)
 
-    !Read in a binary 'field' file
+    ! Read in a binary 'field' file
     USE array_operations
     USE statistics
     IMPLICIT NONE
@@ -274,7 +273,7 @@ CONTAINS
     REAL, INTENT(OUT) :: d(m,m,m)
     INTEGER, INTENT(IN) :: m
 
-    !Output unformatted data
+    ! Output unformatted data
     WRITE(*,*) 'READ_FIELD: Binary input: ', TRIM(infile)
     WRITE(*,*) 'READ_FIELD: Mesh size:', m
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
@@ -299,7 +298,7 @@ CONTAINS
     DOUBLE PRECISION :: d8(m,m,m)
     INTEGER, INTENT(IN) :: m
 
-    !Input unformatted data
+    ! Input unformatted data
     WRITE(*,*) 'READ_FIELD: Binary input: ', TRIM(infile)
     WRITE(*,*) 'READ_FIELD: Mesh size:', m
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
@@ -315,10 +314,10 @@ CONTAINS
 
   END SUBROUTINE read_field8
 
-  !Used to be called write_field
+  ! Used to be called write_field
   SUBROUTINE write_field_binary(d,m,outfile)
 
-    !Write out a binary 'field' file
+    ! Write out a binary 'field' file
     IMPLICIT NONE    
     REAL, INTENT(IN) :: d(m,m,m)
     INTEGER, INTENT(IN) :: m
@@ -337,7 +336,7 @@ CONTAINS
 
   END SUBROUTINE write_field_binary
 
-  !Used to be called print_2D_field
+  ! Used to be called print_2D_field
   SUBROUTINE write_2D_field_ascii(d,m,L,outfile)
 
     IMPLICIT NONE
@@ -367,7 +366,7 @@ CONTAINS
 
   END SUBROUTINE write_2D_field_ascii
 
-  !Used to be called print_projected_field
+  ! Used to be called print_projected_field
   SUBROUTINE write_3D_field_projection_ascii(d,m,L,nz,outfile)
 
     IMPLICIT NONE
@@ -407,18 +406,18 @@ CONTAINS
 
   SUBROUTINE compress_field(d,ds,m)
 
-    !Shrinks a 3D field size by a factor of 2
+    ! Shrinks a 3D field size by a factor of 2
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: m
     REAL, INTENT(IN) :: d(m,m,m)
     REAL, ALLOCATABLE, INTENT(OUT) :: ds(:,:,:)
     INTEGER :: i, j, k
 
-    !Allocate the small array
+    ! Allocate the small array
     ALLOCATE(ds(m/2,m/2,m/2))
     ds=0.
 
-    !Fill up the small array by summing blocks of 8 from the larger array
+    ! Fill up the small array by summing blocks of 8 from the larger array
     DO k=1,m/2
        DO j=1,m/2
           DO i=1,m/2
@@ -434,7 +433,7 @@ CONTAINS
        END DO
     END DO
 
-    !Divide by the number of blocks that are being averaged over
+    ! Divide by the number of blocks that are being averaged over
     ds=ds/8.
 
   END SUBROUTINE compress_field
@@ -943,9 +942,9 @@ CONTAINS
     REAL, INTENT(IN) :: L, kmin, kmax
     INTEGER :: i, ix, iy, iz, n, mn
     !INTEGER :: ixx, iyy, izz
-    REAL :: kx, ky, kz, kmod, Dk, f
+    REAL :: kx, ky, kz, kmod, Dk
     REAL, ALLOCATABLE :: kbin(:)  
-    DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk)   
+    DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f 
     INTEGER*8 :: nmodes8(nk)
     !LOGICAL, ALLOCATABLE :: element(:,:,:)
     
@@ -1042,7 +1041,7 @@ CONTAINS
           IF(logmeank) THEN
              k(i)=sqrt(kbin(i+1)*kbin(i))             
           ELSE
-             k(i)=k8(i)/REAL(nmodes8(i))
+             k(i)=REAL(k8(i))/REAL(nmodes8(i))
           END IF
           pow8(i)=pow8(i)/REAL(nmodes8(i))
           IF(nmodes8(i)==1) THEN
@@ -1169,7 +1168,7 @@ CONTAINS
           IF(logmeank) THEN
              k(i)=sqrt(kbin(i+1)*kbin(i))
           ELSE
-             k(i)=k8(i)/REAL(nmodes8(i)) ! Make the mean <k>
+             k(i)=REAL(k8(i))/REAL(nmodes8(i)) ! Make the mean <k>
           END IF
           pow8(i)=pow8(i)/REAL(nmodes8(i)) ! Make the mean <P(k)> from n<P(k)>          
           IF(nmodes8(i)==1) THEN

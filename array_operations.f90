@@ -4,6 +4,7 @@ CONTAINS
 
   FUNCTION sum_double(a,n)
 
+    ! Sum using double precision, which is necessary for many array elements
     IMPLICIT NONE
     REAL :: sum_double
     REAL, INTENT(IN) :: a(n)
@@ -23,7 +24,7 @@ CONTAINS
 
   SUBROUTINE amputate(arr,n_old,n_new)
 
-    !Chop an array down to a smaller size
+    ! Chop an array down to a smaller size
     IMPLICIT NONE
     REAL, ALLOCATABLE, INTENT(INOUT) :: arr(:)
     REAL, ALLOCATABLE :: hold(:)
@@ -48,9 +49,8 @@ CONTAINS
 
   SUBROUTINE reduce(arr1,n1,arr2,n2)
 
-    !Reduces the size of array1 to the size of array2
-    !This will not preserve the spacing of entries in array1
-    !Thus it might be a terrible idea in many cases
+    ! Reduces the size of array1 to the size of array2
+    ! This will not preserve the spacing of entries in array1 and might be a terrible idea in many cases
     IMPLICIT NONE
     REAL, INTENT(IN) :: arr1(n1)
     REAL, INTENT(OUT) :: arr2(n2)
@@ -66,7 +66,7 @@ CONTAINS
 
   SUBROUTINE reduceto(arr1,n)
 
-    !Reduces the array from whatever size to size 'n'
+    ! Reduces the array from whatever size to size 'n'
     IMPLICIT NONE
     REAL, ALLOCATABLE, INTENT(INOUT) :: arr1(:)
     INTEGER, INTENT(IN) :: n
@@ -74,8 +74,6 @@ CONTAINS
     INTEGER :: i, j
 
     ALLOCATE(hold(n))
-
-    !n1=SIZE(arr1)
 
     DO i=1,n
        j=1+CEILING(REAL((n-1)*(i-1))/REAL(n-1))
@@ -93,7 +91,7 @@ CONTAINS
 
   SUBROUTINE reverse(arry,n)
 
-    !This reverses the contents of arry!
+    ! Reverses the contents of arry
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n
     REAL, INTENT(INOUT) :: arry(n)
@@ -110,15 +108,14 @@ CONTAINS
 
   FUNCTION splay(a,n1,n2,n3)
 
+    ! This splays out a 3d array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
     IMPLICIT NONE
     REAL :: splay(n1*n2*n3)
     REAL, INTENT(IN) :: a(n1,n2,n3)
     INTEGER, INTENT(IN) :: n1, n2, n3
     INTEGER :: i, j, k, ii
 
-    !This splays out a 3d array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
-
-    !Set sum integer to zero
+    ! Set sum integer to zero
     ii=0
 
     DO i=1,n1
@@ -187,8 +184,7 @@ CONTAINS
 
   SUBROUTINE merge_arrays(a,na,b,nb,c,nc)
 
-    !Takes arrays a and b and merges them together to make c
-    !with length SIZE(a)+SIZE(b)
+    ! Takes arrays a and b and merges them together to make c with length SIZE(a)+SIZE(b)
     IMPLICIT NONE
     REAL, INTENT(IN) :: a(na), b(nb)
     REAL, ALLOCATABLE, INTENT(OUT) :: c(:)
@@ -213,7 +209,7 @@ CONTAINS
 
   FUNCTION concatenate_arrays(a,na,b,nb)
 
-    !Concatenate arrays a and b to form new array with length SIZE(a)+SIZE(b)
+    ! Concatenate arrays a and b to form new array with length SIZE(a)+SIZE(b)
     IMPLICIT NONE
     REAL :: concatenate_arrays(na+nb)
     REAL, INTENT(IN) :: a(na), b(nb)
@@ -232,15 +228,15 @@ CONTAINS
 
   SUBROUTINE fill_array(min,max,arr,n)
 
-    !Fills array 'arr' in equally spaced intervals
-    !I'm not sure if inputting an array like this is okay
+    ! Fills array 'arr' in equally spaced intervals
+    ! TODO: I'm not sure if inputting an array like this is okay
     IMPLICIT NONE
     INTEGER :: i
     REAL, INTENT(IN) :: min, max
     REAL, ALLOCATABLE, INTENT(OUT) :: arr(:)
     INTEGER, INTENT(IN) :: n
 
-    !Allocate the array, and deallocate it if it is full
+    ! Allocate the array, and deallocate it if it is full
     IF(ALLOCATED(arr)) DEALLOCATE(arr)
     ALLOCATE(arr(n))
     arr=0.
@@ -249,7 +245,6 @@ CONTAINS
        arr(1)=min
     ELSE IF(n>1) THEN
        DO i=1,n
-          !arr(i)=min+(max-min)*REAL(i-1)/REAL(n-1)
           arr(i)=progression(min,max,i,n)
        END DO
     END IF
@@ -258,15 +253,15 @@ CONTAINS
 
   SUBROUTINE fill_array_double(min,max,arr,n)
 
-    !Fills array 'arr' in equally spaced intervals
-    !I'm not sure if inputting an array like this is okay
+    ! Fills array 'arr' in equally spaced intervals
+    ! TODO: I'm not sure if inputting an array like this is okay
     IMPLICIT NONE
     INTEGER :: i
     REAL, INTENT(IN) :: min, max
     DOUBLE PRECISION, ALLOCATABLE, INTENT(INOUT) :: arr(:)
     INTEGER, INTENT(IN) :: n
 
-    !Allocate the array, and deallocate it if it is full
+    ! Allocate the array, and deallocate it if it is full
     IF(ALLOCATED(arr)) DEALLOCATE(arr)
     ALLOCATE(arr(n))
     arr=0.d0
@@ -275,7 +270,6 @@ CONTAINS
        arr(1)=min
     ELSE IF(n>1) THEN
        DO i=1,n
-          !arr(i)=min+(max-min)*DBLE(i-1)/DBLE(n-1)
           arr(i)=progression8(min,max,i,n)
        END DO
     END IF
@@ -318,7 +312,8 @@ CONTAINS
   FUNCTION maximum(x,y,n)
 
     USE fix_polynomial
-    !From an array y(x) finds the x location of the first maximum
+    
+    ! From an array y(x) finds the x location of the first maximum
     IMPLICIT NONE
     REAL :: maximum
     REAL, INTENT(IN) :: x(n), y(n)
@@ -326,35 +321,42 @@ CONTAINS
     REAL :: x1, x2, x3, y1, y2, y3, a, b, c
     INTEGER :: i
 
-    !Need this to stop a compile-time warning
+    ! Need this to stop a compile-time warning
     maximum=0.
 
     DO i=1,n-1
+       
        IF(y(i+1)<y(i)) THEN
 
-          !Get the x positions
+          ! Get the x positions
           x1=x(i-1)
           x2=x(i)
           x3=x(i+1)
 
-          !Get the y values
+          ! Get the y values
           y1=y(i-1)
           y2=y(i)
           y3=y(i+1)
 
-          !Fix a quadratic around the maximum
+          ! Fix a quadratic around the maximum
           CALL fix_quadratic(a,b,c,x1,y1,x2,y2,x3,y3)
 
-          !Read off the maximum x from the parabola
+          ! Read off the maximum x from the parabola
           maximum=-b/(2.*a)
 
-          !Exit the loop
+          ! Exit the loop
           EXIT
+          
        ELSE IF(i<n-1) THEN
+          
           CYCLE
+          
        ELSE
+          
           STOP 'MAXIMUM: Error, array does not have a maximum'
+          
        END IF
+       
     END DO
 
   END FUNCTION maximum
@@ -369,10 +371,10 @@ CONTAINS
     LOGICAL, INTENT(OUT) :: okay(n)
     INTEGER :: i, o
 
-    WRITE(*,*) 'CUT: Imposing property cut'    
-    WRITE(*,*) 'CUT: Minimum value:', min
-    WRITE(*,*) 'CUT: Maximum value:', max
-    WRITE(*,*) 'CUT: Original number of objects', n
+    WRITE(*,*) 'MASK: Imposing property cut'    
+    WRITE(*,*) 'MASK: Minimum value:', min
+    WRITE(*,*) 'MASK: Maximum value:', max
+    WRITE(*,*) 'MASK: Original number of objects', n
 
     okay=.FALSE.
 
@@ -382,10 +384,10 @@ CONTAINS
 
     o=COUNT(okay)
 
-    WRITE(*,*) 'CUT: Final number of objects:', o
-    WRITE(*,*) 'CUT: Fraction remaining:', REAL(o)/REAL(n)
-    WRITE(*,*) 'CUT: Fraction culled:', 1.-REAL(o)/REAL(n)
-    WRITE(*,*) 'CUT: Done'
+    WRITE(*,*) 'MASK: Final number of objects:', o
+    WRITE(*,*) 'MASK: Fraction remaining:', REAL(o)/REAL(n)
+    WRITE(*,*) 'MASK: Fraction culled:', 1.-REAL(o)/REAL(n)
+    WRITE(*,*) 'MASK: Done'
     WRITE(*,*)
 
   END SUBROUTINE mask

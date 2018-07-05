@@ -2,18 +2,18 @@ MODULE owls
 
   IMPLICIT NONE
 
-  !BAHAMAS simulation parameters
-  REAL, PARAMETER :: fh=0.752 !Hydrogen mass fraction
-  REAL, PARAMETER :: mu=0.61 !Mean molecular weight
-  REAL, PARAMETER :: Xe=1.17 !Electron fraction (electrons per hydrogen)
-  REAL, PARAMETER :: Xi=1.08 !Ion fraction (ionisation per hydrogen)
+  ! BAHAMAS simulation parameters
+  REAL, PARAMETER :: fh=0.752 ! Hydrogen mass fraction
+  REAL, PARAMETER :: mu=0.61 ! Mean molecular weight
+  REAL, PARAMETER :: Xe=1.17 ! Electron fraction (electrons per hydrogen)
+  REAL, PARAMETER :: Xi=1.08 ! Ion fraction (ionisation per hydrogen)
 
-  !Physical constants
-  !REAL, PARAMETER :: msun=1.989e30 !Solar mass in kg
-  !REAL, PARAMETER :: mp=1.6726e-27 !Proton mass in kg
-  !REAL, PARAMETER :: Mpc=3.0857e22 !Mpc in m
-  !REAL, PARAMETER :: cm=0.01 !cm in m
-  !REAL, PARAMETER :: eV=1.60218e-12 !eV in erg
+!!$  !Physical constants
+!!$  !REAL, PARAMETER :: msun=1.989e30 !Solar mass in kg
+!!$  !REAL, PARAMETER :: mp=1.6726e-27 !Proton mass in kg
+!!$  !REAL, PARAMETER :: Mpc=3.0857e22 !Mpc in m
+!!$  !REAL, PARAMETER :: cm=0.01 !cm in m
+!!$  !REAL, PARAMETER :: eV=1.60218e-12 !eV in erg
   
 CONTAINS
 
@@ -31,7 +31,7 @@ CONTAINS
     READ(7) n
     CLOSE(7)
 
-    !In case the array is empty, but actually Ian has n=1 set (e.g., UVB_stars)
+    ! In case the array is empty, but actually Ian has n=1 set (e.g., UVB_stars)
     IF(n==1) THEN
        n=0
     END IF
@@ -43,7 +43,7 @@ CONTAINS
 
     IF(n .NE. 0) THEN
 
-       !Need to read in 'n' again with stream access
+       ! Need to read in 'n' again with stream access
        OPEN(7,file=infile,form='unformatted',access='stream',status='old')
        READ(7) n
        READ(7) m
@@ -78,10 +78,10 @@ CONTAINS
     REAL, ALLOCATABLE :: ep(:)
     INTEGER, INTENT(OUT) :: n
     
-    REAL, PARAMETER :: mfac=1e10 !Convert mass to Solar masses
-    REAL, PARAMETER :: eV_erg=eV*1e7 !eV in ergs
+    REAL, PARAMETER :: mfac=1e10 ! Convert mass to Solar masses
+    REAL, PARAMETER :: eV_erg=eV*1e7 ! eV in ergs
 
-    !Read in the binary file
+    ! Read in the binary file
     WRITE(*,*) 'READ_MCCARTHY_GAS: Reading in binary file: ', TRIM(infile)
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) n
@@ -89,19 +89,19 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Particle number:', n
     WRITE(*,*) 'READ_MCCARTHY_GAS: Which is ~', NINT(n**(1./3.)), 'cubed.'
 
-    !Allocate arrays for quantities in the file
+    ! Allocate arrays for quantities in the file
     ALLOCATE(x(3,n),m(n),ep(n),nh(n))
     
-    !Need to read in 'n' again with stream access
+    ! Need to read in 'n' again with stream access
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) n
     READ(7) m
     READ(7) x
-    READ(7) ep !physical electron pressure for the particle in erg/cm^3
-    READ(7) nh !hydrogen number density for the partcle in /cm^3
+    READ(7) ep ! physical electron pressure for the particle in erg/cm^3
+    READ(7) nh ! hydrogen number density for the partcle in /cm^3
     CLOSE(7)
 
-    !Convert masses into Solar masses
+    ! Convert masses into Solar masses
     m=m*mfac
 
     WRITE(*,*) 'READ_MCCARTHY_GAS: Calculating kT from physical electron pressure'
@@ -112,20 +112,20 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Xe:', Xe
     WRITE(*,*) 'READ_MCCARTHY_GAS: Xi:', Xi
     
-    !Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT
-    !Units of kT will be [erg]
-    !This is the temperature of gas particles (equal for all species)
-    !Temperature is neither comoving nor physical
+    ! Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT
+    ! Units of kT will be [erg]
+    ! This is the temperature of gas particles (equal for all species)
+    ! Temperature is neither comoving nor physical
     ALLOCATE(kT(n))
     kT=((Xe+Xi)/Xe)*(ep/nh)*mu*fh
 
-    !Convert internal energy from erg to eV
+    ! Convert internal energy from erg to eV
     kT=kT/eV_erg
 
-    !Deallocate the physical electron pressure array
+    ! Deallocate the physical electron pressure array
     DEALLOCATE(ep)
 
-    !Write information to the screen
+    ! Write information to the screen
     WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle mass [Msun/h]:', MINVAL(m)
     WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle mass [Msun/h]:', MAXVAL(m)
     WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum x coordinate [Mpc/h]:', MINVAL(x(1,:))
@@ -145,6 +145,13 @@ CONTAINS
 
   SUBROUTINE convert_kT_to_comoving_electron_pressure(kT,nh,mass,n,L,h,m)
 
+    ! kT is particle internal energy input in units of eV, it is output in units of eV/cm^3
+    ! nh is hydrogen number density in units /cm^3
+    ! mass is particle mass in units of msun
+    ! n is the total number of particles
+    ! L is the box size in units of Mpc/h
+    ! h is the dimensionless hubble parameter
+    ! m is the mesh size onto which the pressure will be binned
     USE constants
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: kT(n)
@@ -153,10 +160,10 @@ CONTAINS
     REAL :: V
     DOUBLE PRECISION :: units, kT_dble(n)
     
-    LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. !Apply a cut in hydrogen density
-    REAL, PARAMETER :: nh_cut=0.1 !Cut in the hydrogen number density [cm^-3] gas denser than this is not ionised
+    LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. ! Apply a cut in hydrogen density
+    REAL, PARAMETER :: nh_cut=0.1 ! Cut in the hydrogen number density [cm^-3] gas denser than this is not ionised
 
-    !Exclude gas that is sufficiently dense to not be ionised and be forming stars
+    ! Exclude gas that is sufficiently dense to not be ionised and be forming stars
     IF(apply_nh_cut) CALL exclude_nh(nh_cut,kT,nh,n)
 
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Converting kT to comoving electron pressure'
@@ -167,32 +174,30 @@ CONTAINS
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xe:', Xe
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xi:', Xi
 
-    !Use double precision because all the constants are dreadful
-    kT_dble=kT
+    ! Use double precision because all the constants are dreadful 
+    kT_dble=kT! [eV]
 
-    !Convert to particle internal energy [Msun*eV] that needs to be mapped to grid [eV*Msun]
-    kT_dble=kT_dble*(mass/mu)*Xe/(Xe+Xi)
+    ! Convert to particle internal energy that needs to be mapped to grid
+    kT_dble=kT_dble*(mass/mu)*Xe/(Xe+Xi)! [eV*Msun]
 
-    !Comoving cell volume in [(Mpc/h)^3]
-    V=(L/REAL(m))**3
+    ! Comoving cell volume
+    V=(L/REAL(m))**3! [(Mpc/h)^3]
+    V=V/h**3 ! remove h factors [Mpc^3]
 
-    !Comoving cell volume in [Mpc^3] note that this removes h factors
-    V=V/h**3
+    ! This is now comoving electron pressure
+    kT_dble=kT_dble/V! [Msun*eV/Mpc^3]
 
-    !This is now comoving electron pressure in [Msun*eV/Mpc^3]
-    kT_dble=kT_dble/V
-
-    !Convert units of comoving electron pressure to [eV/cm^3]
-    !Note that there are no h factors here
+    ! Convert units of comoving electron pressure
+    ! Note that there are no h factors here
     units=msun
     units=units/mp
     units=units/(Mpc/cm)
     units=units/(Mpc/cm)
     units=units/(Mpc/cm)
-    kT_dble=kT_dble*units
+    kT_dble=kT_dble*units! [eV/cm^3]
 
-    !Go back to single precision
-    kT=REAL(kT_dble)
+    ! Go back to single precision
+    kT=REAL(kT_dble)! [eV/cm^3]
 
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Done'
     WRITE(*,*)
@@ -212,7 +217,7 @@ CONTAINS
     WRITE(*,*) 'WRITE_MCCARTHY: Particle number:', n
     WRITE(*,*) 'WRITE_MCCARTHY: Which is ~', NINT(n**(1./3.)), 'cubed.'
 
-    !Need to read in 'n' again with stream access
+    ! Need to read in 'n' again with stream access
     OPEN(7,file=outfile,form='unformatted',access='stream',status='replace')
     WRITE(7) n
     WRITE(7) m/mfac
@@ -226,7 +231,7 @@ CONTAINS
 
   SUBROUTINE exclude_nh(nhcut,ep,nh,n)
 
-    !Set the electron pressure to zero of any particle that has nh > nhcut
+    ! Set the electron pressure to zero of any particle that has nh > nhcut
     IMPLICIT NONE
     REAL, INTENT(IN) :: nhcut, nh(n)
     REAL, INTENT(INOUT) :: ep(n)
