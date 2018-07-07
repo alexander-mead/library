@@ -77,7 +77,7 @@ CONTAINS
     CALL fft3(dk,dk_out,m,m,m,-1)
     dk=dk_out
 
-    CALL sharpen_k(dk,m,L,ibin)
+    CALL sharpen_k(dk,m,m,L,ibin)
 
   END SUBROUTINE sharp_Fourier_density_contrast
 

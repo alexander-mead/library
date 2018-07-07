@@ -1,5 +1,5 @@
 MODULE field_operations
-
+  
 CONTAINS
 
   INTEGER FUNCTION NGP_cell(x,L,m)
@@ -459,7 +459,7 @@ CONTAINS
     CALL fft3(dk,dkout,m,m,m,-1)
     dk=dkout
 
-    CALL sharpen_k(dk,m,L,ibin)
+    CALL sharpen_k(dk,m,m,L,ibin)
 
     CALL fft3(dk,dkout,m,m,m,1)
     dk=dkout
@@ -471,23 +471,34 @@ CONTAINS
 
   END SUBROUTINE sharpen
 
-  SUBROUTINE sharpen_k(dk,m,L,ibin)
+  SUBROUTINE sharpen_k(dk,mx,m,L,ibin)
 
     USE special_functions
     USE fft
     IMPLICIT NONE
-    DOUBLE COMPLEX, INTENT(INOUT) :: dk(m,m,m)
-    INTEGER, INTENT(IN) :: m, ibin
+    DOUBLE COMPLEX, INTENT(INOUT) :: dk(mx,m,m)
+    INTEGER, INTENT(IN) :: mx, m, ibin
     REAL, INTENT(IN) :: L
     INTEGER :: i, j, k
-    REAL :: kx, ky, kz, kmod
+    Real :: kx, ky, kz, kmod
     REAL :: kxh, kyh, kzh
     REAL :: fcx, fcy, fcz, fcorr
+
+    ! Check that the array is sensible
+    IF(mx==m) THEN
+       ! Do nothing
+    ELSE IF(mx==m/2+1) THEN
+       ! Do nothing
+    ELSE
+       WRITE(*,*) 'SHARPEN_K: Array x size:', mx
+       WRITE(*,*) 'SHARPEN_K: Array general size:', m
+       STOP 'SHARPEN_K: Error, the array is not sensible'
+    END IF
 
     !Now correct for binning!
     DO k=1,m
        DO j=1,m
-          DO i=1,m
+          DO i=1,mx
 
              CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
 
@@ -515,49 +526,49 @@ CONTAINS
 
   END SUBROUTINE sharpen_k
 
-  SUBROUTINE sharpen_k_real(dk,m,L,ibin)
-
-    USE special_functions
-    USE fft
-    IMPLICIT NONE
-    DOUBLE COMPLEX, INTENT(INOUT) :: dk(m/2+1,m,m)
-    INTEGER, INTENT(IN) :: m, ibin
-    REAL, INTENT(IN) :: L
-    INTEGER :: i, j, k
-    REAL :: kx, ky, kz, kmod
-    REAL :: kxh, kyh, kzh
-    REAL :: fcx, fcy, fcz, fcorr
-
-    !Now correct for binning!
-    DO k=1,m
-       DO j=1,m
-          DO i=1,m/2+1
-
-             CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
-
-             kxh=L*kx/(2.*REAL(m))
-             kyh=L*ky/(2.*REAL(m))
-             kzh=L*kz/(2.*REAL(m))
-
-             fcx=sinc(kxh)
-             fcy=sinc(kyh)
-             fcz=sinc(kzh)
-
-             IF(ibin==1) THEN
-                fcorr=fcx*fcy*fcz
-             ELSE IF(ibin==2) THEN
-                fcorr=(fcx*fcy*fcz)**2
-             ELSE
-                STOP 'SHARPEN_K: Error, ibin specified incorrectly'
-             END IF
-
-             dk(i,j,k)=dk(i,j,k)/fcorr
-
-          END DO
-       END DO
-    END DO
-
-  END SUBROUTINE sharpen_k_real
+!!$  SUBROUTINE sharpen_k_real(dk,m,L,ibin)
+!!$
+!!$    USE special_functions
+!!$    USE fft
+!!$    IMPLICIT NONE
+!!$    DOUBLE COMPLEX, INTENT(INOUT) :: dk(m/2+1,m,m)
+!!$    INTEGER, INTENT(IN) :: m, ibin
+!!$    REAL, INTENT(IN) :: L
+!!$    INTEGER :: i, j, k
+!!$    REAL :: kx, ky, kz, kmod
+!!$    REAL :: kxh, kyh, kzh
+!!$    REAL :: fcx, fcy, fcz, fcorr
+!!$
+!!$    !Now correct for binning!
+!!$    DO k=1,m
+!!$       DO j=1,m
+!!$          DO i=1,m/2+1
+!!$
+!!$             CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
+!!$
+!!$             kxh=L*kx/(2.*REAL(m))
+!!$             kyh=L*ky/(2.*REAL(m))
+!!$             kzh=L*kz/(2.*REAL(m))
+!!$
+!!$             fcx=sinc(kxh)
+!!$             fcy=sinc(kyh)
+!!$             fcz=sinc(kzh)
+!!$
+!!$             IF(ibin==1) THEN
+!!$                fcorr=fcx*fcy*fcz
+!!$             ELSE IF(ibin==2) THEN
+!!$                fcorr=(fcx*fcy*fcz)**2
+!!$             ELSE
+!!$                STOP 'SHARPEN_K: Error, ibin specified incorrectly'
+!!$             END IF
+!!$
+!!$             dk(i,j,k)=dk(i,j,k)/fcorr
+!!$
+!!$          END DO
+!!$       END DO
+!!$    END DO
+!!$
+!!$  END SUBROUTINE sharpen_k_real
 
   SUBROUTINE smooth2D(d,m,r,L)
 
@@ -935,22 +946,19 @@ CONTAINS
     USE array_operations
     USE fft
     IMPLICIT NONE
-    DOUBLE COMPLEX, INTENT(IN) :: dk1(m,m,m), dk2(m,m,m)
+    DOUBLE COMPLEX, INTENT(IN) :: dk1(:,:,:), dk2(:,:,:) ! LEAVE THIS: It allows the running to determine complex vs real
     REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:), k(:), sigma(:)
     INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:)
     INTEGER, INTENT(IN) :: m, nk
     REAL, INTENT(IN) :: L, kmin, kmax
     INTEGER :: i, ix, iy, iz, n, mn
-    !INTEGER :: ixx, iyy, izz
     REAL :: kx, ky, kz, kmod, Dk
     REAL, ALLOCATABLE :: kbin(:)  
     DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f 
     INTEGER*8 :: nmodes8(nk)
-    !LOGICAL, ALLOCATABLE :: element(:,:,:)
 
     REAL, PARAMETER :: dbin=1e-3 ! Bin slop parameter for first and last bin edges
     LOGICAL, PARAMETER :: logmeank=.FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
-    !INTEGER, PARAMETER :: mn=m/2+1 ! Nyquist cell
 
     WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Computing isotropic power spectrum'
 
@@ -977,8 +985,6 @@ CONTAINS
 
     ! Cell location of Nyquist
     mn=m/2+1
-    !ALLOCATE(element(0:mn-1,0:mn-1,0:mn-1))
-    !element=.TRUE.
 
     ! Loop over all independent elements of dk
     DO iz=1,m
@@ -994,17 +1000,6 @@ CONTAINS
              IF((ix==1 .OR. ix==mn) .AND. (iy>mn .OR. iz>mn)) CYCLE
 
              CALL k_fft(ix,iy,iz,m,kx,ky,kz,kmod,L)
-
-             !ixx=ix-1
-             !iyy=iy-1
-             !izz=iz-1
-             !IF(ixx>mn-1) ixx=m-ixx
-             !IF(iyy>mn-1) iyy=m-iyy
-             !IF(izz>mn-1) izz=m-iyy
-
-             !IF(element(ixx,iyy,izz)) THEN
-
-             !element(ixx,iyy,izz)=.FALSE.
 
              ! Find integer 'n' in bins from place in table
              IF(kmod>=kbin(1) .AND. kmod<=kbin(nk+1)) THEN
@@ -1069,140 +1064,289 @@ CONTAINS
 
   END SUBROUTINE compute_power_spectrum
 
-  SUBROUTINE compute_power_spectrum_real(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma)
+!!$  SUBROUTINE compute_power_spectrum(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma)
+!!$
+!!$    ! Takes in a dk(m,m,m) array and computes the power spectrum
+!!$    ! dk1 - Fourier components of field 1
+!!$    ! dk2 - Fourier components of field 2
+!!$    ! m - mesh size for fields
+!!$    ! L - box size in Mpc/h
+!!$    ! kmin - minimum wavenumber
+!!$    ! kmax - maximum wavenumber
+!!$    ! nk - number of k bins
+!!$    USE table_integer
+!!$    USE constants
+!!$    USE array_operations
+!!$    USE fft
+!!$    IMPLICIT NONE
+!!$    DOUBLE COMPLEX, INTENT(IN) :: dk1(m,m,m), dk2(m,m,m)
+!!$    REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:), k(:), sigma(:)
+!!$    INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:)
+!!$    INTEGER, INTENT(IN) :: m, nk
+!!$    REAL, INTENT(IN) :: L, kmin, kmax
+!!$    INTEGER :: i, ix, iy, iz, n, mn
+!!$    !INTEGER :: ixx, iyy, izz
+!!$    REAL :: kx, ky, kz, kmod, Dk
+!!$    REAL, ALLOCATABLE :: kbin(:)  
+!!$    DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f 
+!!$    INTEGER*8 :: nmodes8(nk)
+!!$    !LOGICAL, ALLOCATABLE :: element(:,:,:)
+!!$
+!!$    REAL, PARAMETER :: dbin=1e-3 ! Bin slop parameter for first and last bin edges
+!!$    LOGICAL, PARAMETER :: logmeank=.FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
+!!$    !INTEGER, PARAMETER :: mn=m/2+1 ! Nyquist cell
+!!$
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Computing isotropic power spectrum'
+!!$
+!!$    ! Set summation variables to 0.d0
+!!$    k8=0.d0
+!!$    pow8=0.d0
+!!$    nmodes8=0
+!!$    sigma8=0.d0
+!!$
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Binning power'
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Mesh:', m
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Bins:', nk
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: k_min [h/Mpc]:', kmin
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: k_max [h/Mpc]:', kmax
+!!$
+!!$    ! Fill array of k bins
+!!$    CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
+!!$    kbin=exp(kbin)
+!!$
+!!$    ! Explicitly extend the first and last bins to be sure to include *all* modes
+!!$    ! This is necessary due to rounding errors!
+!!$    kbin(1)=kbin(1)*(1.-dbin)
+!!$    kbin(nk+1)=kbin(nk+1)*(1.+dbin)
+!!$
+!!$    ! Cell location of Nyquist
+!!$    mn=m/2+1
+!!$    !ALLOCATE(element(0:mn-1,0:mn-1,0:mn-1))
+!!$    !element=.TRUE.
+!!$
+!!$    ! Loop over all independent elements of dk
+!!$    DO iz=1,m
+!!$       DO iy=1,m
+!!$          DO ix=1,mn
+!!$
+!!$             ! Cycle for the zero mode (k=0)
+!!$             IF(ix==1 .AND. iy==1 .AND. iz==1) CYCLE
+!!$
+!!$             ! Cycle for the repeated zero modes and Nyquist modes
+!!$             ! I *think* this is correct to avoid double counting zero modes and Nyquist modes
+!!$             ! For example 0,1,0 is the same as 0,-1,0
+!!$             IF((ix==1 .OR. ix==mn) .AND. (iy>mn .OR. iz>mn)) CYCLE
+!!$
+!!$             CALL k_fft(ix,iy,iz,m,kx,ky,kz,kmod,L)
+!!$
+!!$             !ixx=ix-1
+!!$             !iyy=iy-1
+!!$             !izz=iz-1
+!!$             !IF(ixx>mn-1) ixx=m-ixx
+!!$             !IF(iyy>mn-1) iyy=m-iyy
+!!$             !IF(izz>mn-1) izz=m-iyy
+!!$
+!!$             !IF(element(ixx,iyy,izz)) THEN
+!!$
+!!$             !element(ixx,iyy,izz)=.FALSE.
+!!$
+!!$             ! Find integer 'n' in bins from place in table
+!!$             IF(kmod>=kbin(1) .AND. kmod<=kbin(nk+1)) THEN
+!!$                n=select_table_integer(kmod,kbin,nk+1,3)
+!!$                IF(n<1 .OR. n>nk) THEN
+!!$                   CYCLE
+!!$                ELSE
+!!$                   k8(n)=k8(n)+kmod
+!!$                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
+!!$                   pow8(n)=pow8(n)+f
+!!$                   sigma8(n)=sigma8(n)+f**2
+!!$                   nmodes8(n)=nmodes8(n)+1
+!!$                END IF
+!!$             END IF
+!!$
+!!$             !END IF
+!!$
+!!$          END DO
+!!$       END DO
+!!$    END DO
+!!$
+!!$    ! Deallocate and reallocate arrays
+!!$    IF(ALLOCATED(k))      DEALLOCATE(k)
+!!$    IF(ALLOCATED(pow))    DEALLOCATE(pow)
+!!$    IF(ALLOCATED(nmodes)) DEALLOCATE(nmodes)
+!!$    ALLOCATE(k(nk),pow(nk),nmodes(nk))
+!!$
+!!$    ! Now create the power spectrum and k array
+!!$    DO i=1,nk       
+!!$       IF(nmodes8(i)==0) THEN
+!!$          k(i)=sqrt(kbin(i+1)*kbin(i))       
+!!$          pow8(i)=0.d0
+!!$          sigma8(i)=0.d0
+!!$       ELSE
+!!$          IF(logmeank) THEN
+!!$             k(i)=sqrt(kbin(i+1)*kbin(i))             
+!!$          ELSE
+!!$             k(i)=REAL(k8(i))/REAL(nmodes8(i))
+!!$          END IF
+!!$          pow8(i)=pow8(i)/REAL(nmodes8(i))
+!!$          IF(nmodes8(i)==1) THEN
+!!$             sigma8(i)=0
+!!$          ELSE
+!!$             sigma8(i)=sigma8(i)/REAL(nmodes8(i)) ! Create <P(k)^2>
+!!$             sigma8(i)=sqrt(sigma8(i)-pow8(i)**2) ! Create biased estimate of sigma
+!!$             sigma8(i)=sigma8(i)*REAL(nmodes8(i))/REAL(nmodes8(i)-1) ! Correct for bias
+!!$             sigma8(i)=sigma8(i)/sqrt(REAL(nmodes8(i))) ! Convert to error on the mean
+!!$          END IF
+!!$          Dk=4.*pi*((k(i)*L)**3)/twopi**3
+!!$          pow8(i)=pow8(i)*Dk
+!!$          sigma8(i)=sigma8(i)*Dk
+!!$       END IF
+!!$    END DO
+!!$
+!!$    ! Convert from double precision to reals
+!!$    pow=REAL(pow8)
+!!$    sigma=REAL(sigma8)
+!!$    nmodes=INT(nmodes8)    
+!!$
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Power computed'
+!!$    WRITE(*,*) 
+!!$
+!!$  END SUBROUTINE compute_power_spectrum
 
-    ! Takes in a dk(m,m,m) array and computes the power spectrum
-    ! dk1 - Fourier components of field 1
-    ! dk2 - Fourier components of field 2
-    ! m - mesh size for fields
-    ! L - box size in Mpc/h
-    ! kmin - minimum wavenumber
-    ! kmax - maximum wavenumber
-    ! nk - number of k bins
-    USE table_integer
-    USE constants
-    USE array_operations
-    USE fft
-    IMPLICIT NONE
-    DOUBLE COMPLEX, INTENT(IN) :: dk1(m/2+1,m,m), dk2(m/2+1,m,m)
-    REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:), k(:), sigma(:)
-    INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:)
-    INTEGER, INTENT(IN) :: m, nk
-    REAL, INTENT(IN) :: L, kmin, kmax
-    INTEGER :: i, ix, iy, iz, n, mn
-    REAL :: kx, ky, kz, kmod  
-    REAL, ALLOCATABLE :: kbin(:)  
-    DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f, Dk
-    INTEGER*8 :: nmodes8(nk)
-
-    REAL, PARAMETER :: dbin=1e-3 ! Bin slop parameter for first and last bin edges
-    LOGICAL, PARAMETER :: logmeank=.FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
-
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Computing isotropic power spectrum'
-    !STOP 'COMPUTE_POWER_SPECTRUM_REAL: Error, this is counting modes incorrectly'
-
-    ! Set summation variables to 0.d0
-    k8=0.d0
-    pow8=0.d0
-    nmodes8=0
-    sigma8=0.d0
-
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Binning power'
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Mesh:', m
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Bins:', nk
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: k_min [h/Mpc]:', kmin
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: k_max [h/Mpc]:', kmax
-
-    ! Fill array of k bins
-    CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
-    kbin=exp(kbin)
-
-    ! Explicitly extend the first and last bins to be sure to include *all* modes
-    ! This is necessary due to rounding errors
-    kbin(1)=kbin(1)*(1.-dbin)
-    kbin(nk+1)=kbin(nk+1)*(1.+dbin)
-
-    ! Cell location of Nyquist
-    mn=m/2+1
-
-    ! Loop over all independent elements of dk
-    DO iz=1,m
-       DO iy=1,m
-          DO ix=1,mn
-
-             ! Cycle for the zero mode: k=0
-             IF(ix==1 .AND. iy==1 .AND. iz==1) CYCLE
-
-             ! Cycle for the repeated zero modes and Nyquist modes
-             ! I *think* this is correct to avoid double counting zero modes and Nyquist modes
-             ! For example 0,1,0 is the same as 0,-1,0
-             IF((ix==1 .OR. ix==mn) .AND. (iy>mn .OR. iz>mn)) CYCLE
-
-             CALL k_fft(ix,iy,iz,m,kx,ky,kz,kmod,L)
-
-             ! Find integer 'n' in bins from place in table
-             IF(kmod>=kbin(1) .AND. kmod<=kbin(nk+1)) THEN
-                n=select_table_integer(kmod,kbin,nk+1,3)
-                IF(n<1 .OR. n>nk) THEN
-                   CYCLE
-                ELSE
-                   k8(n)=k8(n)+kmod
-                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
-                   pow8(n)=pow8(n)+f
-                   sigma8(n)=sigma8(n)+f**2
-                   nmodes8(n)=nmodes8(n)+1
-                END IF
-             END IF
-
-          END DO
-       END DO
-    END DO
-
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Binned k, pow and sigma '
-
-    ! Deallocate and reallocate arrays
-    IF(ALLOCATED(k))      DEALLOCATE(k)
-    IF(ALLOCATED(pow))    DEALLOCATE(pow)
-    IF(ALLOCATED(nmodes)) DEALLOCATE(nmodes)
-    IF(ALLOCATED(sigma))  DEALLOCATE(sigma)
-    ALLOCATE(k(nk),pow(nk),nmodes(nk),sigma(nk))
-
-    ! Now create the power spectrum and k array
-    DO i=1,nk       
-       IF(nmodes8(i)==0) THEN
-          k(i)=sqrt(kbin(i+1)*kbin(i))
-          pow8(i)=0.d0
-          sigma8(i)=0.d0
-       ELSE
-          IF(logmeank) THEN
-             k(i)=sqrt(kbin(i+1)*kbin(i))
-          ELSE
-             k(i)=REAL(k8(i))/REAL(nmodes8(i)) ! Make the mean <k>
-          END IF
-          pow8(i)=pow8(i)/REAL(nmodes8(i)) ! Make the mean <P(k)> from n<P(k)>          
-          IF(nmodes8(i)==1) THEN
-             sigma8(i)=0
-          ELSE
-             sigma8(i)=sigma8(i)/REAL(nmodes8(i)) ! Create <P(k)^2>
-             sigma8(i)=sqrt(sigma8(i)-pow8(i)**2) ! Create biased estimate of sigma
-             sigma8(i)=sigma8(i)*REAL(nmodes8(i))/REAL(nmodes8(i)-1) ! Correct for bias
-             sigma8(i)=sigma8(i)/sqrt(REAL(nmodes8(i))) ! Conver to error on the mean
-          END IF
-          Dk=4.*pi*((L*k(i))**3)/twopi**3 ! Factor to convert P(k) -> Delta^2(k)
-          pow8(i)=pow8(i)*Dk ! Convert to Delta^2(k)
-          sigma8(i)=sigma8(i)*Dk ! Convert to Delta^2(k)
-       END IF
-    END DO
-
-    ! Convert back to standard precision
-    pow=REAL(pow8)
-    sigma=REAL(sigma8)
-    nmodes=INT(nmodes8)
-
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Power computed'
-    WRITE(*,*) 
-
-  END SUBROUTINE compute_power_spectrum_real
+!!$  SUBROUTINE compute_power_spectrum_real(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma)
+!!$
+!!$    ! Takes in a dk(m,m,m) array and computes the power spectrum
+!!$    ! dk1 - Fourier components of field 1
+!!$    ! dk2 - Fourier components of field 2
+!!$    ! m - mesh size for fields
+!!$    ! L - box size in Mpc/h
+!!$    ! kmin - minimum wavenumber
+!!$    ! kmax - maximum wavenumber
+!!$    ! nk - number of k bins
+!!$    USE table_integer
+!!$    USE constants
+!!$    USE array_operations
+!!$    USE fft
+!!$    IMPLICIT NONE
+!!$    DOUBLE COMPLEX, INTENT(IN) :: dk1(m/2+1,m,m), dk2(m/2+1,m,m)
+!!$    REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:), k(:), sigma(:)
+!!$    INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:)
+!!$    INTEGER, INTENT(IN) :: m, nk
+!!$    REAL, INTENT(IN) :: L, kmin, kmax
+!!$    INTEGER :: i, ix, iy, iz, n, mn
+!!$    REAL :: kx, ky, kz, kmod  
+!!$    REAL, ALLOCATABLE :: kbin(:)  
+!!$    DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f, Dk
+!!$    INTEGER*8 :: nmodes8(nk)
+!!$
+!!$    REAL, PARAMETER :: dbin=1e-3 ! Bin slop parameter for first and last bin edges
+!!$    LOGICAL, PARAMETER :: logmeank=.FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
+!!$
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Computing isotropic power spectrum'
+!!$    !STOP 'COMPUTE_POWER_SPECTRUM_REAL: Error, this is counting modes incorrectly'
+!!$
+!!$    ! Set summation variables to 0.d0
+!!$    k8=0.d0
+!!$    pow8=0.d0
+!!$    nmodes8=0
+!!$    sigma8=0.d0
+!!$
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Binning power'
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Mesh:', m
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Bins:', nk
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: k_min [h/Mpc]:', kmin
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: k_max [h/Mpc]:', kmax
+!!$
+!!$    ! Fill array of k bins
+!!$    CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
+!!$    kbin=exp(kbin)
+!!$
+!!$    ! Explicitly extend the first and last bins to be sure to include *all* modes
+!!$    ! This is necessary due to rounding errors
+!!$    kbin(1)=kbin(1)*(1.-dbin)
+!!$    kbin(nk+1)=kbin(nk+1)*(1.+dbin)
+!!$
+!!$    ! Cell location of Nyquist
+!!$    mn=m/2+1
+!!$
+!!$    ! Loop over all independent elements of dk
+!!$    DO iz=1,m
+!!$       DO iy=1,m
+!!$          DO ix=1,mn
+!!$
+!!$             ! Cycle for the zero mode: k=0
+!!$             IF(ix==1 .AND. iy==1 .AND. iz==1) CYCLE
+!!$
+!!$             ! Cycle for the repeated zero modes and Nyquist modes
+!!$             ! I *think* this is correct to avoid double counting zero modes and Nyquist modes
+!!$             ! For example 0,1,0 is the same as 0,-1,0
+!!$             IF((ix==1 .OR. ix==mn) .AND. (iy>mn .OR. iz>mn)) CYCLE
+!!$
+!!$             CALL k_fft(ix,iy,iz,m,kx,ky,kz,kmod,L)
+!!$
+!!$             ! Find integer 'n' in bins from place in table
+!!$             IF(kmod>=kbin(1) .AND. kmod<=kbin(nk+1)) THEN
+!!$                n=select_table_integer(kmod,kbin,nk+1,3)
+!!$                IF(n<1 .OR. n>nk) THEN
+!!$                   CYCLE
+!!$                ELSE
+!!$                   k8(n)=k8(n)+kmod
+!!$                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
+!!$                   pow8(n)=pow8(n)+f
+!!$                   sigma8(n)=sigma8(n)+f**2
+!!$                   nmodes8(n)=nmodes8(n)+1
+!!$                END IF
+!!$             END IF
+!!$
+!!$          END DO
+!!$       END DO
+!!$    END DO
+!!$
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Binned k, pow and sigma '
+!!$
+!!$    ! Deallocate and reallocate arrays
+!!$    IF(ALLOCATED(k))      DEALLOCATE(k)
+!!$    IF(ALLOCATED(pow))    DEALLOCATE(pow)
+!!$    IF(ALLOCATED(nmodes)) DEALLOCATE(nmodes)
+!!$    IF(ALLOCATED(sigma))  DEALLOCATE(sigma)
+!!$    ALLOCATE(k(nk),pow(nk),nmodes(nk),sigma(nk))
+!!$
+!!$    ! Now create the power spectrum and k array
+!!$    DO i=1,nk       
+!!$       IF(nmodes8(i)==0) THEN
+!!$          k(i)=sqrt(kbin(i+1)*kbin(i))
+!!$          pow8(i)=0.d0
+!!$          sigma8(i)=0.d0
+!!$       ELSE
+!!$          IF(logmeank) THEN
+!!$             k(i)=sqrt(kbin(i+1)*kbin(i))
+!!$          ELSE
+!!$             k(i)=REAL(k8(i))/REAL(nmodes8(i)) ! Make the mean <k>
+!!$          END IF
+!!$          pow8(i)=pow8(i)/REAL(nmodes8(i)) ! Make the mean <P(k)> from n<P(k)>          
+!!$          IF(nmodes8(i)==1) THEN
+!!$             sigma8(i)=0
+!!$          ELSE
+!!$             sigma8(i)=sigma8(i)/REAL(nmodes8(i)) ! Create <P(k)^2>
+!!$             sigma8(i)=sqrt(sigma8(i)-pow8(i)**2) ! Create biased estimate of sigma
+!!$             sigma8(i)=sigma8(i)*REAL(nmodes8(i))/REAL(nmodes8(i)-1) ! Correct for bias
+!!$             sigma8(i)=sigma8(i)/sqrt(REAL(nmodes8(i))) ! Conver to error on the mean
+!!$          END IF
+!!$          Dk=4.*pi*((L*k(i))**3)/twopi**3 ! Factor to convert P(k) -> Delta^2(k)
+!!$          pow8(i)=pow8(i)*Dk ! Convert to Delta^2(k)
+!!$          sigma8(i)=sigma8(i)*Dk ! Convert to Delta^2(k)
+!!$       END IF
+!!$    END DO
+!!$
+!!$    ! Convert back to standard precision
+!!$    pow=REAL(pow8)
+!!$    sigma=REAL(sigma8)
+!!$    nmodes=INT(nmodes8)
+!!$
+!!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Power computed'
+!!$    WRITE(*,*) 
+!!$
+!!$  END SUBROUTINE compute_power_spectrum_real
 
   SUBROUTINE compute_power_spectrum_pole(d,m,L,ipole,iz,kmin,kmax,nk,kval,pow,nmodes)
 
