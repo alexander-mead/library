@@ -51,6 +51,7 @@ CONTAINS
     REAL :: sigma
 
     !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
+    LOGICAL, PARAMETER :: fudge=.TRUE.
 
     ! Sigma parameter in the Rayleigh distribution
     sigma=sqrt(exp(find(log(k),logk_tab,logPk_tab,nk,3,3,2))/(4.*pi*(L*k/twopi)**3))
@@ -60,7 +61,11 @@ CONTAINS
        random_mode_amplitude=sigma
     ELSE
        ! Correctly assigned random mode amplitudes
-       random_mode_amplitude=random_Rayleigh(sigma)/sqrt(2.) ! sqrt(2) is a FUDGE (something to do with average of Rayleigh?)
+       random_mode_amplitude=random_Rayleigh(sigma)
+       IF(fudge) THEN
+          ! sqrt(2) is a FUDGE (something to do with average of Rayleigh?)
+          random_mode_amplitude=random_mode_amplitude/sqrt(2.)
+       END IF
     END IF
 
     !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
@@ -442,42 +447,64 @@ CONTAINS
 
     USE fft
     IMPLICIT NONE
-    INTEGER :: m
     REAL, INTENT(INOUT) :: d(m,m,m)
+    INTEGER, INTENT(IN) :: m    
     REAL, INTENT(IN) :: L
     INTEGER, INTENT(IN) :: ibin
-    DOUBLE COMPLEX :: dk(m,m,m), dkout(m,m,m)
+    DOUBLE COMPLEX, ALLOCATABLE :: dk(:,:,:)
+    DOUBLE COMPLEX :: dkout(m,m,m)
+    DOUBLE PRECISION :: dc(m,m,m)
+    INTEGER :: mn
 
-    !ibin = 1 NGP
-    !ibin = 2 CIC
+    ! TODO: Test real version
+    LOGICAL, PARAMETER :: complex=.TRUE.
 
     WRITE(*,*) 'SHARPEN: Correcting for binning by sharpening field'
     WRITE(*,*) 'SHARPEN: Mesh size:', m
 
-    dk=d
+    IF(complex) THEN
+       mn=m
+       WRITE(*,*) 'SHARPEN: Doing complex->complex FFT'
+    ELSE
+       mn=m/2+1
+       WRITE(*,*) 'SHARPEN: Doing real->complex FFT'
+    END IF
+    WRITE(*,*) 'SHARPEN: Mesh size:', m
+    WRITE(*,*) 'SHARPEN: Mesh size x:', mn
 
-    CALL fft3(dk,dkout,m,m,m,-1)
-    dk=dkout
+    IF(complex) THEN
+       dk=d
+       CALL fft3(dk,dkout,m,m,m,-1)
+       dk=dkout
+    ELSE
+       dc=d
+       CALL fft3(dc,dk,m,m,m,-1)
+    END IF
+    ALLOCATE(dk(mn,m,m))
 
-    CALL sharpen_k(dk,m,m,L,ibin)
+    CALL sharpen_k(dk,mn,m,L,ibin)
 
-    CALL fft3(dk,dkout,m,m,m,1)
-    dk=dkout
-
-    d=REAL(REAL(dk))/REAL(m**3)
+    IF(complex) THEN
+       CALL fft3(dk,dkout,m,m,m,1)
+       dk=dkout
+       d=REAL(REAL(dk))/REAL(m**3)
+    ELSE
+       CALL fft3(dc,dk,m,m,m,1)
+       d=REAL(dc)
+    END IF    
 
     WRITE(*,*) 'SHARPEN: Sharpening complete'
     WRITE(*,*)
 
   END SUBROUTINE sharpen
 
-  SUBROUTINE sharpen_k(dk,mx,m,L,ibin)
+  SUBROUTINE sharpen_k(dk,mn,m,L,ibin)
 
     USE special_functions
     USE fft
     IMPLICIT NONE
-    DOUBLE COMPLEX, INTENT(INOUT) :: dk(mx,m,m)
-    INTEGER, INTENT(IN) :: mx, m, ibin
+    DOUBLE COMPLEX, INTENT(INOUT) :: dk(mn,m,m)
+    INTEGER, INTENT(IN) :: mn, m, ibin
     REAL, INTENT(IN) :: L
     INTEGER :: i, j, k
     Real :: kx, ky, kz, kmod
@@ -485,12 +512,12 @@ CONTAINS
     REAL :: fcx, fcy, fcz, fcorr
 
     ! Check that the array is sensible
-    IF(mx==m) THEN
+    IF(mn==m) THEN
        ! Do nothing
-    ELSE IF(mx==m/2+1) THEN
+    ELSE IF(mn==m/2+1) THEN
        ! Do nothing
     ELSE
-       WRITE(*,*) 'SHARPEN_K: Array x size:', mx
+       WRITE(*,*) 'SHARPEN_K: Array x size:', mn
        WRITE(*,*) 'SHARPEN_K: Array general size:', m
        STOP 'SHARPEN_K: Error, the array is not sensible'
     END IF
@@ -498,7 +525,7 @@ CONTAINS
     !Now correct for binning!
     DO k=1,m
        DO j=1,m
-          DO i=1,mx
+          DO i=1,mn
 
              CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
 
@@ -581,27 +608,58 @@ CONTAINS
     REAL, INTENT(IN) :: r, L
     INTEGER, INTENT(IN) :: m
     REAL :: kx, ky, kz, k
-    DOUBLE COMPLEX :: dc(m,m), dk(m,m)
-    INTEGER :: i, j
+    DOUBLE COMPLEX, ALLOCATABLE :: dk(:,:)
+    DOUBLE COMPLEX :: dkout(m,m)
+    DOUBLE PRECISION :: dc(m,m)
+    INTEGER :: i, j, mn
+
+    ! TODO: Test real version
+    LOGICAL, PARAMETER :: complex=.TRUE.
 
     WRITE(*,*) 'SMOOTH2D: Smoothing array'
     WRITE(*,*) 'SMOOTH2D: Assuming array is periodic'
     WRITE(*,*) 'SMOOTH2D: Smoothing scale [Mpc/h]:', r
 
-    dc=d
-    CALL fft2(dc,dk,m,m,-1)
+    IF(complex) THEN
+       mn=m
+       WRITE(*,*) 'SMOOTH2D: Doing complex->complex FFT'       
+    ELSE
+       mn=m/2+1
+       WRITE(*,*) 'SMOOTH2D: Doing real->complex FFT'
+    END IF
+    WRITE(*,*) 'SMOOTH2D: Mesh size:', m
+    WRITE(*,*) 'SMOOTH2D: Mesh size x:', mn
+    ALLOCATE(dk(mn,m))
 
+    ! Fourier transform
+    IF(complex) THEN
+       dk=d
+       CALL fft2(dk,dkout,m,m,-1)
+       dk=dkout
+    ELSE
+       dc=d
+       CALL fft2(dc,dk,m,m,-1)
+    END IF
+    
     DO j=1,m
-       DO i=1,m
+       DO i=1,mn
           CALL k_fft(i,j,1,m,kx,ky,kz,k,L)
           dk(i,j)=dk(i,j)*exp(-((k*r)**2)/2.)
        END DO
     END DO
 
-    !Normalise post Fourier transform
-    CALL fft2(dk,dc,m,m,1)
-    dc=dc/REAL(m**2)
-    d=REAL(REAL(dc))
+    ! Normalise post Fourier transform
+    IF(complex) THEN
+       CALL fft2(dk,dkout,m,m,1)
+       dk=dkout
+       dk=dk/REAL(m**2)
+       d=REAL(REAL(dk))
+    ELSE
+       CALL fft2(dc,dk,m,m,1)
+       dc=dc/REAL(m**2)
+       d=REAL(dc)
+    END IF
+    DEALLOCATE(dk)
 
     WRITE(*,*) 'SMOOTH2D: Done'
     WRITE(*,*)
@@ -675,45 +733,71 @@ CONTAINS
 !!$
 !!$  END SUBROUTINE smooth2D_nonperiodic
 
-  SUBROUTINE smooth3D(arr,m,r,L)
+  SUBROUTINE smooth3D(d,m,r,L)
 
     USE fft
-    USE special_functions
+    !USE special_functions
+    
     IMPLICIT NONE
-    REAL, INTENT(INOUT) :: arr(m,m,m)
+    REAL, INTENT(INOUT) :: d(m,m,m)
     REAL, INTENT(IN) :: r, L
     INTEGER, INTENT(IN) :: m
     REAL :: kx, ky, kz, kmod
-    DOUBLE COMPLEX :: ac(m,m,m), ac_out(m,m,m)
-    INTEGER :: i, j, k
+    DOUBLE COMPLEX, ALLOCATABLE :: dk(:,:,:)
+    DOUBLE COMPLEX :: dkout(m,m,m)
+    DOUBLE PRECISION :: dc(m,m,m)
+    INTEGER :: i, j, k, mn
 
-    WRITE(*,*) 'Smoothing array'
+    ! TODO: Test real version
+    LOGICAL, PARAMETER :: complex=.TRUE.
 
-    ac=arr
+    WRITE(*,*) 'SMOOTH3D: Smoothing array'
 
-    !Move to Fourier space
-    CALL fft3(ac,ac_out,m,m,m,-1)
-    ac=ac_out
+    IF(complex) THEN
+       mn=m
+       WRITE(*,*) 'SMOOTH3D: Doing complex->complex FFT'
+    ELSE
+       mn=m/2+1
+       WRITE(*,*) 'SMOOTH3D: Doing real->complex FFT'
+    END IF
+    WRITE(*,*) 'SMOOTH3D: Mesh size:', m
+    WRITE(*,*) 'SMOOTH3D: Mesh size x:', mn
+    ALLOCATE(dk(mn,m,m))
+
+    ! Move to Fourier space
+    IF(complex) THEN
+       dk=d  
+       CALL fft3(dk,dkout,m,m,m,-1)
+       dk=dkout
+    ELSE
+       dc=d
+       CALL fft3(dc,dk,m,m,m,-1)
+    END IF
 
     DO k=1,m
        DO j=1,m
-          DO i=1,m
+          DO i=1,mn
              CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
-             ac(i,j,k)=ac(i,j,k)*sinc(kx*r/2.)*sinc(ky*r/2.)*sinc(kz*r/2.)
+             !dk(i,j,k)=dk(i,j,k)*sinc(kx*r/2.)*sinc(ky*r/2.)*sinc(kz*r/2.) ! Surely this should be a Gaussian?
+             dk(i,j,k)=dk(i,j,k)*exp(-((kmod*r)**2)/2.)
           END DO
        END DO
     END DO
 
-    !Move back to real space
-    CALL fft3(ac,ac_out,m,m,m,1)
-    ac=ac_out
+    ! Move back to real space and normalise
+    IF(complex) THEN
+       CALL fft3(dk,dkout,m,m,m,1)
+       dk=dkout
+       dk=dk/(REAL(m)**3)
+       d=REAL(REAL(dk))
+    ELSE
+       CALL fft3(dc,dk,m,m,m,1)
+       dc=dc/REAL(m)**3
+       d=REAL(dc)
+    END IF
+    DEALLOCATE(dk)
 
-    !Normalise post Fourier transform!
-    ac=ac/(REAL(m)**3)
-
-    arr=REAL(REAL(ac))
-
-    WRITE(*,*) 'Done'
+    WRITE(*,*) 'SMOOTH3D: Done'
     WRITE(*,*)
 
   END SUBROUTINE smooth3D
@@ -1820,7 +1904,6 @@ CONTAINS
              i(3)=i3
 
              DO dim=1,3
-                !x1(dim)=L*(i(dim)-0.5)/REAL(m)
                 x1(dim)=cell_position(i(dim),L,m)
              END DO
 
@@ -1833,8 +1916,6 @@ CONTAINS
                       j(3)=j3
 
                       DO dim=1,3
-                         ! This could/should be cell position function
-                         !x2(dim)=L*(j(dim)-0.5)/REAL(m)
                          x2(dim)=cell_position(j(dim),L,m)
                       END DO
 

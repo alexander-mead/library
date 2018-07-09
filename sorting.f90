@@ -1,5 +1,12 @@
 MODULE sorting
 
+  INTERFACE index
+
+     MODULE PROCEDURE index_real
+     MODULE PROCEDURE index_int
+     
+  END INTERFACE index
+  
   INTERFACE bubble_index
 
      MODULE PROCEDURE bubble_index_real
@@ -18,15 +25,16 @@ CONTAINS
 
   SUBROUTINE bubble_sort(a,n)
 
+    ! Bubble sort array 'a' into lowest to highest value
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: a(n)
     INTEGER, INTENT(IN) :: n
     REAL :: hold
     INTEGER :: i, isort
 
-    !This is a dodgy module!
-    !I think it overwrites some of the things
-    !in the original array somehow!
+    ! This is a dodgy module!
+    ! I think it overwrites some of the things
+    ! in the original array somehow!
     STOP 'BUBBLE_SORT: This is dodgy, see the source code'
 
     DO
@@ -46,6 +54,7 @@ CONTAINS
 
   SUBROUTINE selection_sort(a,n)
 
+    ! I have no idea what this is
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: a(n)
     INTEGER, INTENT(IN) :: n    
@@ -67,6 +76,41 @@ CONTAINS
     END DO
 
   END SUBROUTINE selection_sort
+
+  SUBROUTINE index_real(a,ind,n,imeth)
+    
+    ! Index the array 'a' from lowest to highest value
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a(n)
+    INTEGER, INTENT(IN) :: n, imeth
+    INTEGER, INTENT(OUT) :: ind(n)
+
+    IF(imeth==1) THEN
+       CALL stupid_index_real(a,ind,n)
+    ELSE IF(imeth==2) THEN
+       CALL bubble_index_real(a,ind,n)
+    ELSE
+       STOP 'INDEX_REAL: Error, imeth specified incorrectly'
+    END IF
+
+  END SUBROUTINE index_real
+
+  SUBROUTINE index_int(a,ind,n,imeth)
+    
+    ! Index the array 'a' from lowest to highest value
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: n, imeth, a(n)
+    INTEGER, INTENT(OUT) :: ind(n)
+
+    IF(imeth==1) THEN
+       CALL stupid_index_int(a,ind,n)
+    ELSE IF(imeth==2) THEN
+       CALL bubble_index_int(a,ind,n)
+    ELSE
+       STOP 'INDEX_REAL: Error, imeth specified incorrectly'
+    END IF
+
+  END SUBROUTINE index_int
 
   SUBROUTINE bubble_index_real(a,ind,n)
 
