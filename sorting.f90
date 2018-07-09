@@ -23,6 +23,22 @@ MODULE sorting
 
 CONTAINS
 
+  SUBROUTINE sort(a,n,imeth)
+
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: a(n)
+    INTEGER, INTENT(IN) :: n, imeth
+
+    IF(imeth==1) THEN
+       CALL selection_sort(a,n)
+    ELSE IF(imeth==2) THEN
+       CALL bubble_sort(a,n)
+    ELSE
+       STOP 'SORT: Error, imeth not specified correctly'
+    END IF
+    
+  END SUBROUTINE sort
+
   SUBROUTINE bubble_sort(a,n)
 
     ! Bubble sort array 'a' into lowest to highest value
@@ -35,7 +51,7 @@ CONTAINS
     ! This is a dodgy module!
     ! I think it overwrites some of the things
     ! in the original array somehow!
-    STOP 'BUBBLE_SORT: This is dodgy, see the source code'
+    !STOP 'BUBBLE_SORT: This is dodgy, see the source code'
 
     DO
        isort=0
