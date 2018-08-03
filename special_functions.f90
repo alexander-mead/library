@@ -90,7 +90,9 @@ CONTAINS
     REAL, PARAMETER :: dx=1e-3
 
     !Taylor expansion used for low x to avoid cancellation problems
-    IF(x<dx) THEN
+    IF(x==0.) THEN
+       wk_tophat=1.
+    ELSE IF(ABS(x)<dx) THEN
        wk_tophat=1.-x**2/10.
     ELSE
        wk_tophat=3.*(sin(x)-x*cos(x))/x**3

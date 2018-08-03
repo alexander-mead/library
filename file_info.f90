@@ -2,39 +2,42 @@ MODULE file_info
 
 CONTAINS
 
-  INTEGER FUNCTION file_length(file_name)
+  INTEGER FUNCTION file_length(file_name,verbose)
 
+    ! Get the number of lines in the file
     IMPLICIT NONE
     CHARACTER(len=*), INTENT(IN) :: file_name
+    LOGICAL, INTENT(IN) :: verbose
     INTEGER :: n
     LOGICAL :: lexist
 
-    WRITE(*,*) 'FILE_LENGTH: File: ', TRIM(file_name)
+    IF(verbose) WRITE(*,*) 'FILE_LENGTH: File: ', TRIM(file_name)
     INQUIRE(file=file_name,exist=lexist)
     IF(.NOT. lexist) STOP 'FILE_LENGTH: Error, file does not exist'
-    OPEN(7,file=file_name)
+    OPEN(7,file=file_name,status='old')
 
-    !Newer version that lacks 'data' seems okay
+    ! Newer version that lacks 'data' seems okay
     n=0
     DO
        n=n+1
        READ(7,*, end=301)
     END DO
 
-    !301 is just the label to jump to when the end of the file is reached
-
+    ! 301 is just the label to jump to when the end of the file is reached
 301 CLOSE(7)
 
     file_length=n-1
 
-    WRITE(*,*) 'FILE_LENGTH: Length:', file_length
-    WRITE(*,*)
+    IF(verbose) THEN
+       WRITE(*,*) 'FILE_LENGTH: Length:', file_length
+       WRITE(*,*)
+    END IF
 
   END FUNCTION file_length
 
-  !Tilman's version of file_length (nice because no GOTO)
   FUNCTION count_number_of_lines(filename) result(n)
-    
+
+    ! Tilman's version of file_length (nice because no GOTO)
     IMPLICIT NONE
     CHARACTER(len=*), intent(in) :: filename
     INTEGER :: n, file_unit, iostat

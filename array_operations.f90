@@ -283,7 +283,11 @@ CONTAINS
     REAL, INTENT(IN) :: xmin, xmax
     INTEGER, INTENT(IN) :: i, n
 
-    progression=xmin+(xmax-xmin)*REAL(i-1)/REAL(n-1)
+    IF(n==1) THEN
+       progression=xmin
+    ELSE
+       progression=xmin+(xmax-xmin)*REAL(i-1)/REAL(n-1)
+    END IF
     
   END FUNCTION progression
 
@@ -361,7 +365,7 @@ CONTAINS
 
   END FUNCTION maximum
 
-   SUBROUTINE mask(okay,m,n,min,max)
+  SUBROUTINE mask(okay,m,n,min,max)
 
     ! Flags objects that make the cut as 'okay'
     ! Can be applied to any scalar array, not just mass

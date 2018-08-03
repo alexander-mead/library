@@ -48,7 +48,8 @@ OBJS =  precision.o \
 	sorting.o \
 	string_operations.o \
 	field_operations.o \
-	simulations
+	simulations.o \
+	cosmic_emu_stuff
 
 # Default compile option
 all: FFLAGS += -O3

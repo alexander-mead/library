@@ -67,12 +67,17 @@ CONTAINS
     !Things that would like to be PARAMETERS
     INTEGER :: ibin=2 !Set the binning strategy
 
-    !Assign weight=1 and bin the particles
+    ! Bin the particles with equal weight to create the particle-number field in cells [dimensionless]
     w=1.
     CALL particle_bin(x,n,L,w,d,m,ibin)
+
+    ! Now compute the mean particle number density in a cell [dimensionless]
     dbar=REAL(n)/REAL(m)**3
+
+    ! Convert the particle-number field to the density-contrast field [dimensionless]
     d=d/dbar
 
+    ! Do the Fourier Transform, no normalisation
     dk=d
     CALL fft3(dk,dk_out,m,m,m,-1)
     dk=dk_out
@@ -83,13 +88,13 @@ CONTAINS
 
   SUBROUTINE write_density_slice_ascii(x,n,z1,z2,L,m,outfile)
 
-    !Write out a slice of density field
-    !x(3,n): particle positions
-    !x1->x2, y1->y2, z1->z2: range for the slice
-    !L: box size [Mpc/h]
-    !s: Smoothing length [Mpc/h]
-    !m: mesh size for the density field
-    !outfile: output file
+    ! Write out a slice of density field
+    ! x(3,n) - particle positions
+    ! x1->x2, y1->y2, z1->z2 - range for the slice
+    ! L - box size [Mpc/h]
+    ! s - Smoothing length [Mpc/h]
+    ! m - mesh size for the density field
+    ! outfile - output file
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(3,n), L
     REAL, INTENT(IN) :: z1, z2    
@@ -99,14 +104,14 @@ CONTAINS
     REAL :: xp, yp, smoothing
     INTEGER :: i, j    
 
-    !Make the projected 2D density  
+    ! Make the projected 2D density  
     CALL make_projected_density(x,n,z1,z2,L,d,m)
 
-    !Smooth the density field
+    ! Smooth the density field
     smoothing=L/REAL(m) !Set the smoothing scale to be the mesh size
     CALL smooth2D(d,m,smoothing,L)
 
-    !Write out to file
+    ! Write out to file
     WRITE(*,*) 'WRITE_DENSITY_SLICE_ASCII: Writing density map'
     WRITE(*,*) 'WRITE_DENSITY_SLICE_ASCII: File: ', TRIM(outfile)
     OPEN(9,file=outfile)
@@ -126,11 +131,11 @@ CONTAINS
 
   SUBROUTINE make_projected_density(x,n,z1,z2,L,d,m)
 
-    !Write out a slice of density field
-    !x(n), y(n), z(n): particle positions
-    !x1->x2, y1->y2, z1->z2: range for the slice
-    !L: box size [Mpc/h]
-    !m: mesh size for the density field
+    ! Write out a slice of density field
+    ! x(n), y(n), z(n) - particle positions
+    ! x1->x2, y1->y2, z1->z2 - range for the slice
+    ! L - box size [Mpc/h]
+    ! m - mesh size for the density field
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(3,n), L
     REAL, INTENT(IN) :: z1, z2
@@ -141,14 +146,14 @@ CONTAINS
     INTEGER :: i, i2D, n2D    
     INTEGER :: ibin=2 ! CIC binning (cannot be PARAMETER)
 
-    !Count the number of particles falling into the slice
+    ! Count the number of particles falling into the slice
     n2D=0
     DO i=1,n
        IF(x(3,i)>=z1 .AND. x(3,i)<=z2) n2D=n2D+1
     END DO
     ALLOCATE(x2D(2,n2D))
 
-    !Make the 2D position array
+    ! Make the 2D position array
     i2D=0
     DO i=1,n
        IF(x(3,i)>=z1 .AND. x(3,i)<=z2) THEN
@@ -158,7 +163,7 @@ CONTAINS
        END IF
     END DO
 
-    !Bin for the 2D density field and convert to relative density
+    ! Bin for the 2D density field and convert to relative density
     ALLOCATE(w2D(n2D))
     w2D=1.
     CALL particle_bin_2D(x2D,n2D,L,w2D,d,m,ibin)
@@ -167,6 +172,7 @@ CONTAINS
     dbar=(REAL(n)*vfac)/REAL(m**2)
     d=d/dbar
 
+    ! Write useful things to screen
     WRITE(*,*) 'MAKE_PROJECTED_DENSITY: Thickness in z [Mpc/h]:', z2-z1
     WRITE(*,*) 'MAKE_PROJECTED_DENSITY: Volume factor:', vfac
     WRITE(*,*) 'MAKE_PROJECTED_DENSITY: Mean cell particle density:', dbar
@@ -184,20 +190,20 @@ CONTAINS
     LOGICAL, INTENT(IN) :: use_average
     REAL :: f(3,m,m,m), ips, maxf
 
-    !Make the displacement field
+    ! Make the displacement field
     CALL generate_displacement_fields(f,m,L,logk_tab,logPk_tab,nk,use_average)
 
-    !Calculate some useful things
-    ips=L/REAL(n**(1./3.)) !Mean ID inter-particle spacing
-    maxf=MAXVAL(f) !Maximum value of 1D displacement    
+    ! Calculate some useful things
+    ips=L/REAL(n**(1./3.)) ! Mean ID inter-particle spacing
+    maxf=MAXVAL(f) ! Maximum value of 1D displacement    
 
-    !Calculate the particle velocities first
+    ! Calculate the particle velocities first
     CALL Zeldovich_velocity(x,v,n,L,vfac*f,m)
 
-    !Then do the particle positions
+    ! Then do the particle positions
     CALL Zeldovich_displacement(x,n,L,f,m)
 
-    !Write some useful things to the screen
+    ! Write some useful things to the screen
     WRITE(*,*) 'ZELDOVICH_ICS: Max 1D displacement [Mpc/h]:', maxf
     WRITE(*,*) 'ZELDOVICH_ICS: Inter-particle spacing [Mpc/h]:', ips
     WRITE(*,*) 'ZELDOVICH_ICS: Max 1D displacement in units of the IPS:', maxf/ips
@@ -216,12 +222,12 @@ CONTAINS
 
     WRITE(*,*) 'ZELDOVICH_DISPLACEMENT: Displacing particles'
 
-    !Loop over all particles
+    ! Loop over all particles
     DO i=1,n
        DO j=1,3
-          ix(j)=NGP_cell(x(j,i),L,m) !Find the integer-coordinates for which cell you are in
+          ix(j)=NGP_cell(x(j,i),L,m) ! Find the integer-coordinates for which cell you are in
        END DO
-       x(:,i)=x(:,i)+s(:,ix(1),ix(2),ix(3)) !Do the displacement
+       x(:,i)=x(:,i)+s(:,ix(1),ix(2),ix(3)) ! Do the displacement
     END DO
 
     CALL replace(x,n,L)
@@ -245,12 +251,12 @@ CONTAINS
     WRITE(*,*) 'ZELDOVICH_VELOCITY: Mesh size:', m
     WRITE(*,*) 'ZELDOVICH_VELOCITY: Box size [Mpc/h]:', L
 
-    !Loop over all particles
+    ! Loop over all particles
     DO i=1,n
        DO j=1,3
-          ix(j)=NGP_cell(x(j,i),L,m) !Find the integer-coordinates for which cell you are in
+          ix(j)=NGP_cell(x(j,i),L,m) ! Find the integer-coordinates for which cell you are in
        END DO
-       v(:,i)=s(:,ix(1),ix(2),ix(3)) !Assign the velocity
+       v(:,i)=s(:,ix(1),ix(2),ix(3)) ! Assign the velocity
     END DO
 
     WRITE(*,*) 'ZELDOVICH_VELOCITY: Done'
@@ -998,22 +1004,25 @@ CONTAINS
 
   END FUNCTION shot_noise_simple
 
-  REAL FUNCTION shot_noise(L,w,n)
+  REAL FUNCTION shot_noise_mass(L,m,n)
 
-    !Calculate simulation shot noise constant P(k) for weighted tracers
+    ! Calculate simulation shot noise constant P(k) for weighted tracers
+    ! L - Box size [Mpc/h]
+    ! m - Array of particle masses
+    ! n - Number of particles
     USE array_operations
     IMPLICIT NONE
-    REAL, INTENT(IN) :: w(n), L
+    REAL, INTENT(IN) :: m(n), L
     INTEGER, INTENT(IN) :: n
     REAL :: Nbar
 
-    !Calculate the effective mean number of tracers
-    Nbar=sum_double(w,n)**2/sum_double(w**2,n)
+    ! Calculate the effective mean number of tracers
+    Nbar=sum_double(m,n)**2/sum_double(m**2,n)
 
-    !Calculate number density
-    shot_noise=L**3/Nbar
+    ! Calculate number density
+    shot_noise_mass=L**3/Nbar
 
-  END FUNCTION shot_noise
+  END FUNCTION shot_noise_mass
 
   REAL FUNCTION shot_noise_k(k,shot)
 

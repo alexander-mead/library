@@ -139,7 +139,7 @@ CONTAINS
 
     WRITE(*,*) 'READ_CATALOGUE: Reading in catalogue: ', TRIM(infile)
 
-    n=file_length(infile)
+    n=file_length(infile,verbose=.FALSE.)
     ALLOCATE(x(3,n),v(3,n),m(n),npart(n))
     ALLOCATE(disp(n),c(n),env(n),Dv(n),rmax(n),avg_r(n),rms_r(n))
     

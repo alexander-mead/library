@@ -42,7 +42,6 @@ CONTAINS
 
        DO i=1,ngrid
 
-          !x=x1+(x2-x1)*float(i-1)/float(ngrid-1)
           x=progression(x1,x2,i,ngrid)
           fom=func(x)
 

@@ -1,5 +1,5 @@
 MODULE camb_stuff
-
+  
   IMPLICIT NONE
 
 CONTAINS
@@ -14,7 +14,7 @@ CONTAINS
     INTEGER, INTENT(OUT) :: n
     INTEGER :: i
     
-    n=file_length(infile)
+    n=file_length(infile,verbose=.FALSE.)
     n=n-1
     WRITE(*,*) 'READ_CAMB_PK: CAMB file: ', TRIM(infile)
     WRITE(*,*) 'READ_CAMB_PK: Number of points:', n
@@ -35,16 +35,5 @@ CONTAINS
     p=4.*pi*p*(k**3)/twopi**3
 
   END SUBROUTINE read_CAMB_Pk
-
-!!$  REAL FUNCTION plin_CAMB(k,k_tab,Pk_tab,nk)
-!!$
-!!$    USE interpolate
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: k, k_tab(nk), Pk_tab(nk)
-!!$    INTEGER, INTENT(IN) :: nk
-!!$
-!!$    plin_CAMB=find(log(k),log(k_tab),log(Pk_tab),nk,3,3,2)
-!!$    
-!!$  END FUNCTION plin_CAMB
   
 END MODULE camb_stuff
