@@ -135,7 +135,7 @@ CONTAINS
     ! This routine *only* assigns parameters, it does and should not do *any* calculations
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    INTEGER, INTENT(INOUT) :: icosmo
+    INTEGER, INTENT(IN) :: icosmo
     LOGICAL, INTENT(IN) :: verbose
     INTEGER :: i
     REAL :: Om_c
@@ -174,13 +174,15 @@ CONTAINS
     IF(verbose) WRITE(*,*) 'ASSIGN_COSMOLOGY: Assigning cosmological model parameters'
 
     IF(icosmo==-1) THEN
-       WRITE(*,*) 'ASSIGN_COSMOLOGY: Choose cosmological model'
-       WRITE(*,*) '==========================================='
-       DO i=0,SIZE(names)-1
-          WRITE(*,*) i, '- ', TRIM(names(i))
-       END DO
-       READ(*,*) icosmo
-       WRITE(*,*) '==========================================='
+       WRITE(*,*) 'ASSIGN_COSMOLOGY: interactively choosing cosmology not supported anymore.'
+       STOP
+      !  WRITE(*,*) 'ASSIGN_COSMOLOGY: Choose cosmological model'
+      !  WRITE(*,*) '==========================================='
+      !  DO i=0,SIZE(names)-1
+      !     WRITE(*,*) i, '- ', TRIM(names(i))
+      !  END DO
+      !  READ(*,*) icosmo
+      !  WRITE(*,*) '==========================================='
     END IF
 
     ! Set verbosity
@@ -193,6 +195,7 @@ CONTAINS
     ! 1 - Eisenstein & Hu
     ! 2 - CAMB
     ! 3 - DEFW
+    ! 4 - External
     cosm%itk=1
 
     ! Boring default cosmology
@@ -1415,6 +1418,7 @@ CONTAINS
     REAL, INTENT (IN) :: k, a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
+    REAL, PARAMETER :: kmin=0.
     REAL, PARAMETER :: kmax=1e8
 
     ! Using init_power seems to provide no significant speed improvements to HMx
@@ -1422,7 +1426,7 @@ CONTAINS
 
     IF(.NOT. cosm%is_normalised) CALL normalise_power(cosm)
 
-    IF(k==0.) THEN
+    IF(k<=kmin) THEN
        ! If p_lin happens to be foolishly called for 0 mode
        ! This call should never happen, but may in integrals
        p_lin=0.
@@ -1435,6 +1439,7 @@ CONTAINS
        p_lin=0.
     ELSE
        IF(cosm%has_power) THEN
+          ! TODO: Do something cleverer here. Could use the ln(k)^2 behaviour at high k, could just truncate
           p_lin=exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,3,3,2))
        ELSE
           ! In this case get the power from the transfer function
@@ -1446,44 +1451,44 @@ CONTAINS
 
   END FUNCTION p_lin
 
-  SUBROUTINE init_power(cosm)
-
-    ! Fill a look-up table for the linear power spectrum from a fitting function
-    IMPLICIT NONE
-    TYPE(cosmology), INTENT(INOUT) :: cosm
-    INTEGER :: i
-    REAL :: k
-
-    ! PARAMETERS
-    REAL, PARAMETER :: kmin=1e-3
-    REAL, PARAMETER :: kmax=1e2
-    INTEGER, PARAMETER :: n_plin=256
-
-    ! Set the numer of points in the look-up tables
-    ! Note you need to have enough to resolve the BAO well
-    ! Probably some non-log/linear spacing would be best (CAMB does this)
-    cosm%n_plin=n_plin
-
-    ! Allocate arrays
-    IF(ALLOCATED(cosm%log_k_plin)) DEALLOCATE(cosm%log_k_plin)
-    IF(ALLOCATED(cosm%log_plin)) DEALLOCATE(cosm%log_plin)
-    ALLOCATE(cosm%log_k_plin(cosm%n_plin),cosm%log_plin(cosm%n_plin))
-
-    ! Get values for the linear power spectrum
-    DO i=1,cosm%n_plin
-       k=progression_log(kmin,kmax,i,cosm%n_plin)
-       cosm%log_k_plin(i)=k
-       cosm%log_plin(i)=(Tk(k,cosm)**2)*k**(cosm%n+3.)
-    END DO
-
-    ! Take logarithms
-    cosm%log_k_plin=log(cosm%log_k_plin)
-    cosm%log_plin=log(cosm%log_plin)
-
-    ! Change the flag to true
-    cosm%has_power=.TRUE.
-    
-  END SUBROUTINE init_power
+!!$  SUBROUTINE init_power(cosm)
+!!$
+!!$    ! Fill a look-up table for the linear power spectrum from a fitting function
+!!$    IMPLICIT NONE
+!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
+!!$    INTEGER :: i
+!!$    REAL :: k
+!!$
+!!$    ! PARAMETERS
+!!$    REAL, PARAMETER :: kmin=1e-3
+!!$    REAL, PARAMETER :: kmax=1e2
+!!$    INTEGER, PARAMETER :: n_plin=256
+!!$
+!!$    ! Set the numer of points in the look-up tables
+!!$    ! Note you need to have enough to resolve the BAO well
+!!$    ! Probably some non-log/linear spacing would be best (CAMB does this)
+!!$    cosm%n_plin=n_plin
+!!$
+!!$    ! Allocate arrays
+!!$    IF(ALLOCATED(cosm%log_k_plin)) DEALLOCATE(cosm%log_k_plin)
+!!$    IF(ALLOCATED(cosm%log_plin)) DEALLOCATE(cosm%log_plin)
+!!$    ALLOCATE(cosm%log_k_plin(cosm%n_plin),cosm%log_plin(cosm%n_plin))
+!!$
+!!$    ! Get values for the linear power spectrum
+!!$    DO i=1,cosm%n_plin
+!!$       k=progression_log(kmin,kmax,i,cosm%n_plin)
+!!$       cosm%log_k_plin(i)=k
+!!$       cosm%log_plin(i)=(Tk(k,cosm)**2)*k**(cosm%n+3.)
+!!$    END DO
+!!$
+!!$    ! Take logarithms
+!!$    cosm%log_k_plin=log(cosm%log_k_plin)
+!!$    cosm%log_plin=log(cosm%log_plin)
+!!$
+!!$    ! Change the flag to true
+!!$    cosm%has_power=.TRUE.
+!!$    
+!!$  END SUBROUTINE init_power
 
   SUBROUTINE init_sigma(cosm)
 
@@ -2094,7 +2099,11 @@ CONTAINS
        IF(R>Rsplit) THEN
           k=(-1.+1./theta)/R**alpha
        ELSE
-          k=(-1.+1./theta)/const
+          IF(cosm%itk==1) THEN
+             k=(-1.+1./theta)
+          ELSE
+             k=(-1.+1./theta)/const
+          END IF
        END IF
        w_hat=wk_tophat(k*R)
        sigmaV_integrand=(p_lin(k,a,cosm)/k**2)*(w_hat**2)/(theta*(1.-theta))
