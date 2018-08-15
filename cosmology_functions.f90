@@ -1596,7 +1596,7 @@ CONTAINS
        ! t=1 corresponds to k=0 when P(k)=0
        sigma_integrand_transformed=0.
     ELSE
-       alpha=3.
+       alpha=3. ! I have made no attempt to optimise this number, nor tried alpha(R)
        kR=(-1.+1./t)**alpha
        k=kR/R
        w_hat=wk_tophat(kR)
