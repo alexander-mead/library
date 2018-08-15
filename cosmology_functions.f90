@@ -1358,6 +1358,7 @@ CONTAINS
 
     ! Linear matter power spectrum
     ! P(k) should have been previously normalised so as to get the amplitude 'A' correct
+    ! TODO: Causes problems in debug mode because this function is called recursively
     IMPLICIT NONE
     REAL :: p_lin
     REAL, INTENT (IN) :: k, a
@@ -1367,7 +1368,7 @@ CONTAINS
     REAL, PARAMETER :: kmax=1e8
 
     ! Using init_power seems to provide no significant speed improvements to HMx
-    ! IF((cosm%has_power .EQV. .FALSE.) .AND. (cosm%external_plin .EQV. .FALSE.)) CALL init_power(cosm)
+    ! IF(cosm%has_power .EQV. .FALSE.) CALL init_power(cosm)
 
     IF(.NOT. cosm%is_normalised) CALL normalise_power(cosm)
 
@@ -1446,14 +1447,14 @@ CONTAINS
     INTEGER :: i
 
     ! These values of 'r' work fine for any power spectrum of cosmological importance
-    ! Having nsig as a 2** number is most efficient for the look-up routines
+    ! Having nsig as a 2**number is most efficient for the look-up routines
     ! rmin and rmax need to be decided in advance and are chosen such that
     ! R vs. sigma(R) is a power-law below and above these values of R   
     INTEGER, PARAMETER :: nsig=128 ! Number of entries for sigma(R) tables
-    REAL, PARAMETER :: rmin=1e-4 ! Minimum r value (NB. sigma(R) needs to be power-law below)
-    REAL, PARAMETER :: rmax=1e3 ! Maximum r value (NB. sigma(R) needs to be power-law above)
-    REAL, PARAMETER :: Rsplit=1e-2 ! Scale split between integration methods
-    REAL, PARAMETER :: a=1. ! These look-up tables are at z=0
+    REAL, PARAMETER :: rmin=1e-4   ! Minimum r value (NB. sigma(R) needs to be power-law below)
+    REAL, PARAMETER :: rmax=1e3    ! Maximum r value (NB. sigma(R) needs to be power-law above)
+    REAL, PARAMETER :: Rsplit=1e-2 ! R value at which to split between integration methods
+    REAL, PARAMETER :: a=1.        ! These look-up tables are to be filled at z=0
 
     IF(cosm%inv_m_wdm .NE. 0.) STOP 'INIT_SIGMA: This will crash with WDM'
 
@@ -1539,44 +1540,6 @@ CONTAINS
 
   END FUNCTION sigma_integrand
 
-!!$  FUNCTION sigma_integrand_transformed(t,R,f,a,cosm)
-!!$
-!!$    ! The integrand for the sigma(R) integrals
-!!$    USE special_functions
-!!$    IMPLICIT NONE
-!!$    REAL :: sigma_integrand_transformed
-!!$    REAL, INTENT(IN) :: t, R, a
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    REAL :: k, kR, w_hat
-!!$    LOGICAL :: use_rapid=.TRUE. !(03/08/2018 - the rapidiser seems to slow things down in some cases! Weird!)
-!!$
-!!$    INTERFACE
-!!$       REAL FUNCTION f(x)
-!!$         REAL, INTENT(IN) :: x
-!!$       END FUNCTION f
-!!$    END INTERFACE
-!!$
-!!$    IF(cosm%itk==1) use_rapid=.FALSE. ! Slows down integratino when using Eisensten & Hu
-!!$
-!!$    ! Integrand to the sigma integral in terms of t. Defined by k=(1/t-1)/f(R) where f(R) is *any* function of R
-!!$    IF(t==0.) THEN
-!!$       ! t=0 corresponds to k=infintiy when W(kR)=0
-!!$       sigma_integrand_transformed=0.
-!!$    ELSE IF(t==1.) THEN
-!!$       ! t=1 corresponds to k=0 when P(k)=0
-!!$       sigma_integrand_transformed=0.
-!!$    ELSE
-!!$       ! f(R) can be *any* function of R here to improve integration speed
-!!$       k=(-1.+1./t)
-!!$       IF(use_rapid) k=k*f(R) ! k = (1/t-1)*f(r)
-!!$       w_hat=wk_tophat(k*R)
-!!$       sigma_integrand_transformed=p_lin(k,a,cosm)*(w_hat**2)/(t*(1.-t))
-!!$       kR=(-1.+1./t)
-!!$       k=kR/R
-!!$       w_hat=wk_tophat(kR)
-!!$       sigma_integrand_transformed=p_lin(k,a,cosm)*(w_hat**2)/(t*(1.-t))
-!!$    END IF
-
   FUNCTION sigma_integrand_transformed(t,R,a,cosm)
 
     ! The integrand for the sigma(R) integrals
@@ -1604,50 +1567,6 @@ CONTAINS
     END IF
 
   END FUNCTION sigma_integrand_transformed
-
-!!$  FUNCTION f_rapid(r)
-!!$
-!!$    ! This is the 'rapidising' function to increase integration speed
-!!$    ! for sigma(R). Found by trial-and-error
-!!$    IMPLICIT NONE
-!!$    REAL :: f_rapid
-!!$    REAL, INTENT(IN) :: r
-!!$    REAL :: alpha
-!!$
-!!$    REAL, PARAMETER :: Rsplit=1e-2
-!!$
-!!$    IF(r==0.) THEN
-!!$
-!!$       f_rapid=1.
-!!$
-!!$    ELSE
-!!$
-!!$       IF(r>Rsplit) THEN
-!!$          ! alpha 0.3-0.5 works well
-!!$          alpha=0.5
-!!$       ELSE
-!!$          ! If alpha=1 this goes tits up
-!!$          ! alpha 0.7-0.9 works well
-!!$          alpha=0.8
-!!$       END IF
-!!$
-!!$       f_rapid=r**alpha
-!!$
-!!$    END IF
-!!$
-!!$  END FUNCTION f_rapid
-
-!!$  REAL FUNCTION f_rapid(R)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: R
-!!$    
-!!$    REAL, PARAMETER :: alpha=-0.5
-!!$
-!!$    !f_rapid=r**alpha
-!!$    f_rapid=1.
-!!$    
-!!$  END FUNCTION f_rapid
 
   FUNCTION sigma2_integral1(r,a,cosm,acc)
 
@@ -1695,8 +1614,6 @@ CONTAINS
           IF(j==1) THEN
 
              ! The first go is just the trapezium of the end points
-             !f1=sigma_integrand_transformed(b,r,f_rapid,a,cosm)
-             !f2=sigma_integrand_transformed(c,r,f_rapid,a,cosm)
              f1=sigma_integrand_transformed(b,r,a,cosm)
              f2=sigma_integrand_transformed(c,r,a,cosm)
              sum_2n=0.5*(f1+f2)*dx
@@ -1756,7 +1673,7 @@ CONTAINS
     REAL, INTENT(IN) :: r, a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL, INTENT(IN) :: acc
-    REAL :: b, c, k_split
+    REAL :: b, c
     INTEGER :: i, j
     INTEGER :: n
     REAL :: x, dx
@@ -1768,10 +1685,8 @@ CONTAINS
     INTEGER, PARAMETER :: iorder=3
 
     ! Integration limits, the split of the integral is done at k = 1/R
-    !k_split=1./r
-    !b=f_rapid(r)/(k_split+f_rapid(r)) ! k = (1/t-1)*f(r)
-    b=0.5
-    c=1.
+    b=0.5 ! Integration limit corresponding to kR=1 (kR=(-1+1/t)**a)
+    c=1.  ! Integration limit corresponding to k=0
 
     IF(b==c) THEN
 
@@ -1798,8 +1713,6 @@ CONTAINS
           IF(j==1) THEN
 
              ! The first go is just the trapezium of the end points
-             !f1=sigma_integrand_transformed(b,r,f_rapid,a,cosm)
-             !f2=sigma_integrand_transformed(c,r,f_rapid,a,cosm)
              f1=sigma_integrand_transformed(b,r,a,cosm)
              f2=sigma_integrand_transformed(c,r,a,cosm)
              sum_2n=0.5*(f1+f2)*dx
@@ -1810,7 +1723,6 @@ CONTAINS
              ! Loop over only new even points to add these to the integral
              DO i=2,n,2
                 x=progression(b,c,i,n)
-                !fx=sigma_integrand_transformed(x,r,f_rapid,a,cosm)
                 fx=sigma_integrand_transformed(x,r,a,cosm)
                 sum_2n=sum_2n+fx
              END DO
@@ -1868,13 +1780,13 @@ CONTAINS
 
     INTEGER, PARAMETER :: jmin=5
     INTEGER, PARAMETER :: jmax=30
-    REAL, PARAMETER :: CC=10. ! How far to go out in 1/r units for integral
+    REAL, PARAMETER :: CC=10. ! How far to go out in 1/R units for integral
     INTEGER, PARAMETER :: iorder=3
 
-    ! Integration limits, the split of the integral is done at k = 1/r
+    ! Integration limits, the split of the integral is done at k = 1/R
     k_split=1./r
-    b=k_split
-    c=CC/r
+    b=k_split ! Integrate from kR=1
+    c=CC/r    ! Should be out to k = inf, but in practice just go out a finite distance in kR
 
     IF(b==c) THEN
 
