@@ -369,7 +369,7 @@ CONTAINS
        cosm%itk=2
        cosm%iw=1
        cosm%w=-1.
-       cosm%Om_w=cosm%Om_v
+       cosm%Om_w=cosm%Om_v ! Necessary for CAMB
        cosm%Om_v=0.
     ELSE
        STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly'
@@ -1521,31 +1521,31 @@ CONTAINS
 
   END FUNCTION sigma
 
-  FUNCTION sigma_integrand(k,R,a,cosm)
+  FUNCTION sigma2_integrand(k,R,a,cosm)
 
     ! The integrand for the sigma(R) integrals
     USE special_functions
     IMPLICIT NONE
-    REAL :: sigma_integrand
+    REAL :: sigma2_integrand
     REAL, INTENT(IN) :: k, R, a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: w_hat
 
     IF(k==0.) THEN
-       sigma_integrand=0.
+       sigma2_integrand=0.
     ELSE
        w_hat=wk_tophat(k*R)
-       sigma_integrand=p_lin(k,a,cosm)*(w_hat**2)/k
+       sigma2_integrand=p_lin(k,a,cosm)*(w_hat**2)/k
     END IF
 
-  END FUNCTION sigma_integrand
+  END FUNCTION sigma2_integrand
 
-  FUNCTION sigma_integrand_transformed(t,R,a,cosm)
+  FUNCTION sigma2_integrand_transformed(t,R,a,cosm)
 
     ! The integrand for the sigma(R) integrals
     USE special_functions
     IMPLICIT NONE
-    REAL :: sigma_integrand_transformed
+    REAL :: sigma2_integrand_transformed
     REAL, INTENT(IN) :: t, R, a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: k, kR, w_hat, alpha
@@ -1554,19 +1554,19 @@ CONTAINS
     ! alpha can be any positive number, can even be a function of R
     IF(t==0.) THEN
        ! t=0 corresponds to k=infintiy when W(kR)=0
-       sigma_integrand_transformed=0.
+       sigma2_integrand_transformed=0.
     ELSE IF(t==1.) THEN
        ! t=1 corresponds to k=0 when P(k)=0
-       sigma_integrand_transformed=0.
+       sigma2_integrand_transformed=0.
     ELSE
        alpha=3. ! I have made no attempt to optimise this number, nor tried alpha(R)
        kR=(-1.+1./t)**alpha
        k=kR/R
        w_hat=wk_tophat(kR)
-       sigma_integrand_transformed=p_lin(k,a,cosm)*(w_hat**2)*alpha/(t*(1.-t))
+       sigma2_integrand_transformed=p_lin(k,a,cosm)*(w_hat**2)*alpha/(t*(1.-t))
     END IF
 
-  END FUNCTION sigma_integrand_transformed
+  END FUNCTION sigma2_integrand_transformed
 
   FUNCTION sigma2_integral1(r,a,cosm,acc)
 
@@ -1614,8 +1614,8 @@ CONTAINS
           IF(j==1) THEN
 
              ! The first go is just the trapezium of the end points
-             f1=sigma_integrand_transformed(b,r,a,cosm)
-             f2=sigma_integrand_transformed(c,r,a,cosm)
+             f1=sigma2_integrand_transformed(b,r,a,cosm)
+             f2=sigma2_integrand_transformed(c,r,a,cosm)
              sum_2n=0.5*(f1+f2)*dx
              sum_new=sum_2n
 
@@ -1624,8 +1624,8 @@ CONTAINS
              ! Loop over only new even points to add these to the integral
              DO i=2,n,2
                 x=progression(b,c,i,n)
-                !fx=sigma_integrand_transformed(x,r,f_rapid,a,cosm)
-                fx=sigma_integrand_transformed(x,r,a,cosm)
+                !fx=sigma2_integrand_transformed(x,r,f_rapid,a,cosm)
+                fx=sigma2_integrand_transformed(x,r,a,cosm)
                 sum_2n=sum_2n+fx
              END DO
 
@@ -1713,8 +1713,8 @@ CONTAINS
           IF(j==1) THEN
 
              ! The first go is just the trapezium of the end points
-             f1=sigma_integrand_transformed(b,r,a,cosm)
-             f2=sigma_integrand_transformed(c,r,a,cosm)
+             f1=sigma2_integrand_transformed(b,r,a,cosm)
+             f2=sigma2_integrand_transformed(c,r,a,cosm)
              sum_2n=0.5*(f1+f2)*dx
              sum_new=sum_2n
 
@@ -1723,7 +1723,7 @@ CONTAINS
              ! Loop over only new even points to add these to the integral
              DO i=2,n,2
                 x=progression(b,c,i,n)
-                fx=sigma_integrand_transformed(x,r,a,cosm)
+                fx=sigma2_integrand_transformed(x,r,a,cosm)
                 sum_2n=sum_2n+fx
              END DO
 
@@ -1813,8 +1813,8 @@ CONTAINS
           IF(j==1) THEN
 
              ! The first go is just the trapezium of the end points
-             f1=sigma_integrand(b,r,a,cosm)
-             f2=sigma_integrand(c,r,a,cosm)
+             f1=sigma2_integrand(b,r,a,cosm)
+             f2=sigma2_integrand(c,r,a,cosm)
              sum_2n=0.5*(f1+f2)*dx
              sum_new=sum_2n
 
@@ -1823,7 +1823,7 @@ CONTAINS
              ! Loop over only new even points to add these to the integral
              DO i=2,n,2
                 x=progression(b,c,i,n)
-                fx=sigma_integrand(x,r,a,cosm)
+                fx=sigma2_integrand(x,r,a,cosm)
                 sum_2n=sum_2n+fx
              END DO
 
@@ -1975,39 +1975,43 @@ CONTAINS
 
   END FUNCTION sigmaV2_integral
 
-  FUNCTION sigmaV2_integrand(theta,R,a,cosm)
+  FUNCTION sigmaV2_integrand(t,R,a,cosm)
 
     ! This is the integrand for the velocity dispersion integral
     USE special_functions
     IMPLICIT NONE
     REAL :: sigmaV2_integrand
-    REAL, INTENT(IN) :: theta, a, R
+    REAL, INTENT(IN) :: t, a, R
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: k, w_hat
+    REAL :: k, kR, w_hat, alpha, beta
 
-    REAL, PARAMETER :: alpha=1.65 ! Speeds up integral for large 'R'
-    REAL, PARAMETER :: Rsplit=10. ! Value to impliment speed up
-    REAL, PARAMETER :: const=1e3 ! Constant to speed up R=0 case
+    REAL, PARAMETER :: Rsplit=1e-2
 
-    ! Note that I have not included the speed up alpha and Rsplit
-    ! The choice of alpha=1.65 seemed to work well for R=100.
-    ! Rsplit=10 is thoughlessly chosen (only because 100.>10.)
-    ! Including this seems to make things slower (faster integration but slower IF statements?)
+    ! TODO: Optimize Rsplit, alpha, beta, not really a problem when only called for R = 0, 100 Mpc/h
 
-    IF(theta==0. .OR. theta==1.) THEN
+    IF(t==0. .OR. t==1.) THEN
+       ! t=0 corresponds to k=infintiy when W(kR)=0
+       ! t=1 corresponds to k=0 when P(k)=0
        sigmaV2_integrand=0.
     ELSE
-       IF(R>Rsplit) THEN
-          k=(-1.+1./theta)/R**alpha
+       IF(R==0.) THEN
+          alpha=1.
+          beta=1.
+          kR=0.
+          k=beta*(-1.+1./t)**alpha
        ELSE
-          IF(cosm%itk==1) THEN
-             k=(-1.+1./theta)
+          IF(R<Rsplit) THEN
+             alpha=3.
+             beta=1.
           ELSE
-             k=(-1.+1./theta)/const
+             alpha=2.
+             beta=1.
           END IF
+          kR=beta*(-1.+1./t)**alpha
+          k=kR/R          
        END IF
-       w_hat=wk_tophat(k*R)
-       sigmaV2_integrand=(p_lin(k,a,cosm)/k**2)*(w_hat**2)/(theta*(1.-theta))
+       w_hat=wk_tophat(kR)
+       sigmaV2_integrand=(p_lin(k,a,cosm)/k**2)*(w_hat**2)*alpha/(t*(1.-t))
     END IF
 
   END FUNCTION sigmaV2_integrand
@@ -3040,7 +3044,9 @@ CONTAINS
     !Needs to be changed to accomodate neutrino masses and degeneracy structure
     !Talk to Alex Hall about this
 
-    OPEN(7,file='/Users/Mead/Physics/CAMB_files/tmp/params.ini')
+    IF(cosm%Om_v .NE. 0.) STOP 'GET_CAMB_POWER: Error, Omega_v not zero, should set Omega_w'
+
+    OPEN(7,file='/Users/Mead/Physics/CAMB_files/tmp/params.ini',status='replace')
     WRITE(7,*) 'output_root = /Users/Mead/Physics/CAMB_files/tmp/temp'
     WRITE(7,*) 'get_scalar_cls = F'
     WRITE(7,*) 'get_vector_cls = F'
@@ -3061,7 +3067,7 @@ CONTAINS
     WRITE(7,*) 'use_physical = F'
     WRITE(7,*) 'omega_baryon =', cosm%Om_b
     WRITE(7,*) 'omega_cdm =', cosm%Om_c
-    WRITE(7,*) 'omega_lambda =', cosm%Om_v
+    WRITE(7,*) 'omega_lambda =', cosm%Om_w
     WRITE(7,*) 'omega_neutrino =', cosm%Om_nu
     WRITE(7,*) 'temp_cmb = 2.7255'
     WRITE(7,*) 'helium_fraction = 0.24'
@@ -3111,13 +3117,13 @@ CONTAINS
     WRITE(7,*) 'l_sample_boost = 1'
     CLOSE(7)
 
-    IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: Running CAMB'
-    CALL EXECUTE_COMMAND_LINE('rm /Users/Mead/Physics/CAMB_files/tmp/temp_transfer_out.dat')
-    CALL EXECUTE_COMMAND_LINE('rm /Users/Mead/Physics/CAMB_files/tmp/temp_matterpower.dat')
+    IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: Running CAMB (note weird problems with this function in library)'
+    CALL SYSTEM('rm /Users/Mead/Physics/CAMB_files/tmp/temp_transfer_out.dat')
+    CALL SYSTEM('rm /Users/Mead/Physics/CAMB_files/tmp/temp_matterpower.dat')
     IF(cosm%verbose) THEN
-       CALL EXECUTE_COMMAND_LINE('/Users/Mead/Physics/CAMB/camb /Users/Mead/Physics/CAMB_files/tmp/params.ini > /dev/null')
+       CALL SYSTEM('/Users/Mead/Physics/CAMB/camb /Users/Mead/Physics/CAMB_files/tmp/params.ini > /dev/null')
     ELSE
-       CALL EXECUTE_COMMAND_LINE('/Users/Mead/Physics/CAMB/camb /Users/Mead/Physics/CAMB_files/tmp/params.ini')
+       CALL SYSTEM('/Users/Mead/Physics/CAMB/camb /Users/Mead/Physics/CAMB_files/tmp/params.ini')
     END IF
     IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: CAMB run complete'
 
@@ -3201,7 +3207,7 @@ CONTAINS
     cosm%Om_nu=om_nu/cosm%h**2
     cosm%Om_nu=0.
 
-    ! Enforce flatness
+    ! Enforce flatness, ensure Omega_w is used for dark energy, Omega_v = 0
     cosm%Om_w=1.-cosm%Om_m
     cosm%Om_v=0.
 
@@ -3256,9 +3262,12 @@ CONTAINS
     REAL, PARAMETER :: sig8_min=0.2
     REAL, PARAMETER :: sig8_max=1.5
 
+    STOP 'RANDOM_FRANKENEMU_COSMOLOGY: Not tested'
+
     cosm%Om_m=random_uniform(Om_m_min,Om_m_max)
 
     !Enforce flatness
+    ! Note - need to have Om_w for dark enegry
     cosm%Om_v=1.-cosm%Om_m
 
     cosm%Om_b=cosm%Om_m*random_uniform(Om_b_on_Om_m_min,Om_b_on_Om_m_max)
