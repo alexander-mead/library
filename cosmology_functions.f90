@@ -399,6 +399,7 @@ CONTAINS
           cosm%wa=0.0
        ELSE IF(icosmo==28) THEN
           ! M001
+          ! Something seems funnny with this cosmology
           omega_m=0.1472
           omega_b=0.02261
           cosm%sig8=0.8778
@@ -445,7 +446,7 @@ CONTAINS
        ELSE IF(icosmo==33) THEN
           ! M006
           omega_m=0.1317
-          omega_b=0.02150
+          omega_b=0.021501 ! Moved off boundary
           cosm%sig8=0.8333
           cosm%h=0.5500
           cosm%n=0.9167
@@ -938,7 +939,6 @@ CONTAINS
        w_de=cosm%w+(cosm%wm-cosm%w)*p1*p2/(p3*p4)
     ELSE IF(cosm%iw==3) THEN
        ! w(a)CDM
-       ! TODO: Check this
        w_de=cosm%w+(1.-a)*cosm%wa
     ELSE IF(cosm%iw==4) THEN
        ! wCDM
@@ -1019,7 +1019,6 @@ CONTAINS
        X_de=1.
     ELSE IF(cosm%iw==3) THEN
        ! w(a)CDM
-       ! TODO: Check this
        X_de=(a**(-3.*(1.+cosm%w+cosm%wa)))*exp(-3.*cosm%wa*(1.-a))
     ELSE IF(cosm%iw==4) THEN
        ! wCDM
@@ -3362,44 +3361,38 @@ CONTAINS
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    REAL, PARAMETER :: Om_m_min=0.1
-    REAL, PARAMETER :: Om_m_max=1.
+    REAL, PARAMETER :: om_m_min=0.120
+    REAL, PARAMETER :: om_m_max=0.155
 
-    REAL, PARAMETER :: Om_b_on_Om_m_min=0.05
-    REAL, PARAMETER :: Om_b_on_Om_m_max=0.5
+    REAL, PARAMETER :: om_b_min=0.0215
+    REAL, PARAMETER :: om_b_max=0.0235
 
-    REAL, PARAMETER :: n_min=0.5
-    REAL, PARAMETER :: n_max=1.5
+    REAL, PARAMETER :: n_min=0.85
+    REAL, PARAMETER :: n_max=1.05
 
-    REAL, PARAMETER :: h_min=0.4
-    REAL, PARAMETER :: h_max=1.2
+    REAL, PARAMETER :: h_min=0.55
+    REAL, PARAMETER :: h_max=0.85
 
-    REAL, PARAMETER :: w_min=-1.5
-    REAL, PARAMETER :: w_max=-0.5
+    REAL, PARAMETER :: w_min=-1.3
+    REAL, PARAMETER :: w_max=-0.7
 
-    REAL, PARAMETER :: wa_min=0.
-    REAL, PARAMETER :: wa_max=0.
-
-    REAL, PARAMETER :: sig8_min=0.2
-    REAL, PARAMETER :: sig8_max=1.5
-
-    STOP 'RANDOM_FRANKENEMU_COSMOLOGY: Not tested'
-
-    cosm%Om_m=random_uniform(Om_m_min,Om_m_max)
-
-    !Enforce flatness
-    ! Note - need to have Om_w for dark enegry
-    cosm%Om_v=1.-cosm%Om_m
-
-    cosm%Om_b=cosm%Om_m*random_uniform(Om_b_on_Om_m_min,Om_b_on_Om_m_max)
-
-    cosm%n=random_uniform(n_min,n_max)
+    REAL, PARAMETER :: sig8_min=0.616
+    REAL, PARAMETER :: sig8_max=0.9
 
     cosm%h=random_uniform(h_min,h_max)
 
-    cosm%w=random_uniform(w_min,w_max)
+    cosm%Om_m=random_uniform(om_m_min,om_m_max)/cosm%h**2
 
-    cosm%wa=random_uniform(wa_min,wa_max)
+    cosm%Om_b=random_uniform(om_b_min,om_b_max)/cosm%h**2
+
+    !Enforce flatness
+    ! Note - need to have Om_w for dark enegry
+    cosm%Om_v=0.
+    cosm%Om_w=1.-cosm%Om_m
+
+    cosm%n=random_uniform(n_min,n_max)   
+
+    cosm%w=random_uniform(w_min,w_max)
 
     cosm%sig8=random_uniform(sig8_min,sig8_max)
 
