@@ -122,9 +122,10 @@ CONTAINS
     INTEGER, INTENT(INOUT) :: icosmo
     LOGICAL, INTENT(IN) :: verbose
     INTEGER :: i
+    REAL :: omega_m, omega_b
 
     ! Names of pre-defined cosmologies    
-    INTEGER, PARAMETER :: ncosmo=26
+    INTEGER, PARAMETER :: ncosmo=37
     CHARACTER(len=256) :: names(0:ncosmo)
     names(0)='User defined'
     names(1)='Boring'
@@ -153,6 +154,17 @@ CONTAINS
     names(24)='Random Mira Titan cosmology'
     names(25)='Random FrankenEmu cosmology'
     names(26)='Boring with CAMB linear spectrum'
+    names(27)='Mira Titan M000'
+    names(28)='Mira Titan M001'
+    names(29)='Mira Titan M002'
+    names(30)='Mira Titan M003'
+    names(31)='Mira Titan M004'
+    names(32)='Mira Titan M005'
+    names(33)='Mira Titan M006'
+    names(34)='Mira Titan M007'
+    names(35)='Mira Titan M008'
+    names(36)='Mira Titan M009'
+    names(37)='Mira Titan M010'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_COSMOLOGY: Assigning cosmological model parameters'
 
@@ -366,11 +378,120 @@ CONTAINS
     ELSE IF(icosmo==25) THEN
        CALL random_FrankenEmu_cosmology(cosm)
     ELSE IF(icosmo==26) THEN
+       ! Boring with CAMB linear spectrum
        cosm%itk=2
        cosm%iw=1
        cosm%w=-1.
        cosm%Om_w=cosm%Om_v ! Necessary for CAMB
-       cosm%Om_v=0.
+       cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo>=27 .AND. icosmo <=37) THEN
+       ! M000 -> M010 of Mira Titan (m_nu = 0 eV; Table 3 in 1705.03388)
+       cosm%itk=2
+       cosm%iw=3
+       IF(icosmo==27) THEN
+          ! M000
+          omega_m=0.1335
+          omega_b=0.02258
+          cosm%sig8=0.8
+          cosm%h=0.71
+          cosm%n=0.963
+          cosm%w=-1.0
+          cosm%wa=0.0
+       ELSE IF(icosmo==28) THEN
+          ! M001
+          omega_m=0.1472
+          omega_b=0.02261
+          cosm%sig8=0.8778
+          cosm%h=0.6167
+          cosm%n=0.9611
+          cosm%w=-0.7000
+          cosm%wa=0.67220
+       ELSE IF(icosmo==29) THEN
+          ! M002
+          omega_m=0.1356
+          omega_b=0.02328
+          cosm%sig8=0.8556
+          cosm%h=0.7500
+          cosm%n=1.0500
+          cosm%w=-1.0330
+          cosm%wa=0.91110
+       ELSE IF(icosmo==30) THEN
+          ! M003
+          omega_m=0.1550
+          omega_b=0.02194
+          cosm%sig8=0.9000
+          cosm%h=0.7167
+          cosm%n=0.8944
+          cosm%w=-1.1000
+          cosm%wa=-0.28330
+       ELSE IF(icosmo==31) THEN
+          ! M004
+          omega_m=0.1239
+          omega_b=0.02283
+          cosm%sig8=0.7889
+          cosm%h=0.5833
+          cosm%n=0.8722
+          cosm%w=-1.1670
+          cosm%wa=1.15000
+       ELSE IF(icosmo==32) THEN
+          ! M005
+          omega_m=0.1433
+          omega_b=0.02350
+          cosm%sig8=0.7667
+          cosm%h=0.8500
+          cosm%n=0.9833
+          cosm%w=-1.2330
+          cosm%wa=-0.04445
+       ELSE IF(icosmo==33) THEN
+          ! M006
+          omega_m=0.1317
+          omega_b=0.02150
+          cosm%sig8=0.8333
+          cosm%h=0.5500
+          cosm%n=0.9167
+          cosm%w=-0.7667
+          cosm%wa=0.19440
+       ELSE IF(icosmo==34) THEN
+          ! M007
+          omega_m=0.1511
+          omega_b=0.02217
+          cosm%sig8=0.8111
+          cosm%h=0.8167
+          cosm%n=1.0280
+          cosm%w=-0.8333
+          cosm%wa=-1.0000
+       ELSE IF(icosmo==35) THEN
+          ! M008
+          omega_m=0.1200
+          omega_b=0.02306
+          cosm%sig8=0.7000
+          cosm%h=0.6833
+          cosm%n=1.0060
+          cosm%w=-0.9000
+          cosm%wa=0.43330
+       ELSE IF(icosmo==36) THEN
+          ! M009
+          omega_m=0.1394
+          omega_b=0.02172
+          cosm%sig8=0.7444
+          cosm%h=0.6500
+          cosm%n=0.8500
+          cosm%w=-0.9667
+          cosm%wa=-0.76110
+       ELSE IF(icosmo==37) THEN
+          ! M010
+          omega_m=0.1278
+          omega_b=0.02239
+          cosm%sig8=0.7222
+          cosm%h=0.7833
+          cosm%n=0.9389
+          cosm%w=-1.3000
+          cosm%wa=-0.52220
+       END IF
+       cosm%Om_m=omega_m/cosm%h**2
+       cosm%Om_b=omega_b/cosm%h**2
+       cosm%Om_w=1.-cosm%Om_m ! Necessary for CAMB
+       cosm%Om_v=0. ! Necessary for CAMB
     ELSE
        STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly'
     END IF
@@ -3214,7 +3335,7 @@ CONTAINS
     cosm%n=random_uniform(n_min,n_max)
 
     cosm%w=random_uniform(w_min,w_max)
-    cosm%w=-1.
+    !cosm%w=-1.
 
     ! Enforce 0.3 <= (-w0-wa)^(1/4)
     DO
@@ -3227,7 +3348,7 @@ CONTAINS
     cosm%sig8=random_uniform(sig8_min,sig8_max)
 
     ! Set to w(a) dark energy
-    cosm%iw=4
+    cosm%iw=3
 
     ! Set to CAMB linear power
     cosm%itk=2
