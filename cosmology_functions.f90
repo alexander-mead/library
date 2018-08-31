@@ -3649,7 +3649,7 @@ CONTAINS
     DO
        cosm%wa=random_uniform(wa_min,wa_max)
        !IF(0.3<=(-cosm%w-cosm%wa)**(1./4.)) EXIT
-       IF(0.0081<=-cosm%w-cosm%wa) EXIT
+       IF(0.0081<=-cosm%w-cosm%wa .AND. 2.769>=-cosm%w-cosm%wa) EXIT
     END DO
 
     cosm%sig8=random_uniform(sig8_min,sig8_max)
