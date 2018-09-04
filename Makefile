@@ -52,7 +52,7 @@ OBJS =  precision.o \
 	cosmic_emu_stuff
 
 # Default compile option
-all: FFLAGS += -O3
+all: FFLAGS += -O3 -I/usr/local/include -I/usr/include
 all: meadlib
 
 # Debug mode

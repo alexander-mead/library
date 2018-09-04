@@ -1,12 +1,12 @@
 MODULE fft
-
-  !This use statement seems not to be necessary any more, not sure why
-  !USE iso_c_binding
+  
+  !USE iso_c_binding ! This use statement seems not to be necessary any more, not sure why
   USE logical_operations
 
   !Include the FFTW libraray locations
-  INCLUDE '/usr/local/include/fftw3.f' !Mac
+  !INCLUDE '/usr/local/include/fftw3.f' !Mac
   !INCLUDE '/usr/include/fftw3.f' !Linux'
+  INCLUDE 'fftw3.f'
 
   INTERFACE FFT1
 
