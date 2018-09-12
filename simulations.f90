@@ -1088,7 +1088,7 @@ CONTAINS
   END FUNCTION shot_noise_k
 
   !SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,nbar,outfile)
-  SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,outfile)
+  SUBROUTINE write_adaptive_field(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,outfile)
 
     ! Makes a pretty picture of a density field but uses adaptive meshes to make it nice    
     USE array_operations
@@ -1122,13 +1122,13 @@ CONTAINS
     LOGICAL, PARAMETER :: test=.FALSE. ! Activate test mode
     INTEGER :: ibin=2 ! CIC binning (cannot be parameter, but would like to be)
 
-    IF(r>4) STOP 'ADAPTIVE_DENSITY: Error, too many refinement leves requested. Maximum is 4'
+    IF(r>4) STOP 'WRITE_ADAPTIVE_FIELD: Error, too many refinement leves requested. Maximum is 4'
 
     ! Write information to screen
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Adaptive density field generator'
-    WRITE(*,*) 'ADAPTIVE_DENISTY: Refinement conditions (particles-per-cell):', dc
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Smoothing factor in cell size:', fcell
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Number of refinements:', r
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Adaptive density field generator'
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Refinement conditions (particles-per-cell):', dc
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Smoothing factor in cell size:', fcell
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Number of refinements:', r
     WRITE(*,*)
 
     ! Set the region boundaries in Mpc/h
@@ -1143,16 +1143,16 @@ CONTAINS
     Lz=z2-z1
 
     ! Write information to screen
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Subvolume:'
-    WRITE(*,*) 'ADAPTIVE_DENSITY: x1:', x1
-    WRITE(*,*) 'ADAPTIVE_DENSITY: x2:', x2
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Lx:', Lx
-    WRITE(*,*) 'ADAPTIVE_DENSITY: y1:', y1
-    WRITE(*,*) 'ADAPTIVE_DENSITY: y2:', y2
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Ly:', Ly
-    WRITE(*,*) 'ADAPTIVE_DENSITY: z1:', z1
-    WRITE(*,*) 'ADAPTIVE_DENSITY: z2:', z2
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Lz:', Lz
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Subvolume:'
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: x1:', x1
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: x2:', x2
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Lx:', Lx
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: y1:', y1
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: y2:', y2
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Ly:', Ly
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: z1:', z1
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: z2:', z2
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Lz:', Lz
     WRITE(*,*)
 
     ! First pass to count the number of particles in the region
@@ -1166,10 +1166,10 @@ CONTAINS
     ! Caclculate particle-density statistics
     npexp=REAL(n)*(Lx*Ly*Lz/L**3.)
     delta=-1.+REAL(np)/REAL(npexp)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Particle-density statistics'
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Particles in subvolume:', np
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Expected number of partilces in subvolume:', npexp
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Particle over-density in subvolume:', delta
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Particle-density statistics'
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Particles in subvolume:', np
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Expected number of partilces in subvolume:', npexp
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Particle over-density in subvolume:', delta
     WRITE(*,*)
 
     ! Allocate arrays for 2D position and 2D weight
@@ -1199,16 +1199,15 @@ CONTAINS
     m5=m4/2
 
     ! Write out sizes to screen
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 1:', m1
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 2:', m2
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 3:', m3
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 4:', m4
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh size 5:', m5
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh size 1:', m1
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh size 2:', m2
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh size 3:', m3
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh size 4:', m4
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh size 5:', m5
     WRITE(*,*)
 
-    ! Allocate arrays for particle counts and overdensity
-    ! This is very ugly, but I do not think it can be avoided with d(5,m,m) because m are all different
-    ! Could remove count array if necessary, but including it makes the calculation more obvious
+    ! Allocate arrays for particle counts and fields
+    ! This is ugly, but I do not think it can be avoided with e.g., field(5,m,m) because m are all different
     ALLOCATE(field1(m1,m1),count1(m1,m1))
     ALLOCATE(field2(m2,m2),count2(m2,m2))
     ALLOCATE(field3(m3,m3),count3(m3,m3))
@@ -1216,9 +1215,7 @@ CONTAINS
     ALLOCATE(field5(m5,m5),count5(m5,m5))
 
     ! Do binning of particles on each mesh resolution
-    ! These binning routines assume that the volume is periodic
-    ! You may get some weird edge effects
-    ! u is the 2D weight array
+    ! Binning assume that the area is periodic so you may get some weird edge effects
 !!$    CALL particle_bin_2D(y,np,Lsub,u,count1,m1,ibin)
 !!$    CALL particle_bin_2D(y,np,Lsub,u,count2,m2,ibin)
 !!$    CALL particle_bin_2D(y,np,Lsub,u,count3,m3,ibin)
@@ -1230,13 +1227,13 @@ CONTAINS
     CALL particle_bin_2D(y,np,Lsub,ones,count4,m4,ibin)
     CALL particle_bin_2D(y,np,Lsub,ones,count5,m5,ibin)
 
-    ! Convert to overdensities (1+delta = rho/rhobar)
-    ! Could certainly save memory here by having d1=c1, but having the c arrays makes the calculation more obvious
-    !field1=(count1/((Lsub/REAL(m1))**2))/nbar
-    !field2=(count2/((Lsub/REAL(m2))**2))/nbar
-    !field3=(count3/((Lsub/REAL(m3))**2))/nbar
-    !field4=(count4/((Lsub/REAL(m4))**2))/nbar
-    !field5=(count5/((Lsub/REAL(m5))**2))/nbar
+    ! Now bin field values, rather than particle numbers
+    ! Binning assume that the area is periodic so You may get some weird edge effects
+!!$    field1=(count1/((Lsub/REAL(m1))**2))/nbar
+!!$    field2=(count2/((Lsub/REAL(m2))**2))/nbar
+!!$    field3=(count3/((Lsub/REAL(m3))**2))/nbar
+!!$    field4=(count4/((Lsub/REAL(m4))**2))/nbar
+!!$    field5=(count5/((Lsub/REAL(m5))**2))/nbar
     CALL particle_bin_2D(y,np,Lsub,u*m1**2,field1,m1,ibin)
     CALL particle_bin_2D(y,np,Lsub,u*m2**2,field2,m2,ibin)
     CALL particle_bin_2D(y,np,Lsub,u*m3**2,field3,m3,ibin)
@@ -1251,31 +1248,31 @@ CONTAINS
     CALL smooth2D(field5,m5,fcell*Lsub/REAL(m5),Lsub)
 
     ! Write out density statistics on each mesh
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m1
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(count1)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(count1)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(field1)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(field1)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m2
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(count2)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(count2)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(field2)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(field2)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m3
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(count3)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(count3)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(field3)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(field3)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m4
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(count4)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(count4)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(field4)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(field4)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m5
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(count5)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(count5)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(field5)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(field5)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m1
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', MAXVAL(count1)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', MINVAL(count1)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', MAXVAL(field1)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', MINVAL(field1)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m2
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', MAXVAL(count2)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', MINVAL(count2)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', MAXVAL(field2)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', MINVAL(field2)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m3
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', MAXVAL(count3)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', MINVAL(count3)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', MAXVAL(field3)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', MINVAL(field3)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m4
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', MAXVAL(count4)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', MINVAL(count4)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', MAXVAL(field4)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', MINVAL(field4)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m5
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', MAXVAL(count5)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', MINVAL(count5)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', MAXVAL(field5)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', MINVAL(field5)
     WRITE(*,*)
 
     ! Write out each mesh if testing
@@ -1285,23 +1282,23 @@ CONTAINS
        ext='.dat'
        
        output=number_file_zeroes(base,m1,4,ext)
-       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
        CALL write_2D_field_ascii(field1,m1,Lsub,output)
        
        output=number_file_zeroes(base,m2,4,ext)
-       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
        CALL write_2D_field_ascii(field2,m2,Lsub,output)
        
        output=number_file_zeroes(base,m3,4,ext)       
-       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
        CALL write_2D_field_ascii(field3,m3,Lsub,output)
        
        output=number_file_zeroes(base,m4,4,ext)
-       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
        CALL write_2D_field_ascii(field4,m4,Lsub,output)
        
        output=number_file_zeroes(base,m5,4,ext)
-       WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
+       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
        CALL write_2D_field_ascii(field5,m5,Lsub,output)
        
     END IF
@@ -1431,9 +1428,9 @@ CONTAINS
     DEALLOCATE(count1,count2,count3,count4,count5)
 
     ! Write info to screen
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Adaptive density field'
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max density:', MAXVAL(d)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min density:', MINVAL(d)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Adaptive density field'
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max density:', MAXVAL(d)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min density:', MINVAL(d)
     WRITE(*,*)
 
     ! Ensure all cells are positive (note this is to make pretty pictures, not for science)
@@ -1444,16 +1441,16 @@ CONTAINS
     END DO
 
     ! Write field statistics
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Smoothed adaptive density field'
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max density:', MAXVAL(d)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min density:', MINVAL(d)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Smoothed adaptive density field'
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max density:', MAXVAL(d)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min density:', MINVAL(d)
     WRITE(*,*)
 
     ! Finally write out an ascii file for plotting
     CALL write_2D_field_ascii(d,m1,Lsub,outfile)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Done'
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Done'
     WRITE(*,*)
 
-  END SUBROUTINE adaptive_density
+  END SUBROUTINE write_adaptive_field
 
 END MODULE simulations
