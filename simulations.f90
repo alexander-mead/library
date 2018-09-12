@@ -1163,13 +1163,13 @@ CONTAINS
        END IF
     END DO
 
-    ! Caclculate density statistics
+    ! Caclculate particle-density statistics
     npexp=REAL(n)*(Lx*Ly*Lz/L**3.)
     delta=-1.+REAL(np)/REAL(npexp)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Density statistics'
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Particles in region:', np
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Expectation of partilces in region:', npexp
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Region over-density:', delta
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Particle-density statistics'
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Particles in subvolume:', np
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Expected number of partilces in subvolume:', npexp
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Particle over-density in subvolume:', delta
     WRITE(*,*)
 
     ! Allocate arrays for 2D position and 2D weight
@@ -1186,6 +1186,9 @@ CONTAINS
           u(j)=w(i) ! u is the 2D weight array
        END IF
     END DO
+
+    ! Boost the weight array to account for the smaller volume
+    u=u*(L**3/(Lx*Ly*Lz))
 
     ! Set the sizes of all of the adaptive meshes, which all differ by a factor of 2
     ! m1=m, m2=m/2, m3=m/4, m4=m/8, m5=m/16
