@@ -476,10 +476,13 @@ CONTAINS
 
     ! Bin particle properties onto a mesh, summing as you go
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, m
-    INTEGER, INTENT(INOUT) :: ibin
-    REAL, INTENT(OUT) :: d(m,m)
-    REAL, INTENT(IN) :: x(2,n), w(n), L
+    REAL, INTENT(IN) :: x(2,n) ! 2D particle positions [Mpc/h]
+    INTEGER, INTENT(IN) :: n ! Total number of particles in area
+    REAL, INTENT(IN) :: L ! Area side length [Mpc/h]
+    REAL, INTENT(IN) :: w(n) ! Weight array
+    REAL, INTENT(OUT) :: d(m,m) ! Output of eventual 2D density field
+    INTEGER, INTENT(IN) :: m ! Mesh size for density field
+    INTEGER, INTENT(INOUT) :: ibin ! Binning strategy 
 
     IF(ibin==-1) THEN
        WRITE(*,*) 'Choose binning strategy'
@@ -504,9 +507,12 @@ CONTAINS
     ! Nearest-grid-point binning routine
     USE statistics
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x(2,n), w(n), L
-    INTEGER, INTENT(IN) :: n, m
-    REAL, INTENT(OUT) :: d(m,m)
+    REAL, INTENT(IN) :: x(2,n) ! 2D particle positions [Mpc/h]
+    INTEGER, INTENT(IN) :: n ! Total number of particles in area
+    REAL, INTENT(IN) :: L ! Area side length [Mpc/h]
+    REAL, INTENT(IN) :: w(n) ! Weight array
+    REAL, INTENT(OUT) :: d(m,m) ! Output of eventual 2D density field
+    INTEGER, INTENT(IN) :: m ! Mesh size for density field
     INTEGER :: i, ix, iy
 
     WRITE(*,*) 'NGP2D: Binning particles and creating field'
@@ -535,9 +541,12 @@ CONTAINS
 
     ! This could probably be usefully combined with CIC somehow
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x(2,n), w(n), L
-    INTEGER, INTENT(IN) :: n, m
-    REAL, INTENT(OUT) :: d(m,m)
+    REAL, INTENT(IN) :: x(2,n) ! 2D particle positions [Mpc/h]
+    INTEGER, INTENT(IN) :: n ! Total number of particles in area
+    REAL, INTENT(IN) :: L ! Area side length [Mpc/h]
+    REAL, INTENT(IN) :: w(n) ! Weight array
+    REAL, INTENT(OUT) :: d(m,m) ! Output of eventual 2D density field
+    INTEGER, INTENT(IN) :: m ! Mesh size for density field
     INTEGER :: i, ix, iy, ixn, iyn
     REAL :: dx, dy
 
@@ -953,11 +962,14 @@ CONTAINS
 
   SUBROUTINE zshift(x,v,n,Om_m,Om_v,z,iz)
 
-    !Shift particles to redshift space
+    ! Shift particles to redshift space
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, iz
-    REAL, INTENT(IN) :: v(3,n), Om_m, Om_v, z
-    REAL, INTENT(INOUT) :: x(3,n)
+    REAL, INTENT(INOUT) :: x(3,n) ! Particle positions [Mpc/h]
+    REAL, INTENT(IN) :: v(3,n) ! Particle velocities [km/s]
+    INTEGER, INTENT(IN) :: n ! Total number of particles
+    REAL, INTENT(IN) :: Om_m, Om_v ! Cosmological parameters
+    REAL, INTENT(IN) :: z ! Redshift
+    INTEGER, INTENT(IN) :: iz ! Dimension along which to shift (1,2,3 for x,y,z)   
     INTEGER :: i
     REAL :: H, a
 
@@ -978,28 +990,29 @@ CONTAINS
 
   REAL FUNCTION Hubble2_simple(z,Om_m,Om_v)
 
-    !This calculates the dimensionless squared hubble parameter squared at redshift z!
-    !It ignores contributions from radiation (not accurate at very high z)!
-    !It also ignores anything other than vacuum and matter
+    ! This calculates the dimensionless squared hubble parameter squared at redshift z!
+    ! It ignores contributions from radiation (not accurate at very high z)!
+    ! It also ignores anything other than vacuum and matter
     IMPLICIT NONE
-    REAL, INTENT(IN) :: z, Om_m, Om_v
+    REAL, INTENT(IN) :: z ! Redshift
+    REAL, INTENT(IN) :: Om_m, Om_v ! Cosmological parameters
 
     Hubble2_simple=Om_m*(1.+z)**3+Om_v+(1.-Om_m-Om_v)*(1.+z)**2
 
   END FUNCTION Hubble2_simple
 
-  !Used to be called slice
-  SUBROUTINE write_slice_ascii(x,n,x1,x2,y1,y2,z1,z2,filename)
+  ! This subroutine used to be called slice
+  SUBROUTINE write_slice_ascii(x,n,x1,x2,y1,y2,z1,z2,outfile)
 
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x1, x2, y1, y2, z1, z2
-    CHARACTER(len=*), INTENT(IN) :: filename
-    REAL, INTENT(IN) :: x(3,n)
-    INTEGER, INTENT(IN) :: n
+    REAL, INTENT(IN) :: x1, x2, y1, y2, z1, z2 ! Limits of the slice [Mpc/h]
+    CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
+    REAL, INTENT(IN) :: x(3,n) ! Particle positions [Mpc/h]
+    INTEGER, INTENT(IN) :: n ! Total number of particles
     INTEGER :: i
 
     WRITE(*,*) 'WRITE_SLICE_ASCII: Writing slice'
-    OPEN(10,file=filename)
+    OPEN(10,file=outfile)
     WRITE(*,*) 'WRITE_SLICE_ASCII: Thickness in z [Mpc/h]:', (z2-z1)
     DO i=1,n
        IF(x1<x(1,i) .AND. x(1,i)<=x2 .AND. y1<x(2,i) .AND. x(2,i)<=y2 .AND. z1<x(3,i) .AND. x(3,i)<=z2) THEN
@@ -1007,14 +1020,14 @@ CONTAINS
        END IF
     END DO
     CLOSE(10)
-    WRITE(*,*) 'WRITE_SLICE_ASCII: Slice written: ', TRIM(filename)
+    WRITE(*,*) 'WRITE_SLICE_ASCII: Slice written: ', TRIM(outfile)
     WRITE(*,*)
 
   END SUBROUTINE write_slice_ascii
 
   REAL FUNCTION shot_noise_simple(L,n)
 
-    !Calculate simulation shot noise
+    !Calculate simulation shot noise for equal mass matter particlers [(Mpc/h)^3]
     IMPLICIT NONE
     REAL, INTENT(IN) :: L ! Box size [Mpc/h]
     INTEGER*8, INTENT(IN) :: n ! Total number of particles
@@ -1026,7 +1039,7 @@ CONTAINS
 
   REAL FUNCTION shot_noise(u,v,n,m,L)
 
-    ! Calculates shot noise in P_uv(k) [Mpc/h]^3
+    ! Calculates shot noise in P_uv(k) [(Mpc/h)^3]
     ! See appendix in HMx paper
     USE array_operations
     IMPLICIT NONE
@@ -1045,7 +1058,7 @@ CONTAINS
 
   REAL FUNCTION shot_noise_mass(L,m,n)
 
-    ! Calculate simulation shot noise constant P(k) for different-mass tracers [Mpc/h]^3 
+    ! Calculate simulation shot noise constant P(k) for different-mass tracers [(Mpc/h)^3]
     USE array_operations
     IMPLICIT NONE
     REAL, INTENT(IN) :: L ! Box size [Mpc/h]
@@ -1056,28 +1069,31 @@ CONTAINS
     ! Calculate the effective mean number of tracers
     Nbar=sum_double(m,n)**2/sum_double(m**2,n)
 
-    ! Calculate number density, this makes units of P(k) [Mpc/h]^3
+    ! Calculate number density, this makes units of P(k) [(Mpc/h)^3]
     shot_noise_mass=L**3/Nbar
 
   END FUNCTION shot_noise_mass
 
   REAL FUNCTION shot_noise_k(k,shot)
 
-    ! Calculates shot noise as Delta^2(k) from a constant-P(k) thing with units [Mpc/h]^3
+    ! Calculates shot noise as Delta^2(k) from a constant-P(k) thing with units [(Mpc/h)^3]
+    ! This shot noise is then dimensionless, exactly like Delta^2(k)
     USE constants
     IMPLICIT NONE
     REAL, INTENT(IN) :: k ! Wave vector [h/Mpc]
-    REAL, INTENT(IN) :: shot ! The constant shot-noise term: P(k)
+    REAL, INTENT(IN) :: shot ! The constant shot-noise term: P(k) [(Mpc/h)^3]
 
     shot_noise_k=shot*4.*pi*(k/twopi)**3
 
   END FUNCTION shot_noise_k
 
-  SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,nbar,outfile)    
+  !SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,nbar,outfile)
+  SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,outfile)
 
     ! Makes a pretty picture of a density field but uses adaptive meshes to make it nice    
     USE array_operations
     USE string_operations
+    
     IMPLICIT NONE
     
     REAL, INTENT(IN) :: xc, yc ! Coordinates of image centre [Mpc/h]
@@ -1086,20 +1102,19 @@ CONTAINS
     INTEGER, INTENT(IN) :: m ! Image size in pixels (e.g., 2048)
     INTEGER, INTENT(IN) :: r ! Integer number of levels of refinement
     INTEGER, INTENT(IN) :: n ! Number of particles
-    REAL, INTENT(IN) :: x(3,n) ! P article position array [Mpc/h]
+    REAL, INTENT(IN) :: x(3,n) ! Particle position array [Mpc/h]
     REAL, INTENT(IN) :: w(n) ! Weight array (e.g., mass, or just an array of ones)
     REAL, INTENT(IN) :: L ! Box size [Mpc/h]
-    REAL, INTENT(IN) :: nbar ! Average 2D density
+    !REAL, INTENT(IN) :: nbar ! Average 2D density
     CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
 
     REAL :: x1, x2, y1, y2, Lx, Ly, Lz, delta, npexp
     INTEGER :: np
     INTEGER :: m1, m2, m3, m4, m5
     INTEGER :: i, j
-    REAL, ALLOCATABLE :: y(:,:), d(:,:), u(:)
-    REAL, ALLOCATABLE :: c1(:,:), c2(:,:), c3(:,:), c4(:,:), c5(:,:)
-    REAL, ALLOCATABLE :: d1(:,:), d2(:,:), d3(:,:), d4(:,:), d5(:,:)
-    !REAL, ALLOCATABLE :: di(:,:,:), ci(:,:,:)
+    REAL, ALLOCATABLE :: y(:,:), d(:,:), u(:), ones(:)
+    REAL, ALLOCATABLE :: count1(:,:), count2(:,:), count3(:,:), count4(:,:), count5(:,:)
+    REAL, ALLOCATABLE :: field1(:,:), field2(:,:), field3(:,:), field4(:,:), field5(:,:)
     CHARACTER(len=256) :: base, ext, output
 
     REAL, PARAMETER :: dc=4. ! Refinement conditions (particles-per-cell)
@@ -1148,7 +1163,7 @@ CONTAINS
        END IF
     END DO
 
-    ! Caclulate density statistics
+    ! Caclculate density statistics
     npexp=REAL(n)*(Lx*Ly*Lz/L**3.)
     delta=-1.+REAL(np)/REAL(npexp)
     WRITE(*,*) 'ADAPTIVE_DENSITY: Density statistics'
@@ -1157,16 +1172,18 @@ CONTAINS
     WRITE(*,*) 'ADAPTIVE_DENSITY: Region over-density:', delta
     WRITE(*,*)
 
-    ALLOCATE(y(2,np),u(np))
+    ! Allocate arrays for 2D position and 2D weight
+    ALLOCATE(y(2,np),u(np),ones(np))
+    ones=1.
 
     ! Second pass to add particles in the region to 2D array y
     j=0
     DO i=1,n
        IF(x(1,i)>x1 .AND. x(1,i)<x2 .AND. x(2,i)>y1 .AND. x(2,i)<y2 .AND. x(3,i)>z1 .AND. x(3,i)<z2) THEN
           j=j+1
-          y(1,j)=x(1,i)-xc+Lsub/2.
-          y(2,j)=x(2,i)-yc+Lsub/2.
-          u(j)=w(i)
+          y(1,j)=x(1,i)-xc+Lsub/2. ! 2D position array
+          y(2,j)=x(2,i)-yc+Lsub/2. ! 2D position array
+          u(j)=w(i) ! u is the 2D weight array
        END IF
     END DO
 
@@ -1189,61 +1206,73 @@ CONTAINS
     ! Allocate arrays for particle counts and overdensity
     ! This is very ugly, but I do not think it can be avoided with d(5,m,m) because m are all different
     ! Could remove count array if necessary, but including it makes the calculation more obvious
-    ALLOCATE(d1(m1,m1),c1(m1,m1))
-    ALLOCATE(d2(m2,m2),c2(m2,m2))
-    ALLOCATE(d3(m3,m3),c3(m3,m3))
-    ALLOCATE(d4(m4,m4),c4(m4,m4))
-    ALLOCATE(d5(m5,m5),c5(m5,m5))    
+    ALLOCATE(field1(m1,m1),count1(m1,m1))
+    ALLOCATE(field2(m2,m2),count2(m2,m2))
+    ALLOCATE(field3(m3,m3),count3(m3,m3))
+    ALLOCATE(field4(m4,m4),count4(m4,m4))
+    ALLOCATE(field5(m5,m5),count5(m5,m5))
 
-    ! Do CIC binning on each mesh resolution
-    ! These CIC routines assume the volume is periodic, so you get some weird edge effects
-    CALL particle_bin_2D(y,np,Lsub,u,c1,m1,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u,c2,m2,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u,c3,m3,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u,c4,m4,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u,c5,m5,ibin)
+    ! Do binning of particles on each mesh resolution
+    ! These binning routines assume that the volume is periodic
+    ! You may get some weird edge effects
+    ! u is the 2D weight array
+!!$    CALL particle_bin_2D(y,np,Lsub,u,count1,m1,ibin)
+!!$    CALL particle_bin_2D(y,np,Lsub,u,count2,m2,ibin)
+!!$    CALL particle_bin_2D(y,np,Lsub,u,count3,m3,ibin)
+!!$    CALL particle_bin_2D(y,np,Lsub,u,count4,m4,ibin)
+!!$    CALL particle_bin_2D(y,np,Lsub,u,count5,m5,ibin)
+    CALL particle_bin_2D(y,np,Lsub,ones,count1,m1,ibin)
+    CALL particle_bin_2D(y,np,Lsub,ones,count2,m2,ibin)
+    CALL particle_bin_2D(y,np,Lsub,ones,count3,m3,ibin)
+    CALL particle_bin_2D(y,np,Lsub,ones,count4,m4,ibin)
+    CALL particle_bin_2D(y,np,Lsub,ones,count5,m5,ibin)
 
     ! Convert to overdensities (1+delta = rho/rhobar)
     ! Could certainly save memory here by having d1=c1, but having the c arrays makes the calculation more obvious
-    d1=(c1/((Lsub/REAL(m1))**2))/nbar
-    d2=(c2/((Lsub/REAL(m2))**2))/nbar
-    d3=(c3/((Lsub/REAL(m3))**2))/nbar
-    d4=(c4/((Lsub/REAL(m4))**2))/nbar
-    d5=(c5/((Lsub/REAL(m5))**2))/nbar
+    !field1=(count1/((Lsub/REAL(m1))**2))/nbar
+    !field2=(count2/((Lsub/REAL(m2))**2))/nbar
+    !field3=(count3/((Lsub/REAL(m3))**2))/nbar
+    !field4=(count4/((Lsub/REAL(m4))**2))/nbar
+    !field5=(count5/((Lsub/REAL(m5))**2))/nbar
+    CALL particle_bin_2D(y,np,Lsub,u*m1**2,field1,m1,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u*m2**2,field2,m2,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u*m3**2,field3,m3,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u*m4**2,field4,m4,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u*m5**2,field5,m5,ibin)    
 
     ! Smooth density fields
-    CALL smooth2D(d1,m1,fcell*Lsub/REAL(m1),Lsub)
-    CALL smooth2D(d2,m2,fcell*Lsub/REAL(m2),Lsub)
-    CALL smooth2D(d3,m3,fcell*Lsub/REAL(m3),Lsub)
-    CALL smooth2D(d4,m4,fcell*Lsub/REAL(m4),Lsub)
-    CALL smooth2D(d5,m5,fcell*Lsub/REAL(m5),Lsub)
+    CALL smooth2D(field1,m1,fcell*Lsub/REAL(m1),Lsub)
+    CALL smooth2D(field2,m2,fcell*Lsub/REAL(m2),Lsub)
+    CALL smooth2D(field3,m3,fcell*Lsub/REAL(m3),Lsub)
+    CALL smooth2D(field4,m4,fcell*Lsub/REAL(m4),Lsub)
+    CALL smooth2D(field5,m5,fcell*Lsub/REAL(m5),Lsub)
 
     ! Write out density statistics on each mesh
     WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m1
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(c1)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(c1)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(d1)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(d1)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(count1)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(count1)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(field1)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(field1)
     WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m2
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(c2)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(c2)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(d2)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(d2)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(count2)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(count2)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(field2)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(field2)
     WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m3
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(c3)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(c3)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(d3)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(d3)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(count3)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(count3)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(field3)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(field3)
     WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m4
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(c4)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(c4)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(d4)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(d4)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(count4)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(count4)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(field4)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(field4)
     WRITE(*,*) 'ADAPTIVE_DENSITY: Mesh:', m5
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(c5)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(c5)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(d5)
-    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(d5)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max count:', MAXVAL(count5)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min count:', MINVAL(count5)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Max overdensity:', MAXVAL(field5)
+    WRITE(*,*) 'ADAPTIVE_DENSITY: Min overdensity:', MINVAL(field5)
     WRITE(*,*)
 
     ! Write out each mesh if testing
@@ -1254,23 +1283,23 @@ CONTAINS
        
        output=number_file_zeroes(base,m1,4,ext)
        WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_2D_field_ascii(d1,m1,Lsub,output)
+       CALL write_2D_field_ascii(field1,m1,Lsub,output)
        
        output=number_file_zeroes(base,m2,4,ext)
        WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_2D_field_ascii(d2,m2,Lsub,output)
+       CALL write_2D_field_ascii(field2,m2,Lsub,output)
        
        output=number_file_zeroes(base,m3,4,ext)       
        WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_2D_field_ascii(d3,m3,Lsub,output)
+       CALL write_2D_field_ascii(field3,m3,Lsub,output)
        
        output=number_file_zeroes(base,m4,4,ext)
        WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_2D_field_ascii(d4,m4,Lsub,output)
+       CALL write_2D_field_ascii(field4,m4,Lsub,output)
        
        output=number_file_zeroes(base,m5,4,ext)
        WRITE(*,*) 'ADAPTIVE_DENSITY: Writing: ', TRIM(output)
-       CALL write_2D_field_ascii(d5,m5,Lsub,output)
+       CALL write_2D_field_ascii(field5,m5,Lsub,output)
        
     END IF
 
@@ -1278,7 +1307,7 @@ CONTAINS
     IF(r==0) THEN
        
        ALLOCATE(d(m,m))
-       d=d1
+       d=field1
 
     ! Start the refinements
     ELSE
@@ -1290,18 +1319,18 @@ CONTAINS
           ALLOCATE(d(m4,m4))
           DO i=1,m5
              DO j=1,m5
-                IF(c5(i,j)<dc) THEN
+                IF(count5(i,j)<dc) THEN
                    ! Use coarser density
-                   d(2*i-1,2*j-1)=d5(i,j)
-                   d(2*i,2*j-1)=d5(i,j)
-                   d(2*i-1,2*j)=d5(i,j)
-                   d(2*i,2*j)=d5(i,j)
+                   d(2*i-1,2*j-1)=field5(i,j)
+                   d(2*i,2*j-1)=field5(i,j)
+                   d(2*i-1,2*j)=field5(i,j)
+                   d(2*i,2*j)=field5(i,j)
                 ELSE
                    ! Use finer density
-                   d(2*i-1,2*j-1)=d4(2*i-1,2*j)
-                   d(2*i,2*j-1)=d4(2*i,2*j-1)
-                   d(2*i-1,2*j)=d4(2*i-1,2*j)
-                   d(2*i,2*j)=d4(2*i,2*j)
+                   d(2*i-1,2*j-1)=field4(2*i-1,2*j)
+                   d(2*i,2*j-1)=field4(2*i,2*j-1)
+                   d(2*i-1,2*j)=field4(2*i-1,2*j)
+                   d(2*i,2*j)=field4(2*i,2*j)
                 END IF
              END DO
           END DO
@@ -1312,24 +1341,24 @@ CONTAINS
        IF(r>=3) THEN
 
           IF(ALLOCATED(d)) THEN
-             d4=d
+             field4=d
              DEALLOCATE(d)
           END IF
           ALLOCATE(d(m3,m3))
           DO i=1,m4
              DO j=1,m4
-                IF(c4(i,j)<dc) THEN
+                IF(count4(i,j)<dc) THEN
                    ! Use coarser density
-                   d(2*i-1,2*j-1)=d4(i,j)
-                   d(2*i,2*j-1)=d4(i,j)
-                   d(2*i-1,2*j)=d4(i,j)
-                   d(2*i,2*j)=d4(i,j)
+                   d(2*i-1,2*j-1)=field4(i,j)
+                   d(2*i,2*j-1)=field4(i,j)
+                   d(2*i-1,2*j)=field4(i,j)
+                   d(2*i,2*j)=field4(i,j)
                 ELSE
                    ! Use finer density
-                   d(2*i-1,2*j-1)=d3(2*i-1,2*j)
-                   d(2*i,2*j-1)=d3(2*i,2*j-1)
-                   d(2*i-1,2*j)=d3(2*i-1,2*j)
-                   d(2*i,2*j)=d3(2*i,2*j)
+                   d(2*i-1,2*j-1)=field3(2*i-1,2*j)
+                   d(2*i,2*j-1)=field3(2*i,2*j-1)
+                   d(2*i-1,2*j)=field3(2*i-1,2*j)
+                   d(2*i,2*j)=field3(2*i,2*j)
                 END IF
              END DO
           END DO
@@ -1340,24 +1369,24 @@ CONTAINS
        IF(r>=2) THEN
 
           IF(ALLOCATED(d)) THEN
-             d3=d
+             field3=d
              DEALLOCATE(d)
           END IF
           ALLOCATE(d(m2,m2))
           DO i=1,m3
              DO j=1,m3
-                IF(c3(i,j)<dc) THEN
+                IF(count3(i,j)<dc) THEN
                    ! Use coarser density
-                   d(2*i-1,2*j-1)=d3(i,j)
-                   d(2*i,2*j-1)=d3(i,j)
-                   d(2*i-1,2*j)=d3(i,j)
-                   d(2*i,2*j)=d3(i,j)
+                   d(2*i-1,2*j-1)=field3(i,j)
+                   d(2*i,2*j-1)=field3(i,j)
+                   d(2*i-1,2*j)=field3(i,j)
+                   d(2*i,2*j)=field3(i,j)
                 ELSE
                    ! Use finer density
-                   d(2*i-1,2*j-1)=d2(2*i-1,2*j)
-                   d(2*i,2*j-1)=d2(2*i,2*j-1)
-                   d(2*i-1,2*j)=d2(2*i-1,2*j)
-                   d(2*i,2*j)=d2(2*i,2*j)
+                   d(2*i-1,2*j-1)=field2(2*i-1,2*j)
+                   d(2*i,2*j-1)=field2(2*i,2*j-1)
+                   d(2*i-1,2*j)=field2(2*i-1,2*j)
+                   d(2*i,2*j)=field2(2*i,2*j)
                 END IF
              END DO
           END DO
@@ -1368,24 +1397,24 @@ CONTAINS
        IF(r>=1) THEN
 
           IF(ALLOCATED(d)) THEN
-             d2=d
+             field2=d
              DEALLOCATE(d)
           END IF
           ALLOCATE(d(m1,m1))
           DO i=1,m2
              DO j=1,m2
-                IF(c2(i,j)<dc) THEN
+                IF(count2(i,j)<dc) THEN
                    ! Use coarser density
-                   d(2*i-1,2*j-1)=d2(i,j)
-                   d(2*i,2*j-1)=d2(i,j)
-                   d(2*i-1,2*j)=d2(i,j)
-                   d(2*i,2*j)=d2(i,j)
+                   d(2*i-1,2*j-1)=field2(i,j)
+                   d(2*i,2*j-1)=field2(i,j)
+                   d(2*i-1,2*j)=field2(i,j)
+                   d(2*i,2*j)=field2(i,j)
                 ELSE
                    ! Use finer density
-                   d(2*i-1,2*j-1)=d1(2*i-1,2*j)
-                   d(2*i,2*j-1)=d1(2*i,2*j-1)
-                   d(2*i-1,2*j)=d1(2*i-1,2*j)
-                   d(2*i,2*j)=d1(2*i,2*j)
+                   d(2*i-1,2*j-1)=field1(2*i-1,2*j)
+                   d(2*i,2*j-1)=field1(2*i,2*j-1)
+                   d(2*i-1,2*j)=field1(2*i-1,2*j)
+                   d(2*i,2*j)=field1(2*i,2*j)
                 END IF
              END DO
           END DO
@@ -1393,6 +1422,10 @@ CONTAINS
        END IF
 
     END IF
+
+    ! Deallocate arrays
+    DEALLOCATE(field1,field2,field3,field4,field5)
+    DEALLOCATE(count1,count2,count3,count4,count5)
 
     ! Write info to screen
     WRITE(*,*) 'ADAPTIVE_DENSITY: Adaptive density field'
