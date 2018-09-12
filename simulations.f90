@@ -1,5 +1,9 @@
 MODULE simulations
 
+  ! This module should contain only routines that pertain to properties of particles in simualtions
+  ! Anything that involves only the fields should go in field_operations.f90
+  ! Each routine should take particle properties (e.g., positions) as an argument
+
   USE field_operations
   IMPLICIT NONE
 
@@ -7,7 +11,7 @@ CONTAINS
 
   SUBROUTINE write_power_spectrum(x,n,L,m,nk,outfile)
 
-    USE constants
+    ! Write the power spectrum out in some standard format
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(3,n), L
     INTEGER, INTENT(IN) :: n, m, nk
@@ -17,11 +21,17 @@ CONTAINS
     INTEGER, ALLOCATABLE :: nbin(:)
     REAL :: shot
 
+    ! Compute the power spectrum from the particle positions
+    ! This is only correct if all particles have the same mass
     CALL power_spectrum_particles(x,n,L,m,nk,k,Pk,nbin,sig)
-    
+
+    ! Write to screen
     WRITE(*,*) 'WRITE_POWER_SPECTRUM: Outfile: ', TRIM(outfile)
 
+    ! Compute the shot noise assuming all particles have equal mass
     shot=shot_noise_simple(L,INT8(n))
+
+    ! Write to file in standard format
     OPEN(7,file=outfile)
     DO i=1,nk
        IF(nbin(i)==0) CYCLE
@@ -29,6 +39,7 @@ CONTAINS
     END DO
     CLOSE(7)
 
+    ! Write to screen
     WRITE(*,*) 'WRITE_POWER_SPECTRUM: Done'
     WRITE(*,*)
 
@@ -45,8 +56,11 @@ CONTAINS
     DOUBLE COMPLEX :: dk(m,m,m)
     REAL :: kmin, kmax
 
+    ! Convert the particle positions into a density field
+    ! This assumes all particles have the same mass
     CALL sharp_Fourier_density_contrast(x,n,L,dk,m)
 
+    ! Compute the power spectrum from the density field
     kmin=twopi/L
     kmax=REAL(m)*pi/L
     CALL compute_power_spectrum(dk,dk,m,L,kmin,kmax,nk,k,Pk,nbin,sig)
@@ -64,8 +78,8 @@ CONTAINS
     REAL :: d(m,m,m)
     DOUBLE COMPLEX :: dk_out(m,m,m)
 
-    !Things that would like to be PARAMETERS
-    INTEGER :: ibin=2 !Set the binning strategy
+    ! Things that would like to be PARAMETERS
+    INTEGER :: ibin=2 !Set the binning strategy to CIC
 
     ! Bin the particles with equal weight to create the particle-number field in cells [dimensionless]
     w=1.
@@ -82,6 +96,7 @@ CONTAINS
     CALL fft3(dk,dk_out,m,m,m,-1)
     dk=dk_out
 
+    ! Sharpen the Fourier Transform for the binning
     CALL sharpen_k(dk,m,m,L,ibin)
 
   END SUBROUTINE sharp_Fourier_density_contrast
@@ -183,6 +198,7 @@ CONTAINS
 
   SUBROUTINE Zeldovich_ICs(x,v,n,L,logk_tab,logPk_tab,nk,vfac,m,use_average)
 
+    ! Generate Zeldovich displacement fields and move particles
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n), v(3,n)
     REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L, vfac
@@ -214,6 +230,7 @@ CONTAINS
 
   SUBROUTINE Zeldovich_displacement(x,n,L,s,m)
 
+    ! Displace particles using the Zeldovich approximation given a displacement field
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n)
     REAL, INTENT(IN) :: s(3,m,m,m), L
@@ -239,6 +256,7 @@ CONTAINS
 
   SUBROUTINE Zeldovich_velocity(x,v,n,L,s,m)
 
+    ! Give particles velocities from a velocity field
     IMPLICIT NONE
     REAL, INTENT(OUT) :: v(3,n)
     REAL, INTENT(IN) :: x(3,n), s(3,m,m,m), L
@@ -266,7 +284,7 @@ CONTAINS
 
   SUBROUTINE generate_randoms(x,n,L)
 
-    !Generate random x,y,z positions in a cube of size L^3
+    ! Generate random x,y,z positions in a cube of size L^3
     USE random_numbers
     IMPLICIT NONE
     REAL, INTENT(OUT) :: x(3,n)
@@ -274,23 +292,23 @@ CONTAINS
     INTEGER, INTENT(IN) :: n
     INTEGER :: i, j
     REAL :: dx
+    REAL, PARAMETER :: eps=1e-6
 
-    !To prevent the particle being exactly at zero
-    dx=L/1e8
+    ! To prevent the particle being exactly at L
+    dx=eps*L
 
-    !Set the random-number generator
-    !CALL RNG_set(0)
-
+    ! Write to screen
     WRITE(*,*) 'GENERATE_RANDOMS: Generating a uniform-random particle distribution'
     WRITE(*,*) 'GENERATE_RANDOMS: Number of particles:', n
 
-    !Loop over all particles and coordinates and assign randomly
+    ! Loop over all particles and coordinates and assign randomly
     DO i=1,n
        DO j=1,3
-          x(j,i)=random_uniform(dx,L)
+          x(j,i)=random_uniform(0.,L-dx)
        END DO
     END DO
 
+    ! Write to screen
     WRITE(*,*) 'GENERATE_RANDOMS: Done'
     WRITE(*,*)
 
@@ -298,14 +316,14 @@ CONTAINS
 
   SUBROUTINE generate_grid(x,n,L)
 
-    !Generate a grid of positions in a cube of size L^3
+    ! Generate a grid of positions in a cube of size L^3
     IMPLICIT NONE
     REAL, INTENT(OUT) :: x(3,n)
     REAL, INTENT(IN) :: L
     INTEGER, INTENT(IN) :: n
     INTEGER :: ix, iy, iz, i, m
 
-    !Check that the particle number is cubic
+    ! Check that the particle number is cubic
     m=NINT(n**(1./3.))
     IF(m**3 .NE. n) STOP 'GENERATE_GRID: Error, you need a cubic number of particles for a grid'
 
@@ -314,9 +332,9 @@ CONTAINS
     WRITE(*,*) 'GENERATE_GRID: Mesh size:', m
     WRITE(*,*) 'GENERATE_GRID: Mesh size cubed (should eqaul number of particles):', m**3
     WRITE(*,*) 'GENERATE_GRID: Box size [Mpc/h]:', L
-
-    !Loop over all particles
-    i=0 !Set the particle counting variable to zero
+      
+    ! Loop over all particles
+    i=0 ! Set the particle counting variable to zero
     DO iz=1,m
        DO iy=1,m
           DO ix=1,m
@@ -335,7 +353,7 @@ CONTAINS
 
   SUBROUTINE generate_poor_glass(x,n,L)
 
-    !Generate a poor man's glass in a cube of size L^3
+    ! Generate a poor man's glass in a cube of size L^3
     USE random_numbers
     IMPLICIT NONE
     REAL, INTENT(OUT) :: x(3,n)
@@ -344,17 +362,18 @@ CONTAINS
     INTEGER :: i, j, m
     REAL :: dx
 
-    !First genrate a grid
+    ! First genrate a grid
     CALL generate_grid(x,n,L)
 
-    !The cube-root of the number of particles
+    ! The cube-root of the number of particles
     m=NINT(n**(1./3.))
 
-    !How far can the particles be shifted in x,y,z
-    !They need to stay in their initial cube region
+    ! How far can the particles be shifted in x,y,z
+    ! They need to stay in their initial cube region
     dx=L/REAL(m)
     dx=dx/2.
 
+    ! Write to screen
     WRITE(*,*) 'GENERATE_POOR_GLASS: Generating a poor man glass from the grid'
     WRITE(*,*) 'GENERATE_POOR_GLASS: Number of particles:', n
     WRITE(*,*) 'GENERATE_POOR_GLASS: Cube root of number of particles:', m
@@ -362,13 +381,14 @@ CONTAINS
     WRITE(*,*) 'GENERATE_POOR_GLASS: Cell size [Mpc/h]', 2.*dx
     WRITE(*,*) 'GENERATE_POOR_GLASS: Maximum displacement [Mpc/h]', dx
 
-    !Loop over the particles and do the displacement
+    ! Loop over the particles and do the displacement
     DO i=1,n
        DO j=1,3
           x(j,i)=x(j,i)+random_uniform(-dx,dx)
        END DO
     END DO
 
+    ! Write to screen
     WRITE(*,*) 'GENERATE_POOR_GLASS: Done'
     WRITE(*,*)
 
@@ -376,27 +396,26 @@ CONTAINS
 
   SUBROUTINE sparse_sample(x,v,n,f)
 
-    !USE random_numbers
+    USE random_numbers
     IMPLICIT NONE
     REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:), v(:,:)
-    REAL :: x_old(3,n), v_old(3,n)
     REAL, INTENT(IN) :: f
     INTEGER, INTENT(INOUT) :: n
+    REAL :: x_old(3,n), v_old(3,n)    
     INTEGER :: keep(n), n_old, j, i
-    REAL :: rand
-
-    !CALL RNG_set(0)
 
     n_old=n
 
     keep=0
     n=0
 
-    WRITE(*,*) 'Sparse sampling'
+    STOP 'SPARSE_SAMPLE: Test this'
+
+    WRITE(*,*) 'SPARSE_SAMPLE: Sparse sampling'
 
     DO i=1,n_old
 
-       IF(rand(0)<f) THEN
+       IF(random_uniform(0.,1.)<f) THEN
           n=n+1
           keep(i)=1
        END IF
@@ -425,10 +444,10 @@ CONTAINS
 
     END DO
 
-    WRITE(*,*) 'Complete'
-    WRITE(*,*) 'Before:', n_old
-    WRITE(*,*) 'After:', n
-    WRITE(*,*) 'Ratio:', REAL(n)/REAL(n_old)
+    WRITE(*,*) 'SPARSE_SAMPLE: Complete'
+    WRITE(*,*) 'SPARSE_SAMPLE: Before:', n_old
+    WRITE(*,*) 'SPARSE_SAMPLE: After:', n
+    WRITE(*,*) 'SPARSE_SAMPLE: Ratio:', REAL(n)/REAL(n_old)
     WRITE(*,*)    
 
   END SUBROUTINE sparse_sample
@@ -443,6 +462,7 @@ CONTAINS
     INTEGER :: i, j
     INTEGER, INTENT(IN) :: n
 
+    ! Loop over all particles and coordinates
     DO i=1,n
        DO j=1,3
           IF(x(j,i)>=L) x(j,i)=x(j,i)-L
@@ -454,7 +474,7 @@ CONTAINS
 
   SUBROUTINE particle_bin_2D(x,n,L,w,d,m,ibin)
 
-    !Bin particle properties onto a mesh, summing as you go
+    ! Bin particle properties onto a mesh, summing as you go
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, m
     INTEGER, INTENT(INOUT) :: ibin
@@ -996,37 +1016,54 @@ CONTAINS
 
     !Calculate simulation shot noise
     IMPLICIT NONE
-    REAL, INTENT(IN) :: L
-    INTEGER*8, INTENT(IN) :: n
+    REAL, INTENT(IN) :: L ! Box size [Mpc/h]
+    INTEGER*8, INTENT(IN) :: n ! Total number of particles
 
     !Calculate number density
     shot_noise_simple=L**3/REAL(n)
 
   END FUNCTION shot_noise_simple
 
-  REAL FUNCTION shot_noise_mass(L,m,n)
+  REAL FUNCTION shot_noise(u,v,n,m,L)
 
-    ! Calculate simulation shot noise constant P(k) for weighted tracers
-    ! L - Box size [Mpc/h]
-    ! m - Array of particle masses
-    ! n - Number of particles
+    ! Calculates shot noise in P_uv(k) [Mpc/h]^3
+    ! See appendix in HMx paper
     USE array_operations
     IMPLICIT NONE
-    REAL, INTENT(IN) :: m(n), L
-    INTEGER, INTENT(IN) :: n
+    REAL, INTENT(IN) :: u(n), v(n) ! Contributions to the fields u and v per particle
+    INTEGER, INTENT(IN) :: n ! Number of particles 
+    INTEGER, INTENT(IN) :: m ! Number of mesh cells
+    REAL, INTENT(IN) :: L ! Box size [Mpc/h]
+
+    ! Do the sum of the two fields, making sure to use doubles
+    shot_noise=sum_double(u*v,n)
+
+    ! Multiply through by factors of volume and mesh
+    shot_noise=(L**3)*shot_noise/(REAL(m)**6)
+    
+  END FUNCTION shot_noise
+
+  REAL FUNCTION shot_noise_mass(L,m,n)
+
+    ! Calculate simulation shot noise constant P(k) for different-mass tracers [Mpc/h]^3 
+    USE array_operations
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: L ! Box size [Mpc/h]
+    REAL, INTENT(IN) :: m(n) ! Array of particle masses
+    INTEGER, INTENT(IN) :: n ! Number of particles
     REAL :: Nbar
 
     ! Calculate the effective mean number of tracers
     Nbar=sum_double(m,n)**2/sum_double(m**2,n)
 
-    ! Calculate number density
+    ! Calculate number density, this makes units of P(k) [Mpc/h]^3
     shot_noise_mass=L**3/Nbar
 
   END FUNCTION shot_noise_mass
 
   REAL FUNCTION shot_noise_k(k,shot)
 
-    !Calculates shot noise as Delta^2(k)
+    ! Calculates shot noise as Delta^2(k) from a constant-P(k) thing with units [Mpc/h]^3
     USE constants
     IMPLICIT NONE
     REAL, INTENT(IN) :: k ! Wave vector [h/Mpc]

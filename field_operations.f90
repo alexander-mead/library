@@ -13,6 +13,8 @@ CONTAINS
     IF(x==0.) THEN
        ! Catch this edge case
        NGP_cell=1
+    ELSE IF(x==L) THEN
+       STOP 'NGP_CELL: Error, particle is at x=L'
     ELSE
        NGP_cell=CEILING(x*REAL(m)/L)
     END IF
@@ -883,18 +885,18 @@ CONTAINS
 
   END SUBROUTINE project_3D_to_2D
 
-  SUBROUTINE clip(d,m1,m2,m3,d0,talk)
+  SUBROUTINE clip(d,m1,m2,m3,d0,verbose)
 
     USE statistics
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: d(:,:,:)
     REAL, INTENT(IN) :: d0
     INTEGER, INTENT(IN) :: m1, m2, m3
-    LOGICAL, INTENT(IN) :: talk
+    LOGICAL, INTENT(IN) :: verbose
     REAL :: var1, av1, max1, var2, av2, max2
     INTEGER :: i, j, k
 
-    IF(talk) THEN
+    IF(verbose) THEN
        WRITE(*,*) 'CLIP: Clipping density field'
        WRITE(*,*) 'CLIP: Threshold:', d0
        WRITE(*,*) 'CLIP: Mesh:', m1, m2, m3
@@ -904,14 +906,14 @@ CONTAINS
     var1=variance(splay(d,m1,m2,m3),m1*m2*m3)
     max1=MAXVAL(d)
 
-    IF(talk) THEN
+    IF(verbose) THEN
        WRITE(*,*) 'CLIP: Average over-density pre-clipping:', av1
        WRITE(*,*) 'CLIP: Variance in over-density pre-clipping:', var1
        WRITE(*,*) 'CLIP: Maximum density pre-clipping:', max1
     END IF
 
     !    dep=0.25*(1.+erf(d0/(sqrt(2.*var1))))**2.
-    !    IF(talk==1) WRITE(*,*) 'Expected large-scale power depletion factor:', dep
+    !    IF(verbose==1) WRITE(*,*) 'Expected large-scale power depletion factor:', dep
 
     !Now do the clipping
     DO k=1,m3
@@ -922,13 +924,13 @@ CONTAINS
        END DO
     END DO
 
-    IF(talk) WRITE(*,*) 'CLIP: Density field clipped'
+    IF(verbose) WRITE(*,*) 'CLIP: Density field clipped'
 
     av2=mean(splay(d,m1,m2,m3),m1*m2*m3)
     var2=variance(splay(d,m1,m2,m3),m1*m2*m3)
     max2=MAXVAL(d)
 
-    IF(talk) THEN
+    IF(verbose) THEN
        WRITE(*,*) 'CLIP: Average over-density post-clipping:', av2
        WRITE(*,*) 'CLIP: Variance in over-density post-clipping:', var2
        WRITE(*,*) 'CLIP: Maximum density post-clipping:', max2
@@ -937,18 +939,18 @@ CONTAINS
 
   END SUBROUTINE clip
 
-  SUBROUTINE anticlip(d,m1,m2,m3,d0,talk)
+  SUBROUTINE anticlip(d,m1,m2,m3,d0,verbose)
 
     USE statistics
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: d(m1,m2,m3)
     INTEGER, INTENT(IN) :: m1, m2, m3
     REAL, INTENT(IN) :: d0
-    LOGICAL, INTENT(IN) :: talk
+    LOGICAL, INTENT(IN) :: verbose
     REAL :: var1, av1, min1, var2, av2, min2
     INTEGER :: i, j, k, m
 
-    IF(talk) THEN
+    IF(verbose) THEN
        WRITE(*,*) 'Anti-clipping over-density field'
        WRITE(*,*) 'Threshold:', d0
        WRITE(*,*) 'Mesh:', m
@@ -958,14 +960,14 @@ CONTAINS
     var1=variance(splay(d,m1,m2,m3),m1*m2*m3)
     min1=MINVAL(d)
 
-    IF(talk) THEN
+    IF(verbose) THEN
        WRITE(*,*) 'Average over-density pre-clipping:', av1
        WRITE(*,*) 'Variance in over-density pre-clipping:', var1
        WRITE(*,*) 'Minimum over-density pre-clipping:', min1
     END IF
 
     !    dep=0.25*(1.+erf(d0/(sqrt(2.*var1))))**2.
-    !    IF(talk==1) WRITE(*,*) 'Expected large-scale power depletion factor:', dep
+    !    IF(verbose==1) WRITE(*,*) 'Expected large-scale power depletion factor:', dep
 
     !Now do the clipping
     DO k=1,m
@@ -976,13 +978,13 @@ CONTAINS
        END DO
     END DO
 
-    IF(talk) WRITE(*,*) 'Over-density field clipped'
+    IF(verbose) WRITE(*,*) 'Over-density field clipped'
 
     av2=mean(splay(d,m1,m2,m3),m1*m2*m3)
     var2=variance(splay(d,m1,m2,m3),m1*m2*m3)
     min2=MINVAL(d)
 
-    IF(talk) THEN
+    IF(verbose) THEN
        WRITE(*,*) 'Average over-density post-clipping:', av2
        WRITE(*,*) 'Variance in over-density post-clipping:', var2
        WRITE(*,*) 'Minimum over-density post-clipping:', min2
@@ -1018,23 +1020,20 @@ CONTAINS
   SUBROUTINE compute_power_spectrum(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma)
 
     ! Takes in a dk(m,m,m) array and computes the power spectrum
-    ! dk1 - Fourier components of field 1
-    ! dk2 - Fourier components of field 2
-    ! m - mesh size for fields
-    ! L - box size in Mpc/h
-    ! kmin - minimum wavenumber
-    ! kmax - maximum wavenumber
-    ! nk - number of k bins
     USE table_integer
     USE constants
     USE array_operations
     USE fft
     IMPLICIT NONE
-    DOUBLE COMPLEX, INTENT(IN) :: dk1(:,:,:), dk2(:,:,:) ! LEAVE THIS: It allows the running to determine complex vs real
-    REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:), k(:), sigma(:)
-    INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:)
-    INTEGER, INTENT(IN) :: m, nk
-    REAL, INTENT(IN) :: L, kmin, kmax
+    DOUBLE COMPLEX, INTENT(IN) :: dk1(:,:,:), dk2(:,:,:) ! Fourier components of fields LEAVE THIS: It allows the running to determine complex vs real
+    INTEGER, INTENT(IN) :: m ! mesh size for fields
+    REAL, INTENT(IN) :: L ! box size [Mpc/h]
+    REAL, INTENT(IN) :: kmin, kmax ! minimum and maximum wavenumber [h/Mpc]
+    INTEGER, INTENT(IN) :: nk ! number of k bins
+    REAL, ALLOCATABLE, INTENT(INOUT) :: k(:)
+    REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:)
+    INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:) ! Number of modes contributing to the k bin
+    REAL, ALLOCATABLE, INTENT(INOUT) :: sigma(:)
     INTEGER :: i, ix, iy, iz, n, mn
     REAL :: kx, ky, kz, kmod, Dk
     REAL, ALLOCATABLE :: kbin(:)  
@@ -1092,14 +1091,12 @@ CONTAINS
                    CYCLE
                 ELSE
                    k8(n)=k8(n)+kmod
-                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
+                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6) ! Note the division by m^6 here
                    pow8(n)=pow8(n)+f
                    sigma8(n)=sigma8(n)+f**2
                    nmodes8(n)=nmodes8(n)+1
                 END IF
              END IF
-
-             !END IF
 
           END DO
        END DO

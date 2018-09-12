@@ -4,29 +4,25 @@ MODULE owls
 
   ! BAHAMAS simulation parameters
   REAL, PARAMETER :: fh=0.752 ! Hydrogen mass fraction
-  REAL, PARAMETER :: mu=0.61 ! Mean molecular weight
-  REAL, PARAMETER :: Xe=1.17 ! Electron fraction (electrons per hydrogen)
-  REAL, PARAMETER :: Xi=1.08 ! Ion fraction (ionisation per hydrogen)
-
-!!$  !Physical constants
-!!$  !REAL, PARAMETER :: msun=1.989e30 !Solar mass in kg
-!!$  !REAL, PARAMETER :: mp=1.6726e-27 !Proton mass in kg
-!!$  !REAL, PARAMETER :: Mpc=3.0857e22 !Mpc in m
-!!$  !REAL, PARAMETER :: cm=0.01 !cm in m
-!!$  !REAL, PARAMETER :: eV=1.60218e-12 !eV in erg
+  REAL, PARAMETER :: mu=0.61 ! Mean molecular weight relative to proton
+  REAL, PARAMETER :: Xe=1.17 ! Electron fraction (number of electrons per hydrogen)
+  REAL, PARAMETER :: Xi=1.08 ! Ion fraction (number of ionisations per hydrogen)
   
 CONTAINS
 
    SUBROUTINE read_mccarthy(x,m,n,infile)
 
+    ! Read in a McCarthy format particle data file
     IMPLICIT NONE
     CHARACTER(len=*), INTENT(IN) :: infile
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:), m(:)
     INTEGER, INTENT(OUT) :: n
     REAL, PARAMETER :: mfac=1e10
 
+    ! Write to screen
     WRITE(*,*) 'READ_MCCARTHY: Reading in binary file: ', TRIM(infile)
 
+    ! Open the file using stream
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) n
     CLOSE(7)
@@ -36,9 +32,11 @@ CONTAINS
        n=0
     END IF
 
+    ! Write information to screen
     WRITE(*,*) 'READ_MCCARTHY: Particle number:', n
     WRITE(*,*) 'READ_MCCARTHY: Which is ~', NINT(n**(1./3.)), 'cubed.'
 
+    ! Allocate arrays
     ALLOCATE(x(3,n),m(n))
 
     IF(n .NE. 0) THEN
@@ -50,8 +48,10 @@ CONTAINS
        READ(7) x
        CLOSE(7)
 
+       ! Multiply by mass factor
        m=m*mfac
-       
+
+       ! Write information to screen
        WRITE(*,*) 'READ_MCCARTHY: Minimum particle mass [Msun/h]:', MINVAL(m)
        WRITE(*,*) 'READ_MCCARTHY: Maximum particle mass [Msun/h]:', MAXVAL(m)
        WRITE(*,*) 'READ_MCCARTHY: Total particle mass [Msun/h]:', SUM(m)
@@ -65,12 +65,14 @@ CONTAINS
 
     END IF
 
+    ! Final white space
     WRITE(*,*)
 
   END SUBROUTINE read_mccarthy
 
   SUBROUTINE read_mccarthy_gas(x,m,kT,nh,n,infile)
 
+    ! Read in a McCarthy format gas file
     USE constants
     IMPLICIT NONE
     CHARACTER(len=*), INTENT(IN) :: infile
@@ -104,6 +106,7 @@ CONTAINS
     ! Convert masses into Solar masses
     m=m*mfac
 
+    ! Write information to the screen
     WRITE(*,*) 'READ_MCCARTHY_GAS: Calculating kT from physical electron pressure'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Note that the electron pressure is *not* comoving'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Using numbers appropriate for BAHAMAS'
@@ -112,8 +115,7 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Xe:', Xe
     WRITE(*,*) 'READ_MCCARTHY_GAS: Xi:', Xi
     
-    ! Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT
-    ! Units of kT will be [erg]
+    ! Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT [erg]
     ! This is the temperature of gas particles (equal for all species)
     ! Temperature is neither comoving nor physical
     ALLOCATE(kT(n))
@@ -145,11 +147,11 @@ CONTAINS
 
   SUBROUTINE convert_kT_to_comoving_electron_pressure(kT,nh,mass,n,L,h,m)
 
-    ! kT is particle internal energy input in units of eV, it is output in units of eV/cm^3
-    ! nh is hydrogen number density in units /cm^3
-    ! mass is particle mass in units of msun
+    ! kT is particle internal energy input in units of [eV]
+    ! nh is hydrogen number density [/cm^3]
+    ! mass is particle mass in units of [Msun]
     ! n is the total number of particles
-    ! L is the box size in units of Mpc/h
+    ! L is the box size in units of [Mpc/h]
     ! h is the dimensionless hubble parameter
     ! m is the mesh size onto which the pressure will be binned
     USE constants
@@ -175,22 +177,22 @@ CONTAINS
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xi:', Xi
 
     ! Use double precision because all the constants are dreadful 
-    kT_dble=kT! [eV]
-
+    kT_dble=kT ! [eV]
+    
     ! Convert to particle internal energy that needs to be mapped to grid
-    kT_dble=kT_dble*(mass/mu)*Xe/(Xe+Xi)! [eV*Msun]
+    kT_dble=kT_dble*(mass/mu)*Xe/(Xe+Xi) ! [eV*Msun]
 
     ! Comoving cell volume
-    V=(L/REAL(m))**3! [(Mpc/h)^3]
+    V=(L/REAL(m))**3 ! [(Mpc/h)^3]
     V=V/h**3 ! remove h factors [Mpc^3]
 
     ! This is now comoving electron pressure
-    kT_dble=kT_dble/V! [Msun*eV/Mpc^3]
+    kT_dble=kT_dble/V ! [Msun*eV/Mpc^3]
 
     ! Convert units of comoving electron pressure
     ! Note that there are no h factors here
     units=msun
-    units=units/mp
+    units=units/mp ! Divide out proton mass here [eV/Mpc^3]
     units=units/(Mpc/cm)
     units=units/(Mpc/cm)
     units=units/(Mpc/cm)
@@ -206,6 +208,7 @@ CONTAINS
 
   SUBROUTINE write_mccarthy(x,m,n,outfile)
 
+    ! Write a particle data file using McCarthy format
     IMPLICIT NONE
     CHARACTER(len=*), INTENT(IN) :: outfile
     REAL, INTENT(IN) :: x(3,n), m(n)
@@ -217,7 +220,6 @@ CONTAINS
     WRITE(*,*) 'WRITE_MCCARTHY: Particle number:', n
     WRITE(*,*) 'WRITE_MCCARTHY: Which is ~', NINT(n**(1./3.)), 'cubed.'
 
-    ! Need to read in 'n' again with stream access
     OPEN(7,file=outfile,form='unformatted',access='stream',status='replace')
     WRITE(7) n
     WRITE(7) m/mfac
@@ -231,7 +233,7 @@ CONTAINS
 
   SUBROUTINE exclude_nh(nhcut,ep,nh,n)
 
-    ! Set the electron pressure to zero of any particle that has nh > nhcut
+    ! Set the electron pressure to zero of any high-density particle that has nh > nhcut
     IMPLICIT NONE
     REAL, INTENT(IN) :: nhcut, nh(n)
     REAL, INTENT(INOUT) :: ep(n)
