@@ -1163,7 +1163,7 @@ CONTAINS
        END IF
     END DO
 
-    ! Caclculate particle-density statistics
+    ! Calculate particle-density statistics
     npexp=REAL(n)*(Lx*Ly*Lz/L**3.)
     delta=-1.+REAL(np)/REAL(npexp)
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Particle-density statistics'
@@ -1174,7 +1174,7 @@ CONTAINS
 
     ! Allocate arrays for 2D position and 2D weight
     ALLOCATE(y(2,np),u(np),ones(np))
-    ones=1.
+    ones=1. ! Need an array of ones for particle binning
 
     ! Second pass to add particles in the region to 2D array y
     j=0
@@ -1188,6 +1188,11 @@ CONTAINS
     END DO
 
     ! Boost the weight array to account for the smaller volume
+    ! Note that this is a bit complicated
+    ! The weight array for overdensity is m_i/M, where M is the total box mass
+    ! i.e., the weight is the contribution of each particle to total box mass
+    ! For pressure it is the pressure contribution to the total box pressure
+    ! Need to account for the fact that we are actually working in a subvolume now
     u=u*(L**3/(Lx*Ly*Lz))
 
     ! Set the sizes of all of the adaptive meshes, which all differ by a factor of 2
@@ -1216,11 +1221,6 @@ CONTAINS
 
     ! Do binning of particles on each mesh resolution
     ! Binning assume that the area is periodic so you may get some weird edge effects
-!!$    CALL particle_bin_2D(y,np,Lsub,u,count1,m1,ibin)
-!!$    CALL particle_bin_2D(y,np,Lsub,u,count2,m2,ibin)
-!!$    CALL particle_bin_2D(y,np,Lsub,u,count3,m3,ibin)
-!!$    CALL particle_bin_2D(y,np,Lsub,u,count4,m4,ibin)
-!!$    CALL particle_bin_2D(y,np,Lsub,u,count5,m5,ibin)
     CALL particle_bin_2D(y,np,Lsub,ones,count1,m1,ibin)
     CALL particle_bin_2D(y,np,Lsub,ones,count2,m2,ibin)
     CALL particle_bin_2D(y,np,Lsub,ones,count3,m3,ibin)
@@ -1228,19 +1228,23 @@ CONTAINS
     CALL particle_bin_2D(y,np,Lsub,ones,count5,m5,ibin)
 
     ! Now bin field values, rather than particle numbers
-    ! Binning assume that the area is periodic so You may get some weird edge effects
+    ! Binning assume that the area is periodic so You may get some weird edge effect
+    ! Need to multiply the weights through by factors of mesh to give the contribution to the mesh cell
+    ! For example, for overdensity u is m_i/M, where M is now the subvolume mass
+    ! This changes it to be the contribution to the density per mesh cell
+    ! Same for pressure contributions
+    CALL particle_bin_2D(y,np,Lsub,u*m1**2,field1,m1,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u*m2**2,field2,m2,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u*m3**2,field3,m3,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u*m4**2,field4,m4,ibin)
+    CALL particle_bin_2D(y,np,Lsub,u*m5**2,field5,m5,ibin)
 !!$    field1=(count1/((Lsub/REAL(m1))**2))/nbar
 !!$    field2=(count2/((Lsub/REAL(m2))**2))/nbar
 !!$    field3=(count3/((Lsub/REAL(m3))**2))/nbar
 !!$    field4=(count4/((Lsub/REAL(m4))**2))/nbar
 !!$    field5=(count5/((Lsub/REAL(m5))**2))/nbar
-    CALL particle_bin_2D(y,np,Lsub,u*m1**2,field1,m1,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u*m2**2,field2,m2,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u*m3**2,field3,m3,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u*m4**2,field4,m4,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u*m5**2,field5,m5,ibin)    
 
-    ! Smooth density fields
+    ! Smooth fields
     CALL smooth2D(field1,m1,fcell*Lsub/REAL(m1),Lsub)
     CALL smooth2D(field2,m2,fcell*Lsub/REAL(m2),Lsub)
     CALL smooth2D(field3,m3,fcell*Lsub/REAL(m3),Lsub)
