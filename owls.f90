@@ -145,20 +145,19 @@ CONTAINS
 
   END SUBROUTINE read_mccarthy_gas
 
-  SUBROUTINE convert_kT_to_comoving_electron_pressure(kT,nh,mass,n,L,h,m)
+  SUBROUTINE convert_kT_to_comoving_electron_pressure(kT,nh,m,n,L,h)
 
-    ! kT is particle internal energy input in units of [eV]
-    ! nh is hydrogen number density [/cm^3]
-    ! mass is particle mass in units of [Msun]
-    ! n is the total number of particles
-    ! L is the box size in units of [Mpc/h]
-    ! h is the dimensionless hubble parameter
-    ! m is the mesh size onto which the pressure will be binned
+    ! This routine converts the input particle internal energy kT [eV] to electron pressure, Pe [eV/cm^3]
+    ! Note very well that Pe will be the contribution to the total pressure in the volume per particle
+    ! TAKE CARE: I removed the factors of 'm' from here so pressure is now contribution to entire volume, rather than mesh cell
     USE constants
     IMPLICIT NONE
-    REAL, INTENT(INOUT) :: kT(n)
-    REAL, INTENT(IN) :: mass(n), nh(n), L, h
-    INTEGER, INTENT(IN) :: n, m
+    REAL, INTENT(INOUT) :: kT(n) ! particle internal energy [eV]
+    REAL, INTENT(IN) :: nh(n) ! hydrogen number density [/cm^3]
+    REAL, INTENT(IN) :: m(n) ! hydrodynamic particle mass [Msun/h]
+    INTEGER, INTENT(IN) :: n ! total number of particles
+    REAL, INTENT(IN) :: L ! Box size [Mpc/h]
+    REAL, INTENT(IN) :: h ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors) 
     REAL :: V
     DOUBLE PRECISION :: units, kT_dble(n)
     
@@ -168,6 +167,7 @@ CONTAINS
     ! Exclude gas that is sufficiently dense to not be ionised and be forming stars
     IF(apply_nh_cut) CALL exclude_nh(nh_cut,kT,nh,n)
 
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Take care! See messages in owls.f90'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Converting kT to comoving electron pressure'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Note that this is COMOVING'
@@ -180,11 +180,12 @@ CONTAINS
     kT_dble=kT ! [eV]
     
     ! Convert to particle internal energy that needs to be mapped to grid
-    kT_dble=kT_dble*(mass/mu)*Xe/(Xe+Xi) ! [eV*Msun]
+    kT_dble=kT_dble*(m/mu)*Xe/(Xe+Xi) ! [eV*Msun]
 
-    ! Comoving cell volume
-    V=(L/REAL(m))**3 ! [(Mpc/h)^3]
-    V=V/h**3 ! remove h factors [Mpc^3]
+    ! Comoving volume
+    !V=(L/REAL(m))**3 ! [(Mpc/h)^3] ! TAKE CARE: This is what I changed
+    !V=V/h**3 ! remove h factors [Mpc^3] ! TAKE CARE: This is what I changed
+    V=(L/h)**3 ! [(Mpc)^3]
 
     ! This is now comoving electron pressure
     kT_dble=kT_dble/V ! [Msun*eV/Mpc^3]
