@@ -42,6 +42,7 @@ CONTAINS
     REAL, PARAMETER :: small=1e-5
 
     IF(cosm%verbose) THEN
+       WRITE(*,*) '===================================='
        WRITE(*,*) 'COSMOLOGY: ', TRIM(cosm%name)
        WRITE(*,*) '===================================='
        WRITE(*,*) 'COSMOLOGY: Standard parameters'
