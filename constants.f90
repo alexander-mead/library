@@ -16,7 +16,6 @@ MODULE constants
   REAL, PARAMETER :: me=9.10938356e-31 ! electron mass [kg]
   REAL, PARAMETER :: bigG=6.67408e-11 ! Gravitational constant [kg^-1 m^3 s^-2]
   REAL, PARAMETER :: eV=1.60218e-19 ! electronvolt [kg m^2 s^-2]
-  REAL, PARAMETER :: cm=0.01 ! centimetre [m]
   REAL, PARAMETER :: rad2deg=180./pi ! radians-to-degrees conversion
   REAL, PARAMETER :: SBconst=5.670367e-8 ! Steffan-Boltzmann constant [kg s^-3 K^-4]
   REAL, PARAMETER :: c_light=2.99792458e8 ! speed of light [m/s]
