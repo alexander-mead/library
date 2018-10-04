@@ -194,9 +194,9 @@ CONTAINS
     ! Note that there are no h factors here
     units=msun
     units=units/mp ! Divide out proton mass here [eV/Mpc^3]
-    units=units/(Mpc/cm)
-    units=units/(Mpc/cm)
-    units=units/(Mpc/cm)
+    units=units/(Mpc/0.01)
+    units=units/(Mpc/0.01)
+    units=units/(Mpc/0.01)
     kT_dble=kT_dble*units! [eV/cm^3]
 
     ! Go back to single precision
