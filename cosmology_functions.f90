@@ -30,7 +30,7 @@ MODULE cosmology_functions
   END TYPE cosmology
 
   ! Global parameters
-  REAL, PARAMETER :: acc_cosm=1e-4 !Accuacy for the integrations
+  REAL, PARAMETER :: acc_cosm=1e-4 !Accuacy for the cosmological integrations
 
 CONTAINS
 
@@ -3254,7 +3254,7 @@ CONTAINS
     IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: Data done'    
 
     ! Convert from P(k) -> Delta^2(k)
-    Pk=Pk*(k**3)*4.*pi/(2.*pi)**3
+    Pk=Pk*(k**3)*4.*pi/twopi**3
 
     ! Add to cosm arrays and convert to log
     IF(ALLOCATED(cosm%log_k_plin)) DEALLOCATE(cosm%log_k_plin)
