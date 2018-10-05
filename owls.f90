@@ -1,5 +1,7 @@
 MODULE owls
 
+  USE constants
+  
   IMPLICIT NONE
 
   ! BAHAMAS simulation parameters
@@ -7,6 +9,8 @@ MODULE owls
   REAL, PARAMETER :: mu=0.61 ! Mean molecular weight relative to proton
   REAL, PARAMETER :: Xe=1.17 ! Electron fraction (number of electrons per hydrogen)
   REAL, PARAMETER :: Xi=1.08 ! Ion fraction (number of ionisations per hydrogen)
+  REAL, PARAMETER :: mfac=1e10 ! Mass conversion factor to get Msun/h
+  REAL, PARAMETER :: eV_erg=eV*1e7 ! eV in ergs
   
 CONTAINS
 
@@ -17,12 +21,14 @@ CONTAINS
     CHARACTER(len=*), INTENT(IN) :: infile
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:), m(:)
     INTEGER, INTENT(OUT) :: n
-    REAL, PARAMETER :: mfac=1e10
+    LOGICAL :: lexist
 
     ! Write to screen
     WRITE(*,*) 'READ_MCCARTHY: Reading in binary file: ', TRIM(infile)
 
     ! Open the file using stream
+    INQUIRE(file=infile, exist=lexist)
+    IF(.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) n
     CLOSE(7)
@@ -73,17 +79,16 @@ CONTAINS
   SUBROUTINE read_mccarthy_gas(x,m,kT,nh,n,infile)
 
     ! Read in a McCarthy format gas file
-    USE constants
     IMPLICIT NONE
     CHARACTER(len=*), INTENT(IN) :: infile
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:), m(:), nh(:), kT(:)
     REAL, ALLOCATABLE :: ep(:)
     INTEGER, INTENT(OUT) :: n
-    
-    REAL, PARAMETER :: mfac=1e10 ! Convert mass to Solar masses
-    REAL, PARAMETER :: eV_erg=eV*1e7 ! eV in ergs
+    LOGICAL :: lexist   
 
     ! Read in the binary file
+    INQUIRE(file=infile, exist=lexist)
+    IF(.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Reading in binary file: ', TRIM(infile)
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) n
@@ -214,7 +219,6 @@ CONTAINS
     CHARACTER(len=*), INTENT(IN) :: outfile
     REAL, INTENT(IN) :: x(3,n), m(n)
     INTEGER, INTENT(IN) :: n
-    REAL, PARAMETER :: mfac=1e10
 
     WRITE(*,*) 'WRITE_MCCARTHY: Outputting binary file: ', TRIM(outfile)
 
