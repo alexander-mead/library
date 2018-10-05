@@ -1195,19 +1195,19 @@ CONTAINS
 
   FUNCTION comoving_angular_distance(a,cosm)
 
-    ! The physical angular-diameter distance to a galaxy at scale-factor a
+    ! The comoving angular-diameter distance to a galaxy at scale-factor a
     IMPLICIT NONE
     REAL :: comoving_angular_distance
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    comoving_angular_distance=a*physical_angular_distance(a,cosm)
+    comoving_angular_distance=physical_angular_distance(a,cosm)/a
 
   END FUNCTION comoving_angular_distance
 
   FUNCTION luminosity_distance(a,cosm)
 
-    ! The luminosity distance to a galaxy at scale-factor a
+    ! The (physical) luminosity distance to a galaxy at scale-factor a
     IMPLICIT NONE
     REAL :: luminosity_distance
     REAL, INTENT(IN) :: a
