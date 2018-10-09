@@ -154,7 +154,8 @@ CONTAINS
 
     ! This routine converts the input particle internal energy kT [eV] to electron pressure, Pe [eV/cm^3]
     ! Note very well that Pe will be the contribution to the total pressure in the volume per particle
-    ! TAKE CARE: I removed the factors of 'm' from here so pressure is now contribution to entire volume, rather than mesh cell
+    ! CARE: I removed the factors of 'm' from here so pressure is now contribution to entire volume
+    ! rather than the contribution per mesh cell
     USE constants
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: kT(n) ! particle internal energy [eV]
@@ -172,7 +173,7 @@ CONTAINS
     ! Exclude gas that is sufficiently dense to not be ionised and be forming stars
     IF(apply_nh_cut) CALL exclude_nh(nh_cut,kT,nh,n)
 
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Take care! See messages in owls.f90'
+    !WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: CARE: See messages in owls.f90'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Converting kT to comoving electron pressure'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Note that this is COMOVING'
@@ -188,9 +189,9 @@ CONTAINS
     kT_dble=kT_dble*(m/mu)*Xe/(Xe+Xi) ! [eV*Msun]
 
     ! Comoving volume
-    !V=(L/REAL(m))**3 ! [(Mpc/h)^3] ! TAKE CARE: This is what I changed
-    !V=V/h**3 ! remove h factors [Mpc^3] ! TAKE CARE: This is what I changed
-    V=(L/h)**3 ! [(Mpc)^3]
+    !V=(L/REAL(m))**3 ! [(Mpc/h)^3] ! CARE: This is what I changed
+    !V=V/h**3 ! remove h factors [Mpc^3] ! CARE: This is what I changed
+    V=(L/h)**3 ! [(Mpc)^3] ! CARE: This is what I changed
 
     ! This is now comoving electron pressure
     kT_dble=kT_dble/V ! [Msun*eV/Mpc^3]
@@ -202,10 +203,10 @@ CONTAINS
     units=units/(Mpc/0.01)
     units=units/(Mpc/0.01)
     units=units/(Mpc/0.01)
-    kT_dble=kT_dble*units! [eV/cm^3]
+    kT_dble=kT_dble*units ! [eV/cm^3]
 
     ! Go back to single precision
-    kT=REAL(kT_dble)! [eV/cm^3]
+    kT=REAL(kT_dble) ! [eV/cm^3]
 
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Done'
     WRITE(*,*)
