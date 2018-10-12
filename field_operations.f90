@@ -1030,10 +1030,10 @@ CONTAINS
     REAL, INTENT(IN) :: L ! box size [Mpc/h]
     REAL, INTENT(IN) :: kmin, kmax ! minimum and maximum wavenumber [h/Mpc]
     INTEGER, INTENT(IN) :: nk ! number of k bins
-    REAL, ALLOCATABLE, INTENT(INOUT) :: k(:)
-    REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:)
+    REAL, ALLOCATABLE, INTENT(INOUT) :: k(:) ! Output of k values
+    REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:) ! Output of Delta^2(k) values
     INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:) ! Number of modes contributing to the k bin
-    REAL, ALLOCATABLE, INTENT(INOUT) :: sigma(:)
+    REAL, ALLOCATABLE, INTENT(INOUT) :: sigma(:) ! Output of..
     INTEGER :: i, ix, iy, iz, n, mn
     REAL :: kx, ky, kz, kmod, Dk
     REAL, ALLOCATABLE :: kbin(:)  
