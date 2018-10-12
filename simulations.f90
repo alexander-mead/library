@@ -1005,10 +1005,10 @@ CONTAINS
   SUBROUTINE write_slice_ascii(x,n,x1,x2,y1,y2,z1,z2,outfile)
 
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x1, x2, y1, y2, z1, z2 ! Limits of the slice [Mpc/h]
-    CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
     REAL, INTENT(IN) :: x(3,n) ! Particle positions [Mpc/h]
     INTEGER, INTENT(IN) :: n ! Total number of particles
+    REAL, INTENT(IN) :: x1, x2, y1, y2, z1, z2 ! Limits of the slice [Mpc/h]
+    CHARACTER(len=*), INTENT(IN) :: outfile ! Output file    
     INTEGER :: i
 
     WRITE(*,*) 'WRITE_SLICE_ASCII: Writing slice'
