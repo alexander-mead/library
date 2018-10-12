@@ -87,11 +87,15 @@ CONTAINS
     !The normlaised Fourier Transform of a spherical top-hat
     IMPLICIT NONE
     REAL, INTENT(IN) :: x
-    REAL, PARAMETER :: dx=1e-3
+    
+    REAL, PARAMETER :: dx=1e-3 ! Taylor expansion for |x|<dx
+    REAL, PARAMETER :: mx=1e12 ! Set to zero to avoid problems for |x|>mx
 
     !Taylor expansion used for low x to avoid cancellation problems
     IF(x==0.) THEN
        wk_tophat=1.
+    ELSE IF(ABS(x)>mx) THEN
+       wk_tophat=0.
     ELSE IF(ABS(x)<dx) THEN
        wk_tophat=1.-x**2/10.
     ELSE
