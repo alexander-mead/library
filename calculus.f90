@@ -1,12 +1,13 @@
 MODULE calculus
 
+  USE array_operations
+
 CONTAINS
 
-  FUNCTION derivative(f,x,acc)
+  REAL FUNCTION derivative(f,x,acc)
 
     !Calculates the derivative of a function 'f' at the point x to accuracy acc!
     IMPLICIT NONE
-    REAL :: derivative
     REAL, INTENT(IN) :: x, acc
     REAL :: dnew, dold, dx 
     INTEGER :: i
@@ -87,12 +88,12 @@ CONTAINS
 
   END FUNCTION derivative_x
 
-  FUNCTION derivative_y(f,x,y,acc)
+  REAL FUNCTION derivative_y(f,x,y,acc)
 
-    !Calculates the derivative of a function 'f' at the point x to accuracy acc!
+    ! Calculates the derivative of a function 'f' at the point x to accuracy acc!
 
     IMPLICIT NONE
-    REAL :: acc, x, y, dnew, dold, dy, derivative_y
+    REAL :: acc, x, y, dnew, dold, dy
     INTEGER :: i
 
     INTEGER, PARAMETER :: n=100
@@ -128,14 +129,13 @@ CONTAINS
 
   END FUNCTION derivative_y
 
-  FUNCTION integrate_basic(a,b,f,n,iorder)
+  REAL FUNCTION integrate_basic(a,b,f,n,iorder)
 
-    !Integrates between a and b with nint points!
-    !Not adaptive so no error control
+    ! Integrates between a and b with n points; not adaptive so no error control
     IMPLICIT NONE
-    REAL :: integrate_basic
-    REAL, INTENT(IN) :: a, b
-    INTEGER, INTENT(IN) :: n, iorder
+    REAL, INTENT(IN) :: a, b ! Integration limits
+    INTEGER, INTENT(IN) :: n ! Number of points
+    INTEGER, INTENT(IN) :: iorder ! Order for integration
     INTEGER :: i
     REAL :: x, dx, weight
     DOUBLE PRECISION :: sum
@@ -153,22 +153,23 @@ CONTAINS
 
     ELSE
 
-       !Set the sum variable
-       sum=0.d0
+       ! Set the sum variable
+       sum=0.
 
        DO i=1,n
           
-          x=a+(b-a)*REAL(i-1)/REAL(n-1)
+          !x=a+(b-a)*REAL(i-1)/REAL(n-1)
+          x=progression(a,b,i,n)
 
           IF(iorder==1) THEN
-             !Composite trapezium weights
+             ! Composite trapezium weights
              IF(i==1 .OR. i==n) THEN
                 weight=0.5
              ELSE
                 weight=1.
              END IF
           ELSE IF(iorder==2) THEN
-             !Composite extended formula weights
+             ! Composite extended formula weights
              IF(i==1 .OR. i==n) THEN
                 weight=0.4166666666
              ELSE IF(i==2 .OR. i==n-1) THEN
@@ -177,7 +178,7 @@ CONTAINS
                 weight=1.
              END IF
           ELSE IF(iorder==3) THEN
-             !Composite Simpson weights
+             ! Composite Simpson weights
              IF(i==1 .OR. i==n) THEN
                 weight=0.375
              ELSE IF(i==2 .OR. i==n-1) THEN
@@ -228,7 +229,7 @@ CONTAINS
 !!$
 !!$    IF(a==b) THEN
 !!$
-!!$       integrate_old=0.
+!!$       integrate_old=0.d0
 !!$
 !!$    ELSE
 !!$
@@ -345,10 +346,10 @@ CONTAINS
     ELSE
 
        !Set the sum variable for the integration
-       sum_2n=0.d0
-       sum_n=0.d0
-       sum_old=0.d0
-       sum_new=0.d0
+       sum_2n=0.
+       sum_n=0.
+       sum_old=0.
+       sum_new=0.
 
        DO j=1,jmax
           
@@ -364,44 +365,43 @@ CONTAINS
              !The first go is just the trapezium of the end points
              f1=f(a)
              f2=f(b)
-             sum_2n=0.5d0*(f1+f2)*dx
+             sum_2n=0.5*(f1+f2)*dx
              sum_new=sum_2n
              
           ELSE
 
              !Loop over only new even points to add these to the integral
              DO i=2,n,2
-                x=a+(b-a)*REAL(i-1)/REAL(n-1)
+                !x=a+(b-a)*REAL(i-1)/REAL(n-1)
+                x=progression(a,b,i,n)
                 fx=f(x)
                 sum_2n=sum_2n+fx
              END DO
 
              !Now create the total using the old and new parts
-             sum_2n=sum_n/2.d0+sum_2n*dx
+             sum_2n=sum_n/2.+sum_2n*dx
 
              !Now calculate the new sum depending on the integration order
              IF(iorder==1) THEN  
                 sum_new=sum_2n
              ELSE IF(iorder==3) THEN         
-                sum_new=(4.d0*sum_2n-sum_n)/3.d0 !This is Simpson's rule and cancels error
+                sum_new=(4.*sum_2n-sum_n)/3. !This is Simpson's rule and cancels error
              ELSE
                 STOP 'INTEGRATE: Error, iorder specified incorrectly'
              END IF
 
           END IF
 
-          IF((j>=jmin) .AND. (ABS(-1.d0+sum_new/sum_old)<acc)) THEN
-             !jmin avoids spurious early convergence
-             !integrate=REAL(sum_new)
-             !WRITE(*,*) 'INTEGRATE: Nint:', n
+          IF((j>=jmin) .AND. (ABS(-1.+sum_new/sum_old)<acc)) THEN
+             ! Converged
              EXIT
           ELSE IF(j==jmax) THEN
              STOP 'INTEGRATE: Integration timed out'
           ELSE
-             !Integral has not converged so store old sums and reset sum variables
+             ! Integral has not converged so store old sums and reset sum variables
              sum_old=sum_new
              sum_n=sum_2n
-             sum_2n=0.d0
+             sum_2n=0.
           END IF
 
        END DO
@@ -440,8 +440,8 @@ CONTAINS
     ELSE
 
        !Set the sum variables
-       sum1=0.d0
-       sum2=0.d0
+       sum1=0.
+       sum2=0.
 
        IF(ilog==1) THEN
           lima=log(a)
@@ -516,7 +516,7 @@ CONTAINS
              STOP 'INTEGRATE_LOG: Integration timed out'
           ELSE
              sum1=sum2
-             sum2=0.d0
+             sum2=0.
           END IF
 
        END DO
@@ -560,8 +560,8 @@ CONTAINS
     ELSE
 
        !Set the sum variables
-       sum1=0.d0
-       sum2=0.d0
+       sum1=0.
+       sum2=0.
 
        DO j=1,jmax
 
@@ -608,7 +608,7 @@ CONTAINS
              STOP 'CUBEINT: Integration timed out'
           ELSE
              sum1=sum2
-             sum2=0.d0
+             sum2=0.
           END IF
 
        END DO
@@ -661,8 +661,8 @@ CONTAINS
     ELSE
 
        !Set the sum variables
-       sum1=0.d0
-       sum2=0.d0
+       sum1=0.
+       sum2=0.
 
        alim=g(a)
        blim=g(b)
@@ -724,7 +724,7 @@ CONTAINS
              STOP 'INTEGRATE_JAC: Integration timed out'
           ELSE
              sum1=sum2
-             sum2=0.d0
+             sum2=0.
           END IF
 
        END DO
