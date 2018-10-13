@@ -657,6 +657,9 @@ CONTAINS
     REAL :: sigi, sigf, kbox
     LOGICAL, PARAMETER :: run_twice=.FALSE.
 
+    ! Need to give this a value otherwise get a warning in debug mode
+    kbox=0.
+
     ! Change the flag *before* doing this calculation because it calls power
     cosm%is_normalised=.TRUE.
 
