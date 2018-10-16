@@ -8,7 +8,7 @@ CONTAINS
 
   FUNCTION find(x,xin,yin,n,iorder,ifind,imeth)
 
-    !Given two arrays x and y this routine interpolates to find the y_i value at position x_i
+    ! Given two arrays x and y this routine interpolates to find the y_i value at position x_i
     IMPLICIT NONE
     REAL :: find
     INTEGER, INTENT(IN) :: n
@@ -20,35 +20,34 @@ CONTAINS
     INTEGER :: i
     INTEGER, INTENT(IN) :: iorder, ifind, imeth
 
-    !This version interpolates if the value is off either end of the array!
-    !Care should be chosen to insert x, xtab, ytab as log if this might give better!
-    !Results from the interpolation!
+    ! This version interpolates if the value is off either end of the array
+    ! Care should be chosen to insert x, xtab, ytab as log if this might give beter results from the interpolation
 
-    !If the value required is off the table edge the interpolation is always linear
+    ! If the value required is off the table edge the interpolation is always linear
 
-    !iorder = 1 => linear interpolation
-    !iorder = 2 => quadratic interpolation
-    !iorder = 3 => cubic interpolation
+    ! iorder = 1 => linear interpolation
+    ! iorder = 2 => quadratic interpolation
+    ! iorder = 3 => cubic interpolation
 
-    !ifind = 1 => find x in xtab quickly assuming the table is linearly spaced
-    !ifind = 2 => find x in xtab by crudely searching from x(1) to x(n)
-    !ifind = 3 => find x in xtab using midpoint splitting (iterations=CEILING(log2(n)))
+    ! ifind = 1 => find x in xtab quickly assuming the table is linearly spaced
+    ! ifind = 2 => find x in xtab by crudely searching from x(1) to x(n)
+    ! ifind = 3 => find x in xtab using midpoint splitting (iterations=CEILING(log2(n)))
 
-    !imeth = 1 => Uses standard polynomials for interpolation
-    !imeth = 2 => Uses Lagrange polynomials for interpolation
+    ! imeth = 1 => Uses standard polynomials for interpolation
+    ! imeth = 2 => Uses Lagrange polynomials for interpolation
 
     xtab=xin
     ytab=yin
 
     IF(xtab(1)>xtab(n)) THEN
-       !Reverse the arrays in this case
+       ! Reverse the arrays in this case
        CALL reverse(xtab,n)
        CALL reverse(ytab,n)
     END IF
 
     IF(x<xtab(1)) THEN
 
-       !Do a linear interpolation beyond the table boundary
+       ! Do a linear interpolation beyond the table boundary
 
        x1=xtab(1)
        x2=xtab(2)
@@ -67,7 +66,7 @@ CONTAINS
 
     ELSE IF(x>xtab(n)) THEN
 
-       !Do a linear interpolation beyond the table boundary
+       ! Do a linear interpolation beyond the table boundary
 
        x1=xtab(n-1)
        x2=xtab(n)
@@ -177,13 +176,13 @@ CONTAINS
           y4=ytab(i+2)
 
           IF(imeth==1) THEN
-             !In this case take the average of two separate quadratic spline values
+             ! In this case take the average of two separate quadratic spline values
              CALL fix_quadratic(a,b,c,x1,y1,x2,y2,x3,y3)
              find=(a*x**2+b*x+c)/2.
              CALL fix_quadratic(a,b,c,x2,y2,x3,y3,x4,y4)
              find=find+(a*x**2+b*x+c)/2.
           ELSE IF(imeth==2) THEN
-             !In this case take the average of two quadratic Lagrange polynomials
+             ! In this case take the average of two quadratic Lagrange polynomials
              find=(Lagrange_polynomial(x,2,(/x1,x2,x3/),(/y1,y2,y3/))+Lagrange_polynomial(x,2,(/x2,x3,x4/),(/y2,y3,y4/)))/2.
           ELSE
              STOP 'FIND: Error, method not specified correctly'
@@ -254,7 +253,7 @@ CONTAINS
 
   FUNCTION find2d(x,xin,y,yin,fin,nx,ny,iorder,ifind,imeth)
 
-    !A 2D interpolation routine to find value f(x,y) at position x, y
+    ! A 2D interpolation routine to find value f(x,y) at position x, y
     IMPLICIT NONE
     REAL :: find2d
     INTEGER, INTENT(IN) :: nx, ny
@@ -275,22 +274,22 @@ CONTAINS
     INTEGER :: i, j
     INTEGER, INTENT(IN) :: iorder, ifind, imeth
 
-    !This version interpolates if the value is off either end of the array!
-    !Care should be chosen to insert x, xtab, ytab as log if this might give better!
-    !Results from the interpolation!
+    ! This version interpolates if the value is off either end of the array!
+    ! Care should be chosen to insert x, xtab, ytab as log if this might give better!
+    ! Results from the interpolation!
 
-    !If the value required is off the table edge the interpolation is always linear
+    ! If the value required is off the table edge the interpolation is always linear
 
-    !iorder = 1 => linear interpolation
-    !iorder = 2 => quadratic interpolation
-    !iorder = 3 => cubic interpolation
+    ! iorder = 1 => linear interpolation
+    ! iorder = 2 => quadratic interpolation
+    ! iorder = 3 => cubic interpolation
 
-    !ifind = 1 => find x in xtab by crudely searching from x(1) to x(n)
-    !ifind = 2 => find x in xtab quickly assuming the table is linearly spaced
-    !ifind = 3 => find x in xtab using midpoint splitting (iterations=CEILING(log2(n)))
+    ! ifind = 1 => find x in xtab by crudely searching from x(1) to x(n)
+    ! ifind = 2 => find x in xtab quickly assuming the table is linearly spaced
+    ! ifind = 3 => find x in xtab using midpoint splitting (iterations=CEILING(log2(n)))
 
-    !imeth = 1 => Uses cubic polynomials for interpolation
-    !imeth = 2 => Uses Lagrange polynomials for interpolation
+    ! imeth = 1 => Uses cubic polynomials for interpolation
+    ! imeth = 2 => Uses Lagrange polynomials for interpolation
 
     IF(imeth==2) STOP 'No Lagrange polynomials for you'
 
@@ -356,7 +355,7 @@ CONTAINS
        y1=ytab(j1)
        y2=ytab(j2)
 
-       !
+       !!
 
        f11=ftab(i1,j1)
        f12=ftab(i1,j2)
@@ -364,7 +363,7 @@ CONTAINS
        f21=ftab(i2,j1)
        f22=ftab(i2,j2)
 
-       !y direction interpolation
+       !! y direction interpolation
 
        CALL fix_line(a,b,x1,f11,x2,f21)
        f01=a*x+b
@@ -375,7 +374,9 @@ CONTAINS
        CALL fix_line(a,b,y1,f01,y2,f02)
        findy=a*y+b
 
-       !x direction interpolation
+       !!
+
+       !! x direction interpolation
 
        CALL fix_line(a,b,y1,f11,y2,f12)
        f10=a*y+b
@@ -386,9 +387,9 @@ CONTAINS
        CALL fix_line(a,b,x1,f10,x2,f20)
        findx=a*x+b
 
-       !
+       !!
 
-       !Final result is an average over each direction
+       ! Final result is an average over each direction
        find2d=(findx+findy)/2.
 
     ELSE IF(iorder==2) THEN
@@ -402,7 +403,7 @@ CONTAINS
           IF(nx<2) STOP 'FIND2D: Not enough x points in your table for linear interpolation'
           IF(ny<4) STOP 'FIND2D: Not enough y points in your table for cubic interpolation'
 
-          !x is off the table edge
+          ! x is off the table edge
 
           IF(x<xtab(1)) THEN
 
@@ -453,16 +454,22 @@ CONTAINS
           f23=ftab(i2,j3)
           f24=ftab(i2,j4)
 
-          !y interpolation
+          !! y interpolation
+          
           CALL fix_cubic(a,b,c,d,y1,f11,y2,f12,y3,f13,y4,f14)
           f10=a*y**3+b*y**2+c*y+d
 
           CALL fix_cubic(a,b,c,d,y1,f21,y2,f22,y3,f23,y4,f24)
           f20=a*y**3+b*y**2+c*y+d
 
-          !x interpolation
+          !!
+
+          !! x interpolation
+          
           CALL fix_line(a,b,x1,f10,x2,f20)
           find2d=a*x+b
+
+          !!
 
        ELSE IF(y<ytab(1) .OR. y>ytab(ny)) THEN
 
