@@ -9,8 +9,11 @@ MODULE Limber
 
   PRIVATE
 
+  ! Types
   PUBLIC :: projection
   PUBLIC :: lensing
+
+  ! Functions
   PUBLIC :: maxdist
   PUBLIC :: calculate_Cl
   PUBLIC :: xcorr_type
@@ -23,6 +26,22 @@ MODULE Limber
   PUBLIC :: calculate_xi
   PUBLIC :: write_Cl
   PUBLIC :: k_ell
+
+  ! Tracers
+  PUBLIC :: tracer_RCSLenS
+  PUBLIC :: tracer_Compton_y
+  PUBLIC :: tracer_CMB_lensing
+  PUBLIC :: tracer_CFHTLenS
+  PUBLIC :: tracer_KiDS
+  PUBLIC :: tracer_KiDS_bin1
+  PUBLIC :: tracer_KiDS_bin2
+  PUBLIC :: tracer_KiDS_bin3
+  PUBLIC :: tracer_KiDS_bin4
+  PUBLIC :: tracer_gwave
+  PUBLIC :: tracer_KiDS_450
+  PUBLIC :: tracer_KiDS_450_bin1
+  PUBLIC :: tracer_KiDS_450_bin2
+  PUBLIC :: tracer_KiDS_450_highz
  
   ! Projection quantities that need to be calculated only once; these relate to the Limber integrals
   TYPE projection    
@@ -41,6 +60,8 @@ MODULE Limber
   ! P(k,a) look-up table parameters
   REAL, PARAMETER :: kmin_pka=1e-4   ! k' value for P(k,a) table; P(k<k',a)=0
   REAL, PARAMETER :: kmax_pka=1e2    ! k' value for P(k,a) table; P(k>k',a)=0
+  REAL, PARAMETER :: amin_pka=1e-3   ! a' value for P(k,a) table; P(k,a<a')=0
+  REAL, PARAMETER :: amax_pka=1.     ! a' value for P(k,a) table; P(k,a>a')=0
 
   ! xcorr - C(l) calculation
   LOGICAL, PARAMETER :: verbose_Limber=.FALSE. ! Verbosity
@@ -71,6 +92,22 @@ MODULE Limber
   ! Gravitational waves
   REAL, PARAMETER :: A_gwave=1.
   REAL, PARAMETER :: rmin_gwave=10.
+
+  ! Tracer types
+  INTEGER, PARAMETER :: tracer_RCSLenS=1
+  INTEGER, PARAMETER :: tracer_Compton_y=2
+  INTEGER, PARAMETER :: tracer_CMB_lensing=3
+  INTEGER, PARAMETER :: tracer_CFHTLenS=4
+  INTEGER, PARAMETER :: tracer_KiDS=5
+  INTEGER, PARAMETER :: tracer_KiDS_bin1=6
+  INTEGER, PARAMETER :: tracer_KiDS_bin2=7
+  INTEGER, PARAMETER :: tracer_KiDS_bin3=8
+  INTEGER, PARAMETER :: tracer_KiDS_bin4=9
+  INTEGER, PARAMETER :: tracer_gwave=10
+  INTEGER, PARAMETER :: tracer_KiDS_450=11
+  INTEGER, PARAMETER :: tracer_KiDS_450_bin1=12
+  INTEGER, PARAMETER :: tracer_KiDS_450_bin2=13
+  INTEGER, PARAMETER :: tracer_KiDS_450_highz=14
   
 CONTAINS
 
@@ -382,6 +419,7 @@ CONTAINS
 
   SUBROUTINE write_xi(th_tab,xi_tab,nth,output)
 
+    ! Write correlation functions to disk
     IMPLICIT NONE
     REAL, INTENT(IN) :: th_tab(nth), xi_tab(3,nth)
     INTEGER, INTENT(IN) :: nth
@@ -396,13 +434,12 @@ CONTAINS
 
   END SUBROUTINE write_xi
 
-  FUNCTION maxdist(proj)!,cosm)
+  FUNCTION maxdist(proj)
 
     !Calculates the maximum distance necessary for the lensing integration
     IMPLICIT NONE
     REAL :: maxdist
     TYPE(projection), INTENT(IN) :: proj(2)
-    !TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: rmax1, rmax2
 
     !Fix the maximum redshift and distance (which may fixed at source plane)
@@ -437,10 +474,8 @@ CONTAINS
     CHARACTER(len=256), INTENT(IN) :: output
     INTEGER :: i
     REAL :: r, z
-    
-    !LOGICAL, PARAMETER :: verbose=.FALSE. ! Verbosity
 
-    !Kernel 1
+    ! Kernel
     IF(verbose_Limber) WRITE(*,*) 'WRITE_PROJECTION_KERNEL: Writing out kernel: ', TRIM(output)
     OPEN(7,file=output)
     DO i=1,proj%nX    
@@ -525,7 +560,7 @@ CONTAINS
 
   SUBROUTINE fill_lensing_efficiency(ix,rmin,rmax,zmax,lens,cosm)
 
-    !Fill the table for lensing efficiency
+    ! Fill the table for lensing efficiency
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: ix
     REAL, INTENT(IN) :: rmin, rmax, zmax
@@ -534,7 +569,7 @@ CONTAINS
     REAL :: r, z
     INTEGER :: i
 
-    !Fill the r vs. q(r) tables
+    ! Fill the r vs. q(r) tables
     lens%nq=nq_efficiency
     IF(verbose_Limber) WRITE(*,*) 'FILL_EFFICIENCY: number of points:', lens%nq
     CALL fill_array(rmin,rmax,lens%r_q,lens%nq)
@@ -545,14 +580,14 @@ CONTAINS
        r=lens%r_q(i)
        z=redshift_r(r,cosm)
        IF(r==0.) THEN
-          !To avoid division by zero
+          ! To avoid division by zero
           lens%q(i)=1.
        ELSE
           IF(ix==3) THEN
-             !q(r) for a fixed source plane
+             ! q(r) for a fixed source plane
              lens%q(i)=f_k(rmax-r,cosm)/f_k(rmax,cosm)
           ELSE
-             !q(r) for a n(z) distribution 
+             ! q(r) for a n(z) distribution 
              lens%q(i)=integrate_q(r,z,zmax,acc_Limber,3,lens,cosm)
           END IF
        END IF
@@ -566,7 +601,7 @@ CONTAINS
 
   FUNCTION q_r(r,lens)
 
-    !Interpolation function for q(r)
+    ! Interpolation function for q(r)
     IMPLICIT NONE
     REAL :: q_r
     REAL, INTENT(IN) :: r
@@ -578,7 +613,7 @@ CONTAINS
 
   SUBROUTINE write_lensing_efficiency(lens,cosm,output)
 
-    !Write lensing efficiency q(r) function to a file
+    ! Write lensing efficiency q(r) function to a file
     IMPLICIT NONE
     TYPE(lensing), INTENT(INOUT) :: lens
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -602,7 +637,7 @@ CONTAINS
 
   FUNCTION lensing_kernel(r,lens,cosm)
 
-    !The lensing projection kernel
+    ! The lensing projection kernel
     IMPLICIT NONE
     REAL :: lensing_kernel
     REAL, INTENT(IN) :: r
@@ -610,13 +645,13 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: z, q
 
-    !Get z(r)
+    ! Get z(r)
     z=redshift_r(r,cosm)
 
-    !Get the lensing efficiency
+    ! Get the lensing efficiency
     q=q_r(r,lens)
 
-    !This is then the projection kernel (X_kappa)
+    ! This is then the projection kernel (X_kappa)
     lensing_kernel=(1.+z)*f_k(r,cosm)*q
     lensing_kernel=lensing_kernel*1.5*cosm%om_m/(Hdist**2)
 
@@ -679,8 +714,8 @@ CONTAINS
 
     ! Make the kernel and do some unit conversions
     y_kernel=yfac                     ! yfac = sigma_T / m_e c^2 [kg^-1 s^2]
-    y_kernel=y_kernel*Mpc/cosm%h      ! NEW: Add Mpc/h units from the dr in the integral (h is new)
-    y_kernel=y_kernel/a**2            ! NEW: These come from 'a^-3' for pressure multiplied by 'a' for comoving distance
+    y_kernel=y_kernel*Mpc/cosm%h      ! Add Mpc/h units from the dr in the integral (h is new)
+    y_kernel=y_kernel/a**2            ! These come from 'a^-3' for pressure multiplied by 'a' for comoving distance
     y_kernel=y_kernel*eV*(0.01)**(-3) ! Convert units of pressure spectrum from [eV/cm^3] to [J/m^3]
 
   END FUNCTION y_kernel
@@ -1163,8 +1198,8 @@ CONTAINS
        find_pka=0.
     ELSE IF(k<kmin_pka .OR. k>kmax_pka) THEN
        find_pka=0.
-!!$    IF(k<exp(logktab(1)) .OR. k>exp(logktab(nk))) THEN
-!!$       find_pka=0.
+    ELSE IF(a<amin_pka .OR. a>amax_pka) THEN
+       find_pka=0.
     ELSE
        find_pka=exp(find2d(logk,logktab,loga,logatab,logptab,nk,na,3,3,1))
     END IF

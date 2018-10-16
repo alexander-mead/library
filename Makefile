@@ -49,7 +49,8 @@ OBJS =  precision.o \
 	string_operations.o \
 	field_operations.o \
 	simulations.o \
-	cosmic_emu_stuff
+	cosmic_emu_stuff.o \
+	Limber
 
 # Default compile option
 all: FFLAGS += -O3 -I/usr/local/include -I/usr/include
