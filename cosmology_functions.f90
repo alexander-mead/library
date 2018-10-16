@@ -440,6 +440,15 @@ CONTAINS
     REAL, PARAMETER :: neutrino_constant=94.1 ! Number that appears in neutrino formula [eV]
     REAL, PARAMETER :: neff_contribution=0.227 ! Contribution to Omega_r per n_eff'
 
+    ! Set all 'has' to false
+    cosm%has_distance=.FALSE.
+    cosm%has_growth=.FALSE.
+    cosm%has_sigma=.FALSE.
+    cosm%has_spherical=.FALSE.
+    cosm%has_power=.FALSE.
+    cosm%is_init=.FALSE.
+    cosm%is_normalised=.FALSE.
+
     IF(cosm%box) cosm%kbox=twopi/cosm%Lbox
 
     IF(cosm%verbose) WRITE(*,*) 'INIT_COSMOLOGY: Calcuating radiation density'
