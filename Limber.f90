@@ -20,7 +20,6 @@ MODULE Limber
   PUBLIC :: Cl_contribution_ell
   PUBLIC :: fill_projection_kernels
   PUBLIC :: get_nz
-  PUBLIC :: set_xcorr_type
   PUBLIC :: write_projection_kernels
   PUBLIC :: write_xi
   PUBLIC :: calculate_xi
@@ -28,6 +27,7 @@ MODULE Limber
   PUBLIC :: k_ell
 
   ! Tracers
+  PUBLIC :: n_tracers
   PUBLIC :: tracer_RCSLenS
   PUBLIC :: tracer_Compton_y
   PUBLIC :: tracer_CMB_lensing
@@ -37,7 +37,7 @@ MODULE Limber
   PUBLIC :: tracer_KiDS_bin2
   PUBLIC :: tracer_KiDS_bin3
   PUBLIC :: tracer_KiDS_bin4
-  PUBLIC :: tracer_gwave
+  PUBLIC :: tracer_gravity_wave
   PUBLIC :: tracer_KiDS_450
   PUBLIC :: tracer_KiDS_450_bin1
   PUBLIC :: tracer_KiDS_450_bin2
@@ -94,6 +94,7 @@ MODULE Limber
   REAL, PARAMETER :: rmin_gwave=10.
 
   ! Tracer types
+  INTEGER, PARAMETER :: n_tracers=14
   INTEGER, PARAMETER :: tracer_RCSLenS=1
   INTEGER, PARAMETER :: tracer_Compton_y=2
   INTEGER, PARAMETER :: tracer_CMB_lensing=3
@@ -103,7 +104,7 @@ MODULE Limber
   INTEGER, PARAMETER :: tracer_KiDS_bin2=7
   INTEGER, PARAMETER :: tracer_KiDS_bin3=8
   INTEGER, PARAMETER :: tracer_KiDS_bin4=9
-  INTEGER, PARAMETER :: tracer_gwave=10
+  INTEGER, PARAMETER :: tracer_gravity_wave=10
   INTEGER, PARAMETER :: tracer_KiDS_450=11
   INTEGER, PARAMETER :: tracer_KiDS_450_bin1=12
   INTEGER, PARAMETER :: tracer_KiDS_450_bin2=13
@@ -114,69 +115,28 @@ CONTAINS
   FUNCTION xcorr_type(ix)
 
     ! Names for cross-correlation field types
-    ! TODO: This is super ugly. Surely it should be combined with set_xcorr_type somehow?
     IMPLICIT NONE
     CHARACTER(len=256) :: xcorr_type
     INTEGER, INTENT(IN) :: ix
 
     xcorr_type=''
-    IF(ix==1)  xcorr_type='RCSLenS lensing'
-    IF(ix==2)  xcorr_type='Compton y'
-    IF(ix==3)  xcorr_type='CMB lensing'
-    IF(ix==4)  xcorr_type='CFHTLenS lensing'
-    IF(ix==5)  xcorr_type='KiDS lensing (z = 0.1 -> 0.9)'
-    IF(ix==6)  xcorr_type='KiDS lensing (z = 0.1 -> 0.3)'
-    IF(ix==7)  xcorr_type='KiDS lensing (z = 0.3 -> 0.5)'
-    IF(ix==8)  xcorr_type='KiDS lensing (z = 0.5 -> 0.7)'
-    IF(ix==9)  xcorr_type='KiDS lensing (z = 0.7 -> 0.9)'
-    IF(ix==10) xcorr_type='Gravitational waves'
-    IF(ix==11) xcorr_type='KiDS 450 (z = 0.1 -> 0.9)'
-    IF(ix==12) xcorr_type='KiDS 450 (z = 0.1 -> 0.5)'
-    IF(ix==13) xcorr_type='KiDS 450 (z = 0.5 -> 0.9)'
-    IF(ix==14) xcorr_type='KiDS 450 (z = 0.9 -> 3.5)'
+    IF(ix==tracer_RCSLenS)        xcorr_type='RCSLenS lensing'
+    IF(ix==tracer_Compton_y)      xcorr_type='Compton y'
+    IF(ix==tracer_CMB_lensing)    xcorr_type='CMB lensing'
+    IF(ix==tracer_CFHTLenS)       xcorr_type='CFHTLenS lensing'
+    IF(ix==tracer_KiDS)           xcorr_type='KiDS lensing (z = 0.1 -> 0.9)'
+    IF(ix==tracer_KiDS_bin1)      xcorr_type='KiDS lensing (z = 0.1 -> 0.3)'
+    IF(ix==tracer_KiDS_bin2)      xcorr_type='KiDS lensing (z = 0.3 -> 0.5)'
+    IF(ix==tracer_KiDS_bin3)      xcorr_type='KiDS lensing (z = 0.5 -> 0.7)'
+    IF(ix==tracer_KiDS_bin4)      xcorr_type='KiDS lensing (z = 0.7 -> 0.9)'
+    IF(ix==tracer_gravity_wave)   xcorr_type='Gravitational waves'
+    IF(ix==tracer_KiDS_450)       xcorr_type='KiDS 450 (z = 0.1 -> 0.9)'
+    IF(ix==tracer_KiDS_450_bin1)  xcorr_type='KiDS 450 (z = 0.1 -> 0.5)'
+    IF(ix==tracer_KiDS_450_bin2)  xcorr_type='KiDS 450 (z = 0.5 -> 0.9)'
+    IF(ix==tracer_KiDS_450_highz) xcorr_type='KiDS 450 (z = 0.9 -> 3.5)'
     IF(xcorr_type=='') STOP 'XCORR_TYPE: Error, ix not specified correctly'
     
   END FUNCTION xcorr_type
-
-  SUBROUTINE set_xcorr_type(ix,ip)
-
-    ! Set the cross-correlation type
-    ! TODO: This is super ugly. Surely it should be combined with xcorr_type somehow?
-    IMPLICIT NONE
-    INTEGER, INTENT(INOUT) :: ix(2)
-    INTEGER, INTENT(OUT) :: ip(2)
-    INTEGER :: i, j
-    
-    INTEGER, PARAMETER :: nx=14 ! Total number of cross-correlation fields
-
-    ! Loop over two-components of xcorr
-    DO i=1,2
-
-       IF(ix(i)==-1) THEN
-          WRITE(*,fmt='(A30,I3)') 'SET_XCORR_TYPE: Choose field: ', i
-          WRITE(*,*) '========================='
-          DO j=1,nx
-             WRITE(*,fmt='(I3,A3,A30)') j, '- ', TRIM(xcorr_type(j))
-          END DO
-          READ(*,*) ix(i)
-          WRITE(*,*) '========================='
-          WRITE(*,*)
-       END IF
-
-       IF(ix(i)==2) THEN
-          ! Compton y
-          ip(i)=6 ! Profile type: 6: Pressure
-       ELSE IF(ix(i)==10) THEN
-          ! Gravitational waves
-          ip(i)=-1 ! Profile type: -1: DMONLY
-       ELSE
-          ! Gravitational lensing
-          ip(i)=0 ! Profile type: 0: Matter
-       END IF
-       
-    END DO
-
-  END SUBROUTINE set_xcorr_type
 
   REAL FUNCTION k_ell(ell,a,cosm)
 
@@ -250,7 +210,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
     TYPE(lensing) :: lens
 
-    IF(ix==2 .OR. ix==10) THEN
+    IF(ix==tracer_Compton_y .OR. ix==tracer_gravity_wave) THEN
        CALL fill_kernel(ix,proj,cosm)
     ELSE
        CALL fill_lensing_kernel(ix,proj,lens,cosm)
@@ -503,10 +463,12 @@ CONTAINS
     CHARACTER(len=256) :: output
     INTEGER :: i, nX
 
-    IF(ix==2 .OR. ix==10) STOP 'FILL_LENSING_KERNEL: Error, trying to do this for a non-lensing ix'
+    IF(ix==tracer_Compton_y .OR. ix==tracer_gravity_wave) THEN
+       STOP 'FILL_LENSING_KERNEL: Error, trying to do this for a non-lensing ix'
+    END IF
 
     ! Choose either n(z) or fixed z_s
-    IF(ix==3) THEN      
+    IF(ix==tracer_CMB_lensing) THEN      
        zmin=0.
        zmax=cosm%z_cmb
        IF(verbose_Limber) WRITE(*,*) 'FILL_LENSING_KERNEL: Source plane redshift:', REAL(zmax)
@@ -583,7 +545,7 @@ CONTAINS
           ! To avoid division by zero
           lens%q(i)=1.
        ELSE
-          IF(ix==3) THEN
+          IF(ix==tracer_CMB_lensing) THEN
              ! q(r) for a fixed source plane
              lens%q(i)=f_k(rmax-r,cosm)/f_k(rmax,cosm)
           ELSE
@@ -685,9 +647,9 @@ CONTAINS
     ! Now fill the kernels
     DO i=1,nX
        r=proj%r_x(i)
-       IF(ix==2) THEN
+       IF(ix==tracer_Compton_y) THEN
           proj%x(i)=y_kernel(r,cosm)
-       ELSE IF(ix==10) THEN
+       ELSE IF(ix==tracer_gravity_wave) THEN
           proj%x(i)=gwave_kernel(r,cosm)
        ELSE
           STOP 'FILL_KERNEL: Error, ix not specified correctly'
@@ -746,7 +708,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: ix
     TYPE(lensing), INTENT(INOUT) :: lens
 
-    IF(ix==1 .OR. ix==4) THEN
+    IF(ix==tracer_RCSLenS .OR. ix==tracer_CFHTLenS) THEN
        CALL fill_analytic_nz_table(ix,lens)
     ELSE
        CALL fill_nz_table(ix,lens)
@@ -793,17 +755,17 @@ CONTAINS
     CHARACTER(len=256) :: input
 
     ! Get file name
-    IF(ix==5) THEN
+    IF(ix==tracer_KiDS) THEN
        input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.1-0.9_MEAD.txt'
-    ELSE IF(ix==6) THEN
+    ELSE IF(ix==tracer_KiDS_bin1) THEN
        input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.1-0.3.txt'
-    ELSE IF(ix==7) THEN
+    ELSE IF(ix==tracer_KiDS_bin2) THEN
        input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.3-0.5.txt'
-    ELSE IF(ix==8) THEN
+    ELSE IF(ix==tracer_KiDS_bin3) THEN
        input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.5-0.7.txt'
-    ELSE IF(ix==9) THEN
+    ELSE IF(ix==tracer_KiDS_bin4) THEN
        input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.7-0.9.txt'
-    ELSE IF(ix==11 .OR. ix==12 .OR. ix==13 .OR. ix==14) THEN
+    ELSE IF(ix==tracer_KiDS_450 .OR. ix==tracer_KiDS_450_bin1 .OR. ix==tracer_KiDS_450_bin2 .OR. ix==tracer_KiDS_450_highz) THEN
        input='/Users/Mead/Physics/KiDS/nz/KiDS-450_fat_bin_nofz.txt'
     ELSE
        STOP 'GET_NZ: ix not specified correctly'
@@ -819,15 +781,15 @@ CONTAINS
     ! Read in n(z) table
     OPEN(7,file=input)
     DO i=1,lens%nnz
-       IF(ix==5 .OR. ix==6 .OR. ix==7 .OR. ix==8 .OR. ix==9) THEN
+       IF(ix==tracer_KiDS .OR. ix==tracer_KiDS_bin1 .OR. ix==tracer_KiDS_bin2 .OR. ix==tracer_KiDS_bin3 .OR. ix==tracer_KiDS_bin4) THEN
           READ(7,*) lens%z_nz(i), lens%nz(i) ! Second column
-       ELSE IF(ix==11) THEN
+       ELSE IF(ix==tracer_KiDS_450) THEN
           READ(7,*) lens%z_nz(i), lens%nz(i) ! Second column (z = 0.1 -> 0.9)
-       ELSE IF(ix==12) THEN
+       ELSE IF(ix==tracer_KiDS_450_bin1) THEN
           READ(7,*) lens%z_nz(i), spam, lens%nz(i) ! Third column (z = 0.1 -> 0.5)
-       ELSE IF(ix==13) THEN
+       ELSE IF(ix==tracer_KiDS_450_bin2) THEN
           READ(7,*) lens%z_nz(i), spam, spam, lens%nz(i) ! Fourth column (z = 0.5 -> 0.9)
-       ELSE IF(ix==14) THEN
+       ELSE IF(ix==tracer_KiDS_450_highz) THEN
           READ(7,*) lens%z_nz(i), spam, spam, spam, lens%nz(i) ! Fifth column (z = 0.9 -> 3.5)
        ELSE
           STOP 'GET_NZ: ix not specified correctly'
@@ -837,7 +799,7 @@ CONTAINS
 
     ! Do this because the KiDS-450 files contain the lower left edge of histograms
     ! The bin sizes are 0.05 in z, so need to add 0.05/2 = 0.025
-    IF(ix==11 .OR. ix==12 .OR. ix==13 .OR. ix==14) THEN       
+    IF(ix==tracer_KiDS_450 .OR. ix==tracer_KiDS_450_bin1 .OR. ix==tracer_KiDS_450_bin2 .OR. ix==tracer_KiDS_450_highz) THEN       
        lens%z_nz=lens%z_nz+0.025
     END IF
 
@@ -854,7 +816,7 @@ CONTAINS
     REAL :: n1, n2, n3
     REAL :: z1, z2
 
-    IF(ix==1) THEN
+    IF(ix==tracer_RCSLenS) THEN
        ! RCSLenS
        a=2.94
        b=-0.44
@@ -869,7 +831,7 @@ CONTAINS
        n2=d*z*exp(-(z-e)**2/f**2)
        n3=g*z*exp(-(z-h)**2/i**2)
        nz_lensing=n1+n2+n3
-    ELSE IF(ix==4) THEN
+    ELSE IF(ix==tracer_CFHTLenS) THEN
        ! CFHTLenS
        z1=0.7 ! Not a free parameter in Van Waerbeke et al. (2013)
        z2=1.2 ! Not a free parameter in Van Waerbeke et al. (2013)
