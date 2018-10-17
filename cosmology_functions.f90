@@ -248,7 +248,7 @@ CONTAINS
        cosm%sig8=0.834
     ELSE IF(icosmo==4) THEN
        ! BAHAMAS - WMAP9 (1712.02411)
-       cosm%h=0.7
+       cosm%h=0.7000
        cosm%Om_b=0.0463
        cosm%Om_m=0.2330+cosm%Om_b
        cosm%Om_v=1.-cosm%Om_m       
