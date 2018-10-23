@@ -214,8 +214,21 @@ CONTAINS
 
     IF(ix==tracer_Compton_y .OR. ix==tracer_gravity_wave) THEN
        CALL fill_kernel(ix,proj,cosm)
-    ELSE
+    ELSE IF(ix==tracer_RCSLenS .OR. &
+         ix==tracer_CFHTLenS .OR. &
+         ix==tracer_CMB_lensing .OR. &
+         ix==tracer_KiDS .OR. &
+         ix==tracer_KiDS_bin1 .OR. &
+         ix==tracer_KiDS_bin2 .OR. &
+         ix==tracer_KiDS_bin3 .OR. &
+         ix==tracer_KiDS_bin4 .OR. &
+         ix==tracer_KiDS_450 .OR. &
+         ix==tracer_KiDS_450_bin1 .OR. &
+         ix==tracer_KiDS_450_bin2 .OR. &
+         ix==tracer_KiDS_450_highz) THEN
        CALL fill_lensing_kernel(ix,proj,lens,cosm)
+    ELSE
+       STOP 'FILL_PROJECTION_KERNEL: Error, tracer type specified incorrectly'
     END IF
 
   END SUBROUTINE fill_projection_kernel
@@ -465,21 +478,29 @@ CONTAINS
     CHARACTER(len=256) :: output
     INTEGER :: i, nX
 
-    IF(ix==tracer_Compton_y .OR. ix==tracer_gravity_wave) THEN
-       STOP 'FILL_LENSING_KERNEL: Error, trying to do this for a non-lensing ix'
-    END IF
-
     ! Choose either n(z) or fixed z_s
     IF(ix==tracer_CMB_lensing) THEN      
        zmin=0.
        zmax=cosm%z_cmb
        IF(verbose_Limber) WRITE(*,*) 'FILL_LENSING_KERNEL: Source plane redshift:', REAL(zmax)
-    ELSE
+    ELSE IF(ix==tracer_RCSLenS .OR. &
+         ix==tracer_CFHTLenS .OR. &
+         ix==tracer_KiDS .OR. &
+         ix==tracer_KiDS_bin1 .OR. &
+         ix==tracer_KiDS_bin2 .OR. &
+         ix==tracer_KiDS_bin3 .OR. &
+         ix==tracer_KiDS_bin4 .OR. &
+         ix==tracer_KiDS_450 .OR. &
+         ix==tracer_KiDS_450_bin1 .OR. &
+         ix==tracer_KiDS_450_bin2 .OR. &
+         ix==tracer_KiDS_450_highz) THEN
        CALL read_nz(ix,lens)
        zmin=lens%z_nz(1)
        zmax=lens%z_nz(lens%nnz)
 !!$       output='data/nz.dat'
 !!$       CALL write_nz(lens,output)
+    ELSE
+       STOP 'FILL_LENSING_KERNEL: Error, tracer is specified incorrectly'
     END IF
 
     ! Get the distance range for the lensing kernel
@@ -535,7 +556,7 @@ CONTAINS
 
     ! Fill the r vs. q(r) tables
     lens%nq=nq_efficiency
-    IF(verbose_Limber) WRITE(*,*) 'FILL_EFFICIENCY: number of points:', lens%nq
+    IF(verbose_Limber) WRITE(*,*) 'FILL_LENSING_EFFICIENCY: number of points:', lens%nq
     CALL fill_array(rmin,rmax,lens%r_q,lens%nq)
     IF(ALLOCATED(lens%q)) DEALLOCATE(lens%q)
     ALLOCATE(lens%q(lens%nq))
@@ -550,14 +571,26 @@ CONTAINS
           IF(ix==tracer_CMB_lensing) THEN
              ! q(r) for a fixed source plane
              lens%q(i)=f_k(rmax-r,cosm)/f_k(rmax,cosm)
-          ELSE
+          ELSE IF(ix==tracer_RCSLenS .OR. &
+               ix==tracer_CFHTLenS .OR. &
+               ix==tracer_KiDS .OR. &
+               ix==tracer_KiDS_bin1 .OR. &
+               ix==tracer_KiDS_bin2 .OR. &
+               ix==tracer_KiDS_bin3 .OR. &
+               ix==tracer_KiDS_bin4 .OR. &
+               ix==tracer_KiDS_450 .OR. &
+               ix==tracer_KiDS_450_bin1 .OR. &
+               ix==tracer_KiDS_450_bin2 .OR. &
+               ix==tracer_KiDS_450_highz) THEN
              ! q(r) for a n(z) distribution 
              lens%q(i)=integrate_q(r,z,zmax,acc_Limber,3,lens,cosm)
+          ELSE
+             STOP 'FILL_LENSING_EFFICIENCY: Error, tracer specified incorrectly'
           END IF
        END IF
     END DO
     IF(verbose_Limber) THEN
-       WRITE(*,*) 'FILL_EFFICIENCY: Done writing'
+       WRITE(*,*) 'FILL_LENSING_EFFICIENCY: Done writing'
        WRITE(*,*)
     END IF
 
@@ -654,7 +687,7 @@ CONTAINS
        ELSE IF(ix==tracer_gravity_wave) THEN
           proj%x(i)=gwave_kernel(r,cosm)
        ELSE
-          STOP 'FILL_KERNEL: Error, ix not specified correctly'
+          STOP 'FILL_KERNEL: Error, tracer specified incorrectly'
        END IF
     END DO
 
@@ -712,8 +745,18 @@ CONTAINS
 
     IF(ix==tracer_RCSLenS .OR. ix==tracer_CFHTLenS) THEN
        CALL fill_analytic_nz_table(ix,lens)
-    ELSE
+    ELSE IF(ix==tracer_KiDS .OR. &
+         ix==tracer_KiDS_bin1 .OR. &
+         ix==tracer_KiDS_bin2 .OR. &
+         ix==tracer_KiDS_bin3 .OR. &
+         ix==tracer_KiDS_bin4 .OR. &
+         ix==tracer_KiDS_450 .OR. &
+         ix==tracer_KiDS_450_bin1 .OR. &
+         ix==tracer_KiDS_450_bin2 .OR. &
+         ix==tracer_KiDS_450_highz) THEN
        CALL fill_nz_table(ix,lens)
+    ELSE
+       STOP 'READ_NZ: Error, tracer specified incorrectly'
     END IF
 
     IF(verbose_Limber) THEN
@@ -767,10 +810,13 @@ CONTAINS
        input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.5-0.7.txt'
     ELSE IF(ix==tracer_KiDS_bin4) THEN
        input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.7-0.9.txt'
-    ELSE IF(ix==tracer_KiDS_450 .OR. ix==tracer_KiDS_450_bin1 .OR. ix==tracer_KiDS_450_bin2 .OR. ix==tracer_KiDS_450_highz) THEN
+    ELSE IF(ix==tracer_KiDS_450 .OR. &
+         ix==tracer_KiDS_450_bin1 .OR. &
+         ix==tracer_KiDS_450_bin2 .OR. &
+         ix==tracer_KiDS_450_highz) THEN
        input='/Users/Mead/Physics/KiDS/nz/KiDS-450_fat_bin_nofz.txt'
     ELSE
-       STOP 'FILL_NZ_TABLE: ix not specified correctly'
+       STOP 'FILL_NZ_TABLE: tracer not specified correctly'
     END IF
     WRITE(*,*) 'FILL_NZ_TABLE: Input file:', TRIM(input)
 
@@ -783,7 +829,11 @@ CONTAINS
     ! Read in n(z) table
     OPEN(7,file=input)
     DO i=1,lens%nnz
-       IF(ix==tracer_KiDS .OR. ix==tracer_KiDS_bin1 .OR. ix==tracer_KiDS_bin2 .OR. ix==tracer_KiDS_bin3 .OR. ix==tracer_KiDS_bin4) THEN
+       IF(ix==tracer_KiDS .OR. &
+            ix==tracer_KiDS_bin1 .OR. &
+            ix==tracer_KiDS_bin2 .OR. &
+            ix==tracer_KiDS_bin3 .OR. &
+            ix==tracer_KiDS_bin4) THEN
           READ(7,*) lens%z_nz(i), lens%nz(i) ! Second column
        ELSE IF(ix==tracer_KiDS_450) THEN
           READ(7,*) lens%z_nz(i), lens%nz(i) ! Second column (z = 0.1 -> 0.9)
@@ -794,7 +844,7 @@ CONTAINS
        ELSE IF(ix==tracer_KiDS_450_highz) THEN
           READ(7,*) lens%z_nz(i), spam, spam, spam, lens%nz(i) ! Fifth column (z = 0.9 -> 3.5)
        ELSE
-          STOP 'FILL_NZ_TABLE: ix not specified correctly'
+          STOP 'FILL_NZ_TABLE: tracer not specified correctly'
        END IF
     END DO
     CLOSE(7)
@@ -843,7 +893,7 @@ CONTAINS
        d=0.46
        nz_lensing=a*exp(-((z-z1)/b)**2)+c*exp(-((z-z2)/d)**2)
     ELSE
-       STOP 'NZ_LENSING: ix specified incorrectly'
+       STOP 'NZ_LENSING: Error, tracer specified incorrectly'
     END IF
 
   END FUNCTION nz_lensing
