@@ -536,7 +536,7 @@ CONTAINS
 
     ! Ensure deallocate distances
     cosm%has_distance=.FALSE.
-    IF(ALLOCATED(cosm%r)) DEALLOCATE(cosm%r)
+    IF(ALLOCATED(cosm%r))   DEALLOCATE(cosm%r)
     IF(ALLOCATED(cosm%a_r)) DEALLOCATE(cosm%a_r)
 
     ! Ensure deallocate growth
@@ -1246,7 +1246,6 @@ CONTAINS
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    !physical_angular_distance=f_k(physical_distance(a,cosm),cosm)
     physical_angular_distance=a*comoving_angular_distance(a,cosm)
 
   END FUNCTION physical_angular_distance
@@ -1259,7 +1258,6 @@ CONTAINS
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    !comoving_angular_distance=physical_angular_distance(a,cosm)/a
     comoving_angular_distance=f_k(comoving_distance(a,cosm),cosm)
 
   END FUNCTION comoving_angular_distance
