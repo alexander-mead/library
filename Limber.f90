@@ -11,7 +11,7 @@ MODULE Limber
 
   ! Types
   PUBLIC :: projection
-  PUBLIC :: lensing
+  !PUBLIC :: lensing
 
   ! Functions
   PUBLIC :: maxdist
@@ -23,7 +23,7 @@ MODULE Limber
   PUBLIC :: write_projection_kernel
   PUBLIC :: write_xi
   PUBLIC :: write_nz
-  PUBLIC :: write_lensing_efficiency
+  PUBLIC :: write_efficiency
   PUBLIC :: calculate_xi
   PUBLIC :: write_Cl
   PUBLIC :: k_ell
@@ -48,16 +48,18 @@ MODULE Limber
   ! Projection quantities that need to be calculated only once; these relate to the Limber integrals
   TYPE projection    
      REAL, ALLOCATABLE :: X(:), r_X(:)
-     INTEGER :: nX
-  END TYPE projection
-
-  ! Quantities that are necessary for lensing specifically
-  ! Possibly this could usefully be merged with the projection type
-  TYPE lensing
      REAL, ALLOCATABLE :: q(:), r_q(:)
      REAL, ALLOCATABLE :: nz(:), z_nz(:)
-     INTEGER :: nq, nnz
-  END TYPE lensing
+     INTEGER :: nX, nq, nnz
+  END TYPE projection
+
+!!$  ! Quantities that are necessary for lensing specifically
+!!$  ! Possibly this could usefully be merged with the projection type
+!!$  TYPE lensing
+!!$     REAL, ALLOCATABLE :: q(:), r_q(:)
+!!$     REAL, ALLOCATABLE :: nz(:), z_nz(:)
+!!$     INTEGER :: nq, nnz
+!!$  END TYPE lensing
   
   ! P(k,a) look-up table parameters
   REAL, PARAMETER :: kmin_pka=1e-4   ! k' value for P(k,a) table; P(k<k',a)=0
@@ -160,17 +162,17 @@ CONTAINS
     
   END FUNCTION k_ell
 
-  SUBROUTINE write_nz(lens,output)
+  SUBROUTINE write_nz(proj,output)
 
     ! Write out the n(z) to a file
     IMPLICIT NONE
-    TYPE(lensing), INTENT(IN) :: lens
+    TYPE(projection), INTENT(IN) :: proj
     CHARACTER(len=*), INTENT(IN) :: output
     INTEGER :: i
 
     OPEN(7,file=output)
-    DO i=1,lens%nnz
-       WRITE(7,*) lens%z_nz(i), lens%nz(i)
+    DO i=1,proj%nnz
+       WRITE(7,*) proj%z_nz(i), proj%nz(i)
     END DO
     CLOSE(7)
 
@@ -210,7 +212,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: ix
     TYPE(projection), INTENT(OUT) :: proj
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    TYPE(lensing) :: lens
+    !TYPE(lensing) :: lens
 
     IF(ix==tracer_Compton_y .OR. ix==tracer_gravity_wave) THEN
        CALL fill_kernel(ix,proj,cosm)
@@ -226,7 +228,7 @@ CONTAINS
          ix==tracer_KiDS_450_bin1 .OR. &
          ix==tracer_KiDS_450_bin2 .OR. &
          ix==tracer_KiDS_450_highz) THEN
-       CALL fill_lensing_kernel(ix,proj,lens,cosm)
+       CALL fill_lensing_kernel(ix,proj,cosm)
     ELSE
        STOP 'FILL_PROJECTION_KERNEL: Error, tracer type specified incorrectly'
     END IF
@@ -426,21 +428,6 @@ CONTAINS
     
   END FUNCTION maxdist
 
-!!$  SUBROUTINE write_projection_kernels(proj,cosm)
-!!$
-!!$    IMPLICIT NONE
-!!$    TYPE(projection), INTENT(IN) :: proj(2)
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    CHARACTER(len=256) :: output
-!!$
-!!$    output=TRIM('data/kernel1.dat')
-!!$    CALL write_projection_kernel(proj(1),cosm,output)
-!!$
-!!$    output=TRIM('data/kernel2.dat')
-!!$    CALL write_projection_kernel(proj(2),cosm,output)
-!!$
-!!$  END SUBROUTINE write_projection_kernels
-
   SUBROUTINE write_projection_kernel(proj,cosm,output)
 
     IMPLICIT NONE
@@ -466,16 +453,15 @@ CONTAINS
 
   END SUBROUTINE write_projection_kernel
 
-  SUBROUTINE fill_lensing_kernel(ix,proj,lens,cosm)
+  SUBROUTINE fill_lensing_kernel(ix,proj,cosm)
 
     ! Fill the lensing projection kernel
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: ix
-    TYPE(lensing) :: lens
+    !TYPE(lensing) :: lens
     TYPE(cosmology), INTENT(INOUT) :: cosm
     TYPE(projection), INTENT(OUT) :: proj
     REAL :: zmin, zmax, rmax, amax, r
-    CHARACTER(len=256) :: output
     INTEGER :: i, nX
 
     ! Choose either n(z) or fixed z_s
@@ -494,11 +480,9 @@ CONTAINS
          ix==tracer_KiDS_450_bin1 .OR. &
          ix==tracer_KiDS_450_bin2 .OR. &
          ix==tracer_KiDS_450_highz) THEN
-       CALL read_nz(ix,lens)
-       zmin=lens%z_nz(1)
-       zmax=lens%z_nz(lens%nnz)
-!!$       output='data/nz.dat'
-!!$       CALL write_nz(lens,output)
+       CALL read_nz(ix,proj)
+       zmin=proj%z_nz(1)
+       zmax=proj%z_nz(proj%nnz)
     ELSE
        STOP 'FILL_LENSING_KERNEL: Error, tracer is specified incorrectly'
     END IF
@@ -515,11 +499,7 @@ CONTAINS
     END IF
 
     ! Fill the q(r) table
-    CALL fill_lensing_efficiency(ix,rmin_lensing,rmax,zmax,lens,cosm)
-
-!!$    ! Write the q(r) table to file
-!!$    output='data/lensing_efficiency.dat'
-!!$    CALL write_lensing_efficiency(lens,cosm,output)
+    CALL fill_efficiency(ix,rmin_lensing,rmax,zmax,proj,cosm)
 
     ! Assign arrays for the projection function
     nX=nX_lensing
@@ -532,7 +512,7 @@ CONTAINS
     DO i=1,nx
        ! Get r and fill X(r)
        r=proj%r_x(i)
-       proj%x(i)=lensing_kernel(r,lens,cosm)  
+       proj%x(i)=lensing_kernel(r,proj,cosm)  
        ! Enforce that the kernel must not be negative (is this necessary?)
        IF(proj%x(i)<0.) proj%x(i)=0.
     END DO
@@ -543,34 +523,34 @@ CONTAINS
 
   END SUBROUTINE fill_lensing_kernel
 
-  SUBROUTINE fill_lensing_efficiency(ix,rmin,rmax,zmax,lens,cosm)
+  SUBROUTINE fill_efficiency(ix,rmin,rmax,zmax,proj,cosm)
 
     ! Fill the table for lensing efficiency
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: ix
     REAL, INTENT(IN) :: rmin, rmax, zmax
-    TYPE(lensing), INTENT(INOUT) :: lens
+    TYPE(projection), INTENT(INOUT) :: proj
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: r, z
     INTEGER :: i
 
     ! Fill the r vs. q(r) tables
-    lens%nq=nq_efficiency
-    IF(verbose_Limber) WRITE(*,*) 'FILL_LENSING_EFFICIENCY: number of points:', lens%nq
-    CALL fill_array(rmin,rmax,lens%r_q,lens%nq)
-    IF(ALLOCATED(lens%q)) DEALLOCATE(lens%q)
-    ALLOCATE(lens%q(lens%nq))
+    proj%nq=nq_efficiency
+    IF(verbose_Limber) WRITE(*,*) 'FILL_EFFICIENCY: number of points:', proj%nq
+    CALL fill_array(rmin,rmax,proj%r_q,proj%nq)
+    IF(ALLOCATED(proj%q)) DEALLOCATE(proj%q)
+    ALLOCATE(proj%q(proj%nq))
 
-    DO i=1,lens%nq       
-       r=lens%r_q(i)
+    DO i=1,proj%nq       
+       r=proj%r_q(i)
        z=redshift_r(r,cosm)
        IF(r==0.) THEN
           ! To avoid division by zero
-          lens%q(i)=1.
+          proj%q(i)=1.
        ELSE
           IF(ix==tracer_CMB_lensing) THEN
              ! q(r) for a fixed source plane
-             lens%q(i)=f_k(rmax-r,cosm)/f_k(rmax,cosm)
+             proj%q(i)=f_k(rmax-r,cosm)/f_k(rmax,cosm)
           ELSE IF(ix==tracer_RCSLenS .OR. &
                ix==tracer_CFHTLenS .OR. &
                ix==tracer_KiDS .OR. &
@@ -583,36 +563,36 @@ CONTAINS
                ix==tracer_KiDS_450_bin2 .OR. &
                ix==tracer_KiDS_450_highz) THEN
              ! q(r) for a n(z) distribution 
-             lens%q(i)=integrate_q(r,z,zmax,acc_Limber,3,lens,cosm)
+             proj%q(i)=integrate_q(r,z,zmax,acc_Limber,3,proj,cosm)
           ELSE
-             STOP 'FILL_LENSING_EFFICIENCY: Error, tracer specified incorrectly'
+             STOP 'FILL_EFFICIENCY: Error, tracer specified incorrectly'
           END IF
        END IF
     END DO
     IF(verbose_Limber) THEN
-       WRITE(*,*) 'FILL_LENSING_EFFICIENCY: Done writing'
+       WRITE(*,*) 'FILL_EFFICIENCY: Done writing'
        WRITE(*,*)
     END IF
 
-  END SUBROUTINE fill_lensing_efficiency
+  END SUBROUTINE fill_efficiency
 
-  FUNCTION q_r(r,lens)
+  FUNCTION q_r(r,proj)
 
     ! Interpolation function for q(r)
     IMPLICIT NONE
     REAL :: q_r
     REAL, INTENT(IN) :: r
-    TYPE(lensing), INTENT(IN) :: lens
+    TYPE(projection), INTENT(IN) :: proj
 
-    q_r=find(r,lens%r_q,lens%q,lens%nq,3,3,2)
+    q_r=find(r,proj%r_q,proj%q,proj%nq,3,3,2)
 
   END FUNCTION q_r
 
-  SUBROUTINE write_lensing_efficiency(lens,cosm,output)
+  SUBROUTINE write_efficiency(proj,cosm,output)
 
     ! Write lensing efficiency q(r) function to a file
     IMPLICIT NONE
-    TYPE(lensing), INTENT(INOUT) :: lens
+    TYPE(projection), INTENT(INOUT) :: proj
     TYPE(cosmology), INTENT(INOUT) :: cosm
     CHARACTER(len=256), INTENT(IN) :: output
     REAL :: r, z, q
@@ -620,25 +600,25 @@ CONTAINS
 
     WRITE(*,*) 'WRITE_EFFICIENCY: Writing q(r): ', TRIM(output)
     OPEN(7,file=output)
-    DO i=1,lens%nq
-       r=lens%r_q(i)
+    DO i=1,proj%nq
+       r=proj%r_q(i)
        z=redshift_r(r,cosm)
-       q=lens%q(i)
+       q=proj%q(i)
        WRITE(7,*) r, z, q
     END DO
     CLOSE(7)
     WRITE(*,*) 'WRITE_EFFICIENCY: Done'
     WRITE(*,*)
 
-  END SUBROUTINE write_lensing_efficiency
+  END SUBROUTINE write_efficiency
 
-  FUNCTION lensing_kernel(r,lens,cosm)
+  FUNCTION lensing_kernel(r,proj,cosm)
 
     ! The lensing projection kernel
     IMPLICIT NONE
     REAL :: lensing_kernel
     REAL, INTENT(IN) :: r
-    TYPE(lensing) :: lens
+    TYPE(projection) :: proj
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: z, q
 
@@ -646,7 +626,7 @@ CONTAINS
     z=redshift_r(r,cosm)
 
     ! Get the lensing efficiency
-    q=q_r(r,lens)
+    q=q_r(r,proj)
 
     ! This is then the projection kernel (X_kappa)
     lensing_kernel=(1.+z)*f_k(r,cosm)*q
@@ -670,6 +650,7 @@ CONTAINS
     ! Get the distance range for the projection function
     ! Use the same as that for the distance calculation
     ! Assign arrays for the kernel function
+    rmax=comoving_distance(0.,cosm) ! Cheat to ensure that init_distance has been run
     rmax=MAXVAL(cosm%r)
     CALL fill_array(rmin_kernel,rmax,proj%r_X,proj%nX)
     WRITE(*,*) 'FILL_KERNEL: minimum r [Mpc/h]:', REAL(rmin_kernel)
@@ -736,15 +717,15 @@ CONTAINS
 
   END FUNCTION gwave_kernel
 
-  SUBROUTINE read_nz(ix,lens)
+  SUBROUTINE read_nz(ix,proj)
 
     ! The the n(z) function for lensing
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: ix
-    TYPE(lensing), INTENT(INOUT) :: lens
+    TYPE(projection), INTENT(INOUT) :: proj
 
     IF(ix==tracer_RCSLenS .OR. ix==tracer_CFHTLenS) THEN
-       CALL fill_analytic_nz_table(ix,lens)
+       CALL fill_analytic_nz_table(ix,proj)
     ELSE IF(ix==tracer_KiDS .OR. &
          ix==tracer_KiDS_bin1 .OR. &
          ix==tracer_KiDS_bin2 .OR. &
@@ -754,47 +735,48 @@ CONTAINS
          ix==tracer_KiDS_450_bin1 .OR. &
          ix==tracer_KiDS_450_bin2 .OR. &
          ix==tracer_KiDS_450_highz) THEN
-       CALL fill_nz_table(ix,lens)
+       CALL fill_nz_table(ix,proj)
     ELSE
        STOP 'READ_NZ: Error, tracer specified incorrectly'
     END IF
 
     IF(verbose_Limber) THEN
-       WRITE(*,*) 'READ_NZ: zmin:', lens%z_nz(1)
-       WRITE(*,*) 'READ_NZ: zmax:', lens%z_nz(lens%nnz)
-       WRITE(*,*) 'READ_NZ: nz:', lens%nnz
+       WRITE(*,*) 'READ_NZ: zmin:', proj%z_nz(1)
+       WRITE(*,*) 'READ_NZ: zmax:', proj%z_nz(proj%nnz)
+       WRITE(*,*) 'READ_NZ: nz:', proj%nnz
        WRITE(*,*)
     END IF
 
   END SUBROUTINE read_nz
 
-  SUBROUTINE fill_analytic_nz_table(ix,lens)
+  SUBROUTINE fill_analytic_nz_table(ix,proj)
 
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: ix
-    TYPE(lensing), INTENT(INOUT) :: lens
+    TYPE(projection), INTENT(INOUT) :: proj
     INTEGER :: i
 
     ! From analytical function
-    lens%nnz=n_nz
-    IF(ALLOCATED(lens%z_nz)) DEALLOCATE(lens%z_nz)
-    IF(ALLOCATED(lens%nz))   DEALLOCATE(lens%nz)
-    ALLOCATE(lens%z_nz(lens%nnz),lens%nz(lens%nnz))
+    proj%nnz=n_nz
+    IF(ALLOCATED(proj%z_nz)) DEALLOCATE(proj%z_nz)
+    IF(ALLOCATED(proj%nz))   DEALLOCATE(proj%nz)
+    ALLOCATE(proj%z_nz(proj%nnz),proj%nz(proj%nnz))
 
     ! Fill the look-up tables
-    CALL fill_array(zmin_nz,zmax_nz,lens%z_nz,lens%nnz)
+    CALL fill_array(zmin_nz,zmax_nz,proj%z_nz,proj%nnz)
     DO i=1,n_nz
-       lens%nz(i)=nz_lensing(lens%z_nz(i),ix)
+       proj%nz(i)=nz_lensing(proj%z_nz(i),ix)
     END DO
 
   END SUBROUTINE fill_analytic_nz_table
 
-  SUBROUTINE fill_nz_table(ix,lens)
+  SUBROUTINE fill_nz_table(ix,proj)
 
     USE file_info
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: ix
-    TYPE(lensing), INTENT(INOUT) :: lens
+    !TYPE(projection), INTENT(INOUT) :: lens
+    TYPE(projection), INTENT(INOUT) :: proj
     INTEGER :: i
     REAL :: spam
     CHARACTER(len=256) :: input
@@ -821,28 +803,28 @@ CONTAINS
     WRITE(*,*) 'FILL_NZ_TABLE: Input file:', TRIM(input)
 
     ! Allocate arrays
-    lens%nnz=count_number_of_lines(input)
-    IF(ALLOCATED(lens%z_nz)) DEALLOCATE(lens%z_nz)
-    IF(ALLOCATED(lens%nz))   DEALLOCATE(lens%nz)
-    ALLOCATE(lens%z_nz(lens%nnz),lens%nz(lens%nnz))
+    proj%nnz=count_number_of_lines(input)
+    IF(ALLOCATED(proj%z_nz)) DEALLOCATE(proj%z_nz)
+    IF(ALLOCATED(proj%nz))   DEALLOCATE(proj%nz)
+    ALLOCATE(proj%z_nz(proj%nnz),proj%nz(proj%nnz))
 
     ! Read in n(z) table
     OPEN(7,file=input)
-    DO i=1,lens%nnz
+    DO i=1,proj%nnz
        IF(ix==tracer_KiDS .OR. &
             ix==tracer_KiDS_bin1 .OR. &
             ix==tracer_KiDS_bin2 .OR. &
             ix==tracer_KiDS_bin3 .OR. &
             ix==tracer_KiDS_bin4) THEN
-          READ(7,*) lens%z_nz(i), lens%nz(i) ! Second column
+          READ(7,*) proj%z_nz(i), proj%nz(i) ! Second column
        ELSE IF(ix==tracer_KiDS_450) THEN
-          READ(7,*) lens%z_nz(i), lens%nz(i) ! Second column (z = 0.1 -> 0.9)
+          READ(7,*) proj%z_nz(i), proj%nz(i) ! Second column (z = 0.1 -> 0.9)
        ELSE IF(ix==tracer_KiDS_450_bin1) THEN
-          READ(7,*) lens%z_nz(i), spam, lens%nz(i) ! Third column (z = 0.1 -> 0.5)
+          READ(7,*) proj%z_nz(i), spam, proj%nz(i) ! Third column (z = 0.1 -> 0.5)
        ELSE IF(ix==tracer_KiDS_450_bin2) THEN
-          READ(7,*) lens%z_nz(i), spam, spam, lens%nz(i) ! Fourth column (z = 0.5 -> 0.9)
+          READ(7,*) proj%z_nz(i), spam, spam, proj%nz(i) ! Fourth column (z = 0.5 -> 0.9)
        ELSE IF(ix==tracer_KiDS_450_highz) THEN
-          READ(7,*) lens%z_nz(i), spam, spam, spam, lens%nz(i) ! Fifth column (z = 0.9 -> 3.5)
+          READ(7,*) proj%z_nz(i), spam, spam, spam, proj%nz(i) ! Fifth column (z = 0.9 -> 3.5)
        ELSE
           STOP 'FILL_NZ_TABLE: tracer not specified correctly'
        END IF
@@ -852,7 +834,7 @@ CONTAINS
     ! Do this because the KiDS-450 files contain the lower left edge of histograms
     ! The bin sizes are 0.05 in z, so need to add 0.05/2 = 0.025
     IF(ix==tracer_KiDS_450 .OR. ix==tracer_KiDS_450_bin1 .OR. ix==tracer_KiDS_450_bin2 .OR. ix==tracer_KiDS_450_highz) THEN       
-       lens%z_nz=lens%z_nz+0.025
+       proj%z_nz=proj%z_nz+0.025
     END IF
 
   END SUBROUTINE fill_nz_table
@@ -898,7 +880,7 @@ CONTAINS
 
   END FUNCTION nz_lensing
 
-  FUNCTION integrate_q(r,a,b,acc,iorder,lens,cosm)
+  FUNCTION integrate_q(r,a,b,acc,iorder,proj,cosm)
 
     ! Integrates between a and b until desired accuracy is reached
     ! Stores information to reduce function calls
@@ -907,7 +889,7 @@ CONTAINS
     REAL, INTENT(IN) :: a, b, r, acc
     INTEGER, INTENT(IN) :: iorder
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    TYPE(lensing), INTENT(IN) :: lens
+    TYPE(projection), INTENT(IN) :: proj
     INTEGER :: i, j
     INTEGER :: n
     REAL :: x, dx
@@ -942,8 +924,8 @@ CONTAINS
           IF(j==1) THEN
 
              ! The first go is just the trapezium of the end points
-             f1=q_integrand(a,r,lens,cosm)
-             f2=q_integrand(b,r,lens,cosm)
+             f1=q_integrand(a,r,proj,cosm)
+             f2=q_integrand(b,r,proj,cosm)
              sum_2n=0.5*(f1+f2)*dx
              sum_new=sum_2n
 
@@ -952,7 +934,7 @@ CONTAINS
              ! Loop over only new even points to add these to the integral
              DO i=2,n,2
                 x=progression(a,b,i,n)
-                fx=q_integrand(x,r,lens,cosm)
+                fx=q_integrand(x,r,proj,cosm)
                 sum_2n=sum_2n+fx
              END DO
 
@@ -991,7 +973,7 @@ CONTAINS
 
   END FUNCTION integrate_q
 
-  FUNCTION q_integrand(z,r,lens,cosm)
+  FUNCTION q_integrand(z,r,proj,cosm)
 
     ! The lensing efficiency integrand, which is a function of z
     ! z is integrated over while r is just a parameter
@@ -1000,7 +982,7 @@ CONTAINS
     REAL :: q_integrand
     REAL, INTENT(IN) :: r, z
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    TYPE(lensing), INTENT(IN) :: lens
+    TYPE(projection), INTENT(IN) :: proj
     REAL :: rdash, nz, a
 
     a=scale_factor_z(z)
@@ -1011,7 +993,7 @@ CONTAINS
        ! Find the r'(z) variable that is integrated over     
        rdash=comoving_distance(a,cosm)
        ! Find the n(z)
-       nz=find(z,lens%z_nz,lens%nz,lens%nnz,3,3,2)
+       nz=find(z,proj%z_nz,proj%nz,proj%nnz,3,3,2)
        ! This is then the integrand
        q_integrand=nz*f_k(rdash-r,cosm)/f_k(rdash,cosm)
     END IF
