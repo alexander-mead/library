@@ -10,7 +10,9 @@ FFLAGS = \
 	-ffpe-trap=invalid,zero,overflow \
 	-fimplicit-none \
 	-std=gnu \
-	-ffree-line-length-none
+	-ffree-line-length-none \
+	-I/usr/local/include \
+	-I/usr/include
 
 # Debug flags
 DEBUG_FLAGS = \
@@ -53,7 +55,7 @@ OBJS =  precision.o \
 	Limber
 
 # Default compile option
-all: FFLAGS += -O3 -I/usr/local/include -I/usr/include
+all: FFLAGS += -O3 
 all: meadlib
 
 # Debug mode
