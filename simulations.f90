@@ -21,7 +21,7 @@ CONTAINS
 
     WRITE(*,*) 'HALO_MASS_CUT: Number of haloes before cut:', n
     WRITE(*,*) 'HALO_MASS_CUT: Minimum mass for cut [Msun/h]:', mmin
-    WRITE(*,*) 'HALO_MASS_CUT: Minimum mass for cut [Msun/h]:', mmax
+    WRITE(*,*) 'HALO_MASS_CUT: Maximum mass for cut [Msun/h]:', mmax
 
     ! Initially store the initial values of the inputs
     x_store=x
