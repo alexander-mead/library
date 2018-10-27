@@ -9,6 +9,54 @@ MODULE simulations
 
 CONTAINS
 
+  SUBROUTINE halo_mass_cut(mmin,mmax,x,m,n)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: mmin, mmax
+    REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:)
+    REAL, ALLOCATABLE, INTENT(INOUT) :: m(:)
+    INTEGER, INTENT(INOUT) :: n
+    REAL :: x_store(3,n), m_store(n)
+    INTEGER :: i, j, n_store
+
+    WRITE(*,*) 'HALO_MASS_CUT: Number of haloes before cut:', n
+    WRITE(*,*) 'HALO_MASS_CUT: Minimum mass for cut [Msun/h]:', mmin
+    WRITE(*,*) 'HALO_MASS_CUT: Maximum mass for cut [Msun/h]:', mmax
+
+    ! Initially store the initial values of the inputs
+    x_store=x
+    m_store=m
+    n_store=n
+
+    ! Find how many haloes satisfy this cut
+    n=0
+    DO i=1,n_store
+       IF(m_store(i)>mmin .AND. m_store(i)<mmax) THEN
+          n=n+1
+       END IF
+    END DO
+
+    WRITE(*,*) 'HALO_MASS_CUT: Number of haloes after cut:', n
+
+    ! Deallocate and reallocate input arrays
+    DEALLOCATE(x,m)
+    ALLOCATE(x(3,n),m(n))
+
+    ! Now fill up arrays for output
+    j=0
+    DO i=1,n_store
+       IF(m_store(i)>mmin .AND. m_store(i)<mmax) THEN
+          j=j+1
+          x(:,j)=x_store(:,i)
+          m(j)=m_store(i)
+       END IF
+    END DO
+
+    WRITE(*,*) 'HALO_MASS_CUT: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE halo_mass_cut
+
   SUBROUTINE write_power_spectrum(x,n,L,m,nk,outfile)
 
     ! Write the power spectrum out in some standard format
@@ -335,7 +383,7 @@ CONTAINS
     WRITE(*,*) 'GENERATE_GRID: Mesh size:', m
     WRITE(*,*) 'GENERATE_GRID: Mesh size cubed (should eqaul number of particles):', m**3
     WRITE(*,*) 'GENERATE_GRID: Box size [Mpc/h]:', L
-      
+
     ! Loop over all particles
     i=0 ! Set the particle counting variable to zero
     DO iz=1,m
@@ -1077,7 +1125,7 @@ CONTAINS
 
     ! Multiply through by factors of volume and mesh
     shot_noise=(L**3)*shot_noise
-    
+
   END FUNCTION shot_noise
 
   REAL FUNCTION shot_noise_mass(L,m,n)
@@ -1117,9 +1165,9 @@ CONTAINS
     ! Makes a pretty picture of a density field but uses adaptive meshes to make it nice    
     USE array_operations
     USE string_operations
-    
+
     IMPLICIT NONE
-    
+
     REAL, INTENT(IN) :: xc, yc ! Coordinates of image centre [Mpc/h]
     REAL, INTENT(IN) :: Lsub ! Size of image [Mpc/h]
     REAL, INTENT(IN) :: z1, z2 ! Front and back of image [Mpc/h]
@@ -1305,41 +1353,41 @@ CONTAINS
 
     ! Write out each mesh if testing
     IF(test) THEN       
-       
+
        base='density_'
        ext='.dat'
-       
+
        output=number_file_zeroes(base,m1,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
        CALL write_2D_field_ascii(field1,m1,Lsub,output)
-       
+
        output=number_file_zeroes(base,m2,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
        CALL write_2D_field_ascii(field2,m2,Lsub,output)
-       
+
        output=number_file_zeroes(base,m3,4,ext)       
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
        CALL write_2D_field_ascii(field3,m3,Lsub,output)
-       
+
        output=number_file_zeroes(base,m4,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
        CALL write_2D_field_ascii(field4,m4,Lsub,output)
-       
+
        output=number_file_zeroes(base,m5,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
        CALL write_2D_field_ascii(field5,m5,Lsub,output)
-       
+
     END IF
 
     ! No refinement required
     IF(r==0) THEN
-       
+
        ALLOCATE(d(m,m))
        d=field1
 
-    ! Start the refinements
+       ! Start the refinements
     ELSE
-       
+
        ! First refinement
        IF(r>=4) THEN     
 
