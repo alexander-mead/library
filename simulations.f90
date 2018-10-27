@@ -9,12 +9,63 @@ MODULE simulations
 
 CONTAINS
 
+  SUBROUTINE halo_mass_cut(mmin,mmax,x,m,n)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: mmin, mmax
+    REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:)
+    REAL, ALLOCATABLE, INTENT(INOUT) :: m(:)
+    INTEGER, INTENT(INOUT) :: n
+    REAL :: x_store(3,n), m_store(3)
+    INTEGER :: i, j, n_store
+
+    WRITE(*,*) 'HALO_MASS_CUT: Number of haloes before cut:', n
+    WRITE(*,*) 'HALO_MASS_CUT: Minimum mass for cut [Msun/h]:', mmin
+    WRITE(*,*) 'HALO_MASS_CUT: Minimum mass for cut [Msun/h]:', mmax
+
+    ! Initially store the initial values of the inputs
+    x_store=x
+    m_store=m
+    n_store=n
+
+    ! Find how many haloes satisfy this cut
+    n=0
+    DO i=1,n_store
+       IF(m_store(i)>mmin .AND. m_store(i)<mmax) THEN
+          n=n+1
+       END IF
+    END DO
+
+    WRITE(*,*) 'HALO_MASS_CUT: Number of haloes after cut:', n
+
+    ! Deallocate and reallocate input arrays
+    DEALLOCATE(x,m)
+    ALLOCATE(x(3,n),m(n))
+
+    ! Now fill up arrays for output
+    j=0
+    DO i=1,n_store
+       IF(m_store(i)>mmin .AND. m_store(i)<mmax) THEN
+          j=j+1
+          x(:,j)=x_store(:,i)
+          m(j)=m_store(i)
+       END IF
+    END DO
+
+    WRITE(*,*) 'HALO_MASS_CUT: Done'
+    WRITE(*,*)
+    
+  END SUBROUTINE halo_mass_cut
+
   SUBROUTINE write_power_spectrum(x,n,L,m,nk,outfile)
 
     ! Write the power spectrum out in some standard format
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x(3,n), L
-    INTEGER, INTENT(IN) :: n, m, nk
+    REAL, INTENT(IN) :: x(3,n)
+    INTEGER, INTENT(IN) :: n
+    REAL, INTENT(IN) :: L
+    INTEGER, INTENT(IN) :: m
+    INTEGER, INTENT(IN) :: nk
     CHARACTER(len=*), INTENT(IN) :: outfile
     INTEGER :: i
     REAL, ALLOCATABLE :: k(:), Pk(:), sig(:)
