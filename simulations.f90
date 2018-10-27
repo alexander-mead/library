@@ -5,6 +5,7 @@ MODULE simulations
   ! Each routine should take particle properties (e.g., positions) as an argument
 
   USE field_operations
+  
   IMPLICIT NONE
 
 CONTAINS
@@ -56,6 +57,22 @@ CONTAINS
     WRITE(*,*)
 
   END SUBROUTINE halo_mass_cut
+
+  SUBROUTINE halo_mass_weights(mmin,mmax,m,w,n)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: mmin, mmax
+    REAL, INTENT(IN) :: m(n)
+    REAL, INTENT(OUT) :: w(n)
+    INTEGER, INTENT(IN) :: n
+    INTEGER :: i
+
+    w=0.
+    DO i=1,n
+       IF(m(i)>mmin .AND. m(i)<mmax) w(i)=1.
+    END DO
+    
+  END SUBROUTINE halo_mass_weights
 
   SUBROUTINE write_power_spectrum(x,n,L,m,nk,outfile)
 
