@@ -69,7 +69,7 @@ CONTAINS
 
     w=0.
     DO i=1,n
-       IF(m(i)>mmin .AND. m(i)<mmax) w(i)=1.
+       IF(m(i)>=mmin .AND. m(i)<mmax) w(i)=1.
     END DO
 
   END SUBROUTINE halo_mass_weights
