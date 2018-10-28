@@ -1069,7 +1069,7 @@ CONTAINS
 
   END FUNCTION Hubble2_simple
 
-  ! This subroutine used to be called slice
+  ! This subroutine was previously called slice
   SUBROUTINE write_slice_ascii(x,n,x1,x2,y1,y2,z1,z2,outfile)
 
     IMPLICIT NONE
@@ -1105,37 +1105,16 @@ CONTAINS
 
   END FUNCTION shot_noise_simple
 
-!!$  REAL FUNCTION shot_noise(u,v,n,m,L)
-!!$
-!!$    ! Calculates shot noise in P_uv(k) [(Mpc/h)^3]
-!!$    ! See appendix in HMx paper
-!!$    ! Note if this is for mass then u = v = mass/mean_mass; mean_mass = total_box_mass/total_box_cells
-!!$    ! TODO: Could be made neater, not dependent on mesh, if u and v were contribution to total field
-!!$    USE array_operations
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: u(n), v(n) ! Contributions to the cells of fields u and v per particle
-!!$    INTEGER, INTENT(IN) :: n ! Number of particles 
-!!$    INTEGER, INTENT(IN) :: m ! Number of mesh cells
-!!$    REAL, INTENT(IN) :: L ! Box size [Mpc/h]
-!!$
-!!$    ! Do the sum of the two fields, making sure to use doubles
-!!$    shot_noise=sum_double(u*v,n)
-!!$
-!!$    ! Multiply through by factors of volume and mesh
-!!$    shot_noise=(L**3)*shot_noise/(REAL(m)**6)
-!!$    
-!!$  END FUNCTION shot_noise
-
   REAL FUNCTION shot_noise(u,v,n,L)
 
     ! Calculates shot noise in P_uv(k) [(Mpc/h)^3]
     ! See appendix in HMx paper
-    ! Note if this is for mass then u = v = mass/total_mass
+    ! Note if this is for mass then u = v = particle_mass/total_mass
     USE array_operations
     IMPLICIT NONE
     REAL, INTENT(IN) :: u(n), v(n) ! Contributions to the total field u and v per particle
-    INTEGER, INTENT(IN) :: n ! Number of particles 
-    REAL, INTENT(IN) :: L ! Box size [Mpc/h]
+    INTEGER, INTENT(IN) :: n       ! Number of particles 
+    REAL, INTENT(IN) :: L          ! Box size [Mpc/h]
 
     ! Do the sum of the two fields, making sure to use doubles
     shot_noise=sum_double(u*v,n)
@@ -1150,7 +1129,7 @@ CONTAINS
     ! Calculate simulation shot noise constant P(k) for different-mass tracers [(Mpc/h)^3]
     USE array_operations
     IMPLICIT NONE
-    REAL, INTENT(IN) :: L ! Box size [Mpc/h]
+    REAL, INTENT(IN) :: L    ! Box size [Mpc/h]
     REAL, INTENT(IN) :: m(n) ! Array of particle masses
     INTEGER, INTENT(IN) :: n ! Number of particles
     REAL :: Nbar
