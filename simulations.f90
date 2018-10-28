@@ -71,7 +71,7 @@ CONTAINS
     DO i=1,n
        IF(m(i)>mmin .AND. m(i)<mmax) w(i)=1.
     END DO
-    
+
   END SUBROUTINE halo_mass_weights
 
   SUBROUTINE write_power_spectrum(x,n,L,m,nk,outfile)
