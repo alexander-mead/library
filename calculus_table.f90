@@ -315,4 +315,36 @@ CONTAINS
 
   END FUNCTION integrate_table
 
+  REAL FUNCTION integrate_table_2D(x,y,F,nx,ny)
+
+    ! A crude integration scheme for tabulated 2D functions
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x(nx), y(ny)
+    REAL, INTENT(IN) :: F(nx,ny)
+    INTEGER, INTENT(IN) :: nx, ny
+    INTEGER :: ix, iy
+    DOUBLE PRECISION :: sum
+    REAL :: dx, dy
+
+    ! Set the sum variable to zero
+    sum=0.
+
+    ! Loop over function, calculate dx, dy, sum to get integral
+    DO iy=1,ny-1
+       
+       dy=y(iy+1)-y(iy)
+       
+       DO ix=1,nx-1
+          
+          dx=x(ix+1)-x(ix)
+
+          sum=sum+dx*dy*(F(ix,iy)+F(ix+1,iy)+F(ix,iy+1)+F(ix+1,iy+1))/4.
+          
+       END DO
+    END DO
+
+    integrate_table_2D=REAL(sum)
+    
+  END FUNCTION integrate_table_2D
+
 END MODULE calculus_table
