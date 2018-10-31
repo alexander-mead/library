@@ -21,6 +21,8 @@ CONTAINS
     INTEGER :: i, j, n_store
 
     WRITE(*,*) 'HALO_MASS_CUT: Number of haloes before cut:', n
+    WRITE(*,*) 'HALO_MASS_CUT: Minimum halo mass before cut [Msun/h]:', MINVAL(m)
+    WRITE(*,*) 'HALO_MASS_CUT: Maximum halo mass before cut [Msun/h]:', MAXVAL(m)
     WRITE(*,*) 'HALO_MASS_CUT: Minimum mass for cut [Msun/h]:', mmin
     WRITE(*,*) 'HALO_MASS_CUT: Maximum mass for cut [Msun/h]:', mmax
 
@@ -53,6 +55,8 @@ CONTAINS
        END IF
     END DO
 
+    WRITE(*,*) 'HALO_MASS_CUT: Minimum halo mass after cut [Msun/h]:', MINVAL(m)
+    WRITE(*,*) 'HALO_MASS_CUT: Maximum halo mass after cut [Msun/h]:', MAXVAL(m)
     WRITE(*,*) 'HALO_MASS_CUT: Done'
     WRITE(*,*)
 
