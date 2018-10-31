@@ -52,7 +52,8 @@ OBJS =  precision.o \
 	field_operations.o \
 	simulations.o \
 	cosmic_emu_stuff.o \
-	Limber
+	Limber.o \
+	HMx
 
 # Default compile option
 all: FFLAGS += -O3 
