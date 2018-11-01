@@ -220,5 +220,44 @@ CONTAINS
     END DO
 
   END SUBROUTINE stupid_index_int
+
+  LOGICAL FUNCTION check_sorted(a,n)
+
+    ! Checks if array 'a' is sorted from highest to lowest
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a(n) ! Input array to check
+    INTEGER, INTENT(IN) :: n ! Number of entried in array
+    INTEGER :: i
+
+    check_sorted=.TRUE.
+    
+    DO i=1,n-1
+       IF(a(i)>a(i+1)) THEN
+          check_sorted=.FALSE.
+          EXIT
+       END IF
+    END DO
+    
+  END FUNCTION check_sorted
+
+  LOGICAL FUNCTION check_sorted_index(a,j,n)
+
+    ! Checks if array indices for 'a' are sorted from highest to lowest
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a(n)    ! Input array to check
+    INTEGER, INTENT(IN) :: j(n) ! Input array indices to check
+    INTEGER, INTENT(IN) :: n    ! Number of entried in array
+    INTEGER :: i
+
+    check_sorted_index=.TRUE.
+    
+    DO i=1,n-1
+       IF(a(j(i))>a(j(i+1))) THEN
+          check_sorted_index=.FALSE.
+          EXIT
+       END IF
+    END DO
+
+  END FUNCTION check_sorted_index
   
 END MODULE sorting
