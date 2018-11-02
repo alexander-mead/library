@@ -30,7 +30,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: n, imeth
 
     IF(imeth==1) THEN
-       CALL selection_sort(a,n)
+       CALL stupid_sort(a,n)
     ELSE IF(imeth==2) THEN
        CALL bubble_sort(a,n)
     ELSE
@@ -46,29 +46,25 @@ CONTAINS
     REAL, INTENT(INOUT) :: a(n)
     INTEGER, INTENT(IN) :: n
     REAL :: hold
-    INTEGER :: i, isort
-
-    ! This is a dodgy module!
-    ! I think it overwrites some of the things
-    ! in the original array somehow!
-    !STOP 'BUBBLE_SORT: This is dodgy, see the source code'
+    INTEGER :: i
+    LOGICAL :: sorted
 
     DO
-       isort=0
+       sorted=.TRUE.
        DO i=1,n-1
           IF(a(i)>a(i+1)) THEN
              hold=a(i+1)
              a(i+1)=a(i)
              a(i)=hold
-             isort=1
+             sorted=.FALSE.
           END IF
        END DO
-       IF(isort==0) EXIT
+       IF(sorted) EXIT
     END DO
 
   END SUBROUTINE bubble_sort
 
-  SUBROUTINE selection_sort(a,n)
+  SUBROUTINE stupid_sort(a,n)
 
     ! I have no idea what this is
     IMPLICIT NONE
@@ -91,7 +87,7 @@ CONTAINS
        a(minl)=hold
     END DO
 
-  END SUBROUTINE selection_sort
+  END SUBROUTINE stupid_sort
 
   SUBROUTINE index_real(a,ind,n,imeth)
     
@@ -259,5 +255,25 @@ CONTAINS
     END DO
 
   END FUNCTION check_sorted_index
+
+  SUBROUTINE reindex(a,j,n)
+
+    ! Reindex the array 'a' with the new indices 'j'
+    REAL, INTENT(INOUT) :: a(n) ! Input array to check
+    INTEGER, INTENT(IN) :: j(n) ! Input array indices to check
+    INTEGER, INTENT(IN) :: n    ! Number of entried in array
+    REAL :: b(n)
+    INTEGER :: i
+    
+    b=a ! Store the input array
+     
+    a=0. ! Delete the input array
+
+    ! Loop over values and reindex
+    DO i=1,n
+       a(i)=b(j(i))
+    END DO
+    
+  END SUBROUTINE reindex
   
 END MODULE sorting
