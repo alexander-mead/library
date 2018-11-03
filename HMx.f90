@@ -1906,17 +1906,17 @@ CONTAINS
        p_2h=p_2h*(1.+(k/hmod%knl))**0.5
     END IF
 
-    ! For some extreme cosmologies frac>1. so this must be added to prevent p_2h<0
-    IF(p_2h<0.) THEN
-       WRITE(*,*) 'P_2H: Halo type 1:', ih(1)
-       WRITE(*,*) 'P_2H: Halo type 1:', ih(2)
-       WRITE(*,*) 'P_2H: k [h/Mpc]:', k
-       WRITE(*,*) 'P_2H: z:', hmod%z
-       WRITE(*,*) 'P_2H: Delta^2_{2H}:', p_2h
-       WRITE(*,*) 'P_2H: Caution! P_2h < 0, this was previously fixed by setting P_2h = 0 explicitly'
-       !p_2h=0.
-       STOP
-    END IF
+!!$    ! For some extreme cosmologies frac>1. so this must be added to prevent p_2h<0
+!!$    IF(p_2h<0.) THEN
+!!$       WRITE(*,*) 'P_2H: Halo type 1:', ih(1)
+!!$       WRITE(*,*) 'P_2H: Halo type 1:', ih(2)
+!!$       WRITE(*,*) 'P_2H: k [h/Mpc]:', k
+!!$       WRITE(*,*) 'P_2H: z:', hmod%z
+!!$       WRITE(*,*) 'P_2H: Delta^2_{2H}:', p_2h
+!!$       WRITE(*,*) 'P_2H: Caution! P_2h < 0, this was previously fixed by setting P_2h = 0 explicitly'
+!!$       !p_2h=0.
+!!$       STOP
+!!$    END IF
 
   END FUNCTION p_2h
 
@@ -2020,7 +2020,7 @@ CONTAINS
           ELSE
              WRITE(*,*) 'P_HM: Two-halo term:', pow_2h
              WRITE(*,*) 'P_1h: One-halo term:', pow_1h
-             STOP 'CALCULATE_HALOMOD_K: Error, either pow_2h or pow_1h is less than zero, which is a problem for the smoothed transition'
+             STOP 'P_HM: Error, either pow_2h or pow_1h is negative, which is a problem for smoothed transition'
           END IF
           
        ELSE
@@ -2043,7 +2043,7 @@ CONTAINS
        
     END IF
 
-    ! If we are adding in compensated voids
+    ! If we are adding in power from voids
     IF(hmod%voids) THEN
        p_hm=p_hm+p_1void(k,hmod)
     END IF
