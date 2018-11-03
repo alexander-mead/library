@@ -123,9 +123,10 @@ MODULE HMx
   REAL, PARAMETER :: acc_win=1e-3           ! Window-function integration accuracy parameter
   INTEGER, PARAMETER :: imeth_win=12        ! Window-function integration method
   INTEGER, PARAMETER :: winint_order=3      ! Window-function integration order
-  REAL, PARAMETER :: winint_test_seconds=2. ! Approximately how many seconds should each timing test take
+  REAL, PARAMETER :: winint_test_seconds=1. ! Approximately how many seconds should each timing test take
   INTEGER, PARAMETER :: nmeth_win=13        ! Number of different winint methods
-  INTEGER, PARAMETER :: nlim_bumps=3        ! Do the bumps approximation after this number of bumps
+  INTEGER, PARAMETER :: nlim_bumps=2        ! Do the bumps approximation after this number of bumps
+  LOGICAL, PARAMETER :: winint_exit=.FALSE. ! Exit when the contributions to the integral become small
     
   ! Halomodel
   LOGICAL, PARAMETER :: slow_hmod=.FALSE.            ! Choose to do the slower hmod initialisation (unnecessary calculations)  
@@ -549,18 +550,18 @@ CONTAINS
           hmod%i1hdamp=3 ! k^4 at large scales for one-halo term
           hmod%ip2h=3    ! Linear theory with damped wiggles
           hmod%i2hdamp=2 ! Change back to Mead (2015) model for two-halo damping
-          hmod%Dv0=446.8
-          hmod%Dv1=-0.3237
-          hmod%dc0=1.6145
-          hmod%dc1=0.007774
-          hmod%eta0=0.5403
-          hmod%eta1=0.2345
-          hmod%f0=0.09563
-          hmod%f1=4.1524
-          hmod%ks=0.6902
-          hmod%As=3.020
-          hmod%alp0=3.072
-          hmod%alp1=1.848
+          hmod%Dv0=444.87
+          hmod%Dv1=-0.3170
+          hmod%dc0=1.6077
+          hmod%dc1=0.01461
+          hmod%eta0=0.5739
+          hmod%eta1=0.2705
+          hmod%f0=0.08974
+          hmod%f1=3.698
+          hmod%ks=0.6358
+          hmod%As=3.0745
+          hmod%alp0=3.129
+          hmod%alp1=1.850
        ELSE IF(ihm==28) THEN
           ! One-parameter baryon model
           hmod%one_parameter_baryons=.TRUE.
@@ -803,11 +804,6 @@ CONTAINS
        ! Calculate missing mass things if necessary
 
        IF(hmod%ip2h_corr==2 .OR. hmod%ip2h_corr==3) THEN
-
-          !IF(slow_hmod) hmod%gmin=1.-integrate_hmod(hmod%nu(1),hmod%large_nu,g_nu,hmod,hmod%acc_HMx,3)
-          !IF(slow_hmod) hmod%gmax=integrate_hmod(hmod%nu(hmod%n),hmod%large_nu,g_nu,hmod,hmod%acc_HMx,3)
-          !hmod%gbmin=1.-integrate_hmod(hmod%nu(1),hmod%large_nu,gb_nu,hmod,hmod%acc_HMx,3)
-          !IF(slow_hmod) hmod%gbmax=integrate_hmod(hmod%nu(hmod%n),hmod%large_nu,gb_nu,hmod,hmod%acc_HMx,3)
 
           IF(slow_hmod) hmod%gmin=1.-mass_interval(hmod%nu(1),hmod%large_nu,hmod)
           IF(slow_hmod) hmod%gmax=mass_interval(hmod%nu(hmod%n),hmod%large_nu,hmod)
@@ -1187,7 +1183,6 @@ CONTAINS
 
     ! Initialise the dewiggled power spectrum
     IMPLICIT NONE
-    !REAL, INTENT(IN) :: z
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: kv(4), pv(4), sigv, a
@@ -1537,7 +1532,7 @@ CONTAINS
           END DO
 
        ! If linear theory is used for two-halo term we need to recalculate the window functions for the two-halo term with k=0 fixed
-       ! TODO: Include what to do with ip2h=1,3 properly
+       ! TODO: Include what to do with ip2h=1,3 properly for non-total-matter fields
        IF(hmod%ip2h==1 .OR. hmod%ip2h==3 .OR. hmod%halo_free_gas==7) THEN
 
           CALL reinit_windows(itype,nt,wk,hmod%n,hmod,cosm)
@@ -5490,7 +5485,7 @@ CONTAINS
        sum=sum+w
 
        ! Exit if the contribution to the sum is very tiny, this seems to be necessary to prevent crashes
-       IF(ABS(w)<acc*ABS(sum)) EXIT
+       IF(winint_exit .AND. ABS(w)<acc*ABS(sum)) EXIT
 
     END DO
 
