@@ -24,6 +24,9 @@ MODULE HMx
   PUBLIC :: set_halo_type
   PUBLIC :: halo_type
   PUBLIC :: M_nu
+  PUBLIC :: nu_M
+  PUBLIC :: mean_bias
+  PUBLIC :: mean_nu
   PUBLIC :: virial_radius
   PUBLIC :: convert_mass_definitions
   PUBLIC :: win_type
@@ -118,9 +121,11 @@ MODULE HMx
 
   ! Window integration
   REAL, PARAMETER :: acc_win=1e-3           ! Window-function integration accuracy parameter
-  INTEGER, PARAMETER :: imeth_win=3         ! Window-function integration method
+  INTEGER, PARAMETER :: imeth_win=12        ! Window-function integration method
   INTEGER, PARAMETER :: winint_order=3      ! Window-function integration order
   REAL, PARAMETER :: winint_test_seconds=2. ! Approximately how many seconds should each timing test take
+  INTEGER, PARAMETER :: nmeth_win=13        ! Number of different winint methods
+  INTEGER, PARAMETER :: nlim_bumps=3        ! Do the bumps approximation after this number of bumps
     
   ! Halomodel
   LOGICAL, PARAMETER :: slow_hmod=.FALSE.            ! Choose to do the slower hmod initialisation (unnecessary calculations)  
@@ -683,6 +688,7 @@ CONTAINS
        !hmod%halo_HI=3 ! Exponentially cored polynomial (Villaescusa-Navarro et al. 1804.09180)
        !hmod%halo_HI=2 ! Delta function
        hmod%halo_HI=5 ! Modified NFW (Padmanabhan & Refregier 2017; 1607.01021)
+       !hmod%ibias=3
     ELSE IF(ihm==26) THEN
        ! Delta function mass function
        hmod%ip2h=2        ! Standard two-halo term
@@ -798,10 +804,15 @@ CONTAINS
 
        IF(hmod%ip2h_corr==2 .OR. hmod%ip2h_corr==3) THEN
 
-          IF(slow_hmod) hmod%gmin=1.-integrate_hmod(hmod%nu(1),hmod%large_nu,g_nu,hmod,hmod%acc_HMx,3)
-          IF(slow_hmod) hmod%gmax=integrate_hmod(hmod%nu(hmod%n),hmod%large_nu,g_nu,hmod,hmod%acc_HMx,3)
-          hmod%gbmin=1.-integrate_hmod(hmod%nu(1),hmod%large_nu,gb_nu,hmod,hmod%acc_HMx,3)
-          IF(slow_hmod) hmod%gbmax=integrate_hmod(hmod%nu(hmod%n),hmod%large_nu,gb_nu,hmod,hmod%acc_HMx,3)
+          !IF(slow_hmod) hmod%gmin=1.-integrate_hmod(hmod%nu(1),hmod%large_nu,g_nu,hmod,hmod%acc_HMx,3)
+          !IF(slow_hmod) hmod%gmax=integrate_hmod(hmod%nu(hmod%n),hmod%large_nu,g_nu,hmod,hmod%acc_HMx,3)
+          !hmod%gbmin=1.-integrate_hmod(hmod%nu(1),hmod%large_nu,gb_nu,hmod,hmod%acc_HMx,3)
+          !IF(slow_hmod) hmod%gbmax=integrate_hmod(hmod%nu(hmod%n),hmod%large_nu,gb_nu,hmod,hmod%acc_HMx,3)
+
+          IF(slow_hmod) hmod%gmin=1.-mass_interval(hmod%nu(1),hmod%large_nu,hmod)
+          IF(slow_hmod) hmod%gmax=mass_interval(hmod%nu(hmod%n),hmod%large_nu,hmod)
+          hmod%gbmin=1.-bias_interval(hmod%nu(1),hmod%large_nu,hmod)
+          IF(slow_hmod) hmod%gbmax=bias_interval(hmod%nu(hmod%n),hmod%large_nu,hmod)
 
           IF(verbose) THEN          
              IF(slow_hmod) WRITE(*,*) 'INIT_HALOMOD: Missing g(nu) at low end:', REAL(hmod%gmin)
@@ -861,6 +872,61 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_halomod
+
+  REAL FUNCTION mass_interval(nu1,nu2,hmod)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: nu1, nu2
+    TYPE(halomod), INTENT(INOUT) :: hmod
+    INTEGER, PARAMETER :: iorder=3
+    
+    mass_interval=integrate_hmod(nu1,nu2,g_nu,hmod,hmod%acc_HMx,iorder)
+
+  END FUNCTION mass_interval
+
+  REAL FUNCTION bias_interval(nu1,nu2,hmod)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: nu1, nu2
+    TYPE(halomod), INTENT(INOUT) :: hmod
+    INTEGER, PARAMETER :: iorder=3
+    
+    bias_interval=integrate_hmod(nu1,nu2,gb_nu,hmod,hmod%acc_HMx,iorder)
+
+  END FUNCTION bias_interval
+
+  REAL FUNCTION nu_interval(nu1,nu2,hmod)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: nu1, nu2
+    TYPE(halomod), INTENT(INOUT) :: hmod
+    INTEGER, PARAMETER :: iorder=3
+    
+    nu_interval=integrate_hmod(nu1,nu2,nug_nu,hmod,hmod%acc_HMx,iorder)
+
+  END FUNCTION nu_interval
+
+  REAL FUNCTION mean_bias(nu1,nu2,hmod)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: nu1, nu2
+    TYPE(halomod), INTENT(INOUT) :: hmod
+    INTEGER, PARAMETER :: iorder=3
+    
+    mean_bias=bias_interval(nu1,nu2,hmod)/mass_interval(nu1,nu2,hmod)
+
+  END FUNCTION mean_bias
+
+  REAL FUNCTION mean_nu(nu1,nu2,hmod)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: nu1, nu2
+    TYPE(halomod), INTENT(INOUT) :: hmod
+    INTEGER, PARAMETER :: iorder=3
+    
+    mean_nu=nu_interval(nu1,nu2,hmod)/mass_interval(nu1,nu2,hmod)
+
+  END FUNCTION mean_nu
 
   SUBROUTINE print_halomod(hmod,cosm,verbose)
 
@@ -1681,7 +1747,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm    
     REAL :: sigv, frac, rhom
     REAL :: nu, m, m0, wki(2), b0, wk0(2), nu0
-    REAL :: m1, m2, b1, b2, g1, g2, u1, u2, nu1, nu2, F(n,n), Inl, Y
+    REAL :: m1, m2, b1, b2, g1, g2, u1, u2, nu1, nu2, F(n,n), Inl
     REAL :: integrand1(n,2), integrand2(n,2)
     REAL :: sum1(2), sum2(2)
     INTEGER :: i, j
@@ -1807,7 +1873,7 @@ CONTAINS
                 g1=g_nu(nu1,hmod)               
                 u1=(rhom*wk(i,1)/m1)
                 
-                F(i,j)=Y_NL(m1,m2,k)*b1*b2*g1*g2*u1*u2
+                F(i,j)=B_NL(m1,m2,k,hmod%z)*b1*b2*g1*g2*u1*u2
                 
              END DO
           END DO
@@ -2050,27 +2116,26 @@ CONTAINS
 
   END FUNCTION p_1void
 
-  REAL FUNCTION Y_NL(m1,m2,k)
+  REAL FUNCTION B_NL(m1,m2,k,z)
 
     IMPLICIT NONE
     REAL, INTENT(IN) :: m1, m2
-    REAL, INTENT(IN) :: k
-    REAL :: crap
-
-    REAL, PARAMETER :: A=0.994034
-    REAL, PARAMETER :: k0=1.00639
-    REAL, PARAMETER :: k1=0.944966
+    REAL, INTENT(IN) :: k, z
+    REAL :: A, k0, crap
+    
+    REAL, PARAMETER :: zs(4)=[0.0,0.5,1.0,2.0]
+    REAL, PARAMETER :: As(4)=[1.80,2.07,2.20,3.32]
+    REAL, PARAMETER :: ks(4)=[1.60,1.29,1.25,1.81]
 
     crap=m1
     crap=m2
 
-    !Y_NL=(A*(exp(k/k0)-1.))*exp(-(k/k0)**2)
-    !Y_NL=A*(k/k0)*(1.-(k/(2.*k1))**2)
-    Y_NL=A*(k/k0)*exp(-(k/(2.*k1))**2)
+    k0=Lagrange_Polynomial(z,3,zs,ks)
+    A=Lagrange_Polynomial(z,3,zs,As)
 
-    IF(Y_NL<-1.) Y_NL=-1.
+    B_NL=A*(k/k0)*(exp(-(k/(2.*k0))**2))
     
-  END FUNCTION Y_NL
+  END FUNCTION B_NL
   
   SUBROUTINE halo_diagnostics(hmod,cosm,dir)
 
@@ -2903,11 +2968,10 @@ CONTAINS
     
   END FUNCTION nu_M
 
-  FUNCTION M_nu(nu,hmod)
+  REAL FUNCTION M_nu(nu,hmod)
 
     !Calculates M(nu) where M is the halo mass and nu is the peak height
     IMPLICIT NONE
-    REAL :: M_nu
     REAL, INTENT(IN) :: nu
     TYPE(halomod), INTENT(INOUT) :: hmod
 
@@ -5005,39 +5069,89 @@ CONTAINS
 
   END FUNCTION win_norm
 
-  FUNCTION winint(k,rmin,rmax,rv,rs,p1,p2,irho,imeth)
+  SUBROUTINE winint_speed_tests(k,nk,rmin,rmax,rv,rs,p1,p2,irho)
 
-    ! Calculates W(k,M)
     IMPLICIT NONE
-    REAL :: winint
-    REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
-    INTEGER, INTENT(IN) :: irho, imeth
+    REAL, INTENT(IN) :: k(nk), rmin, rmax, rv, rs, p1, p2
+    INTEGER, INTENT(IN) :: nk, irho
+    CHARACTER(len=256) :: base, ext, outfile
+    INTEGER :: j, i, ii, imeth, n, ntime
+    LOGICAL :: timing
+    REAL :: t1, t2, w
 
-    ! Integration method
-    ! imeth = 1 - normal integration
-    ! imeth = 2 - bumps with normal integration
-    ! imeth = 3 - storage integration
-    ! imeth = 4 - bumps with storage integration
-    ! imeth = 5 - linear bumps
-    ! imeth = 6 - cubic bumps
-    ! imeth = 7 - Hybrid with storage and cubic bumps
+    base='winint/results_'
+    ext='.dat'
 
-    ! Bump methods go crazy with some star profiles (those that drop too fast)
-    ! You need to make sure that the rmax for the integration does not extend too far out
+    ! j = 1: Time calculation
+    ! j = 2: Write calculation out
+    DO j=1,2
 
-    ! The hybrid method seems not to be faster for practical calculations here
+       timing=.FALSE.
+       IF(j==2) THEN
+          timing=.TRUE.
+          WRITE(*,*) 'WININT_SPEED_TESTS: Doing this many evaluations for timing test:', ntime
+          WRITE(*,*)
+       END IF
 
-    IF(imeth==1) THEN
-       winint=winint_normal(rmin,rmax,k,rmin,rmax,rv,rs,p1,p2,irho,winint_order,acc_win)
-    ELSE IF(imeth==2 .OR. imeth==4 .OR. imeth==5 .OR. imeth==6 .OR. imeth==7) THEN
-       winint=winint_bumps(k,rmin,rmax,rv,rs,p1,p2,irho,winint_order,acc_win,imeth)
-    ELSE IF(imeth==3) THEN
-       winint=winint_store(rmin,rmax,k,rmin,rmax,rv,rs,p1,p2,irho,winint_order,acc_win)
-    ELSE
-       STOP 'WININT: Error, imeth not specified correctly'
-    END IF
+       DO imeth=1,nmeth_win
 
-  END FUNCTION winint
+          WRITE(*,*) 'WININT_SPEED_TESTS: Method:', imeth
+          IF(imeth==1)  WRITE(*,*) 'WININT_SPEED_TESTS: Simple integration'
+          IF(imeth==2)  WRITE(*,*) 'WININT_SPEED_TESTS: Simple integration over bumps'
+          IF(imeth==3)  WRITE(*,*) 'WININT_SPEED_TESTS: Standard intergation'
+          IF(imeth==4)  WRITE(*,*) 'WININT_SPEED_TESTS: Standard integration over bumps'
+          IF(imeth==5)  WRITE(*,*) 'WININT_SPEED_TESTS: Constant approximation for bumps'
+          IF(imeth==6)  WRITE(*,*) 'WININT_SPEED_TESTS: Linear approximation for bumps'
+          IF(imeth==7)  WRITE(*,*) 'WININT_SPEED_TESTS: Quadratic approximation for bumps'
+          IF(imeth==8)  WRITE(*,*) 'WININT_SPEED_TESTS: Cubic approximation for bumps'
+          IF(imeth==9)  WRITE(*,*) 'WININT_SPEED_TESTS: Hybrid with constant approximation for bumps'
+          IF(imeth==10) WRITE(*,*) 'WININT_SPEED_TESTS: Hybrid with linear approximation for bumps'
+          IF(imeth==11) WRITE(*,*) 'WININT_SPEED_TESTS: Hybrid with quadratic approximation for bumps'
+          IF(imeth==12) WRITE(*,*) 'WININT_SPEED_TESTS: Hybrid with cubic approximation for bumps'
+          IF(imeth==13) WRITE(*,*) 'WININT_SPEED_TESTS: Full hybrid'
+
+          IF(timing .EQV. .FALSE.) THEN
+             outfile=number_file(base,imeth,ext)
+             WRITE(*,*) 'WININT_SPEED_TESTS: Writing data: ', TRIM(outfile)
+             OPEN(7,file=outfile)            
+             n=1
+             IF(imeth==1) CALL cpu_time(t1)
+          ELSE
+             CALL cpu_time(t1)
+             n=ntime
+          END IF
+
+          ! Loop over number of iterations
+          DO ii=1,n
+
+             ! Loop over wave number and do integration
+             DO i=1,nk
+                w=winint(k(i),rmin,rmax,rv,rs,p1,p2,irho,imeth)/normalisation(rmin,rmax,rv,rs,p1,p2,irho)
+                IF(.NOT. timing) THEN
+                   WRITE(7,*) k(i), w
+                END IF
+             END DO
+
+          END DO
+
+          IF(.NOT. timing) THEN
+             CLOSE(7)
+             IF(imeth==1) THEN
+                CALL cpu_time(t2)
+                ntime=CEILING(winint_test_seconds/(t2-t1))
+             END IF
+          ELSE
+             CALL cpu_time(t2)
+             WRITE(*,fmt='(A30,F10.5)') 'WININT_SPEED_TESTS: Time [s]:', t2-t1
+          END IF
+
+          WRITE(*,*)
+
+       END DO
+
+    END DO
+
+  END SUBROUTINE winint_speed_tests
 
   SUBROUTINE winint_diagnostics(rmin,rmax,rv,rs,p1,p2,irho,outfile)
 
@@ -5084,6 +5198,47 @@ CONTAINS
     
   END SUBROUTINE winint_diagnostics
 
+  FUNCTION winint(k,rmin,rmax,rv,rs,p1,p2,irho,imeth)
+
+    ! Calculates W(k,M)
+    IMPLICIT NONE
+    REAL :: winint
+    REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
+    INTEGER, INTENT(IN) :: irho, imeth
+
+    ! Integration method
+    ! imeth =  1: Simple integration
+    ! imeth =  2: Bumps with simple integration
+    ! imeth =  3: Standard integration
+    ! imeth =  4: Bumps with standard integration
+!!$    ! imeth =  5: Linear bumps
+!!$    ! imeth =  6: Cubic bumps
+!!$    ! imeth =  7: Hybrid with standard integration and cubic bumps
+!!$    ! imeth =  8: Quadratic bumps
+!!$    ! imeth =  9: Hybrid with standard integration and linear bumps
+!!$    ! imeth = 10: Hybrid with standard integration and quadratic bumps
+    ! imeth =  5: Constant approximation for bumps
+    ! imeth =  6: Linear approximation for bumps
+    ! imeth =  7: Quadratic approximation for bumps
+    ! imeth =  8: Cubic approximation for bumps
+    ! imeth =  9: Hybrid with constant approximation for bumps
+    ! imeth = 10: Hybrid with linear approximation for bumps
+    ! imeth = 11: Hybrid with quadratic approximation for bumps
+    ! imeth = 12: Hybrid with cubic approximation for bumps
+
+    ! Bump methods go crazy with some star profiles (those that drop too fast)
+    ! You need to make sure that the rmax for the integration does not extend too far out
+
+    IF(imeth==1) THEN
+       winint=winint_normal(rmin,rmax,k,rmin,rmax,rv,rs,p1,p2,irho,winint_order,acc_win)
+    ELSE IF(imeth==3) THEN
+       winint=winint_store(rmin,rmax,k,rmin,rmax,rv,rs,p1,p2,irho,winint_order,acc_win)
+    ELSE
+       winint=winint_bumps(k,rmin,rmax,rv,rs,p1,p2,irho,winint_order,acc_win,imeth)
+    END IF
+
+  END FUNCTION winint
+  
   FUNCTION winint_normal(a,b,k,rmin,rmax,rv,rs,p1,p2,irho,iorder,acc)
 
     ! Integration routine using 'normal' method to calculate the normalised halo FT
@@ -5272,97 +5427,69 @@ CONTAINS
 
   FUNCTION winint_bumps(k,rmin,rmax,rv,rs,p1,p2,irho,iorder,acc,imeth)
 
-    !Integration routine to calculate the normalised halo FT
+    ! Integration routine to calculate the normalised halo FT
     IMPLICIT NONE
     REAL :: winint_bumps
     REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
     INTEGER, INTENT(IN) :: irho
     INTEGER, INTENT(IN) :: iorder, imeth
     REAL, INTENT(IN) :: acc
-    REAL :: sum, w, rn
+    REAL :: sum, w
     REAL :: r1, r2
-    REAL :: a3, a2, a1, a0
-    REAL :: x1, x2, x3, x4
-    REAL :: y1, y2, y3, y4
     INTEGER :: i, n
 
-    INTEGER, PARAMETER :: nlim=3 ! Do the bumps approximation after this number of bumps
-
-    !This MUST be set to zero for this routine
+    ! This MUST be set to zero for this routine
     IF(rmin .NE. 0.) STOP 'WININT_BUMPS: Error, rmin must be zero'
 
-    !Calculate the number of nodes of sinc(k*rmax) for 0<=r<=rmax
+    ! Calculate the number of nodes of sinc(k*rmax) for 0<=r<=rmax
     n=FLOOR(k*rmax/pi)
 
-    !Set the sum variable to zero
+    ! Set the sum variable to zero
     sum=0.
 
-    !Integrate over each chunk between nodes separately
+    ! Integrate over each chunk between nodes separately
     DO i=0,n
 
-       !Set the lower integration limit
+       ! Set the lower integration limit
        IF(k==0.) THEN
-          !Special case when k=0 to avoid division by zero
+          ! Special case when k=0 to avoid division by zero
           r1=0.
        ELSE
           r1=i*pi/k
        END IF
 
-       !Set the upper integration limit
+       ! Set the upper integration limit
        IF(k==0. .OR. i==n) THEN
-          !Special case when on last section because end is rmax, not a node!
+          ! Special case when on last section because end is rmax, not a node!
           r2=rmax
        ELSE
           r2=(i+1)*pi/k
        END IF
 
-       !WRITE(*,*) i, REAL(r1), REAL(r2)
-
-       !Now do the integration along a section
+       ! Now do the integration along a section
        IF(imeth==2) THEN
           w=winint_normal(r1,r2,k,rmin,rmax,rv,rs,p1,p2,irho,iorder,acc)
-       ELSE IF(k==0. .OR. imeth==4 .OR. (imeth==7 .AND. n<=nlim)) THEN
+       ELSE IF(i==0 .OR. i==n .OR. k==0. .OR. imeth==4) THEN
           w=winint_store(r1,r2,k,rmin,rmax,rv,rs,p1,p2,irho,iorder,acc)
-       ELSE IF(imeth==5 .OR. imeth==6 .OR. imeth==7) THEN
-          IF(i==0 .OR. i==n) THEN
-             !First piece done 'normally' because otherwise /0 occurs in cubic
-             !Last piece will not generally be over one full oscillation
-             w=winint_store(r1,r2,k,rmin,rmax,rv,rs,p1,p2,irho,iorder,acc)
-          ELSE
-             IF(imeth==5) THEN
-                !Linear approximation to integral between nodes - see notes
-                !All results from the analytic integral of a linear polynomial vs. one sine oscillation
-                rn=pi*(2*i+1)/(2.*k)
-                w=(2./k**2)*winint_integrand(rn,rmin,rmax,rv,rs,p1,p2,irho)*((-1.)**i)/rn !Note there is no sinc here
-             ELSE IF(imeth==6 .OR. (imeth==7 .AND. n>nlim)) THEN
-                !Cubic approximation to integral between nodes - see notes
-                !All results from the analytic integral of a cubic polynomial vs. one sine oscillation
-                x1=r1 !Beginning
-                x2=r1+1.*(r2-r1)/3. !Middle
-                x3=r1+2.*(r2-r1)/3. !Middle
-                x4=r2 !End
-                y1=winint_integrand(x1,rmin,rmax,rv,rs,p1,p2,irho)/x1 !Note there is no sinc here
-                y2=winint_integrand(x2,rmin,rmax,rv,rs,p1,p2,irho)/x2 !Note there is no sinc here
-                y3=winint_integrand(x3,rmin,rmax,rv,rs,p1,p2,irho)/x3 !Note there is no sinc here
-                y4=winint_integrand(x4,rmin,rmax,rv,rs,p1,p2,irho)/x4 !Note there is no sinc here
-                CALL fix_cubic(a3,a2,a1,a0,x1,y1,x2,y2,x3,y3,x4,y4)
-                w=-6.*a3*(r2+r1)-4.*a2
-                w=w+(k**2)*(a3*(r2**3+r1**3)+a2*(r2**2+r1**2)+a1*(r2+r1)+2.*a0)
-                w=w*((-1)**i)/k**4
-             ELSE
-                STOP 'WININT_BUMPS: Error, imeth specified incorrectly'
-             END IF
-          END IF
+       ELSE IF(imeth==13) THEN
+          w=winint_hybrid(r1,r2,i,k,rmin,rmax,rv,rs,p1,p2,irho,iorder,acc)
        ELSE
-          STOP 'WININT_BUMPS: Error, imeth specified incorrectly'
+          IF(imeth==5 .OR. (imeth==9 .AND. n>nlim_bumps)) THEN
+             w=winint_approx(r1,r2,i,k,rmin,rmax,rv,rs,p1,p2,irho,iorder=0)
+          ELSE IF(imeth==6 .OR. (imeth==10 .AND. n>nlim_bumps)) THEN
+             w=winint_approx(r1,r2,i,k,rmin,rmax,rv,rs,p1,p2,irho,iorder=1)
+          ELSE IF(imeth==7 .OR. (imeth==11 .AND. n>nlim_bumps)) THEN
+             w=winint_approx(r1,r2,i,k,rmin,rmax,rv,rs,p1,p2,irho,iorder=2)
+          ELSE IF(imeth==8 .OR. (imeth==12 .AND. n>nlim_bumps)) THEN
+             w=winint_approx(r1,r2,i,k,rmin,rmax,rv,rs,p1,p2,irho,iorder=3)
+          ELSE
+             w=winint_store(r1,r2,k,rmin,rmax,rv,rs,p1,p2,irho,iorder,acc)
+          END IF
        END IF
-
-       !WRITE(*,*) i, REAL(r1), REAL(r2), REAL(w)
 
        sum=sum+w
 
-       !Exit if the contribution to the sum is very tiny
-       !This seems to be necessary to prevent crashes
+       ! Exit if the contribution to the sum is very tiny, this seems to be necessary to prevent crashes
        IF(ABS(w)<acc*ABS(sum)) EXIT
 
     END DO
@@ -5370,6 +5497,114 @@ CONTAINS
     winint_bumps=sum
 
   END FUNCTION winint_bumps
+
+  REAL FUNCTION winint_approx(rn,rm,i,k,rmin,rmax,rv,rs,p1,p2,irho,iorder)
+
+    ! Approximate forms for the integral over the sine bump times a polynomial
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: rn, rm
+    INTEGER, INTENT(IN) :: i
+    REAL, INTENT(IN) :: k
+    REAL, INTENT(IN) :: rmin, rmax
+    REAL, INTENT(IN) :: rv, rs, p1, p2
+    INTEGER, INTENT(IN) :: irho
+    INTEGER, INTENT(IN) :: iorder
+    REAL :: x0, x1, x2, x3
+    REAL :: y0, y1, y2, y3
+    REAL :: a0, a1, a2, a3
+    REAL :: w
+    
+    IF(iorder==0) THEN
+       x0=(rn+rm)/2. ! Middle
+    ELSE IF(iorder==1) THEN
+       x0=rn ! Beginning
+       x1=rm ! End
+    ELSE IF(iorder==2) THEN
+       x0=rn ! Beginning
+       x1=(rn+rm)/2. ! Middle
+       x2=rm ! End
+    ELSE IF(iorder==3) THEN
+       x0=rn ! Beginning
+       x1=rn+1.*(rm-rn)/3. ! Middle
+       x2=rn+2.*(rm-rn)/3. ! Middle
+       x3=rm ! End
+    ELSE
+       STOP 'WININT_APPROX: Error, iorder specified incorrectly'
+    END IF       
+
+    y0=winint_integrand(x0,rmin,rmax,rv,rs,p1,p2,irho)/x0
+    IF(iorder==1 .OR. iorder==2 .OR. iorder==3) y1=winint_integrand(x1,rmin,rmax,rv,rs,p1,p2,irho)/x1
+    IF(iorder==2 .OR. iorder==3) y2=winint_integrand(x2,rmin,rmax,rv,rs,p1,p2,irho)/x2
+    IF(iorder==3) y3=winint_integrand(x3,rmin,rmax,rv,rs,p1,p2,irho)/x3
+
+    IF(iorder==0) THEN
+       a0=y0
+    ELSE IF(iorder==1) THEN
+       CALL fix_line(a1,a0,x0,y0,x1,y1)
+    ELSE IF(iorder==2) THEN
+       CALL fix_quadratic(a2,a1,a0,x0,y0,x1,y1,x2,y2)
+    ELSE IF(iorder==3) THEN
+       CALL fix_cubic(a3,a2,a1,a0,x0,y0,x1,y1,x2,y2,x3,y3)
+    ELSE
+       STOP 'WININT_APPROX: Error, iorder specified incorrectly'
+    END IF
+
+    w=2.*a0
+    IF(iorder==1 .OR. iorder==2 .OR. iorder==3) w=w+(rm+rn)*a1
+    IF(iorder==2 .OR. iorder==3) w=w+(rm**2+rn**2-4./k**2)*a2
+    IF(iorder==3) w=w+(rm**3+rn**3-6.*(rm+rn)/k**2)*a3
+
+    w=((-1)**i)*w/k**2
+
+    winint_approx=w
+    
+  END FUNCTION winint_approx
+
+  REAL FUNCTION winint_hybrid(rn,rm,i,k,rmin,rmax,rv,rs,p1,p2,irho,iorder,acc)
+
+    ! An attempt to do an automatic combination of approximation and proper integration
+    ! It turned out to be very slow
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: rn, rm
+    INTEGER, INTENT(IN) :: i
+    REAL, INTENT(IN) :: k
+    REAL, INTENT(IN) :: rmin, rmax
+    REAL, INTENT(IN) :: rv, rs, p1, p2
+    INTEGER, INTENT(IN) :: irho
+    INTEGER, INTENT(IN) :: iorder
+    REAL, INTENT(IN) :: acc
+    REAL :: x0, x1, x2, x3
+    REAL :: y0, y1, y2, y3
+    REAL :: a0, a1, a2, a3
+    REAL :: w, rmid, epsa0
+    
+    REAL, PARAMETER :: eps=1e-2
+
+    rmid=(rn+rm)/2.
+    
+    x0=rn
+    x1=rn+1.*(rm-rn)/3.
+    x2=rn+2.*(rm-rn)/3.
+    x3=rm
+
+    y0=winint_integrand(x0,rmin,rmax,rv,rs,p1,p2,irho)/x0
+    y1=winint_integrand(x1,rmin,rmax,rv,rs,p1,p2,irho)/x1
+    y2=winint_integrand(x2,rmin,rmax,rv,rs,p1,p2,irho)/x2
+    y3=winint_integrand(x3,rmin,rmax,rv,rs,p1,p2,irho)/x3
+
+    CALL fix_cubic(a3,a2,a1,a0,x0,y0,x1,y1,x2,y2,x3,y3)
+
+    epsa0=eps*a0
+    IF(ABS(a3*rmid**3)<epsa0 .AND. ABS(a2*rmid**2)<epsa0 .AND. ABS(a1*rmid)<epsa0) THEN
+       w=(rm**3+rn**3-6.*(rm+rn)/k**2)*a3+(rm**2+rn**2-4./k**2)*a2+(rm+rn)*a1+2.*a0
+       w=w*(-1)**i
+    ELSE
+       w=winint_store(rn,rm,k,rmin,rmax,rv,rs,p1,p2,irho,iorder,acc)
+    END IF
+
+    winint_hybrid=w
+    
+  END FUNCTION winint_hybrid
 
   FUNCTION winint_integrand(r,rmin,rmax,rv,rs,p1,p2,irho)
 
@@ -5744,6 +5979,17 @@ CONTAINS
     gb_nu=g_nu(nu,hmod)*b_nu(nu,hmod)
 
   END FUNCTION gb_nu
+
+  REAL FUNCTION nug_nu(nu,hmod)
+
+    ! g(nu) times b(nu)
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: nu
+    TYPE(halomod), INTENT(INOUT) :: hmod
+
+    nug_nu=nu*g_nu(nu,hmod)
+
+  END FUNCTION nug_nu
 
   FUNCTION wk_isothermal(x)
 
@@ -6491,83 +6737,5 @@ CONTAINS
     scatter_integrand=wk(1)*wk(2)*pc
     
   END FUNCTION scatter_integrand
-
-  SUBROUTINE winint_speed_tests(k,nk,rmin,rmax,rv,rs,p1,p2,irho)
-
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: k(nk), rmin, rmax, rv, rs, p1, p2
-    INTEGER, INTENT(IN) :: nk, irho
-    CHARACTER(len=256) :: base, ext, outfile
-    INTEGER :: j, i, ii, imeth, n, ntime
-    LOGICAL :: timing
-    REAL :: t1, t2, w
-
-    base='winint/results_'
-    ext='.dat'
-
-    !j=1 - Time calculation
-    !j=2 - Write calculation out
-    DO j=1,2
-
-       timing=.FALSE.
-       IF(j==2) THEN
-          timing=.TRUE.
-          WRITE(*,*) 'WININT_SPEED_TESTS: Doing this many evaluations for timing test:', ntime
-          WRITE(*,*)
-       END IF
-
-       DO imeth=1,7
-
-          WRITE(*,*) 'WININT_SPEED_TESTS: Method:', imeth
-          IF(imeth==1) WRITE(*,*) 'WININT_SPEED_TESTS: winint_normal'
-          IF(imeth==2) WRITE(*,*) 'WININT_SPEED_TESTS: winint_normal - bumps'
-          IF(imeth==3) WRITE(*,*) 'WININT_SPEED_TESTS: winint_store'
-          IF(imeth==4) WRITE(*,*) 'WININT_SPEED_TESTS: winint_store - bumps'
-          IF(imeth==5) WRITE(*,*) 'WININT_SPEED_TESTS: linear - bumps'
-          IF(imeth==6) WRITE(*,*) 'WININT_SPEED_TESTS: cubic - bumps'
-          IF(imeth==7) WRITE(*,*) 'WININT_SPEED_TESTS: hybrid'
-
-          IF(timing .EQV. .FALSE.) THEN
-             outfile=number_file(base,imeth,ext)
-             WRITE(*,*) 'WININT_SPEED_TESTS: Writing data: ', TRIM(outfile)
-             OPEN(7,file=outfile)            
-             n=1
-             IF(imeth==1) CALL cpu_time(t1)
-          ELSE
-             CALL cpu_time(t1)
-             n=ntime
-          END IF
-
-          ! Loop over number of iterations
-          DO ii=1,n
-
-             ! Loop over wave number and do integration
-             DO i=1,nk
-                w=winint(k(i),rmin,rmax,rv,rs,p1,p2,irho,imeth)/normalisation(rmin,rmax,rv,rs,p1,p2,irho)
-                IF(.NOT. timing) THEN
-                   WRITE(7,*) k(i), w
-                END IF
-             END DO
-
-          END DO
-
-          IF(.NOT. timing) THEN
-             CLOSE(7)
-             IF(imeth==1) THEN
-                CALL cpu_time(t2)
-                ntime=CEILING(winint_test_seconds/(t2-t1))
-             END IF
-          ELSE
-             CALL cpu_time(t2)
-             WRITE(*,*) 'WININT_SPEED_TESTS: Time [s]:', t2-t1
-          END IF
-
-          WRITE(*,*)
-
-       END DO
-
-    END DO
-
-  END SUBROUTINE winint_speed_tests
 
 END MODULE HMx
