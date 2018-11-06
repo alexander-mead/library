@@ -4221,4 +4221,262 @@ CONTAINS
         
   END SUBROUTINE Mira_Titan_node_cosmology
 
+  SUBROUTINE halofit_init(rknl,rneff,rncur,a,cosm,verbose)
+
+    IMPLICIT NONE
+    REAL, INTENT(OUT) :: rknl
+    REAL, INTENT(OUT) :: rneff
+    REAL, INTENT(OUT) :: rncur
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    LOGICAL, INTENT(IN) :: verbose
+    REAL :: om_mz, om_vz
+    REAL :: xlogr1, xlogr2, rmid, sig, d1, d2, diff  
+
+    ! calculate matter density, vacuum density at desired redshift
+
+    om_mz=omega_m(a,cosm) 
+    om_vz=omega_v(a,cosm)
+
+    ! calculate nonlinear wavenumber (rknl), effective spectral index (rneff) and 
+    ! curvature (rncur) of the power spectrum at the desired redshift, using method 
+    ! described in Smith et al (2003).
+
+    IF(verbose) WRITE(*,*) 'HALOFIT_INIT: computing effective spectral quantities:'
+
+    xlogr1=-3.0
+    xlogr2=3.5
+10  rmid=(xlogr2+xlogr1)/2.0
+    rmid=10**rmid
+    call wint(rmid,sig,d1,d2,a,cosm)
+    diff=sig-1.0
+    if (abs(diff).le.0.001) then
+       rknl=1./rmid
+       rneff=-3-d1
+       rncur=-d2                  
+    elseif (diff.gt.0.001) then
+       xlogr1=log10(rmid)
+       goto 10
+    elseif (diff.lt.-0.001) then
+       xlogr2=log10(rmid)
+       goto 10
+    endif
+
+    !Write out effective quantities!
+    !    write(*,20) 'rknl [h/Mpc] =',rknl,'rneff=',rneff, 'rncur=',rncur
+    !20  format(a15,f12.6,2x,a6,f12.6,2x,a6,f12.6)
+
+    IF(verbose) THEN
+       WRITE(*,*) 'HALOFIT_INIT: rknl [h/Mpc] =', rknl
+       WRITE(*,*) 'HALOFIT_INIT: rneff =', rneff
+       WRITE(*,*) 'HALOFIT_INIT: rncur =', rncur
+       WRITE(*,*) 'HALOFIT_INIT: initialised'
+       WRITE(*,*)
+    END IF
+
+    !ihf=0
+
+  END SUBROUTINE halofit_init
+
+  SUBROUTINE wint(r,sig,d1,d2,a,cosm)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: r
+    REAL, INTENT(OUT) :: sig
+    REAL, INTENT(OUT) :: d1
+    REAL, INTENT(OUT) :: d2
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: sum1, sum2, sum3, t, y, x, w1, w2, w3, rk
+    INTEGER :: i,nint    
+
+    nint=3000
+    sum1=0.d0
+    sum2=0.d0
+    sum3=0.d0
+    DO i=1,nint
+       t=(float(i)-0.5)/float(nint)
+       y=-1.d0+1.d0/t
+       rk=y
+       d2=p_lin(rk,a,cosm)
+       x=y*r
+       w1=exp(-x*x)
+       w2=2*x*x*w1
+       w3=4*x*x*(1-x*x)*w1
+       sum1=sum1+w1*d2/y/t/t
+       sum2=sum2+w2*d2/y/t/t
+       sum3=sum3+w3*d2/y/t/t
+    END DO
+    sum1=sum1/float(nint)
+    sum2=sum2/float(nint)
+    sum3=sum3/float(nint)
+    sig=sqrt(sum1)
+    d1=-sum2/sum1
+    d2=-sum2*sum2/sum1/sum1 - sum3/sum1
+
+  END SUBROUTINE wint
+
+  SUBROUTINE calculate_halofit_a(k,a,Plin,Pq,Ph,Pnl,n,cosm,verbose,ihf)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: k(n)
+    REAL, INTENT(IN) :: a
+    REAL, INTENT(OUT) :: Plin(n)
+    REAL, INTENT(OUT) :: Pq(n)
+    REAL, INTENT(OUT) :: Ph(n)
+    REAL, INTENT(OUT) :: Pnl(n)
+    INTEGER, INTENT(IN) :: n
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    LOGICAL, INTENT(IN) :: verbose
+    INTEGER, INTENT(IN) :: ihf
+    REAL :: rknl, rneff, rncur
+    INTEGER :: i
+
+    CALL halofit_init(rknl,rneff,rncur,a,cosm,verbose)
+
+    DO i=1,n
+       Plin(i)=p_lin(k(i),a,cosm)
+       CALL halofit(k(i),rneff,rncur,rknl,Plin(i),Pnl(i),Pq(i),Ph(i),a,cosm,ihf)
+    END DO
+    
+  END SUBROUTINE calculate_halofit_a
+
+  SUBROUTINE halofit(rk,rn,rncur,rknl,plin,pnl,pq,ph,a,cosm,ihf)
+
+    ! Calculates the HALOFIT power spectrum after rn, rncur and rknl have been pre-calculated
+    ! ihf = 1 - Smith et al. 2003
+    ! ihf = 2 - Bird et al. 2011
+    ! ihf = 3 - Takahashi et al. 2012
+    ! ihf = 4 - Takahashi et al. but taken from CAMB with some neutrino stuff
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: rk
+    REAL, INTENT(IN) :: rn
+    REAL, INTENT(IN) :: rncur
+    REAL, INTENT(IN) :: rknl
+    REAL, INTENT(IN) :: plin
+    REAL, INTENT(OUT) :: pnl
+    REAL, INTENT(OUT) :: pq
+    REAL, INTENT(OUT) :: ph
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    INTEGER, INTENT(IN) :: ihf
+    REAL :: gam, aa, bb, cc, mu, nu, alpha, beta, f1, f2, f3, y, Q, fy
+    REAL :: om_mz, om_vz, fnu, om_m, wz
+    real :: f1a, f2a, f3a, f1b, f2b, f3b, frac
+
+    ! Necessary cosmological parameters
+    Om_m=cosm%Om_m
+    Om_mz=Omega_m(a,cosm)
+    Om_vz=Omega_v(a,cosm)+Omega_w(a,cosm) ! Note this well
+    wz=w_de(a,cosm) ! Choice here; do you use w or w(z)? w(z) is better I think
+    fnu=cosm%Om_nu/cosm%Om_m
+
+    IF(ihf==1) THEN
+       ! Smith et al. (2003)
+       aa=10**(1.4861+1.8369*rn+1.6762*rn**2+0.7940*rn**3+0.1670*rn**4-0.6206*rncur) ! Smith equation (C9)
+       bb=10**(0.9463+0.9466*rn+0.3084*rn**2-0.9400*rncur)                           ! Smith equation (C10)
+       cc=10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)                          ! Smith equation (C11)
+       gam=0.8649+0.2989*rn+0.1631*rncur                                             ! Smith equation (C12)
+       alpha=1.3884+0.3700*rn-0.1452*rn**2                                           ! Smith equation (C13)
+       beta=0.8291+0.9854*rn+0.3401*rn**2                                            ! Smith equation (C14)
+       mu=10**(-3.5442+0.1908*rn)                                                    ! Smith equation (C15)
+       nu=10**(0.9589+1.2857*rn)                                                     ! Smith equation (C16)
+    ELSE IF(ihf==2) THEN
+       ! Bird et al. (2012)
+       aa=10**(1.4861+1.8369*rn+1.6762*rn**2+0.7940*rn**3+0.1670*rn**4-0.6206*rncur)
+       bb=10**(0.9463+0.9466*rn+0.3084*rn**2-0.9400*rncur)
+       cc=10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)
+       gam=0.8649+0.2989*rn+0.1631*rncur+0.316-0.0765*rn-0.835*rncur ! Bird equation (A5)
+       alpha=1.3884+0.3700*rn-0.1452*rn**2
+       beta=0.8291+0.9854*rn+0.3401*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10)
+       mu=10**(-3.5442+0.1908*rn)
+       nu=10**(0.9589+1.2857*rn)
+    ELSE IF(ihf==3) THEN
+       ! Takahashi et al. (2012)
+       aa=10**(1.5222+2.8553*rn+2.3706*rn**2+0.9903*rn**3+0.2250*rn**4-0.6038*rncur+0.1749*Om_vz*(1.+wz)) ! A6
+       bb=10**(-0.5642+0.5864*rn+0.5716*rn**2-1.5474*rncur+0.2279*Om_vz*(1.+wz)) ! A7
+       cc=10**(0.3698+2.0404*rn+0.8161*rn**2+0.5869*rncur) ! A8
+       gam=0.1971-0.0843*rn+0.8460*rncur ! A9
+       alpha=ABS(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur) ! A10; note the ABS function
+       beta=2.0379-0.7354*rn+0.3157*rn**2+1.2490*rn**3+0.3980*rn**4-0.1682*rncur ! A11
+       mu=0. ! A12
+       nu=10**(5.2105+3.6902*rn) ! A13
+    ELSE IF(ihf==4) THEN
+       ! Unpublished CAMB; based on Takahashi et al. (2012) plus Bird et al. (2012)
+       aa=10**(1.5222+2.8553*rn+2.3706*rn**2+0.9903*rn**3+0.2250*rn**4-0.6038*rncur+0.1749*Om_vz*(1.+wz))
+       bb=10**(-0.5642+0.5864*rn+0.5716*rn**2-1.5474*rncur+0.2279*Om_vz*(1.+wz))
+       cc=10**(0.3698+2.0404*rn+0.8161*rn**2+0.5869*rncur)
+       gam=0.1971-0.0843*rn+0.8460*rncur
+       alpha=ABS(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur)
+       beta=2.0379-0.7354*rn+0.3157*rn**2+1.2490*rn**3+0.3980*rn**4-0.1682*rncur+fnu*(1.081+0.395*rn**2) ! CAMB; halofit_ppf.f90; halofit
+       mu=0.
+       nu=10**(5.2105+3.6902*rn)
+    ELSE
+       STOP 'HALOFIT: Error, ihf specified incorrectly'
+    END IF
+
+    ! Here we need Omega at redshift of interest and calculate the Omega evolution
+    ! No HALOFIT extension has modified these numbers
+    IF(abs(1.-Om_mz)>0.01) THEN
+
+       ! Open model
+       f1a=Om_mz**(-0.0732) 
+       f2a=Om_mz**(-0.1423)
+       f3a=Om_mz**(0.0725)
+
+       ! Flat LCDM
+       f1b=Om_mz**(-0.0307) 
+       f2b=Om_mz**(-0.0585)
+       f3b=Om_mz**(0.0743)
+
+       ! Linearly interpolate between LCDM and open case for mixed model
+       frac=Om_vz/(1.-Om_mz)
+       f1=frac*f1b+(1.-frac)*f1a
+       f2=frac*f2b+(1.-frac)*f2a
+       f3=frac*f3b+(1.-frac)*f3a
+       
+    ELSE
+
+       ! Set to one for EdS
+       f1=1.
+       f2=1.
+       f3=1.
+       
+    END IF
+
+    ! Ratio of current wave number to the non-linear wave number
+    y=rk/rknl
+
+    IF(ihf==1 .OR. ihf==2) THEN
+       fy=y/4.+y**2/8.                                    ! Smith (below C2)
+       ph=aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Smith (C4)
+       ph=ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Smith (C3)
+       pq=plin*(1.+plin)**beta/(1.+plin*alpha)*exp(-fy)   ! Smith (C2)
+    ELSE IF(ihf==2) THEN
+       fy=y/4.+y**2/8.
+       ph=aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Bird equation (A2)
+       ph=ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Bird equation (A1)
+       Q=fnu*(2.080-12.4*(Om_m-0.3))/(1.+(1.2e-3)*y**3)   ! Bird equation (A6)
+       ph=ph*(1.+Q)                                       ! Bird equation (A7)
+       pq=plin*(1.+(26.3*fnu*rk**2.)/(1.+1.5*rk**2))      ! Bird equation (A9)
+       pq=plin*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)       ! Bird equation (A8)
+    ELSE IF(ihf==3) THEN
+       fy=y/4.+y**2/8.                                    ! Takahashi equation (below A2)
+       ph=aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Takahashi equation (A3ii)
+       ph=ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Takahashi equation (A3i)
+       pq=plin*(1.+plin)**beta/(1.+plin*alpha)*exp(-fy)   ! Takahashi equation (A2)
+    ELSE IF(ihf==4) THEN
+       fy=y/4.+y**2/8.
+       ph=aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam))
+       ph=ph/(1.+mu*y**(-1)+nu*y**(-2))*(1.+fnu*0.977)    ! CAMB; halofit_ppf.f90; halofit
+       pq=plin*(1.+fnu*47.48*rk**2/(1.+1.5*rk**2))        ! CAMB; halofit_ppf.f90; halofit
+       pq=plin*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)
+    ELSE
+       STOP 'HALOFIT: Error, ihf specified incorrectly'
+    END IF
+
+    pnl=pq+ph
+
+  END SUBROUTINE halofit
+
 END MODULE cosmology_functions
