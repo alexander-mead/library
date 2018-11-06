@@ -184,7 +184,7 @@ CONTAINS
     INTEGER :: i
 
     ! Names of pre-defined halo models
-    INTEGER, PARAMETER :: nhalomod=30 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+    INTEGER, PARAMETER :: nhalomod=31 ! Total number of pre-defined halo-model types (TODO: this is stupid)
     CHARACTER(len=256):: names(nhalomod)    
     names(1)='Accurate HMcode (Mead et al. 2016)'
     names(2)='Basic halo-model (Two-halo term is linear)'
@@ -216,6 +216,7 @@ CONTAINS
     names(28)='One-parameter baryon test'
     names(29)='Adding in cold gas'
     names(30)='Adding in hot gas'
+    names(31)='HMcode (2016) with damped BAO'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_HALOMOD: Assigning halo model'
     
@@ -584,6 +585,9 @@ CONTAINS
           ! One-parameter baryon model
           hmod%one_parameter_baryons=.TRUE.
           hmod%As=3.13!*4.
+       ELSE IF(ihm==31) THEN
+          ! Damped BAO
+          hmod%i1hdamp=3
        END IF       
     ELSE IF(ihm==2) THEN
        ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686))
