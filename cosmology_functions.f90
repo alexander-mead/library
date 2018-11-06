@@ -4374,15 +4374,15 @@ CONTAINS
     IF(ihf==1) THEN
        ! Smith et al. (2003)
        aa=10**(1.4861+1.8369*rn+1.6762*rn**2+0.7940*rn**3+0.1670*rn**4-0.6206*rncur) ! Smith equation (C9)
-       bb=10**(0.9463+0.9466*rn+0.3084*rn**2-0.9400*rncur)                           ! Smith equation (C10)
-       cc=10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)                          ! Smith equation (C11)
-       gam=0.8649+0.2989*rn+0.1631*rncur                                             ! Smith equation (C12)
-       alpha=1.3884+0.3700*rn-0.1452*rn**2                                           ! Smith equation (C13)
-       beta=0.8291+0.9854*rn+0.3401*rn**2                                            ! Smith equation (C14)
-       mu=10**(-3.5442+0.1908*rn)                                                    ! Smith equation (C15)
-       nu=10**(0.9589+1.2857*rn)                                                     ! Smith equation (C16)
+       bb=10**(0.9463+0.9466*rn+0.3084*rn**2-0.9400*rncur) ! Smith equation (C10)
+       cc=10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur) ! Smith equation (C11)
+       gam=0.8649+0.2989*rn+0.1631*rncur ! Smith equation (C12)
+       alpha=1.3884+0.3700*rn-0.1452*rn**2 ! Smith equation (C13)
+       beta=0.8291+0.9854*rn+0.3401*rn**2 ! Smith equation (C14)
+       mu=10**(-3.5442+0.1908*rn) ! Smith equation (C15)
+       nu=10**(0.9589+1.2857*rn) ! Smith equation (C16)
     ELSE IF(ihf==2) THEN
-       ! Bird et al. (2012)
+       ! Bird et al. (2012); based off Smith et al. (2003)
        aa=10**(1.4861+1.8369*rn+1.6762*rn**2+0.7940*rn**3+0.1670*rn**4-0.6206*rncur)
        bb=10**(0.9463+0.9466*rn+0.3084*rn**2-0.9400*rncur)
        cc=10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)
@@ -4392,23 +4392,23 @@ CONTAINS
        mu=10**(-3.5442+0.1908*rn)
        nu=10**(0.9589+1.2857*rn)
     ELSE IF(ihf==3) THEN
-       ! Takahashi et al. (2012)
-       aa=10**(1.5222+2.8553*rn+2.3706*rn**2+0.9903*rn**3+0.2250*rn**4-0.6038*rncur+0.1749*Om_vz*(1.+wz)) ! A6
-       bb=10**(-0.5642+0.5864*rn+0.5716*rn**2-1.5474*rncur+0.2279*Om_vz*(1.+wz)) ! A7
-       cc=10**(0.3698+2.0404*rn+0.8161*rn**2+0.5869*rncur) ! A8
-       gam=0.1971-0.0843*rn+0.8460*rncur ! A9
-       alpha=ABS(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur) ! A10; note the ABS function
-       beta=2.0379-0.7354*rn+0.3157*rn**2+1.2490*rn**3+0.3980*rn**4-0.1682*rncur ! A11
-       mu=0. ! A12
-       nu=10**(5.2105+3.6902*rn) ! A13
+       ! Takahashi et al. (2012); complete refit, all parameters different from Smith et al. (2003)
+       aa=10**(1.5222+2.8553*rn+2.3706*rn**2+0.9903*rn**3+0.2250*rn**4-0.6038*rncur+0.1749*Om_vz*(1.+wz)) ! Takahashi equation (A6)
+       bb=10**(-0.5642+0.5864*rn+0.5716*rn**2-1.5474*rncur+0.2279*Om_vz*(1.+wz)) ! Takahashi equation (A7)
+       cc=10**(0.3698+2.0404*rn+0.8161*rn**2+0.5869*rncur) ! Takahashi equation (A8)
+       gam=0.1971-0.0843*rn+0.8460*rncur ! Takahashi equation (A9)
+       alpha=ABS(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur) ! Takahashi equation (A10; note the ABS
+       beta=2.0379-0.7354*rn+0.3157*rn**2+1.2490*rn**3+0.3980*rn**4-0.1682*rncur ! Takahashi equation (A11)
+       mu=0. ! Takahashi equation (A12)
+       nu=10**(5.2105+3.6902*rn) ! Takahashi equation (A13)
     ELSE IF(ihf==4) THEN
-       ! Unpublished CAMB; based on Takahashi et al. (2012) plus Bird et al. (2012)
+       ! Unpublished CAMB from halofit_ppf.f90; based on Takahashi et al. (2012) plus Bird et al. (2012)
        aa=10**(1.5222+2.8553*rn+2.3706*rn**2+0.9903*rn**3+0.2250*rn**4-0.6038*rncur+0.1749*Om_vz*(1.+wz))
        bb=10**(-0.5642+0.5864*rn+0.5716*rn**2-1.5474*rncur+0.2279*Om_vz*(1.+wz))
        cc=10**(0.3698+2.0404*rn+0.8161*rn**2+0.5869*rncur)
        gam=0.1971-0.0843*rn+0.8460*rncur
-       alpha=ABS(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur)
-       beta=2.0379-0.7354*rn+0.3157*rn**2+1.2490*rn**3+0.3980*rn**4-0.1682*rncur+fnu*(1.081+0.395*rn**2) ! CAMB; halofit_ppf.f90; halofit
+       alpha=ABS(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur) ! Note ABS
+       beta=2.0379-0.7354*rn+0.3157*rn**2+1.2490*rn**3+0.3980*rn**4-0.1682*rncur+fnu*(1.081+0.395*rn**2) ! CAMB; halofit_ppf.f90
        mu=0.
        nu=10**(5.2105+3.6902*rn)
     ELSE
@@ -4447,12 +4447,14 @@ CONTAINS
     ! Ratio of current wave number to the non-linear wave number
     y=rk/rknl
 
-    IF(ihf==1 .OR. ihf==2) THEN
+    IF(ihf==1) THEN
+       ! Smith et al. (2003)
        fy=y/4.+y**2/8.                                    ! Smith (below C2)
        ph=aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Smith (C4)
        ph=ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Smith (C3)
        pq=plin*(1.+plin)**beta/(1.+plin*alpha)*exp(-fy)   ! Smith (C2)
     ELSE IF(ihf==2) THEN
+       ! Bird et al. (2012)
        fy=y/4.+y**2/8.
        ph=aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Bird equation (A2)
        ph=ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Bird equation (A1)
@@ -4461,11 +4463,13 @@ CONTAINS
        pq=plin*(1.+(26.3*fnu*rk**2.)/(1.+1.5*rk**2))      ! Bird equation (A9)
        pq=plin*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)       ! Bird equation (A8)
     ELSE IF(ihf==3) THEN
+       ! Takahashi et al. (2012)
        fy=y/4.+y**2/8.                                    ! Takahashi equation (below A2)
        ph=aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Takahashi equation (A3ii)
        ph=ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Takahashi equation (A3i)
        pq=plin*(1.+plin)**beta/(1.+plin*alpha)*exp(-fy)   ! Takahashi equation (A2)
     ELSE IF(ihf==4) THEN
+       ! Unpublished CAMB stuff from halofit_ppf.f90
        fy=y/4.+y**2/8.
        ph=aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam))
        ph=ph/(1.+mu*y**(-1)+nu*y**(-2))*(1.+fnu*0.977)    ! CAMB; halofit_ppf.f90; halofit
