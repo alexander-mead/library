@@ -186,13 +186,13 @@ CONTAINS
     ! Names of pre-defined halo models
     INTEGER, PARAMETER :: nhalomod=31 ! Total number of pre-defined halo-model types (TODO: this is stupid)
     CHARACTER(len=256):: names(nhalomod)    
-    names(1)='Accurate HMcode (Mead et al. 2016)'
+    names(1)='HMcode (Mead et al. 2016)'
     names(2)='Basic halo-model (Two-halo term is linear)'
     names(3)='Standard halo-model (Seljak 2000)'
     names(4)='Standard halo-model but with Mead et al. (2015) transition'
     names(5)='Standard halo-model but with Delta_v=200 and delta_c=1.686 and Bullock c(M)'
     names(6)='Half-accurate HMcode (Mead et al. 2015, 2016)'
-    names(7)='Accurate HMcode (Mead et al. 2015)'
+    names(7)='HMcode (Mead et al. 2015)'
     names(8)='Including scatter in halo properties at fixed mass'
     names(9)='Parameters for CCL tests (high accuracy)'
     names(10)='Comparison of mass conversions with Wayne Hu code'
@@ -200,7 +200,7 @@ CONTAINS
     names(12)='Spherical collapse used for Mead (2017) results'
     names(13)='Experimental log-tanh transition'
     names(14)='Experimental scale-dependent halo bias'
-    names(15)='Accurate HMcode (Mead et al. 2018)'
+    names(15)='HMcode (Mead et al. 2018)'
     names(16)='Halo-void model'
     names(17)='HMx - AGN 7.6'
     names(18)='HMx - AGN 7.8'
@@ -528,10 +528,11 @@ CONTAINS
        WRITE(*,*)
     END IF
        
-    IF(ihm==1 .OR. ihm==7 .OR. ihm==15 .OR. ihm==28) THEN
-       !  1 - Accurate HMcode  (Mead et al. 2016)
-       !  7 - Accurate HMcode  (Mead et al. 2015)
-       ! 15 - Accurate HMcode  (Mead et al. 2018)
+    IF(ihm==1 .OR. ihm==7 .OR. ihm==15 .OR. ihm==28 .OR. ihm==31) THEN
+       !  1 - Accurate HMcode (Mead et al. 2016)
+       !  7 - Accurate HMcode (Mead et al. 2015)
+       ! 15 - Accurate HMcode (Mead et al. 2018)
+       ! 31 - Accurate HMcode (Mead et al. 2016 w/ additional BAO damping)
        hmod%ip2h=1
        hmod%i1hdamp=2
        hmod%iconc=1
@@ -587,7 +588,7 @@ CONTAINS
           hmod%As=3.13!*4.
        ELSE IF(ihm==31) THEN
           ! Damped BAO
-          hmod%i1hdamp=3
+          hmod%ip2h=3
        END IF       
     ELSE IF(ihm==2) THEN
        ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686))
