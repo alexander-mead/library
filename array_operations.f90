@@ -39,7 +39,7 @@ CONTAINS
        sum=sum+a(i)
     END DO
 
-    sum_double=REAL(sum)
+    sum_double=real(sum)
 
   END FUNCTION sum_double
 
@@ -119,7 +119,7 @@ CONTAINS
     INTEGER :: i, j
 
     DO i=1,n2
-       j=1+CEILING(REAL((n1-1)*(i-1))/REAL(n2-1))
+       j=1+ceiling(real((n1-1)*(i-1))/real(n2-1))
        arr2(i)=arr1(j)
     END DO
 
@@ -137,7 +137,7 @@ CONTAINS
     ALLOCATE(hold(n))
 
     DO i=1,n
-       j=1+CEILING(REAL((n-1)*(i-1))/REAL(n-1))
+       j=1+ceiling(real((n-1)*(i-1))/real(n-1))
        hold(i)=arr1(j)
     END DO
 
@@ -344,7 +344,7 @@ CONTAINS
     IF(n==1) THEN
        progression=xmin
     ELSE
-       progression=xmin+(xmax-xmin)*REAL(i-1)/REAL(n-1)
+       progression=xmin+(xmax-xmin)*real(i-1)/real(n-1)
     END IF
     
   END FUNCTION progression
@@ -447,8 +447,8 @@ CONTAINS
     o=COUNT(okay)
 
     WRITE(*,*) 'MASK: Final number of objects:', o
-    WRITE(*,*) 'MASK: Fraction remaining:', REAL(o)/REAL(n)
-    WRITE(*,*) 'MASK: Fraction culled:', 1.-REAL(o)/REAL(n)
+    WRITE(*,*) 'MASK: Fraction remaining:', real(o)/real(n)
+    WRITE(*,*) 'MASK: Fraction culled:', 1.-real(o)/real(n)
     WRITE(*,*) 'MASK: Done'
     WRITE(*,*)
 
