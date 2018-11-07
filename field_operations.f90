@@ -16,7 +16,7 @@ CONTAINS
     ELSE IF(x==L) THEN
        STOP 'NGP_CELL: Error, particle is at x=L'
     ELSE
-       NGP_cell=CEILING(x*REAL(m)/L)
+       NGP_cell=ceiling(x*real(m)/L)
     END IF
 
     IF(NGP_cell<1 .OR. NGP_cell>m) THEN
@@ -36,7 +36,7 @@ CONTAINS
     REAL, INTENT(IN) :: L
     INTEGER, INTENT(IN) :: i, m
 
-    cell_position=L*(i-0.5)/REAL(m)
+    cell_position=L*(i-0.5)/real(m)
 
   END FUNCTION cell_position
 
@@ -83,7 +83,7 @@ CONTAINS
     REAL :: theta
 
     theta=random_uniform(0.,twopi)
-    random_complex_phase=CMPLX(cos(theta),sin(theta))
+    random_complex_phase=cmplx(cos(theta),sin(theta))
 
   END FUNCTION random_complex_phase
 
@@ -194,7 +194,7 @@ CONTAINS
     ! FT the displacement field from k-space to real space!
     CALL fft3(dk,dk_new,m,m,m,1)
     dk=dk_new
-    d=REAL(REAL(dk))
+    d=real(real(dk))
 
     WRITE(*,*) 'MAKE_GAUSSIAN_RANDOM_FIELD: Done'
     WRITE(*,*)
@@ -260,11 +260,11 @@ CONTAINS
     DO i=1,3
        dk=fk(i,:,:,:)
        CALL fft3(dk,d,m,m,m,1)
-       f(i,:,:,:)=REAL(REAL(d(:,:,:)))
+       f(i,:,:,:)=real(real(d(:,:,:)))
     END DO
 
-    WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Minimum 1D displacement [Mpc/h]:', MINVAL(f)
-    WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Maximum 1D displacement [Mpc/h]:', MAXVAL(f)
+    WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Minimum 1D displacement [Mpc/h]:', minval(f)
+    WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Maximum 1D displacement [Mpc/h]:', maxval(f)
     WRITE(*,*) 'GENERATE_DISPLACEMENT_FIELDS: Real-space displacement fields generated'
     WRITE(*,*)
 
@@ -281,13 +281,13 @@ CONTAINS
     INTEGER, INTENT(IN) :: m
 
     ! Output unformatted data
-    WRITE(*,*) 'READ_FIELD: Binary input: ', TRIM(infile)
+    WRITE(*,*) 'READ_FIELD: Binary input: ', trim(infile)
     WRITE(*,*) 'READ_FIELD: Mesh size:', m
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) d
     CLOSE(7)
-    WRITE(*,*) 'READ_FIELD: Minval:', MINVAL(d)
-    WRITE(*,*) 'READ_FIELD: Maxval:', MAXVAL(d)
+    WRITE(*,*) 'READ_FIELD: Minval:', minval(d)
+    WRITE(*,*) 'READ_FIELD: Maxval:', maxval(d)
     WRITE(*,*) 'READ_FIELD: Average:', mean(splay(d,m,m,m),m**3)
     WRITE(*,*) 'READ_FIELD: Variance:', variance(splay(d,m,m,m),m**3)
     WRITE(*,*) 'READ_FIELD: Done'
@@ -306,16 +306,16 @@ CONTAINS
     INTEGER, INTENT(IN) :: m
 
     ! Input unformatted data
-    WRITE(*,*) 'READ_FIELD: Binary input: ', TRIM(infile)
+    WRITE(*,*) 'READ_FIELD: Binary input: ', trim(infile)
     WRITE(*,*) 'READ_FIELD: Mesh size:', m
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) d8
     CLOSE(7)
-    d=REAL(d8)
-    WRITE(*,*) 'READ_FIELD: Minval:', MINVAL(d)
-    WRITE(*,*) 'READ_FIELD: Maxval:', MAXVAL(d)
-    WRITE(*,*) 'READ_FIELD: Average:', REAL(mean(splay(d,m,m,m),m**3))
-    WRITE(*,*) 'READ_FIELD: Variance:', REAL(variance(splay(d,m,m,m),m**3))
+    d=real(d8)
+    WRITE(*,*) 'READ_FIELD: Minval:', minval(d)
+    WRITE(*,*) 'READ_FIELD: Maxval:', maxval(d)
+    WRITE(*,*) 'READ_FIELD: Average:', real(mean(splay(d,m,m,m),m**3))
+    WRITE(*,*) 'READ_FIELD: Variance:', real(variance(splay(d,m,m,m),m**3))
     WRITE(*,*) 'READ_FIELD: Done'
     WRITE(*,*)
 
@@ -330,10 +330,10 @@ CONTAINS
     INTEGER, INTENT(IN) :: m
     CHARACTER(len=*), INTENT(IN) :: outfile
 
-    WRITE(*,*) 'WRITE_FIELD_BINARY: Binary output: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_FIELD_BINARY: Binary output: ', trim(outfile)
     WRITE(*,*) 'WRITE_FIELD_BINARY: Mesh size:', m
-    WRITE(*,*) 'WRITE_FIELD_BINARY: Minval:', MINVAL(d)
-    WRITE(*,*) 'WRITE_FIELD_BINARY: Maxval:', MAXVAL(d)
+    WRITE(*,*) 'WRITE_FIELD_BINARY: Minval:', minval(d)
+    WRITE(*,*) 'WRITE_FIELD_BINARY: Maxval:', maxval(d)
     WRITE(*,*) 'WRITE_FIELD_BINARY: Using new version with access=stream'
     OPEN(7,file=outfile,form='unformatted',access='stream',status='replace')
     WRITE(7) d
@@ -353,7 +353,7 @@ CONTAINS
     INTEGER :: i, j
     REAL :: x, y
 
-    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Writing to: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Writing to: ', trim(outfile)
 
     OPEN(8,file=outfile)
     DO j=1,m
@@ -384,7 +384,7 @@ CONTAINS
     REAL :: x, y
     REAL :: sum
 
-    WRITE(*,*) 'WRITE_3D_FIELD_PROJECTION_ASCII: Writing to: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_3D_FIELD_PROJECTION_ASCII: Writing to: ', trim(outfile)
     WRITE(*,*) 'WRITE_3D_FIELD_PROJECTION_ASCII: Cells projecting:', nz
 
     OPEN(8,file=outfile)
@@ -398,7 +398,7 @@ CONTAINS
           DO k=1,nz
              sum=sum+d(i,j,k)
           END DO
-          sum=sum/REAL(nz)
+          sum=sum/real(nz)
 
           WRITE(8,*) x, y, sum
 
@@ -489,10 +489,10 @@ CONTAINS
     IF(complex) THEN
        CALL fft3(dk,dkout,m,m,m,1)
        dk=dkout
-       d=REAL(REAL(dk))/REAL(m**3)
+       d=real(real(dk))/real(m**3)
     ELSE
        CALL fft3(dc,dk,m,m,m,1)
-       d=REAL(dc)
+       d=real(dc)
     END IF    
 
     WRITE(*,*) 'SHARPEN: Sharpening complete'
@@ -531,9 +531,9 @@ CONTAINS
 
              CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
 
-             kxh=L*kx/(2.*REAL(m))
-             kyh=L*ky/(2.*REAL(m))
-             kzh=L*kz/(2.*REAL(m))
+             kxh=L*kx/(2.*real(m))
+             kyh=L*ky/(2.*real(m))
+             kzh=L*kz/(2.*real(m))
 
              fcx=sinc(kxh)
              fcy=sinc(kyh)
@@ -575,7 +575,7 @@ CONTAINS
 !!$
 !!$             CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
 !!$
-!!$             kxh=L*kx/(2.*REAL(m))
+!!$             kxh=L*kx/(2.*real(m))
 !!$             kyh=L*ky/(2.*REAL(m))
 !!$             kzh=L*kz/(2.*REAL(m))
 !!$
@@ -654,12 +654,12 @@ CONTAINS
     IF(complex) THEN
        CALL fft2(dk,dkout,m,m,1)
        dk=dkout
-       dk=dk/REAL(m**2)
-       d=REAL(REAL(dk))
+       dk=dk/real(m**2)
+       d=real(real(dk))
     ELSE
        CALL fft2(dc,dk,m,m,1)
-       dc=dc/REAL(m**2)
-       d=REAL(dc)
+       dc=dc/real(m**2)
+       d=real(dc)
     END IF
     DEALLOCATE(dk)
 
@@ -790,12 +790,12 @@ CONTAINS
     IF(complex) THEN
        CALL fft3(dk,dkout,m,m,m,1)
        dk=dkout
-       dk=dk/(REAL(m)**3)
-       d=REAL(REAL(dk))
+       dk=dk/(real(m)**3)
+       d=real(real(dk))
     ELSE
        CALL fft3(dc,dk,m,m,m,1)
-       dc=dc/REAL(m)**3
-       d=REAL(dc)
+       dc=dc/real(m)**3
+       d=real(dc)
     END IF
     DEALLOCATE(dk)
 
@@ -835,7 +835,7 @@ CONTAINS
 
                 !Get coordinates of position on the stack
                 !This changes coordiantes from stack to simulation coordinates
-                xb(d)=x(d)+Ls*(0.5+REAL(is(d)-1))/REAL(ms)-Ls/2.
+                xb(d)=x(d)+Ls*(0.5+real(is(d)-1))/real(ms)-Ls/2.
 
                 !Bring the coordinates back into the simulation box if they are outside
                 IF(xb(d)<=0.) THEN
@@ -846,7 +846,7 @@ CONTAINS
 
                 !Find the integer coordinates of mesh cell in the background mesh
                 !This is just an NGP-type scheme. Could/should be improved?
-                ib(d)=CEILING(REAL(mb)*xb(d)/Lb)
+                ib(d)=ceiling(real(mb)*xb(d)/Lb)
 
              END DO
 
@@ -877,9 +877,9 @@ CONTAINS
           END DO
        END DO
     END DO
-    d2d=d2d/REAL(m)
-    WRITE(*,*) 'PROJECT_3D_TO_2D: Minimum value of 2D stack:', MINVAL(d2d)
-    WRITE(*,*) 'PROJECT_3D_TO_2D: Maximum value of 2D stack:', MAXVAL(d2d)
+    d2d=d2d/real(m)
+    WRITE(*,*) 'PROJECT_3D_TO_2D: Minimum value of 2D stack:', minval(d2d)
+    WRITE(*,*) 'PROJECT_3D_TO_2D: Maximum value of 2D stack:', maxval(d2d)
     WRITE(*,*) 'PROJECT_3D_TO_2D: Done'
     WRITE(*,*)
 
@@ -904,7 +904,7 @@ CONTAINS
 
     av1=mean(splay(d,m1,m2,m3),m1*m2*m3)
     var1=variance(splay(d,m1,m2,m3),m1*m2*m3)
-    max1=MAXVAL(d)
+    max1=maxval(d)
 
     IF(verbose) THEN
        WRITE(*,*) 'CLIP: Average over-density pre-clipping:', av1
@@ -928,7 +928,7 @@ CONTAINS
 
     av2=mean(splay(d,m1,m2,m3),m1*m2*m3)
     var2=variance(splay(d,m1,m2,m3),m1*m2*m3)
-    max2=MAXVAL(d)
+    max2=maxval(d)
 
     IF(verbose) THEN
        WRITE(*,*) 'CLIP: Average over-density post-clipping:', av2
@@ -958,7 +958,7 @@ CONTAINS
 
     av1=mean(splay(d,m1,m2,m3),m1*m2*m3)
     var1=variance(splay(d,m1,m2,m3),m1*m2*m3)
-    min1=MINVAL(d)
+    min1=minval(d)
 
     IF(verbose) THEN
        WRITE(*,*) 'Average over-density pre-clipping:', av1
@@ -982,7 +982,7 @@ CONTAINS
 
     av2=mean(splay(d,m1,m2,m3),m1*m2*m3)
     var2=variance(splay(d,m1,m2,m3),m1*m2*m3)
-    min2=MINVAL(d)
+    min2=minval(d)
 
     IF(verbose) THEN
        WRITE(*,*) 'Average over-density post-clipping:', av2
@@ -1091,7 +1091,7 @@ CONTAINS
                    CYCLE
                 ELSE
                    k8(n)=k8(n)+kmod
-                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6) ! Note the division by m^6 here
+                   f=real(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6) ! Note the division by m^6 here
                    pow8(n)=pow8(n)+f
                    sigma8(n)=sigma8(n)+f**2
                    nmodes8(n)=nmodes8(n)+1
@@ -1118,16 +1118,16 @@ CONTAINS
           IF(logmeank) THEN
              k(i)=sqrt(kbin(i+1)*kbin(i))             
           ELSE
-             k(i)=REAL(k8(i))/REAL(nmodes8(i))
+             k(i)=real(k8(i))/real(nmodes8(i))
           END IF
-          pow8(i)=pow8(i)/REAL(nmodes8(i))
+          pow8(i)=pow8(i)/real(nmodes8(i))
           IF(nmodes8(i)==1) THEN
              sigma8(i)=0
           ELSE
-             sigma8(i)=sigma8(i)/REAL(nmodes8(i)) ! Create <P(k)^2>
+             sigma8(i)=sigma8(i)/real(nmodes8(i)) ! Create <P(k)^2>
              sigma8(i)=sqrt(sigma8(i)-pow8(i)**2) ! Create biased estimate of sigma
-             sigma8(i)=sigma8(i)*REAL(nmodes8(i))/REAL(nmodes8(i)-1) ! Correct for bias
-             sigma8(i)=sigma8(i)/sqrt(REAL(nmodes8(i))) ! Convert to error on the mean
+             sigma8(i)=sigma8(i)*real(nmodes8(i))/real(nmodes8(i)-1) ! Correct for bias
+             sigma8(i)=sigma8(i)/sqrt(real(nmodes8(i))) ! Convert to error on the mean
           END IF
           Dk=4.*pi*((k(i)*L)**3)/twopi**3
           pow8(i)=pow8(i)*Dk
@@ -1136,8 +1136,8 @@ CONTAINS
     END DO
 
     ! Convert from double precision to reals
-    pow=REAL(pow8)
-    sigma=REAL(sigma8)
+    pow=real(pow8)
+    sigma=real(sigma8)
     nmodes=INT(nmodes8)    
 
     WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Power computed'
@@ -1507,11 +1507,11 @@ CONTAINS
              !Find integer automatically from place in table. Assumes log-spaced bins
              !Recently implemented (27/08/15) so could be a source of bugs
              !Differences will appear due to k modes that are on the boundary
-             n=1+FLOOR(REAL(nk)*log(kmod/kmin)/log(kmax/kmin))
+             n=1+FLOOR(real(nk)*log(kmod/kmin)/log(kmax/kmin))
              IF(n<1 .OR. n>nk) THEN
                 CYCLE
              ELSE
-                pow8(n)=pow8(n)+(ABS(d(i,j,k))**2.)*Legendre_polynomial(ipole,mu)*(2.*REAL(ipole)+1.)
+                pow8(n)=pow8(n)+(abs(d(i,j,k))**2.)*Legendre_polynomial(ipole,mu)*(2.*real(ipole)+1.)
                 kval8(n)=kval8(n)+kmod
                 nmodes8(n)=nmodes8(n)+1
              END IF
@@ -1531,12 +1531,12 @@ CONTAINS
        IF(nmodes8(i)==0) THEN
           pow8(i)=0.
        ELSE
-          pow8(i)=pow8(i)/REAL(nmodes8(i))
+          pow8(i)=pow8(i)/real(nmodes8(i))
           pow8(i)=pow8(i)*((L*kval(i))**3)/(2.*pi**2)
        END IF
     END DO
 
-    pow=REAL(pow8)/(REAL(m)**6)
+    pow=real(pow8)/(real(m)**6)
 
     !Divide by 2 because double count Hermitian conjugates
     nmodes=INT(nmodes8)/2
@@ -1632,7 +1632,7 @@ CONTAINS
                 STOP 'COMPUTE_POWER_SPECTRUM_RSD: Error, iz not specified correctly'
              END IF
 
-             mus=ABS(mus)
+             mus=abs(mus)
 
              !             WRITE(*,*) mus, kbin(1), kbin(2), kmod
              !             IF(i==10) STOP
@@ -1641,7 +1641,7 @@ CONTAINS
                 IF(kmod>=kbin(jj) .AND. kmod<=kbin(jj+1)) THEN                
                    DO ii=1,nk
                       IF(mus>=mubin(ii) .AND. mus<=mubin(ii+1)) THEN
-                         pow8(ii,jj)=pow8(ii,jj)+ABS(d(i,j,k))**2.
+                         pow8(ii,jj)=pow8(ii,jj)+abs(d(i,j,k))**2.
                          nmodes8(ii,jj)=nmodes8(ii,jj)+1
                          EXIT
                       END IF
@@ -1659,13 +1659,13 @@ CONTAINS
           IF(nmodes8(ii,jj)==0) THEN
              pow8(ii,jj)=0.
           ELSE
-             pow8(ii,jj)=pow8(ii,jj)/REAL(nmodes8(ii,jj))
+             pow8(ii,jj)=pow8(ii,jj)/real(nmodes8(ii,jj))
              pow8(ii,jj)=pow8(ii,jj)*((L*kv(jj))**3.)/(2.*pi**2.)
           END IF
        END DO
     END DO
 
-    pow=REAL(pow8)/(REAL(m)**6)
+    pow=real(pow8)/(real(m)**6)
 
     !Divide by 2 because double count Hermitian conjugates
     nmodes=INT(nmodes8)/2
@@ -1747,13 +1747,13 @@ CONTAINS
              CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
 
              IF(iz==1) THEN
-                kpars=ABS(kx)
+                kpars=abs(kx)
                 kpers=sqrt(ky**2.+kz**2.)
              ELSE IF(iz==2) THEN
-                kpars=ABS(ky)
+                kpars=abs(ky)
                 kpers=sqrt(kz**2.+kx**2.)
              ELSE IF(iz==3) THEN
-                kpars=ABS(kz)
+                kpars=abs(kz)
                 kpers=sqrt(kx**2.+ky**2.)
              ELSE
                 STOP 'COMPUTE_POWER_SPECTRUM_RSD2: Error, iz not specified correctly'
@@ -1763,7 +1763,7 @@ CONTAINS
                 IF(kpars>=kparbin(jj) .AND. kpars<=kparbin(jj+1)) THEN                
                    DO ii=1,nk
                       IF(kpers>=kperbin(ii) .AND. kpers<=kperbin(ii+1)) THEN
-                         pow8(ii,jj)=pow8(ii,jj)+ABS(d(i,j,k))**2.
+                         pow8(ii,jj)=pow8(ii,jj)+abs(d(i,j,k))**2.
                          nmodes8(ii,jj)=nmodes8(ii,jj)+1
                          EXIT
                       END IF
@@ -1788,13 +1788,13 @@ CONTAINS
           IF(nmodes8(ii,jj)==0) THEN
              pow8(ii,jj)=0.
           ELSE
-             pow8(ii,jj)=pow8(ii,jj)/REAL(nmodes8(ii,jj))
+             pow8(ii,jj)=pow8(ii,jj)/real(nmodes8(ii,jj))
              pow8(ii,jj)=pow8(ii,jj)*(L**3.*kpar(jj)*kper(ii)**2.)/(2.*pi**2.)
           END IF
        END DO
     END DO
 
-    pow=REAL(pow8)/(REAL(m)**6)
+    pow=real(pow8)/(real(m)**6)
 
     !Divide by 2 because double count Hermitian conjugates
     nmodes=INT(nmodes8)/2
@@ -1811,31 +1811,28 @@ CONTAINS
     DOUBLE COMPLEX, INTENT(IN) :: dk(m,m,m)
     INTEGER, INTENT(IN) :: m    
 
-    box_mode_power=REAL(ABS(dk(2,1,1))**2.+ABS(dk(1,2,1))**2.+ABS(dk(1,1,2))**2.)/3.
+    box_mode_power=real(abs(dk(2,1,1))**2.+abs(dk(1,2,1))**2.+abs(dk(1,1,2))**2.)/3.
 
   END FUNCTION box_mode_power
 
   FUNCTION periodic_distance(x1,x2,L)
 
-    !Calculates the distance between x1 and x2 assuming
-    !that they are coordinates in a periodic box
-    !This is in field_operations because it needs coordinates, *not* necessarily particles
+    ! Calculates the distance between x1 and x2 assuming that they are coordinates in a periodic box
+     !This is in field_operations because it needs coordinates, *not* necessarily particles
     IMPLICIT NONE
     REAL :: periodic_distance
     REAL, INTENT(IN) :: x1(3), x2(3), L
     REAL :: dx(3)
     INTEGER :: i
 
-    !Initially dx is just the absolute vector difference
-    dx=ABS(x2-x1)
+    ! Initially dx is just the absolute vector difference
+    dx=abs(x2-x1)
 
-    !Now check if any legs are greater than half-box size
-    !Note the Cartesian distance *cannot* be larger than L/2
+    ! Now check if any legs are greater than half-box size
+    ! Note the Cartesian distance *cannot* be larger than L/2
     DO i=1,3
        IF(dx(i)>L/2.) THEN
           dx(i)=L-dx(i)
-          !ELSE IF(dx(j)<-L/2.) THEN
-          !   dx(j)=dx(j)+L
        END IF
     END DO
 
@@ -1854,7 +1851,7 @@ CONTAINS
     INTEGER :: i
 
     !Initially dx is just the absolute vector difference
-    dx=ABS(x2-x1)
+    dx=abs(x2-x1)
 
     DO i=1,3
        periodic_mean(i)=0.5*(x1(i)+x2(i))
@@ -1935,7 +1932,7 @@ CONTAINS
        END DO
     END DO
 
-    xi_array=REAL(xi8_array/REAL(n_array))
+    xi_array=real(xi8_array/real(n_array))
 
     WRITE(*,*) 'CORRELATION_FUNCTION: done'
     WRITE(*,*)
