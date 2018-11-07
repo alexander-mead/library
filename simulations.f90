@@ -1,6 +1,6 @@
 MODULE simulations
 
-  ! This module should contain only routines that pertain to properties of particles in simualtions
+  ! This module should contain only routines that pertain to simualtion particles specifically
   ! Anything that involves only the fields should go in field_operations.f90
   ! Each routine should take particle properties (e.g., positions) as an argument
 
@@ -9,6 +9,99 @@ MODULE simulations
   IMPLICIT NONE
 
 CONTAINS
+
+  SUBROUTINE correlation_function(rmin,rmax,r,xi,n,nr,x1,x2,w1,w2,n1,n2,L)
+
+    ! Calculate the correlation function for the sample with positions 'x' and weights 'w'
+    USE array_operations
+    USE table_integer
+    USE constants
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: rmin, rmax         ! Maximum and maximum distances to calculate xi for [Mpc/h]
+    REAL, INTENT(OUT) :: r(nr)             ! Output array of r [Mpc/h]
+    REAL, INTENT(OUT) :: xi(nr)            ! Output array of xi
+    INTEGER, INTENT(OUT) :: n(nr)          ! Output array of number of pairs in bin
+    INTEGER, INTENT(IN) :: nr              ! Required number of log-spaced bins
+    REAL, INTENT(IN) :: x1(3,n1), x2(3,n2) ! Particle position arrays [Mpc/h]
+    REAL, INTENT(IN) :: w1(n1), w2(n2)     ! Particle weight arrays
+    INTEGER, INTENT(IN) :: n1, n2          ! Total numbers of particles
+    REAL, INTENT(IN) :: L                  ! Periodic box size [Mpc/h]
+    INTEGER :: i, i1, i2
+    REAL, ALLOCATABLE :: rbin(:)
+    REAL :: rpair, V, nbar1, nbar2, sum1, sum2
+    DOUBLE PRECISION :: r8(nr), xi8(nr)
+
+    INTEGER, PARAMETER :: imeth_table_integer=3
+
+    ! Allocate arrays and fill the bin edges
+    CALL fill_array(log(rmin),log(rmax),rbin,nr+1)
+    rbin=exp(rbin)
+
+    ! Set these to zero as they will be used for sums
+    r8=0.
+    xi8=0.
+    n=0
+
+    WRITE(*,*) 'CORRELATION_FUNCTION: Calculating correlation function'
+    WRITE(*,*) 'CORRELATION_FUNCTION: Summing directly over pairs (slow)'
+
+    ! Loop over first particle
+    DO i1=1,n1
+
+       ! Do not waste time with zero weights
+       IF(w1(i1)==0.) CYCLE
+
+       ! Loop over second particle
+       DO i2=1,n2
+
+          ! Do not waste time with zero weights
+          IF(w2(i2)==0.) CYCLE
+
+          ! Calculate the distance between the particle pair
+          rpair=periodic_distance(x1(:,i1),x2(:,i2),L)
+
+          ! Bin depending on the distance
+          IF(rpair<rmin .OR. rpair>rmax) THEN
+             CYCLE
+          ELSE
+             i=select_table_integer(rpair,rbin,nr+1,imeth_table_integer)
+             r8(i)=r8(i)+rpair
+             xi8(i)=xi8(i)+w1(i1)*w2(i2)
+             n(i)=n(i)+1
+          END IF
+          
+       END DO
+    END DO
+
+    WRITE(*,*) 'CORRELATION_FUNCTION: Done sum'
+
+    sum1=sum(w1)
+    sum2=sum(w2)
+    nbar1=sum1/L**3
+    nbar2=sum2/L**3
+
+    WRITE(*,*) 'CORRELATION_FUNCTION: sum 1:', sum1
+    WRITE(*,*) 'CORRELATION_FUNCTION: sum 2:', sum2
+    WRITE(*,*) 'CORRELATION_FUNCTION: nbar 1:', nbar1
+    WRITE(*,*) 'CORRELATION_FUNCTION: nbar 2:', nbar2
+    WRITE(*,*) 'CORRELATION_FUNCTION: Doing final bit (not sure if this is correct)'
+
+    ! Calculate the actual correlation functions from the sums above
+    DO i=1,nr
+       IF(n(i)==0) THEN
+          r(i)=sqrt(rbin(i+1)*rbin(i))
+          xi(i)=-1.
+       ELSE
+          r(i)=r8(i)/real(n(i))
+          V=4.*pi*(rbin(i+1)-rbin(i))*r(i)**2
+          xi(i)=-1.+xi8(i)/(sum1*sum2*V/L**3)
+       END IF
+    END DO
+
+    WRITE(*,*) 'CORRELATION_FUNCTION: Done'
+    WRITE(*,*)
+    
+  END SUBROUTINE correlation_function
 
   SUBROUTINE halo_mass_cut(mmin,mmax,x,m,n)
 
@@ -21,8 +114,8 @@ CONTAINS
     INTEGER :: i, j, n_store
 
     WRITE(*,*) 'HALO_MASS_CUT: Number of haloes before cut:', n
-    WRITE(*,*) 'HALO_MASS_CUT: Minimum halo mass before cut [Msun/h]:', MINVAL(m)
-    WRITE(*,*) 'HALO_MASS_CUT: Maximum halo mass before cut [Msun/h]:', MAXVAL(m)
+    WRITE(*,*) 'HALO_MASS_CUT: Minimum halo mass before cut [Msun/h]:', minval(m)
+    WRITE(*,*) 'HALO_MASS_CUT: Maximum halo mass before cut [Msun/h]:', maxval(m)
     WRITE(*,*) 'HALO_MASS_CUT: Minimum mass for cut [Msun/h]:', mmin
     WRITE(*,*) 'HALO_MASS_CUT: Maximum mass for cut [Msun/h]:', mmax
 
@@ -55,8 +148,8 @@ CONTAINS
        END IF
     END DO
 
-    WRITE(*,*) 'HALO_MASS_CUT: Minimum halo mass after cut [Msun/h]:', MINVAL(m)
-    WRITE(*,*) 'HALO_MASS_CUT: Maximum halo mass after cut [Msun/h]:', MAXVAL(m)
+    WRITE(*,*) 'HALO_MASS_CUT: Minimum halo mass after cut [Msun/h]:', minval(m)
+    WRITE(*,*) 'HALO_MASS_CUT: Maximum halo mass after cut [Msun/h]:', maxval(m)
     WRITE(*,*) 'HALO_MASS_CUT: Done'
     WRITE(*,*)
 
@@ -98,7 +191,7 @@ CONTAINS
     CALL power_spectrum_particles(x,n,L,m,nk,k,Pk,nbin,sig)
 
     ! Write to screen
-    WRITE(*,*) 'WRITE_POWER_SPECTRUM: Outfile: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_POWER_SPECTRUM: Outfile: ', trim(outfile)
 
     ! Compute the shot noise assuming all particles have equal mass
     shot=shot_noise_simple(L,INT8(n))
@@ -134,7 +227,7 @@ CONTAINS
 
     ! Compute the power spectrum from the density field
     kmin=twopi/L
-    kmax=REAL(m)*pi/L
+    kmax=real(m)*pi/L
     CALL compute_power_spectrum(dk,dk,m,L,kmin,kmax,nk,k,Pk,nbin,sig)
 
   END SUBROUTINE power_spectrum_particles
@@ -158,7 +251,7 @@ CONTAINS
     CALL particle_bin(x,n,L,w,d,m,ibin)
 
     ! Now compute the mean particle number density in a cell [dimensionless]
-    dbar=REAL(n)/REAL(m)**3
+    dbar=real(n)/real(m)**3
 
     ! Convert the particle-number field to the density-contrast field [dimensionless]
     d=d/dbar
@@ -195,12 +288,12 @@ CONTAINS
     CALL make_projected_density(x,n,z1,z2,L,d,m)
 
     ! Smooth the density field
-    smoothing=L/REAL(m) !Set the smoothing scale to be the mesh size
+    smoothing=L/real(m) !Set the smoothing scale to be the mesh size
     CALL smooth2D(d,m,smoothing,L)
 
     ! Write out to file
     WRITE(*,*) 'WRITE_DENSITY_SLICE_ASCII: Writing density map'
-    WRITE(*,*) 'WRITE_DENSITY_SLICE_ASCII: File: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_DENSITY_SLICE_ASCII: File: ', trim(outfile)
     OPEN(9,file=outfile)
     DO i=1,m
        DO j=1,m
@@ -256,7 +349,7 @@ CONTAINS
     CALL particle_bin_2D(x2D,n2D,L,w2D,d,m,ibin)
     DEALLOCATE(x2D)
     vfac=(z2-z1)/L
-    dbar=(REAL(n)*vfac)/REAL(m**2)
+    dbar=(real(n)*vfac)/real(m**2)
     d=d/dbar
 
     ! Write useful things to screen
@@ -282,8 +375,8 @@ CONTAINS
     CALL generate_displacement_fields(f,m,L,logk_tab,logPk_tab,nk,use_average)
 
     ! Calculate some useful things
-    ips=L/REAL(n**(1./3.)) ! Mean ID inter-particle spacing
-    maxf=MAXVAL(f) ! Maximum value of 1D displacement    
+    ips=L/real(n**(1./3.)) ! Mean ID inter-particle spacing
+    maxf=maxval(f) ! Maximum value of 1D displacement    
 
     ! Calculate the particle velocities first
     CALL Zeldovich_velocity(x,v,n,L,vfac*f,m)
@@ -442,7 +535,7 @@ CONTAINS
 
     ! How far can the particles be shifted in x,y,z
     ! They need to stay in their initial cube region
-    dx=L/REAL(m)
+    dx=L/real(m)
     dx=dx/2.
 
     ! Write to screen
@@ -519,7 +612,7 @@ CONTAINS
     WRITE(*,*) 'SPARSE_SAMPLE: Complete'
     WRITE(*,*) 'SPARSE_SAMPLE: Before:', n_old
     WRITE(*,*) 'SPARSE_SAMPLE: After:', n
-    WRITE(*,*) 'SPARSE_SAMPLE: Ratio:', REAL(n)/REAL(n_old)
+    WRITE(*,*) 'SPARSE_SAMPLE: Ratio:', real(n)/real(n_old)
     WRITE(*,*)    
 
   END SUBROUTINE sparse_sample
@@ -635,8 +728,8 @@ CONTAINS
        iy=NGP_cell(x(2,i),L,m)
 
        ! dx, dy in cell units, away from cell centre
-       dx=(x(1,i)/L)*REAL(m)-(REAL(ix)-0.5)
-       dy=(x(2,i)/L)*REAL(m)-(REAL(iy)-0.5)
+       dx=(x(1,i)/L)*real(m)-(real(ix)-0.5)
+       dy=(x(2,i)/L)*real(m)-(real(iy)-0.5)
 
        ! Find CIC weights in x
        IF(dx>0.) THEN
@@ -738,7 +831,7 @@ CONTAINS
        END DO
     END DO
     WRITE(*,*) 'PARTICLE_BIN_AVERAGE: Numer of empty cells:', n
-    WRITE(*,*) 'PARTICLE_BIN_AVERAGE: Fraction of empty cells', REAL(sum)/REAL(m**3)
+    WRITE(*,*) 'PARTICLE_BIN_AVERAGE: Fraction of empty cells', real(sum)/real(m**3)
     WRITE(*,*) 'PARTICLE_BIN_AVERAGE: Done'
     WRITE(*,*)
 
@@ -774,8 +867,8 @@ CONTAINS
 
     WRITE(*,*) 'NGP: Average:', mean(d,m)
     WRITE(*,*) 'NGP: RMS:', sqrt(variance(d,m))
-    WRITE(*,*) 'NGP: Minimum:', MINVAL(REAL(d))
-    WRITE(*,*) 'NGP: Maximum:', MAXVAL(REAL(d))
+    WRITE(*,*) 'NGP: Minimum:', minval(real(d))
+    WRITE(*,*) 'NGP: Maximum:', maxval(real(d))
     WRITE(*,*) 'NGP: Binning complete'
     WRITE(*,*)
 
@@ -807,9 +900,9 @@ CONTAINS
        iz=NGP_cell(x(3,i),L,m)
 
        ! dx, dy, dz in box units
-       dx=(x(1,i)/L)*REAL(m)-(REAL(ix)-0.5)
-       dy=(x(2,i)/L)*REAL(m)-(REAL(iy)-0.5)
-       dz=(x(3,i)/L)*REAL(m)-(REAL(iz)-0.5)
+       dx=(x(1,i)/L)*real(m)-(real(ix)-0.5)
+       dy=(x(2,i)/L)*real(m)-(real(iy)-0.5)
+       dz=(x(3,i)/L)*real(m)-(real(iz)-0.5)
 
        IF(dx>=0.) THEN
           ixn=ix+1
@@ -853,8 +946,8 @@ CONTAINS
     ! Write out some statistics to screen
     WRITE(*,*) 'CIC: Average:', mean(d,m)
     WRITE(*,*) 'CIC: RMS:', sqrt(variance(d,m))
-    WRITE(*,*) 'CIC: Minimum:', MINVAL(REAL(d))
-    WRITE(*,*) 'CIC: Maximum:', MAXVAL(REAL(d))
+    WRITE(*,*) 'CIC: Minimum:', minval(real(d))
+    WRITE(*,*) 'CIC: Maximum:', maxval(real(d))
     WRITE(*,*) 'CIC: Binning complete'
     WRITE(*,*)
 
@@ -1092,7 +1185,7 @@ CONTAINS
        END IF
     END DO
     CLOSE(10)
-    WRITE(*,*) 'WRITE_SLICE_ASCII: Slice written: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_SLICE_ASCII: Slice written: ', trim(outfile)
     WRITE(*,*)
 
   END SUBROUTINE write_slice_ascii
@@ -1105,7 +1198,7 @@ CONTAINS
     INTEGER*8, INTENT(IN) :: n ! Total number of particles
 
     !Calculate number density
-    shot_noise_simple=L**3/REAL(n)
+    shot_noise_simple=L**3/real(n)
 
   END FUNCTION shot_noise_simple
 
@@ -1236,8 +1329,8 @@ CONTAINS
     END DO
 
     ! Calculate particle-density statistics
-    npexp=REAL(n)*(Lx*Ly*Lz/L**3.)
-    delta=-1.+REAL(np)/REAL(npexp)
+    npexp=real(n)*(Lx*Ly*Lz/L**3.)
+    delta=-1.+real(np)/real(npexp)
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Particle-density statistics'
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Particles in subvolume:', np
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Expected number of partilces in subvolume:', npexp
@@ -1317,38 +1410,38 @@ CONTAINS
 !!$    field5=(count5/((Lsub/REAL(m5))**2))/nbar
 
     ! Smooth fields
-    CALL smooth2D(field1,m1,fcell*Lsub/REAL(m1),Lsub)
-    CALL smooth2D(field2,m2,fcell*Lsub/REAL(m2),Lsub)
-    CALL smooth2D(field3,m3,fcell*Lsub/REAL(m3),Lsub)
-    CALL smooth2D(field4,m4,fcell*Lsub/REAL(m4),Lsub)
-    CALL smooth2D(field5,m5,fcell*Lsub/REAL(m5),Lsub)
+    CALL smooth2D(field1,m1,fcell*Lsub/real(m1),Lsub)
+    CALL smooth2D(field2,m2,fcell*Lsub/real(m2),Lsub)
+    CALL smooth2D(field3,m3,fcell*Lsub/real(m3),Lsub)
+    CALL smooth2D(field4,m4,fcell*Lsub/real(m4),Lsub)
+    CALL smooth2D(field5,m5,fcell*Lsub/real(m5),Lsub)
 
     ! Write out density statistics on each mesh
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m1
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', MAXVAL(count1)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', MINVAL(count1)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', MAXVAL(field1)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', MINVAL(field1)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', maxval(count1)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', minval(count1)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', maxval(field1)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', minval(field1)
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m2
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', MAXVAL(count2)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', MINVAL(count2)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', MAXVAL(field2)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', MINVAL(field2)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', maxval(count2)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', minval(count2)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', maxval(field2)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', minval(field2)
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m3
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', MAXVAL(count3)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', MINVAL(count3)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', MAXVAL(field3)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', MINVAL(field3)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', maxval(count3)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', minval(count3)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', maxval(field3)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', minval(field3)
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m4
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', MAXVAL(count4)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', MINVAL(count4)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', MAXVAL(field4)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', MINVAL(field4)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', maxval(count4)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', minval(count4)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', maxval(field4)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', minval(field4)
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m5
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', MAXVAL(count5)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', MINVAL(count5)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', MAXVAL(field5)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', MINVAL(field5)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max count:', maxval(count5)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min count:', minval(count5)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max overdensity:', maxval(field5)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min overdensity:', minval(field5)
     WRITE(*,*)
 
     ! Write out each mesh if testing
@@ -1358,23 +1451,23 @@ CONTAINS
        ext='.dat'
 
        output=number_file_zeroes(base,m1,4,ext)
-       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
+       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
        CALL write_2D_field_ascii(field1,m1,Lsub,output)
 
        output=number_file_zeroes(base,m2,4,ext)
-       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
+       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
        CALL write_2D_field_ascii(field2,m2,Lsub,output)
 
        output=number_file_zeroes(base,m3,4,ext)       
-       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
+       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
        CALL write_2D_field_ascii(field3,m3,Lsub,output)
 
        output=number_file_zeroes(base,m4,4,ext)
-       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
+       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
        CALL write_2D_field_ascii(field4,m4,Lsub,output)
 
        output=number_file_zeroes(base,m5,4,ext)
-       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', TRIM(output)
+       WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
        CALL write_2D_field_ascii(field5,m5,Lsub,output)
 
     END IF
@@ -1505,8 +1598,8 @@ CONTAINS
 
     ! Write info to screen
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Adaptive density field'
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max density:', MAXVAL(d)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min density:', MINVAL(d)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max density:', maxval(d)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min density:', minval(d)
     WRITE(*,*)
 
     ! Ensure all cells are positive (note this is to make pretty pictures, not for science)
@@ -1518,8 +1611,8 @@ CONTAINS
 
     ! Write field statistics
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Smoothed adaptive density field'
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max density:', MAXVAL(d)
-    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min density:', MINVAL(d)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Max density:', maxval(d)
+    WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Min density:', minval(d)
     WRITE(*,*)
 
     ! Finally write out an ascii file for plotting
