@@ -1125,6 +1125,7 @@ CONTAINS
        z=redshift_r(r,cosm)
        a=scale_factor_z(z)
        k=(l+lcorr)/f_k(r,cosm) ! LoVerde et al. (2008) Limber correction
+       !k=k_ell(l,a,cosm)
 
        ! Construct the integrand
        Limber_integrand=X(1)*X(2)*find_pka(k,a,logktab,logatab,logptab,nk,na)/f_k(r,cosm)**2
