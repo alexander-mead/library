@@ -4296,7 +4296,7 @@ CONTAINS
     sum3=0.d0
     DO i=1,nint
        t=(float(i)-0.5)/float(nint)
-       y=-1.d0+1.d0/t
+       y=-1.+1./t
        rk=y
        d2=p_lin(rk,a,cosm)
        x=y*r
