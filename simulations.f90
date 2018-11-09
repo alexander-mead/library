@@ -92,9 +92,9 @@ CONTAINS
           r(i)=sqrt(rbin(i+1)*rbin(i))
           xi(i)=-1.
        ELSE
-          r(i)=r8(i)/real(n(i))
+          r(i)=real(r8(i))/real(n(i))
           V=4.*pi*(rbin(i+1)-rbin(i))*r(i)**2
-          xi(i)=-1.+xi8(i)/(sum1*sum2*V/L**3)
+          xi(i)=-1.+real(xi8(i))/(sum1*sum2*V/L**3)
        END IF
     END DO
 
