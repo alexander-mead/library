@@ -11,7 +11,7 @@ CONTAINS
     INTEGER :: n
     LOGICAL :: lexist
 
-    IF(verbose) WRITE(*,*) 'FILE_LENGTH: File: ', TRIM(file_name)
+    IF(verbose) WRITE(*,*) 'FILE_LENGTH: File: ', trim(file_name)
     INQUIRE(file=file_name,exist=lexist)
     IF(.NOT. lexist) STOP 'FILE_LENGTH: Error, file does not exist'
     OPEN(7,file=file_name,status='old')
