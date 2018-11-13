@@ -147,7 +147,7 @@ MODULE HMx
 
   ! HMx
   REAL, PARAMETER :: HMx_alpha_min=1e-2 ! Minimum alpha parameter; needs to be set at not zero
-  REAL, PARAMETER :: HMx_Gamma_min=1.05 ! Minimum polytropic index
+  REAL, PARAMETER :: HMx_Gamma_min=1.10 ! Minimum polytropic index
   REAL, PARAMETER :: HMx_Gamma_max=2.00 ! Maximum polytropic index
   REAL, PARAMETER :: HMx_Astar_min=1e-4 ! Minimum halo star fraction; needs to be set at not zero
 
@@ -186,7 +186,7 @@ CONTAINS
     INTEGER :: i
 
     ! Names of pre-defined halo models
-    INTEGER, PARAMETER :: nhalomod=37 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+    INTEGER, PARAMETER :: nhalomod=40 ! Total number of pre-defined halo-model types (TODO: this is stupid)
     CHARACTER(len=256):: names(nhalomod)    
     names(1)='HMcode (Mead et al. 2016)'
     names(2)='Basic halo-model (Two-halo term is linear)'
@@ -219,12 +219,15 @@ CONTAINS
     names(29)='Adding in cold gas'
     names(30)='Adding in hot gas'
     names(31)='HMcode (2016) with damped BAO'
-    names(32)='HMx - AGN 7.6; fixed z; simple pivot'
-    names(33)='HMx - AGN tuned; fixed z; simple pivot'
-    names(34)='HMx - AGN 8.0; fixed z; simple pivot'
-    names(35)='HMx - AGN 7.6; fixed z; clever pivot; f_hot'
-    names(36)='HMx - AGN tuned; fixed z; clever pivot; f_hot'
-    names(37)='HMx - AGN 8.0; fixed z; clever pivot; f_hot'
+    names(32)='HMx: AGN 7.6; fixed z; simple pivot'
+    names(33)='HMx: AGN tuned; fixed z; simple pivot'
+    names(34)='HMx: AGN 8.0; fixed z; simple pivot'
+    names(35)='HMx: AGN 7.6; fixed z; clever pivot; f_hot'
+    names(36)='HMx: AGN tuned; fixed z; clever pivot; f_hot'
+    names(37)='HMx: AGN 8.0; fixed z; clever pivot; f_hot'
+    names(38)='HMx: AGN 7.6'
+    names(39)='HMx: AGN tuned'
+    names(40)='HMx: AGN 8.0'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_HALOMOD: Assigning halo model'
     
@@ -845,8 +848,7 @@ CONTAINS
           hmod%alphap=-0.481
           hmod%Gammap=-0.019
           hmod%cstarp=-0.303
-          hmod%fhot=0.0282
-       
+          hmod%fhot=0.0282       
        ELSE IF(ihm==37) THEN
           ! AGN 8.0
           ! Mpiv = Mh; z = 0.0; f_hot
@@ -866,7 +868,75 @@ CONTAINS
           hmod%fhot=0.0031
        ELSE
           STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
-       END IF   
+       END IF
+    ELSE IF(ihm==38 .OR. ihm==39 .OR. ihm==40) THEN
+       ! 38 - AGN 7p6
+       ! 39 - AGN tuned
+       ! 49 - AGN 8p0
+       hmod%response=.TRUE.
+       IF(ihm==38) THEN
+          ! AGN 7p6
+          hmod%alpha =   1.70891011    
+          hmod%eps =  0.958850801    
+          hmod%Gamma =   1.25141788    
+          hmod%M0 =   13.3227434    
+          hmod%Astar =   4.37504016E-02
+          hmod%Twhim =   6.02349520    
+          hmod%cstar =   7.53934860    
+          hmod%fcold =   1.96336005E-02
+          hmod%mstar =   12.4054365    
+          hmod%sstar =  0.854750276    
+          hmod%alphap = -0.621505082    
+          hmod%Gammap =  -8.59299954E-03
+          hmod%cstarp = -0.192941204    
+          hmod%alphaz =  0.511387229    
+          hmod%Gammaz =  0.283175588    
+          hmod%M0z =  -8.61267969E-02
+          hmod%Astarz = -0.455676109    
+          hmod%Twhimz = -0.166923404
+       ELSE IF(ihm==39) THEN
+          ! AGN tuned
+          hmod%alpha =   1.57793474    
+          hmod%eps =  0.881173790    
+          hmod%Gamma =   1.23456430    
+          hmod%M0 =   13.7677040    
+          hmod%Astar =   4.27635014E-02
+          hmod%Twhim =   6.11093426    
+          hmod%cstar =   7.16452551    
+          hmod%fcold =   1.26479997E-03
+          hmod%mstar =   12.4064665    
+          hmod%sstar =  0.793298125    
+          hmod%alphap = -0.559459090    
+          hmod%Gammap =  -6.91370014E-03
+          hmod%cstarp = -0.165236101    
+          hmod%alphaz =  0.430692285    
+          hmod%Gammaz =  0.285437614    
+          hmod%M0z =  -7.98235014E-02
+          hmod%Astarz = -0.453337014    
+          hmod%Twhimz = -0.114669099
+       ELSE IF(ihm==40) THEN
+          ! AGN 8p0
+          hmod%alpha =   1.48560798    
+          hmod%eps =  0.845291793    
+          hmod%Gamma =   1.23208261    
+          hmod%M0 =   14.2096453    
+          hmod%Astar =   3.85205001E-02
+          hmod%Twhim =   6.21294737    
+          hmod%cstar =   7.76997995    
+          hmod%fcold =   1.18999997E-05
+          hmod%mstar =   12.2670107    
+          hmod%sstar =  0.846171916    
+          hmod%alphap = -0.489454091    
+          hmod%Gammap =   2.88049993E-03
+          hmod%cstarp = -0.164967597    
+          hmod%alphaz =  0.493037194    
+          hmod%Gammaz =  0.380448610    
+          hmod%M0z =  -5.22956997E-02
+          hmod%Astarz = -0.433256686    
+          hmod%Twhimz =  -9.42993015E-02
+       ELSE
+          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
+       END IF
     ELSE
        STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
     END IF
