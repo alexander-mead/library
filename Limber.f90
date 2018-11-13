@@ -21,10 +21,10 @@ MODULE Limber
   PUBLIC :: fill_projection_kernels
   PUBLIC :: read_nz
   PUBLIC :: write_projection_kernel
-  PUBLIC :: write_xi
+  PUBLIC :: write_angular_xi
   PUBLIC :: write_nz
   PUBLIC :: write_efficiency
-  PUBLIC :: calculate_xi
+  PUBLIC :: calculate_angular_xi
   PUBLIC :: write_Cl
   PUBLIC :: k_ell
 
@@ -333,7 +333,7 @@ CONTAINS
 
   END SUBROUTINE write_Cl
 
-  SUBROUTINE calculate_xi(th_tab,xi_tab,nth,l_tab,cl_tab,nl,lmax)
+  SUBROUTINE calculate_angular_xi(th_tab,xi_tab,nth,l_tab,cl_tab,nl,lmax)
 
     ! Calcuate the correlation functions given a C(ell) table
     USE special_functions
@@ -349,7 +349,7 @@ CONTAINS
     logl=log(l_tab)
     logCl=log(cl_tab)
 
-    IF(verbose_xi) WRITE(*,*) 'CALCULATE_XI: Computing correlation functions via sum'
+    IF(verbose_xi) WRITE(*,*) 'CALCULATE_ANGULAR_XI: Computing correlation functions via sum'
     DO i=1,nth
 
        ! Get theta value and convert from degrees to radians
@@ -388,15 +388,15 @@ CONTAINS
 
     END DO
     IF(verbose_xi) THEN
-       WRITE(*,*) 'CALCULATE_XI: Done'
+       WRITE(*,*) 'CALCULATE_ANGULAR_XI: Done'
        WRITE(*,*)
     END IF
 
-  END SUBROUTINE calculate_xi
+  END SUBROUTINE calculate_angular_xi
 
-  SUBROUTINE write_xi(th_tab,xi_tab,nth,output)
+  SUBROUTINE write_angular_xi(th_tab,xi_tab,nth,output)
 
-    ! Write correlation functions to disk
+    ! Write angular correlation functions to disk
     IMPLICIT NONE
     REAL, INTENT(IN) :: th_tab(nth), xi_tab(3,nth)
     INTEGER, INTENT(IN) :: nth
@@ -409,7 +409,7 @@ CONTAINS
     END DO
     CLOSE(7)
 
-  END SUBROUTINE write_xi
+  END SUBROUTINE write_angular_xi
 
   FUNCTION maxdist(proj)
 
