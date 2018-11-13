@@ -3,6 +3,8 @@ MODULE fft
   !USE iso_c_binding ! This use statement seems not to be necessary any more, not sure why
   USE logical_operations
 
+  IMPLICIT NONE
+
   ! TODO: Sort this bullshit out; get an error with fftw.f in debug mode, does not compile
   !Include the FFTW libraray locations
   !INCLUDE '/usr/local/include/fftw3.f' !Mac
