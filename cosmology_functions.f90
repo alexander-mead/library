@@ -6,6 +6,14 @@ MODULE cosmology_functions
 
   IMPLICIT NONE
 
+  INTERFACE integrate_cosm
+
+     MODULE PROCEDURE integrate1_cosm
+     MODULE PROCEDURE integrate2_cosm
+     MODULE PROCEDURE integrate3_cosm
+    
+  END INTERFACE integrate_cosm
+
   ! Contains cosmological parameters that only need to be calculated once
   TYPE cosmology     
      REAL :: Om_m, Om_b, Om_v, Om_w, m_nu, h, n, sig8, w, wa, inv_m_wdm, YH ! Primary parameters
@@ -658,6 +666,70 @@ CONTAINS
 
   END SUBROUTINE print_cosmology
 
+  REAL FUNCTION xi_lin(r,a,cosm)
+
+    ! Computes the 3D linear matter correlation function by integrating over P(k)
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: r
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    INTEGER :: i
+    REAL :: k1, k2, xi_bit
+    DOUBLE PRECISION :: xi8
+    INTEGER, PARAMETER :: min_humps=5
+    INTEGER, PARAMETER :: max_humps=100000
+
+    ! Set summation variable to zero
+    xi8=0.
+    
+    ! Loop over humps
+    DO i=0,max_humps
+
+       k1=i*pi/r
+       k2=(i+1)*pi/r
+
+       xi_bit=integrate_cosm(k1,k2,xi_lin_integrand,r,a,cosm,acc_cosm,3)
+
+       xi8=xi8+xi_bit
+
+       IF(i>min_humps) THEN
+          IF(ABS(xi_bit/real(xi8))<acc_cosm) THEN
+             EXIT
+          END IF
+       END IF
+
+       IF(i==max_humps) THEN
+          WRITE(*,*) 'XI_LIN: r [Mpc/h]:', r
+          WRITE(*,*) 'XI_LIN: Minimum number of humps:', min_humps
+          WRITE(*,*) 'XI_LIN: Maximum number of humps:', max_humps
+          WRITE(*,*) 'XI_LIN: Warning, maximum number of humps exceeded'
+          STOP
+       END IF
+
+    END DO
+
+    xi_lin=xi8
+    
+  END FUNCTION xi_lin
+
+  REAL FUNCTION xi_lin_integrand(k,r,a,cosm)
+
+    ! Integrand for the 3D linear matter correlation function
+    USE special_functions
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc] (integrated over)
+    REAL, INTENT(IN) :: r ! Separation [Mpc/h]
+    REAL, INTENT(IN) :: a ! Scale factor
+    TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+
+    IF(k==0.) THEN
+       xi_lin_integrand=0.
+    ELSE
+       xi_lin_integrand=sinc(k*r)*p_lin(k,a,cosm)/k
+    END IF
+    
+  END FUNCTION xi_lin_integrand
+
   SUBROUTINE normalise_power(cosm)
 
     ! Get the required sigma_8 by re-normalising the power spectrum
@@ -967,11 +1039,10 @@ CONTAINS
 
   END FUNCTION Omega
 
-  FUNCTION w_de(a,cosm)
+  REAL FUNCTION w_de(a,cosm)
 
     ! Variations of the dark energy parameter w(a)
     IMPLICIT NONE
-    REAL :: w_de
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: p1, p2, p3, p4
@@ -1020,11 +1091,10 @@ CONTAINS
 
   END FUNCTION w_de
 
-  FUNCTION w_de_total(a,cosm)
+  REAL FUNCTION w_de_total(a,cosm)
 
     ! Do an average over the DE components
     IMPLICIT NONE
-    REAL :: w_de_total
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1037,11 +1107,10 @@ CONTAINS
 
   END FUNCTION w_de_total
 
-  FUNCTION w_eff(a,cosm)
+  REAL FUNCTION w_eff(a,cosm)
 
     ! Do an average over the DE components
     IMPLICIT NONE
-    REAL :: w_eff
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1050,11 +1119,10 @@ CONTAINS
 
   END FUNCTION w_eff
 
-  FUNCTION X_de(a,cosm)
+  REAL FUNCTION X_de(a,cosm)
 
     ! Redshift scaling for dark energy (i.e., if w=0 x(a)=a^-3, if w=-1 x(a)=const etc.)
     IMPLICIT NONE
-    REAL :: X_de
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     DOUBLE PRECISION :: f1, f2, f3, f4
@@ -1098,11 +1166,10 @@ CONTAINS
 
   END FUNCTION X_de
 
-  FUNCTION integrand_de(a,cosm)
+  REAL FUNCTION integrand_de(a,cosm)
 
     ! The integrand for the X_de(a) integral
     IMPLICIT NONE
-    REAL :: integrand_de
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1110,11 +1177,10 @@ CONTAINS
 
   END FUNCTION integrand_de
 
-  FUNCTION redshift_a(a)
+  REAL FUNCTION redshift_a(a)
 
     ! The redshift corresponding to scale-factor a
     IMPLICIT NONE
-    REAL :: redshift_a
     REAL, INTENT(IN) :: a
 
     IF(a==0.) THEN
@@ -1126,11 +1192,10 @@ CONTAINS
 
   END FUNCTION redshift_a
 
-  FUNCTION scale_factor_z(z)
+  REAL FUNCTION scale_factor_z(z)
 
     ! The scale factor corresponding to redshift z
     IMPLICIT NONE
-    REAL :: scale_factor_z
     REAL, INTENT(IN) :: z
 
     IF(z<-1.) THEN
@@ -1142,11 +1207,10 @@ CONTAINS
 
   END FUNCTION scale_factor_z
 
-  FUNCTION redshift_r(r,cosm)
+  REAL FUNCTION redshift_r(r,cosm)
 
     ! The redshift corresponding to comoving distance r
     IMPLICIT NONE
-    REAL :: redshift_r
     REAL, INTENT(IN) :: r
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1155,11 +1219,10 @@ CONTAINS
 
   END FUNCTION redshift_r
 
-  FUNCTION f_k(r,cosm)
+  REAL FUNCTION f_k(r,cosm)
 
     ! Curvature function
     IMPLICIT NONE
-    REAL :: f_k
     REAL, INTENT(IN) :: r
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1175,11 +1238,10 @@ CONTAINS
 
   END FUNCTION f_k
 
-  FUNCTION fdash_k(r,cosm)
+  REAL FUNCTION fdash_k(r,cosm)
 
     ! Derivative of curvature function
     IMPLICIT NONE
-    REAL :: fdash_k
     REAL, INTENT(IN) :: r
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1195,11 +1257,10 @@ CONTAINS
 
   END FUNCTION fdash_k
 
-  FUNCTION distance_integrand(a,cosm)
+  REAL FUNCTION distance_integrand(a,cosm)
 
     ! The integrand for the cosmic-distance calculation
     IMPLICIT NONE
-    REAL :: distance_integrand
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1213,11 +1274,10 @@ CONTAINS
 
   END FUNCTION distance_integrand
 
-  FUNCTION comoving_distance(a,cosm)
+  REAL FUNCTION comoving_distance(a,cosm)
 
     ! The comoving distance to a galaxy at scale-factor a
     IMPLICIT NONE
-    REAL :: comoving_distance
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1226,11 +1286,10 @@ CONTAINS
 
   END FUNCTION comoving_distance
 
-  FUNCTION physical_distance(a,cosm)
+  REAL FUNCTION physical_distance(a,cosm)
 
     ! The physical distance to a galaxy at scale-factor a
     IMPLICIT NONE
-    REAL :: physical_distance
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1238,11 +1297,10 @@ CONTAINS
 
   END FUNCTION physical_distance
 
-  FUNCTION physical_angular_distance(a,cosm)
+  REAL FUNCTION physical_angular_distance(a,cosm)
 
     ! The physical angular-diameter distance to a galaxy at scale-factor a
     IMPLICIT NONE
-    REAL :: physical_angular_distance
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1250,11 +1308,10 @@ CONTAINS
 
   END FUNCTION physical_angular_distance
 
-  FUNCTION comoving_angular_distance(a,cosm)
+  REAL FUNCTION comoving_angular_distance(a,cosm)
 
     ! The comoving angular-diameter distance to a galaxy at scale-factor a
     IMPLICIT NONE
-    REAL :: comoving_angular_distance
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -1262,11 +1319,10 @@ CONTAINS
 
   END FUNCTION comoving_angular_distance
 
-  FUNCTION luminosity_distance(a,cosm)
+  REAL FUNCTION luminosity_distance(a,cosm)
 
     ! The (physical) luminosity distance to a galaxy at scale-factor a
     IMPLICIT NONE
-    REAL :: luminosity_distance
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -3166,15 +3222,16 @@ CONTAINS
 
   END SUBROUTINE ODE_advance_cosmology
 
-  FUNCTION integrate_cosm(a,b,f,cosm,acc,iorder)
+  REAL FUNCTION integrate1_cosm(a,b,f,cosm,acc,iorder)
 
     !Integrates between a and b until desired accuracy is reached
     !Stores information to reduce function calls
     IMPLICIT NONE
-    REAL :: integrate_cosm
-    REAL, INTENT(IN) :: a, b, acc
-    TYPE(cosmology), INTENT(INOUT) :: cosm
-    INTEGER, INTENT(IN) :: iorder
+    REAL, INTENT(IN) :: a ! Integration lower limit
+    REAL, INTENT(IN) :: b ! Integration upper limit
+    TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+    REAL, INTENT(IN) :: acc ! Accuracy
+    INTEGER, INTENT(IN) :: iorder ! Order for integration
     INTEGER :: i, j
     INTEGER :: n
     REAL :: x, dx
@@ -3185,9 +3242,9 @@ CONTAINS
     INTEGER, PARAMETER :: jmax=30
 
     INTERFACE
-       REAL FUNCTION f(a,cosm)
+       REAL FUNCTION f(x,cosm)
          IMPORT :: cosmology
-         REAL, INTENT(IN) :: a
+         REAL, INTENT(IN) :: x
          TYPE(cosmology), INTENT(INOUT) :: cosm
        END FUNCTION f
     END INTERFACE
@@ -3195,7 +3252,7 @@ CONTAINS
     IF(a==b) THEN
 
        !Fix the answer to zero if the integration limits are identical
-       integrate_cosm=0.
+       integrate1_cosm=0.
 
     ELSE
 
@@ -3261,11 +3318,221 @@ CONTAINS
 
        END DO
 
-       integrate_cosm=REAL(sum_new)
+       integrate1_cosm=REAL(sum_new)
 
     END IF
 
-  END FUNCTION integrate_cosm
+  END FUNCTION integrate1_cosm
+
+  REAL FUNCTION integrate2_cosm(a,b,f,y,cosm,acc,iorder)
+
+    !Integrates between a and b until desired accuracy is reached
+    !Stores information to reduce function calls
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a ! Integration lower limit for first arguement in 'f'
+    REAL, INTENT(IN) :: b ! Integration upper limit for first arguement in 'f'
+    REAL, INTENT(IN) :: y ! Second argument in 'f'
+    TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+    REAL, INTENT(IN) :: acc ! Accuracy
+    INTEGER, INTENT(IN) :: iorder ! Order for integration
+    INTEGER :: i, j
+    INTEGER :: n
+    REAL :: x, dx
+    REAL :: f1, f2, fx
+    DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+
+    INTEGER, PARAMETER :: jmin=5
+    INTEGER, PARAMETER :: jmax=30
+
+    INTERFACE
+       REAL FUNCTION f(x,y,cosm)
+         IMPORT :: cosmology
+         REAL, INTENT(IN) :: x
+         REAL, INTENT(IN) :: y
+         TYPE(cosmology), INTENT(INOUT) :: cosm
+       END FUNCTION f
+    END INTERFACE
+
+    IF(a==b) THEN
+
+       !Fix the answer to zero if the integration limits are identical
+       integrate2_cosm=0.
+
+    ELSE
+
+       !Set the sum variable for the integration
+       sum_2n=0.d0
+       sum_n=0.d0
+       sum_old=0.d0
+       sum_new=0.d0
+
+       DO j=1,jmax
+
+          !Note, you need this to be 1+2**n for some integer n
+          !j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+          n=1+2**(j-1)
+
+          !Calculate the dx interval for this value of 'n'
+          dx=(b-a)/REAL(n-1)
+
+          IF(j==1) THEN
+
+             !The first go is just the trapezium of the end points
+             f1=f(a,y,cosm)
+             f2=f(b,y,cosm)
+             sum_2n=0.5d0*(f1+f2)*dx
+             sum_new=sum_2n
+
+          ELSE
+
+             !Loop over only new even points to add these to the integral
+             DO i=2,n,2
+                x=a+(b-a)*REAL(i-1)/REAL(n-1)
+                fx=f(x,y,cosm)
+                sum_2n=sum_2n+fx
+             END DO
+
+             !Now create the total using the old and new parts
+             sum_2n=sum_n/2.d0+sum_2n*dx
+
+             !Now calculate the new sum depending on the integration order
+             IF(iorder==1) THEN  
+                sum_new=sum_2n
+             ELSE IF(iorder==3) THEN         
+                sum_new=(4.d0*sum_2n-sum_n)/3.d0 !This is Simpson's rule and cancels error
+             ELSE
+                STOP 'INTEGRATE: Error, iorder specified incorrectly'
+             END IF
+
+          END IF
+
+          IF((j>=jmin) .AND. (ABS(-1.d0+sum_new/sum_old)<acc)) THEN
+             !jmin avoids spurious early convergence
+             !integrate=REAL(sum_new)
+             !WRITE(*,*) 'INTEGRATE: Nint:', n
+             EXIT
+          ELSE IF(j==jmax) THEN
+             STOP 'INTEGRATE: Integration timed out'
+          ELSE
+             !Integral has not converged so store old sums and reset sum variables
+             sum_old=sum_new
+             sum_n=sum_2n
+             sum_2n=0.d0
+          END IF
+
+       END DO
+
+       integrate2_cosm=REAL(sum_new)
+
+    END IF
+
+  END FUNCTION integrate2_cosm
+
+  REAL FUNCTION integrate3_cosm(a,b,f,y,z,cosm,acc,iorder)
+
+    !Integrates between a and b until desired accuracy is reached
+    !Stores information to reduce function calls
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
+    REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
+    REAL, INTENT(IN) :: y ! Second argument in 'f'
+    REAL, INTENT(IN) :: z ! Third argument in 'f'
+    TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+    REAL, INTENT(IN) :: acc ! Accuracy
+    INTEGER, INTENT(IN) :: iorder ! Order for integration
+    INTEGER :: i, j
+    INTEGER :: n
+    REAL :: x, dx
+    REAL :: f1, f2, fx
+    DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+
+    INTEGER, PARAMETER :: jmin=5
+    INTEGER, PARAMETER :: jmax=30
+
+    INTERFACE
+       REAL FUNCTION f(x,y,z,cosm)
+         IMPORT :: cosmology
+         REAL, INTENT(IN) :: x
+         REAL, INTENT(IN) :: y
+         REAL, INTENT(IN) :: z
+         TYPE(cosmology), INTENT(INOUT) :: cosm
+       END FUNCTION f
+    END INTERFACE
+
+    IF(a==b) THEN
+
+       !Fix the answer to zero if the integration limits are identical
+       integrate3_cosm=0.
+
+    ELSE
+
+       !Set the sum variable for the integration
+       sum_2n=0.d0
+       sum_n=0.d0
+       sum_old=0.d0
+       sum_new=0.d0
+
+       DO j=1,jmax
+
+          !Note, you need this to be 1+2**n for some integer n
+          !j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+          n=1+2**(j-1)
+
+          !Calculate the dx interval for this value of 'n'
+          dx=(b-a)/REAL(n-1)
+
+          IF(j==1) THEN
+
+             !The first go is just the trapezium of the end points
+             f1=f(a,y,z,cosm)
+             f2=f(b,y,z,cosm)
+             sum_2n=0.5d0*(f1+f2)*dx
+             sum_new=sum_2n
+
+          ELSE
+
+             !Loop over only new even points to add these to the integral
+             DO i=2,n,2
+                x=a+(b-a)*REAL(i-1)/REAL(n-1)
+                fx=f(x,y,z,cosm)
+                sum_2n=sum_2n+fx
+             END DO
+
+             !Now create the total using the old and new parts
+             sum_2n=sum_n/2.d0+sum_2n*dx
+
+             !Now calculate the new sum depending on the integration order
+             IF(iorder==1) THEN  
+                sum_new=sum_2n
+             ELSE IF(iorder==3) THEN         
+                sum_new=(4.d0*sum_2n-sum_n)/3.d0 !This is Simpson's rule and cancels error
+             ELSE
+                STOP 'INTEGRATE: Error, iorder specified incorrectly'
+             END IF
+
+          END IF
+
+          IF((j>=jmin) .AND. (ABS(-1.d0+sum_new/sum_old)<acc)) THEN
+             !jmin avoids spurious early convergence
+             !integrate=REAL(sum_new)
+             !WRITE(*,*) 'INTEGRATE: Nint:', n
+             EXIT
+          ELSE IF(j==jmax) THEN
+             STOP 'INTEGRATE: Integration timed out'
+          ELSE
+             !Integral has not converged so store old sums and reset sum variables
+             sum_old=sum_new
+             sum_n=sum_2n
+             sum_2n=0.d0
+          END IF
+
+       END DO
+
+       integrate3_cosm=REAL(sum_new)
+
+    END IF
+
+  END FUNCTION integrate3_cosm
 
   SUBROUTINE get_CAMB_power(z,non_linear,halofit_version,cosm)
 
