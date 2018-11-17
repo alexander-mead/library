@@ -51,13 +51,13 @@ CONTAINS
 
     IF(odd(m)) STOP 'K_FFT: Fourier transform does not have an even mesh'
 
-    kx=REAL(ix-1)
-    ky=REAL(iy-1)
-    kz=REAL(iz-1)
+    kx=real(ix-1)
+    ky=real(iy-1)
+    kz=real(iz-1)
 
-    IF(ix>m/2+1) kx=-REAL(m-ix+1)
-    IF(iy>m/2+1) ky=-REAL(m-iy+1)
-    IF(iz>m/2+1) kz=-REAL(m-iz+1)
+    IF(ix>m/2+1) kx=-real(m-ix+1)
+    IF(iy>m/2+1) ky=-real(m-iy+1)
+    IF(iz>m/2+1) kz=-real(m-iz+1)
 
     kx=kx*twopi/L
     ky=ky*twopi/L

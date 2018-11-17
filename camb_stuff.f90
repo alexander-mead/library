@@ -16,7 +16,7 @@ CONTAINS
     
     n=file_length(infile,verbose=.FALSE.)
     n=n-1
-    WRITE(*,*) 'READ_CAMB_PK: CAMB file: ', TRIM(infile)
+    WRITE(*,*) 'READ_CAMB_PK: CAMB file: ', trim(infile)
     WRITE(*,*) 'READ_CAMB_PK: Number of points:', n
     WRITE(*,*)
 

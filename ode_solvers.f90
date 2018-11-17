@@ -53,9 +53,9 @@ CONTAINS
 
     !Allocate arrays for final solution and copy double-precision to single-precision
     ALLOCATE(x(n),v(n),t(n))
-    x=REAL(x8)
-    v=REAL(v8)
-    t=REAL(t8)
+    x=real(x8)
+    v=real(v8)
+    t=real(t8)
 
     !WRITE(*,*) 'ODE: Integration complete in steps:', n
 
@@ -147,8 +147,8 @@ CONTAINS
              IF(ifail==0) THEN
 
                 !Fail conditions (is the first part of this not dodgy?)
-                IF(xh(k)>acc .AND. x8(kn)>acc .AND. (ABS(xh(k)/x8(kn))-1.)>acc) ifail=1
-                IF(vh(k)>acc .AND. v8(kn)>acc .AND. (ABS(vh(k)/v8(kn))-1.)>acc) ifail=1
+                IF(xh(k)>acc .AND. x8(kn)>acc .AND. (abs(xh(k)/x8(kn))-1.)>acc) ifail=1
+                IF(vh(k)>acc .AND. v8(kn)>acc .AND. (abs(vh(k)/v8(kn))-1.)>acc) ifail=1
 
                 !Deallocate arrays and exit loop if a failure has occured
                 IF(ifail==1) THEN
@@ -167,9 +167,9 @@ CONTAINS
           !WRITE(*,*) 'ODE: Integration complete in steps:', n-1
           !WRITE(*,*)
           ALLOCATE(x(n),t(n),v(n))
-          x=REAL(x8)
-          v=REAL(v8)
-          t=REAL(t8)
+          x=real(x8)
+          v=real(v8)
+          t=real(t8)
           EXIT
        END IF
 
@@ -217,12 +217,12 @@ CONTAINS
     END INTERFACE
 
     !Set x, v, t to be the initial state of the system
-    x=REAL(x1)
-    v=REAL(v1)
-    t=REAL(t1)
+    x=real(x1)
+    v=real(v1)
+    t=real(t1)
 
     !Calculate dt between the final and intial state
-    dt=REAL(t2-t1)
+    dt=real(t2-t1)
 
     !Crude method
     IF(imeth==1) THEN

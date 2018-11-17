@@ -489,7 +489,7 @@ CONTAINS
     INTEGER :: ix, iy, iz, i, m
 
     ! Check that the particle number is cubic
-    m=NINT(n**(1./3.))
+    m=nint(n**(1./3.))
     IF(m**3 .NE. n) STOP 'GENERATE_GRID: Error, you need a cubic number of particles for a grid'
 
     WRITE(*,*) 'GENERATE_GRID: Generating a grid particle distribution'
@@ -531,7 +531,7 @@ CONTAINS
     CALL generate_grid(x,n,L)
 
     ! The cube-root of the number of particles
-    m=NINT(n**(1./3.))
+    m=nint(n**(1./3.))
 
     ! How far can the particles be shifted in x,y,z
     ! They need to stay in their initial cube region
@@ -1403,11 +1403,6 @@ CONTAINS
     CALL particle_bin_2D(y,np,Lsub,u*m3**2,field3,m3,ibin)
     CALL particle_bin_2D(y,np,Lsub,u*m4**2,field4,m4,ibin)
     CALL particle_bin_2D(y,np,Lsub,u*m5**2,field5,m5,ibin)
-!!$    field1=(count1/((Lsub/REAL(m1))**2))/nbar
-!!$    field2=(count2/((Lsub/REAL(m2))**2))/nbar
-!!$    field3=(count3/((Lsub/REAL(m3))**2))/nbar
-!!$    field4=(count4/((Lsub/REAL(m4))**2))/nbar
-!!$    field5=(count5/((Lsub/REAL(m5))**2))/nbar
 
     ! Smooth fields
     CALL smooth2D(field1,m1,fcell*Lsub/real(m1),Lsub)

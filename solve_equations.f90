@@ -40,7 +40,7 @@ CONTAINS
        i=i+1
        x=0.5*(x1+x2)
        y=find(x,xtab,ytab,n,3,3,2)
-       IF(ABS(y)<acc) THEN
+       IF(abs(y)<acc) THEN
           EXIT
        ELSE IF(positive(y1) .EQV. positive(y)) THEN
           x1=x

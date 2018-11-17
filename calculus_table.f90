@@ -26,7 +26,7 @@ CONTAINS
 
     ! imeth = 1 => find x in xtab by crudely searching
     ! imeth = 2 => find x in xtab quickly assuming the table is linearly spaced
-    ! imeth = 3 => find x in xtab using midpoint splitting (iterations=CEILING(log2(n)))
+    ! imeth = 3 => find x in xtab using midpoint splitting (iterations=ceiling(log2(n)))
 
     ! iorder = 1 => linear interpolation
     ! iorder = 2 => quadratic interpolation
@@ -311,7 +311,7 @@ CONTAINS
 
     END IF
 
-    integrate_table=REAL(sum)
+    integrate_table=real(sum)
 
   END FUNCTION integrate_table
 
@@ -343,7 +343,7 @@ CONTAINS
        END DO
     END DO
 
-    integrate_table_2D=REAL(sum)
+    integrate_table_2D=real(sum)
     
   END FUNCTION integrate_table_2D
 

@@ -47,11 +47,11 @@ MODULE table_integer
     !x2=xtab(2)
     !xn=xtab(n)
     !IF(x1>xn) STOP 'LINEAR_TABLE_INTEGER: Error, table in the wrong order'
-    !IF(ABS(-1.+float(n-1)*(x2-x1)/(xn-x1))>acc) STOP 'LINEAR_TABLE_INTEGER: Error, table does not seem to be linear'
+    !IF(abs(-1.+float(n-1)*(x2-x1)/(xn-x1))>acc) STOP 'LINEAR_TABLE_INTEGER: Error, table does not seem to be linear'
 
     x1=xtab(1)
     xn=xtab(n)
-    linear_table_integer=1+FLOOR(REAL(n-1)*(x-x1)/(xn-x1))
+    linear_table_integer=1+floor(real(n-1)*(x-x1)/(xn-x1))
 
   END FUNCTION linear_table_integer
 
@@ -90,7 +90,7 @@ MODULE table_integer
 
     DO
        
-       imid=NINT((i1+i2)/2.)
+       imid=nint((i1+i2)/2.)
 
        IF(x<xtab(imid)) THEN
           i2=imid

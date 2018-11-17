@@ -154,7 +154,7 @@ CONTAINS
 
        DO i=1,n
           
-          !x=a+(b-a)*real(i-1)/REAL(n-1)
+          !x=a+(b-a)*real(i-1)/real(n-1)
           x=progression(a,b,i,n)
 
           IF(iorder==1) THEN
@@ -395,7 +395,7 @@ CONTAINS
           sum2=sum2*dx
 
           IF(j .NE. 1 .AND. abs(-1.+sum2/sum1)<acc) THEN
-             !integrate_log=REAL(sum2)
+             !integrate_log=real(sum2)
              !WRITE(*,*) 'INTEGRATE_LOG: Order:', iorder
              !WRITE(*,*) 'INTEGRATE_LOG: Nint:', n
              EXIT
@@ -603,7 +603,7 @@ CONTAINS
           sum2=sum2*dy
 
           IF(j .NE. 1 .AND. abs(-1.+sum2/sum1)<acc) THEN
-             !integrate_jac=REAL(sum2)
+             !integrate_jac=real(sum2)
              !WRITE(*,*) 'INTEGRATE_JAC: Order:', iorder
              !WRITE(*,*) 'INTEGRATE_JAC: Nint:', n
              EXIT

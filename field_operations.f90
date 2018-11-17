@@ -555,50 +555,6 @@ CONTAINS
 
   END SUBROUTINE sharpen_k
 
-!!$  SUBROUTINE sharpen_k_real(dk,m,L,ibin)
-!!$
-!!$    USE special_functions
-!!$    USE fft
-!!$    IMPLICIT NONE
-!!$    DOUBLE COMPLEX, INTENT(INOUT) :: dk(m/2+1,m,m)
-!!$    INTEGER, INTENT(IN) :: m, ibin
-!!$    REAL, INTENT(IN) :: L
-!!$    INTEGER :: i, j, k
-!!$    REAL :: kx, ky, kz, kmod
-!!$    REAL :: kxh, kyh, kzh
-!!$    REAL :: fcx, fcy, fcz, fcorr
-!!$
-!!$    !Now correct for binning!
-!!$    DO k=1,m
-!!$       DO j=1,m
-!!$          DO i=1,m/2+1
-!!$
-!!$             CALL k_fft(i,j,k,m,kx,ky,kz,kmod,L)
-!!$
-!!$             kxh=L*kx/(2.*real(m))
-!!$             kyh=L*ky/(2.*REAL(m))
-!!$             kzh=L*kz/(2.*REAL(m))
-!!$
-!!$             fcx=sinc(kxh)
-!!$             fcy=sinc(kyh)
-!!$             fcz=sinc(kzh)
-!!$
-!!$             IF(ibin==1) THEN
-!!$                fcorr=fcx*fcy*fcz
-!!$             ELSE IF(ibin==2) THEN
-!!$                fcorr=(fcx*fcy*fcz)**2
-!!$             ELSE
-!!$                STOP 'SHARPEN_K: Error, ibin specified incorrectly'
-!!$             END IF
-!!$
-!!$             dk(i,j,k)=dk(i,j,k)/fcorr
-!!$
-!!$          END DO
-!!$       END DO
-!!$    END DO
-!!$
-!!$  END SUBROUTINE sharpen_k_real
-
   SUBROUTINE smooth2D(d,m,r,L)
 
     !arr(n,n): input array of size n x n
@@ -720,13 +676,13 @@ CONTAINS
 !!$    DEALLOCATE(ac_out)
 !!$
 !!$    !Normalise post Fourier transform!
-!!$    ac=ac/REAL(m**2)
+!!$    ac=ac/real(m**2)
 !!$
 !!$    !Retrieve smooth image from complex array!
 !!$    !Need a loop because arr and ac will have different sizes
 !!$    DO j=1,n
 !!$       DO i=1,n
-!!$          arr(i,j)=REAL(REAL(ac(i,j)))
+!!$          arr(i,j)=real(real(ac(i,j)))
 !!$       END DO
 !!$    END DO
 !!$
@@ -1238,7 +1194,7 @@ CONTAINS
 !!$                   CYCLE
 !!$                ELSE
 !!$                   k8(n)=k8(n)+kmod
-!!$                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
+!!$                   f=real(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
 !!$                   pow8(n)=pow8(n)+f
 !!$                   sigma8(n)=sigma8(n)+f**2
 !!$                   nmodes8(n)=nmodes8(n)+1
@@ -1267,16 +1223,16 @@ CONTAINS
 !!$          IF(logmeank) THEN
 !!$             k(i)=sqrt(kbin(i+1)*kbin(i))             
 !!$          ELSE
-!!$             k(i)=REAL(k8(i))/REAL(nmodes8(i))
+!!$             k(i)=real(k8(i))/real(nmodes8(i))
 !!$          END IF
-!!$          pow8(i)=pow8(i)/REAL(nmodes8(i))
+!!$          pow8(i)=pow8(i)/real(nmodes8(i))
 !!$          IF(nmodes8(i)==1) THEN
 !!$             sigma8(i)=0
 !!$          ELSE
-!!$             sigma8(i)=sigma8(i)/REAL(nmodes8(i)) ! Create <P(k)^2>
+!!$             sigma8(i)=sigma8(i)/real(nmodes8(i)) ! Create <P(k)^2>
 !!$             sigma8(i)=sqrt(sigma8(i)-pow8(i)**2) ! Create biased estimate of sigma
-!!$             sigma8(i)=sigma8(i)*REAL(nmodes8(i))/REAL(nmodes8(i)-1) ! Correct for bias
-!!$             sigma8(i)=sigma8(i)/sqrt(REAL(nmodes8(i))) ! Convert to error on the mean
+!!$             sigma8(i)=sigma8(i)*real(nmodes8(i))/real(nmodes8(i)-1) ! Correct for bias
+!!$             sigma8(i)=sigma8(i)/sqrt(real(nmodes8(i))) ! Convert to error on the mean
 !!$          END IF
 !!$          Dk=4.*pi*((k(i)*L)**3)/twopi**3
 !!$          pow8(i)=pow8(i)*Dk
@@ -1285,8 +1241,8 @@ CONTAINS
 !!$    END DO
 !!$
 !!$    ! Convert from double precision to reals
-!!$    pow=REAL(pow8)
-!!$    sigma=REAL(sigma8)
+!!$    pow=real(pow8)
+!!$    sigma=real(sigma8)
 !!$    nmodes=INT(nmodes8)    
 !!$
 !!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Power computed'
@@ -1372,7 +1328,7 @@ CONTAINS
 !!$                   CYCLE
 !!$                ELSE
 !!$                   k8(n)=k8(n)+kmod
-!!$                   f=REAL(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
+!!$                   f=real(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6)
 !!$                   pow8(n)=pow8(n)+f
 !!$                   sigma8(n)=sigma8(n)+f**2
 !!$                   nmodes8(n)=nmodes8(n)+1
@@ -1402,16 +1358,16 @@ CONTAINS
 !!$          IF(logmeank) THEN
 !!$             k(i)=sqrt(kbin(i+1)*kbin(i))
 !!$          ELSE
-!!$             k(i)=REAL(k8(i))/REAL(nmodes8(i)) ! Make the mean <k>
+!!$             k(i)=real(k8(i))/real(nmodes8(i)) ! Make the mean <k>
 !!$          END IF
-!!$          pow8(i)=pow8(i)/REAL(nmodes8(i)) ! Make the mean <P(k)> from n<P(k)>          
+!!$          pow8(i)=pow8(i)/real(nmodes8(i)) ! Make the mean <P(k)> from n<P(k)>          
 !!$          IF(nmodes8(i)==1) THEN
 !!$             sigma8(i)=0
 !!$          ELSE
-!!$             sigma8(i)=sigma8(i)/REAL(nmodes8(i)) ! Create <P(k)^2>
+!!$             sigma8(i)=sigma8(i)/real(nmodes8(i)) ! Create <P(k)^2>
 !!$             sigma8(i)=sqrt(sigma8(i)-pow8(i)**2) ! Create biased estimate of sigma
-!!$             sigma8(i)=sigma8(i)*REAL(nmodes8(i))/REAL(nmodes8(i)-1) ! Correct for bias
-!!$             sigma8(i)=sigma8(i)/sqrt(REAL(nmodes8(i))) ! Conver to error on the mean
+!!$             sigma8(i)=sigma8(i)*real(nmodes8(i))/real(nmodes8(i)-1) ! Correct for bias
+!!$             sigma8(i)=sigma8(i)/sqrt(real(nmodes8(i))) ! Conver to error on the mean
 !!$          END IF
 !!$          Dk=4.*pi*((L*k(i))**3)/twopi**3 ! Factor to convert P(k) -> Delta^2(k)
 !!$          pow8(i)=pow8(i)*Dk ! Convert to Delta^2(k)
@@ -1420,8 +1376,8 @@ CONTAINS
 !!$    END DO
 !!$
 !!$    ! Convert back to standard precision
-!!$    pow=REAL(pow8)
-!!$    sigma=REAL(sigma8)
+!!$    pow=real(pow8)
+!!$    sigma=real(sigma8)
 !!$    nmodes=INT(nmodes8)
 !!$
 !!$    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_REAL: Power computed'
@@ -1497,7 +1453,7 @@ CONTAINS
 
              !             DO o=1,bins
              !                IF(kmod>=kbin(o) .AND. kmod<=kbin(o+1)) THEN
-             !                   pow8(o)=pow8(o)+(ABS(d(i,j,k))**2.)*legendre(ipole,mu)*(2.*float(ipole)+1.)!/2.
+             !                   pow8(o)=pow8(o)+(abs(d(i,j,k))**2.)*legendre(ipole,mu)*(2.*float(ipole)+1.)!/2.
              !                   kval(o)=kval(o)+kmod
              !                   nbin8(o)=nbin8(o)+1
              !                   EXIT
@@ -1507,7 +1463,7 @@ CONTAINS
              !Find integer automatically from place in table. Assumes log-spaced bins
              !Recently implemented (27/08/15) so could be a source of bugs
              !Differences will appear due to k modes that are on the boundary
-             n=1+FLOOR(real(nk)*log(kmod/kmin)/log(kmax/kmin))
+             n=1+floor(real(nk)*log(kmod/kmin)/log(kmax/kmin))
              IF(n<1 .OR. n>nk) THEN
                 CYCLE
              ELSE

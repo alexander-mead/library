@@ -31,7 +31,7 @@ CONTAINS
 
     ! ifind = 1 => find x in xtab quickly assuming the table is linearly spaced
     ! ifind = 2 => find x in xtab by crudely searching from x(1) to x(n)
-    ! ifind = 3 => find x in xtab using midpoint splitting (iterations=CEILING(log2(n)))
+    ! ifind = 3 => find x in xtab using midpoint splitting (iterations=ceiling(log2(n)))
 
     ! imeth = 1 => Uses standard polynomials for interpolation
     ! imeth = 2 => Uses Lagrange polynomials for interpolation
@@ -286,7 +286,7 @@ CONTAINS
 
     ! ifind = 1 => find x in xtab by crudely searching from x(1) to x(n)
     ! ifind = 2 => find x in xtab quickly assuming the table is linearly spaced
-    ! ifind = 3 => find x in xtab using midpoint splitting (iterations=CEILING(log2(n)))
+    ! ifind = 3 => find x in xtab using midpoint splitting (iterations=ceiling(log2(n)))
 
     ! imeth = 1 => Uses cubic polynomials for interpolation
     ! imeth = 2 => Uses Lagrange polynomials for interpolation

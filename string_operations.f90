@@ -2,7 +2,7 @@ MODULE string_operations
 
 CONTAINS
 
-  !I cannot remember where (or why) I stole this from
+  ! I cannot remember where (or why) I stole this from
   elemental subroutine str2int(str,int,stat)
     
     implicit none
@@ -32,7 +32,7 @@ CONTAINS
        WRITE(num,fmt='(I3)') i
     END IF
 
-    number_file=TRIM(fbase)//TRIM(num)//TRIM(fext)
+    number_file=trim(fbase)//trim(num)//trim(fext)
 
   END FUNCTION number_file
 
@@ -60,7 +60,7 @@ CONTAINS
        WRITE(num2,fmt='(I3)') i2
     END IF
 
-    number_file2=TRIM(fbase)//TRIM(num1)//TRIM(mid)//TRIM(num2)//TRIM(fext)
+    number_file2=trim(fbase)//trim(num1)//trim(mid)//trim(num2)//trim(fext)
 
   END FUNCTION number_file2
 
@@ -89,25 +89,25 @@ CONTAINS
 
        IF(i>=10) STOP 'NUMBER_FILE_ZEROES: Error: i is too large a number for space (i>num)'
        WRITE(num1,fmt='(I0.1)') i
-       number_file_zeroes=TRIM(fbase)//num1//TRIM(fext)
+       number_file_zeroes=trim(fbase)//num1//trim(fext)
 
     ELSE IF(num==2) THEN
 
        IF(i>=100) STOP 'NUMBER_FILE_ZEROES: Error: i is too large a number for space (i>num)'
        WRITE(num2,fmt='(I0.2)') i
-       number_file_zeroes=TRIM(fbase)//num2//TRIM(fext)
+       number_file_zeroes=trim(fbase)//num2//trim(fext)
 
     ELSE IF(num==3) THEN
 
        IF(i>=1000) STOP 'NUMBER_FILE_ZEROES: Error: i is too large a number for space (i>num)'
        WRITE(num3,fmt='(I0.3)') i
-       number_file_zeroes=TRIM(fbase)//num3//TRIM(fext)
+       number_file_zeroes=trim(fbase)//num3//trim(fext)
 
     ELSE IF(num==4) THEN
 
        IF(i>=10000) STOP 'NUMBER_FILE_ZEROES: Error: i is too large a number for space (i>num)'
        WRITE(num4,fmt='(I0.4)') i
-       number_file_zeroes=TRIM(fbase)//TRIM(num4)//TRIM(fext)
+       number_file_zeroes=trim(fbase)//trim(num4)//trim(fext)
 
     END IF
 

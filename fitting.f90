@@ -162,7 +162,7 @@ CONTAINS
 
        fom=0.
 
-       DO i=1,SIZE(x)
+       DO i=1,size(x)
 
           !This is the model that you wish to fit
           ymod=x(i)**A
@@ -205,7 +205,7 @@ CONTAINS
 !!$          B=Bmin+(Bmax-Bmin)*(float(k-1)/(float(Bsteps-1)))
 !!$
 !!$          fom=0.
-!!$          DO i=1,SIZE(x)
+!!$          DO i=1,size(x)
 !!$
 !!$             !This is the model that you wish to fit
 !!$             ymod=model(A,B,x(i))
@@ -230,7 +230,7 @@ CONTAINS
 !!$    WRITE(*,*) 'Best fit B is:', Bbest
 !!$
 !!$    OPEN(8,file='results.dat')
-!!$    DO i=1,SIZE(x)
+!!$    DO i=1,size(x)
 !!$       WRITE(8,*) x(i), y(i), model(Abest,Bbest,x(i))
 !!$    END DO
 !!$    CLOSE(8)
@@ -276,7 +276,7 @@ CONTAINS
 !!$             END IF
 !!$
 !!$             fom=0.
-!!$             DO i=1,SIZE(x)
+!!$             DO i=1,size(x)
 !!$
 !!$                !This is the model that you wish to fit
 !!$                ymod=model(A,B,C,x(i))
@@ -306,7 +306,7 @@ CONTAINS
 !!$    WRITE(*,*) 'Best fit C is:', Cbest
 !!$
 !!$    OPEN(8,file='results.dat')
-!!$    DO i=1,SIZE(x)
+!!$    DO i=1,size(x)
 !!$       WRITE(8,*) x(i), y(i), model(Abest,Bbest,Cbest,x(i))
 !!$    END DO
 !!$    CLOSE(8)
@@ -349,7 +349,7 @@ CONTAINS
 
        WRITE(*,*) i, xold, xnew
 
-       IF(i>1 .AND. ABS(xnew/xold-1.)<acc) THEN
+       IF(i>1 .AND. abs(xnew/xold-1.)<acc) THEN
           gradient_fit_1=xnew
           EXIT
        ELSE
@@ -390,7 +390,7 @@ CONTAINS
        xnew=xold-dfx*acc*100.
        ynew=yold-dfy*acc*100.
 
-       IF(i>1 .AND. ABS(xnew/xold-1.)<acc .AND. ABS(ynew/yold-1.)<acc) THEN
+       IF(i>1 .AND. abs(xnew/xold-1.)<acc .AND. abs(ynew/yold-1.)<acc) THEN
           gradient_fit_2(1)=xnew
           gradient_fit_2(2)=ynew
           EXIT

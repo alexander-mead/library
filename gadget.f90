@@ -19,22 +19,22 @@ CONTAINS
     REAL, PARAMETER :: Lunit=1000. !Convert from Gadget2 kpc to Mpc
     REAL, PARAMETER :: Munit=1e10 !Convert from Gadget2 10^10 Msun to Msun
 
-    WRITE(*,*) 'READ_GADGET: Reading in Gadget-2 file: ', TRIM(infile)
+    WRITE(*,*) 'READ_GADGET: Reading in Gadget-2 file: ', trim(infile)
 
     OPEN(7,file=infile,form='unformatted',status='old')
     READ(7) np, massarr, a8, z8, crap, crap, np2, crap, crap, L8, om_m8, om_v8, h8
     CLOSE(7)
 
     !Convert Gadget doubles to my reals
-    a=REAL(a8)
-    z=REAL(z8)
-    om_m=REAL(om_m8)
-    om_v=REAL(om_v8)
-    h=REAL(h8)
-    L=REAL(L8)/Lunit
+    a=real(a8)
+    z=real(z8)
+    om_m=real(om_m8)
+    om_v=real(om_v8)
+    h=real(h8)
+    L=real(L8)/Lunit
 
     !Multiply the masses by 1e10 to get in units of M_sun/h
-    m=REAL(massarr(2))*Munit
+    m=real(massarr(2))*Munit
     WRITE(*,*) 'READ_GADGET: Particle number:', np(2)
     WRITE(*,*) 'READ_GADGET: Which is:', nint(np(2)**(1./3.)), 'cubed.'
     WRITE(*,*) 'READ_GADGET: Particle mass [M_sun/h]:', m
@@ -62,7 +62,7 @@ CONTAINS
     x=x/Lunit
 
     !Change from weird Gadget units to peculiar velocities
-    v=v*sqrt(REAL(a8))
+    v=v*sqrt(real(a8))
 
     WRITE(*,*) 'READ_GADGET: Finished reading in file'
     WRITE(*,*)
@@ -83,7 +83,7 @@ CONTAINS
     REAL, PARAMETER :: Lunit=1000. !Convert from Gadget2 kpc to Mpc
     REAL, PARAMETER :: Munit=1e10 !Convert from Gadget2 10^10 Msun to Msun
 
-    WRITE(*,*) 'WRITE_GADGET: Outputting particle data in Gadget2 format: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_GADGET: Outputting particle data in Gadget2 format: ', trim(outfile)
 
     np=0
     np(2)=n
@@ -137,7 +137,7 @@ CONTAINS
     INTEGER, INTENT(OUT) :: n
     INTEGER :: i
 
-    WRITE(*,*) 'READ_CATALOGUE: Reading in catalogue: ', TRIM(infile)
+    WRITE(*,*) 'READ_CATALOGUE: Reading in catalogue: ', trim(infile)
 
     n=file_length(infile,verbose=.FALSE.)
     ALLOCATE(x(3,n),v(3,n),m(n),npart(n))
@@ -149,12 +149,12 @@ CONTAINS
     END DO
     CLOSE(7)
 
-    WRITE(*,*) 'READ_CATALOGUE: Min x [Mpc/h]    :', MINVAL(x)
-    WRITE(*,*) 'READ_CATALOGUE: Max x [Mpc/h]    :', MAXVAL(x)
-    WRITE(*,*) 'READ_CATALOGUE: Min v [km/s]     :', MINVAL(v)
-    WRITE(*,*) 'READ_CATALOGUE: Max v [km/s]     :', MAXVAL(v)
-    WRITE(*,*) 'READ_CATALOGUE: Min mass [Msun/h]:', MINVAL(m)
-    WRITE(*,*) 'READ_CATALOGUE: Max mass [Msun/h]:', MAXVAL(m)
+    WRITE(*,*) 'READ_CATALOGUE: Min x [Mpc/h]    :', minval(x)
+    WRITE(*,*) 'READ_CATALOGUE: Max x [Mpc/h]    :', maxval(x)
+    WRITE(*,*) 'READ_CATALOGUE: Min v [km/s]     :', minval(v)
+    WRITE(*,*) 'READ_CATALOGUE: Max v [km/s]     :', maxval(v)
+    WRITE(*,*) 'READ_CATALOGUE: Min mass [Msun/h]:', minval(m)
+    WRITE(*,*) 'READ_CATALOGUE: Max mass [Msun/h]:', maxval(m)
     WRITE(*,*) 'READ_CATALOGUE: Finished reading catalogue file'
     WRITE(*,*)
 
@@ -191,7 +191,7 @@ CONTAINS
 !!$    CHARACTER(len=256), INTENT(IN) :: outfile
 !!$    INTEGER :: i
 !!$
-!!$    WRITE(*,*) 'WRITE_POWER: Output file: ', TRIM(outfile)
+!!$    WRITE(*,*) 'WRITE_POWER: Output file: ', trim(outfile)
 !!$    OPEN(7,file=outfile)
 !!$    DO i=1,nk
 !!$       !WRITE(*,*) i

@@ -19,7 +19,7 @@ CONTAINS
        sum=sum+x(i)
     END DO
 
-    mean=REAL(sum)/REAL(n)
+    mean=real(sum)/real(n)
 
   END FUNCTION mean
 
@@ -40,7 +40,7 @@ CONTAINS
        sum=sum+(x(i)-avg)**2
     END DO
 
-    variance=REAL(sum)/REAL(n)
+    variance=real(sum)/real(n)
 
   END FUNCTION variance
 
@@ -75,7 +75,7 @@ CONTAINS
        END IF
     END DO
 
-    WRITE(*,*) 'HISTOGRAM: Fraction of data assigned to histogram:', REAL(SUM(hist))/REAL(m)
+    WRITE(*,*) 'HISTOGRAM: Fraction of data assigned to histogram:', real(sum(hist))/real(m)
     WRITE(*,*) 'HISTOGRAM: Done'
     WRITE(*,*)
 

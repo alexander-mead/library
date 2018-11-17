@@ -24,7 +24,7 @@ CONTAINS
     LOGICAL :: lexist
 
     ! Write to screen
-    WRITE(*,*) 'READ_MCCARTHY: Reading in binary file: ', TRIM(infile)
+    WRITE(*,*) 'READ_MCCARTHY: Reading in binary file: ', trim(infile)
 
     ! Open the file using stream
     INQUIRE(file=infile, exist=lexist)
@@ -40,7 +40,7 @@ CONTAINS
 
     ! Write information to screen
     WRITE(*,*) 'READ_MCCARTHY: Particle number:', n
-    WRITE(*,*) 'READ_MCCARTHY: Which is ~', NINT(n**(1./3.)), 'cubed.'
+    WRITE(*,*) 'READ_MCCARTHY: Which is ~', nint(n**(1./3.)), 'cubed.'
 
     ! Allocate arrays
     ALLOCATE(x(3,n),m(n))
@@ -58,15 +58,15 @@ CONTAINS
        m=m*mfac
 
        ! Write information to screen
-       WRITE(*,*) 'READ_MCCARTHY: Minimum particle mass [Msun/h]:', MINVAL(m)
-       WRITE(*,*) 'READ_MCCARTHY: Maximum particle mass [Msun/h]:', MAXVAL(m)
-       WRITE(*,*) 'READ_MCCARTHY: Total particle mass [Msun/h]:', SUM(m)
-       WRITE(*,*) 'READ_MCCARTHY: Minimum x coordinate [Mpc/h]:', MINVAL(x(1,:))
-       WRITE(*,*) 'READ_MCCARTHY: Maximum x coordinate [Mpc/h]:', MAXVAL(x(1,:))
-       WRITE(*,*) 'READ_MCCARTHY: Minimum y coordinate [Mpc/h]:', MINVAL(x(2,:))
-       WRITE(*,*) 'READ_MCCARTHY: Maximum y coordinate [Mpc/h]:', MAXVAL(x(2,:))
-       WRITE(*,*) 'READ_MCCARTHY: Minimum z coordinate [Mpc/h]:', MINVAL(x(3,:))
-       WRITE(*,*) 'READ_MCCARTHY: Maximum z coordinate [Mpc/h]:', MAXVAL(x(3,:))
+       WRITE(*,*) 'READ_MCCARTHY: Minimum particle mass [Msun/h]:', minval(m)
+       WRITE(*,*) 'READ_MCCARTHY: Maximum particle mass [Msun/h]:', maxval(m)
+       WRITE(*,*) 'READ_MCCARTHY: Total particle mass [Msun/h]:', sum(m)
+       WRITE(*,*) 'READ_MCCARTHY: Minimum x coordinate [Mpc/h]:', minval(x(1,:))
+       WRITE(*,*) 'READ_MCCARTHY: Maximum x coordinate [Mpc/h]:', maxval(x(1,:))
+       WRITE(*,*) 'READ_MCCARTHY: Minimum y coordinate [Mpc/h]:', minval(x(2,:))
+       WRITE(*,*) 'READ_MCCARTHY: Maximum y coordinate [Mpc/h]:', maxval(x(2,:))
+       WRITE(*,*) 'READ_MCCARTHY: Minimum z coordinate [Mpc/h]:', minval(x(3,:))
+       WRITE(*,*) 'READ_MCCARTHY: Maximum z coordinate [Mpc/h]:', maxval(x(3,:))
        WRITE(*,*) 'READ_MCCARTHY: Finished reading in file'
 
     END IF
@@ -89,12 +89,12 @@ CONTAINS
     ! Read in the binary file
     INQUIRE(file=infile, exist=lexist)
     IF(.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Reading in binary file: ', TRIM(infile)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Reading in binary file: ', trim(infile)
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) n
     CLOSE(7)
     WRITE(*,*) 'READ_MCCARTHY_GAS: Particle number:', n
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Which is ~', NINT(n**(1./3.)), 'cubed.'
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Which is ~', nint(n**(1./3.)), 'cubed.'
 
     ! Allocate arrays for quantities in the file
     ALLOCATE(x(3,n),m(n),ep(n),nh(n))
@@ -133,18 +133,18 @@ CONTAINS
     DEALLOCATE(ep)
 
     ! Write information to the screen
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle mass [Msun/h]:', MINVAL(m)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle mass [Msun/h]:', MAXVAL(m)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum x coordinate [Mpc/h]:', MINVAL(x(1,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum x coordinate [Mpc/h]:', MAXVAL(x(1,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum y coordinate [Mpc/h]:', MINVAL(x(2,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum y coordinate [Mpc/h]:', MAXVAL(x(2,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum z coordinate [Mpc/h]:', MINVAL(x(3,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum z coordinate [Mpc/h]:', MAXVAL(x(3,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum internal energy [eV]:', MINVAL(kT)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum internal energy [eV]:', MAXVAL(kT)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum hydrogen number density [cm^-3]:', MINVAL(nh)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum hydrogen number density [cm^-3]:', MAXVAL(nh)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle mass [Msun/h]:', minval(m)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle mass [Msun/h]:', maxval(m)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum x coordinate [Mpc/h]:', minval(x(1,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum x coordinate [Mpc/h]:', maxval(x(1,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum y coordinate [Mpc/h]:', minval(x(2,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum y coordinate [Mpc/h]:', maxval(x(2,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum z coordinate [Mpc/h]:', minval(x(3,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum z coordinate [Mpc/h]:', maxval(x(3,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum internal energy [eV]:', minval(kT)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum internal energy [eV]:', maxval(kT)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum hydrogen number density [cm^-3]:', minval(nh)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum hydrogen number density [cm^-3]:', maxval(nh)
     WRITE(*,*) 'READ_MCCARTHY_GAS: Finished reading in file'
     WRITE(*,*)
 
@@ -206,7 +206,7 @@ CONTAINS
     kT_dble=kT_dble*units ! [eV/cm^3]
 
     ! Go back to single precision
-    kT=REAL(kT_dble) ! [eV/cm^3]
+    kT=real(kT_dble) ! [eV/cm^3]
 
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Done'
     WRITE(*,*)
@@ -221,10 +221,10 @@ CONTAINS
     REAL, INTENT(IN) :: x(3,n), m(n)
     INTEGER, INTENT(IN) :: n
 
-    WRITE(*,*) 'WRITE_MCCARTHY: Outputting binary file: ', TRIM(outfile)
+    WRITE(*,*) 'WRITE_MCCARTHY: Outputting binary file: ', trim(outfile)
 
     WRITE(*,*) 'WRITE_MCCARTHY: Particle number:', n
-    WRITE(*,*) 'WRITE_MCCARTHY: Which is ~', NINT(n**(1./3.)), 'cubed.'
+    WRITE(*,*) 'WRITE_MCCARTHY: Which is ~', nint(n**(1./3.)), 'cubed.'
 
     OPEN(7,file=outfile,form='unformatted',access='stream',status='replace')
     WRITE(7) n

@@ -23,12 +23,12 @@ CONTAINS
        CALL itime(timeArray)
        
        ! This then initialises the generator!
-       int=FLOOR(rand(timeArray(1)+timeArray(2)+timeArray(3)))
+       int=floor(rand(timeArray(1)+timeArray(2)+timeArray(3)))
        
     ELSE
        
        ! In this case you can keep track of the seed
-       int=FLOOR(rand(seed))
+       int=floor(rand(seed))
        
     END IF
     
@@ -49,7 +49,7 @@ CONTAINS
     ! Range for the number
     n=1+i2-i1
 
-    random_integer=i1-1+CEILING(rand(0)*REAL(n))
+    random_integer=i1-1+ceiling(rand(0)*real(n))
 
   END FUNCTION random_integer
 

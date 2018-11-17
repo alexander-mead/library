@@ -85,7 +85,7 @@ CONTAINS
 
     !This may actually be unnecessary
 
-    IF(ABS(x)<dx) THEN
+    IF(abs(x)<dx) THEN
        sinc=1.-(x**2)/6.
     ELSE
        sinc=sin(x)/x
@@ -105,9 +105,9 @@ CONTAINS
     !Taylor expansion used for low x to avoid cancellation problems
     IF(x==0.) THEN
        wk_tophat=1.
-    ELSE IF(ABS(x)>mx) THEN
+    ELSE IF(abs(x)>mx) THEN
        wk_tophat=0.
-    ELSE IF(ABS(x)<dx) THEN
+    ELSE IF(abs(x)<dx) THEN
        wk_tophat=1.-x**2/10.
     ELSE
        wk_tophat=3.*(sin(x)-x*cos(x))/x**3
@@ -209,7 +209,7 @@ CONTAINS
     REAL, PARAMETER :: x0=4.
 
     !Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
-    IF(ABS(x)<=x0) THEN
+    IF(abs(x)<=x0) THEN
 
        x2=x*x
 
@@ -220,9 +220,9 @@ CONTAINS
             x2*(1.55654986308745614d-7+x2*(3.28067571055789734d-10+x2*(4.5049097575386581d-13&
             +x2*(3.21107051193712168d-16)))))))
 
-       Si=REAL(si8)
+       Si=real(si8)
 
-    ELSE IF(ABS(x)>x0) THEN
+    ELSE IF(abs(x)>x0) THEN
 
        y=1.d0/(x*x)
 
@@ -245,7 +245,7 @@ CONTAINS
             + y*(2.23355543278099360d9 + y*(7.87465017341829930d10 + y*(1.39866710696414565d12 &
             + y*(1.17164723371736605d13 + y*(4.01839087307656620d13 +y*(3.99653257887490811d13))))))))))
 
-       Si=REAL(pi/2.d0-f*cos(x)-g*sin(x))
+       Si=real(pi/2.d0-f*cos(x)-g*sin(x))
 
     ELSE
 
@@ -264,7 +264,7 @@ CONTAINS
     REAL, PARAMETER :: x0=4.
 
     !Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
-    IF(ABS(x)<=x0) THEN
+    IF(abs(x)<=x0) THEN
 
        x2=x*x
 
@@ -274,9 +274,9 @@ CONTAINS
             x2*(6.72126800814254432d-5+x2*(2.55533277086129636d-7+x2*(6.97071295760958946d-10+&
             x2*(1.38536352772778619d-12+x2*(1.89106054713059759d-15+x2*(1.39759616731376855d-18))))))))
 
-       Ci=REAL(ci8)
+       Ci=real(ci8)
 
-    ELSE IF(ABS(x)>x0) THEN
+    ELSE IF(abs(x)>x0) THEN
 
        y=1./(x*x)
 
@@ -297,7 +297,7 @@ CONTAINS
             y*(3.26026661647090822d7 + y*(2.23355543278099360d9 + y*(7.87465017341829930d10 &
             + y*(1.39866710696414565d12 + y*(1.17164723371736605d13 + y*(4.01839087307656620d13 +y*(3.99653257887490811d13))))))))))
 
-       Ci=REAL(f*sin(x)-g*cos(x))
+       Ci=real(f*sin(x)-g*cos(x))
 
     ELSE
 
@@ -326,11 +326,11 @@ CONTAINS
        IF(n<0) STOP 'Error: cannot call for negative n'
 
        IF(n==0) THEN
-          Bessel=BESSEL_J0(REAL(x))
+          Bessel=Bessel_J0(real(x))
        ELSE IF(n==1) THEN
-          Bessel=BESSEL_J1(REAL(x))
+          Bessel=Bessel_J1(real(x))
        ELSE
-          Bessel=BESSEL_JN(n,REAL(x))      
+          Bessel=Bessel_JN(n,real(x))      
        END IF
 
     END IF
@@ -397,7 +397,7 @@ CONTAINS
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, nbar
 
-    Poisson=exp(-REAL(nbar))*(nbar**n)/factorial(n)
+    Poisson=exp(-real(nbar))*(nbar**n)/factorial(n)
 
   END FUNCTION Poisson
 

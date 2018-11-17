@@ -55,14 +55,14 @@ CONTAINS
     REAL, INTENT(IN) :: eps
     REAL :: absx, absy, diff
 
-    absx=ABS(x)
-    absy=ABS(y)
-    diff=ABS(x-y)
+    absx=abs(x)
+    absy=abs(y)
+    diff=abs(x-y)
 
     IF(x==y) THEN
        requal=.TRUE.
-    ELSE IF(x==0. .OR. y==0. .OR. diff<TINY(x)) THEN
-       IF(diff<eps*TINY(x)) THEN
+    ELSE IF(x==0. .OR. y==0. .OR. diff<tiny(x)) THEN
+       IF(diff<eps*tiny(x)) THEN
           requal=.TRUE.
        ELSE
           requal=.FALSE.

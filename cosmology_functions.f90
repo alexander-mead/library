@@ -49,6 +49,9 @@ MODULE cosmology_functions
   REAL, PARAMETER :: rmax_sigma=1e3    ! Maximum r value (NB. sigma(R) needs to be power-law above)
   REAL, PARAMETER :: Rsplit_sigma=1e-2 ! R value at which to split between the integration methods
 
+  ! sigmaV(R) integration
+  REAL, PARAMETER :: alpha_sigmaV=3.
+
 CONTAINS
 
    SUBROUTINE assign_cosmology(icosmo,cosm,verbose)
@@ -183,7 +186,7 @@ CONTAINS
           ELSE IF(i>=200 .AND. i<=237) THEN
              ! Do nothing
           ELSE IF(names(i) .NE. '') THEN
-             WRITE(*,*) i, '- ', TRIM(names(i))
+             WRITE(*,*) i, '- ', trim(names(i))
           END IF
        END DO
        WRITE(*,*) ' 100 -> 136 - Mira Titan M000 -> M036'
@@ -430,7 +433,7 @@ CONTAINS
     END IF
 
     IF(cosm%verbose) THEN
-       WRITE(*,*) 'ASSIGN_COSMOLOGY: Cosmology: ', TRIM(cosm%name)
+       WRITE(*,*) 'ASSIGN_COSMOLOGY: Cosmology: ', trim(cosm%name)
        WRITE(*,*) 'ASSIGN_COSMOLOGY: Done'
        WRITE(*,*)
     END IF
@@ -497,8 +500,8 @@ CONTAINS
        WRITE(*,*) 'INIT_COSMOLOGY: Omega:', cosm%Om
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_k:', cosm%Om_k
        WRITE(*,*) 'INIT_COSMOLOGY: k [Mpc/h]^-2:', cosm%k
-       IF(ABS(cosm%k)>small) THEN
-          WRITE(*,*) 'INIT_COSMOLOGY: k_rad [Mpc/h]:', 1./sqrt(ABS(cosm%k))
+       IF(abs(cosm%k)>small) THEN
+          WRITE(*,*) 'INIT_COSMOLOGY: k_rad [Mpc/h]:', 1./sqrt(abs(cosm%k))
        END IF
     END IF
 
@@ -594,7 +597,7 @@ CONTAINS
 
     IF(cosm%verbose) THEN
        WRITE(*,*) '===================================='
-       WRITE(*,*) 'COSMOLOGY: ', TRIM(cosm%name)
+       WRITE(*,*) 'COSMOLOGY: ', trim(cosm%name)
        WRITE(*,*) '===================================='
        WRITE(*,*) 'COSMOLOGY: Standard parameters'
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_m:', cosm%Om_m
@@ -620,8 +623,8 @@ CONTAINS
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_k:', cosm%Om_k
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v'':', cosm%Om_v_mod
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [Mpc/h]^-2:', cosm%k
-       IF(ABS(cosm%k)>small) THEN
-          WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k_rad [Mpc/h]:', 1./sqrt(ABS(cosm%k))
+       IF(abs(cosm%k)>small) THEN
+          WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k_rad [Mpc/h]:', 1./sqrt(abs(cosm%k))
        END IF
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_p:', cosm%mup
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_e:', cosm%mue
@@ -680,6 +683,8 @@ CONTAINS
     INTEGER, PARAMETER :: max_humps=100000
     INTEGER, PARAMETER :: method=1
 
+    STOP 'XI_LIN: This is ridiculuously slow for large R'
+
     IF(method==1) THEN
 
        xi_lin=integrate_cosm(0.,1.,xi_integrand_transformed,r,a,cosm,acc_cosm,3)
@@ -700,7 +705,7 @@ CONTAINS
           xi8=xi8+xi_bit
 
           IF(i>min_humps) THEN
-             IF(ABS(xi_bit/real(xi8))<acc_cosm) THEN
+             IF(abs(xi_bit/real(xi8))<acc_cosm) THEN
                 EXIT
              END IF
           END IF
@@ -715,7 +720,7 @@ CONTAINS
 
        END DO
 
-       xi_lin=xi8
+       xi_lin=real(xi8)
 
     ELSE
 
@@ -746,21 +751,28 @@ CONTAINS
   REAL FUNCTION xi_integrand_transformed(t,r,a,cosm)
 
     ! Integrand for the 3D linear matter correlation function
+    ! TODO: Optimise alpha(r)
     USE special_functions
     IMPLICIT NONE
-    REAL, INTENT(IN) :: t ! kr=(-1+1/t)^alpha (integrated over)
+    REAL, INTENT(IN) :: t ! kr=(-1+1/t)^alpha (integrated over 0:1)
     REAL, INTENT(IN) :: r ! Separation [Mpc/h]
     REAL, INTENT(IN) :: a ! Scale factor
     TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-    REAL, PARAMETER :: alpha=1. ! Could be alpha(r)
-    REAL :: kr, k
+    REAL :: kr, k, alpha
+    REAL, PARAMETER :: rsplit=10.
+
+    IF(r<rsplit) THEN
+       alpha=2.
+    ELSE
+       alpha=1.5
+    END IF
     
     IF(t==0. .OR. t==1.) THEN
        xi_integrand_transformed=0.
     ELSE
-       kr=((-1.+1./t)**alpha)
+       kr=(-1.+1./t)**alpha
        k=kr/r
-       xi_integrand_transformed=sinc(kr)*p_lin(k,a,cosm)*alpha*t/(1.-t)
+       xi_integrand_transformed=sinc(kr)*p_lin(k,a,cosm)*alpha/(t*(1.-t))
     END IF
     
   END FUNCTION xi_integrand_transformed
@@ -771,8 +783,8 @@ CONTAINS
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: sigi, sigf, kbox
-    REAL, PARAMETER :: R=8.
-    REAL, PARAMETER :: a=1.
+    REAL, PARAMETER :: R=8. ! Because we are doing sigma(R=8Mpc/h) normalisation
+    REAL, PARAMETER :: a=1. ! Because we are doing simga(R=8Mpc/h,a=1) normalisation
     LOGICAL, PARAMETER :: run_twice=.FALSE.
 
     ! Need to give this a value otherwise get a warning in debug mode
@@ -798,7 +810,7 @@ CONTAINS
        !sigi=sqrt(sigma2_integral1(8.,1.,cosm,2.*acc_cosm))
        sigi=sigma_integral(R,a,cosm)
 
-       IF(cosm%verbose) WRITE(*,*) 'NORMALISE_POWER: Initial sigma_8:', REAL(sigi)
+       IF(cosm%verbose) WRITE(*,*) 'NORMALISE_POWER: Initial sigma_8:', real(sigi)
 
        ! Reset the normalisation to give the correct sigma8
        cosm%A=cosm%sig8/sigi
@@ -810,9 +822,9 @@ CONTAINS
 
        ! Write to screen
        IF(cosm%verbose) THEN
-          WRITE(*,*) 'NORMALISE_POWER: Normalisation factor:', REAL(cosm%A)
-          WRITE(*,*) 'NORMALISE_POWER: Target sigma_8:', REAL(cosm%sig8)
-          WRITE(*,*) 'NORMALISE_POWER: Final sigma_8 (calculated):', REAL(sigf)
+          WRITE(*,*) 'NORMALISE_POWER: Normalisation factor:', real(cosm%A)
+          WRITE(*,*) 'NORMALISE_POWER: Target sigma_8:', real(cosm%sig8)
+          WRITE(*,*) 'NORMALISE_POWER: Final sigma_8 (calculated):', real(sigf)
           WRITE(*,*) 'NORMALISE_POWER: Done'
           WRITE(*,*)
        END IF
@@ -832,8 +844,8 @@ CONTAINS
 
        IF(cosm%verbose) THEN
           WRITE(*,*) 'NORMALISE_POWER: Normalising power to get correct sigma_8'
-          WRITE(*,*) 'NORMALISE_POWER: Initial As:', REAL(cosm%A)
-          WRITE(*,*) 'NORMALISE_POWER: Initial sigma_8:', REAL(sigi)          
+          WRITE(*,*) 'NORMALISE_POWER: Initial As:', real(cosm%A)
+          WRITE(*,*) 'NORMALISE_POWER: Initial sigma_8:', real(sigi)          
        END IF
 
        ! Normalisation
@@ -852,9 +864,9 @@ CONTAINS
 
        ! Write to screen
        IF(cosm%verbose) THEN
-          !WRITE(*,*) 'NORMALISE_POWER: New As:', REAL(cosm%A)  
-          WRITE(*,*) 'NORMALISE_POWER: Target sigma_8:', REAL(cosm%sig8)
-          WRITE(*,*) 'NORMALISE_POWER: Final sigma_8 (calculated):', REAL(sigf)
+          !WRITE(*,*) 'NORMALISE_POWER: New As:', real(cosm%A)  
+          WRITE(*,*) 'NORMALISE_POWER: Target sigma_8:', real(cosm%sig8)
+          WRITE(*,*) 'NORMALISE_POWER: Final sigma_8 (calculated):', real(sigf)
           WRITE(*,*) 'NORMALISE_POWER: Done'
           WRITE(*,*)
        END IF
@@ -1114,7 +1126,7 @@ CONTAINS
        f2=a**cosm%ns+cosm%a1n
        f3=a**cosm%ns-cosm%a2n
        f4=a**cosm%ns+cosm%a2n
-       w_de=-1.+REAL(f1/f2-f3/f4)
+       w_de=-1.+real(f1/f2-f3/f4)
     ELSE IF(cosm%iw==7) THEN
        ! IDE III
        IF(a<cosm%a1) THEN
@@ -1187,7 +1199,7 @@ CONTAINS
        f2=1.+cosm%a1n
        f3=1.+cosm%a2n
        f4=a**cosm%ns+cosm%a2n
-       X_de=REAL(f1*f3/(f2*f4))**(-6./cosm%ns)
+       X_de=real(f1*f3/(f2*f4))**(-6./cosm%ns)
     ELSE IF(cosm%iw==7) THEN
        ! IDE III
        IF(a<cosm%a1) THEN
@@ -1387,10 +1399,10 @@ CONTAINS
     amax=scale_factor_z(zmin)
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_DISTANCE: Redshift range for r(z) tables'
-       WRITE(*,*) 'INIT_DISTANCE: minimum z:', REAL(zmin)
-       WRITE(*,*) 'INIT_DISTANCE: maximum z:', REAL(zmax)
-       WRITE(*,*) 'INIT_DISTANCE: minimum a:', REAL(amin)
-       WRITE(*,*) 'INIT_DISTANCE: maximum a:', REAL(amax)
+       WRITE(*,*) 'INIT_DISTANCE: minimum z:', real(zmin)
+       WRITE(*,*) 'INIT_DISTANCE: maximum z:', real(zmax)
+       WRITE(*,*) 'INIT_DISTANCE: minimum a:', real(amin)
+       WRITE(*,*) 'INIT_DISTANCE: maximum a:', real(amax)
     END IF
     cosm%n_r=nr
     CALL fill_array(amin,amax,cosm%a_r,cosm%n_r)
@@ -1402,14 +1414,14 @@ CONTAINS
        cosm%r(i)=integrate_cosm(cosm%a_r(i),1.,distance_integrand,cosm,acc_cosm,3)
     END DO
     IF(cosm%verbose) THEN
-       WRITE(*,*) 'INIT_DISTANCE: minimum r [Mpc/h]:', REAL(cosm%r(cosm%n_r))
-       WRITE(*,*) 'INIT_DISTANCE: maximum r [Mpc/h]:', REAL(cosm%r(1))
+       WRITE(*,*) 'INIT_DISTANCE: minimum r [Mpc/h]:', real(cosm%r(cosm%n_r))
+       WRITE(*,*) 'INIT_DISTANCE: maximum r [Mpc/h]:', real(cosm%r(1))
     END IF
 
     ! Find the horizon distance in your cosmology
     cosm%horizon=integrate_cosm(0.,1.,distance_integrand,cosm,acc_cosm,3)
     IF(cosm%verbose) THEN
-       WRITE(*,*) 'INIT_DISTANCE: Horizon distance [Mpc/h]:', REAL(cosm%horizon)
+       WRITE(*,*) 'INIT_DISTANCE: Horizon distance [Mpc/h]:', real(cosm%horizon)
        WRITE(*,*) 'INIT_DISTANCE: Done'
        WRITE(*,*)
     END IF
@@ -1508,7 +1520,7 @@ CONTAINS
     tk=1./(1.+(6.4*q+(3.0*q)**1.5+(1.7*q)**2)**1.13)**(1./1.13)
     tk8=1./(1.+(6.4*q8+(3.0*q8)**1.5+(1.7*q8)**2)**1.13)**(1./1.13)
 
-    tk_defw=tk/REAL(tk8)
+    tk_defw=tk/real(tk8)
 
   END FUNCTION Tk_DEFW
 
@@ -1730,8 +1742,8 @@ CONTAINS
     ! Write to screen
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_SIGMA: Filling sigma(R) interpolation table'
-       WRITE(*,*) 'INIT_SIGMA: R minimum [Mpc/h]:', REAL(rmin_sigma)
-       WRITE(*,*) 'INIT_SIGMA: R maximum [Mpc/h]:', REAL(rmax_sigma)
+       WRITE(*,*) 'INIT_SIGMA: R minimum [Mpc/h]:', real(rmin_sigma)
+       WRITE(*,*) 'INIT_SIGMA: R maximum [Mpc/h]:', real(rmax_sigma)
        WRITE(*,*) 'INIT_SIGMA: number of points:', nsig
     END IF
 
@@ -1767,7 +1779,6 @@ CONTAINS
   REAL FUNCTION sigma_integral(r,a,cosm)
 
     ! Calculates sigma(R) by intergration
-    ! TODO: Check k box
     IMPLICIT NONE
     REAL, INTENT(IN) :: r
     REAL, INTENT(IN) :: a
@@ -1776,19 +1787,11 @@ CONTAINS
 
     ! Integration method changes depending on r to make this as fast as possible
     IF(r>=Rsplit_sigma) THEN
-       !sigma=sqrt(sigma2_integral1(r,a,cosm,2.*acc_cosm))
        ! Integration upper limit (c = 1 corresponds to k = 0)
        tmin=0.
-       IF(cosm%box) THEN
-          ! TODO: Is this necessary? Surely kbox is taken care of in power!
-          tmax=t_sigma_integrand(cosm%kbox,r)
-       ELSE
-          tmax=1. 
-       END IF
+       tmax=1.
        sigma_integral=sqrt(integrate_cosm(tmin,tmax,sigma2_integrand_transformed,r,a,cosm,2.*acc_cosm,3))
     ELSE IF(r<Rsplit_sigma) THEN
-       !part1=sigma2_integral2_1_of_2(r,a,cosm,2.*acc_cosm)
-       !part2=sigma2_integral2_2_of_2(r,a,cosm,2.*acc_cosm)
        ! Integration limits, the split of the integral is done at k = 1/R
        tmin=t_sigma_integrand(ksplit_sigma(R),R)
        tmax=1.  ! Integration limit corresponding to k=0
@@ -1856,15 +1859,10 @@ CONTAINS
        ! t=1 corresponds to k=0 when P(k)=0
        sigma2_integrand_transformed=0.
     ELSE
-       !WRITE(*,*) 'TRANSFORMED: t, R:', t, R
        k=k_sigma_integrand(t,R)
        kR=k*R
-       !WRITE(*,*) 'TRANSFORMED: k, kR:', k, kR
        w_hat=wk_tophat(kR)
-       !WRITE(*,*) 'TRANSFORMED: w_hat:', w_hat
        sigma2_integrand_transformed=p_lin(k,a,cosm)*(w_hat**2)*alpha_sigma/(t*(1.-t))
-       !WRITE(*,*) 'TRANSFORMED: sigma2_integrand_transformed:', sigma2_integrand_transformed
-       !WRITE(*,*)
     END IF
 
   END FUNCTION sigma2_integrand_transformed
@@ -1901,7 +1899,7 @@ CONTAINS
   REAL FUNCTION t_sigma_integrand(k,R)
 
     ! How t relates to k and R in the transformed sigma^2(R) integrand
-    ! t = 1/[1+(kR)**(1/alpha)]
+    ! t = 1/[1+(kR)^(1/alpha)]
     ! This function is the inverse of sigma_integrand_k
     IMPLICIT NONE
     REAL, INTENT(IN) :: k
@@ -1911,319 +1909,8 @@ CONTAINS
     
   END FUNCTION t_sigma_integrand
 
-!!$  REAL FUNCTION sigma2_integral1(R,a,cosm,acc)
-!!$
-!!$    ! Integrates between a and b until desired accuracy is reached
-!!$    ! Stores information to reduce function calls
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: R
-!!$    REAL, INTENT(IN) :: a
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    REAL, INTENT(IN) :: acc
-!!$    INTEGER :: i, j
-!!$    INTEGER :: n
-!!$    REAL :: t, dt, f1, f2, ft, tmin, tmax
-!!$    DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-!!$
-!!$    INTEGER, PARAMETER :: jmin=5
-!!$    INTEGER, PARAMETER :: jmax=30
-!!$    INTEGER, PARAMETER :: iorder=3
-!!$    LOGICAL, PARAMETER :: verbose_sigma=.TRUE.
-!!$
-!!$    tmin=0. ! Integration lower limit (t = 0 corresponts to k=inf)
-!!$
-!!$    ! Integration upper limit (c = 1 corresponds to k = 0)
-!!$    IF(cosm%box) THEN
-!!$       tmax=t_sigma_integrand(cosm%kbox,R)
-!!$    ELSE
-!!$       tmax=1. 
-!!$    END IF
-!!$
-!!$    !WRITE(*,*) tmin, tmax
-!!$    
-!!$    IF(tmin==tmax) THEN
-!!$
-!!$       ! Fix the answer to zero if the integration limits are identical
-!!$       sigma2_integral1=0.
-!!$
-!!$    ELSE
-!!$
-!!$       ! Reset the sum variable for the integration
-!!$       sum_2n=0.
-!!$       sum_n=0.
-!!$       sum_old=0.
-!!$       sum_new=0.
-!!$
-!!$       DO j=1,jmax
-!!$
-!!$          ! Note, you need this to be 1+2**n for some integer n
-!!$          ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-!!$          n=1+2**(j-1)
-!!$
-!!$          ! Calculate the dx interval for this value of 'n'
-!!$          dt=(tmax-tmin)/REAL(n-1)
-!!$
-!!$          IF(j==1) THEN
-!!$
-!!$             ! The first go is just the trapezium of the end points
-!!$             f1=sigma2_integrand_transformed(tmin,R,a,cosm)
-!!$             f2=sigma2_integrand_transformed(tmax,R,a,cosm)
-!!$             sum_2n=0.5*(f1+f2)*dt
-!!$             sum_new=sum_2n
-!!$
-!!$          ELSE
-!!$
-!!$             ! Loop over only new even points to add these to the integral
-!!$             DO i=2,n,2
-!!$                !IF(verbose_sigma) WRITE(*,*) 'SIGMA2_INTEGERAL1: i, j, R:', i, j, R
-!!$                t=progression(tmin,tmax,i,n)
-!!$                !IF(verbose_sigma) WRITE(*,*) 'SIGMA2_INTEGERAL1: t:', t
-!!$                ft=sigma2_integrand_transformed(t,R,a,cosm)
-!!$                !IF(verbose_sigma) WRITE(*,*) 'SIGMA2_INTEGERAL1: ft:', ft
-!!$                sum_2n=sum_2n+ft
-!!$                !IF(verbose_sigma) THEN
-!!$                !   WRITE(*,*) 'SIGMA2_INTEGERAL1: t, ft, sum_2n:', t, ft, sum_2n
-!!$                !   WRITE(*,*)
-!!$                !END IF
-!!$             END DO
-!!$
-!!$             ! Now create the total using the old and new parts
-!!$             sum_2n=sum_n/2.+sum_2n*dt
-!!$
-!!$             ! Now calculate the new sum depending on the integration order
-!!$             IF(iorder==1) THEN  
-!!$                sum_new=sum_2n
-!!$             ELSE IF(iorder==3) THEN         
-!!$                sum_new=(4.*sum_2n-sum_n)/3. ! This is Simpson rule and cancels error
-!!$             ELSE
-!!$                STOP 'SIGMA2_INTEGRAL1: Error, iorder specified incorrectly'
-!!$             END IF
-!!$
-!!$             !IF(verbose_sigma) THEN
-!!$             !   WRITE(*,*) 'SIGMA2_INTEGERAL1: i, sum_new, sum_old:', j, sum_new, sum_old
-!!$             !   WRITE(*,*)
-!!$             !END IF
-!!$
-!!$          END IF
-!!$
-!!$          IF((j>=jmin) .AND. (ABS(-1.+sum_new/sum_old)<acc)) THEN
-!!$             ! jmin avoids spurious early convergence
-!!$             sigma2_integral1=REAL(sum_new)
-!!$             EXIT
-!!$          ELSE IF(j==jmax) THEN
-!!$             sigma2_integral1=0.d0
-!!$             STOP 'SIGMA2_INTEGRAL1: Integration timed out'
-!!$          ELSE
-!!$             ! Integral has not converged so store old sums and reset sum variables
-!!$             !WRITE(*,*) 'SIGMA2_INTEGERAL1:', j, sqrt(sum_new)
-!!$             sigma2_integral1=0.d0
-!!$             sum_old=sum_new
-!!$             sum_n=sum_2n
-!!$             sum_2n=0.
-!!$          END IF
-!!$
-!!$       END DO
-!!$
-!!$    END IF
-!!$
-!!$  END FUNCTION sigma2_integral1
-!!$
-!!$  REAL FUNCTION sigma2_integral2_1_of_2(R,a,cosm,acc)
-!!$
-!!$    ! Integrates between a and b until desired accuracy is reached
-!!$    ! Stores information to reduce function calls
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: R
-!!$    REAL, INTENT(IN) :: a
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    REAL, INTENT(IN) :: acc
-!!$    INTEGER :: i, j
-!!$    INTEGER :: n
-!!$    REAL :: t, dt, tmin, tmax, f1, f2, ft
-!!$    DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-!!$
-!!$    INTEGER, PARAMETER :: jmin=5
-!!$    INTEGER, PARAMETER :: jmax=30
-!!$    INTEGER, PARAMETER :: iorder=3
-!!$
-!!$    ! Integration limits, the split of the integral is done at k = 1/R
-!!$    !b=0.5 ! Integration limit corresponding to kR=1 (kR=(-1+1/t)**a)
-!!$    tmin=t_sigma_integrand(ksplit_sigma(R),R)
-!!$    tmax=1.  ! Integration limit corresponding to k=0
-!!$
-!!$    IF(tmin==tmax) THEN
-!!$
-!!$       ! Fix the answer to zero if the integration limits are identical
-!!$       sigma2_integral2_1_of_2=0.
-!!$
-!!$    ELSE
-!!$
-!!$       ! Reset the sum variable for the integration
-!!$       sum_2n=0.
-!!$       sum_n=0.
-!!$       sum_old=0.
-!!$       sum_new=0.
-!!$
-!!$       DO j=1,jmax
-!!$
-!!$          ! Note, you need this to be 1+2**n for some integer n
-!!$          ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-!!$          n=1+2**(j-1)
-!!$
-!!$          ! Calculate the dx interval for this value of 'n'
-!!$          dt=(tmax-tmin)/REAL(n-1)
-!!$
-!!$          IF(j==1) THEN
-!!$
-!!$             ! The first go is just the trapezium of the end points
-!!$             f1=sigma2_integrand_transformed(tmin,R,a,cosm)
-!!$             f2=sigma2_integrand_transformed(tmax,R,a,cosm)
-!!$             sum_2n=0.5*(f1+f2)*dt
-!!$             sum_new=sum_2n
-!!$
-!!$          ELSE
-!!$
-!!$             ! Loop over only new even points to add these to the integral
-!!$             DO i=2,n,2
-!!$                t=progression(tmin,tmax,i,n)
-!!$                ft=sigma2_integrand_transformed(t,R,a,cosm)
-!!$                sum_2n=sum_2n+ft
-!!$             END DO
-!!$
-!!$             ! Now create the total using the old and new parts
-!!$             sum_2n=sum_n/2.+sum_2n*dt
-!!$
-!!$             ! Now calculate the new sum depending on the integration order
-!!$             IF(iorder==1) THEN  
-!!$                sum_new=REAL(sum_2n)
-!!$             ELSE IF(iorder==3) THEN         
-!!$                sum_new=(4.*sum_2n-sum_n)/3. ! This is Simpson's rule and cancels error
-!!$             ELSE
-!!$                STOP 'SIGMA2_INTEGRAL2_1_OF_2: Error, iorder specified incorrectly'
-!!$             END IF
-!!$
-!!$          END IF
-!!$
-!!$          IF((j>=jmin) .AND. (ABS(-1.+sum_new/sum_old)<acc)) THEN
-!!$             ! jmin avoids spurious early convergence
-!!$             sigma2_integral2_1_of_2=REAL(sum_new)
-!!$             EXIT
-!!$          ELSE IF(j==jmax) THEN
-!!$             sigma2_integral2_1_of_2=0.d0
-!!$             STOP 'SIGMA2_INTEGRAL2_1_OF_2: Integration timed out'
-!!$          ELSE
-!!$             ! Integral has not converged so store old sums and reset sum variables
-!!$             sigma2_integral2_1_of_2=0.d0
-!!$             sum_old=sum_new
-!!$             sum_n=sum_2n
-!!$             sum_2n=0.
-!!$          END IF
-!!$
-!!$       END DO
-!!$
-!!$    END IF
-!!$
-!!$  END FUNCTION sigma2_integral2_1_of_2
-!!$
-!!$  REAL FUNCTION sigma2_integral2_2_of_2(R,a,cosm,acc)
-!!$
-!!$    ! Integrates between a and b until desired accuracy is reached
-!!$    ! Stores information to reduce function calls
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: R
-!!$    REAL, INTENT(IN) :: a
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    REAL, INTENT(IN) :: acc
-!!$    INTEGER :: i, j
-!!$    INTEGER :: n
-!!$    REAL :: k, dk, f1, f2, fk, kmin, kmax
-!!$    DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-!!$
-!!$    INTEGER, PARAMETER :: jmin=5
-!!$    INTEGER, PARAMETER :: jmax=30
-!!$    INTEGER, PARAMETER :: iorder=3
-!!$
-!!$    ! Integration limits
-!!$    kmin=ksplit_sigma(R) ! From the split wavenumber...
-!!$    kmax=sigma_out/R     ! ...out to k = inf, but in practice just go out a finite distance in kR
-!!$
-!!$    IF(kmin==kmax) THEN
-!!$
-!!$       ! Fix the answer to zero if the integration limits are identical
-!!$       sigma2_integral2_2_of_2=0.
-!!$
-!!$    ELSE
-!!$
-!!$       ! Reset the sum variable for the integration
-!!$       sum_2n=0.
-!!$       sum_n=0.
-!!$       sum_old=0.
-!!$       sum_new=0.
-!!$
-!!$       DO j=1,jmax
-!!$
-!!$          ! Note, you need this to be 1+2**n for some integer n
-!!$          ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-!!$          n=1+2**(j-1)
-!!$
-!!$          ! Calculate the dx interval for this value of 'n'
-!!$          dk=(kmax-kmin)/REAL(n-1)
-!!$
-!!$          IF(j==1) THEN
-!!$
-!!$             ! The first go is just the trapezium of the end points
-!!$             f1=sigma2_integrand(kmin,R,a,cosm)
-!!$             f2=sigma2_integrand(kmax,R,a,cosm)
-!!$             sum_2n=0.5*(f1+f2)*dk
-!!$             sum_new=sum_2n
-!!$
-!!$          ELSE
-!!$
-!!$             ! Loop over only new even points to add these to the integral
-!!$             DO i=2,n,2
-!!$                k=progression(kmin,kmax,i,n)
-!!$                fk=sigma2_integrand(k,R,a,cosm)
-!!$                sum_2n=sum_2n+fk
-!!$             END DO
-!!$
-!!$             ! Now create the total using the old and new parts
-!!$             sum_2n=sum_n/2.+sum_2n*dk
-!!$
-!!$             ! Now calculate the new sum depending on the integration order
-!!$             IF(iorder==1) THEN  
-!!$                sum_new=sum_2n
-!!$             ELSE IF(iorder==3) THEN         
-!!$                sum_new=(4.*sum_2n-sum_n)/3. ! This is Simpson's rule and cancels error
-!!$             ELSE
-!!$                STOP 'SIGMA2_INTEGRAL2_2_OF_2: Error, iorder specified incorrectly'
-!!$             END IF
-!!$
-!!$          END IF
-!!$
-!!$          IF((j>=jmin) .AND. (ABS(-1.+sum_new/sum_old)<acc)) THEN
-!!$             ! jmin avoids spurious early convergence
-!!$             sigma2_integral2_2_of_2=REAL(sum_new)
-!!$             EXIT
-!!$          ELSE IF(j==jmax) THEN
-!!$             sigma2_integral2_2_of_2=0.d0
-!!$             STOP 'SIGMA2_INTEGRAL2_2_OF_2: Integration timed out'
-!!$          ELSE
-!!$             ! Integral has not converged so store old sums and reset sum variables
-!!$             sigma2_integral2_2_of_2=0.d0
-!!$             sum_old=sum_new
-!!$             sum_n=sum_2n
-!!$             sum_2n=0.
-!!$          END IF
-!!$
-!!$       END DO
-!!$
-!!$    END IF
-!!$
-!!$  END FUNCTION sigma2_integral2_2_of_2
-
   FUNCTION sigmaV(R,a,cosm)
 
-    ! TODO: Effect of k_cut is not included
     IMPLICIT NONE
     REAL :: sigmaV
     REAL, INTENT(IN) :: R, a
@@ -2231,7 +1918,6 @@ CONTAINS
     REAL, PARAMETER :: tmin=0.
     REAL, PARAMETER :: tmax=1.
 
-    !sigmaV=sigmaV2_integral(R,a,cosm,2.*acc_cosm)
     sigmaV=integrate_cosm(tmin,tmax,sigmaV2_integrand,R,a,cosm,2.*acc_cosm,3)
 
     ! Convert 3D sigmaV^2 to 1D sigmaV
@@ -2239,140 +1925,28 @@ CONTAINS
 
   END FUNCTION sigmaV
 
-!!$  FUNCTION sigmaV2_integral(R,a,cosm,acc)
-!!$
-!!$    ! Integrates between a and b until desired accuracy is reached
-!!$    ! Stores information to reduce function calls
-!!$    IMPLICIT NONE
-!!$    REAL :: sigmaV2_integral
-!!$    REAL, INTENT(IN) :: R, a, acc
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    REAL :: b, c
-!!$    INTEGER :: i, j
-!!$    INTEGER :: n
-!!$    REAL :: x, dx
-!!$    REAL :: f1, f2, fx
-!!$    DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-!!$
-!!$    INTEGER, PARAMETER :: jmin=5
-!!$    INTEGER, PARAMETER :: jmax=30
-!!$    INTEGER, PARAMETER :: iorder=3
-!!$
-!!$    ! Integration range for integration parameter
-!!$    ! Note 0 -> infinity in k has changed to 0 -> 1 in x
-!!$    b=0.
-!!$    c=1.
-!!$
-!!$    IF(b==c) THEN
-!!$
-!!$       ! Fix the answer to zero if the integration limits are identical
-!!$       sigmaV2_integral=0.
-!!$
-!!$    ELSE
-!!$
-!!$       ! Reset the sum variable for the integration
-!!$       sum_2n=0.
-!!$       sum_n=0.
-!!$       sum_old=0.
-!!$       sum_new=0.
-!!$
-!!$       DO j=1,jmax
-!!$
-!!$          ! Note, you need this to be 1+2**n for some integer n
-!!$          ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-!!$          n=1+2**(j-1)
-!!$
-!!$          ! Calculate the dx interval for this value of 'n'
-!!$          dx=(c-b)/REAL(n-1)
-!!$
-!!$          IF(j==1) THEN
-!!$
-!!$             ! The first go is just the trapezium of the end points
-!!$             f1=sigmaV2_integrand(b,R,a,cosm)
-!!$             f2=sigmaV2_integrand(c,R,a,cosm)
-!!$             sum_2n=0.5*(f1+f2)*dx
-!!$             sum_new=sum_2n
-!!$
-!!$          ELSE
-!!$
-!!$             ! Loop over only new even points to add these to the integral
-!!$             DO i=2,n,2
-!!$                x=progression(b,c,i,n)
-!!$                fx=sigmaV2_integrand(x,R,a,cosm)
-!!$                sum_2n=sum_2n+fx
-!!$             END DO
-!!$
-!!$             ! Now create the total using the old and new parts
-!!$             sum_2n=sum_n/2.+sum_2n*dx
-!!$
-!!$             ! Now calculate the new sum depending on the integration order
-!!$             IF(iorder==1) THEN  
-!!$                sum_new=sum_2n
-!!$             ELSE IF(iorder==3) THEN         
-!!$                sum_new=(4.*sum_2n-sum_n)/3. !This is Simpson's rule and cancels error
-!!$             ELSE
-!!$                STOP 'SIGMAV: Error, iorder specified incorrectly'
-!!$             END IF
-!!$
-!!$          END IF
-!!$
-!!$          IF((j>=jmin) .AND. (ABS(-1.+sum_new/sum_old)<acc)) THEN
-!!$             ! jmin avoids spurious early convergence
-!!$             sigmaV2_integral=REAL(sum_new)
-!!$             EXIT
-!!$          ELSE IF(j==jmax) THEN
-!!$             sigmaV2_integral=0.
-!!$             STOP 'SIGMAV: Integration timed out'
-!!$          ELSE
-!!$             ! Integral has not converged so store old sums and reset sum variables
-!!$             sigmaV2_integral=0.
-!!$             sum_old=sum_new
-!!$             sum_n=sum_2n
-!!$             sum_2n=0.
-!!$          END IF
-!!$
-!!$       END DO
-!!$
-!!$    END IF
-!!$
-!!$  END FUNCTION sigmaV2_integral
-
   FUNCTION sigmaV2_integrand(t,R,a,cosm)
 
     ! This is the integrand for the velocity dispersion integral
-    ! TODO: Move parameters into the file header
+    ! TODO: Optimize alpha(R) not really a problem when only called for R = 0, 100 Mpc/h
     USE special_functions
     IMPLICIT NONE
     REAL :: sigmaV2_integrand
     REAL, INTENT(IN) :: t, a, R
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: k, kR, w_hat, alpha, beta
-    
-    ! sigma_V(R) integration
-    REAL, PARAMETER :: Rsplit_sigmaV=1e-2
-
-    ! TODO: Optimize Rsplit, alpha, beta, not really a problem when only called for R = 0, 100 Mpc/h
-    ! TODO: Very slow otherwise
+    REAL :: k, kR, w_hat, alpha
 
     IF(t==0. .OR. t==1.) THEN
        ! t = 0 corresponds to k = infinity when W(kR) = 0
        ! t = 1 corresponds to k = 0 when P(k) = 0
        sigmaV2_integrand=0.
     ELSE
+       alpha=alpha_sigmaV
        IF(R==0.) THEN
-          alpha=1.
-          beta=1.
           kR=0.
-          k=beta*(-1.+1./t)**alpha
+          k=(-1.+1./t)**alpha
        ELSE
-          IF(R<Rsplit_sigmaV) THEN
-             alpha=3.
-             beta=1.
-          ELSE
-             alpha=2.
-             beta=1.
-          END IF
-          kR=beta*(-1.+1./t)**alpha
+          kR=(-1.+1./t)**alpha
           k=kR/R          
        END IF
        w_hat=wk_tophat(kR)
@@ -2383,7 +1957,7 @@ CONTAINS
 
   FUNCTION grow(a,cosm)
 
-    !Scale-independent growth function | normalised g(z=0)=1
+    ! Scale-independent growth function | normalised g(z=0)=1
     IMPLICIT NONE
     REAL :: grow
     REAL, INTENT(IN) :: a
@@ -2400,7 +1974,7 @@ CONTAINS
 
   FUNCTION ungrow(a,cosm)
 
-    !Unnormalised growth function
+    ! Unnormalised growth function
     IMPLICIT NONE
     REAL :: ungrow
     REAL, INTENT(IN) :: a
@@ -2412,7 +1986,7 @@ CONTAINS
 
   FUNCTION growth_rate(a,cosm)
 
-    !Growth rate: dln(g) / dln(a)
+    ! Growth rate: dln(g) / dln(a)
     IMPLICIT NONE
     REAL :: growth_rate
     REAL, INTENT(IN) :: a
@@ -2425,7 +1999,7 @@ CONTAINS
 
   FUNCTION acc_growth(a,cosm)
 
-    !Accumulated growth function: int_0^a g(a)/a da
+    ! Accumulated growth function: int_0^a g(a)/a da
     IMPLICIT NONE
     REAL :: acc_growth
     REAL, INTENT(IN) :: a
@@ -2438,7 +2012,7 @@ CONTAINS
 
   FUNCTION growth_rate_Linder(a,cosm)
 
-    !Approximation for the growth rate from Linder xxxx.xxxx
+    ! Approximation for the growth rate from Linder xxxx.xxxx
     IMPLICIT NONE
     REAL :: growth_rate_Linder
     REAL, INTENT(IN) :: a
@@ -2459,7 +2033,7 @@ CONTAINS
 
   FUNCTION growth_Linder_integrand(a,cosm)
 
-    !Integrand for the approximate growth integral using Linder approximate growth rate
+    ! Integrand for the approximate growth integral using Linder approximate growth rate
     IMPLICIT NONE
     REAL :: growth_Linder_integrand
     REAL, INTENT(IN) :: a
@@ -2471,7 +2045,7 @@ CONTAINS
 
   FUNCTION growth_Linder(a,cosm)
 
-    !Calculate the growth function from the Linder growth rate via integration
+    ! Calculate the growth function from the Linder growth rate via integration
     IMPLICIT NONE
     REAL :: growth_Linder
     REAL, INTENT(IN) :: a
@@ -2483,27 +2057,27 @@ CONTAINS
 
   FUNCTION growth_CPT(a,cosm)
 
-    !Carrol, Press & Turner (1992) approximation to growth function (good to 5%)
+    ! Carrol, Press & Turner (1992) approximation to growth function (good to 5%)
     IMPLICIT NONE
     REAL :: growth_CPT
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: Om_mz, Om_vz, Om_m, Om_v
 
-    !Get all necessary Omega values
+    ! Get all necessary Omega values
     Om_mz=Omega_m_norad(a,cosm)
     Om_vz=Omega_v(a,cosm)+Omega_w(a,cosm)
     Om_m=cosm%Om_m
     Om_v=cosm%Om_v_mod+cosm%Om_w
 
-    !Now call CPT twice, second time to normalise it
+    ! Now call CPT twice, second time to normalise it
     growth_CPT=CPT(a,Om_mz,Om_vz)/CPT(1.,Om_m,Om_v)
 
   END FUNCTION growth_CPT
 
   FUNCTION CPT(a,Om_m,Om_v)
 
-    !The main CPT approximation from 1992
+    ! The CPT growth function approximation from 1992
     IMPLICIT NONE
     REAL :: CPT
     REAL, INTENT(IN) :: a, Om_m, Om_v
@@ -2516,7 +2090,7 @@ CONTAINS
 
     USE calculus_table
 
-    !Fills a table of the growth function vs. a
+    ! Fills a table of the growth function vs. a
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
     INTEGER :: i, na
@@ -2559,7 +2133,7 @@ CONTAINS
 
     !Normalise so that g(z=0)=1
     cosm%gnorm=find(1.,a_tab,d_tab,na,3,3,2)
-    IF(cosm%verbose) WRITE(*,*) 'INIT_GROWTH: unnormalised growth at z=0:', REAL(cosm%gnorm)
+    IF(cosm%verbose) WRITE(*,*) 'INIT_GROWTH: unnormalised growth at z=0:', real(cosm%gnorm)
     d_tab=d_tab/cosm%gnorm   
 
     !Allocate arrays
@@ -3087,9 +2661,9 @@ CONTAINS
     IF(ALLOCATED(v)) DEALLOCATE(v)
     IF(ALLOCATED(t)) DEALLOCATE(t)
     ALLOCATE(x(n),v(n),t(n))
-    x=REAL(x8)
-    v=REAL(v8)
-    t=REAL(t8)
+    x=real(x8)
+    v=real(v8)
+    t=real(t8)
 
     !WRITE(*,*) 'ODE: Integration complete in steps:', n
 
@@ -3177,8 +2751,8 @@ CONTAINS
 
              IF(ifail==0) THEN
 
-                IF(xh(k)>acc .AND. x8(kn)>acc .AND. (ABS(xh(k)/x8(kn))-1.)>acc) ifail=1
-                IF(vh(k)>acc .AND. v8(kn)>acc .AND. (ABS(vh(k)/v8(kn))-1.)>acc) ifail=1
+                IF(xh(k)>acc .AND. x8(kn)>acc .AND. (abs(xh(k)/x8(kn))-1.)>acc) ifail=1
+                IF(vh(k)>acc .AND. v8(kn)>acc .AND. (abs(vh(k)/v8(kn))-1.)>acc) ifail=1
 
                 IF(ifail==1) THEN
                    DEALLOCATE(xh,th,vh)
@@ -3195,9 +2769,9 @@ CONTAINS
           IF(ALLOCATED(v)) DEALLOCATE(v)
           IF(ALLOCATED(t)) DEALLOCATE(t)
           ALLOCATE(x(n),v(n),t(n))
-          x=REAL(x8)
-          v=REAL(v8)
-          t=REAL(t8)
+          x=real(x8)
+          v=real(v8)
+          t=real(t8)
           EXIT
        END IF
 
@@ -3243,11 +2817,11 @@ CONTAINS
 
     END INTERFACE
 
-    x=REAL(x1)
-    v=REAL(v1)
-    t=REAL(t1)
+    x=real(x1)
+    v=real(v1)
+    t=real(t1)
 
-    dt=REAL(t2-t1)
+    dt=real(t2-t1)
 
     IF(imeth==1) THEN
 
@@ -3339,7 +2913,7 @@ CONTAINS
           n=1+2**(j-1)
 
           ! Calculate the dx interval for this value of 'n'
-          dx=(b-a)/REAL(n-1)
+          dx=(b-a)/real(n-1)
 
           IF(j==1) THEN
 
@@ -3353,7 +2927,7 @@ CONTAINS
 
              ! Loop over only new even points to add these to the integral
              DO i=2,n,2
-                x=a+(b-a)*REAL(i-1)/REAL(n-1)
+                x=a+(b-a)*real(i-1)/real(n-1)
                 fx=f(x,cosm)
                 sum_2n=sum_2n+fx
              END DO
@@ -3372,9 +2946,9 @@ CONTAINS
 
           END IF
 
-          IF((j>=jmin) .AND. (ABS(-1.d0+sum_new/sum_old)<acc)) THEN
+          IF((j>=jmin) .AND. (abs(-1.d0+sum_new/sum_old)<acc)) THEN
              ! jmin avoids spurious early convergence
-             !integrate=REAL(sum_new)
+             !integrate=real(sum_new)
              !WRITE(*,*) 'INTEGRATE: Nint:', n
              EXIT
           ELSE IF(j==jmax) THEN
@@ -3388,7 +2962,7 @@ CONTAINS
 
        END DO
 
-       integrate1_cosm=REAL(sum_new)
+       integrate1_cosm=real(sum_new)
 
     END IF
 
@@ -3443,7 +3017,7 @@ CONTAINS
           n=1+2**(j-1)
 
           ! Calculate the dx interval for this value of 'n'
-          dx=(b-a)/REAL(n-1)
+          dx=(b-a)/real(n-1)
 
           IF(j==1) THEN
 
@@ -3457,7 +3031,7 @@ CONTAINS
 
              ! Loop over only new even points to add these to the integral
              DO i=2,n,2
-                x=a+(b-a)*REAL(i-1)/REAL(n-1)
+                x=a+(b-a)*real(i-1)/real(n-1)
                 fx=f(x,y,cosm)
                 sum_2n=sum_2n+fx
              END DO
@@ -3476,9 +3050,9 @@ CONTAINS
 
           END IF
 
-          IF((j>=jmin) .AND. (ABS(-1.d0+sum_new/sum_old)<acc)) THEN
+          IF((j>=jmin) .AND. (abs(-1.d0+sum_new/sum_old)<acc)) THEN
              ! jmin avoids spurious early convergence
-             !integrate=REAL(sum_new)
+             !integrate=real(sum_new)
              !WRITE(*,*) 'INTEGRATE: Nint:', n
              EXIT
           ELSE IF(j==jmax) THEN
@@ -3492,7 +3066,7 @@ CONTAINS
 
        END DO
 
-       integrate2_cosm=REAL(sum_new)
+       integrate2_cosm=real(sum_new)
 
     END IF
 
@@ -3549,7 +3123,7 @@ CONTAINS
           n=1+2**(j-1)
 
           ! Calculate the dx interval for this value of 'n'
-          dx=(b-a)/REAL(n-1)
+          dx=(b-a)/real(n-1)
 
           IF(j==1) THEN
 
@@ -3563,7 +3137,7 @@ CONTAINS
 
              ! Loop over only new even points to add these to the integral
              DO i=2,n,2
-                x=a+(b-a)*REAL(i-1)/REAL(n-1)
+                x=a+(b-a)*real(i-1)/real(n-1)
                 fx=f(x,y,z,cosm)
                 sum_2n=sum_2n+fx
              END DO
@@ -3582,9 +3156,9 @@ CONTAINS
 
           END IF
 
-          IF((j>=jmin) .AND. (ABS(-1.d0+sum_new/sum_old)<acc)) THEN
+          IF((j>=jmin) .AND. (abs(-1.d0+sum_new/sum_old)<acc)) THEN
              ! jmin avoids spurious early convergence
-             !integrate=REAL(sum_new)
+             !integrate=real(sum_new)
              !WRITE(*,*) 'INTEGRATE: Nint:', n
              EXIT
           ELSE IF(j==jmax) THEN
@@ -3598,7 +3172,7 @@ CONTAINS
 
        END DO
 
-       integrate3_cosm=REAL(sum_new)
+       integrate3_cosm=real(sum_new)
 
     END IF
 
@@ -3614,8 +3188,8 @@ CONTAINS
     REAL, ALLOCATABLE :: k(:), Pk(:)
     INTEGER :: i, n
     
-    CHARACTER(len=256), PARAMETER :: camb=TRIM('/Users/Mead/Physics/CAMB/camb')
-    CHARACTER(len=256), PARAMETER :: matterpower=TRIM('/Users/Mead/Physics/CAMB_files/tmp/temp_matterpower.dat')
+    CHARACTER(len=256), PARAMETER :: camb=trim('/Users/Mead/Physics/CAMB/camb')
+    CHARACTER(len=256), PARAMETER :: matterpower=trim('/Users/Mead/Physics/CAMB_files/tmp/temp_matterpower.dat')
 
     ! Needs to be changed to accomodate neutrino masses and degeneracy structure
     ! Talk to Alex Hall about this
@@ -4734,7 +4308,7 @@ CONTAINS
        bb=10**(-0.5642+0.5864*rn+0.5716*rn**2-1.5474*rncur+0.2279*Om_vz*(1.+wz)) ! Takahashi equation (A7)
        cc=10**(0.3698+2.0404*rn+0.8161*rn**2+0.5869*rncur) ! Takahashi equation (A8)
        gam=0.1971-0.0843*rn+0.8460*rncur ! Takahashi equation (A9)
-       alpha=ABS(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur) ! Takahashi equation (A10; note the ABS
+       alpha=abs(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur) ! Takahashi equation (A10; note the ABS
        beta=2.0379-0.7354*rn+0.3157*rn**2+1.2490*rn**3+0.3980*rn**4-0.1682*rncur ! Takahashi equation (A11)
        mu=0. ! Takahashi equation (A12)
        nu=10**(5.2105+3.6902*rn) ! Takahashi equation (A13)
@@ -4744,7 +4318,7 @@ CONTAINS
        bb=10**(-0.5642+0.5864*rn+0.5716*rn**2-1.5474*rncur+0.2279*Om_vz*(1.+wz))
        cc=10**(0.3698+2.0404*rn+0.8161*rn**2+0.5869*rncur)
        gam=0.1971-0.0843*rn+0.8460*rncur
-       alpha=ABS(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur) ! Note ABS
+       alpha=abs(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur) ! Note ABS
        beta=2.0379-0.7354*rn+0.3157*rn**2+1.2490*rn**3+0.3980*rn**4-0.1682*rncur+fnu*(1.081+0.395*rn**2) ! CAMB; halofit_ppf.f90
        mu=0.
        nu=10**(5.2105+3.6902*rn)

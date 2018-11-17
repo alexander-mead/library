@@ -9,14 +9,14 @@ CONTAINS
     REAL, INTENT(IN) :: x
     REAL :: y
 
-    y=ABS(x)
+    y=abs(x)
 
     DO
        IF(y==1.) THEN
           first_digit=1
           EXIT
        ELSE IF(y>1. .AND. y<10.) THEN
-          first_digit=FLOOR(y)
+          first_digit=floor(y)
           EXIT
        ELSE IF(y>=10.) THEN
           y=y/10.

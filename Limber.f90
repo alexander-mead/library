@@ -260,13 +260,13 @@ CONTAINS
 
     ! Write some useful things to the screen
     IF(verbose_Limber) THEN
-       WRITE(*,*) 'CALCULATE_CL: ell min:', REAL(ell(1))
-       WRITE(*,*) 'CALCULATE_CL: ell max:', REAL(ell(nl))
+       WRITE(*,*) 'CALCULATE_CL: ell min:', real(ell(1))
+       WRITE(*,*) 'CALCULATE_CL: ell max:', real(ell(nl))
        WRITE(*,*) 'CALCULATE_CL: number of ell:', nl
        WRITE(*,*) 'CALCULATE_CL: number of k:', nk
        WRITE(*,*) 'CALCULATE_CL: number of a:', na
-       WRITE(*,*) 'CALCULATE_CL: Minimum distance [Mpc/h]:', REAL(r1)
-       WRITE(*,*) 'CALCULATE_CL: Maximum distance [Mpc/h]:', REAL(r2)
+       WRITE(*,*) 'CALCULATE_CL: Minimum distance [Mpc/h]:', real(r1)
+       WRITE(*,*) 'CALCULATE_CL: Maximum distance [Mpc/h]:', real(r2)
     END IF
 
     ! Finally do the integration
@@ -311,7 +311,7 @@ CONTAINS
     DO i=1,n
        l=2**(i-1) ! Set the l
        outfile=number_file(fbase,i,fext)
-       CALL Limber_contribution(REAL(l),r1,r2,logk,loga,logpow,nk,na,proj,cosm,outfile)
+       CALL Limber_contribution(real(l),r1,r2,logk,loga,logpow,nk,na,proj,cosm,outfile)
     END DO
 
   END SUBROUTINE Cl_contribution_ell
@@ -363,7 +363,7 @@ CONTAINS
        ! Do the conversion from Cl to xi as a summation over integer l
        DO j=1,lmax
 
-          l=REAL(j)
+          l=real(j)
           Cl=exp(find(log(l),logl,logCl,nl,3,3,2))
 
           xi0=xi0+(2.*l+1.)*Cl*Bessel(0,l*theta) ! J0
@@ -438,7 +438,7 @@ CONTAINS
     REAL :: r, z
 
     ! Kernel
-    IF(verbose_Limber) WRITE(*,*) 'WRITE_PROJECTION_KERNEL: Writing out kernel: ', TRIM(output)
+    IF(verbose_Limber) WRITE(*,*) 'WRITE_PROJECTION_KERNEL: Writing out kernel: ', trim(output)
     OPEN(7,file=output)
     DO i=1,proj%nX    
        r=proj%r_X(i)
@@ -468,7 +468,7 @@ CONTAINS
     IF(ix==tracer_CMB_lensing) THEN      
        zmin=0.
        zmax=cosm%z_cmb
-       IF(verbose_Limber) WRITE(*,*) 'FILL_LENSING_KERNEL: Source plane redshift:', REAL(zmax)
+       IF(verbose_Limber) WRITE(*,*) 'FILL_LENSING_KERNEL: Source plane redshift:', real(zmax)
     ELSE IF(ix==tracer_RCSLenS .OR. &
          ix==tracer_CFHTLenS .OR. &
          ix==tracer_KiDS .OR. &
@@ -491,10 +491,10 @@ CONTAINS
     amax=scale_factor_z(zmax)
     rmax=comoving_distance(amax,cosm)
     IF(verbose_Limber) THEN
-       WRITE(*,*) 'FILL_LENSING_KERNEL: minimum r [Mpc/h]:', REAL(rmin_lensing)
-       WRITE(*,*) 'FILL_LENSING_KERNEL: maximum r [Mpc/h]:', REAL(rmax)
-       WRITE(*,*) 'FILL_LENSING_KERNEL: minimum z:', REAL(zmin)
-       WRITE(*,*) 'FILL_LENSING_KERNEL: maximum z:', REAL(zmax)
+       WRITE(*,*) 'FILL_LENSING_KERNEL: minimum r [Mpc/h]:', real(rmin_lensing)
+       WRITE(*,*) 'FILL_LENSING_KERNEL: maximum r [Mpc/h]:', real(rmax)
+       WRITE(*,*) 'FILL_LENSING_KERNEL: minimum z:', real(zmin)
+       WRITE(*,*) 'FILL_LENSING_KERNEL: maximum z:', real(zmax)
        WRITE(*,*)
     END IF
 
@@ -598,7 +598,7 @@ CONTAINS
     REAL :: r, z, q
     INTEGER :: i
 
-    WRITE(*,*) 'WRITE_EFFICIENCY: Writing q(r): ', TRIM(output)
+    WRITE(*,*) 'WRITE_EFFICIENCY: Writing q(r): ', trim(output)
     OPEN(7,file=output)
     DO i=1,proj%nq
        r=proj%r_q(i)
@@ -653,8 +653,8 @@ CONTAINS
     rmax=comoving_distance(0.,cosm) ! Cheat to ensure that init_distance has been run
     rmax=MAXVAL(cosm%r)
     CALL fill_array(rmin_kernel,rmax,proj%r_X,proj%nX)
-    WRITE(*,*) 'FILL_KERNEL: minimum r [Mpc/h]:', REAL(rmin_kernel)
-    WRITE(*,*) 'FILL_KERNEL: maximum r [Mpc/h]:', REAL(rmax)
+    WRITE(*,*) 'FILL_KERNEL: minimum r [Mpc/h]:', real(rmin_kernel)
+    WRITE(*,*) 'FILL_KERNEL: maximum r [Mpc/h]:', real(rmax)
     WRITE(*,*) 'FILL_KERNEL: number of points:', nX
 
     IF(ALLOCATED(proj%X)) DEALLOCATE(proj%X)
@@ -800,7 +800,7 @@ CONTAINS
     ELSE
        STOP 'FILL_NZ_TABLE: tracer not specified correctly'
     END IF
-    WRITE(*,*) 'FILL_NZ_TABLE: Input file:', TRIM(input)
+    WRITE(*,*) 'FILL_NZ_TABLE: Input file:', trim(input)
 
     ! Allocate arrays
     proj%nnz=count_number_of_lines(input)
@@ -919,7 +919,7 @@ CONTAINS
           n=1+2**(j-1)
 
           ! Calculate the dx interval for this value of 'n'
-          dx=(b-a)/REAL(n-1)
+          dx=(b-a)/real(n-1)
 
           IF(j==1) THEN
 
@@ -952,9 +952,9 @@ CONTAINS
 
           END IF
 
-          IF((j>=jmin) .AND. (ABS(-1.+sum_new/sum_old)<acc)) THEN
+          IF((j>=jmin) .AND. (abs(-1.+sum_new/sum_old)<acc)) THEN
              ! jmin avoids spurious early convergence
-             integrate_q=REAL(sum_new)
+             integrate_q=real(sum_new)
              EXIT
           ELSE IF(j==jmax) THEN
              integrate_q=0.d0
@@ -1042,7 +1042,7 @@ CONTAINS
           n=1+2**(j-1)
 
           ! Calculate the dx interval for this value of 'n'
-          dx=(b-a)/REAL(n-1)
+          dx=(b-a)/real(n-1)
 
           IF(j==1) THEN
 
@@ -1075,9 +1075,9 @@ CONTAINS
 
           END IF
 
-          IF((j>=jmin) .AND. (ABS(-1.+sum_new/sum_old)<acc)) THEN
+          IF((j>=jmin) .AND. (abs(-1.+sum_new/sum_old)<acc)) THEN
              ! jmin avoids spurious early convergence
-             integrate_Limber=REAL(sum_new)
+             integrate_Limber=real(sum_new)
              EXIT
           ELSE IF(j==jmax) THEN
              integrate_Limber=0.d0
@@ -1156,7 +1156,7 @@ CONTAINS
     ! k - f_k(r)/f'_k(r) (=r if flat)
     ! z - z/H(z)
     ! r - r
-    OPEN(7,file=TRIM(outfile))
+    OPEN(7,file=trim(outfile))
     DO i=1,n_cont
        r=progression(r1,r2,i,n_cont)
        IF(r==0.) THEN
