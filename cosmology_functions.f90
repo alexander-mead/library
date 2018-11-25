@@ -86,10 +86,10 @@ CONTAINS
     names(15)='EdS'
     names(16)='Boring: w = -0.7'
     names(17)='Boring: w = -1.3'
-    names(18)='Boring: w = -1; wa = 0.5'
-    names(19)='Boring: w = -1; wa = -0.5'
+    names(18)='Boring: w = -1.0; wa =  0.5'
+    names(19)='Boring: w = -1.0; wa = -0.5'
     names(20)='Boring: w = -0.7; wa = -1.5'
-    names(21)='Boring: w = -0.7; wa = 0.5'
+    names(21)='Boring: w = -0.7; wa =  0.5'
     names(22)='IDE3'
     names(23)='IDE10'
     names(24)='Random Mira Titan cosmology'
@@ -97,6 +97,21 @@ CONTAINS
     names(26)='Boring: CAMB linear spectrum'
     names(27)='Illustris TNG 75'
     names(28)='Boring: Finite box'
+    names(29)='Boring: Open; z=1 normalisation'  !! New
+    names(30)='Boring: w = -0.7; z=1 normalisation'
+    names(31)='Boring: w = -1.3; z=1 normalisation'
+    names(32)='Boring: w = -1.0; wa =  0.5; z=1 normalisation'
+    names(33)='Boring: w = -1.0; wa = -0.5; z=1 normalisation'
+    names(34)='Boring: w = -0.7; wa = -1.5; z=1 normalisation'
+    names(35)='Boring: w = -0.7; wa =  0.5; z=1 normalisation'
+    names(36)='Boring: Open; z=1 normalisation; LCDM'
+    names(37)='Boring: w = -0.7; z=1 normalisation; LCDM'
+    names(38)='Boring: w = -1.3; z=1 normalisation; LCDM'
+    names(39)='Boring: w = -1.0; wa =  0.5; z=1 normalisation; LCDM'
+    names(40)='Boring: w = -1.0; wa = -0.5; z=1 normalisation; LCDM'
+    names(41)='Boring: w = -0.7; wa = -1.5; z=1 normalisation; LCDM'
+    names(42)='Boring: w = -0.7; wa =  0.5; z=1 normalisation; LCDM' !! New
+    
     
     names(100)='Mira Titan M000'
     names(101)='Mira Titan M001'
@@ -265,9 +280,10 @@ CONTAINS
        cosm%Om_v=1.-cosm%Om_m       
        cosm%n=0.9720
        cosm%sig8=0.8211
-    ELSE IF(icosmo==5) THEN
+    ELSE IF(icosmo==5 .OR. icosmo==29) THEN
        ! Boring open model
        cosm%Om_v=0.
+       IF(icosmo==29) cosm%sig8=0.8
     ELSE IF(icosmo==6) THEN
        ! Einstein-de Sitter
        cosm%Om_m=1.
@@ -333,44 +349,50 @@ CONTAINS
        ! EdS
        cosm%Om_m=1.
        cosm%Om_v=0.
-    ELSE IF(icosmo==16) THEN
+    ELSE IF(icosmo==16 .OR. icosmo==30) THEN
        !w = -0.7
        cosm%iw=4
        cosm%w=-0.7
        cosm%Om_w=cosm%Om_v
        cosm%Om_v=0.
-    ELSE IF(icosmo==17) THEN
+       IF(icosmo==30) cosm%sig8=0.8
+    ELSE IF(icosmo==17 .OR. icosmo==31) THEN
        ! w = -1.3
        cosm%iw=4
        cosm%w=-1.3
        cosm%Om_w=cosm%Om_v
        cosm%Om_v=0.
-    ELSE IF(icosmo==18) THEN
+       IF(icosmo==31) cosm%sig8=0.8
+    ELSE IF(icosmo==18 .OR. icosmo==32) THEN
        ! wa = 0.5
        cosm%iw=3
        cosm%wa=0.5
        cosm%Om_w=cosm%Om_v
        cosm%Om_v=0.
-    ELSE IF(icosmo==19) THEN
+       IF(icosmo==32) cosm%sig8=0.8
+    ELSE IF(icosmo==19 .OR. icosmo==33) THEN
        ! wa = -0.5
        cosm%iw=3
        cosm%wa=-0.5
        cosm%Om_w=cosm%Om_v
        cosm%Om_v=0.
-    ELSE IF(icosmo==20) THEN
+       IF(icosmo==33) cosm%sig8=0.8
+    ELSE IF(icosmo==20 .OR. icosmo==34) THEN
        ! w = -0.7; wa = -1.5
        cosm%iw=3
        cosm%w=-0.7
        cosm%wa=-1.5
        cosm%Om_w=cosm%Om_v
        cosm%Om_v=0.
-    ELSE IF(icosmo==21) THEN
+       IF(icosmo==34) cosm%sig8=0.8
+    ELSE IF(icosmo==21 .OR. icosmo==35) THEN
        ! w = -1.3; wa = 0.5
        cosm%iw=3
        cosm%w=-1.3
        cosm%wa=0.5
        cosm%Om_w=cosm%Om_v
        cosm%Om_v=0.
+       IF(icosmo==35) cosm%sig8=0.8
     ELSE IF(icosmo==22 .OR. icosmo==23) THEN
        ! IDE II models
        cosm%iw=6
@@ -418,6 +440,27 @@ CONTAINS
     ELSE IF(icosmo==28) THEN
        ! Finite box
        cosm%box=.TRUE.
+    ELSE IF(icosmo==36) THEN
+       ! Boring: Open; z=1 normalisation; LCDM
+       cosm%sig8=0.8
+    ELSE IF(icosmo==37) THEN
+       ! Boring: w = -0.7; z=1 normalisation; LCDM
+       cosm%sig8=0.8
+    ELSE IF(icosmo==38) THEN
+       ! Boring: w = -1.3; z=1 normalisation; LCDM
+       cosm%sig8=0.8
+    ELSE IF(icosmo==39) THEN
+       ! Boring: w = -1.0; wa =  0.5; z=1 normalisation; LCDM
+       cosm%sig8=0.8
+    ELSE IF(icosmo==40) THEN
+       ! Boring: w = -1.0; wa = -0.5; z=1 normalisation; LCDM
+       cosm%sig8=0.8
+    ELSE IF(icosmo==41) THEN
+       ! Boring: w = -0.7; wa = -1.5; z=1 normalisation; LCDM
+       cosm%sig8=0.8
+    ELSE IF(icosmo==42) THEN
+       ! Boring: w = -0.7; wa =  0.5; z=1 normalisation; LCDM
+       cosm%sig8=0.8
     ELSE IF(icosmo>=100 .AND. icosmo<=137) THEN
        CALL Mira_Titan_node_cosmology(icosmo-100,cosm)
        cosm%itk=2 ! Set to CAMB linear power
