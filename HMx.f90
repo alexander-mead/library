@@ -89,7 +89,7 @@ MODULE HMx
 
   ! Halo-model stuff that needs to be recalculated for each new z
   TYPE halomod
-     INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, ip2h_corr, ikb
+     INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, ip2h_corr
      INTEGER :: idc, iDv, ieta, ikstar, i2hdamp, i1hdamp, itrans
      LOGICAL :: voids
      REAL :: z, a, dc, Dv
@@ -162,8 +162,7 @@ MODULE HMx
 
   ! Minimum fraction before haloes are treated as delta functions (dangerous)
   ! TODO: Hydro tests passed if 1e-4, but I worry a bit, also it was a fairly minor speed up (25%)
-  ! TODO: Also, not obvious that a constant frac_min is corret.
-  ! TODO: Some species have generally low abundance and we ususally care about perturbations to this abundance.
+  ! TODO: Also, not obvious that a constant frac_min is corret because some species have low abundance but we ususally care about perturbations to this abundance
   REAL, PARAMETER :: frac_min=0.
 
   ! Halo types
@@ -274,16 +273,12 @@ CONTAINS
     ! 3 - Put the missing part of the integrand as a delta function at lower mass limit
     hmod%ip2h_corr=3
 
-    ! Scale dependent halo bias
-    ! 1 - None
-    ! 2 - From Fedeli (2014b)
-    ! 3 - My own experimental model
-    hmod%ikb=1
-
     ! Order of halo bias to go to
     ! 1 - Linear order (standard)
     ! 2 - Second order
     ! 3 - Full non-linear halo bias
+    ! 4 - Fudge from Fedeli (2014b)
+    ! 5 - Fudge from me
     hmod%ibias=1
 
     ! One-halo term large-scale damping
@@ -302,9 +297,9 @@ CONTAINS
     ! Concentration-mass relation
     ! 1 - Full Bullock et al. (2001; astro-ph/9909159)
     ! 2 - Simple Bullock et al. (2001; astro-ph/9909159)
-    ! 3 - Duffy et al. (2008; astro-ph/0804.2486): mean
-    ! 4 - Duffy et al. (2008; astro-ph/0804.2486): virial
-    ! 5 - Duffy et al. (2008; astro-ph/0804.2486): relaxed-200
+    ! 3 - Duffy et al. (2008; astro-ph/0804.2486): full 200m
+    ! 4 - Duffy et al. (2008; astro-ph/0804.2486): full virial
+    ! 5 - Duffy et al. (2008; astro-ph/0804.2486): relaxed 200c
     hmod%iconc=4
 
     ! Linear collapse threshold delta_c
@@ -354,8 +349,9 @@ CONTAINS
 
     ! Use the Dolag c(M) correction for dark energy?
     ! 1 - No
-    ! 2 - Yes, exactly as in Dolag et al. (2004)
-    ! 3 - Yes, as in Dolag et al. (2004) but with a ^1.5 power
+    ! 2 - Exactly as in Dolag et al. (2004)
+    ! 3 - As in Dolag et al. (2004) but with a ^1.5 power
+    ! 4 - My version of Dolag (2004) with some redshift dependence
     hmod%iDolag=2
 
     ! Halo gas fraction
@@ -714,14 +710,16 @@ CONTAINS
        ! Spherical-collapse model to produce Mead (2017) results
        hmod%iconc=1
        hmod%idc=5
-       hmod%iDv=5
-       hmod%iDolag=2 ! This seems not to be important for these results
+       hmod%iDv=5      
+       hmod%imf=2    ! Sheth & Tormen mass function
+       hmod%iconc=1  ! Bullock et al. c(M) relation
+       hmod%iDolag=2 ! This is important for the accuracy of the z=0 results presented in Mead (2017)
     ELSE IF(ihm==13) THEN
        ! Experimental log-tanh transition
        hmod%itrans=5
     ELSE IF(ihm==14) THEN
        ! Experimental scale-dependent halo bias
-       hmod%ikb=3
+       hmod%ibias=5
        hmod%ikstar=2
        hmod%i1hdamp=3
     ELSE IF(ihm==16) THEN
@@ -770,7 +768,7 @@ CONTAINS
        !hmod%halo_HI=3 ! Exponentially cored polynomial (Villaescusa-Navarro et al. 1804.09180)
        !hmod%halo_HI=2 ! Delta function
        hmod%halo_HI=5 ! Modified NFW (Padmanabhan & Refregier 2017; 1607.01021)
-       !hmod%ibias=3
+       hmod%ibias=3
     ELSE IF(ihm==26) THEN
        ! Delta function mass function
        hmod%ip2h=2        ! Standard two-halo term
@@ -1245,6 +1243,8 @@ CONTAINS
           IF(hmod%ibias==1) WRITE(*,*) 'HALOMODEL: Linear halo bias'
           IF(hmod%ibias==2) WRITE(*,*) 'HALOMODEL: Second-order halo bias'
           IF(hmod%ibias==3) WRITE(*,*) 'HALOMODEL: Full non-linear halo bias'
+          IF(hmod%ibias==4) WRITE(*,*) 'HALOMODEL: Scale-dependent halo bias fudge from Fedeli (2014b)'
+          IF(hmod%ibias==5) WRITE(*,*) 'HALOMODEL: Scale-dependent halo bias fudge from me'
        END IF
 
        ! Correction for missing low-mass haloes
@@ -1253,11 +1253,6 @@ CONTAINS
           IF(hmod%ip2h_corr==2) WRITE(*,*) 'HALOMODEL: Two-halo term corrected by adding missing g(nu)b(nu)' 
           IF(hmod%ip2h_corr==3) WRITE(*,*) 'HALOMODEL: Two-halo term corrected via delta function at low mass end'      
        END IF
-
-       ! 'Scale-dependent halo bias' - not really a halo bias, this is more of a fudge
-       IF(hmod%ikb==1) WRITE(*,*) 'HALOMODEL: Scale-independent halo bias'
-       IF(hmod%ikb==2) WRITE(*,*) 'HALOMODEL: Scale-dependent halo bias fudge from Fedeli (2014b)'
-       IF(hmod%ikb==3) WRITE(*,*) 'HALOMODEL: Scale-dependent halo bias fudge'
 
        ! Halo mass function
        IF(hmod%imf==1) WRITE(*,*) 'HALOMODEL: Press & Schecter (1974) mass function'
@@ -1268,14 +1263,15 @@ CONTAINS
        ! Concentration-mass relation
        IF(hmod%iconc==1) WRITE(*,*) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
        IF(hmod%iconc==2) WRITE(*,*) 'HALOMODEL: Simple Bullock et al. (2001) concentration-mass relation'
-       IF(hmod%iconc==3) WRITE(*,*) 'HALOMODEL: Full-sample mean density Duffy et al. (2008) concentration-mass relation'
-       IF(hmod%iconc==4) WRITE(*,*) 'HALOMODEL: Full-sample virial denity Duffy et al. (2008) concentration-mass relation'
-       IF(hmod%iconc==5) WRITE(*,*) 'HALOMODEL: Relaxed-sample x200 critical density Duffy et al. (2008) concentration-mass relation'
+       IF(hmod%iconc==3) WRITE(*,*) 'HALOMODEL: Full sample 200 times mean density Duffy et al. (2008) concentration-mass relation'
+       IF(hmod%iconc==4) WRITE(*,*) 'HALOMODEL: Full sample virial denity Duffy et al. (2008) concentration-mass relation'
+       IF(hmod%iconc==5) WRITE(*,*) 'HALOMODEL: Relaxed sample 200 times critical density Duffy et al. (2008) concentration-mass relation'
 
        ! Concentration-mass relation correction
        IF(hmod%iDolag==1) WRITE(*,*) 'HALOMODEL: No concentration-mass correction for dark energy'
        IF(hmod%iDolag==2) WRITE(*,*) 'HALOMODEL: Dolag (2004) dark energy halo concentration correction'
        IF(hmod%iDolag==3) WRITE(*,*) 'HALOMODEL: Dolag (2004) dark energy halo concentration correction with 1.5 exponent'
+       IF(hmod%iDolag==4) WRITE(*,*) 'HALOMODEL: Dolag (2004) dark energy halo concentration correction with redshift dependence'
 
        ! Bound gas fraction
        IF(hmod%frac_bound_gas==1) WRITE(*,*) 'HALOMODEL: Halo bound gas fraction: Fedeli (2014a)'
@@ -1815,7 +1811,7 @@ CONTAINS
     REAL :: wk(hmod%n,nt), wk2(hmod%n,2), wk_squared(hmod%n)
     INTEGER :: i, j, j1, j2, ih(2)
 
-    ! Calls expressions for one- and two-halo terms and then combines to form the full power spectrum
+    ! Calls expressions for two- and one-halo terms and then combines to form the full power spectrum
     IF(k==0.) THEN
 
        ! This should really never be called for k=0
@@ -1842,11 +1838,11 @@ CONTAINS
        END DO
 
        ! If linear theory is used for two-halo term we need to recalculate the window functions for the two-halo term with k=0 fixed
-       ! TODO: Include what to do with ip2h=1,3 properly for non-total-matter fields
-       IF(hmod%ip2h==1 .OR. hmod%ip2h==3 .OR. hmod%halo_free_gas==7) THEN
-
-          CALL reinit_windows(itype,nt,wk,hmod%n,hmod,cosm)
-
+       IF(hmod%ip2h==1 .OR. hmod%ip2h==3) THEN
+          CALL init_windows(0.,itype,nt,wk,hmod%n,hmod,cosm)      
+       ELSE IF(hmod%halo_free_gas==7) THEN
+          ! If we are worrying about unbound gas then we need this
+          CALL add_smooth_component_to_windows(itype,nt,wk,hmod%n,hmod,cosm)
        END IF
 
        ! Get the two-halo term
@@ -1940,8 +1936,10 @@ CONTAINS
 
   END SUBROUTINE init_windows
 
-  SUBROUTINE reinit_windows(fields,nf,wk,nm,hmod,cosm)
+  SUBROUTINE add_smooth_component_to_windows(fields,nf,wk,nm,hmod,cosm)
 
+    ! Refills the window functions for the two-halo term if this is necessary
+    ! This is for contributions due to unbound gas, and the effect of this on electron pressure
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: fields(nf)
     REAL, INTENT(INOUT) :: wk(nm,nf)
@@ -1955,9 +1953,9 @@ CONTAINS
     INTEGER :: i_all, i_gas, i_pre
 
     ! Get the array positions corresponding to all, cdm, gas, stars if they exist
-    i_all=array_position(0,fields,nf)
-    i_gas=array_position(2,fields,nf)
-    i_pre=array_position(6,fields,nf)
+    i_all=array_position(field_matter,fields,nf)
+    i_gas=array_position(field_gas,fields,nf)
+    i_pre=array_position(field_electron_pressure,fields,nf)
 
     IF(i_all==0 .AND. i_gas==0 .AND. i_pre==0) THEN
 
@@ -1995,17 +1993,17 @@ CONTAINS
              ! TODO: The units here are a mess
 
              ! Calculate the value of the density profile prefactor [(Msun/h)/(Mpc/h)^3] and change units from cosmological to SI
-             rho0=m*halo_free_gas_fraction(m,hmod,cosm)!/normalisation(rmin,rmax,rv,rs,p1,p2,irho_density) ! rho0 in [(Msun/h)/(Mpc/h)^3]
-             rho0=rho0*msun/Mpc/Mpc/Mpc ! Overflow with REAL(4) if you use Mpc**3, this converts to SI units [h^2 kg/m^3]
-             rho0=rho0*cosm%h**2 ! Absorb factors of h, so now [kg/m^3]
+             rho0=m*halo_free_gas_fraction(m,hmod,cosm) ! rho0 in [(Msun/h)/(Mpc/h)^3]
+             rho0=rho0*msun/Mpc/Mpc/Mpc                 ! Overflow with REAL(4) if you use Mpc**3, this converts to SI units [h^2 kg/m^3]
+             rho0=rho0*cosm%h**2                        ! Absorb factors of h, so now [kg/m^3]
 
              ! This is the total thermal pressure of the WHIM
              T0=HMx_Twhim(hmod) ! [K]
 
              ! Factors to convert from Temp x density -> electron pressure (Temp x n; n is all particle number density) 
              pc=(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
-             pc=pc/(eV*(0.01)**(-3)) ! Change units to pressure in [eV/cm^3]
-             pc=pc*cosm%mue/cosm%mup ! Convert from total thermal pressure to electron pressure
+             pc=pc/(eV*(0.01)**(-3))         ! Change units to pressure in [eV/cm^3]
+             pc=pc*cosm%mue/cosm%mup         ! Convert from total thermal pressure to electron pressure
 
              ! Apply the correction factor
              wk(i,i_pre)=wk(i,i_pre)+pc
@@ -2016,7 +2014,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE reinit_windows
+  END SUBROUTINE add_smooth_component_to_windows
 
   FUNCTION wk_squared_scatter(n,itype,k,hmod,cosm)
 
@@ -2042,7 +2040,6 @@ CONTAINS
   REAL FUNCTION p_2h(ih,wk,n,k,plin,hmod,cosm)
 
     ! Produces the 'two-halo' power
-    USE logical_operations
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: ih(2)
     REAL, INTENT(IN) :: wk(n,2)
@@ -2052,10 +2049,9 @@ CONTAINS
     TYPE(halomod), INTENT(INOUT) :: hmod    
     TYPE(cosmology), INTENT(INOUT) :: cosm    
     REAL :: sigv, frac, rhom
-    REAL :: nu, m, m0, wki(2), b0, wk0(2), nu0
+    REAL :: m0, b0, wk0(2), nu0
     REAL :: m1, m2, b1, b2, g1, g2, u1, u2, nu1, nu2, F(n,n), Inl
-    REAL :: integrand1(n,2), integrand2(n,2)
-    REAL :: sum1(2), sum2(2)
+    REAL :: I2h, I2hs(2)
     INTEGER :: i, j
 
     rhom=comoving_matter_density(cosm)
@@ -2063,13 +2059,11 @@ CONTAINS
     IF(hmod%ip2h==1) THEN
 
        ! Simply linear theory
-       ! TODO: This should be multiplied by a W(k->0) thing to work for non-matter fields
        p_2h=plin
 
     ELSE IF(hmod%ip2h==3) THEN
 
        ! Damped BAO linear theory
-       ! TODO: This should be multiplied by a W(k->0) thing to work for non-matter fields
        p_2h=p_dewiggle(k,hmod,cosm)
 
     ELSE IF(hmod%ip2h==4) THEN
@@ -2082,73 +2076,25 @@ CONTAINS
        IF(hmod%imf==4) THEN
 
           ! In this case the mass function is a delta function...
-
           m0=hmod%hmass
           nu0=nu_M(m0,hmod,cosm)
           b0=b_nu(nu0,hmod)
-          wk0(1)=find(log(m0),hmod%log_m,wk(:,1),n,3,3,2)
-          wk0(2)=find(log(m0),hmod%log_m,wk(:,2),n,3,3,2)
-          sum1(1)=b0*rhom*wk0(1)/m0
-          sum1(2)=b0*rhom*wk0(2)/m0
+          DO j=1,2
+             wk0(j)=find(log(m0),hmod%log_m,wk(:,j),n,3,3,2)
+             I2hs(j)=b0*rhom*wk0(j)/m0
+          END DO
 
        ELSE
 
-          ! ...otherwise you need to do an integral
-
-          DO i=1,n
-
-             ! Some variables to make equations cleaner below
-             m=hmod%m(i)
-             nu=hmod%nu(i)
-             wki=wk(i,:) ! (slow array accessing)
-
-             DO j=1,2
-
-                ! Linear bias term, standard two-halo term integral
-                integrand1(i,j)=g_nu(nu,hmod)*b_nu(nu,hmod)*(rhom*wki(j)/m)
-
-                IF(hmod%ibias==2) THEN
-                   ! Second-order bias term
-                   integrand2(i,j)=g_nu(nu,hmod)*b2_nu(nu,hmod)*(rhom*wki(j)/m)
-                END IF
-
-             END DO
-
-          END DO
-
-          ! Evaluate these integrals from the tabulated values
+          ! ... otherwise we need to do an integral
           DO j=1,2
-             sum1(j)=integrate_table(hmod%nu,integrand1(:,j),n,1,n,3)
+             CALL I_2h(ih(j),I2h,wk(:,j),n,hmod,cosm,ibias=1)
+             I2hs(j)=I2h
           END DO
-
-          IF(hmod%ip2h_corr==1) THEN
-             ! Do nothing in this case
-             ! There will be large errors if any signal is from low-mass haloes
-             ! e.g., for the matter power spectrum
-          ELSE IF(hmod%ip2h_corr==2) THEN
-             ! Add on the value of integral b(nu)*g(nu) assuming W(k)=1
-             ! Advised by Yoo et al. (????) and Cacciato et al. (2012)
-             STOP 'P_2H: This will not work for fields that do not have mass fractions defined'
-             DO j=1,2
-                sum1(j)=sum1(j)+hmod%gbmin*halo_fraction(ih(j),m,hmod,cosm)
-             END DO
-          ELSE IF(hmod%ip2h_corr==3) THEN
-             ! Put the missing part of the integrand as a delta function at the low-mass limit of the integral
-             ! I think this is the best thing to do
-             IF(requal(hmod%m(1),mmin_HMx,eps_p2h)) THEN
-                m0=hmod%m(1)
-                wki=wk(1,:) ! (slow array accessing)
-                DO j=1,2             
-                   sum1(j)=sum1(j)+hmod%gbmin*(rhom*wki(j)/m0)
-                END DO
-             END IF
-          ELSE
-             STOP 'P_2h: Error, ip2h_corr not specified correctly'
-          END IF
-
+          
        END IF
 
-       p_2h=plin*sum1(1)*sum1(2)
+       p_2h=plin*I2hs(1)*I2hs(2)
 
        ! Second-order bias correction
        ! This needs to have the property that \int f(nu)b2(nu) du = 0
@@ -2156,11 +2102,12 @@ CONTAINS
        ! e.g., how much do low mass haloes matter
        IF(hmod%ibias==2) THEN
 
-          ! Varying mmin *does* make a difference to the values of the integrals
+          ! ... otherwise we need to do an integral
           DO j=1,2
-             sum2(j)=integrate_table(hmod%nu,integrand2(:,j),n,1,n,3)
+             CALL I_2h(ih(j),I2h,wk(:,j),n,hmod,cosm,ibias=2)
+             I2hs(j)=I2h
           END DO
-          p_2h=p_2h+(plin**2)*sum2(1)*sum2(2)*rhom**2
+          p_2h=p_2h+(plin**2)*I2hs(1)*I2hs(2)*rhom**2 ! TODO: Should rhom^2 really be here?
 
        ELSE IF(hmod%ibias==3) THEN
 
@@ -2181,7 +2128,7 @@ CONTAINS
                 g1=g_nu(nu1,hmod)               
                 u1=(rhom*wk(i,1)/m1)
 
-                F(i,j)=B_NL(m1,m2,k,hmod%z)*b1*b2*g1*g2*u1*u2
+                F(i,j)=B_NL(nu1,nu2,k,hmod%z)*b1*b2*g1*g2*u1*u2
 
              END DO
           END DO
@@ -2189,9 +2136,32 @@ CONTAINS
           Inl=integrate_table_2D(hmod%nu,hmod%nu,F,n,n)
 
           p_2h=p_2h+plin*Inl
+          
+       ELSE IF(hmod%ibias==4) THEN
+
+          ! Fedeli (2014b) 'scale-dependent halo bias'
+          p_2h=p_2h*(1.+k)**0.54
+
+       ELSE IF(hmod%ibias==5) THEN
+
+          ! My own experimental model
+          p_2h=p_2h*(1.+(k/hmod%knl))**0.5
 
        END IF
 
+    END IF
+
+    ! Get the normalisation correct for non-matter fields if you are using linear theory or damped BAO
+    IF(hmod%ip2h==1 .OR. hmod%ip2h==3) THEN
+       DO j=1,2
+          IF(ih(j)==field_dmonly .OR. ih(j)==field_matter) THEN
+             I2hs(j)=1.
+          ELSE
+             CALL I_2h(ih(j),I2h,wk(:,j),n,hmod,cosm,ibias=1)
+             I2hs(j)=I2h
+          END IF
+       END DO
+       p_2h=p_2h*I2hs(1)*I2hs(2)
     END IF
 
     ! Apply the damping to the two-halo term
@@ -2204,14 +2174,6 @@ CONTAINS
        ELSE
           p_2h=p_2h*(1.-frac*(tanh(k*sigv/sqrt(ABS(frac))))**2)
        END IF
-    END IF
-
-    IF(hmod%ikb==2) THEN
-       ! Fedeli (2014b) 'scale-dependent halo bias'
-       p_2h=p_2h*(1.+k)**0.54
-    ELSE IF(hmod%ikb==3) THEN
-       ! My own experimental model
-       p_2h=p_2h*(1.+(k/hmod%knl))**0.5
     END IF
 
 !!$    ! For some extreme cosmologies frac>1. so this must be added to prevent p_2h<0
@@ -2227,6 +2189,72 @@ CONTAINS
 !!$    END IF
 
   END FUNCTION p_2h
+
+  SUBROUTINE I_2h(ih,res,wk,n,hmod,cosm,ibias)
+
+    USE logical_operations
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: ih
+    REAL, INTENT(OUT) :: res
+    REAL, INTENT(IN) :: wk(n)
+    INTEGER, INTENT(IN) :: n
+    TYPE(halomod), INTENT(INOUT) :: hmod
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    INTEGER, INTENT(IN) :: ibias
+    REAL :: rhom, b, m0, m, nu, integrand(n)
+    INTEGER :: i
+
+    rhom=comoving_matter_density(cosm)
+
+    ! ...otherwise you need to do an integral
+    
+    DO i=1,n
+
+       ! Some variables to make equations cleaner below
+       m=hmod%m(i)
+       nu=hmod%nu(i)
+
+       ! Linear bias term, standard two-halo term integral
+       IF(ibias==1) THEN
+          b=b_nu(nu,hmod)
+       ELSE IF(ibias==2) THEN
+          b=b2_nu(nu,hmod)
+       ELSE
+          STOP 'I_2H: Error, ibias specified incorrectly'
+       END IF
+
+       integrand(i)=g_nu(nu,hmod)*b*(rhom*wk(i)/m)
+
+    END DO
+
+    ! Evaluate these integrals from the tabulated values
+    res=integrate_table(hmod%nu,integrand,n,1,n,3)
+
+    IF(ibias==1) THEN
+
+       IF(hmod%ip2h_corr==1) THEN
+          ! Do nothing in this case
+          ! There will be large errors if any signal is from low-mass haloes
+          ! e.g., for the matter power spectrum
+       ELSE IF(hmod%ip2h_corr==2) THEN
+          ! Add on the value of integral b(nu)*g(nu) assuming W(k)=1
+          ! Advised by Yoo et al. (????) and Cacciato et al. (2012)
+          STOP 'P_2H: This will not work for fields that do not have mass fractions defined'
+          res=res+hmod%gbmin*halo_fraction(ih,m,hmod,cosm)
+       ELSE IF(hmod%ip2h_corr==3) THEN
+          ! Put the missing part of the integrand as a delta function at the low-mass limit of the integral
+          ! I think this is the best thing to do
+          IF(requal(hmod%m(1),mmin_HMx,eps_p2h)) THEN
+             m0=hmod%m(1)           
+             res=res+hmod%gbmin*(rhom*wk(1)/m0)
+          END IF
+       ELSE
+          STOP 'P_2h: Error, ip2h_corr not specified correctly'
+       END IF
+
+    END IF
+    
+  END SUBROUTINE I_2h
 
   REAL FUNCTION p_1h(wk2,k,hmod,cosm)
 
@@ -2424,25 +2452,56 @@ CONTAINS
 
   END FUNCTION p_1void
 
-  REAL FUNCTION B_NL(m1,m2,k,z)
+  REAL FUNCTION B_NL(nu1,nu2,k,z)
 
     IMPLICIT NONE
-    REAL, INTENT(IN) :: m1, m2
+    REAL, INTENT(IN) :: nu1, nu2
     REAL, INTENT(IN) :: k, z
-    REAL :: A, k0, crap
+    REAL :: A, k0
+    REAL :: A0, A1, k00, k01
 
+    INTEGER, PARAMETER :: model=1
     REAL, PARAMETER :: zs(4)=[0.0,0.5,1.0,2.0]
-    REAL, PARAMETER :: As(4)=[1.80,2.07,2.20,3.32]
-    REAL, PARAMETER :: ks(4)=[1.60,1.29,1.25,1.81]
+    LOGICAL, PARAMETER :: impose_limit=.TRUE.
+    REAL, PARAMETER :: limit=-1.
 
-    crap=m1
-    crap=m2
+    ! Model 1
+    REAL, PARAMETER :: As(4)=[3.14,2.60,2.40,1.93]
+    REAL, PARAMETER :: k0s(4)=[1.79,1.61,1.66,1.66]
 
-    k0=Lagrange_Polynomial(z,3,zs,ks)
-    A=Lagrange_Polynomial(z,3,zs,As)
+    ! Model 2
+    REAL, PARAMETER :: A0s(4)=[9.83,39.85,106.42,153.41]
+    REAL, PARAMETER :: k00s(4)=[3.38,5.14,7.88,14.03]
+    
+    IF(model==1) THEN
+       
+       A=Lagrange_Polynomial(z,3,zs,As)
+       k0=Lagrange_Polynomial(z,3,zs,k0s)
 
-    B_NL=A*(k/k0)*(exp(-(k/(2.*k0))**2))
+       !B_NL=A*(k/k0)*(exp(-(k/(2.*k0**2))
+       B_NL=A*(k/k0)*(1.-k**2/(2.*k0**2))
 
+    ELSE IF(model==2) THEN
+
+       A0=Lagrange_Polynomial(z,3,zs,A0s)
+       A1=-3
+       
+       k00=Lagrange_Polynomial(z,3,zs,k00s)
+       k01=-1.5
+
+       A=A0*(nu1+nu2)**A1
+       k0=k00*(nu1+nu2)**k01
+       
+       B_NL=A*(k/k0)*(1.-(k**2/(2.*k0**2)))
+
+    ELSE
+
+       STOP 'B_NL: Error, model not specified correctly'
+
+    END IF
+
+    IF(impose_limit .AND. B_NL<limit) B_NL=limit
+    
   END FUNCTION B_NL
 
   SUBROUTINE halo_diagnostics(hmod,cosm,dir)
@@ -3640,40 +3699,41 @@ CONTAINS
     REAL :: mnl, m, zc, z
     INTEGER :: i
 
-    !iconc = 1: Full Bullock et al. (2001)
-    !iconc = 2: Simple Bullock et al. (2001)
-    !iconc = 3: Duffy et al. (2008): mean
-    !iconc = 4: Duffy et al. (2008): virial
+    ! iconc = 1: Full Bullock et al. (2001)
+    ! iconc = 2: Simple Bullock et al. (2001)
+    ! iconc = 3: Duffy et al. (2008): mean
+    ! iconc = 4: Duffy et al. (2008): virial
+    ! iconc = 5: Duffy et al. (2008): relaxed
 
     ! Get the redshift
     z=hmod%z
 
-    !Any initialisation for the c(M) relation goes here
+    ! Any initialisation for the c(M) relation goes here
     IF(hmod%iconc==1) THEN
-       !Fill the collapse z look-up table
+       ! Fill the collapse z look-up table
        CALL zcoll_Bullock(z,hmod,cosm)
     ELSE IF(hmod%iconc==2) THEN
        mnl=hmod%mnl
     END IF
 
-    !Fill concentration-mass for all halo masses
+    ! Fill concentration-mass for all halo masses
     DO i=1,hmod%n
 
-       !Halo mass
+       ! Halo mass
        m=hmod%m(i)
 
-       !Choose concentration-mass relation
+       ! Choose concentration-mass relation
        IF(hmod%iconc==1) THEN
           zc=hmod%zc(i)
           hmod%c(i)=conc_Bullock(z,zc)
        ELSE IF(hmod%iconc==2) THEN         
           hmod%c(i)=conc_Bullock_simple(m,mnl)
        ELSE IF(hmod%iconc==3) THEN
-          hmod%c(i)=conc_Duffy_mean(m,z)
+          hmod%c(i)=conc_Duffy_full_200m(m,z)
        ELSE IF(hmod%iconc==4) THEN
-          hmod%c(i)=conc_Duffy_virial(m,z)
+          hmod%c(i)=conc_Duffy_full_virial(m,z)
        ELSE IF(hmod%iconc==5) THEN
-          hmod%c(i)=conc_Duffy_relaxed200(m,z)
+          hmod%c(i)=conc_Duffy_relaxed_200c(m,z)
        ELSE
           STOP 'FILL_HALO_CONCENTRATION: Error, iconc specified incorrectly'
        END IF
@@ -3684,7 +3744,7 @@ CONTAINS
     END DO
 
     ! Dolag2004 prescription for adding DE dependence
-    IF(hmod%iDolag==2 .OR. hmod%iDolag==3) CALL Dolag_correction(hmod,cosm)
+    IF(hmod%iDolag .NE. 1) CALL Dolag_correction(hmod,cosm)
 
     ! Rescale the concentration-mass relation for gas the epsilon parameter
     ! This only rescales the concentrations of haloes that *contain* substantial amounts of gas
@@ -3711,14 +3771,16 @@ CONTAINS
     IMPLICIT NONE
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: g_LCDM, g_wCDM, ainf, f
+    REAL :: g_LCDM, g_wCDM, g, a
+    REAL :: ginf_LCDM, ginf_wCDM, ainf, f
     TYPE(cosmology) :: cosm_LCDM
 
     ! The 'infinite' scale factor
     ainf=scale_factor_z(zinf_Dolag)
 
     ! Save the growth function in the current cosmology
-    g_wCDM=grow(ainf,cosm)
+    ginf_wCDM=grow(ainf,cosm)
+    
 
     ! Make a flat LCDM cosmology and calculate growth
     cosm_LCDM=cosm
@@ -3730,17 +3792,22 @@ CONTAINS
     cosm_LCDM%verbose=.FALSE.
     CALL init_cosmology(cosm_LCDM) ! This is **essential**
 
-    g_LCDM=growth_Linder(ainf,cosm_LCDM)
-    f=g_wCDM/g_LCDM
-
-    !WRITE(*,*) 'DOLAG_CORRECTION:', f
-    !STOP
+    ginf_LCDM=growth_Linder(ainf,cosm_LCDM)
+    f=ginf_wCDM/ginf_LCDM
 
     ! Changed this to a power of 1.5, which produces more accurate results for extreme DE
     IF(hmod%iDolag==2) THEN
        hmod%c=hmod%c*f
     ELSE IF(hmod%iDolag==3) THEN
        hmod%c=hmod%c*f**1.5
+    ELSE IF(hmod%iDolag==4) THEN
+       a=hmod%a
+       g_wCDM=grow(a,cosm)
+       g_LCDM=growth_Linder(a,cosm_LCDM)
+       g=g_wCDM/g_LCDM       
+       hmod%c=hmod%c*f/g
+    ELSE
+       STOP 'DOLAG_CORRECTION: Error, iDolag specified incorrectly'
     END IF
 
   END SUBROUTINE Dolag_correction
@@ -3807,7 +3874,7 @@ CONTAINS
 
   FUNCTION conc_Bullock_simple(m,mstar)
 
-    !The simple concentration-mass relation from Bullock et al. (2001; astro-ph/9908159v3 equation 18)
+    ! The simple concentration-mass relation from Bullock et al. (2001; astro-ph/9908159v3 equation 18)
     IMPLICIT NONE
     REAL :: conc_Bullock_simple
     REAL, INTENT(IN) :: m, mstar
@@ -3816,62 +3883,62 @@ CONTAINS
 
   END FUNCTION conc_Bullock_simple
 
-  REAL FUNCTION conc_Duffy_mean(m,z)
+  REAL FUNCTION conc_Duffy_full_200m(m,z)
 
-    !Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
+    ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
     IMPLICIT NONE
     REAL, INTENT(IN) :: m, z
 
-    REAL, PARAMETER :: m_piv=2e12 !Pivot mass in Msun/h
+    REAL, PARAMETER :: m_piv=2e12 ! Pivot mass in Msun/h
     REAL, PARAMETER :: A=10.14
     REAL, PARAMETER :: B=-0.081
     REAL, PARAMETER :: C=-1.01
 
-    !Equation (4) in 0804.2486, parameters from 10th row of Table 1
-    conc_Duffy_mean=A*(m/m_piv)**B*(1.+z)**C
+    ! Equation (4) in 0804.2486, parameters from 10th row of Table 1
+    conc_Duffy_full_200m=A*(m/m_piv)**B*(1.+z)**C
 
-  END FUNCTION conc_Duffy_mean
+  END FUNCTION conc_Duffy_full_200m
 
-  REAL FUNCTION conc_Duffy_virial(m,z)
+  REAL FUNCTION conc_Duffy_full_virial(m,z)
 
-    !Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
+    ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
     IMPLICIT NONE
     REAL, INTENT(IN) :: m, z
 
-    REAL, PARAMETER :: m_piv=2e12 !Pivot mass in Msun/h
+    REAL, PARAMETER :: m_piv=2e12 ! Pivot mass in Msun/h
     REAL, PARAMETER :: A=7.85
     REAL, PARAMETER :: B=-0.081
     REAL, PARAMETER :: C=-0.71
 
-    !Equation (4) in 0804.2486, parameters from 6th row of Table 1
-    conc_Duffy_virial=A*(m/m_piv)**B*(1.+z)**C
+    ! Equation (4) in 0804.2486, parameters from 6th row of Table 1
+    conc_Duffy_full_virial=A*(m/m_piv)**B*(1.+z)**C
 
-  END FUNCTION conc_Duffy_virial
+  END FUNCTION conc_Duffy_full_virial
 
-  REAL FUNCTION conc_Duffy_relaxed200(m,z)
+  REAL FUNCTION conc_Duffy_relaxed_200c(m,z)
 
-    !Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
+    ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
     IMPLICIT NONE
     REAL, INTENT(IN) :: m, z
 
-    REAL, PARAMETER :: m_piv=2e12 !Pivot mass in Msun/h
+    REAL, PARAMETER :: m_piv=2e12 ! Pivot mass in Msun/h
     REAL, PARAMETER :: A=6.71
     REAL, PARAMETER :: B=-0.091
     REAL, PARAMETER :: C=-0.44
 
-    !Equation (4) in 0804.2486, parameters from 4th row of Table 1
-    conc_Duffy_relaxed200=A*(m/m_piv)**B*(1.+z)**C
+    ! Equation (4) in 0804.2486, parameters from 4th row of Table 1
+    conc_Duffy_relaxed_200c=A*(m/m_piv)**B*(1.+z)**C
 
-  END FUNCTION conc_Duffy_relaxed200
+  END FUNCTION conc_Duffy_relaxed_200c
 
   REAL FUNCTION mass_r(r,cosm)
 
-    !Calcuates the mass contains in a sphere of comoving radius 'r' in a homogeneous universe
+    ! Calcuates the mass contains in a sphere of comoving radius 'r' in a homogeneous universe
     IMPLICIT NONE
     REAL, INTENT(IN) :: r
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    !Relation between mean cosmological mass and radius
+    ! Relation between mean cosmological mass and radius
     mass_r=(4.*pi/3.)*comoving_matter_density(cosm)*(r**3)
 
   END FUNCTION mass_r
