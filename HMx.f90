@@ -761,6 +761,8 @@ CONTAINS
     ELSE IF(ihm==24) THEN
        ! Non-linear halo bias
        hmod%ibias=3
+       !hmod%iDv=7  ! M200c
+       !hmod%imf=3 ! Tinker mass function and bias
     ELSE IF(ihm==25) THEN
        ! Villaescusa-Navarro HI halo model
        hmod%imf=3     ! Tinker mass function
@@ -1379,6 +1381,7 @@ CONTAINS
        IF(hmod%iDv==4) WRITE(*,*) 'HALOMODEL: Delta_v from Mead (2017) fitting function'
        IF(hmod%iDv==5) WRITE(*,*) 'HALOMODEL: Delta_v from spherical-collapse calculation'
        IF(hmod%iDv==6) WRITE(*,*) 'HALOMODEL: Delta_v to give haloes Lagrangian radius'
+       IF(hmod%iDv==7) WRITE(*,*) 'HALOMODEL: Fixed Delta_v for M200c'
 
        ! eta for halo window function
        IF(hmod%ieta==1) WRITE(*,*) 'HALOMODEL: eta = 0 fixed'
@@ -2460,7 +2463,7 @@ CONTAINS
     REAL :: A, k0
     REAL :: A0, A1, k00, k01
 
-    INTEGER, PARAMETER :: model=1
+    INTEGER, PARAMETER :: model=2
     REAL, PARAMETER :: zs(4)=[0.0,0.5,1.0,2.0]
     LOGICAL, PARAMETER :: impose_limit=.TRUE.
     REAL, PARAMETER :: limit=-1.
@@ -2807,7 +2810,7 @@ CONTAINS
     a=hmod%a
 
     IF(hmod%iDv==1) THEN
-       ! Fixed value
+       ! Fixed value; M200
        Delta_v=200.
     ELSE IF(hmod%iDv==2) THEN
        ! From Bryan & Norman (1998; arXiv:astro-ph/9710107) fitting functions
@@ -2824,6 +2827,9 @@ CONTAINS
     ELSE IF(hmod%iDv==6) THEN
        ! Lagrangian radius
        Delta_v=1.
+    ELSE IF(hmod%iDv==7) THEN
+       ! M200c
+       Delta_v=200./Omega_m(a,cosm)
     ELSE
        STOP 'DELTA_V: Error, iDv defined incorrectly'
     END IF
