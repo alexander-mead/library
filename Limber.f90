@@ -783,20 +783,20 @@ CONTAINS
 
     ! Get file name
     IF(ix==tracer_KiDS) THEN
-       input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.1-0.9_MEAD.txt'
+       input='/Users/Mead/Physics/data/KiDS/nz/KiDS_z0.1-0.9_MEAD.txt'
     ELSE IF(ix==tracer_KiDS_bin1) THEN
-       input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.1-0.3.txt'
+       input='/Users/Mead/Physics/data/KiDS/nz/KiDS_z0.1-0.3.txt'
     ELSE IF(ix==tracer_KiDS_bin2) THEN
-       input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.3-0.5.txt'
+       input='/Users/Mead/Physics/data/KiDS/nz/KiDS_z0.3-0.5.txt'
     ELSE IF(ix==tracer_KiDS_bin3) THEN
-       input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.5-0.7.txt'
+       input='/Users/Mead/Physics/data/KiDS/nz/KiDS_z0.5-0.7.txt'
     ELSE IF(ix==tracer_KiDS_bin4) THEN
-       input='/Users/Mead/Physics/KiDS/nz/KiDS_z0.7-0.9.txt'
+       input='/Users/Mead/Physics/data/KiDS/nz/KiDS_z0.7-0.9.txt'
     ELSE IF(ix==tracer_KiDS_450 .OR. &
          ix==tracer_KiDS_450_bin1 .OR. &
          ix==tracer_KiDS_450_bin2 .OR. &
          ix==tracer_KiDS_450_highz) THEN
-       input='/Users/Mead/Physics/KiDS/nz/KiDS-450_fat_bin_nofz.txt'
+       input='/Users/Mead/Physics/data/KiDS/nz/KiDS-450_fat_bin_nofz.txt'
     ELSE
        STOP 'FILL_NZ_TABLE: tracer not specified correctly'
     END IF
