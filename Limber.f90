@@ -52,14 +52,6 @@ MODULE Limber
      REAL, ALLOCATABLE :: nz(:), z_nz(:)
      INTEGER :: nX, nq, nnz
   END TYPE projection
-
-!!$  ! Quantities that are necessary for lensing specifically
-!!$  ! Possibly this could usefully be merged with the projection type
-!!$  TYPE lensing
-!!$     REAL, ALLOCATABLE :: q(:), r_q(:)
-!!$     REAL, ALLOCATABLE :: nz(:), z_nz(:)
-!!$     INTEGER :: nq, nnz
-!!$  END TYPE lensing
   
   ! P(k,a) look-up table parameters
   REAL, PARAMETER :: kmin_pka=1e-4   ! k' value for P(k,a) table; P(k<k',a)=0
