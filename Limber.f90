@@ -11,7 +11,6 @@ MODULE Limber
 
   ! Types
   PUBLIC :: projection
-  !PUBLIC :: lensing
 
   ! Functions
   PUBLIC :: maxdist
@@ -27,6 +26,7 @@ MODULE Limber
   PUBLIC :: calculate_angular_xi
   PUBLIC :: write_Cl
   PUBLIC :: k_ell
+  PUBLIC :: xpow_pka
 
   ! Tracers
   PUBLIC :: n_tracers
@@ -672,6 +672,7 @@ CONTAINS
   FUNCTION y_kernel(r,cosm)
 
     ! The Compton-y projection kernel
+    ! TODO: (re)check the power of 'a'
     IMPLICIT NONE
     REAL :: y_kernel
     REAL, INTENT(IN) :: r
@@ -1194,5 +1195,37 @@ CONTAINS
     END IF
 
   END FUNCTION find_pka
+
+  SUBROUTINE xpow_pka(ix,ell,Cl,nl,k,a,pow,nk,na,cosm,verbose)
+
+    ! Calculates the C(l) for the cross correlation of fields ix(1) and ix(2)
+    ! The user provides the power spectrum
+    IMPLICIT NONE
+    INTEGER, INTENT(INOUT) :: ix(2)
+    REAL, INTENT(IN) :: ell(nl)
+    REAL, INTENT(OUT) :: Cl(nl)
+    INTEGER, INTENT(IN) :: nl
+    REAL, INTENT(IN) :: k(nk)
+    REAL, INTENT(IN) :: a(na)
+    REAL, INTENT(IN) :: pow(nk,na)
+    INTEGER, INTENT(IN) :: nk
+    INTEGER, INTENT(IN) :: na
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    LOGICAL, INTENT(IN) :: verbose
+    TYPE(projection) :: proj(2)
+    REAL :: r1, r2
+
+    ! Fill out the projection kernels
+    CALL fill_projection_kernels(ix,proj,cosm)
+
+    ! Set the range in comoving distance for the Limber integral
+    r1=0.
+    r2=maxdist(proj)
+
+    ! Actually calculate the C(ell), but only for the full halo model part
+    ! TODO: Array temporary
+    CALL calculate_Cl(r1,r2,ell,Cl,nl,k,a,pow,nk,na,proj,cosm)
+
+  END SUBROUTINE xpow_pka
   
 END MODULE Limber
