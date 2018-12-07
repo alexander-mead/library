@@ -120,7 +120,8 @@ MODULE HMx
      INTEGER :: frac_central_stars, frac_stars, frac_HI
      INTEGER :: frac_bound_gas, frac_cold_bound_gas, frac_hot_bound_gas
      LOGICAL :: one_parameter_baryons
-     LOGICAL :: has_HI, has_galaxies, has_mass_conversions, safe_negative, has_dewiggle
+     LOGICAL :: has_HI, has_galaxies, has_mass_conversions, safe_negative, has_dewiggle, has_Tinker
+     REAL :: Tinker_alpha, Tinker_beta, Tinker_gamma, Tinker_phi, Tinker_eta
      LOGICAL :: response, simple_pivot
      REAL :: acc_HMx, large_nu
      CHARACTER(len=256) :: name
@@ -203,7 +204,7 @@ CONTAINS
     INTEGER :: i
 
     ! Names of pre-defined halo models
-    INTEGER, PARAMETER :: nhalomod=41 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+    INTEGER, PARAMETER :: nhalomod=42 ! Total number of pre-defined halo-model types (TODO: this is stupid)
     CHARACTER(len=256):: names(nhalomod)    
     names(1)='HMcode (Mead et al. 2016)'
     names(2)='Basic halo-model (Two-halo term is linear)'
@@ -246,6 +247,7 @@ CONTAINS
     names(39)='HMx: AGN tuned'
     names(40)='HMx: AGN 8.0'
     names(41)='Put some galaxy mass in the halo/satellites'
+    names(42)='Tinker with M200c'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -655,7 +657,7 @@ CONTAINS
        ! Standard halo-model calculation (Seljak 2000)
        ! This is the default, so do nothing here
     ELSE IF(ihm==4) THEN
-       ! Standard halo-model calculation but with Mead et al. (2015) smoothed two- to one-halo transition and one-halo damping       
+       ! Standard halo-model calculation but with Mead et al. (2015) smoothed two- to one-halo transition and one-halo damping
        hmod%itrans=4
        hmod%ikstar=2
        hmod%i1hdamp=3
@@ -758,12 +760,14 @@ CONTAINS
        hmod%response=.TRUE.
     ELSE IF(ihm==23) THEN
        ! Tinker mass function and bias
-       hmod%imf=3
+       hmod%imf=3 ! Tinker mass function and bias
     ELSE IF(ihm==24) THEN
        ! Non-linear halo bias
-       hmod%ibias=3
-       !hmod%iDv=7  ! M200c
-       !hmod%imf=3 ! Tinker mass function and bias
+       hmod%ibias=3 ! Non-linear halo bias
+       hmod%iDv=7   ! M200c
+       hmod%imf=3   ! Tinker mass function and bias
+       hmod%iconc=5 ! Duffy M200c concentrations
+       hmod%idc=1   ! Fixed to 1.686
     ELSE IF(ihm==25) THEN
        ! Villaescusa-Navarro HI halo model
        hmod%imf=3     ! Tinker mass function
@@ -906,24 +910,6 @@ CONTAINS
        hmod%response=.TRUE.
        IF(ihm==38) THEN
           ! AGN 7p6
-!!$          hmod%alpha =   1.70891011    
-!!$          hmod%eps =  0.958850801    
-!!$          hmod%Gamma =   1.25141788    
-!!$          hmod%M0 =   13.3227434    
-!!$          hmod%Astar =   4.37504016E-02
-!!$          hmod%Twhim =   6.02349520    
-!!$          hmod%cstar =   7.53934860    
-!!$          hmod%fcold =   1.96336005E-02
-!!$          hmod%mstar =   12.4054365    
-!!$          hmod%sstar =  0.854750276    
-!!$          hmod%alphap = -0.621505082    
-!!$          hmod%Gammap =  -8.59299954E-03
-!!$          hmod%cstarp = -0.192941204    
-!!$          hmod%alphaz =  0.511387229    
-!!$          hmod%Gammaz =  0.283175588    
-!!$          hmod%M0z =  -8.61267969E-02
-!!$          hmod%Astarz = -0.455676109    
-!!$          hmod%Twhimz = -0.166923404
           hmod%alpha =   1.52016437    
           hmod%eps =   1.06684244    
           hmod%Gamma =   1.24494147    
@@ -946,24 +932,6 @@ CONTAINS
           hmod%eta = -0.222550094
        ELSE IF(ihm==39) THEN
           ! AGN tuned
-!!$          hmod%alpha =   1.57793474    
-!!$          hmod%eps =  0.881173790    
-!!$          hmod%Gamma =   1.23456430    
-!!$          hmod%M0 =   13.7677040    
-!!$          hmod%Astar =   4.27635014E-02
-!!$          hmod%Twhim =   6.11093426    
-!!$          hmod%cstar =   7.16452551    
-!!$          hmod%fcold =   1.26479997E-03
-!!$          hmod%mstar =   12.4064665    
-!!$          hmod%sstar =  0.793298125    
-!!$          hmod%alphap = -0.559459090    
-!!$          hmod%Gammap =  -6.91370014E-03
-!!$          hmod%cstarp = -0.165236101    
-!!$          hmod%alphaz =  0.430692285    
-!!$          hmod%Gammaz =  0.285437614    
-!!$          hmod%M0z =  -7.98235014E-02
-!!$          hmod%Astarz = -0.453337014    
-!!$          hmod%Twhimz = -0.114669099
           hmod%alpha =   1.54074240    
           hmod%eps =   1.01597583    
           hmod%Gamma =   1.24264216    
@@ -986,24 +954,6 @@ CONTAINS
           hmod%eta = -0.266318709
        ELSE IF(ihm==40) THEN
           ! AGN 8p0
-!!$          hmod%alpha =   1.48560798    
-!!$          hmod%eps =  0.845291793    
-!!$          hmod%Gamma =   1.23208261    
-!!$          hmod%M0 =   14.2096453    
-!!$          hmod%Astar =   3.85205001E-02
-!!$          hmod%Twhim =   6.21294737    
-!!$          hmod%cstar =   7.76997995    
-!!$          hmod%fcold =   1.18999997E-05
-!!$          hmod%mstar =   12.2670107    
-!!$          hmod%sstar =  0.846171916    
-!!$          hmod%alphap = -0.489454091    
-!!$          hmod%Gammap =   2.88049993E-03
-!!$          hmod%cstarp = -0.164967597    
-!!$          hmod%alphaz =  0.493037194    
-!!$          hmod%Gammaz =  0.380448610    
-!!$          hmod%M0z =  -5.22956997E-02
-!!$          hmod%Astarz = -0.433256686    
-!!$          hmod%Twhimz =  -9.42993015E-02
           hmod%alpha =   1.45703220    
           hmod%eps =  0.872408926    
           hmod%Gamma =   1.24960959    
@@ -1030,6 +980,12 @@ CONTAINS
     ELSE IF(ihm==41) THEN
        ! Some stellar mass in satellite galaxies
        hmod%eta=-0.3
+    ELSE IF(ihm==42) THEN
+       ! Things apprpriate for M200c
+       hmod%imf=3   ! Tinker mass function and bias
+       hmod%iDv=7   ! M200c
+       hmod%iconc=5 ! Duffy for M200c
+       hmod%idc=1   ! Fixed to 1.686
     ELSE
        STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
     END IF
@@ -1069,6 +1025,7 @@ CONTAINS
     hmod%has_HI=.FALSE.
     hmod%has_mass_conversions=.FALSE.
     hmod%has_dewiggle=.FALSE.
+    hmod%has_Tinker=.FALSE.
 
     ! Find value of sigma_V
     hmod%sigv=sigmaV(0.,a,cosm)
@@ -1134,36 +1091,23 @@ CONTAINS
     ELSE
 
        ! Calculate missing mass things if necessary
-
        IF(hmod%ip2h_corr==2 .OR. hmod%ip2h_corr==3) THEN
 
-!!$          IF(slow_hmod) hmod%gmin=1.-mass_interval(hmod%nu(1),hmod%large_nu,hmod)
-!!$          IF(slow_hmod) hmod%gmax=mass_interval(hmod%nu(hmod%n),hmod%large_nu,hmod)
-!!$          hmod%gbmin=1.-bias_interval(hmod%nu(1),hmod%large_nu,hmod)
-!!$          IF(slow_hmod) hmod%gbmax=bias_interval(hmod%nu(hmod%n),hmod%large_nu,hmod)
           hmod%gmin=1.-mass_interval(hmod%nu(1),hmod%large_nu,hmod)
           hmod%gmax=mass_interval(hmod%nu(hmod%n),hmod%large_nu,hmod)
           hmod%gbmin=1.-bias_interval(hmod%nu(1),hmod%large_nu,hmod)
           hmod%gbmax=bias_interval(hmod%nu(hmod%n),hmod%large_nu,hmod)
 
           IF(verbose) THEN          
-!!$             IF(slow_hmod) WRITE(*,*) 'INIT_HALOMOD: Missing g(nu) at low end:', REAL(hmod%gmin)
-!!$             IF(slow_hmod) WRITE(*,*) 'INIT_HALOMOD: Missing g(nu) at high end:', REAL(hmod%gmax)
-!!$             WRITE(*,*) 'INIT_HALOMOD: Missing g(nu)b(nu) at low end:', REAL(hmod%gbmin)
-!!$             IF(slow_hmod) WRITE(*,*) 'INIT_HALOMOD: Missing g(nu)b(nu) at high end:', REAL(hmod%gbmax)
              WRITE(*,*) 'INIT_HALOMOD: Missing g(nu) at low end:', REAL(hmod%gmin)
              WRITE(*,*) 'INIT_HALOMOD: Missing g(nu) at high end:', REAL(hmod%gmax)
              WRITE(*,*) 'INIT_HALOMOD: Missing g(nu)b(nu) at low end:', REAL(hmod%gbmin)
              WRITE(*,*) 'INIT_HALOMOD: Missing g(nu)b(nu) at high end:', REAL(hmod%gbmax) 
           END IF
 
-!!$          IF(slow_hmod .AND. hmod%gmin<0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'       
-!!$          IF(slow_hmod .AND. hmod%gmax<-1e-4) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
-!!$          IF(hmod%gbmin<0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
-!!$          IF(slow_hmod .AND. hmod%gbmax<-1e-4) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at high end is less than zero'
-          IF(hmod%gmin<0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'       
-          IF(hmod%gmax<-1e-4) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
-          IF(hmod%gbmin<0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
+          IF(hmod%gmin<0.)     STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'       
+          IF(hmod%gmax<-1e-4)  STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
+          IF(hmod%gbmin<0.)    STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
           IF(hmod%gbmax<-1e-4) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at high end is less than zero'   
 
        END IF
@@ -1525,6 +1469,7 @@ CONTAINS
        IF(hmod%HMx_mode==4) THEN
           WRITE(*,fmt='(A30,F10.5)') 'log10(T_heat) [K]:', log10(hmod%Theat)
           WRITE(*,fmt='(A30,F10.5)') 'alpha:', HMx_alpha(hmod%Mh,hmod)
+          WRITE(*,fmt='(A30,F10.5)') 'alpha:', HMx_beta(hmod%Mh,hmod)
           WRITE(*,fmt='(A30,F10.5)') 'epsilon:', HMx_eps(hmod)
           WRITE(*,fmt='(A30,F10.5)') 'Gamma:', HMx_Gamma(hmod%Mh,hmod)
           WRITE(*,fmt='(A30,F10.5)') 'log10(M0) [Msun/h]:', log10(HMx_M0(hmod))
@@ -2941,7 +2886,7 @@ CONTAINS
        ! Lagrangian radius
        Delta_v=1.
     ELSE IF(hmod%iDv==7) THEN
-       ! M200c
+       ! M200c converted to matter from critical
        Delta_v=200./Omega_m(a,cosm)
     ELSE
        STOP 'DELTA_V: Error, iDv defined incorrectly'
@@ -3133,6 +3078,16 @@ CONTAINS
     IF(HMx_alpha<HMx_alpha_min) HMx_alpha=HMx_alpha_min
 
   END FUNCTION HMx_alpha
+
+  REAL FUNCTION HMx_beta(m,hmod)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: m
+    TYPE(halomod), INTENT(INOUT) :: hmod
+
+    HMx_beta=HMx_alpha(m,hmod)
+
+  END FUNCTION HMx_beta
 
   REAL FUNCTION HMx_eps(hmod)
 
@@ -4553,7 +4508,7 @@ CONTAINS
 
           ! Calculate the value of the temperature prefactor [K]
           a=hmod%a
-          T0=HMx_alpha(m,hmod)*virial_temperature(m,rv,hmod%a,cosm)
+          T0=HMx_beta(m,hmod)*virial_temperature(m,rv,hmod%a,cosm)
 
           ! Convert from Temp x density -> electron pressure (Temp x n; n is all particle number density) 
           win_hot_gas=win_hot_gas*(rho0/(mp*cosm%mue))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
@@ -6543,44 +6498,21 @@ CONTAINS
   REAL FUNCTION b_Tinker(nu,hmod)
 
     ! Tinker et al. (2010; 1001.3162) halo bias
-    ! TODO: Common functions between this and mass function
     IMPLICIT NONE
     REAL, INTENT(IN) :: nu
     TYPE(halomod), INTENT(INOUT) :: hmod
-    REAL :: z, Dv, dc
+    REAL :: dc
     REAL :: alpha, beta, gamma, phi, eta
 
-    ! Parameter arrays from Tinker (2010)
-    INTEGER, PARAMETER :: n=9 ! Number of entries in parameter lists
-    REAL, PARAMETER :: Delta_v(n)=[200.,300.,400.,600.,800.,1200.,1600.,2400.,3200.]
-    REAL, PARAMETER :: alpha0(n)=[0.368,0.363,0.385,0.389,0.393,0.365,0.379,0.355,0.327]
-    REAL, PARAMETER :: beta0(n)=[0.589,0.585,0.544,0.543,0.564,0.623,0.637,0.673,0.702]
-    REAL, PARAMETER :: gamma0(n)=[0.864,0.922,0.987,1.09,1.20,1.34,1.50,1.68,1.81]
-    REAL, PARAMETER :: phi0(n)=[-0.729,-0.789,-0.910,-1.05,-1.20,-1.26,-1.45,-1.50,-1.49]
-    REAL, PARAMETER :: eta0(n)=[-0.243,-0.261,-0.261,-0.273,-0.278,-0.301,-0.301,-0.319,-0.336]
-    REAL, PARAMETER :: beta_z_exp=0.20
-    REAL, PARAMETER :: gamma_z_exp=-0.01
-    REAL, PARAMETER :: phi_z_exp=-0.08
-    REAL, PARAMETER :: eta_z_exp=0.27
+    IF(.NOT. hmod%has_Tinker) CALL init_Tinker(hmod)
 
-    ! Get these from the halo-model structure
-    z=hmod%z
-    IF(z>3.) z=3. ! Recommendation from Tinker et al. (2010)
+    alpha=hmod%Tinker_alpha
+    beta=hmod%Tinker_beta
+    gamma=hmod%Tinker_gamma
+    phi=hmod%Tinker_phi
+    eta=hmod%Tinker_eta
+
     dc=hmod%dc
-    Dv=hmod%Dv
-
-    ! Delta_v dependence
-    alpha=find(Dv,Delta_v,alpha0,n,3,3,2)
-    beta=find(Dv,Delta_v,beta0,n,3,3,2)
-    gamma=find(Dv,Delta_v,gamma0,n,3,3,2)
-    phi=find(Dv,Delta_v,phi0,n,3,3,2)
-    eta=find(Dv,Delta_v,eta0,n,3,3,2)
-
-    ! Redshift dependence
-    beta=beta*(1.+z)**beta_z_exp
-    gamma=gamma**(1.+z)**gamma_z_exp
-    phi=phi*(1.+z)**phi_z_exp
-    eta=eta*(1.+z)**eta_z_exp
 
     b_Tinker=1.+(gamma*nu**2-(1.+2.*eta))/dc+(2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
 
@@ -6717,11 +6649,29 @@ CONTAINS
   REAL FUNCTION g_Tinker(nu,hmod)
 
     ! Tinker et al. (2010; 1001.3162) mass function (also 2008; xxxx.xxxx)
-    ! TODO: Common functions between this and mass function
     IMPLICIT NONE
     REAL, INTENT(IN) :: nu
     TYPE(halomod), INTENT(INOUT) :: hmod
     REAL :: alpha, beta, gamma, phi, eta
+
+    IF(.NOT. hmod%has_Tinker) CALL init_Tinker(hmod)
+
+    alpha=hmod%Tinker_alpha
+    beta=hmod%Tinker_beta
+    gamma=hmod%Tinker_gamma
+    phi=hmod%Tinker_phi
+    eta=hmod%Tinker_eta
+
+    ! The actual mass function
+    g_Tinker=alpha*(1.+(beta*nu)**(-2.*phi))*nu**(2.*eta)*exp(-0.5*gamma*nu**2)
+
+  END FUNCTION g_Tinker
+
+  SUBROUTINE init_Tinker(hmod)
+
+    IMPLICIT NONE
+    TYPE(halomod), INTENT(INOUT) :: hmod
+    REAL :: alpha, beta, Gamma, phi, eta
     REAL :: z, Dv
 
     ! Parameter arrays from Tinker (2010)
@@ -6755,10 +6705,22 @@ CONTAINS
     phi=phi*(1.+z)**phi_z_exp
     eta=eta*(1.+z)**eta_z_exp
 
-    ! The actual mass function
-    g_Tinker=alpha*(1.+(beta*nu)**(-2.*phi))*nu**(2.*eta)*exp(-0.5*gamma*nu**2)
+!!$    WRITE(*,*) 'INIT_TINKER: alpha:', alpha
+!!$    WRITE(*,*) 'INIT_TINKER: beta:', beta
+!!$    WRITE(*,*) 'INIT_TINKER: gamma:', gamma
+!!$    WRITE(*,*) 'INIT_TINKER: phi:', phi
+!!$    WRITE(*,*) 'INIT_TINKER: eta:', eta
+!!$    WRITE(*,*)
 
-  END FUNCTION g_Tinker
+    hmod%Tinker_alpha=alpha
+    hmod%Tinker_beta=beta
+    hmod%Tinker_gamma=gamma
+    hmod%Tinker_phi=phi
+    hmod%Tinker_eta=eta
+
+    hmod%has_Tinker=.TRUE.
+    
+  END SUBROUTINE init_Tinker
 
   REAL FUNCTION gb_nu(nu,hmod)
 
