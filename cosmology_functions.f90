@@ -7,11 +7,9 @@ MODULE cosmology_functions
   IMPLICIT NONE
 
   INTERFACE integrate_cosm
-
      MODULE PROCEDURE integrate1_cosm
      MODULE PROCEDURE integrate2_cosm
-     MODULE PROCEDURE integrate3_cosm
-    
+     MODULE PROCEDURE integrate3_cosm    
   END INTERFACE integrate_cosm
 
   ! Contains cosmological parameters that only need to be calculated once
@@ -107,6 +105,7 @@ CONTAINS
     names(34)='Boring LCDM: w = -0.7; wa = -1.5; z=1 normalisation'
     names(35)='Boring LCDM: w = -1.3; wa =  0.5; z=1 normalisation'
     names(36)='Einsten-de Sitter LCDM; z=1 normalisation'
+    names(37)='Multidark: WMAP 5'
     
     names(100)='Mira Titan M000'
     names(101)='Mira Titan M001'
@@ -463,6 +462,410 @@ CONTAINS
     ELSE IF(icosmo==36) THEN
        ! Boring; EdS; z=1 normalisation for Mead 2017; LCDM
        cosm%sig8=0.65380
+    ELSE IF(icosmo==37) THEN
+       ELSE IF(icosmo==3) THEN
+       ! cosmo-OWLS - Planck 2013 (1312.5462)
+       cosm%Om_m=0.3175
+       cosm%Om_b=0.0490
+       cosm%Om_v=1.-cosm%Om_m
+       cosm%h=0.6711
+       cosm%n=0.9624
+       cosm%sig8=0.834
+    ELSE IF(icosmo==4) THEN
+       ! BAHAMAS - WMAP9 (1712.02411)
+       cosm%h=0.7000
+       cosm%Om_b=0.0463
+       cosm%Om_m=0.2330+cosm%Om_b
+       cosm%Om_v=1.-cosm%Om_m       
+       cosm%n=0.9720
+       cosm%sig8=0.8211
+    ELSE IF(icosmo==5) THEN
+       !  5 - Open model
+       ! 29 - Open model; normalised for Mead 2017 z=1 response
+       cosm%Om_v=0.
+    ELSE IF(icosmo==6 .OR. icosmo==15) THEN
+       !  6 - Einstein-de Sitter (SCDM)
+       ! 15 - Einstein-de Sitter (TCDM)
+       IF(icosmo==15) THEN
+          cosm%tcdm=.TRUE.
+          cosm%Om_m_pow=cosm%Om_m
+          cosm%Om_b_pow=cosm%Om_b
+          cosm%h_pow=cosm%h
+       END IF
+       cosm%Om_m=1.
+       cosm%Om_v=0.       
+    ELSE IF(icosmo==7) THEN
+       ! IDE I
+       cosm%iw=5
+       WRITE(*,*) 'a*:'
+       READ(*,*) cosm%as
+       WRITE(*,*) 'n*:'
+       READ(*,*) cosm%ns
+       WRITE(*,*) 'Om_w(a*):'
+       READ(*,*) cosm%Om_ws
+       cosm%Om_m=0.3
+       cosm%Om_v=0.7
+    ELSE IF(icosmo==8) THEN
+       ! IDE II model
+       cosm%iw=6      
+       WRITE(*,*) 'n*:'
+       READ(*,*) cosm%ns
+       WRITE(*,*) 'a*:'
+       READ(*,*) cosm%as
+       WRITE(*,*) 'Om_w(a*):'
+       READ(*,*) cosm%Om_ws
+       cosm%Om_m=0.3
+       cosm%Om_w=0.7
+       cosm%Om_v=0. !No vacuum necessary here
+    ELSE IF(icosmo==9) THEN
+       ! IDE III model
+       cosm%iw=7
+       WRITE(*,*) 'a*:'
+       READ(*,*) cosm%as
+       WRITE(*,*) 'Om_w(a*):'
+       READ(*,*) cosm%Om_ws
+       WRITE(*,*) 'w*:'
+       READ(*,*) cosm%ws
+       cosm%Om_m=0.3
+       cosm%Om_w=0.7
+       cosm%Om_v=0.
+    ELSE IF(icosmo==10 .OR. icosmo==11) THEN
+       cosm%iw=6
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+       IF(icosmo==10) cosm%ns=3
+       IF(icosmo==11) cosm%ns=10
+       cosm%as=0.01
+       cosm%Om_ws=0.2
+    ELSE IF(icosmo==12) THEN
+       WRITE(*,*) 'Om_m:'
+       READ(*,*) cosm%Om_m
+       WRITE(*,*) 'Om_v:'
+       READ(*,*) cosm%Om_v
+    ELSE IF(icosmo==13) THEN
+       cosm%iw=3
+       WRITE(*,*) 'w0:'
+       READ(*,*) cosm%w
+       WRITE(*,*) 'wa:'
+       READ(*,*) cosm%wa
+    ELSE IF(icosmo==14) THEN
+       ! WDM
+       cosm%inv_m_wdm=1.
+    ELSE IF(icosmo==16) THEN
+       ! w = -0.7
+       cosm%iw=4
+       cosm%w=-0.7
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==17) THEN
+       ! w = -1.3
+       cosm%iw=4
+       cosm%w=-1.3
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==18) THEN
+       ! wa = 0.5
+       cosm%iw=3
+       cosm%wa=0.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==19) THEN
+       ! wa = -0.5
+       cosm%iw=3
+       cosm%wa=-0.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==20) THEN
+       ! w = -0.7; wa = -1.5
+       cosm%iw=3
+       cosm%w=-0.7
+       cosm%wa=-1.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==21) THEN
+       ! w = -1.3; wa = 0.5
+       cosm%iw=3
+       cosm%w=-1.3
+       cosm%wa=0.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==22 .OR. icosmo==23) THEN
+       ! IDE II models
+       cosm%iw=6
+       cosm%Om_m=0.3
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0. ! No vacuum necessary here
+       IF(icosmo==22) THEN
+          ! IDE 3
+          cosm%ns=3
+          cosm%as=0.01
+          cosm%Om_ws=0.1
+       ELSE IF(icosmo==23) THEN
+          ! IDE 10
+          cosm%ns=10
+          cosm%as=0.1
+          cosm%Om_ws=0.02
+       END IF
+    ELSE IF(icosmo==24) THEN
+       CALL random_Mira_Titan_cosmology(cosm)
+       cosm%itk=2 ! Set to CAMB linear power
+       cosm%iw=3 ! Set to w(a) dark energy
+       cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo==25) THEN
+       CALL random_Cosmic_Emu_cosmology(cosm)   
+       cosm%itk=2 ! Set to CAMB linear power
+       cosm%iw=4 ! Set to constant w dark energy
+       cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo==26) THEN
+       ! Boring with CAMB linear spectrum
+       cosm%itk=2 ! Set to CAMB linear power
+       cosm%Om_w=cosm%Om_v ! Necessary for CAMB
+       cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo==27) THEN
+       ! Illustris; L = 75 Mpc/h
+       cosm%itk=1 ! Set to CAMB linear power
+       cosm%Om_m=0.3089
+       cosm%Om_b=0.0486
+       cosm%Om_w=1.-cosm%Om_m ! Necessary to be Omega_w for CAMB
+       cosm%h=0.6774
+       cosm%n=0.9667
+       cosm%sig8=0.8159       
+       cosm%Om_v=0. ! Necessary for CAMB
+       cosm%box=.TRUE.
+       cosm%Lbox=75. ! 75 Mpc/h box
+    ELSE IF(icosmo==28) THEN
+       ! Finite box
+       cosm%box=.TRUE.
+    ELSE IF(icosmo==29) THEN
+       ! Boring: Open; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.88397
+    ELSE IF(icosmo==30) THEN
+       ! Boring: w = -0.7; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.83253
+    ELSE IF(icosmo==31) THEN
+       ! Boring: w = -1.3; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.77462
+    ELSE IF(icosmo==32) THEN
+       ! Boring: w = -1.0; wa =  0.5; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.81022
+    ELSE IF(icosmo==33) THEN
+       ! Boring: w = -1.0; wa = -0.5; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.79116
+    ELSE IF(icosmo==34) THEN
+       ! Boring: w = -0.7; wa = -1.5; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.80090
+    ELSE IF(icosmo==35) THEN
+       ! Boring: w = -1.3; wa =  0.5; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.78197
+    ELSE IF(icosmo==36) THEN
+       ! Boring; EdS; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.65380
+    ELSE IF(icosmo==37) THEN
+       ELSE IF(icosmo==3) THEN
+       ! cosmo-OWLS - Planck 2013 (1312.5462)
+       cosm%Om_m=0.3175
+       cosm%Om_b=0.0490
+       cosm%Om_v=1.-cosm%Om_m
+       cosm%h=0.6711
+       cosm%n=0.9624
+       cosm%sig8=0.834
+    ELSE IF(icosmo==4) THEN
+       ! BAHAMAS - WMAP9 (1712.02411)
+       cosm%h=0.7000
+       cosm%Om_b=0.0463
+       cosm%Om_m=0.2330+cosm%Om_b
+       cosm%Om_v=1.-cosm%Om_m       
+       cosm%n=0.9720
+       cosm%sig8=0.8211
+    ELSE IF(icosmo==5) THEN
+       !  5 - Open model
+       ! 29 - Open model; normalised for Mead 2017 z=1 response
+       cosm%Om_v=0.
+    ELSE IF(icosmo==6 .OR. icosmo==15) THEN
+       !  6 - Einstein-de Sitter (SCDM)
+       ! 15 - Einstein-de Sitter (TCDM)
+       IF(icosmo==15) THEN
+          cosm%tcdm=.TRUE.
+          cosm%Om_m_pow=cosm%Om_m
+          cosm%Om_b_pow=cosm%Om_b
+          cosm%h_pow=cosm%h
+       END IF
+       cosm%Om_m=1.
+       cosm%Om_v=0.       
+    ELSE IF(icosmo==7) THEN
+       ! IDE I
+       cosm%iw=5
+       WRITE(*,*) 'a*:'
+       READ(*,*) cosm%as
+       WRITE(*,*) 'n*:'
+       READ(*,*) cosm%ns
+       WRITE(*,*) 'Om_w(a*):'
+       READ(*,*) cosm%Om_ws
+       cosm%Om_m=0.3
+       cosm%Om_v=0.7
+    ELSE IF(icosmo==8) THEN
+       ! IDE II model
+       cosm%iw=6      
+       WRITE(*,*) 'n*:'
+       READ(*,*) cosm%ns
+       WRITE(*,*) 'a*:'
+       READ(*,*) cosm%as
+       WRITE(*,*) 'Om_w(a*):'
+       READ(*,*) cosm%Om_ws
+       cosm%Om_m=0.3
+       cosm%Om_w=0.7
+       cosm%Om_v=0. !No vacuum necessary here
+    ELSE IF(icosmo==9) THEN
+       ! IDE III model
+       cosm%iw=7
+       WRITE(*,*) 'a*:'
+       READ(*,*) cosm%as
+       WRITE(*,*) 'Om_w(a*):'
+       READ(*,*) cosm%Om_ws
+       WRITE(*,*) 'w*:'
+       READ(*,*) cosm%ws
+       cosm%Om_m=0.3
+       cosm%Om_w=0.7
+       cosm%Om_v=0.
+    ELSE IF(icosmo==10 .OR. icosmo==11) THEN
+       cosm%iw=6
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+       IF(icosmo==10) cosm%ns=3
+       IF(icosmo==11) cosm%ns=10
+       cosm%as=0.01
+       cosm%Om_ws=0.2
+    ELSE IF(icosmo==12) THEN
+       WRITE(*,*) 'Om_m:'
+       READ(*,*) cosm%Om_m
+       WRITE(*,*) 'Om_v:'
+       READ(*,*) cosm%Om_v
+    ELSE IF(icosmo==13) THEN
+       cosm%iw=3
+       WRITE(*,*) 'w0:'
+       READ(*,*) cosm%w
+       WRITE(*,*) 'wa:'
+       READ(*,*) cosm%wa
+    ELSE IF(icosmo==14) THEN
+       ! WDM
+       cosm%inv_m_wdm=1.
+    ELSE IF(icosmo==16) THEN
+       ! w = -0.7
+       cosm%iw=4
+       cosm%w=-0.7
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==17) THEN
+       ! w = -1.3
+       cosm%iw=4
+       cosm%w=-1.3
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==18) THEN
+       ! wa = 0.5
+       cosm%iw=3
+       cosm%wa=0.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==19) THEN
+       ! wa = -0.5
+       cosm%iw=3
+       cosm%wa=-0.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==20) THEN
+       ! w = -0.7; wa = -1.5
+       cosm%iw=3
+       cosm%w=-0.7
+       cosm%wa=-1.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==21) THEN
+       ! w = -1.3; wa = 0.5
+       cosm%iw=3
+       cosm%w=-1.3
+       cosm%wa=0.5
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0.
+    ELSE IF(icosmo==22 .OR. icosmo==23) THEN
+       ! IDE II models
+       cosm%iw=6
+       cosm%Om_m=0.3
+       cosm%Om_w=cosm%Om_v
+       cosm%Om_v=0. ! No vacuum necessary here
+       IF(icosmo==22) THEN
+          ! IDE 3
+          cosm%ns=3
+          cosm%as=0.01
+          cosm%Om_ws=0.1
+       ELSE IF(icosmo==23) THEN
+          ! IDE 10
+          cosm%ns=10
+          cosm%as=0.1
+          cosm%Om_ws=0.02
+       END IF
+    ELSE IF(icosmo==24) THEN
+       CALL random_Mira_Titan_cosmology(cosm)
+       cosm%itk=2 ! Set to CAMB linear power
+       cosm%iw=3 ! Set to w(a) dark energy
+       cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo==25) THEN
+       CALL random_Cosmic_Emu_cosmology(cosm)   
+       cosm%itk=2 ! Set to CAMB linear power
+       cosm%iw=4 ! Set to constant w dark energy
+       cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo==26) THEN
+       ! Boring with CAMB linear spectrum
+       cosm%itk=2 ! Set to CAMB linear power
+       cosm%Om_w=cosm%Om_v ! Necessary for CAMB
+       cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo==27) THEN
+       ! Illustris; L = 75 Mpc/h
+       cosm%itk=1 ! Set to CAMB linear power
+       cosm%Om_m=0.3089
+       cosm%Om_b=0.0486
+       cosm%Om_w=1.-cosm%Om_m ! Necessary to be Omega_w for CAMB
+       cosm%h=0.6774
+       cosm%n=0.9667
+       cosm%sig8=0.8159       
+       cosm%Om_v=0. ! Necessary for CAMB
+       cosm%box=.TRUE.
+       cosm%Lbox=75. ! 75 Mpc/h box
+    ELSE IF(icosmo==28) THEN
+       ! Finite box
+       cosm%box=.TRUE.
+    ELSE IF(icosmo==29) THEN
+       ! Boring: Open; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.88397
+    ELSE IF(icosmo==30) THEN
+       ! Boring: w = -0.7; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.83253
+    ELSE IF(icosmo==31) THEN
+       ! Boring: w = -1.3; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.77462
+    ELSE IF(icosmo==32) THEN
+       ! Boring: w = -1.0; wa =  0.5; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.81022
+    ELSE IF(icosmo==33) THEN
+       ! Boring: w = -1.0; wa = -0.5; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.79116
+    ELSE IF(icosmo==34) THEN
+       ! Boring: w = -0.7; wa = -1.5; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.80090
+    ELSE IF(icosmo==35) THEN
+       ! Boring: w = -1.3; wa =  0.5; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.78197
+    ELSE IF(icosmo==36) THEN
+       ! Boring; EdS; z=1 normalisation for Mead 2017; LCDM
+       cosm%sig8=0.65380
+    ELSE IF(icosmo==37) THEN
+       ! Multidark: WMAP5
+       cosm%h=0.70
+       cosm%Om_b=0.0469
+       cosm%Om_m=0.27
+       cosm%Om_v=1.-cosm%Om_m       
+       cosm%n=0.95
+       cosm%sig8=0.82
     ELSE IF(icosmo>=100 .AND. icosmo<=137) THEN
        CALL Mira_Titan_node_cosmology(icosmo-100,cosm)
        cosm%itk=2 ! Set to CAMB linear power
@@ -2690,10 +3093,10 @@ CONTAINS
 
     !Fill time array
     IF(ilog) THEN
-       CALL fill_array_double(log(ti),log(tf),t8,n)
+       CALL fill_array_double(dble(log(ti)),dble(log(tf)),t8,n)
        t8=exp(t8)
     ELSE
-       CALL fill_array_double(ti,tf,t8,n)
+       CALL fill_array_double(dble(ti),dble(tf),t8,n)
     END IF
 
     DO i=1,n-1
@@ -2775,10 +3178,10 @@ CONTAINS
 
        !Fill time array
        IF(ilog) THEN
-          CALL fill_array_double(log(ti),log(tf),t8,n)
+          CALL fill_array_double(dble(log(ti)),dble(log(tf)),t8,n)
           t8=exp(t8)
        ELSE
-          CALL fill_array_double(ti,tf,t8,n)
+          CALL fill_array_double(dble(ti),dble(tf),t8,n)
        END IF
 
        ifail=0
