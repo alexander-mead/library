@@ -13,7 +13,10 @@ CONTAINS
 
     IF(verbose) WRITE(*,*) 'FILE_LENGTH: File: ', trim(file_name)
     INQUIRE(file=file_name,exist=lexist)
-    IF(.NOT. lexist) STOP 'FILE_LENGTH: Error, file does not exist'
+    IF(.NOT. lexist) THEN
+       WRITE(*,*) 'FILE_LENGTH: File: ', trim(file_name)
+       STOP 'FILE_LENGTH: Error, file does not exist'
+    END IF
     OPEN(7,file=file_name,status='old')
 
     ! Newer version that lacks 'data' seems okay
