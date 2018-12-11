@@ -40,10 +40,10 @@ CONTAINS
 
     !Fill the time array
     IF(ilog) THEN
-       CALL fill_array_double(log(ti),log(tf),t8,n)
+       CALL fill_array_double(dble(log(ti)),dble(log(tf)),t8,n)
        t8=exp(t8)
     ELSE
-       CALL fill_array_double(ti,tf,t8,n)
+       CALL fill_array_double(dble(ti),dble(tf),t8,n)
     END IF
 
     !Advance the system through all n-1 time steps
@@ -114,10 +114,10 @@ CONTAINS
 
        !Fill time-step array
        IF(ilog) THEN
-          CALL fill_array_double(log(ti),log(tf),t8,n)
+          CALL fill_array_double(dble(log(ti)),dble(log(tf)),t8,n)
           t8=exp(t8)
        ELSE
-          CALL fill_array_double(ti,tf,t8,n)
+          CALL fill_array_double(dble(ti),dble(tf),t8,n)
        END IF
 
        !Set the fail flag

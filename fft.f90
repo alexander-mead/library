@@ -12,30 +12,24 @@ MODULE fft
   INCLUDE 'fftw3.f'
 
   INTERFACE FFT1
-
      MODULE PROCEDURE FFT1_complex_double
      MODULE PROCEDURE FFT1_complex_single
      MODULE PROCEDURE FFT1_real_double
-     MODULE PROCEDURE FFT1_real_single
-    
+     MODULE PROCEDURE FFT1_real_single    
   END INTERFACE FFT1
 
   INTERFACE FFT2
-
      MODULE PROCEDURE FFT2_complex_double
      MODULE PROCEDURE FFT2_complex_single
      MODULE PROCEDURE FFT2_real_double
-     MODULE PROCEDURE FFT2_real_single
-    
+     MODULE PROCEDURE FFT2_real_single    
   END INTERFACE FFT2
 
   INTERFACE FFT3
-
      MODULE PROCEDURE FFT3_complex_double
      MODULE PROCEDURE FFT3_complex_single
      MODULE PROCEDURE FFT3_real_double
-     MODULE PROCEDURE FFT3_real_single
-    
+     MODULE PROCEDURE FFT3_real_single    
   END INTERFACE FFT3
 
 CONTAINS
