@@ -52,6 +52,7 @@ OBJS =  precision.o \
 	field_operations.o \
 	simulations.o \
 	cosmic_emu_stuff.o \
+	multidark_stuff.o \
 	Limber.o \
 	HMx
 
