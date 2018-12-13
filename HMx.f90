@@ -1634,13 +1634,13 @@ CONTAINS
 
   END SUBROUTINE set_halo_type
 
-  SUBROUTINE calculate_HMx(ifield,nt,mmin,mmax,k,nk,a,na,pow_li,pow_2h,pow_1h,pow_hm,hmod,cosm,verbose,response)
+  SUBROUTINE calculate_HMx(ifield,nf,mmin,mmax,k,nk,a,na,pow_li,pow_2h,pow_1h,pow_hm,hmod,cosm,verbose,response)
 
     ! Public facing function, calculates the halo model power for k and a range
     ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed or (a,k,:,:)?
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: ifield(nt) ! Indices for different fields
-    INTEGER, INTENT(IN) :: nt ! Number of different fields
+    INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
+    INTEGER, INTENT(IN) :: nf ! Number of different fields
     REAL, INTENT(IN) :: mmin ! Minimum halo mass [Msun/h]
     REAL, INTENT(IN) :: mmax ! Maximum halo mass [Msun/h]
     REAL, INTENT(IN) :: k(nk) ! k array [h/Mpc]
@@ -1669,7 +1669,7 @@ CONTAINS
     IF(ALLOCATED(pow_hm)) DEALLOCATE(pow_hm)
 
     ! Allocate power arrays
-    ALLOCATE(pow_li(nk,na),pow_2h(nt,nt,nk,na),pow_1h(nt,nt,nk,na),pow_hm(nt,nt,nk,na))
+    ALLOCATE(pow_li(nk,na),pow_2h(nf,nf,nk,na),pow_1h(nf,nf,nk,na),pow_hm(nf,nf,nk,na))
 
     ! Do the halo-model calculation by looping over scale factor index
     DO i=na,1,-1
@@ -1677,11 +1677,11 @@ CONTAINS
        z=redshift_a(a(i))
        CALL init_halomod(mmin,mmax,a(i),hmod,cosm,verbose2)
        CALL print_halomod(hmod,cosm,verbose2)
-       CALL calculate_HMx_a(ifield,nt,k,nk,pow_li(:,i),pow_2h(:,:,:,i),pow_1h(:,:,:,i),pow_hm(:,:,:,i),hmod,cosm,verbose2,response)
+       CALL calculate_HMx_a(ifield,nf,k,nk,pow_li(:,i),pow_2h(:,:,:,i),pow_1h(:,:,:,i),pow_hm(:,:,:,i),hmod,cosm,verbose2,response)
        
        IF(i==na .and. verbose) THEN
           WRITE(*,*) 'CALCULATE_HMx: Doing calculation'
-          DO j=1,nt
+          DO j=1,nf
              WRITE(*,*) 'CALCULATE_HMx: Haloes:', ifield(j), TRIM(halo_type(ifield(j)))
           END DO
           WRITE(*,*) '======================================='
