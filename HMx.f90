@@ -26,9 +26,12 @@ MODULE HMx
   PUBLIC :: set_halo_type
   PUBLIC :: halo_type
   PUBLIC :: M_nu
+  PUBLIC :: b_nu
+  PUBLIC :: g_nu
   PUBLIC :: nu_M
   PUBLIC :: mean_bias
   PUBLIC :: mean_nu
+  PUBLIC :: mean_halo_density
   PUBLIC :: virial_radius
   PUBLIC :: convert_mass_definitions
   PUBLIC :: win_type
@@ -60,6 +63,7 @@ MODULE HMx
 
   ! HMx functions
   PUBLIC :: HMx_alpha
+  PUBLIC :: HMx_beta
   PUBLIC :: HMx_eps
   PUBLIC :: HMx_Gamma
   PUBLIC :: HMx_M0
@@ -95,9 +99,9 @@ MODULE HMx
      INTEGER :: idc, iDv, ieta, ikstar, i2hdamp, i1hdamp, itrans
      LOGICAL :: voids
      REAL :: z, a, dc, Dv
-     REAL :: alpha, eps, Gamma, M0, Astar, Twhim, cstar, sstar, mstar ! HMx baryon parameters
-     REAL :: Theat, fcold, fhot, alphap, Gammap, cstarp, eta ! HMx baryon parameters
-     REAL :: alphaz, epsz, Gammaz, M0z, Astarz, Twhimz
+     REAL :: alpha, beta, eps, Gamma, M0, Astar, Twhim, cstar, sstar, mstar ! HMx baryon parameters
+     REAL :: Theat, fcold, fhot, alphap, betap, Gammap, cstarp, eta ! HMx baryon parameters
+     REAL :: alphaz, betaz, epsz, Gammaz, M0z, Astarz, Twhimz
      REAL :: A_alpha, B_alpha, C_alpha, D_alpha, E_alpha
      REAL :: A_eps, B_eps, C_eps, D_eps
      REAL :: A_Gamma, B_Gamma, C_Gamma, D_Gamma, E_gamma
@@ -123,7 +127,8 @@ MODULE HMx
      LOGICAL :: one_parameter_baryons
      LOGICAL :: has_HI, has_galaxies, has_mass_conversions, safe_negative, has_dewiggle, has_Tinker
      REAL :: Tinker_alpha, Tinker_beta, Tinker_gamma, Tinker_phi, Tinker_eta
-     LOGICAL :: response, simple_pivot
+     LOGICAL :: simple_pivot
+     INTEGER :: response
      REAL :: acc_HMx, large_nu
      CHARACTER(len=256) :: name
      REAL, ALLOCATABLE :: log_k_pdamp(:), log_pdamp(:)
@@ -150,15 +155,16 @@ MODULE HMx
   REAL, PARAMETER :: zinf_Dolag=100. ! An approximate infinite z
 
   ! HMcode
-  REAL, PARAMETER :: mmin_HMcode=1e7          ! Minimum mass to consider for one-halo integration
-  REAL, PARAMETER :: mmax_HMcode=1e17         ! Maximum mass to consider for one-halo integration
-  REAL, PARAMETER :: fdamp_HMcode_min=1e-3           ! Minimum value for f_damp parameter
-  REAL, PARAMETER :: fdamp_HMcode_max=0.99           ! Maximum value for f_damp parameter
-  REAL, PARAMETER :: alpha_HMcode_min=0.5 ! Minimum value for alpha transition parameter
-  REAL, PARAMETER :: alpha_HMcode_max=2.0 ! Maximum value for alpha transition parameter
+  REAL, PARAMETER :: mmin_HMcode=1e7       ! Minimum mass to consider for one-halo integration
+  REAL, PARAMETER :: mmax_HMcode=1e17      ! Maximum mass to consider for one-halo integration
+  REAL, PARAMETER :: fdamp_HMcode_min=1e-3 ! Minimum value for f_damp parameter
+  REAL, PARAMETER :: fdamp_HMcode_max=0.99 ! Maximum value for f_damp parameter
+  REAL, PARAMETER :: alpha_HMcode_min=0.5  ! Minimum value for alpha transition parameter
+  REAL, PARAMETER :: alpha_HMcode_max=2.0  ! Maximum value for alpha transition parameter
 
   ! HMx
   REAL, PARAMETER :: HMx_alpha_min=1e-2 ! Minimum alpha parameter; needs to be set at not zero
+  REAL, PARAMETER :: HMx_beta_min=1e-2 ! Minimum alpha parameter; needs to be set at not zero
   REAL, PARAMETER :: HMx_Gamma_min=1.10 ! Minimum polytropic index
   REAL, PARAMETER :: HMx_Gamma_max=2.00 ! Maximum polytropic index
   REAL, PARAMETER :: HMx_Astar_min=1e-4 ! Minimum halo star fraction; needs to be set at not zero
@@ -206,7 +212,7 @@ CONTAINS
     INTEGER :: i
 
     ! Names of pre-defined halo models
-    INTEGER, PARAMETER :: nhalomod=42 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+    INTEGER, PARAMETER :: nhalomod=44 ! Total number of pre-defined halo-model types (TODO: this is stupid)
     CHARACTER(len=256):: names(nhalomod)    
     names(1)='HMcode (Mead et al. 2016)'
     names(2)='Basic halo-model (Two-halo term is linear)'
@@ -230,7 +236,7 @@ CONTAINS
     names(20)='Standard halo-model (Seljak 2000) in response'
     names(21)='Cored profile model'
     names(22)='Delta function-NFW star profile model response'
-    names(23)='Tinker mass function and bias'
+    names(23)='Tinker mass function and bias; virial mass'
     names(24)='Full non-linear halo bias'
     names(25)='Villaescusa-Navarro HI halo model'
     names(26)='Delta-function mass function'
@@ -250,6 +256,8 @@ CONTAINS
     names(40)='HMx: AGN 8.0'
     names(41)='Put some galaxy mass in the halo/satellites'
     names(42)='Tinker with M200c'
+    names(43)='Standard halo-model (Seljak 2000) in matter response'
+    names(44)='Tinker with M200'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -304,7 +312,10 @@ CONTAINS
     ! 2 - Simple Bullock et al. (2001; astro-ph/9909159)
     ! 3 - Duffy et al. (2008; astro-ph/0804.2486): full 200m
     ! 4 - Duffy et al. (2008; astro-ph/0804.2486): full virial
-    ! 5 - Duffy et al. (2008; astro-ph/0804.2486): relaxed 200c
+    ! 5 - Duffy et al. (2008; astro-ph/0804.2486): full 200c
+    ! 6 - Duffy et al. (2008; astro-ph/0804.2486): relaxed 200m
+    ! 7 - Duffy et al. (2008; astro-ph/0804.2486): relaxed virial
+    ! 8 - Duffy et al. (2008; astro-ph/0804.2486): relaxed 200c
     hmod%iconc=4
 
     ! Linear collapse threshold delta_c
@@ -494,7 +505,8 @@ CONTAINS
     hmod%simple_pivot=.FALSE.
 
     ! Fixed parameters
-    hmod%alpha=0.33333 ! Non-virial temperature correction
+    hmod%alpha=0.33333 ! Non-virial temperature correction for static gas
+    hmod%beta=0.33333  ! Non-virial temperature correction for hot gas
     hmod%eps=1.        ! Concentration modification
     hmod%Gamma=1.17    ! Polytropic gas index
     hmod%M0=1e14       ! Halo mass that has lost half gas
@@ -509,11 +521,13 @@ CONTAINS
     
     ! Mass indices
     hmod%alphap=0.0    ! Power-law index of alpha with halo mass
+    hmod%betap=0.0     ! Power-law index of beta with halo mass
     hmod%Gammap=0.0    ! Power-law index of Gamma with halo mass
     hmod%cstarp=0.0    ! Power-law index of c* with halo mass
 
     ! Redshift indices
     hmod%alphaz=0.0    ! Power-law index of alpha with halo redshift
+    hmod%betaz=0.0     ! Power-law index of alpha with halo redshift
     hmod%epsz=0.0      ! Power-law index of eps with halo redshift
     hmod%Gammaz=0.0    ! Power-law index of Gamma with halo redshift
     hmod%M0z=0.0       ! Power-law index of M0 with redshift
@@ -560,7 +574,10 @@ CONTAINS
     hmod%D_Twhim=1.717
 
     ! Do we treat the halomodel as a response model (multiply by HMcode) or not
-    hmod%response=.FALSE.
+    ! 0 - No
+    ! 1 - Yes, to all spectra
+    ! 2 - Yes, only to matter spectra
+    hmod%response=0  
 
     ! Halo mass if the mass function is a delta function
     hmod%hmass=1e13
@@ -695,7 +712,7 @@ CONTAINS
        hmod%ibias=1
        hmod%i1hdamp=1
        hmod%imf=2
-       hmod%iconc=4 ! Virial Duffy relation
+       hmod%iconc=4 ! Virial Duffy relation for full sample
        hmod%idc=2   ! Virial dc
        hmod%iDv=2   ! Virial Dv
        hmod%ieta=1
@@ -740,7 +757,7 @@ CONTAINS
        hmod%ikstar=2
        hmod%i1hdamp=3
        hmod%safe_negative=.TRUE.
-       hmod%response=.TRUE.
+       hmod%response=1
        IF(ihm==17) THEN
           ! AGN 7.6
           hmod%Theat=10**7.6
@@ -753,14 +770,14 @@ CONTAINS
        END IF
     ELSE IF(ihm==20) THEN
        ! Standard halo model but as response with HMcode
-       hmod%response=.TRUE.
+       hmod%response=1
     ELSE IF(ihm==21) THEN
        ! Cored NFW halo profile model
        hmod%halo_DMONLY=5 ! Cored profile
     ELSE IF(ihm==22) THEN
        ! Different stellar profile
        hmod%halo_central_stars=2 ! Schneider & Teyssier (2015)
-       hmod%response=.TRUE.
+       hmod%response=1
     ELSE IF(ihm==23) THEN
        ! Tinker mass function and bias
        hmod%imf=3 ! Tinker mass function and bias
@@ -769,7 +786,7 @@ CONTAINS
        hmod%ibias=3 ! Non-linear halo bias
        hmod%iDv=7   ! M200c
        hmod%imf=3   ! Tinker mass function and bias
-       hmod%iconc=5 ! Duffy M200c concentrations
+       hmod%iconc=5 ! Duffy M200c concentrations for full sample
        hmod%idc=1   ! Fixed to 1.686
     ELSE IF(ihm==25) THEN
        ! Villaescusa-Navarro HI halo model
@@ -800,7 +817,7 @@ CONTAINS
        ! 35 - Response model for AGN 7.6;   z = 0.0; clever pivot; f_hot
        ! 36 - Response model for AGN tuned; z = 0.0; clever pivot; f_hot
        ! 37 - Response model for AGN 8.0;   z = 0.0; clever pivot; f_hot
-       hmod%response=.TRUE.
+       hmod%response=1
        IF(ihm==32) THEN
           ! AGN 7.6
           ! Mpiv = 1e14; z = 0.0
@@ -855,7 +872,7 @@ CONTAINS
        ELSE IF(ihm==35) THEN
           ! AGN 7.6
           ! Mpiv = Mh; z = 0.0; f_hot
-          hmod%alpha=1.247
+          hmod%alpha=1.247          
           hmod%eps=1.087
           hmod%Gamma=1.253
           hmod%M0=10.**13.63
@@ -906,11 +923,13 @@ CONTAINS
        ELSE
           STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
        END IF
+       hmod%beta=hmod%alpha
+       hmod%betap=hmod%alphap
     ELSE IF(ihm==38 .OR. ihm==39 .OR. ihm==40) THEN
        ! 38 - AGN 7p6
        ! 39 - AGN tuned
        ! 49 - AGN 8p0
-       hmod%response=.TRUE.
+       hmod%response=1
        IF(ihm==38) THEN
           ! AGN 7p6
           hmod%alpha =   1.52016437    
@@ -980,6 +999,9 @@ CONTAINS
        ELSE
           STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
        END IF
+       hmod%beta=hmod%alpha
+       hmod%betap=hmod%alphap
+       hmod%betaz=hmod%alphaz
     ELSE IF(ihm==41) THEN
        ! Some stellar mass in satellite galaxies
        hmod%eta=-0.3
@@ -987,7 +1009,16 @@ CONTAINS
        ! Things apprpriate for M200c
        hmod%imf=3   ! Tinker mass function and bias
        hmod%iDv=7   ! M200c
-       hmod%iconc=5 ! Duffy for M200c
+       hmod%iconc=5 ! Duffy for M200c for full sample
+       hmod%idc=1   ! Fixed to 1.686
+    ELSE IF(ihm==43) THEN
+       ! Standard halo model but as response with HMcode but only for matter spectra
+       hmod%response=2
+    ELSE IF(ihm==44) THEN
+       ! Things apprpriate for M200c
+       hmod%imf=3   ! Tinker mass function and bias
+       hmod%iDv=1   ! M200
+       hmod%iconc=5 ! Duffy for M200c for full sample
        hmod%idc=1   ! Fixed to 1.686
     ELSE
        STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
@@ -1138,6 +1169,9 @@ CONTAINS
        WRITE(*,*) 'INIT_HALOMOD: Non-linear wavenumber [h/Mpc]:', REAL(hmod%knl)
     END IF
 
+    !WRITE(*,*) 'INIT_HALOMOD: Cumulative halo number density above M* [(Mpc/h)^-3]:', REAL(cumulative_halo_density(hmod%mnl,hmod,cosm))
+    !STOP
+
     hmod%neff=effective_index(hmod,cosm)
 
     IF(verbose) WRITE(*,*) 'INIT_HALOMOD: Collapse n_eff:', REAL(hmod%neff)
@@ -1168,10 +1202,11 @@ CONTAINS
 
   REAL FUNCTION mass_interval(nu1,nu2,hmod)
 
+    ! Integrate g(nu) between nu1 and nu2
     IMPLICIT NONE
-    REAL, INTENT(IN) :: nu1, nu2
+    REAL, INTENT(IN) :: nu1, nu2 ! Range in nu
     TYPE(halomod), INTENT(INOUT) :: hmod
-    INTEGER, PARAMETER :: iorder=3
+    INTEGER, PARAMETER :: iorder=3 ! Order for integration
 
     mass_interval=integrate_hmod(nu1,nu2,g_nu,hmod,hmod%acc_HMx,iorder)
 
@@ -1179,10 +1214,11 @@ CONTAINS
 
   REAL FUNCTION bias_interval(nu1,nu2,hmod)
 
+    ! Integrate b(nu) between nu1 and nu2
     IMPLICIT NONE
-    REAL, INTENT(IN) :: nu1, nu2
+    REAL, INTENT(IN) :: nu1, nu2 ! Range in nu
     TYPE(halomod), INTENT(INOUT) :: hmod
-    INTEGER, PARAMETER :: iorder=3
+    INTEGER, PARAMETER :: iorder=3 ! Order for integration
 
     bias_interval=integrate_hmod(nu1,nu2,gb_nu,hmod,hmod%acc_HMx,iorder)
 
@@ -1190,10 +1226,11 @@ CONTAINS
 
   REAL FUNCTION nu_interval(nu1,nu2,hmod)
 
+    ! Integrate nu*g(nu) between nu1 and nu2
     IMPLICIT NONE
-    REAL, INTENT(IN) :: nu1, nu2
+    REAL, INTENT(IN) :: nu1, nu2 ! Range in nu
     TYPE(halomod), INTENT(INOUT) :: hmod
-    INTEGER, PARAMETER :: iorder=3
+    INTEGER, PARAMETER :: iorder=3 ! Order for integration
 
     nu_interval=integrate_hmod(nu1,nu2,nug_nu,hmod,hmod%acc_HMx,iorder)
 
@@ -1202,9 +1239,9 @@ CONTAINS
   REAL FUNCTION mean_bias(nu1,nu2,hmod)
 
     IMPLICIT NONE
-    REAL, INTENT(IN) :: nu1, nu2
+    REAL, INTENT(IN) :: nu1, nu2 ! Range in nu
     TYPE(halomod), INTENT(INOUT) :: hmod
-    INTEGER, PARAMETER :: iorder=3
+    INTEGER, PARAMETER :: iorder=3 ! Order for integration
 
     mean_bias=bias_interval(nu1,nu2,hmod)/mass_interval(nu1,nu2,hmod)
 
@@ -1213,13 +1250,28 @@ CONTAINS
   REAL FUNCTION mean_nu(nu1,nu2,hmod)
 
     IMPLICIT NONE
-    REAL, INTENT(IN) :: nu1, nu2
+    REAL, INTENT(IN) :: nu1, nu2 ! Range in nu
     TYPE(halomod), INTENT(INOUT) :: hmod
-    INTEGER, PARAMETER :: iorder=3
+    INTEGER, PARAMETER :: iorder=3 ! Order for integration
 
     mean_nu=nu_interval(nu1,nu2,hmod)/mass_interval(nu1,nu2,hmod)
 
   END FUNCTION mean_nu
+
+  REAL FUNCTION mean_halo_density(nu1,nu2,hmod,cosm)
+
+    ! Calculate N(m) where N is the number density of haloes above mass m
+    ! Obtained by integrating the mass function
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: nu1, nu2 ! Range in nu
+    TYPE(halomod), INTENT(INOUT) :: hmod
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    INTEGER, PARAMETER :: iorder=3 ! Order for integration
+
+    mean_halo_density=integrate_hmod(nu1,nu2,g_nu_on_M,hmod,hmod%acc_HMx,iorder)
+    mean_halo_density=mean_halo_density*comoving_matter_density(cosm)
+    
+  END FUNCTION mean_halo_density
 
   SUBROUTINE print_halomod(hmod,cosm,verbose)
 
@@ -1273,9 +1325,12 @@ CONTAINS
        ! Concentration-mass relation
        IF(hmod%iconc==1) WRITE(*,*) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
        IF(hmod%iconc==2) WRITE(*,*) 'HALOMODEL: Simple Bullock et al. (2001) concentration-mass relation'
-       IF(hmod%iconc==3) WRITE(*,*) 'HALOMODEL: Full sample 200 times mean density Duffy et al. (2008) concentration-mass relation'
-       IF(hmod%iconc==4) WRITE(*,*) 'HALOMODEL: Full sample virial denity Duffy et al. (2008) concentration-mass relation'
-       IF(hmod%iconc==5) WRITE(*,*) 'HALOMODEL: Relaxed sample 200 times critical density Duffy et al. (2008) concentration-mass relation'
+       IF(hmod%iconc==3) WRITE(*,*) 'HALOMODEL: Full sample for M200 Duffy et al. (2008) concentration-mass relation'
+       IF(hmod%iconc==4) WRITE(*,*) 'HALOMODEL: Full sample for Mv Duffy et al. (2008) concentration-mass relation'
+       IF(hmod%iconc==5) WRITE(*,*) 'HALOMODEL: Full sample for M200c Duffy et al. (2008) concentration-mass relation'
+       IF(hmod%iconc==6) WRITE(*,*) 'HALOMODEL: Relaxed sample for M200 Duffy et al. (2008) concentration-mass relation'
+       IF(hmod%iconc==7) WRITE(*,*) 'HALOMODEL: Relaxed sample for Mv Duffy et al. (2008) concentration-mass relation'
+       IF(hmod%iconc==8) WRITE(*,*) 'HALOMODEL: Relaxed sample for M200c Duffy et al. (2008) concentration-mass relation'
 
        ! Concentration-mass relation correction
        IF(hmod%iDolag==1) WRITE(*,*) 'HALOMODEL: No concentration-mass correction for dark energy'
@@ -1422,7 +1477,8 @@ CONTAINS
        IF(hmod%itrans==5) WRITE(*,*) 'HALOMODEL: Tanh transition with k_nl'
 
        ! Response
-       IF(hmod%response) WRITE(*,*) 'HALOMODEL: Power computed as reaction with HMcode multiplication'
+       IF(hmod%response==1) WRITE(*,*) 'HALOMODEL: Power computed as response with HMcode multiplication'
+       IF(hmod%response==2) WRITE(*,*) 'HALOMODEL: Matter power computed as response with HMcode multiplication'
 
        ! Numerical parameters
        WRITE(*,*) '======================================='
@@ -1444,7 +1500,8 @@ CONTAINS
        WRITE(*,*) 'HALOMODEL: HMx parameters'
        WRITE(*,*) '======================================='
        IF(hmod%HMx_mode==1 .OR. hmod%HMx_mode==2 .OR. hmod%HMx_mode==3) THEN
-          WRITE(*,fmt='(A30,F10.5)') 'alpha:', hmod%alpha          
+          WRITE(*,fmt='(A30,F10.5)') 'alpha:', hmod%alpha
+          WRITE(*,fmt='(A30,F10.5)') 'beta:', hmod%beta
           WRITE(*,fmt='(A30,F10.5)') 'epsilon:', hmod%eps
           WRITE(*,fmt='(A30,F10.5)') 'Gammma:', hmod%Gamma          
           WRITE(*,fmt='(A30,F10.5)') 'log10(M0) [Msun/h]:', log10(hmod%M0)          
@@ -1459,11 +1516,13 @@ CONTAINS
        WRITE(*,fmt='(A30,F10.5)') 'f_hot:', hmod%fhot
        IF(hmod%HMx_mode==2 .OR. hmod%HMx_mode==3) THEN
           WRITE(*,fmt='(A30,F10.5)') 'alpha mass index:', hmod%alphap
+          WRITE(*,fmt='(A30,F10.5)') 'beta mass index:', hmod%betap
           WRITE(*,fmt='(A30,F10.5)') 'Gammma mass index:', hmod%Gammap
           WRITE(*,fmt='(A30,F10.5)') 'c* mass index:', hmod%cstarp
        END IF
        IF(hmod%HMx_mode==3) THEN
           WRITE(*,fmt='(A30,F10.5)') 'alpha z index:', hmod%alphaz
+          WRITE(*,fmt='(A30,F10.5)') 'beta z index:', hmod%betaz
           WRITE(*,fmt='(A30,F10.5)') 'epsilon z index:', hmod%epsz
           WRITE(*,fmt='(A30,F10.5)') 'Gammma z index:', hmod%Gammaz
           WRITE(*,fmt='(A30,F10.5)') 'log10(M0) z index:', hmod%M0z
@@ -1473,7 +1532,7 @@ CONTAINS
        IF(hmod%HMx_mode==4) THEN
           WRITE(*,fmt='(A30,F10.5)') 'log10(T_heat) [K]:', log10(hmod%Theat)
           WRITE(*,fmt='(A30,F10.5)') 'alpha:', HMx_alpha(hmod%Mh,hmod)
-          WRITE(*,fmt='(A30,F10.5)') 'alpha:', HMx_beta(hmod%Mh,hmod)
+          WRITE(*,fmt='(A30,F10.5)') 'beta:', HMx_beta(hmod%Mh,hmod)
           WRITE(*,fmt='(A30,F10.5)') 'epsilon:', HMx_eps(hmod)
           WRITE(*,fmt='(A30,F10.5)') 'Gamma:', HMx_Gamma(hmod%Mh,hmod)
           WRITE(*,fmt='(A30,F10.5)') 'log10(M0) [Msun/h]:', log10(HMx_M0(hmod))
@@ -1858,7 +1917,7 @@ CONTAINS
     END IF
 
     ! Do an HMcode calculation for multiplying the response
-    IF(hmod%response) THEN
+    IF(hmod%response==1 .OR. hmod%response==2) THEN
        ihmcode=1
        CALL assign_halomod(ihmcode,hmcode,verbose=.FALSE.)
        CALL init_halomod(mmin_HMx,mmax_HMx,hmod%a,hmcode,cosm,verbose=.FALSE.)
@@ -1880,25 +1939,41 @@ CONTAINS
        ! TODO: slow array accessing
        CALL calculate_HMx_ka(iifield,nnf,k(i),plin,upow_2h(:,:,i),upow_1h(:,:,i),upow_hm(:,:,i),hmod,cosm)
 
-       IF(response .OR. hmod%response) THEN
+       IF(response) THEN
 
           ! If doing a response then calculate a DMONLY prediction too
           CALL calculate_HMx_ka(dmonly,1,k(i),plin,powg_2h(i),powg_1h(i),powg_hm(i),hmod,cosm)
-          pow_li(i)=1.                           ! This is just linear-over-linear, which is one
+          pow_li(i)=1.                             ! This is just linear-over-linear, which is one
           upow_2h(:,:,i)=upow_2h(:,:,i)/powg_2h(i) ! Two-halo response (slow array accessing)
           upow_1h(:,:,i)=upow_1h(:,:,i)/powg_1h(i) ! One-halo response (slow array accessing)
           upow_hm(:,:,i)=upow_hm(:,:,i)/powg_hm(i) ! Full model response (slow array accessing)
+          
+       ELSE IF(hmod%response==1 .OR. hmod%response==2) THEN
 
-          IF((.NOT. response) .AND. hmod%response) THEN
+          ! If doing a response then calculate a DMONLY prediction too
+          CALL calculate_HMx_ka(dmonly,1,k(i),plin,powg_2h(i),powg_1h(i),powg_hm(i),hmod,cosm)
+          CALL calculate_HMx_ka(dmonly,1,k(i),plin,hmcode_2h(i),hmcode_1h(i),hmcode_hm(i),hmcode,cosm)
 
-             ! If multiplying the response by an 'accurate' HMcode prediction
-             ! TODO: slow array accessing
-             CALL calculate_HMx_ka(dmonly,1,k(i),plin,hmcode_2h(i),hmcode_1h(i),hmcode_hm(i),hmcode,cosm)
-             pow_li(i)=plin                           ! Linear power is just linear power again
-             upow_2h(:,:,i)=upow_2h(:,:,i)*hmcode_2h(i) ! Multiply two-halo response through by HMcode two-halo term
-             upow_1h(:,:,i)=upow_1h(:,:,i)*hmcode_1h(i) ! Multiply one-halo response through by HMcode one-halo term
-             upow_hm(:,:,i)=upow_hm(:,:,i)*hmcode_hm(i) ! Multiply response through by HMcode
+          IF(hmod%response==1) THEN
 
+             ! Do the response for everything
+             upow_2h(:,:,i)=upow_2h(:,:,i)*hmcode_2h(i)/powg_2h(i) ! Two-halo response times HMcode (slow array accessing)
+             upow_1h(:,:,i)=upow_1h(:,:,i)*hmcode_1h(i)/powg_1h(i) ! One-halo response times HMcode (slow array accessing)
+             upow_hm(:,:,i)=upow_hm(:,:,i)*hmcode_hm(i)/powg_hm(i) ! Full model response times HMcode (slow array accessing)
+
+          ELSE IF(hmod%response==2) THEN
+
+             ! Exclude pressure from the response
+             DO ii=1,nf
+                DO jj=1,nf
+                   IF((iifield(ii) .NE. field_electron_pressure) .AND. (iifield(jj) .NE. field_electron_pressure)) THEN 
+                      upow_2h(ii,jj,i)=upow_2h(ii,jj,i)*hmcode_2h(i)/powg_2h(i) ! Two-halo response times HMcode (slow accessing)
+                      upow_1h(ii,jj,i)=upow_1h(ii,jj,i)*hmcode_1h(i)/powg_1h(i) ! One-halo response times HMcode (slow accessing)
+                      upow_hm(ii,jj,i)=upow_hm(ii,jj,i)*hmcode_hm(i)/powg_hm(i) ! Full model response times HMcode (slow accessing)
+                   END IF
+                END DO
+             END DO
+             
           END IF
 
        END IF
@@ -2152,6 +2227,7 @@ CONTAINS
 
     ! Refills the window functions for the two-halo term if this is necessary
     ! This is for contributions due to unbound gas, and the effect of this on electron pressure
+    ! TODO: Have I inculded the halo bias corresponding to the free component correctly?
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: fields(nf)
     REAL, INTENT(INOUT) :: wk(nm,nf)
@@ -3225,7 +3301,6 @@ CONTAINS
 
   REAL FUNCTION HMx_alpha(m,hmod)
 
-    ! TODO: Should Mp be M* ?
     IMPLICIT NONE
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
@@ -3283,8 +3358,42 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
+    REAL :: z, Mp
 
-    HMx_beta=HMx_alpha(m,hmod)
+    IF(hmod%HMx_mode==1) THEN
+
+       HMx_beta=hmod%beta
+
+    ELSE IF(hmod%HMx_mode==2) THEN
+
+       IF(hmod%simple_pivot) THEN
+          Mp=1e14
+       ELSE
+          Mp=hmod%Mh
+       END IF
+       HMx_beta=hmod%beta*((m/Mp)**hmod%betap)
+
+    ELSE IF(hmod%HMx_mode==3) THEN
+
+       IF(hmod%simple_pivot) THEN
+          Mp=1e14
+       ELSE
+          Mp=hmod%Mh
+       END IF
+       z=hmod%z
+       HMx_beta=hmod%beta*((m/Mp)**hmod%betap)*((1.+z)**hmod%betaz)
+
+    ELSE IF(hmod%HMx_mode==4) THEN
+
+       HMx_beta=HMx_alpha(m,hmod)
+
+    ELSE
+
+       STOP 'HMx_BETA: Error, HMx_mode not specified correctly'
+
+    END IF
+
+    IF(HMx_beta<HMx_beta_min) HMx_beta=HMx_beta_min
 
   END FUNCTION HMx_beta
 
@@ -3300,6 +3409,7 @@ CONTAINS
 
     ELSE IF(hmod%HMx_mode==3) THEN
 
+       z=hmod%z
        HMx_eps=hmod%eps*((1.+z)**hmod%epsz)
 
     ELSE IF(hmod%HMx_mode==4) THEN
@@ -3371,7 +3481,6 @@ CONTAINS
 
     END IF
 
-    !IF(HMx_Gamma<=1.) STOP 'HMx_GAMMA: Error, Gamma <= 1'
     IF(HMx_Gamma<HMx_Gamma_min) HMx_Gamma=HMx_Gamma_min
     IF(HMx_Gamma>HMx_Gamma_max) HMx_Gamma=HMx_Gamma_max
 
@@ -4006,11 +4115,17 @@ CONTAINS
        ELSE IF(hmod%iconc==2) THEN         
           hmod%c(i)=conc_Bullock_simple(m,mnl)
        ELSE IF(hmod%iconc==3) THEN
-          hmod%c(i)=conc_Duffy_full_200m(m,z)
+          hmod%c(i)=conc_Duffy_full_M200(m,z)
        ELSE IF(hmod%iconc==4) THEN
           hmod%c(i)=conc_Duffy_full_virial(m,z)
        ELSE IF(hmod%iconc==5) THEN
-          hmod%c(i)=conc_Duffy_relaxed_200c(m,z)
+          hmod%c(i)=conc_Duffy_full_M200c(m,z)
+       ELSE IF(hmod%iconc==6) THEN
+          hmod%c(i)=conc_Duffy_relaxed_M200(m,z)
+       ELSE IF(hmod%iconc==7) THEN
+          hmod%c(i)=conc_Duffy_relaxed_virial(m,z)
+       ELSE IF(hmod%iconc==8) THEN
+          hmod%c(i)=conc_Duffy_relaxed_M200c(m,z)
        ELSE
           STOP 'FILL_HALO_CONCENTRATION: Error, iconc specified incorrectly'
        END IF
@@ -4160,21 +4275,37 @@ CONTAINS
 
   END FUNCTION conc_Bullock_simple
 
-  REAL FUNCTION conc_Duffy_full_200m(m,z)
+  REAL FUNCTION conc_Duffy_full_M200c(m,z)
 
     ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
     IMPLICIT NONE
     REAL, INTENT(IN) :: m, z
 
     REAL, PARAMETER :: m_piv=2e12 ! Pivot mass in Msun/h
-    REAL, PARAMETER :: A=10.14
-    REAL, PARAMETER :: B=-0.081
-    REAL, PARAMETER :: C=-1.01
+    REAL, PARAMETER :: A=5.71
+    REAL, PARAMETER :: B=-0.084
+    REAL, PARAMETER :: C=-0.47
 
-    ! Equation (4) in 0804.2486, parameters from 10th row of Table 1
-    conc_Duffy_full_200m=A*(m/m_piv)**B*(1.+z)**C
+    ! Equation (4) in 0804.2486, parameters from 4th row of Table 1
+    conc_Duffy_full_M200c=A*(m/m_piv)**B*(1.+z)**C
 
-  END FUNCTION conc_Duffy_full_200m
+  END FUNCTION conc_Duffy_full_M200c
+
+  REAL FUNCTION conc_Duffy_relaxed_M200c(m,z)
+
+    ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: m, z
+
+    REAL, PARAMETER :: m_piv=2e12 ! Pivot mass in Msun/h
+    REAL, PARAMETER :: A=6.71
+    REAL, PARAMETER :: B=-0.091
+    REAL, PARAMETER :: C=-0.44
+
+    ! Equation (4) in 0804.2486, parameters from 4th row of Table 1
+    conc_Duffy_relaxed_M200c=A*(m/m_piv)**B*(1.+z)**C
+
+  END FUNCTION conc_Duffy_relaxed_M200c
 
   REAL FUNCTION conc_Duffy_full_virial(m,z)
 
@@ -4192,21 +4323,53 @@ CONTAINS
 
   END FUNCTION conc_Duffy_full_virial
 
-  REAL FUNCTION conc_Duffy_relaxed_200c(m,z)
+  REAL FUNCTION conc_Duffy_relaxed_virial(m,z)
 
     ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
     IMPLICIT NONE
     REAL, INTENT(IN) :: m, z
 
     REAL, PARAMETER :: m_piv=2e12 ! Pivot mass in Msun/h
-    REAL, PARAMETER :: A=6.71
-    REAL, PARAMETER :: B=-0.091
-    REAL, PARAMETER :: C=-0.44
+    REAL, PARAMETER :: A=9.23
+    REAL, PARAMETER :: B=-0.090
+    REAL, PARAMETER :: C=-0.69
 
-    ! Equation (4) in 0804.2486, parameters from 4th row of Table 1
-    conc_Duffy_relaxed_200c=A*(m/m_piv)**B*(1.+z)**C
+    ! Equation (4) in 0804.2486, parameters from 6th row of Table 1
+    conc_Duffy_relaxed_virial=A*(m/m_piv)**B*(1.+z)**C
 
-  END FUNCTION conc_Duffy_relaxed_200c
+  END FUNCTION conc_Duffy_relaxed_virial  
+
+  REAL FUNCTION conc_Duffy_full_M200(m,z)
+
+    ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: m, z
+
+    REAL, PARAMETER :: m_piv=2e12 ! Pivot mass in Msun/h
+    REAL, PARAMETER :: A=10.14
+    REAL, PARAMETER :: B=-0.081
+    REAL, PARAMETER :: C=-1.01
+
+    ! Equation (4) in 0804.2486, parameters from 10th row of Table 1
+    conc_Duffy_full_M200=A*(m/m_piv)**B*(1.+z)**C
+
+  END FUNCTION conc_Duffy_full_M200
+
+  REAL FUNCTION conc_Duffy_relaxed_M200(m,z)
+
+    ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: m, z
+
+    REAL, PARAMETER :: m_piv=2e12 ! Pivot mass in Msun/h
+    REAL, PARAMETER :: A=11.93
+    REAL, PARAMETER :: B=-0.090
+    REAL, PARAMETER :: C=-0.99
+
+    ! Equation (4) in 0804.2486, parameters from 10th row of Table 1
+    conc_Duffy_relaxed_M200=A*(m/m_piv)**B*(1.+z)**C
+
+  END FUNCTION conc_Duffy_relaxed_M200
 
   REAL FUNCTION mass_r(r,cosm)
 
@@ -6941,6 +7104,17 @@ CONTAINS
     nug_nu=nu*g_nu(nu,hmod)
 
   END FUNCTION nug_nu
+
+  REAL FUNCTION g_nu_on_M(nu,hmod)
+
+    ! g(nu)/M(nu)
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: nu
+    TYPE(halomod), INTENT(INOUT) :: hmod
+
+    g_nu_on_M=g_nu(nu,hmod)/M_nu(nu,hmod)
+    
+  END FUNCTION g_nu_on_M
 
   FUNCTION wk_isothermal(x)
 

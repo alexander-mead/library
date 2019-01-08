@@ -5,16 +5,21 @@ MODULE random_numbers
   
 CONTAINS
 
-  SUBROUTINE RNG_set(seed)
+  SUBROUTINE RNG_set(seed,verbose)
 
     ! Seeds the RNG
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: seed
+    LOGICAL, OPTIONAL, INTENT(IN) :: verbose
     INTEGER :: int, timearray(3)
     REAL*4 :: rand ! Necessary to define for ifort, also the *4 is necessary
 
-    WRITE(*,*) 'RNG_SET: Initialising random number generator'
-    WRITE(*,*) 'RNG_SET: Seed:', seed
+    IF(present(verbose)) THEN
+       IF(verbose) THEN
+          WRITE(*,*) 'RNG_SET: Initialising random number generator'
+          WRITE(*,*) 'RNG_SET: Seed:', seed
+       END IF
+    END IF
 
     IF(seed==0) THEN
        
@@ -31,10 +36,14 @@ CONTAINS
        int=floor(rand(seed))
        
     END IF
-    
-    WRITE(*,*) 'RNG_SET: Done'
-    WRITE(*,*)
 
+    IF(present(verbose)) THEN
+       IF(verbose) THEN
+          WRITE(*,*) 'RNG_SET: Done'
+          WRITE(*,*)
+       END IF
+    END IF
+       
   END SUBROUTINE RNG_set
 
   FUNCTION random_integer(i1,i2)

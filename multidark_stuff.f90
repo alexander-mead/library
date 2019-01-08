@@ -4,6 +4,7 @@ CONTAINS
 
   SUBROUTINE read_multidark_haloes(infile,x,m,n)
 
+    ! TODO: Make minimum mass (or minimum halo-particle number) an input
     USE file_info
     IMPLICIT NONE
     CHARACTER(len=*), INTENT(IN) :: infile
@@ -11,11 +12,28 @@ CONTAINS
     REAL, ALLOCATABLE, INTENT(OUT) :: m(:)
     INTEGER, INTENT(OUT) :: n
     LOGICAL :: lexist
-    REAL :: c
-    INTEGER :: i, p, pid
-    REAL :: mm, xx, yy, zz
-    INTEGER, PARAMETER :: hash_lines=58 ! Lines beginning with #
-    REAL, PARAMETER :: mmin=1.75e12 ! Minimum halo mass [Msun/h]
+    !REAL :: c
+    INTEGER :: i, j
+    INTEGER :: p, pid
+    REAL :: mm!, xx, yy, zz
+    REAL, ALLOCATABLE :: data(:)
+    
+    INTEGER, PARAMETER :: hash_lines=58 ! Number of lines beginning with #
+    REAL, PARAMETER :: mmin=1.74e12     ! Minimum halo mass [Msun/h] (corresponds to N>200 for MDR1; 1e12 would mean n~115)
+    INTEGER, PARAMETER :: columns=73    ! Total number of columns in file
+    INTEGER, PARAMETER :: column_pid=6  ! Column for PID (-1 if unique halo)
+    INTEGER, PARAMETER :: column_mv=11  ! Column for virial mass (unbinding done) [Msun/h]
+    INTEGER, PARAMETER :: column_x=18   ! Column for x position [Mpc/h]
+    INTEGER, PARAMETER :: column_y=19   ! Column for y position [Mpc/h]
+    INTEGER, PARAMETER :: column_z=20   ! Column for z position [Mpc/h]
+    INTEGER, PARAMETER :: column_vx=21  ! Column for vx position [km/s]
+    INTEGER, PARAMETER :: column_vy=22  ! Column for vy position [km/s]
+    INTEGER, PARAMETER :: column_vz=23  ! Column for vz position [km/s]
+    INTEGER, PARAMETER :: column_mvu=37    ! Column for total virial mass (no particle unbinding; for distinct haloes this difference is only 1-2%; Msun/h)
+    INTEGER, PARAMETER :: column_m200=38   ! Column for M200 [Msun/h]
+    INTEGER, PARAMETER :: column_m200c=39  ! Column for M200 critical [Msun/h]
+    INTEGER, PARAMETER :: column_m500c=40  ! Column for M500 critical [Msun/h]
+    INTEGER, PARAMETER :: column_m2500c=41 ! Column for M2500 critical [Msun/h]
 
     ! Check file exists
     INQUIRE(file=infile, exist=lexist)
@@ -28,6 +46,9 @@ CONTAINS
     n=file_length(infile,verbose=.FALSE.)
     n=n-hash_lines
 
+    ! Allocate the data array with the total number of columns so that you can read in a full line
+    ALLOCATE(data(columns))
+
     ! Count unique haloes
     p=0 ! Set sum variable to zero
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Total number of haloes:', n    
@@ -36,7 +57,10 @@ CONTAINS
        READ(7,*)
     END DO
     DO i=1,n
-       READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
+       !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
+       READ(7,*) (data(j), j=1,columns)
+       mm=data(column_mvu)
+       pid=NINT(data(column_pid))
        IF(mm>mmin .AND. pid==-1) p=p+1
     END DO
     CLOSE(7)
@@ -53,14 +77,22 @@ CONTAINS
        READ(7,*)
     END DO
     DO i=1,n
-       ! Mass is 11, x,y,z are 18,19,20
-       READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm, c, c, c, c, c, c, xx, yy, zz
-       IF(mm>mmin .AND. pid==-1) THEN
+       ! Virial mass is column 11, x,y,z positions are columns 18,19,20
+       ! Halo is unique iff pid=-1 (pid is column 6)
+       !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm, c, c, c, c, c, c, xx, yy, zz
+       READ(7,*) (data(j), j=1,columns)
+       mm=data(column_mvu)
+       pid=NINT(data(column_pid))
+       IF(mm>=mmin .AND. pid==-1) THEN
           p=p+1
+          !m(p)=mm
+          !x(1,p)=xx
+          !x(2,p)=yy
+          !x(3,p)=zz
           m(p)=mm
-          x(1,p)=xx
-          x(2,p)=yy
-          x(3,p)=zz
+          x(1,p)=data(column_x)
+          x(2,p)=data(column_y)
+          x(3,p)=data(column_z)
        END IF
     END DO
     CLOSE(7)

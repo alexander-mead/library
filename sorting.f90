@@ -33,6 +33,8 @@ CONTAINS
        CALL stupid_sort(a,n)
     ELSE IF(imeth==2) THEN
        CALL bubble_sort(a,n)
+    ELSE IF(imeth==3) THEN
+       CALL QsortC(a)
     ELSE
        STOP 'SORT: Error, imeth not specified correctly'
     END IF
@@ -88,6 +90,62 @@ CONTAINS
     END DO
 
   END SUBROUTINE stupid_sort
+
+   RECURSIVE SUBROUTINE QsortC(A)
+
+    ! Stolen from http://www.fortran.com/qsort_c.f95
+    IMPLICIT NONE
+    REAL, INTENT(INOUT), DIMENSION(:) :: A
+    INTEGER :: iq
+
+    if(size(A) > 1) then
+       call Partition(A, iq)
+       call QsortC(A(:iq-1))
+       call QsortC(A(iq:))
+    endif
+    
+  END SUBROUTINE QsortC
+
+  SUBROUTINE Partition(A, marker)
+
+    ! Stolen from http://www.fortran.com/qsort_c.f95
+    IMPLICIT NONE
+    REAL, INTENT(in out), DIMENSION(:) :: A
+    INTEGER, INTENT(out) :: marker
+    INTEGER :: i, j
+    REAL :: temp
+    REAL :: x      ! pivot point
+    
+    x = A(1)
+    i= 0
+    j= size(A) + 1
+
+    do
+       j = j-1
+       do
+          if (A(j) <= x) exit
+          j = j-1
+       end do
+       i = i+1
+       do
+          if (A(i) >= x) exit
+          i = i+1
+       end do
+       if (i < j) then
+          ! exchange A(i) and A(j)
+          temp = A(i)
+          A(i) = A(j)
+          A(j) = temp
+       elseif (i == j) then
+          marker = i+1
+          return
+       else
+          marker = i
+          return
+       endif
+    end do
+
+  END SUBROUTINE Partition
 
   SUBROUTINE index_real(a,ind,n,imeth)
     

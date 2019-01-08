@@ -59,6 +59,9 @@ MODULE Limber
   REAL, PARAMETER :: amin_pka=1e-3   ! a' value for P(k,a) table; P(k,a<a')=0
   REAL, PARAMETER :: amax_pka=1.     ! a' value for P(k,a) table; P(k,a>a')=0
 
+  ! Maximum k that corresponding to a given ell (prevents infinities for low z)
+  REAL, PARAMETER :: k_ell_max=1e3
+
   ! xcorr - C(l) calculation
   LOGICAL, PARAMETER :: verbose_Limber=.FALSE. ! Verbosity
   LOGICAL, PARAMETER :: verbose_xi=.FALSE. ! Verbosity
@@ -144,9 +147,8 @@ CONTAINS
     REAL :: r
 
     IF(a==1.) THEN
-       ! This should really be infinite
-       ! Stops a division by infinity
-       k_ell=1e3
+       ! This should really be infinite, but this stops a division by infinity
+       k_ell=k_ell_max
     ELSE
        r=comoving_distance(a,cosm)
        k_ell=(ell+lcorr)/f_k(r,cosm)
@@ -173,7 +175,7 @@ CONTAINS
   SUBROUTINE fill_projection_kernels(ix,proj,cosm)
 
     ! Fill look-up tables for the two projection kerels X_ij
-    ! TODO: Change to take ix(n)
+    ! TODO: Change to take ix(n)?
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: ix(2) ! Label for the type of projection kernel needed
     TYPE(projection), INTENT(OUT) :: proj(2) ! Output the projection kernel
@@ -1004,7 +1006,6 @@ CONTAINS
   FUNCTION integrate_Limber(l,a,b,logktab,logatab,logptab,nk,na,acc,iorder,proj,cosm)
 
     ! Integrates between a and b until desired accuracy is reached
-    ! Stores information to reduce function calls
     IMPLICIT NONE
     REAL :: integrate_Limber
     REAL, INTENT(IN) :: a, b, acc
@@ -1112,6 +1113,7 @@ CONTAINS
 
     IF(r==0.) THEN
 
+       ! Must be set to zero here to prevent division by zero
        Limber_integrand=0.
 
     ELSE
@@ -1126,7 +1128,7 @@ CONTAINS
        z=redshift_r(r,cosm)
        a=scale_factor_z(z)
        k=(l+lcorr)/f_k(r,cosm) ! LoVerde et al. (2008) Limber correction
-       !k=k_ell(l,a,cosm)
+       !k=k_ell(l,a,cosm) ! Does not make sense since this does an internal a->r conversion
 
        ! Construct the integrand
        Limber_integrand=X(1)*X(2)*find_pka(k,a,logktab,logatab,logptab,nk,na)/f_k(r,cosm)**2
@@ -1166,6 +1168,7 @@ CONTAINS
           CYCLE
        ELSE
           k=(l+lcorr)/f_k(r,cosm)
+          !k=k_ell(l,a,cosm) ! Does not make sense since this does an internal a->r conversion
           z=redshift_r(r,cosm)
           a=scale_factor_z(z)
           int=Limber_integrand(r,l,logktab,logatab,logptab,nk,na,proj,cosm)
@@ -1207,7 +1210,7 @@ CONTAINS
   SUBROUTINE xpow_pka(ix,ell,Cl,nl,k,a,pow,nk,na,cosm)
 
     ! Calculates the C(l) for the cross correlation of fields ix(1) and ix(2) given P(k,a)
-    ! TODO: Should I change this to take in ix(n)?
+    ! TODO: Change to take in ix(n)?
     IMPLICIT NONE
     INTEGER, INTENT(INOUT) :: ix(2)
     REAL, INTENT(IN) :: ell(nl)
@@ -1225,7 +1228,7 @@ CONTAINS
     ! Fill out the projection kernel
     CALL fill_projection_kernels(ix,proj,cosm)
 
-    ! Set the range in comoving distance for the Limber integral
+    ! Set the range in comoving distance for the Limber integral [Mpc]
     r1=0.
     r2=maxdist(proj)
 

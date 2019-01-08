@@ -157,6 +157,7 @@ CONTAINS
 
   SUBROUTINE halo_mass_weights(mmin,mmax,m,w,n)
 
+    ! Set the weight, w(i), to one if the halo is in the mass range, zero otherwise
     IMPLICIT NONE
     REAL, INTENT(IN) :: mmin, mmax
     REAL, INTENT(IN) :: m(n)
