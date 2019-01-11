@@ -25,6 +25,7 @@ DEBUG_FLAGS = \
 # All the object files that the library is composed of 
 OBJS =  precision.o \
 	constants.o \
+	physics.o \
 	logical_operations.o \
 	fix_polynomial.o \
 	array_operations.o \
