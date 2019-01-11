@@ -6,9 +6,21 @@ MODULE vectors
 
 CONTAINS
 
+  REAL FUNCTION shift_angle_to_circle(theta)
+
+    ! Changes an angle thetta [rad] to be in the interval [0:2pi]
+    ! e.g., if t is -pi/2 it gets shifted to 3pi/2
+    USE constants
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: theta
+
+    shift_angle_to_circle=theta-twopi*floor(theta/twopi)
+
+  END FUNCTION shift_angle_to_circle
+
   FUNCTION unit(x,n)
 
-    !Returns the unit vector of 'x'
+    ! Returns the unit vector of 'x'
     IMPLICIT NONE
     REAL :: unit(n)
     REAL, INTENT(IN) :: x(n)
@@ -18,11 +30,10 @@ CONTAINS
 
   END FUNCTION unit
 
-  FUNCTION modulus(x,n)
+  REAL FUNCTION modulus(x,n)
 
-    !Returns the modulus of vector 'x'
+    ! Returns the modulus of vector 'x'
     IMPLICIT NONE
-    REAL :: modulus
     REAL, INTENT(IN) :: x(n)
     INTEGER, INTENT(IN) :: n
     
@@ -44,10 +55,11 @@ CONTAINS
 
   FUNCTION cross_product(x,y)
 
-    !Makes the cross produce of 3-vectors x nad y
+    ! Makes the cross produce of 3-vectors x nad y
     IMPLICIT NONE
     REAL :: cross_product(3)
-    REAL, INTENT(IN) :: x(3), y(3)
+    REAL, INTENT(IN) :: x(3)
+    REAL, INTENT(IN) :: y(3)
 
     cross_product(1)=x(2)*y(3)-x(3)*y(2)
     cross_product(2)=x(3)*y(1)-x(1)*y(3)
@@ -57,14 +69,15 @@ CONTAINS
 
   FUNCTION rotation(u,t)
 
-    !Creates a rotation matrix for rotation about vector 'u' by angle 't'
-    !u must be a unit vector!!!
+    ! Creates a rotation matrix for rotation about vector 'u' by angle 't'
+    ! u must be a unit vector
     IMPLICIT NONE
     REAL :: rotation(3,3)
-    REAL, INTENT(IN) :: u(3), t
+    REAL, INTENT(IN) :: u(3)
+    REAL, INTENT(IN) :: t
     REAL :: s, c
 
-    !Pre-compute sine and cosine for speed
+    ! Pre-compute sine and cosine for speed
     s=sin(t)
     c=cos(t)
     
@@ -84,7 +97,7 @@ CONTAINS
 
   FUNCTION matrix_multiply(A,B,n)
 
-    !Multiplies matrices 'A' and 'B' C=A*B
+    ! Multiplies matrices 'A' and 'B' C=A*B
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n
     REAL :: matrix_multiply(n,n)
@@ -92,7 +105,7 @@ CONTAINS
     REAL :: C(n,n)
     INTEGER :: i, j, k
 
-    !Fix this 'sum' variable to zero
+    ! Fix this 'sum' variable to zero
     C=0.
 
     DO i=1,n
@@ -109,15 +122,16 @@ CONTAINS
 
   FUNCTION matrix_vector(A,b,n)
 
-    !Multiplies matrix a and vector b (c=A*b)
-    IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n
+    ! Multiplies matrix a and vector b (c=A*b)
+    IMPLICIT NONE   
     REAL :: matrix_vector(n)
-    REAL, INTENT(IN) :: A(n,n), b(n)
+    REAL, INTENT(IN) :: A(n,n)
+    REAL, INTENT(IN) :: b(n)
+    INTEGER, INTENT(IN) :: n
     REAL :: c(n)
     INTEGER :: i, j
 
-    !Fix this 'sum' variable to zero
+    ! Fix this 'sum' variable to zero
     c=0.
 
     DO i=1,n
@@ -132,14 +146,15 @@ CONTAINS
 
   FUNCTION distance(x1,x2,n)
 
-    !Calculates the distance between n-vectors x1 and x2
+    ! Calculates the distance between n-vectors x1 and x2
     IMPLICIT NONE
     REAL :: distance
-    REAL, INTENT(IN) :: x1(n), x2(n)
+    REAL, INTENT(IN) :: x1(n)
+    REAL, INTENT(IN) :: x2(n)
     INTEGER, INTENT(IN) :: n
     INTEGER :: i
 
-    !Fix this 'sum' variable to zero
+    ! Fix this 'sum' variable to zero
     distance=0.
 
     DO i=1,n
@@ -152,31 +167,35 @@ CONTAINS
 
   FUNCTION rotate_vector(v,k,theta)
 
-    !Rotates vector 'v' about axis 'k' by angle 'theta'
+    ! Rotates vector 'v' about axis 'k' by angle 'theta'
     IMPLICIT NONE
     REAL :: rotate_vector(3)
-    REAL, INTENT(IN) :: v(3), k(3), theta
+    REAL, INTENT(IN) :: v(3)
+    REAL, INTENT(IN) :: k(3)
+    REAL, INTENT(IN) :: theta
     REAL :: R(3,3)
 
-    !Get the rotation matrix
-    !Infact, I think you do not need the whole matrix to do this
-    !Look up Rodriguez Formula in case this is important
-    !Probably it is faster
+    ! Get the rotation matrix
+    ! Infact, I think you do not need the whole matrix to do this
+    ! Look up Rodriguez Formula in case this is important
+    ! Probably it is faster
     R=rotation(k,theta)
 
-    !Perform the rotation
+    ! Perform the rotation
     rotate_vector=matrix_vector(R,v,3)
     
   END FUNCTION rotate_vector
 
   FUNCTION rotate_vector_fast(v,k,theta)
 
-    !Rotates vector 'v' about axis 'k' by angle 'theta'
-    !Note that 'k' needs to be a unit vector
-    !See https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+    ! Rotates vector 'v' about axis 'k' by angle 'theta'
+    ! Note that 'k' needs to be a unit vector
+    ! See https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
     IMPLICIT NONE
     REAL :: rotate_vector_fast(3)
-    REAL, INTENT(IN) :: v(3), k(3), theta
+    REAL, INTENT(IN) :: v(3)
+    REAL, INTENT(IN) :: k(3)
+    REAL, INTENT(IN) :: theta
     REAL :: r1(3), r2(3), r3(3), s, c
 
     s=sin(theta)
