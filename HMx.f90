@@ -90,6 +90,9 @@ MODULE HMx
   PUBLIC :: field_static_gas
   PUBLIC :: field_central_stars
   PUBLIC :: field_satellite_stars
+  PUBLIC :: field_CIB_353
+  PUBLIC :: field_CIB_545
+  PUBLIC :: field_CIB_857
   PUBLIC :: i1_fields
   PUBLIC :: i2_fields
 
@@ -179,6 +182,7 @@ MODULE HMx
   LOGICAL, PARAMETER :: verbose_HI=.TRUE.       ! Verbosity when doing the HI initialisation
 
   ! Field types
+  ! TODO: Have this run from 1->n, rather than -1->n
   INTEGER, PARAMETER :: field_dmonly=-1
   INTEGER, PARAMETER :: field_matter=0
   INTEGER, PARAMETER :: field_cdm=1
@@ -198,8 +202,11 @@ MODULE HMx
   INTEGER, PARAMETER :: field_static_gas=15
   INTEGER, PARAMETER :: field_central_stars=16
   INTEGER, PARAMETER :: field_satellite_stars=17
+  INTEGER, PARAMETER :: field_CIB_353=18
+  INTEGER, PARAMETER :: field_CIB_545=19
+  INTEGER, PARAMETER :: field_CIB_857=20
   INTEGER, PARAMETER :: i1_fields=-1
-  INTEGER, PARAMETER :: i2_fields=17
+  INTEGER, PARAMETER :: i2_fields=20
 
 CONTAINS
 
@@ -1643,7 +1650,7 @@ CONTAINS
 
     ! Name function for halo types
     ! TODO: This must be able to be combined with set_halo_type
-    ! TODO: Can this be in the header?
+    ! TODO: Can this be in the header? Is this even necessary?
     IMPLICIT NONE
     CHARACTER(len=256) :: halo_type
     INTEGER :: i
@@ -1668,6 +1675,9 @@ CONTAINS
     IF(i==field_static_gas)         halo_type='Static gas'
     IF(i==field_central_stars)      halo_type='Central stars'
     IF(i==field_satellite_stars)    halo_type='Satellite stars'
+    IF(i==field_CIB_353)            halo_type='CIB 353 GHz'
+    IF(i==field_CIB_545)            halo_type='CIB 545 GHz'
+    IF(i==field_CIB_857)            halo_type='CIB 857 GHz'
     IF(halo_type=='') STOP 'HALO_TYPE: Error, i not specified correctly'
 
   END FUNCTION halo_type
@@ -4383,60 +4393,72 @@ CONTAINS
 
   END FUNCTION mass_r
 
-  REAL FUNCTION win_type(real_space,itype,k,m,rv,rs,hmod,cosm)
+  REAL FUNCTION win_type(real_space,ifield,k,m,rv,rs,hmod,cosm)
 
     ! Selects the halo profile type
     IMPLICIT NONE
     LOGICAL, INTENT(IN) :: real_space
-    INTEGER, INTENT(IN) :: itype
+    INTEGER, INTENT(IN) :: ifield
     REAL, INTENT(IN) :: k
     REAL, INTENT(IN) :: m
     REAL, INTENT(IN) :: rv
     REAL, INTENT(IN) :: rs
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: nu
 
-    IF(itype==field_dmonly) THEN
+    IF(ifield==field_dmonly) THEN
        win_type=win_DMONLY(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_matter) THEN
+    ELSE IF(ifield==field_matter) THEN
        win_type=win_total(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_cdm) THEN
+    ELSE IF(ifield==field_cdm) THEN
        win_type=win_CDM(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_gas) THEN
-       win_type=win_gas(real_space,itype,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_star) THEN
+    ELSE IF(ifield==field_gas) THEN
+       win_type=win_gas(real_space,ifield,k,m,rv,rs,hmod,cosm)
+    ELSE IF(ifield==field_star) THEN
        win_type=win_stars(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_bound_gas) THEN
-       win_type=win_bound_gas(real_space,itype,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_free_gas) THEN
-       win_type=win_free_gas(real_space,itype,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_electron_pressure) THEN
+    ELSE IF(ifield==field_bound_gas) THEN
+       win_type=win_bound_gas(real_space,ifield,k,m,rv,rs,hmod,cosm)
+    ELSE IF(ifield==field_free_gas) THEN
+       win_type=win_free_gas(real_space,ifield,k,m,rv,rs,hmod,cosm)
+    ELSE IF(ifield==field_electron_pressure) THEN
        win_type=win_electron_pressure(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_void) THEN
+    ELSE IF(ifield==field_void) THEN
        win_type=win_void(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_compensated_void) THEN
+    ELSE IF(ifield==field_compensated_void) THEN
        win_type=win_compensated_void(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_central_galaxies) THEN
+    ELSE IF(ifield==field_central_galaxies) THEN
        win_type=win_centrals(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_satellite_galaxies) THEN
+    ELSE IF(ifield==field_satellite_galaxies) THEN
        win_type=win_satellites(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_galaxies) THEN
+    ELSE IF(ifield==field_galaxies) THEN
        win_type=win_galaxies(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_HI) THEN
+    ELSE IF(ifield==field_HI) THEN
        win_type=win_HI(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_cold_gas) THEN
-       win_type=win_cold_gas(real_space,itype,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_hot_gas) THEN
-       win_type=win_hot_gas(real_space,itype,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_static_gas) THEN
-       win_type=win_static_gas(real_space,itype,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_central_stars) THEN
+    ELSE IF(ifield==field_cold_gas) THEN
+       win_type=win_cold_gas(real_space,ifield,k,m,rv,rs,hmod,cosm)
+    ELSE IF(ifield==field_hot_gas) THEN
+       win_type=win_hot_gas(real_space,ifield,k,m,rv,rs,hmod,cosm)
+    ELSE IF(ifield==field_static_gas) THEN
+       win_type=win_static_gas(real_space,ifield,k,m,rv,rs,hmod,cosm)
+    ELSE IF(ifield==field_central_stars) THEN
        win_type=win_central_stars(real_space,k,m,rv,rs,hmod,cosm)
-    ELSE IF(itype==field_satellite_stars) THEN
+    ELSE IF(ifield==field_satellite_stars) THEN
        win_type=win_satellite_stars(real_space,k,m,rv,rs,hmod,cosm)
+    ELSE IF(ifield==field_CIB_353 .OR. ifield==field_CIB_545 .OR. ifield==field_CIB_857) THEN
+       IF(ifield==field_CIB_353) THEN
+          nu=353.e9 ! Frequency [Hz]
+       ELSE IF(ifield==field_CIB_545) THEN
+          nu=545.e9 ! Frequency [Hz]
+       ELSE IF(ifield==field_CIB_857) THEN
+          nu=857.e9 ! Frequency [Hz]
+       ELSE
+          STOP 'WIN_TYPE: Error, ifield specified incorrectly' 
+       END IF
+       win_type=win_CIB(real_space,nu,k,m,rv,rs,hmod,cosm)
     ELSE
-       WRITE(*,*) 'WIN_TYPE: itype:', itype
-       STOP 'WIN_TYPE: Error, itype not specified correclty' 
+       WRITE(*,*) 'WIN_TYPE: ifield:', ifield
+       STOP 'WIN_TYPE: Error, ifield specified incorreclty' 
     END IF
 
   END FUNCTION win_type
@@ -5499,6 +5521,67 @@ CONTAINS
     END IF
 
   END FUNCTION win_satellites
+
+  REAL FUNCTION win_CIB(real_space,nu,k,m,rv,rs,hmod,cosm)
+
+    ! Halo profile for all matter under the assumption that it is all CDM
+    IMPLICIT NONE
+    LOGICAL, INTENT(IN) :: real_space
+    REAL, INTENT(IN) :: nu
+    REAL, INTENT(IN) :: k
+    REAL, INTENT(IN) :: m
+    REAL, INTENT(IN) :: rv
+    REAL, INTENT(IN) :: rs
+    TYPE(halomod), INTENT(INOUT) :: hmod
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    INTEGER :: irho
+    REAL :: r, rmin, rmax, p1, p2, z
+    
+    REAL, PARAMETER :: a=1. ! Dust blob size relative to halo virial radius
+    REAL, PARAMETER :: T=15. ! Dust temperature [K]
+    REAL, PARAMETER :: beta=1.6 ! Grey-body power-law index
+
+    ! Set additional halo parameters to zero
+    p1=0.
+    p2=0.
+
+    rmin=0.
+    rmax=rv
+
+    ! Delta function
+    irho=0 
+
+    IF(real_space) THEN
+       r=k
+       win_CIB=rho(r,rmin,rmax,rv,rs,p1,p2,irho)
+       win_CIB=win_CIB/normalisation(rmin,rmax,rv,rs,p1,p2,irho)
+    ELSE
+       !Properly normalise and convert to overdensity
+       win_CIB=win_norm(k,rmin,rmax,rv,rs,p1,p2,irho)
+    END IF
+
+    z=hmod%z
+    win_CIB=grey_body_nu((1.+z)*nu,T,beta) ! Get the black-body radiance [W m^-2 Sr^-1 Hz^-1]
+    win_CIB=win_CIB*SI_to_Jansky ! Convert units to Jansky [Jy Sr^-1]
+    win_CIB=win_CIB*(a*rv)**2  ! [Jy Sr^-1 (Mpc/h)^2]
+    !win_CIB=win_CIB/(1e-3+luminosity_distance(a,cosm))**2 ! Bad idea because divide by zero when z=0
+
+  END FUNCTION win_CIB
+
+  REAL FUNCTION grey_body_nu(nu,T,beta)
+
+    ! Grey body irradiance [W m^-2 Hz^-1 Sr^-1]
+    USE physics
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: nu ! Observing frequency [Hz]
+    REAL, INTENT(IN) :: T !  Grey body temperature [K]
+    REAL, INTENT(IN) :: beta ! Power-law index
+    REAL, PARAMETER :: tau=1. ! Emissivity (degenerate with R in CIB work)
+    REAL, PARAMETER :: nu0=545.e9 ! Reference frequency [Hz]
+    
+    grey_body_nu=tau*((nu/nu0)**beta)*black_body_nu(nu,T)
+    
+  END FUNCTION grey_body_nu
 
   REAL FUNCTION N_centrals(m,hmod)
 

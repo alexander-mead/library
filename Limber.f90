@@ -44,6 +44,10 @@ MODULE Limber
   PUBLIC :: tracer_KiDS_450_bin1
   PUBLIC :: tracer_KiDS_450_bin2
   PUBLIC :: tracer_KiDS_450_highz
+  PUBLIC :: tracer_CIB_353
+  PUBLIC :: tracer_CIB_545
+  PUBLIC :: tracer_CIB_857
+  PUBLIC :: tracer_galaxies
  
   ! Projection quantities that need to be calculated only once; these relate to the Limber integrals
   TYPE projection    
@@ -93,7 +97,7 @@ MODULE Limber
   REAL, PARAMETER :: rmin_gwave=10.
 
   ! Tracer types
-  INTEGER, PARAMETER :: n_tracers=14
+  INTEGER, PARAMETER :: n_tracers=18
   INTEGER, PARAMETER :: tracer_RCSLenS=1
   INTEGER, PARAMETER :: tracer_Compton_y=2
   INTEGER, PARAMETER :: tracer_CMB_lensing=3
@@ -108,6 +112,10 @@ MODULE Limber
   INTEGER, PARAMETER :: tracer_KiDS_450_bin1=12
   INTEGER, PARAMETER :: tracer_KiDS_450_bin2=13
   INTEGER, PARAMETER :: tracer_KiDS_450_highz=14
+  INTEGER, PARAMETER :: tracer_CIB_353=15
+  INTEGER, PARAMETER :: tracer_CIB_545=16
+  INTEGER, PARAMETER :: tracer_CIB_857=17
+  INTEGER, PARAMETER :: tracer_galaxies=18
   
 CONTAINS
 
@@ -133,6 +141,10 @@ CONTAINS
     IF(ix==tracer_KiDS_450_bin1)  xcorr_type='KiDS 450 (z = 0.1 -> 0.5)'
     IF(ix==tracer_KiDS_450_bin2)  xcorr_type='KiDS 450 (z = 0.5 -> 0.9)'
     IF(ix==tracer_KiDS_450_highz) xcorr_type='KiDS 450 (z = 0.9 -> 3.5)'
+    IF(ix==tracer_CIB_353)        xcorr_type='CIB 353 GHz'
+    IF(ix==tracer_CIB_545)        xcorr_type='CIB 545 GHz'
+    IF(ix==tracer_CIB_857)        xcorr_type='CIB 857 GHz'
+    IF(ix==tracer_galaxies)       xcorr_type='Galaxies'
     IF(xcorr_type=='') STOP 'XCORR_TYPE: Error, ix not specified correctly'
     
   END FUNCTION xcorr_type
@@ -209,7 +221,12 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
     !TYPE(lensing) :: lens
 
-    IF(ix==tracer_Compton_y .OR. ix==tracer_gravity_wave) THEN
+    IF(ix==tracer_Compton_y .OR. &
+         ix==tracer_gravity_wave .OR. &
+         ix==tracer_CIB_353 .OR. &
+         ix==tracer_CIB_545 .OR. &
+         ix==tracer_CIB_857 .OR. &
+         ix==tracer_galaxies) THEN
        CALL fill_kernel(ix,proj,cosm)
     ELSE IF(ix==tracer_RCSLenS .OR. &
          ix==tracer_CFHTLenS .OR. &
@@ -669,6 +686,10 @@ CONTAINS
           proj%x(i)=y_kernel(r,cosm)
        ELSE IF(ix==tracer_gravity_wave) THEN
           proj%x(i)=gwave_kernel(r,cosm)
+       ELSE IF(ix==tracer_CIB_353 .OR. ix==tracer_CIB_545 .OR. ix==tracer_CIB_857) THEN
+          proj%x(i)=CIB_kernel(r,cosm)
+       ELSE IF(ix==tracer_galaxies) THEN
+          proj%x(i)=galaxy_kernel(r,cosm)
        ELSE
           STOP 'FILL_KERNEL: Error, tracer specified incorrectly'
        END IF
@@ -720,6 +741,43 @@ CONTAINS
 
   END FUNCTION gwave_kernel
 
+  REAL FUNCTION CIB_kernel(r,cosm)
+
+    ! Projection kernel CIB emission
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: r
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: z, a
+    REAL :: rmin=1. ! Minimum radius [Mpc/h]
+
+    IF(r<rmin) THEN
+       CIB_kernel=0.
+    ELSE
+       z=redshift_r(r,cosm)
+       a=scale_factor_z(z)
+       CIB_kernel=1./((1.+z)*luminosity_distance(a,cosm)**2)
+    END IF
+
+  END FUNCTION CIB_kernel
+
+  REAL FUNCTION galaxy_kernel(r,cosm)
+
+    USE special_functions
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: r
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: z, a, nz
+    REAL, PARAMETER :: sig=0.5
+
+    z=redshift_r(r,cosm)
+    a=scale_factor_z(z)
+
+    nz=Rayleigh(z,sig)
+    
+    galaxy_kernel=nz*sqrt(Hubble2(a,cosm))/Hdist
+    
+  END FUNCTION galaxy_kernel
+
   SUBROUTINE read_nz(ix,proj)
 
     ! The the n(z) function for lensing
@@ -768,7 +826,7 @@ CONTAINS
     ! Fill the look-up tables
     CALL fill_array(zmin_nz,zmax_nz,proj%z_nz,proj%nnz)
     DO i=1,n_nz
-       proj%nz(i)=nz_lensing(proj%z_nz(i),ix)
+       proj%nz(i)=nz(proj%z_nz(i),ix)
     END DO
 
   END SUBROUTINE fill_analytic_nz_table
@@ -842,11 +900,11 @@ CONTAINS
 
   END SUBROUTINE fill_nz_table
 
-  FUNCTION nz_lensing(z,ix)
+  FUNCTION nz(z,ix)
 
     ! Analytical n(z) for different surveys
     IMPLICIT NONE
-    REAL :: nz_lensing
+    REAL :: nz
     REAL, INTENT(IN) :: z
     INTEGER, INTENT(IN) :: ix
     REAL :: a, b, c, d, e, f, g, h, i
@@ -867,21 +925,21 @@ CONTAINS
        n1=a*z*exp(-(z-b)**2/c**2)
        n2=d*z*exp(-(z-e)**2/f**2)
        n3=g*z*exp(-(z-h)**2/i**2)
-       nz_lensing=n1+n2+n3
+       nz=n1+n2+n3
     ELSE IF(ix==tracer_CFHTLenS) THEN
        ! CFHTLenS
-       z1=0.7 ! Not a free parameter in Van Waerbeke et al. (2013)
-       z2=1.2 ! Not a free parameter in Van Waerbeke et al. (2013)
+       z1=0.7 ! Not a free parameter in Van Waerbeke et al. fit (2013)
+       z2=1.2 ! Not a free parameter in Van Waerbeke et al. fit (2013)
        a=1.50
        b=0.32
        c=0.20
        d=0.46
-       nz_lensing=a*exp(-((z-z1)/b)**2)+c*exp(-((z-z2)/d)**2)
+       nz=a*exp(-((z-z1)/b)**2)+c*exp(-((z-z2)/d)**2)
     ELSE
-       STOP 'NZ_LENSING: Error, tracer specified incorrectly'
+       STOP 'NZ: Error, tracer specified incorrectly'
     END IF
 
-  END FUNCTION nz_lensing
+  END FUNCTION nz
 
   FUNCTION integrate_q(r,a,b,acc,iorder,proj,cosm)
 
