@@ -7,3 +7,4 @@ MERGE
 *.f90~
 *~
 meadlib
+python/__pycache__
