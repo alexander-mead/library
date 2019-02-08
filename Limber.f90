@@ -772,9 +772,9 @@ CONTAINS
     z=redshift_r(r,cosm)
     a=scale_factor_z(z)
 
-    nz=Rayleigh(z,sig)
+    !nz=Rayleigh(z,sig) ! No, because this is included in the window function for galaxiex
     
-    galaxy_kernel=nz*sqrt(Hubble2(a,cosm))/Hdist
+    galaxy_kernel=sqrt(Hubble2(a,cosm))/Hdist
     
   END FUNCTION galaxy_kernel
 
