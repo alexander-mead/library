@@ -229,7 +229,7 @@ CONTAINS
     cosm%w=-1.
     cosm%wa=0.
     cosm%T_CMB=2.725 ! CMB temperature [K]
-    cosm%z_CMB=1100. ! Redshift of the last-scatting surface
+    cosm%z_CMB=1087. ! Redshift of the last-scatting surface
     cosm%neff=3.046  ! Effective number of relativistic neutrinos
     cosm%YH=0.76     ! Hydrogen mass fraction
 
