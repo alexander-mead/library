@@ -77,4 +77,21 @@ CONTAINS
     
   END FUNCTION requal
 
+  LOGICAL FUNCTION present_and_correct(x)
+
+    IMPLICIT NONE
+    LOGICAL, OPTIONAL, INTENT(IN) :: x
+
+    IF(present(x)) THEN
+       IF(x) THEN
+          present_and_correct=.TRUE.
+       ELSE
+          present_and_correct=.FALSE.
+       END IF
+    ELSE
+       present_and_correct=.FALSE.
+    END IF
+    
+  END FUNCTION present_and_correct
+
 END MODULE logical_operations
