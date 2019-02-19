@@ -76,21 +76,20 @@ MODULE Limber
   ! Limber integration parameters
   INTEGER, PARAMETER  :: n_cont=1024 ! Number of samples to take in r for Cl ell contribution calculation
   REAL, PARAMETER :: lcorr=0.5       ! 1/2 in LoVerde (2008) Limber correction k(r)=(l+1/2)/f_k(r)
-  REAL, PARAMETER :: acc_Limber=1e-4 ! Accuracy parameter for Limber integration
+  REAL, PARAMETER :: acc_Limber=1e-4 ! Accuracy parameter for Limber integration 
 
   ! n(z)
   REAL, PARAMETER :: zmin_nz=0.  ! Minimum redshift for the analytic n(z) tables
   REAL, PARAMETER :: zmax_nz=2.5 ! Maximum redshift for the analytic n(z) tables
   INTEGER, PARAMETER :: n_nz=128 ! Number of entries in the analytic n(z) tables
 
-  ! General kernel
-  REAL, PARAMETER :: rmin_kernel=0.   ! Minimum r for table
-  INTEGER, PARAMETER :: nx_kernel=128 ! Number of entires in look-up table
-
-  ! Lensing kernel/efficiency
-  REAL, PARAMETER :: rmin_lensing=0.      ! Minimum distance in integral    
-  INTEGER, PARAMETER :: nX_lensing=128    ! Number of entries in X(r) table
-  INTEGER, PARAMETER :: nq_efficiency=128 ! Number of entries in q(r) table
+  ! Projection kernel options
+  REAL, PARAMETER :: rmin_kernel=0.         ! Minimum r for table
+  INTEGER, PARAMETER :: nx_kernel=128       ! Number of entires in look-up table
+  REAL, PARAMETER :: rmin_lensing=0.        ! Minimum distance in integral    
+  INTEGER, PARAMETER :: nX_lensing=128      ! Number of entries in X(r) table
+  INTEGER, PARAMETER :: nq_efficiency=128   ! Number of entries in q(r) table
+  INTEGER, PARAMETER :: iorder_efficiency=1 ! Order for lensing-efficiency integration over n(z) (treat as continuous function or histogram?)
 
   ! Gravitational waves
   REAL, PARAMETER :: A_gwave=1.
@@ -582,7 +581,7 @@ CONTAINS
                ix==tracer_KiDS_450_bin2 .OR. &
                ix==tracer_KiDS_450_highz) THEN
              ! q(r) for a n(z) distribution 
-             proj%q(i)=integrate_q(r,z,zmax,acc_Limber,3,proj,cosm)
+             proj%q(i)=integrate_q(r,z,zmax,acc_Limber,iorder_efficiency,proj,cosm)
           ELSE
              STOP 'FILL_EFFICIENCY: Error, tracer specified incorrectly'
           END IF
@@ -959,6 +958,9 @@ CONTAINS
 
     INTEGER, PARAMETER :: jmin=5  ! Standard integration parameters
     INTEGER, PARAMETER :: jmax=30 ! Standard integration parameters
+
+    !WRITE(*,*) 'order =', iorder
+    ! IdeaSTOP
 
     IF(a==b) THEN
 
