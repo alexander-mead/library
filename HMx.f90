@@ -96,6 +96,45 @@ MODULE HMx
   PUBLIC :: i1_fields
   PUBLIC :: i2_fields
 
+  ! Fitting parameters
+  PUBLIC :: param_alpha
+  PUBLIC :: param_eps
+  PUBLIC :: param_gamma
+  PUBLIC :: param_M0
+  PUBLIC :: param_Astar
+  PUBLIC :: param_Twhim
+  PUBLIC :: param_cstar
+  PUBLIC :: param_fcold
+  PUBLIC :: param_mstar
+  PUBLIC :: param_sstar
+  PUBLIC :: param_alphap
+  PUBLIC :: param_Gammap
+  PUBLIC :: param_cstarp
+  PUBLIC :: param_fhot
+  PUBLIC :: param_alphaz
+  PUBLIC :: param_Gammaz
+  PUBLIC :: param_M0z
+  PUBLIC :: param_Astarz
+  PUBLIC :: param_Twhimz
+  PUBLIC :: param_eta
+  PUBLIC :: param_HMcode_Dv0
+  PUBLIC :: param_HMcode_Dvp
+  PUBLIC :: param_HMcode_dc0
+  PUBLIC :: param_HMcode_dcp
+  PUBLIC :: param_HMcode_eta0
+  PUBLIC :: param_HMcode_eta1
+  PUBLIC :: param_HMcode_f0
+  PUBLIC :: param_HMcode_fp
+  PUBLIC :: param_HMcode_kstar
+  PUBLIC :: param_HMcode_As
+  PUBLIC :: param_HMcode_alpha0
+  PUBLIC :: param_HMcode_alpha1
+  PUBLIC :: param_epsz
+  PUBLIC :: param_beta
+  PUBLIC :: param_betap
+  PUBLIC :: param_betaz
+  PUBLIC :: param_n
+
   ! Halo-model stuff that needs to be recalculated for each new z
   TYPE halomod
      INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, ip2h_corr
@@ -207,6 +246,45 @@ MODULE HMx
   INTEGER, PARAMETER :: field_CIB_857=20
   INTEGER, PARAMETER :: i1_fields=-1
   INTEGER, PARAMETER :: i2_fields=20
+
+   ! Fitting parameters
+  INTEGER, PARAMETER :: param_alpha=1
+  INTEGER, PARAMETER :: param_eps=2
+  INTEGER, PARAMETER :: param_gamma=3
+  INTEGER, PARAMETER :: param_M0=4
+  INTEGER, PARAMETER :: param_Astar=5
+  INTEGER, PARAMETER :: param_Twhim=6
+  INTEGER, PARAMETER :: param_cstar=7
+  INTEGER, PARAMETER :: param_fcold=8
+  INTEGER, PARAMETER :: param_mstar=9
+  INTEGER, PARAMETER :: param_sstar=10
+  INTEGER, PARAMETER :: param_alphap=11
+  INTEGER, PARAMETER :: param_Gammap=12
+  INTEGER, PARAMETER :: param_cstarp=13
+  INTEGER, PARAMETER :: param_fhot=14
+  INTEGER, PARAMETER :: param_alphaz=15
+  INTEGER, PARAMETER :: param_Gammaz=16
+  INTEGER, PARAMETER :: param_M0z=17
+  INTEGER, PARAMETER :: param_Astarz=18
+  INTEGER, PARAMETER :: param_Twhimz=19
+  INTEGER, PARAMETER :: param_eta=20
+  INTEGER, PARAMETER :: param_HMcode_Dv0=21
+  INTEGER, PARAMETER :: param_HMcode_Dvp=22
+  INTEGER, PARAMETER :: param_HMcode_dc0=23
+  INTEGER, PARAMETER :: param_HMcode_dcp=24
+  INTEGER, PARAMETER :: param_HMcode_eta0=25
+  INTEGER, PARAMETER :: param_HMcode_eta1=26
+  INTEGER, PARAMETER :: param_HMcode_f0=27
+  INTEGER, PARAMETER :: param_HMcode_fp=28
+  INTEGER, PARAMETER :: param_HMcode_kstar=29
+  INTEGER, PARAMETER :: param_HMcode_As=30
+  INTEGER, PARAMETER :: param_HMcode_alpha0=31
+  INTEGER, PARAMETER :: param_HMcode_alpha1=32
+  INTEGER, PARAMETER :: param_epsz=33
+  INTEGER, PARAMETER :: param_beta=34
+  INTEGER, PARAMETER :: param_betap=35
+  INTEGER, PARAMETER :: param_betaz=36
+  INTEGER, PARAMETER :: param_n=36
 
 CONTAINS
 
