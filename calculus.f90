@@ -16,8 +16,7 @@ CONTAINS
     INTEGER, PARAMETER :: n=100 ! Maximum number of iterations
 
     INTERFACE
-       FUNCTION f(x)
-         REAL :: f
+       REAL FUNCTION f(x)
          REAL, INTENT(IN) :: x
        END FUNCTION f
     END INTERFACE
@@ -137,8 +136,7 @@ CONTAINS
     DOUBLE PRECISION :: sum
 
     INTERFACE       
-       FUNCTION f(x)
-         REAL :: f
+       REAL FUNCTION f(x)
          REAL, INTENT(IN) :: x
        END FUNCTION f
     END INTERFACE
@@ -220,8 +218,7 @@ CONTAINS
     INTEGER, PARAMETER :: jmax=30
 
     INTERFACE      
-       FUNCTION f(x)
-         REAL :: f
+       REAL FUNCTION f(x)
          REAL, INTENT(IN) :: x
        END FUNCTION f       
     END INTERFACE
@@ -314,8 +311,7 @@ CONTAINS
     INTEGER, PARAMETER :: ninit=8
 
     INTERFACE
-       FUNCTION f(x)
-         REAL :: f
+       REAL FUNCTION f(x)
          REAL, INTENT(IN) :: x
        END FUNCTION f
     END INTERFACE
@@ -434,8 +430,7 @@ CONTAINS
     INTEGER, PARAMETER :: ni=1
 
     INTERFACE
-       FUNCTION f(x)
-         REAL :: f
+       REAL FUNCTION f(x)
          REAL, INTENT(IN) :: x
        END FUNCTION f
     END INTERFACE
@@ -523,20 +518,16 @@ CONTAINS
     INTEGER, PARAMETER :: ninit=8
 
     INTERFACE       
-       FUNCTION f(x)
-         REAL :: f
+       REAL FUNCTION f(x)
          REAL, INTENT(IN) :: x
        END FUNCTION f       
-       FUNCTION g(x)
-         REAL :: g
+       REAL FUNCTION g(x)
          REAL, INTENT(IN) :: x
        END FUNCTION g       
-       FUNCTION gi(x)
-         REAL :: gi
+       REAL FUNCTION gi(x)
          REAL, INTENT(IN) :: x
        END FUNCTION gi       
-       FUNCTION dg(x)
-         REAL :: dg
+       REAL FUNCTION dg(x)
          REAL, INTENT(IN) :: x
        END FUNCTION dg       
     END INTERFACE
@@ -621,5 +612,44 @@ CONTAINS
     END IF
 
   END FUNCTION integrate_jac
+
+  REAL FUNCTION integrate_monte_carlo(a,b,f,n)
+
+    ! Integrates between a and b with n points; not adaptive so no error control
+    USE random_numbers
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a, b ! Integration limits
+    INTEGER, INTENT(IN) :: n ! Number of points
+    INTEGER :: i
+    REAL :: x, dx
+    DOUBLE PRECISION :: sum
+
+    INTERFACE       
+       REAL FUNCTION f(x)
+         REAL, INTENT(IN) :: x
+       END FUNCTION f
+    END INTERFACE
+
+    IF(a==b) THEN
+
+       integrate_monte_carlo=0.
+
+    ELSE
+
+       sum=0.d0
+       DO i=1,n
+          x=random_uniform(a,b)
+          sum=sum+f(x)          
+       END DO
+
+       dx=(b-a)/real(n)
+
+       sum=sum*dx
+
+       integrate_monte_carlo=real(sum)
+
+    END IF
+
+  END FUNCTION integrate_monte_carlo
 
 END MODULE calculus

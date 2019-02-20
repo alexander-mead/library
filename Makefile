@@ -27,12 +27,12 @@ OBJS =  precision.o \
 	constants.o \
 	physics.o \
 	logical_operations.o \
+	random_numbers.o \
 	fix_polynomial.o \
 	array_operations.o \
 	calculus.o \
 	file_info.o \
 	camb_stuff.o \
-	random_numbers.o \
 	table_integer.o \
 	interpolate.o \
 	special_functions.o \
