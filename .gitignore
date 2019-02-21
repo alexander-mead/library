@@ -8,3 +8,4 @@ MERGE
 *~
 meadlib
 python/__pycache__
+*.pyc
