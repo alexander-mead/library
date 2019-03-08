@@ -78,7 +78,7 @@ def draw_from_2D(n,f,x1,x2,nx,y1,y2,ny):
     dxs = np.random.uniform(-dx/2.,dx/2.,n) 
     dys = np.random.uniform(-dy/2.,dy/2.,n)
 
-    # Uniform-random displacement within a pixel
+    # Apply uniform-random displacement within a pixel
     xs = xs+dxs
     ys = ys+dys
         
