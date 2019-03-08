@@ -152,9 +152,7 @@ CONTAINS
     ! Produces a exponentially-distributed random number
     IMPLICIT NONE
     REAL, INTENT(IN) :: mean
-
-    ! small is introducted because there will be problems here if log(0) is ever called
-    REAL, PARAMETER :: small=1e-10
+    REAL, PARAMETER :: small=1e-10 ! Introducted because there will be problems here if log(0) is ever called
   
     random_exponential=-mean*log(random_uniform(small,1.))
 
@@ -178,5 +176,43 @@ CONTAINS
     random_theta=acos(random_uniform(-1.,1.))
 
   END FUNCTION random_theta
+
+  REAL FUNCTION accept_reject(func,x1,x2,fmax)
+
+    ! Simple one-dimensional accept-reject algorithm for drawing random numbers from func(x1->x2)
+    ! TODO: Increase to n-dimensions
+    ! TODO: Include more complicated bounding structure (at the moment it is just a box)
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x1, x2
+    REAL, INTENT(IN) :: fmax
+    REAL :: x, y, f
+   
+    INTERFACE
+       REAL FUNCTION func(x)
+         REAL, INTENT(IN) :: x
+       END FUNCTION func
+    END INTERFACE
+
+    ! Try until you accept an x value
+    DO
+
+       ! Draw uniform random x value and function height
+       x=random_uniform(x1,x2)
+       y=random_uniform(0.,fmax)
+
+       ! Evaulate the function at the random x value
+       f=func(x)
+
+       ! Decide whether or not to accept
+       IF(f>fmax) THEN
+          STOP 'ACCEPT_REJECT: Error, your function is not bounded by fmax'
+       ELSE IF(y<=f) THEN
+          accept_reject=x
+          EXIT
+       END IF
+
+    END DO
+    
+  END FUNCTION accept_reject
 
 END MODULE random_numbers
