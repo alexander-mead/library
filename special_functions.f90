@@ -393,7 +393,7 @@ CONTAINS
 
   REAL FUNCTION Poisson(n,nbar)
 
-    ! The normalised discrete Poisson probability distribution
+    ! Normalised discrete Poisson probability distribution
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, nbar
 
@@ -403,7 +403,7 @@ CONTAINS
 
   REAL FUNCTION exponential(x,mean)
 
-    !The normalised exponential distribution
+    ! Normalised exponential distribution
     IMPLICIT NONE
     REAL, INTENT(IN) :: x, mean
 
@@ -413,7 +413,7 @@ CONTAINS
 
   REAL FUNCTION Lorentzian(x)
 
-    !A normalised Lorentzian distribution
+    ! Normalised Lorentzian distribution
     IMPLICIT NONE
     REAL, INTENT(IN) :: x
 
