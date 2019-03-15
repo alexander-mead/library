@@ -6,11 +6,14 @@ MODULE owls
 
   ! BAHAMAS simulation parameters
   REAL, PARAMETER :: fh=0.752 ! Hydrogen mass fraction
-  REAL, PARAMETER :: mu=0.61 ! Mean molecular weight relative to proton
-  REAL, PARAMETER :: Xe=1.17 ! Electron fraction (number of electrons per hydrogen)
-  REAL, PARAMETER :: Xi=1.08 ! Ion fraction (number of ionisations per hydrogen)
+  REAL, PARAMETER :: mu=0.61 ! Mean particle mass relative to proton
+  REAL, PARAMETER :: Xe=1.17 ! Number of electrons per hydrogen (X_{e/H} in my notation)
+  REAL, PARAMETER :: Xi=1.08 ! Number of ions per hydrogen (X_{i/H}; note that all gas particles are either electrons or ions)
   REAL, PARAMETER :: mfac=1e10 ! Mass conversion factor to get Msun/h
   REAL, PARAMETER :: eV_erg=eV*1e7 ! eV in ergs
+
+  LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. ! Apply a cut in hydrogen density
+  REAL, PARAMETER :: nh_cut=0.1 ! Cut in the hydrogen number density [cm^-3] gas denser than this is not ionised
   
 CONTAINS
 
@@ -85,7 +88,8 @@ CONTAINS
     REAL, ALLOCATABLE :: ep(:)
     INTEGER, INTENT(OUT) :: n
     LOGICAL :: lexist   
-
+    REAL :: mue
+    
     ! Read in the binary file
     INQUIRE(file=infile, exist=lexist)
     IF(.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'
@@ -104,8 +108,8 @@ CONTAINS
     READ(7) n
     READ(7) m
     READ(7) x
-    READ(7) ep ! physical electron pressure for the particle in erg/cm^3
-    READ(7) nh ! hydrogen number density for the partcle in /cm^3
+    READ(7) ep ! physical electron pressure for the particle [erg/cm^3]
+    READ(7) nh ! hydrogen number density for the partcle in [/cm^3]
     CLOSE(7)
 
     ! Convert masses into Solar masses
@@ -116,15 +120,20 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Note that the electron pressure is *not* comoving'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'READ_MCCARTHY_GAS: YH:', fh
-    WRITE(*,*) 'READ_MCCARTHY_GAS: mu_H:', mu
+    WRITE(*,*) 'READ_MCCARTHY_GAS: mu_p:', mu
     WRITE(*,*) 'READ_MCCARTHY_GAS: Xe:', Xe
     WRITE(*,*) 'READ_MCCARTHY_GAS: Xi:', Xi
+
+    ! Calculate and write the 'particle mass per free electron: mu_e'
+    mue=mu*(Xe+Xi)/Xe
+    WRITE(*,*) 'READ_MCCARTHY_GAS: mu_e:', mue
     
     ! Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT [erg]
     ! This is the temperature of gas particles (equal for all species)
     ! Temperature is neither comoving nor physical
     ALLOCATE(kT(n))
-    kT=((Xe+Xi)/Xe)*(ep/nh)*mu*fh
+    !kT=((Xe+Xi)/Xe)*(ep/nh)*mu*fh
+    kT=(ep/nh)*mue*fh
 
     ! Convert internal energy from erg to eV
     kT=kT/eV_erg
@@ -154,44 +163,41 @@ CONTAINS
 
     ! This routine converts the input particle internal energy kT [eV] to electron pressure, Pe [eV/cm^3]
     ! Note very well that Pe will be the contribution to the total pressure in the volume per particle
-    ! CARE: I removed the factors of 'm' from here so pressure is now contribution to entire volume
-    ! rather than the contribution per mesh cell
+    ! CARE: I removed factors of 'm', pressure is now contribution to entire volume, rather than the contribution per mesh cell
     USE constants
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: kT(n) ! particle internal energy [eV]
-    REAL, INTENT(IN) :: nh(n) ! hydrogen number density [/cm^3]
-    REAL, INTENT(IN) :: m(n) ! hydrodynamic particle mass [Msun/h]
-    INTEGER, INTENT(IN) :: n ! total number of particles
-    REAL, INTENT(IN) :: L ! Box size [Mpc/h]
-    REAL, INTENT(IN) :: h ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors) 
-    REAL :: V
+    REAL, INTENT(IN) :: nh(n)    ! hydrogen number density [/cm^3]
+    REAL, INTENT(IN) :: m(n)     ! hydrodynamic particle mass [Msun/h]
+    INTEGER, INTENT(IN) :: n     ! total number of particles
+    REAL, INTENT(IN) :: L        ! Box size [Mpc/h]
+    REAL, INTENT(IN) :: h        ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors) 
+    REAL :: mue, V
     DOUBLE PRECISION :: units, kT_dble(n)
-    
-    LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. ! Apply a cut in hydrogen density
-    REAL, PARAMETER :: nh_cut=0.1 ! Cut in the hydrogen number density [cm^-3] gas denser than this is not ionised
 
     ! Exclude gas that is sufficiently dense to not be ionised and be forming stars
     IF(apply_nh_cut) CALL exclude_nh(nh_cut,kT,nh,n)
 
-    !WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: CARE: See messages in owls.f90'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Converting kT to comoving electron pressure'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Note that this is COMOVING'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Y_H:', fh
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_H:', mu
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_p:', mu
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xe:', Xe
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xi:', Xi
+
+    mue=mu*(Xe+Xi)/Xe
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_e:', mue
 
     ! Use double precision because all the constants are dreadful 
     kT_dble=kT ! [eV]
     
-    ! Convert to particle internal energy that needs to be mapped to grid
-    kT_dble=kT_dble*(m/mu)*Xe/(Xe+Xi) ! [eV*Msun]
+    ! Convert to particle internal energy that can be mapped to grid
+    !kT_dble=kT_dble*(m/mu)*Xe/(Xe+Xi) ! [eV*Msun]
+    kT_dble=kT_dble*(m/mue) ! [eV*Msun]
 
     ! Comoving volume
-    !V=(L/REAL(m))**3 ! [(Mpc/h)^3] ! CARE: This is what I changed
-    !V=V/h**3 ! remove h factors [Mpc^3] ! CARE: This is what I changed
-    V=(L/h)**3 ! [(Mpc)^3] ! CARE: This is what I changed
+    V=(L/h)**3 ! [(Mpc)^3]
 
     ! This is now comoving electron pressure
     kT_dble=kT_dble/V ! [Msun*eV/Mpc^3]
