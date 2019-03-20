@@ -34,7 +34,7 @@ MODULE cosmology_functions
      CHARACTER(len=256) :: name ! Name for cosmological model
      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power
      LOGICAL :: is_init, is_normalised
-     LOGICAL :: tcdm
+     LOGICAL :: tcdm, derive_gas_numbers
      LOGICAL :: verbose
   END TYPE cosmology
 
@@ -63,6 +63,7 @@ CONTAINS
     INTEGER, INTENT(INOUT) :: icosmo
     LOGICAL, INTENT(IN) :: verbose
     INTEGER :: i
+    REAL :: Xe, Xi
 
     ! Names of pre-defined cosmologies    
     INTEGER, PARAMETER :: ncosmo=237
@@ -253,6 +254,9 @@ CONTAINS
     cosm%h_pow=0.
     cosm%tcdm=.FALSE.
 
+    ! Gas options
+    cosm%derive_gas_numbers=.TRUE.
+
     IF(icosmo==0) THEN
        STOP 'TODO: implement user decision here'
     ELSE IF(icosmo==1) THEN
@@ -281,6 +285,11 @@ CONTAINS
        cosm%Om_v=1.-cosm%Om_m       
        cosm%n=0.9720
        cosm%sig8=0.8211
+       cosm%derive_gas_numbers=.FALSE.
+       cosm%mup=0.61
+       Xi=1.08
+       Xe=1.17
+       cosm%mue=cosm%mup*(Xe+Xi)/Xe
     ELSE IF(icosmo==5) THEN
        !  5 - Open model
        ! 29 - Open model; normalised for Mead 2017 z=1 response
@@ -558,8 +567,10 @@ CONTAINS
     END IF
 
     ! Gas parameters
-    cosm%mup=4./(5.*cosm%YH+3.) ! Nuclear mass per particle (~0.588 if fH=0.76)
-    cosm%mue=2./(1.+cosm%YH)    ! Nuclear mass per electron (~1.136 if fH=0.76)
+    IF(cosm%derive_gas_numbers) THEN
+       cosm%mup=4./(5.*cosm%YH+3.) ! Mean mass per gas particle divided by proton mass (~0.588 if fH=0.76, gas is ionised and H and He only; 0.61 in BAHAMAS)
+       cosm%mue=2./(1.+cosm%YH)    ! Mean mass per gas electron divided by proton mass (~1.136 if fH=0.76, gas is ionised and H and He only; 1.17 in BAHAMAS)
+    END IF
 
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: mu_p:', cosm%mup
