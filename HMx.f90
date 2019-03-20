@@ -590,13 +590,15 @@ CONTAINS
     hmod%simple_pivot=.FALSE.
 
     ! Fixed parameters
-    hmod%alpha=0.33333 ! Non-virial temperature correction for static gas
-    hmod%beta=0.33333  ! Non-virial temperature correction for hot gas
+    !hmod%alpha=0.33333 ! Non-virial temperature correction for static gas
+    !hmod%beta=0.33333  ! Non-virial temperature correction for hot gas
+    hmod%alpha=0.7     ! Non-virial temperature correction for static gas
+    hmod%beta=0.7      ! Non-virial temperature correction for hot gas
     hmod%eps=1.        ! Concentration modification
     hmod%Gamma=1.17    ! Polytropic gas index
     hmod%M0=1e14       ! Halo mass that has lost half gas
     hmod%Astar=0.03    ! Maximum star-formation efficiency
-    hmod%Twhim=1e6     ! WHIM temperature [K]
+    hmod%Twhim=3e6     ! WHIM temperature [K]
     hmod%cstar=10.     ! Stellar concentration r_* = rv/c
     hmod%sstar=1.2     ! sigma_* for f_* distribution
     hmod%Mstar=5e12    ! M* for most efficient halo mass for star formation
@@ -2226,96 +2228,12 @@ CONTAINS
 
   END SUBROUTINE init_windows
 
-!!$  SUBROUTINE add_smooth_component_to_windows(fields,nf,wk,nm,hmod,cosm)
-!!$
-!!$    ! Refills the window functions for the two-halo term if this is necessary
-!!$    ! This is for contributions due to unbound gas, and the effect of this on electron pressure
-!!$    IMPLICIT NONE
-!!$    INTEGER, INTENT(IN) :: fields(nf)
-!!$    REAL, INTENT(INOUT) :: wk(nm,nf)
-!!$    INTEGER, INTENT(IN) :: nf
-!!$    INTEGER, INTENT(IN) :: nm
-!!$    TYPE(halomod), INTENT(INOUT) :: hmod
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    REAL :: m, rv, c, rs, nu, et, fc, pc
-!!$    REAL :: rho0, T0
-!!$    INTEGER :: i, j
-!!$    INTEGER, ALLOCATABLE :: i_all(:), i_gas(:), i_pre(:)
-!!$    INTEGER :: n_all, n_gas, n_pre
-!!$
-!!$    ! Get the array positions corresponding to all, cdm, gas, stars if they exist
-!!$    CALL array_positions(field_matter,fields,nf,i_all,n_all)
-!!$    CALL array_positions(field_gas,fields,nf,i_gas,n_gas)
-!!$    CALL array_positions(field_electron_pressure,fields,nf,i_pre,n_pre)
-!!$
-!!$    IF(n_all==0 .AND. n_gas==0 .AND. n_pre==0) THEN
-!!$
-!!$       ! Do nothing
-!!$
-!!$    ELSE
-!!$
-!!$       ! Get eta
-!!$       et=eta_HMcode(hmod,cosm)
-!!$
-!!$       ! Loop over mass and apply corrections
-!!$
-!!$       DO i=1,hmod%n
-!!$
-!!$          ! Halo variables
-!!$          m=hmod%m(i)
-!!$          rv=hmod%rv(i)
-!!$          c=hmod%c(i)
-!!$          rs=rv/c
-!!$          nu=hmod%nu(i)
-!!$
-!!$          ! Correction factor for the gas density profiles
-!!$          fc=halo_free_gas_fraction(m,hmod,cosm)*m/comoving_matter_density(cosm)
-!!$
-!!$          ! Add correction to 'matter' haloes
-!!$          DO j=1,n_all                                     
-!!$             wk(i,i_all(j))=wk(i,i_all(j))+fc
-!!$          END DO
-!!$
-!!$          ! Add correction to 'gas' haloes
-!!$          DO j=1,n_gas
-!!$             wk(i,i_gas(j))=wk(i,i_gas(j))+fc
-!!$          END DO
-!!$             
-!!$          IF(n_pre .NE. 0) THEN
-!!$
-!!$             ! TODO: The units here are a mess
-!!$
-!!$             ! Calculate the value of the density profile prefactor [(Msun/h)/(Mpc/h)^3] and change units from cosmological to SI
-!!$             rho0=m*halo_free_gas_fraction(m,hmod,cosm) ! rho0 in [(Msun/h)/(Mpc/h)^3]
-!!$             rho0=rho0*msun/Mpc/Mpc/Mpc                 ! Overflow with REAL(4) if you use Mpc**3, this converts to SI units [h^2 kg/m^3]
-!!$             rho0=rho0*cosm%h**2                        ! Absorb factors of h, so now [kg/m^3]
-!!$
-!!$             ! This is the total thermal pressure of the WHIM
-!!$             T0=HMx_Twhim(hmod) ! [K]
-!!$
-!!$             ! Factors to convert from Temp x density -> electron pressure (Temp x n; n is all particle number density) 
-!!$             pc=(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
-!!$             pc=pc/(eV*(0.01)**(-3))         ! Change units to pressure in [eV/cm^3]
-!!$             pc=pc*cosm%mue/cosm%mup         ! Convert from total thermal pressure to electron pressure
-!!$             
-!!$             ! Add correction to 'electron pressure' haloes
-!!$             DO j=1,n_pre
-!!$                wk(i,i_pre(j))=wk(i,i_pre(j))+pc
-!!$             END DO
-!!$
-!!$          END IF
-!!$
-!!$       END DO
-!!$
-!!$    END IF
-!!$
-!!$  END SUBROUTINE add_smooth_component_to_windows
-
   SUBROUTINE add_smooth_component_to_windows(fields,nf,wk,nm,hmod,cosm)
 
     ! Refills the window functions for the two-halo term if this is necessary
     ! This is for contributions due to unbound gas, and the effect of this on electron pressure
     ! TODO: Have I inculded the halo bias corresponding to the free component correctly?
+    ! BUG: Fixed conversion of thermal to electron pressure
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: fields(nf)
     REAL, INTENT(INOUT) :: wk(nm,nf)
@@ -2374,7 +2292,7 @@ CONTAINS
              ! Factors to convert from Temp x density -> electron pressure (Temp x n; n is all particle number density) 
              pc=(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
              pc=pc/(eV*(0.01)**(-3)) ! Change units to pressure in [eV/cm^3]
-             pc=pc*cosm%mue/cosm%mup ! Convert from total thermal pressure to electron pressure
+             pc=pc*cosm%mup/cosm%mue ! Convert from total thermal pressure to electron pressure: BUG
              
              ! Add correction to 'electron pressure' haloes
              wk(i,i_pre)=wk(i,i_pre)+pc
@@ -4237,13 +4155,16 @@ CONTAINS
 
   REAL FUNCTION gas_correction(m,hmod,cosm)
 
+    ! BUG: Fixed so that concentration modification applies to low-mass haloes
     IMPLICIT NONE
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: gas_supply ! Fraction of universal baryon ratio remaining in halo
 
-    gas_correction=(1.+(HMx_eps(hmod)-1.)*halo_bound_gas_fraction(m,hmod,cosm)/(cosm%Om_b/cosm%Om_m))
-
+    gas_supply=halo_bound_gas_fraction(m,hmod,cosm)/(cosm%Om_b/cosm%Om_m)
+    gas_correction=1.+(HMx_eps(hmod)-1.)*(1.-gas_supply)
+    
   END FUNCTION gas_correction
 
   SUBROUTINE Dolag_correction(hmod,cosm)
@@ -4813,10 +4734,10 @@ CONTAINS
           a=hmod%a
           T0=HMx_alpha(m,hmod)*virial_temperature(m,rv,hmod%a,cosm)
 
-          ! Convert from Temp x density -> electron pressure (Temp x n; n is all particle number density) 
-          win_static_gas=win_static_gas*(rho0/(mp*cosm%mue))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
+          ! Convert from Temp x density -> electron prsessure (Temp x n; n is all particle number density) 
+          win_static_gas=win_static_gas*(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
           win_static_gas=win_static_gas/(eV*(0.01)**(-3)) ! Change units to pressure in [eV/cm^3]
-          win_static_gas=win_static_gas*cosm%mue/cosm%mup ! Convert from total thermal pressure to electron pressure
+          win_static_gas=win_static_gas*cosm%mup/cosm%mue ! Convert from total thermal pressure to electron pressure
 
        ELSE
 
@@ -4900,6 +4821,7 @@ CONTAINS
 
   REAL FUNCTION win_hot_gas(real_space,itype,k,m,rv,rs,hmod,cosm)
 
+    ! BUG: Fixed conversion of thermal to electron pressure
     IMPLICIT NONE
     LOGICAL, INTENT(IN) :: real_space
     INTEGER, INTENT(IN) :: itype
@@ -4977,9 +4899,9 @@ CONTAINS
           T0=HMx_beta(m,hmod)*virial_temperature(m,rv,hmod%a,cosm)
 
           ! Convert from Temp x density -> electron pressure (Temp x n; n is all particle number density) 
-          win_hot_gas=win_hot_gas*(rho0/(mp*cosm%mue))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
+          win_hot_gas=win_hot_gas*(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
           win_hot_gas=win_hot_gas/(eV*(0.01)**(-3)) ! Change units to pressure in [eV/cm^3]
-          win_hot_gas=win_hot_gas*cosm%mue/cosm%mup ! Convert from total thermal pressure to electron pressure
+          win_hot_gas=win_hot_gas*cosm%mup/cosm%mue ! Convert from total thermal pressure to electron pressure
 
        ELSE
 
@@ -4994,6 +4916,7 @@ CONTAINS
   REAL FUNCTION win_free_gas(real_space,itype,k,m,rv,rs,hmod,cosm)
 
     ! Halo profile for the free gas component
+    ! BUG: Fixed conversion of thermal to electron pressure
     IMPLICIT NONE
     LOGICAL, INTENT(IN) :: real_space
     INTEGER, INTENT(IN) :: itype
@@ -5209,7 +5132,7 @@ CONTAINS
              ! Factors to convert from Temp x density -> electron pressure (Temp x n; n is all particle number density) 
              win_free_gas=win_free_gas*(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
              win_free_gas=win_free_gas/(eV*(0.01)**(-3)) ! Change units to pressure in [eV/cm^3]
-             win_free_gas=win_free_gas*cosm%mue/cosm%mup ! Convert from total thermal pressure to electron pressure
+             win_free_gas=win_free_gas*cosm%mup/cosm%mue ! Convert from total thermal pressure to electron pressure
 
           END IF
 
@@ -5626,8 +5549,11 @@ CONTAINS
     rmin=0.
     rmax=rv
 
-    ! Delta function
-    irho=0 
+    ! Halo type
+    ! 0 - Delta function
+    ! 1 - Isothermal
+    ! 5 - NFW
+    irho=1
 
     IF(real_space) THEN
        r=k
