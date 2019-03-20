@@ -341,10 +341,13 @@ CONTAINS
     TYPE(projection), INTENT(IN) :: proj(2) ! Projection kernels
     TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
     REAL :: logk(nk), loga(na), logpow(nk,na)
-    INTEGER :: i, j, l
+    REAL, ALLOCATABLE :: ell(:)
+    INTEGER :: i, j
     CHARACTER(len=256) :: fbase, fext, outfile
 
-    INTEGER, PARAMETER :: n=16 ! Number of ell values to take, from l=1 to l=2**(n-1); 2^15 ~ 32,000
+    REAL, PARAMETER :: lmin=1e1
+    REAL, PARAMETER :: lmax=1e4
+    INTEGER, PARAMETER :: nl=16 ! Number of ell values to take, from l=1 to l=2**(n-1); 2^15 ~ 32,000
 
     ! Create log tables to speed up 2D find routine in find_pka
     logk=log(k)
@@ -353,13 +356,16 @@ CONTAINS
        logpow(:,j)=log((2.*pi**2)*pow(:,j)/k**3)
     END DO
 
+    CALL fill_array(log(lmin),log(lmax),ell,nl)
+    ell=exp(ell)
+
     ! Now call the contribution subroutine
     fbase='data/Cl_contribution_ell_'
     fext='.dat'
-    DO i=1,n
-       l=2**(i-1) ! Set the l
+    DO i=1,nl
+       !l=2**(i-1) ! Set the l
        outfile=number_file(fbase,i,fext)
-       CALL Limber_contribution(real(l),r1,r2,logk,loga,logpow,nk,na,proj,cosm,outfile)
+       CALL Limber_contribution(ell(i),r1,r2,logk,loga,logpow,nk,na,proj,cosm,outfile)
     END DO
 
   END SUBROUTINE Cl_contribution_ell
