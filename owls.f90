@@ -6,7 +6,7 @@ MODULE owls
 
   ! BAHAMAS simulation parameters
   REAL, PARAMETER :: fh=0.752 ! Hydrogen mass fraction
-  REAL, PARAMETER :: mu=0.61 ! Mean particle mass relative to proton
+  REAL, PARAMETER :: mup=0.61 ! Mean particle mass relative to proton
   REAL, PARAMETER :: Xe=1.17 ! Number of electrons per hydrogen (X_{e/H} in my notation)
   REAL, PARAMETER :: Xi=1.08 ! Number of ions per hydrogen (X_{i/H}; note that all gas particles are either electrons or ions)
   REAL, PARAMETER :: mfac=1e10 ! Mass conversion factor to get Msun/h
@@ -120,12 +120,12 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Note that the electron pressure is *not* comoving'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'READ_MCCARTHY_GAS: YH:', fh
-    WRITE(*,*) 'READ_MCCARTHY_GAS: mu_p:', mu
+    WRITE(*,*) 'READ_MCCARTHY_GAS: mu_p:', mup
     WRITE(*,*) 'READ_MCCARTHY_GAS: Xe:', Xe
     WRITE(*,*) 'READ_MCCARTHY_GAS: Xi:', Xi
 
     ! Calculate and write the 'particle mass per free electron: mu_e'
-    mue=mu*(Xe+Xi)/Xe
+    mue=mup*(Xe+Xi)/Xe
     WRITE(*,*) 'READ_MCCARTHY_GAS: mu_e:', mue
     
     ! Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT [erg]
@@ -182,11 +182,11 @@ CONTAINS
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Note that this is COMOVING'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Y_H:', fh
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_p:', mu
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_p:', mup
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xe:', Xe
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xi:', Xi
 
-    mue=mu*(Xe+Xi)/Xe
+    mue=mup*(Xe+Xi)/Xe
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_e:', mue
 
     ! Use double precision because all the constants are dreadful 
