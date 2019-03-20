@@ -75,8 +75,9 @@ MODULE Limber
   REAL, PARAMETER :: k_ell_max=1e3
 
   ! xcorr - C(l) calculation
-  LOGICAL, PARAMETER :: verbose_Limber=.FALSE. ! Verbosity
-  LOGICAL, PARAMETER :: verbose_xi=.FALSE. ! Verbosity
+  LOGICAL, PARAMETER :: verbose_Limber=.FALSE.   ! Verbosity
+  LOGICAL, PARAMETER :: verbose_xi=.FALSE.       ! Verbosity
+  LOGICAL, PARAMETER :: do_contributions=.FALSE. ! Contributions
 
   ! Maxdist
   REAL, PARAMETER :: dr_max=0.01 ! Small subtraction from maxdist to prevent numerical issues
@@ -306,7 +307,11 @@ CONTAINS
        WRITE(*,*) 'CALCULATE_CL: ell min:', real(ell(1))
        WRITE(*,*) 'CALCULATE_CL: ell max:', real(ell(nl))
        WRITE(*,*) 'CALCULATE_CL: number of ell:', nl
+       WRITE(*,*) 'CALCULATE_CL: kmin [h/Mpc]:', k(1)
+       WRITE(*,*) 'CALCULATE_CL: kmax [h/Mpc]:', k(nk)
        WRITE(*,*) 'CALCULATE_CL: number of k:', nk
+       WRITE(*,*) 'CALCULATE_CL: amin [h/Mpc]:', a(1)
+       WRITE(*,*) 'CALCULATE_CL: amax [h/Mpc]:', a(na)
        WRITE(*,*) 'CALCULATE_CL: number of a:', na
        WRITE(*,*) 'CALCULATE_CL: Minimum distance [Mpc/h]:', real(r1)
        WRITE(*,*) 'CALCULATE_CL: Maximum distance [Mpc/h]:', real(r2)
@@ -1394,6 +1399,9 @@ CONTAINS
     ! Actually calculate the C(ell), but only for the full halo model part
     ! TODO: Array temporary
     CALL calculate_Cl(r1,r2,ell,Cl,nl,k,a,pow,nk,na,proj,cosm)
+
+    ! Do contributions if needed
+    IF(do_contributions) CALL Cl_contribution_ell(r1,r2,k,a,pow,nk,na,proj,cosm)
 
   END SUBROUTINE xpow_pka
   
