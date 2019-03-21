@@ -1271,7 +1271,6 @@ CONTAINS
     REAL, INTENT(IN) :: x(3,n) ! Particle position array [Mpc/h]
     REAL, INTENT(IN) :: w(n) ! Weight array (e.g., mass, or just an array of ones)
     REAL, INTENT(IN) :: L ! Box size [Mpc/h]
-    !REAL, INTENT(IN) :: nbar ! Average 2D density
     CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
 
     REAL :: x1, x2, y1, y2, Lx, Ly, Lz, delta, npexp
