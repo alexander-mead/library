@@ -206,7 +206,7 @@ MODULE HMx
 
   ! HMx
   REAL, PARAMETER :: HMx_alpha_min=1e-2 ! Minimum alpha parameter; needs to be set at not zero
-  REAL, PARAMETER :: HMx_beta_min=1e-2 ! Minimum alpha parameter; needs to be set at not zero
+  REAL, PARAMETER :: HMx_beta_min=1e-2  ! Minimum alpha parameter; needs to be set at not zero
   REAL, PARAMETER :: HMx_Gamma_min=1.10 ! Minimum polytropic index
   REAL, PARAMETER :: HMx_Gamma_max=2.00 ! Maximum polytropic index
   REAL, PARAMETER :: HMx_Astar_min=1e-4 ! Minimum halo star fraction; needs to be set at not zero
@@ -297,12 +297,12 @@ CONTAINS
     INTEGER :: i
 
     ! Names of pre-defined halo models
-    INTEGER, PARAMETER :: nhalomod=44 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+    INTEGER, PARAMETER :: nhalomod=45 ! Total number of pre-defined halo-model types (TODO: this is stupid)
     CHARACTER(len=256):: names(nhalomod)    
     names(1)='HMcode (Mead et al. 2016)'
     names(2)='Basic halo-model (Two-halo term is linear)'
     names(3)='Standard halo-model (Seljak 2000)'
-    names(4)='Standard halo-model but with Mead et al. (2015) transition'
+    names(4)='Standard halo-model but with Mead et al. (2015) smoothed transition'
     names(5)='Standard halo-model but with Delta_v=200 and delta_c=1.686 and Bullock c(M)'
     names(6)='Half-accurate HMcode (Mead et al. 2015, 2016)'
     names(7)='HMcode (Mead et al. 2015)'
@@ -311,7 +311,7 @@ CONTAINS
     names(10)='Comparison of mass conversions with Wayne Hu code'
     names(11)='UPP for electron pressure'
     names(12)='Spherical collapse used for Mead (2017) results'
-    names(13)='Experimental log-tanh transition'
+    names(13)='Experimental sigmoid transition'
     names(14)='Experimental scale-dependent halo bias'
     names(15)='HMcode (Mead et al. 2018)'
     names(16)='Halo-void model'
@@ -343,6 +343,7 @@ CONTAINS
     names(42)='Tinker with M200c'
     names(43)='Standard halo-model (Seljak 2000) in matter response'
     names(44)='Tinker with M200'
+    names(45)='No stars'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -443,7 +444,8 @@ CONTAINS
 
     ! alpha for two- to one-halo transition region
     ! 1 - No
-    ! 2 - Smoothed transition with alphas
+    ! 2 - Smoothed transition with alpha
+    ! 3 -
     ! 4 - New HMx transition
     ! 5 - Tanh transition
     hmod%itrans=1
@@ -765,7 +767,7 @@ CONTAINS
        ! This is the default, so do nothing here
     ELSE IF(ihm==4) THEN
        ! Standard halo-model calculation but with Mead et al. (2015) smoothed two- to one-halo transition and one-halo damping
-       hmod%itrans=4
+       hmod%itrans=3
        hmod%ikstar=2
        hmod%i1hdamp=3
        hmod%safe_negative=.TRUE.
@@ -825,7 +827,7 @@ CONTAINS
        hmod%iconc=1  ! Bullock et al. c(M) relation
        hmod%iDolag=2 ! This is important for the accuracy of the z=0 results presented in Mead (2017)
     ELSE IF(ihm==13) THEN
-       ! Experimental log-tanh transition
+       ! Experimental sigmoid transition
        hmod%itrans=5
     ELSE IF(ihm==14) THEN
        ! Experimental scale-dependent halo bias
@@ -1107,6 +1109,9 @@ CONTAINS
        hmod%iDv=1   ! M200
        hmod%iconc=5 ! Duffy for M200c for full sample
        hmod%idc=1   ! Fixed to 1.686
+    ELSE IF(ihm==45) THEN
+       ! No stars
+       hmod%Astar=0.
     ELSE
        STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
     END IF
@@ -1560,7 +1565,8 @@ CONTAINS
        ! Two- to one-halo transition region
        IF(hmod%itrans==1) WRITE(*,*) 'HALOMODEL: Standard sum of two- and one-halo terms'
        IF(hmod%itrans==2) WRITE(*,*) 'HALOMODEL: Smoothed transition using alpha'
-       IF(hmod%itrans==4) WRITE(*,*) 'HALOMODEL: Experimental smoothed transition for HMx'
+       IF(hmod%itrans==3) WRITE(*,*) 'HALOMODEL: Experimental smoothed transition'
+       IF(hmod%itrans==4) WRITE(*,*) 'HALOMODEL: Experimental smoothed transition for HMx (2.5 exponent)'
        IF(hmod%itrans==5) WRITE(*,*) 'HALOMODEL: Tanh transition with k_nl'
 
        ! Response
@@ -2279,8 +2285,6 @@ CONTAINS
           
           IF(i_pre .NE. 0) THEN
 
-             ! TODO: The units here are a mess
-
              ! Calculate the value of the density profile prefactor [(Msun/h)/(Mpc/h)^3] and change units from cosmological to SI
              rho0=m*halo_free_gas_fraction(m,hmod,cosm) ! rho0 in [(Msun/h)/(Mpc/h)^3]
              rho0=rho0*msun/Mpc/Mpc/Mpc                 ! Overflow with REAL(4) if you use Mpc**3, this converts to SI units [h^2 kg/m^3]
@@ -2625,11 +2629,11 @@ CONTAINS
     REAL, INTENT(IN) :: pow_1h
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: alpha
+    REAL :: alpha, pow, con
 
     ! alpha is set to one sometimes, which is just the standard halo-model sum of terms
     ! No need to have an IF statement around this
-    IF(hmod%itrans==2 .OR. hmod%itrans==4) THEN
+    IF(hmod%itrans==2 .OR. hmod%itrans==3 .OR. hmod%itrans==4) THEN
 
        ! If either term is less than zero then we need to be careful
        IF(pow_2h<0. .OR. pow_1h<0.) THEN
@@ -2654,7 +2658,10 @@ CONTAINS
     ELSE IF(hmod%itrans==5) THEN
 
        ! Sigmoid transition
-       p_hm=pow_2h+sigmoid_log(1.*k/hmod%knl,1.)*(pow_1h-pow_2h)
+       con=1. ! Constant for the transition
+       pow=1. ! Power for the transition
+       p_hm=pow_2h+sigmoid_log(con*(1.*k/hmod%knl),pow)*(pow_1h-pow_2h)
+       !p_hm=pow_2h+0.5*(1.+tanh(con*(k-hmod%knl)))*(pow_1h-pow_2h)
 
     ELSE
 
@@ -3291,7 +3298,10 @@ CONTAINS
 
     IF(hmod%itrans==2) THEN
        ! From Mead et al. (2015, 2016)   
-       alpha_HMcode=hmod%alp0*hmod%alp1**hmod%neff       
+       alpha_HMcode=hmod%alp0*hmod%alp1**hmod%neff
+    ELSE IF(hmod%itrans==3) THEN
+       ! Specially for HMx, exponentiated Mead et al. (2016) result
+       alpha_HMcode=(hmod%alp0*hmod%alp1**hmod%neff)**1.5
     ELSE IF(hmod%itrans==4) THEN
        ! Specially for HMx, exponentiated Mead et al. (2016) result
        alpha_HMcode=(hmod%alp0*hmod%alp1**hmod%neff)**2.5
