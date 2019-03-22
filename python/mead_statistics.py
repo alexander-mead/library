@@ -8,10 +8,10 @@ def normalisation(f,x1,x2,*args):
     return norm
 
 # Cumulative distribution function via integration
-def cumulative_simple(x,f,x1,*args):
+def cumulative(x,f,x1,*args):
     C,_ = quad(lambda x: f(x,*args), x1, x)
     return C
-cumulative = np.vectorize(cumulative_simple)
+cumulative = np.vectorize(cumulative)
 
 # Draw a random number given a cumulative probability
 def draw_from_distribution(x,Cx):       
@@ -30,6 +30,19 @@ def variance(f,x1,x2,*args):
     m1 = moment(1,f,x1,x2,*args)
     m2 = moment(2,f,x1,x2,*args)
     return m2-m1**2
+
+# Draw random numbers from a 1D distribution
+# n - number of draws to make from f
+# f - f(x,y) to draw from
+# x1,x2 - limits on x axis
+# nx - number of points along x axis
+def draw_from_1D(n,f,x1,x2,nx,*args):
+    x = np.linspace(x1,x2,nx)    
+    C = cumulative(x,f,x1,*args)
+    xi = np.zeros(n)
+    for i in range(n):
+        xi[i] = draw_from_distribution(x,C)
+    return xi
 
 # Draw random numbers from a 2D distribution
 # n - number of draws to make from f
