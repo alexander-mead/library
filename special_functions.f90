@@ -29,7 +29,8 @@ CONTAINS
 
     ! A function that smoothly transitions from 0 to 1 around x
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x, a
+    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: a
     REAL :: xp, xm
 
     xp=x**a
