@@ -82,11 +82,14 @@ CONTAINS
   SUBROUTINE read_mccarthy_gas(x,m,kT,nh,n,infile)
 
     ! Read in a McCarthy format gas file
-    IMPLICIT NONE
-    CHARACTER(len=*), INTENT(IN) :: infile
-    REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:), m(:), nh(:), kT(:)
-    REAL, ALLOCATABLE :: ep(:)
+    IMPLICIT NONE    
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: m(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: nh(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: kT(:)
     INTEGER, INTENT(OUT) :: n
+    CHARACTER(len=*), INTENT(IN) :: infile
+    REAL, ALLOCATABLE :: ep(:)   
     LOGICAL :: lexist   
     REAL :: mue
     
@@ -109,7 +112,7 @@ CONTAINS
     READ(7) m
     READ(7) x
     READ(7) ep ! physical electron pressure for the particle [erg/cm^3]
-    READ(7) nh ! hydrogen number density for the partcle in [/cm^3]
+    READ(7) nh ! physical hydrogen number density for the partcle in [/cm^3]
     CLOSE(7)
 
     ! Convert masses into Solar masses
@@ -167,13 +170,14 @@ CONTAINS
     USE constants
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: kT(n) ! particle internal energy [eV]
-    REAL, INTENT(IN) :: nh(n)    ! hydrogen number density [/cm^3]
+    REAL, INTENT(IN) :: nh(n)    ! physical hydrogen number density [cm^-3]
     REAL, INTENT(IN) :: m(n)     ! hydrodynamic particle mass [Msun/h]
     INTEGER, INTENT(IN) :: n     ! total number of particles
     REAL, INTENT(IN) :: L        ! Box size [Mpc/h]
     REAL, INTENT(IN) :: h        ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors) 
     REAL :: mue, V
     DOUBLE PRECISION :: units, kT_dble(n)
+    INTEGER :: i
 
     ! Exclude gas that is sufficiently dense to not be ionised and be forming stars
     IF(apply_nh_cut) CALL exclude_nh(nh_cut,kT,nh,n)
@@ -214,8 +218,15 @@ CONTAINS
     ! Go back to single precision
     kT=real(kT_dble) ! [eV/cm^3]
 
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Minimum electron pressure [eV/cm^3]: ', MINVAL(kT)
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Maximum electron pressure [eV/cm^3]: ', MAXVAL(kT)
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Done'
     WRITE(*,*)
+
+    DO i=1,100
+       WRITE(*,*) i, kT(i)
+    END DO
+    STOP
 
   END SUBROUTINE convert_kT_to_comoving_electron_pressure
 
