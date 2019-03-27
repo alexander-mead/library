@@ -155,8 +155,8 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum z coordinate [Mpc/h]:', maxval(x(3,:))
     WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum internal energy [eV]:', minval(kT)
     WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum internal energy [eV]:', maxval(kT)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum hydrogen number density [cm^-3]:', minval(nh)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum hydrogen number density [cm^-3]:', maxval(nh)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum physical hydrogen number density [cm^-3]:', minval(nh)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum physical hydrogen number density [cm^-3]:', maxval(nh)
     WRITE(*,*) 'READ_MCCARTHY_GAS: Finished reading in file'
     WRITE(*,*)
 
@@ -218,15 +218,10 @@ CONTAINS
     ! Go back to single precision
     kT=real(kT_dble) ! [eV/cm^3]
 
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Minimum electron pressure [eV/cm^3]: ', MINVAL(kT)
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Maximum electron pressure [eV/cm^3]: ', MAXVAL(kT)
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Minimum electron pressure [eV/cm^3]: ', minval(kT)
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Maximum electron pressure [eV/cm^3]: ', maxval(kT)
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Done'
     WRITE(*,*)
-
-    DO i=1,100
-       WRITE(*,*) i, kT(i)
-    END DO
-    STOP
 
   END SUBROUTINE convert_kT_to_comoving_electron_pressure
 
