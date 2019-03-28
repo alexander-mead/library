@@ -17,6 +17,7 @@ MODULE Limber
   PUBLIC :: calculate_Cl
   PUBLIC :: xcorr_type
   PUBLIC :: Cl_contribution_ell
+  PUBLIC :: Cl_contribution
   PUBLIC :: fill_projection_kernels
   PUBLIC :: read_nz
   PUBLIC :: write_projection_kernel
@@ -77,7 +78,7 @@ MODULE Limber
   ! xcorr - C(l) calculation
   LOGICAL, PARAMETER :: verbose_Limber=.FALSE.   ! Verbosity
   LOGICAL, PARAMETER :: verbose_xi=.FALSE.       ! Verbosity
-  LOGICAL, PARAMETER :: do_contributions=.FALSE. ! Contributions
+  !LOGICAL, PARAMETER :: do_contributions=.FALSE. ! Contributions
 
   ! Maxdist
   REAL, PARAMETER :: dr_max=0.01 ! Small subtraction from maxdist to prevent numerical issues
@@ -329,7 +330,7 @@ CONTAINS
 
   END SUBROUTINE calculate_Cl
 
-  SUBROUTINE Cl_contribution_ell(r1,r2,k,a,pow,nk,na,proj,cosm)
+  SUBROUTINE Cl_contribution_ell(r1,r2,k,a,pow,nk,na,proj,cosm,fbase,fext)
 
     ! Calculates the contribution to each ell of C(l) as a function of z, k, r
     ! Note that using Limber and flat-sky for sensible results limits lmin to ~10
@@ -340,10 +341,12 @@ CONTAINS
     INTEGER, INTENT(IN) :: nk, na ! Number of entries in k and a
     TYPE(projection), INTENT(IN) :: proj(2) ! Projection kernels
     TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+    CHARACTER(len=*), INTENT(IN) :: fbase
+    CHARACTER(len=*), INTENT(IN) :: fext
     REAL :: logk(nk), loga(na), logpow(nk,na)
     REAL, ALLOCATABLE :: ell(:)
     INTEGER :: i, j
-    CHARACTER(len=256) :: fbase, fext, outfile
+    CHARACTER(len=256) :: outfile
 
     REAL, PARAMETER :: lmin=1e1
     REAL, PARAMETER :: lmax=1e4
@@ -360,10 +363,9 @@ CONTAINS
     ell=exp(ell)
 
     ! Now call the contribution subroutine
-    fbase='data/Cl_contribution_ell_'
-    fext='.dat'
+    !fbase='data/Cl_contribution_ell_'
+    !fext='.dat'
     DO i=1,nl
-       !l=2**(i-1) ! Set the l
        outfile=number_file(fbase,i,fext)
        CALL Limber_contribution(ell(i),r1,r2,logk,loga,logpow,nk,na,proj,cosm,outfile)
     END DO
@@ -1394,6 +1396,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
     TYPE(projection) :: proj(2)
     REAL :: r1, r2
+!!$    CHARACTER(len=256) :: fbase, fext
 
     ! Fill out the projection kernel
     CALL fill_projection_kernels(ix,proj,cosm)
@@ -1406,9 +1409,41 @@ CONTAINS
     ! TODO: Array temporary
     CALL calculate_Cl(r1,r2,ell,Cl,nl,k,a,pow,nk,na,proj,cosm)
 
-    ! Do contributions if needed
-    IF(do_contributions) CALL Cl_contribution_ell(r1,r2,k,a,pow,nk,na,proj,cosm)
+!!$    ! Do contributions if needed    
+!!$    IF(do_contributions) THEN
+!!$       fbase='data/Cl_contribution_ell_'
+!!$       fext='.dat'
+!!$       CALL Cl_contribution_ell(r1,r2,k,a,pow,nk,na,proj,cosm,fbase,fext)
+!!$    END IF
 
   END SUBROUTINE xpow_pka
+
+  SUBROUTINE Cl_contribution(ix,k,a,pow,nk,na,cosm,fbase,fext)
+
+    ! Calculates the C(l) for the cross correlation of fields ix(1) and ix(2) given P(k,a)
+    ! TODO: Change to take in ix(n)?
+    IMPLICIT NONE
+    INTEGER, INTENT(INOUT) :: ix(2)
+    REAL, INTENT(IN) :: k(nk)
+    REAL, INTENT(IN) :: a(na)
+    REAL, INTENT(IN) :: pow(nk,na)
+    INTEGER, INTENT(IN) :: nk
+    INTEGER, INTENT(IN) :: na
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    CHARACTER(len=*), INTENT(IN) :: fbase
+    CHARACTER(len=*), INTENT(IN) :: fext
+    TYPE(projection) :: proj(2)
+    REAL :: r1, r2  
+
+    ! Fill out the projection kernel
+    CALL fill_projection_kernels(ix,proj,cosm)
+
+    ! Set the range in comoving distance for the Limber integral [Mpc]
+    r1=0.
+    r2=maxdist(proj)
+
+    CALL Cl_contribution_ell(r1,r2,k,a,pow,nk,na,proj,cosm,fbase,fext)
+
+  END SUBROUTINE Cl_contribution
   
 END MODULE Limber
