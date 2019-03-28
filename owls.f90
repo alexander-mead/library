@@ -12,7 +12,7 @@ MODULE owls
   REAL, PARAMETER :: mfac=1e10 ! Mass conversion factor to get Msun/h
   REAL, PARAMETER :: eV_erg=eV*1e7 ! eV in ergs
 
-  LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. ! Apply a cut in hydrogen density
+  LOGICAL, PARAMETER :: apply_nh_cut=.FALSE. ! Apply a cut in hydrogen density
   REAL, PARAMETER :: nh_cut=0.1 ! Cut in the hydrogen number density [#/cm^3] gas denser than this is not ionised
   
 CONTAINS
@@ -26,12 +26,10 @@ CONTAINS
     INTEGER, INTENT(OUT) :: n
     LOGICAL :: lexist
 
-    ! Write to screen
-    WRITE(*,*) 'READ_MCCARTHY: Reading in binary file: ', trim(infile)
-
     ! Open the file using stream
     INQUIRE(file=infile, exist=lexist)
     IF(.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'
+    WRITE(*,*) 'READ_MCCARTHY: Reading in binary file: ', trim(infile)
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) n
     CLOSE(7)
@@ -64,12 +62,12 @@ CONTAINS
        WRITE(*,*) 'READ_MCCARTHY: Minimum particle mass [Msun/h]:', minval(m)
        WRITE(*,*) 'READ_MCCARTHY: Maximum particle mass [Msun/h]:', maxval(m)
        WRITE(*,*) 'READ_MCCARTHY: Total particle mass [Msun/h]:', sum(m)
-       WRITE(*,*) 'READ_MCCARTHY: Minimum x coordinate [Mpc/h]:', minval(x(1,:))
-       WRITE(*,*) 'READ_MCCARTHY: Maximum x coordinate [Mpc/h]:', maxval(x(1,:))
-       WRITE(*,*) 'READ_MCCARTHY: Minimum y coordinate [Mpc/h]:', minval(x(2,:))
-       WRITE(*,*) 'READ_MCCARTHY: Maximum y coordinate [Mpc/h]:', maxval(x(2,:))
-       WRITE(*,*) 'READ_MCCARTHY: Minimum z coordinate [Mpc/h]:', minval(x(3,:))
-       WRITE(*,*) 'READ_MCCARTHY: Maximum z coordinate [Mpc/h]:', maxval(x(3,:))
+       WRITE(*,*) 'READ_MCCARTHY: Minimum particle x coordinate [Mpc/h]:', minval(x(1,:))
+       WRITE(*,*) 'READ_MCCARTHY: Maximum particle x coordinate [Mpc/h]:', maxval(x(1,:))
+       WRITE(*,*) 'READ_MCCARTHY: Minimum particle y coordinate [Mpc/h]:', minval(x(2,:))
+       WRITE(*,*) 'READ_MCCARTHY: Maximum particle y coordinate [Mpc/h]:', maxval(x(2,:))
+       WRITE(*,*) 'READ_MCCARTHY: Minimum particle z coordinate [Mpc/h]:', minval(x(3,:))
+       WRITE(*,*) 'READ_MCCARTHY: Maximum particle z coordinate [Mpc/h]:', maxval(x(3,:))
        WRITE(*,*) 'READ_MCCARTHY: Finished reading in file'
 
     END IF
@@ -124,13 +122,13 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Note that the electron pressure is *not* comoving'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Hydrogen mass fraction: f_H, Y_H:', fh
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Mean particle mass: mu_p [mu_p]:', mup
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Number of electrons per Hydrogen: X_e/X_H:', Xe
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Number of ions per Hydrogen: X_i/X_H:', Xi
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Mean particle mass: mu_p [m_p]:', mup
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Number of electrons per hydrogen: X_e/X_H:', Xe
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Number of ions per hydrogen: X_i/X_H:', Xi
 
     ! Calculate and write the 'particle mass per free electron: mu_e'
     mue=mup*(Xe+Xi)/Xe
-    WRITE(*,*) 'READ_MCCARTHY_GAS: mu_e:', mue
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Mean particle mass per electron: mu_e [m_p]:', mue
 
     ! Convert the physical hydrogen number density into a physical particle mass density [mp/cm^3]
     ! Note that these densities are physical *not* comoving
@@ -151,16 +149,17 @@ CONTAINS
     ! Write information to the screen
     WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle mass [Msun/h]:', minval(m)
     WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle mass [Msun/h]:', maxval(m)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum x coordinate [Mpc/h]:', minval(x(1,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum x coordinate [Mpc/h]:', maxval(x(1,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum y coordinate [Mpc/h]:', minval(x(2,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum y coordinate [Mpc/h]:', maxval(x(2,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum z coordinate [Mpc/h]:', minval(x(3,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum z coordinate [Mpc/h]:', maxval(x(3,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum internal energy [eV]:', minval(kT)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum internal energy [eV]:', maxval(kT)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum SPH density [mp/cm^3]:', minval(rho)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum SPH density [mp/cm^3]:', maxval(rho)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Total particle mass [Msun/h]:', sum(m)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle x coordinate [Mpc/h]:', minval(x(1,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle x coordinate [Mpc/h]:', maxval(x(1,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle y coordinate [Mpc/h]:', minval(x(2,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle y coordinate [Mpc/h]:', maxval(x(2,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle z coordinate [Mpc/h]:', minval(x(3,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle z coordinate [Mpc/h]:', maxval(x(3,:))
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle internal energy [eV]:', minval(kT)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle internal energy [eV]:', maxval(kT)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle SPH density [mp/cm^3]:', minval(rho)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle SPH density [mp/cm^3]:', maxval(rho)
     WRITE(*,*) 'READ_MCCARTHY_GAS: Finished reading in file'
     WRITE(*,*)
 
