@@ -11,8 +11,9 @@ MODULE owls
   REAL, PARAMETER :: Xi=1.08  ! Number of ions per hydrogen (X_{i/H}; note that all gas particles are either electrons or ions)
   REAL, PARAMETER :: mfac=1e10 ! Mass conversion factor to get Msun/h
   REAL, PARAMETER :: eV_erg=eV*1e7 ! eV in ergs
+  REAL, PARAMETER :: mue=mup*(Xe+Xi)/Xe ! Mean particle mass per electron relative to proton
 
-  LOGICAL, PARAMETER :: apply_nh_cut=.FALSE. ! Apply a cut in hydrogen density
+  LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. ! Apply a cut in hydrogen density
   REAL, PARAMETER :: nh_cut=0.1 ! Cut in the hydrogen number density [#/cm^3] gas denser than this is not ionised
   
 CONTAINS
@@ -84,11 +85,11 @@ CONTAINS
     IMPLICIT NONE    
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:) ! Particle positions [Mpc/h]
     REAL, ALLOCATABLE, INTENT(OUT) :: m(:)   ! Particle mass [Msun/h]
-    REAL, ALLOCATABLE, INTENT(OUT) :: kT(:)  ! Internal energy [eV]
-    REAL, ALLOCATABLE, INTENT(OUT) :: rho(:) ! SPH density [mp/cm^3]
+    REAL, ALLOCATABLE, INTENT(OUT) :: kT(:)  ! Particle internal energy [eV]
+    REAL, ALLOCATABLE, INTENT(OUT) :: rho(:) ! Particle SPH physical density [mp/cm^3]
     INTEGER, INTENT(OUT) :: n                ! Total number of gas particles
     CHARACTER(len=*), INTENT(IN) :: infile   ! Input file name
-    REAL, ALLOCATABLE :: nh(:), ep(:)   
+    REAL, ALLOCATABLE :: nh(:), ep(:)
     LOGICAL :: lexist   
     REAL :: mue
     
@@ -127,7 +128,7 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Number of ions per hydrogen: X_i/X_H:', Xi
 
     ! Calculate and write the 'particle mass per free electron: mu_e'
-    mue=mup*(Xe+Xi)/Xe
+    !mue=mup*(Xe+Xi)/Xe
     WRITE(*,*) 'READ_MCCARTHY_GAS: Mean particle mass per electron: mu_e [m_p]:', mue
 
     ! Convert the physical hydrogen number density into a physical particle mass density [mp/cm^3]
@@ -193,7 +194,7 @@ CONTAINS
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xe:', Xe
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xi:', Xi
 
-    mue=mup*(Xe+Xi)/Xe
+    !mue=mup*(Xe+Xi)/Xe
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_e:', mue
 
     ! Use double precision because all the constants are dreadful 

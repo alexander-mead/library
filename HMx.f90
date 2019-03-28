@@ -2296,7 +2296,7 @@ CONTAINS
              ! Factors to convert from Temp x density -> electron pressure (Temp x n; n is all particle number density) 
              pc=(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
              pc=pc/(eV*(0.01)**(-3)) ! Change units to pressure in [eV/cm^3]
-             pc=pc*cosm%mup/cosm%mue ! Convert from total thermal pressure to electron pressure: BUG
+             pc=pc*cosm%mup/cosm%mue ! Convert from total thermal pressure to electron pressure
              
              ! Add correction to 'electron pressure' haloes
              wk(i,i_pre)=wk(i,i_pre)+pc
