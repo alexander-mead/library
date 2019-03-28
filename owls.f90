@@ -105,7 +105,7 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Which is ~', nint(n**(1./3.)), 'cubed.'
 
     ! Allocate arrays for quantities in the file
-    ALLOCATE(x(3,n),m(n),ep(n),rho(n))
+    ALLOCATE(x(3,n),m(n),ep(n),nh(n))
     
     ! Need to read in 'n' again with stream access
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
@@ -131,21 +131,22 @@ CONTAINS
     ! Calculate and write the 'particle mass per free electron: mu_e'
     mue=mup*(Xe+Xi)/Xe
     WRITE(*,*) 'READ_MCCARTHY_GAS: mu_e:', mue
-    
-    ! Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT [erg]
-    ! This is the temperature of gas particles (equal for all species)
-    ! Temperature is neither comoving nor physical
-    ALLOCATE(kT(n),rho(n))
-    !kT=((Xe+Xi)/Xe)*(ep/nh)*mu*fh
-    kT=(ep/nh)*mue*fh
-    kT=kT/eV_erg ! Convert internal energy from erg to eV    
-    DEALLOCATE(ep) ! Deallocate the physical electron pressure array
 
     ! Convert the physical hydrogen number density into a physical particle mass density [mp/cm^3]
     ! Note that these densities are physical *not* comoving
     ALLOCATE(rho(n))
     rho=nh/fh ! Convert physical hydrogen number density [#/cm^3] to physsical particle SPH density [mp/cm^3]    
-    DEALLOCATE(nh) ! Deallocate the physical electron pressure array  
+    DEALLOCATE(nh) ! Deallocate the physical electron pressure array 
+    
+    ! Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT [erg]
+    ! This is the temperature of gas particles (equal for all species)
+    ! Temperature is neither comoving nor physical
+    ALLOCATE(kT(n))
+    !kT=((Xe+Xi)/Xe)*(ep/nh)*mu*fh
+    !kT=(ep/nh)*mue*fh
+    kT=(ep/rho)*mue
+    kT=kT/eV_erg ! Convert internal energy from erg to eV    
+    DEALLOCATE(ep) ! Deallocate the physical electron pressure array   
 
     ! Write information to the screen
     WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle mass [Msun/h]:', minval(m)
