@@ -7,11 +7,11 @@ MODULE owls
   ! BAHAMAS simulation parameters
   REAL, PARAMETER :: fh=0.752 ! Hydrogen mass fraction
   REAL, PARAMETER :: mup=0.61 ! Mean particle mass relative to proton
-  REAL, PARAMETER :: Xe=1.17  ! Number of electrons per hydrogen (X_{e/H} in my notation)
-  REAL, PARAMETER :: Xi=1.08  ! Number of ions per hydrogen (X_{i/H}; note that all gas particles are either electrons or ions)
+  REAL, PARAMETER :: Xeh=1.17  ! Number of electrons per hydrogen (X_{e/H} in my notation)
+  REAL, PARAMETER :: Xih=1.08  ! Number of ions per hydrogen (X_{i/H}; note that all gas particles are either electrons or ions)
   REAL, PARAMETER :: mfac=1e10 ! Mass conversion factor to get Msun/h
   REAL, PARAMETER :: eV_erg=eV*1e7 ! eV in ergs
-  REAL, PARAMETER :: mue=mup*(Xe+Xi)/Xe ! Mean particle mass per electron relative to proton
+  REAL, PARAMETER :: mue=mup*(Xeh+Xih)/Xeh ! Mean particle mass per electron relative to proton
 
   LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. ! Apply a cut in hydrogen density
   REAL, PARAMETER :: nh_cut=0.1 ! Cut in the hydrogen number density [#/cm^3] gas denser than this is not ionised
@@ -124,8 +124,8 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Hydrogen mass fraction: f_H, Y_H:', fh
     WRITE(*,*) 'READ_MCCARTHY_GAS: Mean particle mass: mu_p [m_p]:', mup
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Number of electrons per hydrogen: X_e/X_H:', Xe
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Number of ions per hydrogen: X_i/X_H:', Xi
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Number of electrons per hydrogen: X_e/X_H:', Xeh
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Number of ions per hydrogen: X_i/X_H:', Xih
 
     ! Calculate and write the 'particle mass per free electron: mu_e'
     !mue=mup*(Xe+Xi)/Xe
@@ -191,8 +191,8 @@ CONTAINS
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Note that this is COMOVING'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Y_H:', fh
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_p:', mup
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xe:', Xe
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xi:', Xi
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xe/h:', Xeh
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xi/h:', Xih
 
     !mue=mup*(Xe+Xi)/Xe
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_e:', mue
@@ -273,5 +273,97 @@ CONTAINS
     END DO
     
   END SUBROUTINE exclude_nh
+
+  CHARACTER(len=32) FUNCTION BAHAMAS_snapshot(z)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: z
+
+    ! Set the redshift
+    IF(z==0.0) THEN
+       BAHAMAS_snapshot='snap32'
+    ELSE IF(z==0.125) THEN
+       BAHAMAS_snapshot='snap31'
+    ELSE IF(z==0.25) THEN
+       BAHAMAS_snapshot='snap30'
+    ELSE IF(z==0.375) THEN
+       BAHAMAS_snapshot='snap29'
+    ELSE IF(z==0.5) THEN
+       BAHAMAS_snapshot='snap28'
+    ELSE IF(z==0.75) THEN
+       BAHAMAS_snapshot='snap27'
+    ELSE IF(z==1.0) THEN
+       BAHAMAS_snapshot='snap26'
+    ELSE IF(z==1.25) THEN
+       BAHAMAS_snapshot='snap25'
+    ELSE IF(z==1.5) THEN
+       BAHAMAS_snapshot='snap24'
+    ELSE IF(z==1.75) THEN
+       BAHAMAS_snapshot='snap23'
+    ELSE IF(z==2.0) THEN
+       BAHAMAS_snapshot='snap22'
+    ELSE IF(z==2.25) THEN
+       BAHAMAS_snapshot='snap21'
+    ELSE IF(z==2.5) THEN
+       BAHAMAS_snapshot='snap20'
+    ELSE IF(z==2.75) THEN
+       BAHAMAS_snapshot='snap19'
+    ELSE IF(z==3.0) THEN
+       BAHAMAS_snapshot='snap18'
+    ELSE
+       WRITE(*,*) 'BAHAMAS_SNAPSHOT: z', z
+       STOP 'BAHAMAS_SNAPSHOT: Error, redshift specified incorrectly'
+    END IF
+
+  END FUNCTION BAHAMAS_snapshot
+
+  SUBROUTINE BAHAMAS_scale_factors(a,n)
+
+    USE cosmology_functions
+    IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(OUT) :: a(:)
+    INTEGER, INTENT(IN) :: n
+
+    IF(ALLOCATED(a)) DEALLOCATE(a)
+    ALLOCATE(a(n))
+
+    IF(n==4) THEN        
+       a(1)=scale_factor_z(2.0)
+       a(2)=scale_factor_z(1.0)
+       a(3)=scale_factor_z(0.5)
+       a(4)=scale_factor_z(0.0)
+    ELSE IF(n==11) THEN
+       a(1)=scale_factor_z(2.0)
+       a(2)=scale_factor_z(1.75)
+       a(3)=scale_factor_z(1.5)
+       a(4)=scale_factor_z(1.25)
+       a(5)=scale_factor_z(1.0)
+       a(6)=scale_factor_z(0.75)
+       a(7)=scale_factor_z(0.5)
+       a(8)=scale_factor_z(0.375)
+       a(9)=scale_factor_z(0.25)
+       a(10)=scale_factor_z(0.125)
+       a(11)=scale_factor_z(0.0)
+    ELSE IF(n==15) THEN
+       a(1)=scale_factor_z(3.0)
+       a(2)=scale_factor_z(2.75)
+       a(3)=scale_factor_z(2.5)
+       a(4)=scale_factor_z(2.25)
+       a(5)=scale_factor_z(2.0)
+       a(6)=scale_factor_z(1.75)
+       a(7)=scale_factor_z(1.5)
+       a(8)=scale_factor_z(1.25)
+       a(9)=scale_factor_z(1.0)
+       a(10)=scale_factor_z(0.75)
+       a(11)=scale_factor_z(0.5)
+       a(12)=scale_factor_z(0.375)
+       a(13)=scale_factor_z(0.25)
+       a(14)=scale_factor_z(0.125)
+       a(15)=scale_factor_z(0.0)
+    ELSE
+       STOP 'BAHAMAS_ZS: Error, nz specified incorrectly'
+    END IF
+
+  END SUBROUTINE BAHAMAS_scale_factors
 
 END MODULE owls
