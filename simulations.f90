@@ -624,19 +624,136 @@ CONTAINS
     ! This forces all particles to be 0<=x<L, so they cannot be exactly at x=L
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n)
+    INTEGER, INTENT(IN) :: n
     REAL, INTENT(IN) :: L
     INTEGER :: i, j
-    INTEGER, INTENT(IN) :: n
+    INTEGER :: m
 
     ! Loop over all particles and coordinates
     DO i=1,n
        DO j=1,3
-          IF(x(j,i)>=L) x(j,i)=x(j,i)-L
-          IF(x(j,i)<0.) x(j,i)=x(j,i)+L
+          !IF(x(j,i)>=L) x(j,i)=x(j,i)-L
+          !IF(x(j,i)<0.) x(j,i)=x(j,i)+L
+          !IF(i==1) WRITE(*,*) m, j, i, x(j,i)
+          m=FLOOR(x(j,i)/L)
+          !IF(i==1) WRITE(*,*) m, j, i, x(j,i)
+          x(j,i)=x(j,i)-m*L
+          !IF(i==1) WRITE(*,*) m, j, i, x(j,i)
+          IF(x(j,i)==-0.) x(j,i)=0.
        END DO
     END DO
 
   END SUBROUTINE replace
+
+  SUBROUTINE random_translation(x,n,L)
+
+    USE random_numbers
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: x(3,n)
+    INTEGER, INTENT(IN) :: n
+    REAL, INTENT(IN) :: L
+    INTEGER :: i
+    REAL :: T(3)
+
+    WRITE(*,*) 'RANDOM_TRANSLATION: Applying random translation'
+
+    ! Calculate and apply the translations
+    DO i=1,3
+       T(i)=random_uniform(0.,L)
+       WRITE(*,*) 'RANDOM_TRANSLATION: Direction', i, 'Translation [Mpc/h]:', T(i)
+       x(i,:)=x(i,:)+T(i)
+    END DO
+
+    ! Replace particles within the cube
+    CALL replace(x,n,L)
+
+    WRITE(*,*) 'RANDOM_TRANSLATION: Done'
+    WRITE(*,*)
+  
+  END SUBROUTINE random_translation
+
+  SUBROUTINE random_inversion(x,n,L)
+
+    USE random_numbers
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: x(3,n)
+    INTEGER, INTENT(IN) :: n
+    REAL, INTENT(IN) :: L
+    INTEGER :: i
+    INTEGER :: pm(3)
+
+    WRITE(*,*) 'RANDOM_INVERSION: Applying random inversion'
+
+    ! Calculate and apply the translations
+    DO i=1,3
+       pm(i)=random_sign()
+       WRITE(*,*) 'RANDOM_INVERSION: Direction', i, 'Sign:', pm(i)
+       x(i,:)=x(i,:)*pm(i)
+    END DO
+
+    ! Replace particles within the cube
+    CALL replace(x,n,L)
+
+    WRITE(*,*) 'RANDOM_INVERSION: Done'
+    WRITE(*,*)
+  
+  END SUBROUTINE random_inversion
+
+  SUBROUTINE random_rotation(x,n,L)
+
+    USE random_numbers
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: x(3,n)
+    INTEGER, INTENT(IN) :: n
+    REAL, INTENT(IN) :: L
+    REAL :: y(3,n)
+    INTEGER :: i
+    INTEGER :: type
+
+    WRITE(*,*) 'RANDOM_ROTATION: Applying random rotation'
+
+    ! Save old coordinates
+    y=x
+
+    ! Choose random rotation
+    type=random_integer(1,6)
+
+    ! Apply random rotation
+    IF(type==1) THEN
+       WRITE(*,*) 'RANDOM_ROTATION: Doing 123'
+       !x(1,:)=y(1,:)
+       !x(2,:)=y(2,:)
+       !x(3,:)=y(3,:)
+    ELSE IF(type==2) THEN
+       WRITE(*,*) 'RANDOM_ROTATION: Doing 132'
+       !x(1,:)=y(1,:)
+       x(2,:)=y(3,:)
+       x(3,:)=y(2,:)
+    ELSE IF(type==3) THEN
+       WRITE(*,*) 'RANDOM_ROTATION: Doing 213'
+       x(1,:)=y(2,:)
+       x(2,:)=y(1,:)
+       !x(3,:)=y(3,:)
+    ELSE IF(type==4) THEN
+       WRITE(*,*) 'RANDOM_ROTATION: Doing 231'
+       x(1,:)=y(2,:)
+       x(2,:)=y(3,:)
+       x(3,:)=y(1,:)
+    ELSE IF(type==5) THEN
+       WRITE(*,*) 'RANDOM_ROTATION: Doing 312'
+       x(1,:)=y(3,:)
+       x(2,:)=y(1,:)
+       x(3,:)=y(2,:)
+    ELSE IF(type==6) THEN
+       WRITE(*,*) 'RANDOM_ROTATION: Doing 321'
+       x(1,:)=y(3,:)
+       !x(2,:)=y(2,:)
+       x(3,:)=y(1,:)
+    END IF
+    WRITE(*,*) 'RANDOM_ROTATION: Done'
+    WRITE(*,*)
+  
+  END SUBROUTINE random_rotation
 
   SUBROUTINE particle_bin_2D(x,n,L,w,d,m,ibin)
 
