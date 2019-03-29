@@ -43,12 +43,12 @@ CONTAINS
        
   END SUBROUTINE RNG_set
 
-  FUNCTION random_integer(i1,i2)
+  INTEGER FUNCTION random_integer(i1,i2)
 
     ! Picks an integer with uniform random probability between i1 and i2 spaced with 1
     IMPLICIT NONE
-    INTEGER :: random_integer
-    INTEGER, INTENT(IN) :: i1, i2
+    INTEGER, INTENT(IN) :: i1 ! Lower bound
+    INTEGER, INTENT(IN) :: i2 ! Upper bound
     INTEGER :: n
     REAL*4 :: rand ! Necessary to define for ifort
 
@@ -59,12 +59,23 @@ CONTAINS
 
   END FUNCTION random_integer
 
-  FUNCTION random_uniform(x1,x2)
+  INTEGER FUNCTION random_sign()
+
+    ! Returns either +1 or -1 with equal probability
+    IMPLICIT NONE
+
+    random_sign=random_integer(0,1)
+
+    IF(random_sign==0) random_sign=-1
+    
+  END FUNCTION random_sign
+
+  REAL FUNCTION random_uniform(x1,x2)
 
     ! Produces a uniform random number between x1 and x2
     IMPLICIT NONE
-    REAL :: random_uniform
-    REAL, INTENT(IN) :: x1,x2
+    REAL, INTENT(IN) :: x1 ! Lower bound
+    REAL, INTENT(IN) :: x2 ! Upper bound
     REAL*4 :: rand !I think this needs to be defined for ifort
 
     ! rand is some inbuilt function
