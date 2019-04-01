@@ -5,16 +5,19 @@ MODULE owls
   IMPLICIT NONE
 
   ! BAHAMAS simulation parameters
-  REAL, PARAMETER :: fh=0.752 ! Hydrogen mass fraction
-  REAL, PARAMETER :: mup=0.61 ! Mean particle mass relative to proton
-  REAL, PARAMETER :: Xeh=1.17  ! Number of electrons per hydrogen (X_{e/H} in my notation)
-  REAL, PARAMETER :: Xih=1.08  ! Number of ions per hydrogen (X_{i/H}; note that all gas particles are either electrons or ions)
-  REAL, PARAMETER :: mfac=1e10 ! Mass conversion factor to get Msun/h
+  REAL, PARAMETER :: fh=0.752      ! Hydrogen mass fraction
+  REAL, PARAMETER :: mup=0.61      ! Mean particle mass relative to proton
+  REAL, PARAMETER :: Xeh=1.17      ! Number of electrons per hydrogen (X_{e/H} in my notation)
+  REAL, PARAMETER :: Xih=1.08      ! Number of ions per hydrogen (X_{i/H}; all gas particles are either electrons or ions)
+  REAL, PARAMETER :: mfac=1e10     ! Mass conversion factor to get Msun/h
   REAL, PARAMETER :: eV_erg=eV*1e7 ! eV in ergs
+
+  ! BAHAMAS derived parameters
   REAL, PARAMETER :: mue=mup*(Xeh+Xih)/Xeh ! Mean particle mass per electron relative to proton
 
-  LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. ! Apply a cut in hydrogen density
-  REAL, PARAMETER :: nh_cut=0.1 ! Cut in the hydrogen number density [#/cm^3] gas denser than this is not ionised
+  ! Cuts to remove neutral gas
+  LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. ! Apply a cut in hydrogen density?
+  REAL, PARAMETER :: nh_cut=0.1             ! Cut in the hydrogen number density [#/cm^3] gas denser than this is not ionised
   
 CONTAINS
 
@@ -91,7 +94,6 @@ CONTAINS
     CHARACTER(len=*), INTENT(IN) :: infile   ! Input file name
     REAL, ALLOCATABLE :: nh(:), ep(:)
     LOGICAL :: lexist   
-    REAL :: mue
     
     ! Read in the binary file
     INQUIRE(file=infile, exist=lexist)
@@ -179,7 +181,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: n     ! total number of particles
     REAL, INTENT(IN) :: L        ! box size [Mpc/h]
     REAL, INTENT(IN) :: h        ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors) 
-    REAL :: mue, V
+    REAL :: V
     DOUBLE PRECISION :: units, kT_dble(n)
 
     ! Exclude gas that is sufficiently dense to not be ionised and be forming stars
