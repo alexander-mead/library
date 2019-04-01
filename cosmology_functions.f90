@@ -1287,21 +1287,6 @@ CONTAINS
 
   END FUNCTION integrand_de
 
-  REAL FUNCTION redshift_a(a)
-
-    ! The redshift corresponding to scale-factor a
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: a
-
-    IF(a==0.) THEN
-       WRITE(*,*) 'REDSHIFT_A: a', a
-       STOP 'REDSHIFT_A: Error, routine called with a = 0'
-    END IF
-
-    redshift_a=-1.+1./a
-
-  END FUNCTION redshift_a
-
   REAL FUNCTION scale_factor_z(z)
 
     ! The scale factor corresponding to redshift z
@@ -1317,7 +1302,22 @@ CONTAINS
 
   END FUNCTION scale_factor_z
 
-  REAL FUNCTION redshift_r(r,cosm)
+  REAL FUNCTION redshift_a(a)
+
+    ! The redshift corresponding to scale-factor a
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a
+
+    IF(a==0.) THEN
+       WRITE(*,*) 'REDSHIFT_A: a', a
+       STOP 'REDSHIFT_A: Error, routine called with a = 0'
+    END IF
+
+    redshift_a=-1.+1./a
+
+  END FUNCTION redshift_a
+
+  REAL FUNCTION scale_factor_r(r,cosm)
 
     ! The redshift corresponding to comoving distance r
     IMPLICIT NONE
@@ -1325,7 +1325,20 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%has_distance .EQV. .FALSE.) CALL init_distances(cosm)
-    redshift_r=redshift_a(find(r,cosm%r,cosm%a_r,cosm%n_r,3,3,2))
+    scale_factor_r=find(r,cosm%r,cosm%a_r,cosm%n_r,3,3,2)
+
+  END FUNCTION scale_factor_r
+
+  REAL FUNCTION redshift_r(r,cosm)
+
+    ! The redshift corresponding to comoving distance r
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: r
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+
+    !IF(cosm%has_distance .EQV. .FALSE.) CALL init_distances(cosm)
+    !redshift_r=redshift_a(find(r,cosm%r,cosm%a_r,cosm%n_r,3,3,2))
+    redshift_r=redshift_a(scale_factor_r(r,cosm))
 
   END FUNCTION redshift_r
 
@@ -1387,6 +1400,7 @@ CONTAINS
   REAL FUNCTION comoving_distance(a,cosm)
 
     ! The comoving distance to a galaxy at scale-factor a
+    ! TODO: Include low-z approximation?
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm

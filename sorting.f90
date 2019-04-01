@@ -1,24 +1,18 @@
 MODULE sorting
 
   INTERFACE index
-
      MODULE PROCEDURE index_real
-     MODULE PROCEDURE index_int
-     
+     MODULE PROCEDURE index_int     
   END INTERFACE index
   
   INTERFACE bubble_index
-
      MODULE PROCEDURE bubble_index_real
-     MODULE PROCEDURE bubble_index_int
-     
+     MODULE PROCEDURE bubble_index_int     
   END INTERFACE bubble_index
 
   INTERFACE stupid_index
-
      MODULE PROCEDURE stupid_index_real
-     MODULE PROCEDURE stupid_index_int
-     
+     MODULE PROCEDURE stupid_index_int     
   END INTERFACE stupid_index
 
 CONTAINS

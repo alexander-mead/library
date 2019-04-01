@@ -2,30 +2,59 @@ MODULE field_operations
   
 CONTAINS
 
-  INTEGER FUNCTION NGP_cell(x,L,m)
+!!$  INTEGER FUNCTION NGP_cell(x,L,m,periodic)
+!!$
+!!$    ! Find the integer coordinates of the cell that coordinate x is in
+!!$    IMPLICIT NONE
+!!$    REAL, INTENT(IN) :: x    ! Particle position
+!!$    REAL, INTENT(IN) :: L    ! Box size (could be Mpc/h or angle or something else)
+!!$    INTEGER, INTENT(IN) :: m ! Number of mesh cells in grid
+!!$    !LOGICAL, INTENT(IN) :: periodic ! Does the mesh cover a periodic volume
+!!$
+!!$    IF(x==0.) THEN
+!!$       ! Catch this edge case
+!!$       NGP_cell=1
+!!$    ELSE IF(x==L) THEN
+!!$       STOP 'NGP_CELL: Error, particle is at x=L'
+!!$    ELSE
+!!$       NGP_cell=ceiling(x*real(m)/L)
+!!$    END IF
+!!$
+!!$    IF(periodic .AND. (NGP_cell<1 .OR. NGP_cell>m)) THEN
+!!$       WRITE(*,*) 'NGP_CELL: Particle position:', x
+!!$       WRITE(*,*) 'NGP_CELL: Box size:', L
+!!$       WRITE(*,*) 'NGP_CELL: Mesh size:', m 
+!!$       WRITE(*,*) 'NGP_CELL: Assigned cell:', NGP_cell
+!!$       STOP 'NGP_CELL: Error, the assigned cell position is outside the mesh'
+!!$    END IF
+!!$
+!!$  END FUNCTION NGP_cell
+
+   INTEGER FUNCTION NGP_cell(x,L,m)
 
     ! Find the integer coordinates of the cell that coordinate x is in
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x ! Particle position
-    REAL, INTENT(IN) :: L ! Box size
+    REAL, INTENT(IN) :: x    ! Particle position
+    REAL, INTENT(IN) :: L    ! Box size (could be Mpc/h or angle or something else)
     INTEGER, INTENT(IN) :: m ! Number of mesh cells in grid
+    !LOGICAL, INTENT(IN) :: periodic ! Does the mesh cover a periodic volume
 
     IF(x==0.) THEN
        ! Catch this edge case
        NGP_cell=1
-    ELSE IF(x==L) THEN
-       STOP 'NGP_CELL: Error, particle is at x=L'
+!!$    ELSE IF(x==L) THEN
+!!$       STOP 'NGP_CELL: Error, particle is at x=L'
     ELSE
        NGP_cell=ceiling(x*real(m)/L)
     END IF
 
-    IF(NGP_cell<1 .OR. NGP_cell>m) THEN
-       WRITE(*,*) 'NGP_CELL: Particle position [Mpc/h]:', x
-       WRITE(*,*) 'NGP_CELL: Box size [Mpc/h]:', L
-       WRITE(*,*) 'NGP_CELL: Mesh size:', m 
-       WRITE(*,*) 'NGP_CELL: Assigned cell:', NGP_cell
-       STOP 'NGP_CELL: Error, the assigned cell position is outside the mesh'
-    END IF
+!!$    IF(periodic .AND. (NGP_cell<1 .OR. NGP_cell>m)) THEN
+!!$       WRITE(*,*) 'NGP_CELL: Particle position:', x
+!!$       WRITE(*,*) 'NGP_CELL: Box size:', L
+!!$       WRITE(*,*) 'NGP_CELL: Mesh size:', m 
+!!$       WRITE(*,*) 'NGP_CELL: Assigned cell:', NGP_cell
+!!$       STOP 'NGP_CELL: Error, the assigned cell position is outside the mesh'
+!!$    END IF
 
   END FUNCTION NGP_cell
 
@@ -33,8 +62,9 @@ CONTAINS
 
     ! Gets the coordinates of cell centre i in box of length L with m cells
     IMPLICIT NONE
-    REAL, INTENT(IN) :: L
-    INTEGER, INTENT(IN) :: i, m
+    INTEGER, INTENT(IN) :: i ! Integer label for cell
+    REAL, INTENT(IN) :: L    ! Actual size corresponding to volume
+    INTEGER, INTENT(IN) :: m ! Number of mesh cells
 
     cell_position=L*(i-0.5)/real(m)
 

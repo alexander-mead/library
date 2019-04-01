@@ -181,7 +181,6 @@ CONTAINS
     REAL, INTENT(IN) :: h        ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors) 
     REAL :: mue, V
     DOUBLE PRECISION :: units, kT_dble(n)
-    INTEGER :: i
 
     ! Exclude gas that is sufficiently dense to not be ionised and be forming stars
     IF(apply_nh_cut) CALL exclude_nh(nh_cut,kT,rho,n)

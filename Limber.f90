@@ -846,7 +846,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: r
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: z, a, nz
+    REAL :: z, a
     REAL, PARAMETER :: sig=0.5
 
     z=redshift_r(r,cosm)

@@ -16,7 +16,62 @@ MODULE array_operations
 !!$     MODULE PROCEDURE progression_log_double
 !!$  END INTERFACE progression_log
 
+  INTERFACE add_to_array
+     MODULE PROCEDURE add_to_array_2D
+     MODULE PROCEDURE add_to_array_3D
+  END INTERFACE add_to_array
+
 CONTAINS
+
+  SUBROUTINE add_to_array_2D(a,m,v,i)
+
+    ! Add value 'v' to array 'a' at location 'i' in array
+    ! If 'i' is outside the array range then this routine does nothing
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: a(m,m)
+    INTEGER, INTENT(IN) :: m
+    REAL, INTENT(IN) :: v
+    INTEGER, INTENT(IN) :: i(2)
+    INTEGER :: j
+    LOGICAL :: bin
+    INTEGER, PARAMETER :: dim=2
+
+    bin=.TRUE.
+    DO j=1,dim
+       IF(i(j)<1 .OR. i(j)>m) THEN
+          bin=.FALSE.
+          EXIT
+       END IF
+    END DO
+
+    IF(bin) a(i(1),i(2))=a(i(1),i(2))+v
+    
+  END SUBROUTINE add_to_array_2D
+
+   SUBROUTINE add_to_array_3D(a,m,v,i)
+
+    ! Add value 'v' to array 'a' at location 'i' in array
+    ! If 'i' is outside the array range then this routine does nothing
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: a(m,m,m)
+    INTEGER, INTENT(IN) :: m
+    REAL, INTENT(IN) :: v
+    INTEGER, INTENT(IN) :: i(3)
+    INTEGER :: j
+    LOGICAL :: bin
+    INTEGER, PARAMETER :: dim=3
+
+    bin=.TRUE.
+    DO j=1,dim
+       IF(i(j)<1 .OR. i(j)>m) THEN
+          bin=.FALSE.
+          EXIT
+       END IF
+    END DO
+
+    IF(bin) a(i(1),i(2),i(3))=a(i(1),i(2),i(3))+v
+    
+  END SUBROUTINE add_to_array_3D
 
   INTEGER FUNCTION array_position(x,a,n)
 

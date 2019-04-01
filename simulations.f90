@@ -8,6 +8,25 @@ MODULE simulations
   
   IMPLICIT NONE
 
+  INTERFACE particle_bin
+     MODULE PROCEDURE particle_bin_2D
+     MODULE PROCEDURE particle_bin_3D
+  END INTERFACE particle_bin
+
+  INTERFACE particle_bin_average
+     MODULE PROCEDURE particle_bin_average_3D
+  END INTERFACE particle_bin_average
+
+  INTERFACE NGP
+     MODULE PROCEDURE NGP_2D
+     MODULE PROCEDURE NGP_3D     
+  END INTERFACE NGP
+
+  INTERFACE CIC
+     MODULE PROCEDURE CIC_2D
+     MODULE PROCEDURE CIC_3D
+  END INTERFACE CIC
+
 CONTAINS
 
   SUBROUTINE correlation_function(rmin,rmax,r,xi,n,nr,x1,x2,w1,w2,n1,n2,L)
@@ -235,6 +254,7 @@ CONTAINS
 
   SUBROUTINE sharp_Fourier_density_contrast(x,n,L,dk,m)
 
+    ! Bin particles and create the Fourier modes with appropriate sharpening for the binning strategy
     USE fft
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(3,n), L
@@ -243,13 +263,11 @@ CONTAINS
     REAL :: w(n), dbar
     REAL :: d(m,m,m)
     DOUBLE COMPLEX :: dk_out(m,m,m)
-
-    ! Things that would like to be PARAMETERS
-    INTEGER :: ibin=2 !Set the binning strategy to CIC
+    INTEGER, PARAMETER :: ibin=2 ! 2 - CIC binning
 
     ! Bin the particles with equal weight to create the particle-number field in cells [dimensionless]
     w=1.
-    CALL particle_bin(x,n,L,w,d,m,ibin)
+    CALL particle_bin(x,n,L,w,d,m,ibin,all=.TRUE.,periodic=.TRUE.)
 
     ! Now compute the mean particle number density in a cell [dimensionless]
     dbar=real(n)/real(m)**3
@@ -270,18 +288,15 @@ CONTAINS
   SUBROUTINE write_density_slice_ascii(x,n,z1,z2,L,m,outfile)
 
     ! Write out a slice of density field
-    ! x(3,n) - particle positions
-    ! x1->x2, y1->y2, z1->z2 - range for the slice
-    ! L - box size [Mpc/h]
-    ! s - Smoothing length [Mpc/h]
-    ! m - mesh size for the density field
-    ! outfile - output file
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x(3,n), L
-    REAL, INTENT(IN) :: z1, z2    
-    INTEGER, INTENT(IN) :: n, m
-    REAL :: d(m,m)
-    CHARACTER(len=*), INTENT(IN) :: outfile
+    REAL, INTENT(IN) :: x(3,n) ! Particle positions
+    INTEGER, INTENT(IN) :: n   ! Number of particles
+    REAL, INTENT(IN) :: z1     ! Starting point for slab
+    REAL, INTENT(IN) :: z2     ! Starting point for slab
+    REAL, INTENT(IN) :: L      ! Simulation box size
+    INTEGER, INTENT(IN) :: m   ! Mesh size for output
+    CHARACTER(len=*), INTENT(IN) :: outfile ! Output file name
+    REAL :: d(m,m)   
     REAL :: xp, yp, smoothing
     INTEGER :: i, j    
 
@@ -313,19 +328,18 @@ CONTAINS
   SUBROUTINE make_projected_density(x,n,z1,z2,L,d,m)
 
     ! Write out a slice of density field
-    ! x(n), y(n), z(n) - particle positions
-    ! x1->x2, y1->y2, z1->z2 - range for the slice
-    ! L - box size [Mpc/h]
-    ! m - mesh size for the density field
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x(3,n), L
-    REAL, INTENT(IN) :: z1, z2
-    REAL, INTENT(OUT) :: d(m,m)
-    INTEGER, INTENT(IN) :: n, m
+    REAL, INTENT(IN) :: x(3,n) ! Particle positions
+    INTEGER, INTENT(IN) :: n ! Number of particles
+    REAL, INTENT(IN) :: z1 ! Starting z for slab
+    REAL, INTENT(IN) :: z2 ! Finishing z for slab
+    REAL, INTENT(IN) :: L  ! Length of simulation
+    REAL, INTENT(OUT) :: d(m,m) ! Projected density field
+    INTEGER, INTENT(IN) :: m ! Mesh
     REAL :: vfac, dbar
     REAL, ALLOCATABLE :: x2D(:,:), w2D(:)
-    INTEGER :: i, i2D, n2D    
-    INTEGER :: ibin=2 ! CIC binning (cannot be PARAMETER)
+    INTEGER :: i, i2D, n2D
+    INTEGER, PARAMETER :: ibin=2 ! 2 - CIC binning
 
     ! Count the number of particles falling into the slice
     n2D=0
@@ -347,7 +361,7 @@ CONTAINS
     ! Bin for the 2D density field and convert to relative density
     ALLOCATE(w2D(n2D))
     w2D=1.
-    CALL particle_bin_2D(x2D,n2D,L,w2D,d,m,ibin)
+    CALL particle_bin(x2D,n2D,L,w2D,d,m,ibin,all=.TRUE.,periodic=.TRUE.)
     DEALLOCATE(x2D)
     vfac=(z2-z1)/L
     dbar=(real(n)*vfac)/real(m**2)
@@ -413,10 +427,10 @@ CONTAINS
        x(:,i)=x(:,i)+s(:,ix(1),ix(2),ix(3)) ! Do the displacement
     END DO
 
-    CALL replace(x,n,L)
-
     WRITE(*,*) 'ZELDOVICH_DISPLACEMENT: Done'
     WRITE(*,*)
+
+    CALL replace(x,n,L)
 
   END SUBROUTINE Zeldovich_displacement
 
@@ -629,6 +643,8 @@ CONTAINS
     INTEGER :: i, j
     INTEGER :: m
 
+    WRITE(*,*) 'REPLACE: Replacing particles that may have strayed'
+
     ! Loop over all particles and coordinates
     DO i=1,n
        DO j=1,3
@@ -642,6 +658,9 @@ CONTAINS
           IF(x(j,i)==-0.) x(j,i)=0.
        END DO
     END DO
+
+    WRITE(*,*) 'REPLACE: Done'
+    WRITE(*,*)
 
   END SUBROUTINE replace
 
@@ -660,15 +679,16 @@ CONTAINS
     ! Calculate and apply the translations
     DO i=1,3
        T(i)=random_uniform(0.,L)
-       WRITE(*,*) 'RANDOM_TRANSLATION: Direction', i, 'Translation [Mpc/h]:', T(i)
+       WRITE(*,*) 'RANDOM_TRANSLATION: Direction', i
+       WRITE(*,*) 'RANDOM_TRANSLATION: Translation [Mpc/h]:', T(i)
        x(i,:)=x(i,:)+T(i)
     END DO
 
-    ! Replace particles within the cube
-    CALL replace(x,n,L)
-
     WRITE(*,*) 'RANDOM_TRANSLATION: Done'
     WRITE(*,*)
+
+    ! Replace particles within the cube
+    CALL replace(x,n,L)
   
   END SUBROUTINE random_translation
 
@@ -691,23 +711,21 @@ CONTAINS
        x(i,:)=x(i,:)*pm(i)
     END DO
 
-    ! Replace particles within the cube
-    CALL replace(x,n,L)
-
     WRITE(*,*) 'RANDOM_INVERSION: Done'
     WRITE(*,*)
+
+    ! Replace particles within the cube
+    CALL replace(x,n,L)
   
   END SUBROUTINE random_inversion
 
-  SUBROUTINE random_rotation(x,n,L)
+  SUBROUTINE random_rotation(x,n)
 
     USE random_numbers
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n)
     INTEGER, INTENT(IN) :: n
-    REAL, INTENT(IN) :: L
     REAL :: y(3,n)
-    INTEGER :: i
     INTEGER :: type
 
     WRITE(*,*) 'RANDOM_ROTATION: Applying random rotation'
@@ -755,186 +773,111 @@ CONTAINS
   
   END SUBROUTINE random_rotation
 
-  SUBROUTINE particle_bin_2D(x,n,L,w,d,m,ibin)
+  SUBROUTINE particle_bin_2D(x,n,L,w,d,m,ibin,all,periodic)
 
     ! Bin particle properties onto a mesh, summing as you go
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x(2,n) ! 2D particle positions [Mpc/h]
-    INTEGER, INTENT(IN) :: n ! Total number of particles in area
-    REAL, INTENT(IN) :: L ! Area side length [Mpc/h]
-    REAL, INTENT(IN) :: w(n) ! Weight array
-    REAL, INTENT(OUT) :: d(m,m) ! Output of eventual 2D density field
-    INTEGER, INTENT(IN) :: m ! Mesh size for density field
-    INTEGER, INTENT(INOUT) :: ibin ! Binning strategy 
+    REAL, INTENT(IN) :: x(2,n)       ! 2D particle positions
+    INTEGER, INTENT(IN) :: n         ! Total number of particles in area
+    REAL, INTENT(IN) :: L            ! Area side length
+    REAL, INTENT(IN) :: w(n)         ! Weight array
+    REAL, INTENT(OUT) :: d(m,m)      ! Output of eventual 2D density field
+    INTEGER, INTENT(IN) :: m         ! Mesh size for density field
+    INTEGER, INTENT(IN) :: ibin   ! Binning strategy
+    LOGICAL, INTENT(IN) :: all       ! Should all particles be contributing to the binning?
+    LOGICAL, INTENT(IN) :: periodic  ! Is the volume periodic?
 
-    IF(ibin==-1) THEN
-       WRITE(*,*) 'Choose binning strategy'
-       WRITE(*,*) '1 - NGP'
-       WRITE(*,*) '2 - CIC'
-       READ(*,*) ibin
-       WRITE(*,*)
-    END IF
+    IF(periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_2D: Very strange to have periodic and not all particles contribute'
+
+!!$    IF(ibin==-1) THEN
+!!$       WRITE(*,*) 'PARTICLE_BIN_2D: Choose binning strategy'
+!!$       WRITE(*,*) 'PARTICLE_BIN_2D: 1 - NGP'
+!!$       WRITE(*,*) 'PARTICLE_BIN_2D: 2 - CIC'
+!!$       READ(*,*) ibin
+!!$       WRITE(*,*)
+!!$    END IF
 
     IF(ibin==1) THEN
-       CALL NGP2D(x,n,L,w,d,m)
+       CALL NGP_2D(x,n,L,w,d,m,all)
     ELSE IF(ibin==2) THEN
-       CALL CIC2D(x,n,L,w,d,m)
+       CALL CIC_2D(x,n,L,w,d,m,all,periodic)
     ELSE
-       STOP 'PARTICLE_BIN: Error, ibin not specified correctly'
+       STOP 'PARTICLE_BIN_2D: Error, ibin not specified correctly'
     END IF
 
   END SUBROUTINE particle_bin_2D
 
-  SUBROUTINE NGP2D(x,n,L,w,d,m)
-
-    ! Nearest-grid-point binning routine
-    USE statistics
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: x(2,n) ! 2D particle positions [Mpc/h]
-    INTEGER, INTENT(IN) :: n ! Total number of particles in area
-    REAL, INTENT(IN) :: L ! Area side length [Mpc/h]
-    REAL, INTENT(IN) :: w(n) ! Weight array
-    REAL, INTENT(OUT) :: d(m,m) ! Output of eventual 2D density field
-    INTEGER, INTENT(IN) :: m ! Mesh size for density field
-    INTEGER :: i, ix, iy
-
-    WRITE(*,*) 'NGP2D: Binning particles and creating field'
-    WRITE(*,*) 'NGP2D: Cells:', m
-
-    ! Set array to zero explicitly
-    d=0.
-
-    DO i=1,n
-
-       ! Get the integer coordinates of the cell
-       ix=NGP_cell(x(1,i),L,m)
-       iy=NGP_cell(x(2,i),L,m)
-
-       ! Do the binning
-       d(ix,iy)=d(ix,iy)+w(i)
-
-    END DO
-
-    WRITE(*,*) 'NGP2D: Binning complete'
-    WRITE(*,*)
-
-  END SUBROUTINE NGP2D
-
-  SUBROUTINE CIC2D(x,n,L,w,d,m)
-
-    ! This could probably be usefully combined with CIC somehow
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: x(2,n) ! 2D particle positions [Mpc/h]
-    INTEGER, INTENT(IN) :: n ! Total number of particles in area
-    REAL, INTENT(IN) :: L ! Area side length [Mpc/h]
-    REAL, INTENT(IN) :: w(n) ! Weight array
-    REAL, INTENT(OUT) :: d(m,m) ! Output of eventual 2D density field
-    INTEGER, INTENT(IN) :: m ! Mesh size for density field
-    INTEGER :: i, ix, iy, ixn, iyn
-    REAL :: dx, dy
-
-    WRITE(*,*) 'CIC2D: Binning particles and creating density field'
-    WRITE(*,*) 'CIC2D: Cells:', m
-
-    ! Set array to zero explicitly
-    d=0.
-
-    DO i=1,n
-
-       ! Get the cell interger coordinates
-       ix=NGP_cell(x(1,i),L,m)
-       iy=NGP_cell(x(2,i),L,m)
-
-       ! dx, dy in cell units, away from cell centre
-       dx=(x(1,i)/L)*real(m)-(real(ix)-0.5)
-       dy=(x(2,i)/L)*real(m)-(real(iy)-0.5)
-
-       ! Find CIC weights in x
-       IF(dx>0.) THEN
-          ixn=ix+1
-          IF(ixn>m) ixn=1
-       ELSE
-          ixn=ix-1
-          dx=-dx  
-          IF(ixn<1) ixn=m    
-       END IF
-
-       ! Find CIC weights in y
-       IF(dy>=0.) THEN
-          iyn=iy+1
-          IF(iyn>m) iyn=1
-       ELSE
-          iyn=iy-1
-          dy=-dy
-          IF(iyn<1) iyn=m
-       END IF
-
-       ! Carry out CIC binning
-       d(ix,iy)=d(ix,iy)+(1.-dx)*(1.-dy)*w(i)
-       d(ix,iyn)=d(ix,iyn)+(1.-dx)*dy*w(i)
-       d(ixn,iy)=d(ixn,iy)+dx*(1.-dy)*w(i)
-       d(ixn,iyn)=d(ixn,iyn)+dx*dy*w(i)
-
-    END DO
-
-    WRITE(*,*) 'CIC2D: Binning complete'
-    WRITE(*,*)
-
-  END SUBROUTINE CIC2D
-
-  SUBROUTINE particle_bin(x,n,L,w,d,m,ibin)
+  SUBROUTINE particle_bin_3D(x,n,L,w,d,m,ibin,all,periodic)
 
     !Bin particle properties onto a mesh, summing as you go
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, m
-    INTEGER, INTENT(INOUT) :: ibin
+    REAL, INTENT(IN) :: x(3,n)
+    INTEGER, INTENT(IN) :: n
+    REAL, INTENT(IN) :: L
+    REAL, INTENT(IN) :: w(n)
     REAL, INTENT(INOUT) :: d(m,m,m)
-    REAL, INTENT(IN) :: x(3,n), L, w(n)
+    INTEGER, INTENT(IN) :: m
+    INTEGER, INTENT(IN) :: ibin
+    LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
+    LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
 
-    IF(ibin==-1) THEN
-       WRITE(*,*) 'Choose binning strategy'
-       WRITE(*,*) '1 - NGP'
-       WRITE(*,*) '2 - CIC'
-       READ(*,*) ibin
-       WRITE(*,*)
-    END IF
+    IF(periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_3D: Very strange to have periodic and not all particles contribute'
+
+!!$    IF(ibin==-1) THEN
+!!$       WRITE(*,*) 'PARTICLE_BIN_3D: Choose binning strategy'
+!!$       WRITE(*,*) 'PARTICLE_BIN_3D: 1 - NGP'
+!!$       WRITE(*,*) 'PARTICLE_BIN_3D: 2 - CIC'
+!!$       READ(*,*) ibin
+!!$       WRITE(*,*)
+!!$    END IF
 
     IF(ibin==1) THEN
-       CALL NGP(x,n,L,w,d,m)
+       CALL NGP_3D(x,n,L,w,d,m,all)
     ELSE IF(ibin==2) THEN
-       CALL CIC(x,n,L,w,d,m)
+       CALL CIC_3D(x,n,L,w,d,m,all,periodic)
     ELSE
-       STOP 'PARTICLE_BIN: Error, ibin not specified correctly'
+       STOP 'PARTICLE_BIN_3D: Error, ibin not specified correctly'
     END IF
 
-  END SUBROUTINE particle_bin
+  END SUBROUTINE particle_bin_3D
 
-  SUBROUTINE particle_bin_average(x,n,L,w,d,m,ibin)
+  SUBROUTINE particle_bin_average_3D(x,n,L,w,d,m,ibin,all,periodic)
 
-    !Bin particle properties onto a mesh, averaging properties over cells
+    ! Bin particle properties onto a mesh, averaging properties over cells
+    ! TODO: This should probably not be used if there are any empty cells
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, m, ibin
+    REAL, INTENT(IN) :: x(3,n)
+    INTEGER, INTENT(IN) :: n
+    REAL, INTENT(IN) :: L
+    REAL, INTENT(IN) :: w(n)
     REAL, INTENT(OUT) :: d(m,m,m)
-    REAL, INTENT(IN) :: x(3,n), L, w(n)
+    INTEGER, INTENT(IN) :: m
+    INTEGER, INTENT(IN) :: ibin
+    LOGICAL, INTENT(IN) :: all
+    LOGICAL, INTENT(IN) :: periodic
     REAL :: number(m,m,m), one(n)
     INTEGER :: i, j, k, sum
 
-    !Need an array of ones (wasteful for memory, could use pointer maybe?)
+    IF(periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_3D: Very strange to have periodic and not all particles contribute'
+
+    ! Need an array of ones 
+    ! TODO: wasteful for memory, could use pointer maybe?
     one=1.
 
     !Call the binning twice, first to bin particle property and second to count
     IF(ibin==1) THEN
-       CALL NGP(x,n,L,w,d,m)
-       CALL NGP(x,n,L,one,number,m)
+       CALL NGP_3D(x,n,L,w,d,m,all)
+       CALL NGP_3D(x,n,L,one,number,m,all)
     ELSE IF(ibin==2) THEN
-       CALL CIC(x,n,L,w,d,m)
-       CALL CIC(x,n,L,one,number,m)
+       CALL CIC_3D(x,n,L,w,d,m,all,periodic)
+       CALL CIC_3D(x,n,L,one,number,m,all,periodic)
     ELSE
        STOP 'PARTICLE_BIN_AVERAGE: Error, ibin not specified correctly'
     END IF
 
-    !Now loop over all elements of the field and average over the number of contributions
-    !Not sure how this will work for CIC binning if cell only gets a small contribution from one particle
+    ! Now want to average over all elements in each cell, but need to be wary of cells with zero particles
+    ! Loop over all elements of the field and average over the number of contributions
+    ! Not sure how this will work for CIC binning if cell only gets a small contribution from one particle
     sum=0
     WRITE(*,*) 'PARTICLE_BIN_AVERAGE: Averaging over particles in cells'
     DO k=1,m
@@ -953,135 +896,570 @@ CONTAINS
     WRITE(*,*) 'PARTICLE_BIN_AVERAGE: Done'
     WRITE(*,*)
 
-  END SUBROUTINE particle_bin_average
+  END SUBROUTINE particle_bin_average_3D
 
-  SUBROUTINE NGP(x,n,L,w,d,m)
+  SUBROUTINE NGP_2D(x,n,L,w,d,m,all)
 
     ! Nearest-grid-point binning routine
     USE statistics
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, m
-    REAL, INTENT(OUT) :: d(m,m,m)
-    REAL, INTENT(IN) :: x(3,n), w(n), L
-    INTEGER :: i, ix, iy, iz
-
-    WRITE(*,*) 'NGP: Binning particles and creating field'
-    WRITE(*,*) 'NGP: Cells:', m
+    REAL, INTENT(IN) :: x(2,n)  ! particle positions
+    INTEGER, INTENT(IN) :: n    ! Total number of particles in area
+    REAL, INTENT(IN) :: L       ! Area side length
+    REAL, INTENT(IN) :: w(n)    ! Weight array
+    REAL, INTENT(OUT) :: d(m,m) ! Output of eventual 2D density field
+    INTEGER, INTENT(IN) :: m    ! Mesh size for density field
+    LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
+    INTEGER :: i, j, ix(2)
+    LOGICAL :: outside
+    INTEGER, PARAMETER :: dim=2
+    
+    WRITE(*,*) 'NGP_2D: Binning particles and creating field'
+    WRITE(*,*) 'NGP_2D: Binning region size:', L
+    WRITE(*,*) 'NGP_2D: Cells:', m
 
     ! Set array to zero explicitly
     d=0.
 
     DO i=1,n
 
-       ! Get integer coordiante of the cell
-       ix=NGP_cell(x(1,i),L,m)
-       iy=NGP_cell(x(2,i),L,m)
-       iz=NGP_cell(x(3,i),L,m)
+       ! Get the integer coordinates of the cell
+       DO j=1,dim
+          ix(j)=NGP_cell(x(j,i),L,m)
+       END DO
 
-       ! Bin
-       d(ix,iy,iz)=d(ix,iy,iz)+w(i)
+       ! Check if particles are outside the mesh region
+       outside=.FALSE.
+       DO j=1,dim
+          IF(ix(j)<1 .OR. ix(j)>m) outside=.TRUE.
+       END DO
+
+       ! If the particle is outside the mesh region then either make an error or cycle
+       IF(outside) THEN
+          IF(all) THEN
+             DO j=1,dim
+                WRITE(*,*) 'NGP_2D: Coordinate:', j
+                WRITE(*,*) 'NGP_2D: position:', x(j,i)
+                WRITE(*,*) 'NGP_2D: cell: ', ix(j)
+             END DO
+             STOP 'NGP_2D: Error, particle outside boundary'
+          ELSE
+             CYCLE
+          END IF
+       END IF 
+
+       ! Do the binning
+       d(ix(1),ix(2))=d(ix(1),ix(2))+w(i)
 
     END DO
 
-    WRITE(*,*) 'NGP: Average:', mean(d,m)
-    WRITE(*,*) 'NGP: RMS:', sqrt(variance(d,m))
-    WRITE(*,*) 'NGP: Minimum:', minval(real(d))
-    WRITE(*,*) 'NGP: Maximum:', maxval(real(d))
-    WRITE(*,*) 'NGP: Binning complete'
+    WRITE(*,*) 'NGP_2D: Binning complete'
     WRITE(*,*)
 
-  END SUBROUTINE NGP
+  END SUBROUTINE NGP_2D
 
-  SUBROUTINE CIC(x,n,L,w,d,m)
+  SUBROUTINE NGP_3D(x,n,L,w,d,m,all)
 
-    ! Cloud-in-cell binning routine
+    ! Nearest-grid-point binning routine
     USE statistics
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, m
-    REAL, INTENT(IN) :: x(3,n), L, w(n)
-    REAL, INTENT(OUT) :: d(m,m,m)
-    INTEGER :: ix, iy, iz, ixn, iyn, izn
-    INTEGER :: i
-    REAL :: dx, dy, dz
+    REAL, INTENT(IN) :: x(3,n)    ! particle positions
+    INTEGER, INTENT(IN) :: n      ! Total number of particles in area
+    REAL, INTENT(IN) :: L         ! Area side length
+    REAL, INTENT(IN) :: w(n)      ! Weight array
+    REAL, INTENT(OUT) :: d(m,m,m) ! Output of eventual 2D density field
+    INTEGER, INTENT(IN) :: m      ! Mesh size for density field
+    LOGICAL, INTENT(IN) :: all    ! Should all particles be contributing to the binning?
+    INTEGER :: i, j, ix(3)
+    LOGICAL :: outside
+    INTEGER, PARAMETER :: dim=3
 
-    WRITE(*,*) 'CIC: Binning particles and creating field'
-    WRITE(*,*) 'CIC: Cells:', m
+    WRITE(*,*) 'NGP_3D: Binning particles and creating field'
+    WRITE(*,*) 'NGP_3D: Binning region size:', L
+    WRITE(*,*) 'NGP_3D: Cells:', m
 
     ! Set array to zero explicitly
     d=0.
 
     DO i=1,n
 
-       ! Integer coordinates of the cell the particle is in
-       ix=NGP_cell(x(1,i),L,m)
-       iy=NGP_cell(x(2,i),L,m)
-       iz=NGP_cell(x(3,i),L,m)
+       ! Get the integer coordinates of the cell
+       DO j=1,dim
+          ix(j)=NGP_cell(x(j,i),L,m)
+       END DO
 
-       ! dx, dy, dz in box units
-       dx=(x(1,i)/L)*real(m)-(real(ix)-0.5)
-       dy=(x(2,i)/L)*real(m)-(real(iy)-0.5)
-       dz=(x(3,i)/L)*real(m)-(real(iz)-0.5)
+       ! Check if particles are outside the mesh region
+       outside=.FALSE.
+       DO j=1,dim
+          IF(ix(j)<1 .OR. ix(j)>m) outside=.TRUE.
+       END DO
 
-       IF(dx>=0.) THEN
-          ixn=ix+1
-          IF(ixn>m) ixn=1
-       ELSE
-          ixn=ix-1
-          dx=-dx  
-          IF(ixn<1) ixn=m    
-       END IF
+       ! If the particle is outside the mesh region then either make an error or cycle
+       IF(outside) THEN
+          IF(all) THEN
+             DO j=1,dim
+                WRITE(*,*) 'NGP_3D: Coordinate:', j
+                WRITE(*,*) 'NGP_3D: position:', x(j,i)
+                WRITE(*,*) 'NGP_3D: cell: ', ix(j)
+             END DO
+             STOP 'NGP_3D: Error, particle outside boundary'
+          ELSE
+             CYCLE
+          END IF
+       END IF 
 
-       IF(dy>=0.) THEN
-          iyn=iy+1
-          IF(iyn>m) iyn=1
-       ELSE
-          iyn=iy-1
-          dy=-dy
-          IF(iyn<1) iyn=m
-       END IF
-
-       IF(dz>=0.) THEN
-          izn=iz+1
-          IF(izn>m) izn=1
-       ELSE
-          izn=iz-1
-          dz=-dz
-          IF(izn<1) izn=m
-       END IF
-
-       ! Do the CIC binning
-       d(ix,iy,iz)=d(ix,iy,iz)+(1.-dx)*(1.-dy)*(1.-dz)*w(i)
-       d(ix,iy,izn)=d(ix,iy,izn)+(1.-dx)*(1.-dy)*dz*w(i)
-       d(ix,iyn,iz)=d(ix,iyn,iz)+(1.-dx)*dy*(1.-dz)*w(i)
-       d(ixn,iy,iz)=d(ixn,iy,iz)+dx*(1.-dy)*(1.-dz)*w(i)
-       d(ix,iyn,izn)=d(ix,iyn,izn)+(1.-dx)*dy*dz*w(i)
-       d(ixn,iyn,iz)=d(ixn,iyn,iz)+dx*dy*(1.-dz)*w(i)
-       d(ixn,iy,izn)=d(ixn,iy,izn)+dx*(1.-dy)*dz*w(i)
-       d(ixn,iyn,izn)=d(ixn,iyn,izn)+dx*dy*dz*w(i)
+       ! Do the binning
+       d(ix(1),ix(2),ix(3))=d(ix(1),ix(2),ix(3))+w(i)
 
     END DO
 
-    ! Write out some statistics to screen
-    WRITE(*,*) 'CIC: Average:', mean(d,m)
-    WRITE(*,*) 'CIC: RMS:', sqrt(variance(d,m))
-    WRITE(*,*) 'CIC: Minimum:', minval(real(d))
-    WRITE(*,*) 'CIC: Maximum:', maxval(real(d))
-    WRITE(*,*) 'CIC: Binning complete'
+    WRITE(*,*) 'NGP_3D: Binning complete'
     WRITE(*,*)
 
-  END SUBROUTINE CIC
+  END SUBROUTINE NGP_3D
+
+!!$  SUBROUTINE NGP_3D(x,n,L,w,d,m,all)
+!!$
+!!$    ! Nearest-grid-point binning routine
+!!$    USE statistics
+!!$    IMPLICIT NONE
+!!$    REAL, INTENT(IN) :: x(3,n)
+!!$    INTEGER, INTENT(IN) :: n
+!!$    REAL, INTENT(IN) :: L
+!!$    REAL, INTENT(IN) :: w(n)
+!!$    REAL, INTENT(OUT) :: d(m,m,m)
+!!$    INTEGER, INTENT(IN) :: m
+!!$    LOGICAL, INTENT(IN) :: all
+!!$    INTEGER :: i, ix, iy, iz
+!!$    LOGICAL :: outside
+!!$
+!!$    WRITE(*,*) 'NGP_3D: Binning particles and creating field'
+!!$    WRITE(*,*) 'NGP_3D: Cells:', m
+!!$
+!!$    ! Set array to zero explicitly
+!!$    d=0.
+!!$
+!!$    DO i=1,n
+!!$
+!!$       ! Get integer coordiante of the cell
+!!$       ix=NGP_cell(x(1,i),L,m)
+!!$       iy=NGP_cell(x(2,i),L,m)
+!!$       iz=NGP_cell(x(3,i),L,m)
+!!$
+!!$       IF(ix<1 .OR. ix>m .OR. iy<1 .OR. iy>m .OR. iz<1 .OR. iz>m) THEN
+!!$          outside=.TRUE.
+!!$       ELSE
+!!$          outside=.FALSE.
+!!$       END IF
+!!$
+!!$       IF(outside) THEN
+!!$          IF(all) THEN
+!!$             WRITE(*,*) 'NGP_3D: x position [Mpc/h]:', x(1,i)
+!!$             WRITE(*,*) 'NGP_3D: y position [Mpc/h]:', x(2,i)
+!!$             WRITE(*,*) 'NGP_3D: z position [Mpc/h]:', x(3,i)
+!!$             WRITE(*,*) 'NGP_3D: x cell: ', ix
+!!$             WRITE(*,*) 'NGP_3D: y cell: ', iy
+!!$             WRITE(*,*) 'NGP_3D: z cell: ', iz
+!!$             STOP 'NGP_3D: Error, particle outside boundary'
+!!$          ELSE
+!!$             CYCLE
+!!$          END IF
+!!$       END IF 
+!!$
+!!$       ! Bin
+!!$       d(ix,iy,iz)=d(ix,iy,iz)+w(i)
+!!$
+!!$    END DO
+!!$
+!!$    WRITE(*,*) 'NGP_3D: Average:', mean(d,m)
+!!$    WRITE(*,*) 'NGP_3D: RMS:', sqrt(variance(d,m))
+!!$    WRITE(*,*) 'NGP_3D: Minimum:', minval(real(d))
+!!$    WRITE(*,*) 'NGP_3D: Maximum:', maxval(real(d))
+!!$    WRITE(*,*) 'NGP_3D: Binning complete'
+!!$    WRITE(*,*)
+!!$
+!!$  END SUBROUTINE NGP_3D
+
+  SUBROUTINE CIC_2D(x,n,L,w,d,m,all,periodic)
+
+    ! Cloud-in-cell binning routine
+    USE array_operations
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x(2,n)  ! 2D particle positions
+    INTEGER, INTENT(IN) :: n    ! Total number of particles in area
+    REAL, INTENT(IN) :: L       ! Area side length
+    REAL, INTENT(IN) :: w(n)    ! Weight array
+    REAL, INTENT(OUT) :: d(m,m) ! Output of eventual 2D density field
+    INTEGER, INTENT(IN) :: m    ! Mesh size for density field
+    LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
+    LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
+    INTEGER :: i, j, k
+    INTEGER :: ix(2), iy(2), ic(2)
+    REAL :: dx(2), eps
+    LOGICAL :: outside
+    INTEGER, PARAMETER :: dim=2
+
+    WRITE(*,*) 'CIC_2D: Binning particles and creating density field'
+    WRITE(*,*) 'CIC_2D: Binning region size:', L
+    WRITE(*,*) 'CIC_2D: Cells:', m
+
+    ! Set array to zero explicitly
+    d=0.
+
+    DO i=1,n
+
+       ! Get the cell interger coordinates
+       DO j=1,dim
+          ix(j)=NGP_cell(x(j,i),L,m)
+       END DO
+
+       ! Check to make sure particles are all within the binning region
+       IF(all) THEN
+
+          ! See if particles are outside region
+          outside=.FALSE.
+          DO j=1,dim
+             IF(ix(j)<1 .OR. ix(j)>m) outside=.TRUE.
+          END DO
+
+          ! Write to screen if they are
+          IF(outside) THEN
+             DO j=1,dim
+                WRITE(*,*) 'CIC_2D: Coordinate', j
+                WRITE(*,*) 'CIC_2D: Position:', x(j,i)             
+                WRITE(*,*) 'CIC_2D: Cell: ', ix(j)
+             END DO
+             STOP 'CIC_2D: Error, particle outside boundary'
+          END IF
+
+       END IF
+
+       ! dx, dy in cell units, away from cell centre
+       DO j=1,dim
+          dx(j)=(x(j,i)/L)*real(m)-(real(ix(j))-0.5)
+       END DO
+
+       ! Find which other cell needs a contribution
+       DO j=1,dim
+          IF(dx(j)>=0.) THEN
+             iy(j)=ix(j)+1
+          ELSE
+             iy(j)=ix(j)-1
+             dx(j)=-dx(j) ! So that dx is always positive
+          END IF
+       END DO
+
+       ! Deal with periodicity
+       IF(periodic) THEN
+          DO j=1,dim
+             IF(iy(j)==m+1) THEN
+                iy(j)=1
+             ELSE IF(iy(j)==0) THEN
+                iy(j)=m
+             END IF
+          END DO
+       END IF
+
+       ! Carry out CIC binning
+       DO k=1,4
+          IF(k==1) THEN
+             ! Main cell
+             eps=(1.-dx(1))*(1.-dx(2))
+             ic(1)=ix(1)
+             ic(2)=ix(2)
+          ELSE IF(k==2) THEN
+             ! Offset in x
+             eps=dx(1)*(1.-dx(2))
+             ic(1)=iy(1)
+             ic(2)=ix(2)            
+          ELSE IF(k==3) THEN
+             ! Offset in y
+             eps=(1.-dx(1))*dx(2)
+             ic(1)=ix(1)
+             ic(2)=iy(2)
+          ELSE IF(k==4) THEN
+             ! Offset in xy
+             eps=dx(1)*dx(2)
+             ic(1)=iy(1)
+             ic(2)=iy(2)             
+          END IF         
+          CALL add_to_array(d,m,eps*w(i),ic)
+       END DO       
+
+    END DO
+
+    WRITE(*,*) 'CIC_2D: Binning complete'
+    WRITE(*,*)
+
+  END SUBROUTINE CIC_2D
+
+!!$  SUBROUTINE CIC_3D(x,n,L,w,d,m,all,periodic)
+!!$
+!!$    ! Cloud-in-cell binning routine
+!!$    USE statistics
+!!$    IMPLICIT NONE
+!!$    REAL, INTENT(IN) :: x(3,n)
+!!$    INTEGER, INTENT(IN) :: n
+!!$    REAL, INTENT(IN) :: L
+!!$    REAL, INTENT(IN) :: w(n)
+!!$    REAL, INTENT(OUT) :: d(m,m,m)
+!!$    INTEGER, INTENT(IN) :: m
+!!$    LOGICAL, INTENT(IN) :: all
+!!$    LOGICAL, INTENT(IN) :: periodic
+!!$    INTEGER :: ix, iy, iz, ixn, iyn, izn
+!!$    INTEGER :: i
+!!$    REAL :: dx, dy, dz
+!!$    LOGICAL :: outside
+!!$
+!!$    WRITE(*,*) 'CIC_3D: Binning particles and creating field'
+!!$    WRITE(*,*) 'CIC_3D: Cells:', m
+!!$
+!!$    ! Set array to zero explicitly
+!!$    d=0.
+!!$
+!!$    DO i=1,n
+!!$
+!!$       ! Integer coordinates of the cell the particle is in
+!!$       ix=NGP_cell(x(1,i),L,m)
+!!$       iy=NGP_cell(x(2,i),L,m)
+!!$       iz=NGP_cell(x(3,i),L,m)
+!!$
+!!$       ! Get integer coordiante of the cell
+!!$       ix=NGP_cell(x(1,i),L,m)
+!!$       iy=NGP_cell(x(2,i),L,m)
+!!$       iz=NGP_cell(x(3,i),L,m)
+!!$
+!!$       IF(ix<1 .OR. ix>m .OR. iy<1 .OR. iy>m .OR. iz<1 .OR. iz>m) THEN
+!!$          outside=.TRUE.
+!!$       ELSE
+!!$          outside=.FALSE.
+!!$       END IF
+!!$
+!!$       IF(outside) THEN
+!!$          IF(all) THEN
+!!$             WRITE(*,*) 'CIC_3D: x position [Mpc/h]:', x(1,i)
+!!$             WRITE(*,*) 'CIC_3D: y position [Mpc/h]:', x(2,i)
+!!$             WRITE(*,*) 'CIC_3D: z position [Mpc/h]:', x(3,i)
+!!$             WRITE(*,*) 'CIC_3D: x cell: ', ix
+!!$             WRITE(*,*) 'CIC_3D: y cell: ', iy
+!!$             WRITE(*,*) 'CIC_3D: z cell: ', iz
+!!$             STOP 'CIC_3D: Error, particle outside boundary'
+!!$          ELSE
+!!$             CYCLE
+!!$          END IF
+!!$       END IF 
+!!$
+!!$       ! dx, dy, dz in box units
+!!$       dx=(x(1,i)/L)*real(m)-(real(ix)-0.5)
+!!$       dy=(x(2,i)/L)*real(m)-(real(iy)-0.5)
+!!$       dz=(x(3,i)/L)*real(m)-(real(iz)-0.5)
+!!$
+!!$       IF(dx>=0.) THEN
+!!$          ixn=ix+1
+!!$          IF(ixn>m) ixn=1
+!!$       ELSE
+!!$          ixn=ix-1
+!!$          dx=-dx  
+!!$          IF(ixn<1) ixn=m    
+!!$       END IF
+!!$
+!!$       IF(dy>=0.) THEN
+!!$          iyn=iy+1
+!!$          IF(iyn>m) iyn=1
+!!$       ELSE
+!!$          iyn=iy-1
+!!$          dy=-dy
+!!$          IF(iyn<1) iyn=m
+!!$       END IF
+!!$
+!!$       IF(dz>=0.) THEN
+!!$          izn=iz+1
+!!$          IF(izn>m) izn=1
+!!$       ELSE
+!!$          izn=iz-1
+!!$          dz=-dz
+!!$          IF(izn<1) izn=m
+!!$       END IF
+!!$
+!!$       ! Do the CIC binning
+!!$       d(ix,iy,iz)=d(ix,iy,iz)+(1.-dx)*(1.-dy)*(1.-dz)*w(i)
+!!$       d(ix,iy,izn)=d(ix,iy,izn)+(1.-dx)*(1.-dy)*dz*w(i)
+!!$       d(ix,iyn,iz)=d(ix,iyn,iz)+(1.-dx)*dy*(1.-dz)*w(i)
+!!$       d(ixn,iy,iz)=d(ixn,iy,iz)+dx*(1.-dy)*(1.-dz)*w(i)
+!!$       d(ix,iyn,izn)=d(ix,iyn,izn)+(1.-dx)*dy*dz*w(i)
+!!$       d(ixn,iyn,iz)=d(ixn,iyn,iz)+dx*dy*(1.-dz)*w(i)
+!!$       d(ixn,iy,izn)=d(ixn,iy,izn)+dx*(1.-dy)*dz*w(i)
+!!$       d(ixn,iyn,izn)=d(ixn,iyn,izn)+dx*dy*dz*w(i)
+!!$
+!!$    END DO
+!!$
+!!$    ! Write out some statistics to screen
+!!$    WRITE(*,*) 'CIC_3D: Average:', mean(d,m)
+!!$    WRITE(*,*) 'CIC_3D: RMS:', sqrt(variance(d,m))
+!!$    WRITE(*,*) 'CIC_3D: Minimum:', minval(real(d))
+!!$    WRITE(*,*) 'CIC_3D: Maximum:', maxval(real(d))
+!!$    WRITE(*,*) 'CIC_3D: Binning complete'
+!!$    WRITE(*,*)
+!!$
+!!$  END SUBROUTINE CIC_3D
+
+   SUBROUTINE CIC_3D(x,n,L,w,d,m,all,periodic)
+
+    ! Cloud-in-cell binning routine
+    USE array_operations
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x(3,n)    ! 3D particle positions
+    INTEGER, INTENT(IN) :: n      ! Total number of particles in area
+    REAL, INTENT(IN) :: L         ! Area side length
+    REAL, INTENT(IN) :: w(n)      ! Weight array
+    REAL, INTENT(OUT) :: d(m,m,m) ! Output of eventual 2D density field
+    INTEGER, INTENT(IN) :: m      ! Mesh size for density field
+    LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
+    LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
+    INTEGER :: i, j, k
+    INTEGER :: ix(3), iy(3), ic(3)
+    REAL :: dx(3), eps
+    LOGICAL :: outside
+    INTEGER, PARAMETER :: dim=3
+
+    WRITE(*,*) 'CIC_3D: Binning particles and creating density field'
+    WRITE(*,*) 'CIC_3D: Binning region size:', L
+    WRITE(*,*) 'CIC_3D: Cells:', m
+
+    ! Set array to zero explicitly
+    d=0.
+
+    DO i=1,n
+
+       ! Get the cell interger coordinates
+       DO j=1,dim
+          ix(j)=NGP_cell(x(j,i),L,m)
+       END DO
+
+       ! Check to make sure particles are all within the binning region
+       IF(all) THEN
+
+          ! See if particles are outside region
+          outside=.FALSE.
+          DO j=1,dim
+             IF(ix(j)<1 .OR. ix(j)>m) outside=.TRUE.
+          END DO
+
+          ! Write to screen if they are
+          IF(outside) THEN
+             DO j=1,dim
+                WRITE(*,*) 'CIC_3D: Coordinate', j
+                WRITE(*,*) 'CIC_3D: Position:', x(j,i)             
+                WRITE(*,*) 'CIC_3D: Cell: ', ix(j)
+             END DO
+             STOP 'CIC_3D: Error, particle outside boundary'
+          END IF
+
+       END IF
+
+       ! dx, dy in cell units, away from cell centre
+       DO j=1,dim
+          dx(j)=(x(j,i)/L)*real(m)-(real(ix(j))-0.5)
+       END DO
+
+       ! Find which other cell needs a contribution
+       DO j=1,dim
+          IF(dx(j)>=0.) THEN
+             iy(j)=ix(j)+1
+          ELSE
+             iy(j)=ix(j)-1
+             dx(j)=-dx(j) ! So that dx is always positive
+          END IF
+       END DO
+
+       ! Deal with periodicity
+       IF(periodic) THEN
+          DO j=1,dim
+             IF(iy(j)==m+1) THEN
+                iy(j)=1
+             ELSE IF(iy(j)==0) THEN
+                iy(j)=m
+             END IF
+          END DO
+       END IF
+
+       ! Carry out CIC binning
+       DO k=1,8
+          IF(k==1) THEN
+             ! Main cell
+             eps=(1.-dx(1))*(1.-dx(2))*(1-dx(3))
+             ic(1)=ix(1)
+             ic(2)=ix(2)
+             ic(3)=ix(3)
+          ELSE IF(k==2) THEN
+             ! Offset in x
+             eps=dx(1)*(1.-dx(2))*(1-dx(3))
+             ic(1)=iy(1)
+             ic(2)=ix(2)
+             ic(3)=ix(3)
+          ELSE IF(k==3) THEN
+             ! Offset in y
+             eps=(1.-dx(1))*dx(2)*(1-dx(3))
+             ic(1)=ix(1)
+             ic(2)=iy(2)
+             ic(3)=ix(3)
+          ELSE IF(k==4) THEN
+             ! Offset in z
+             eps=(1.-dx(1))*(1.-dx(2))*dx(3)
+             ic(1)=ix(1)
+             ic(2)=ix(2)
+             ic(3)=iy(3)
+          ELSE IF(k==5) THEN
+             ! Offset in xy
+             eps=dx(1)*dx(2)*(1-dx(3))
+             ic(1)=iy(1)
+             ic(2)=iy(2)
+             ic(3)=ix(3)
+          ELSE IF(k==6) THEN
+             ! Offset in yz
+             eps=(1.-dx(1))*dx(2)*dx(3)
+             ic(1)=ix(1)
+             ic(2)=iy(2)
+             ic(3)=iy(3)
+          ELSE IF(k==7) THEN
+             ! Offset in xz
+             eps=dx(1)*(1.-dx(2))*dx(3)
+             ic(1)=iy(1)
+             ic(2)=ix(2)
+             ic(3)=iy(3)
+          ELSE IF(k==8) THEN
+             ! Offset in xyz
+             eps=dx(1)*dx(2)*dx(3)
+             ic(1)=iy(1)
+             ic(2)=iy(2)
+             ic(3)=iy(3)
+          END IF         
+          CALL add_to_array(d,m,eps*w(i),ic)
+       END DO       
+
+    END DO
+
+    WRITE(*,*) 'CIC_3D: Binning complete'
+    WRITE(*,*)
+
+  END SUBROUTINE CIC_3D
 
   SUBROUTINE SOD(x,n,L,w,d,m,Rs)
 
     ! Spherical density routine
     IMPLICIT NONE
+    REAL, INTENT(IN) :: x(3,n)
     INTEGER, INTENT(IN) :: n
+    REAL, INTENT(IN) :: L
+    REAL, INTENT(IN) :: w(n)
     REAL, INTENT(OUT) :: d(m,m,m)
-    REAL :: xc(3,m,m,m)
-    REAL, INTENT(IN) :: x(3,n), L, w(n), Rs
-    REAL :: r, dx, dy, dz
-    INTEGER :: i, j, k, ix, iy, iz, jx, jy, jz, kx, ky, kz
     INTEGER, INTENT(IN) :: m
+    REAL, INTENT(IN) :: Rs
+    !LOGICAL, INTENT(IN) :: all
+    !LOGICAL, INTENT(IN) :: periodic
+    REAL :: xc(3,m,m,m)    
+    REAL :: r, dx, dy, dz
+    INTEGER :: i, j, k, ix, iy, iz, jx, jy, jz, kx, ky, kz    
 
     WRITE(*,*) 'SOD: Binning particles and creating density field'
     WRITE(*,*) 'SOD: Cells:', m
@@ -1398,11 +1776,12 @@ CONTAINS
     REAL, ALLOCATABLE :: count1(:,:), count2(:,:), count3(:,:), count4(:,:), count5(:,:)
     REAL, ALLOCATABLE :: field1(:,:), field2(:,:), field3(:,:), field4(:,:), field5(:,:)
     CHARACTER(len=256) :: base, ext, output
+    LOGICAL :: all, periodic
 
     REAL, PARAMETER :: dc=4. ! Refinement conditions (particles-per-cell)
     REAL, PARAMETER :: fcell=1. ! Smoothing factor over cell sizes (maybe should be set to 1; 0.75 looks okay)
     LOGICAL, PARAMETER :: test=.FALSE. ! Activate test mode
-    INTEGER :: ibin=2 ! CIC binning (cannot be parameter, but would like to be)
+    INTEGER, PARAMETER :: ibin=2 ! 2- CIC binnings
 
     IF(r>4) STOP 'WRITE_ADAPTIVE_FIELD: Error, too many refinement leves requested. Maximum is 4'
 
@@ -1501,25 +1880,30 @@ CONTAINS
     ALLOCATE(field4(m4,m4),count4(m4,m4))
     ALLOCATE(field5(m5,m5),count5(m5,m5))
 
+    all=.TRUE. ! All particles in array y contribute to the binning
+    IF(Lsub==L) THEN
+       periodic=.TRUE. ! Only possibly periodic if the subvolume size is the same as the actual size
+    ELSE
+       periodic=.FALSE.
+    END IF
+
     ! Do binning of particles on each mesh resolution
-    ! Binning assume that the area is periodic so you may get some weird edge effects
-    CALL particle_bin_2D(y,np,Lsub,ones,count1,m1,ibin)
-    CALL particle_bin_2D(y,np,Lsub,ones,count2,m2,ibin)
-    CALL particle_bin_2D(y,np,Lsub,ones,count3,m3,ibin)
-    CALL particle_bin_2D(y,np,Lsub,ones,count4,m4,ibin)
-    CALL particle_bin_2D(y,np,Lsub,ones,count5,m5,ibin)
+    CALL particle_bin(y,np,Lsub,ones,count1,m1,ibin,all,periodic)
+    CALL particle_bin(y,np,Lsub,ones,count2,m2,ibin,all,periodic)
+    CALL particle_bin(y,np,Lsub,ones,count3,m3,ibin,all,periodic)
+    CALL particle_bin(y,np,Lsub,ones,count4,m4,ibin,all,periodic)
+    CALL particle_bin(y,np,Lsub,ones,count5,m5,ibin,all,periodic)
 
     ! Now bin field values, rather than particle numbers
-    ! Binning assume that the area is periodic so You may get some weird edge effect
     ! Need to multiply the weights through by factors of mesh to give the contribution to the mesh cell
     ! For example, for overdensity u is m_i/M, where M is now the subvolume mass
     ! This changes it to be the contribution to the density per mesh cell
     ! Same for pressure contributions
-    CALL particle_bin_2D(y,np,Lsub,u*m1**2,field1,m1,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u*m2**2,field2,m2,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u*m3**2,field3,m3,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u*m4**2,field4,m4,ibin)
-    CALL particle_bin_2D(y,np,Lsub,u*m5**2,field5,m5,ibin)
+    CALL particle_bin(y,np,Lsub,u*m1**2,field1,m1,ibin,all,periodic)
+    CALL particle_bin(y,np,Lsub,u*m2**2,field2,m2,ibin,all,periodic)
+    CALL particle_bin(y,np,Lsub,u*m3**2,field3,m3,ibin,all,periodic)
+    CALL particle_bin(y,np,Lsub,u*m4**2,field4,m4,ibin,all,periodic)
+    CALL particle_bin(y,np,Lsub,u*m5**2,field5,m5,ibin,all,periodic)
 
     ! Smooth fields
     CALL smooth2D(field1,m1,fcell*Lsub/real(m1),Lsub)
