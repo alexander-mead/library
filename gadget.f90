@@ -6,20 +6,30 @@ CONTAINS
 
   SUBROUTINE read_gadget(x,v,id,L,om_m,om_v,h,m,a,z,n,infile)
 
-    IMPLICIT NONE
-    CHARACTER(len=*), INTENT(IN) :: infile
-    REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:), v(:,:)
+    IMPLICIT NONE    
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: v(:,:)   
     INTEGER, ALLOCATABLE, INTENT(OUT) :: id(:)
-    REAL, INTENT(OUT) :: L, z, a, om_m, om_v, h, m
+    REAL, INTENT(OUT) :: L
+    REAL, INTENT(OUT) :: om_m
+    REAL, INTENT(OUT) :: om_v
+    REAL, INTENT(OUT) :: h
+    REAL, INTENT(OUT) :: m
+    REAL, INTENT(OUT) :: a
+    REAL, INTENT(OUT) :: z
     INTEGER, INTENT(OUT) :: n
+    CHARACTER(len=*), INTENT(IN) :: infile
     DOUBLE PRECISION :: massarr(6), z8, a8, L8, om_m8, om_v8, h8
     INTEGER :: np(6), np2(6), crap
+    LOGICAL :: lexist
 
     !Parameters
     REAL, PARAMETER :: Lunit=1000. !Convert from Gadget2 kpc to Mpc
     REAL, PARAMETER :: Munit=1e10 !Convert from Gadget2 10^10 Msun to Msun
 
     WRITE(*,*) 'READ_GADGET: Reading in Gadget-2 file: ', trim(infile)
+    INQUIRE(file=infile, exist=lexist)
+    IF(.NOT. lexist) STOP 'READ_GADGET: Error, input file does not exist'
 
     OPEN(7,file=infile,form='unformatted',status='old')
     READ(7) np, massarr, a8, z8, crap, crap, np2, crap, crap, L8, om_m8, om_v8, h8
@@ -71,10 +81,18 @@ CONTAINS
 
   SUBROUTINE write_gadget(x,v,id,L,om_m,om_v,h,m,a,z,n,outfile)
 
-    IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, id(n)
-    REAL, INTENT(IN) :: x(3,n), v(3,n)
-    REAL, INTENT(IN) :: L, a, z, om_m, om_v, h, m
+    IMPLICIT NONE   
+    REAL, INTENT(IN) :: x(3,n)
+    REAL, INTENT(IN) :: v(3,n)
+    INTEGER, INTENT(IN) :: id(n)
+    REAL, INTENT(IN) :: L
+    REAL, INTENT(IN) :: om_m
+    REAL, INTENT(IN) :: om_v
+    REAL, INTENT(IN) :: h
+    REAL, INTENT(IN) :: m
+    REAL, INTENT(IN) :: a
+    REAL, INTENT(IN) :: z
+    INTEGER, INTENT(IN) :: n
     CHARACTER(len=*), INTENT(IN) :: outfile
     DOUBLE PRECISION :: massarr(6), z8, a8, L8, om_m8, om_v8, h8, crap8(12)
     INTEGER :: np(6), crapi
@@ -136,8 +154,11 @@ CONTAINS
     INTEGER, ALLOCATABLE, INTENT(OUT) :: npart(:)
     INTEGER, INTENT(OUT) :: n
     INTEGER :: i
+    LOGICAL :: lexist
 
     WRITE(*,*) 'READ_CATALOGUE: Reading in catalogue: ', trim(infile)
+    INQUIRE(file=infile, exist=lexist)
+    IF(.NOT. lexist) STOP 'READ_CATALOGUE: Error, input file does not exist'
 
     n=file_length(infile,verbose=.FALSE.)
     ALLOCATE(x(3,n),v(3,n),m(n),npart(n))
