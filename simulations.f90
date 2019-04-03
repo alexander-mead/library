@@ -281,7 +281,7 @@ CONTAINS
     dk=dk_out
 
     ! Sharpen the Fourier Transform for the binning
-    CALL sharpen_k(dk,m,m,L,ibin)
+    CALL sharpen_k(dk,m,m,ibin)
 
   END SUBROUTINE sharp_Fourier_density_contrast
 
@@ -305,7 +305,7 @@ CONTAINS
 
     ! Smooth the density field
     smoothing=L/real(m) !Set the smoothing scale to be the mesh size
-    CALL smooth2D(d,m,smoothing,L)
+    CALL smooth(d,m,smoothing,L)
 
     ! Write out to file
     WRITE(*,*) 'WRITE_DENSITY_SLICE_ASCII: Writing density map'
@@ -1807,11 +1807,11 @@ CONTAINS
     CALL particle_bin(y,np,Lsub,u*m5**2,field5,m5,ibin,all,periodic)
 
     ! Smooth fields
-    CALL smooth2D(field1,m1,fcell*Lsub/real(m1),Lsub)
-    CALL smooth2D(field2,m2,fcell*Lsub/real(m2),Lsub)
-    CALL smooth2D(field3,m3,fcell*Lsub/real(m3),Lsub)
-    CALL smooth2D(field4,m4,fcell*Lsub/real(m4),Lsub)
-    CALL smooth2D(field5,m5,fcell*Lsub/real(m5),Lsub)
+    CALL smooth(field1,m1,fcell*Lsub/real(m1),Lsub)
+    CALL smooth(field2,m2,fcell*Lsub/real(m2),Lsub)
+    CALL smooth(field3,m3,fcell*Lsub/real(m3),Lsub)
+    CALL smooth(field4,m4,fcell*Lsub/real(m4),Lsub)
+    CALL smooth(field5,m5,fcell*Lsub/real(m5),Lsub)
 
     ! Write out density statistics on each mesh
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Mesh:', m1
