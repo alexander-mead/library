@@ -1,4 +1,24 @@
 MODULE field_operations
+
+  INTERFACE compute_power_spectrum
+     MODULE PROCEDURE compute_power_spectrum_2D
+     MODULE PROCEDURE compute_power_spectrum_3D
+  END INTERFACE compute_power_spectrum
+
+  INTERFACE smooth
+     MODULE PROCEDURE smooth_2D
+     MODULE PROCEDURE smooth_3D
+  END INTERFACE smooth
+
+  INTERFACE sharpen
+     !MODULE PROCEDURE sharpen_2D
+     MODULE PROCEDURE sharpen_3D
+  END INTERFACE sharpen
+
+  INTERFACE sharpen_k
+     MODULE PROCEDURE sharpen_k_2D
+     MODULE PROCEDURE sharpen_k_3D
+  END INTERFACE sharpen_k
   
 CONTAINS
 
@@ -37,7 +57,6 @@ CONTAINS
     REAL, INTENT(IN) :: x    ! Particle position
     REAL, INTENT(IN) :: L    ! Box size (could be Mpc/h or angle or something else)
     INTEGER, INTENT(IN) :: m ! Number of mesh cells in grid
-    !LOGICAL, INTENT(IN) :: periodic ! Does the mesh cover a periodic volume
 
     IF(x==0.) THEN
        ! Catch this edge case
@@ -465,13 +484,70 @@ CONTAINS
 
   END SUBROUTINE compress_field
 
-  SUBROUTINE sharpen(d,m,L,ibin)
+  SUBROUTINE sharpen_2D(d,m,ibin)
 
     USE fft
+
+    ! Sharpen a 3D configuration-space array to account for the binning
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: d(m,m)
+    INTEGER, INTENT(IN) :: m
+    INTEGER, INTENT(IN) :: ibin
+    DOUBLE COMPLEX, ALLOCATABLE :: dk(:,:)
+    DOUBLE COMPLEX :: dkout(m,m)
+    DOUBLE PRECISION :: dc(m,m)
+    INTEGER :: mn
+
+    ! TODO: Test real version
+    LOGICAL, PARAMETER :: complex=.TRUE.
+
+    WRITE(*,*) 'SHARPEN_2D: Correcting for binning by sharpening field'
+    WRITE(*,*) 'SHARPEN_2D: Mesh size:', m
+
+    IF(complex) THEN
+       mn=m
+       WRITE(*,*) 'SHARPEN_2D: Doing complex->complex FFT'
+    ELSE
+       mn=m/2+1
+       WRITE(*,*) 'SHARPEN_2D: Doing real->complex FFT'
+    END IF
+    WRITE(*,*) 'SHARPEN_2D: Mesh size general:', m
+    WRITE(*,*) 'SHARPEN_2D: Mesh size first-dimension:', mn
+
+    IF(complex) THEN
+       dk=d
+       CALL fft2(dk,dkout,m,m,-1)
+       dk=dkout
+    ELSE
+       dc=d
+       CALL fft2(dc,dk,m,m,-1)
+    END IF
+    ALLOCATE(dk(mn,m))
+
+    CALL sharpen_k_2D(dk,mn,m,ibin)
+
+    IF(complex) THEN
+       CALL fft2(dk,dkout,m,m,1)
+       dk=dkout
+       d=real(real(dk))/real(m**2)
+    ELSE
+       CALL fft2(dc,dk,m,m,1)
+       d=real(dc)
+    END IF    
+
+    WRITE(*,*) 'SHARPEN_2D: Sharpening complete'
+    WRITE(*,*)
+
+  END SUBROUTINE sharpen_2D
+
+  SUBROUTINE sharpen_3D(d,m,ibin)
+
+    USE fft
+
+    ! Sharpen a 3D configuration-space array to account for the binning
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: d(m,m,m)
     INTEGER, INTENT(IN) :: m    
-    REAL, INTENT(IN) :: L
     INTEGER, INTENT(IN) :: ibin
     DOUBLE COMPLEX, ALLOCATABLE :: dk(:,:,:)
     DOUBLE COMPLEX :: dkout(m,m,m)
@@ -481,18 +557,18 @@ CONTAINS
     ! TODO: Test real version
     LOGICAL, PARAMETER :: complex=.TRUE.
 
-    WRITE(*,*) 'SHARPEN: Correcting for binning by sharpening field'
-    WRITE(*,*) 'SHARPEN: Mesh size:', m
+    WRITE(*,*) 'SHARPEN_3D: Correcting for binning by sharpening field'
+    WRITE(*,*) 'SHARPEN_3D: Mesh size:', m
 
     IF(complex) THEN
        mn=m
-       WRITE(*,*) 'SHARPEN: Doing complex->complex FFT'
+       WRITE(*,*) 'SHARPEN_3D: Doing complex->complex FFT'
     ELSE
        mn=m/2+1
-       WRITE(*,*) 'SHARPEN: Doing real->complex FFT'
+       WRITE(*,*) 'SHARPEN_3D: Doing real->complex FFT'
     END IF
-    WRITE(*,*) 'SHARPEN: Mesh size:', m
-    WRITE(*,*) 'SHARPEN: Mesh size x:', mn
+    WRITE(*,*) 'SHARPEN_3D: Mesh size general:', m
+    WRITE(*,*) 'SHARPEN_3D: Mesh size first-dimension:', mn
 
     IF(complex) THEN
        dk=d
@@ -504,7 +580,7 @@ CONTAINS
     END IF
     ALLOCATE(dk(mn,m,m))
 
-    CALL sharpen_k(dk,mn,m,L,ibin)
+    CALL sharpen_k_3D(dk,mn,m,ibin)
 
     IF(complex) THEN
        CALL fft3(dk,dkout,m,m,m,1)
@@ -515,23 +591,28 @@ CONTAINS
        d=real(dc)
     END IF    
 
-    WRITE(*,*) 'SHARPEN: Sharpening complete'
+    WRITE(*,*) 'SHARPEN_3D: Sharpening complete'
     WRITE(*,*)
 
-  END SUBROUTINE sharpen
+  END SUBROUTINE sharpen_3D
 
-  SUBROUTINE sharpen_k(dk,mn,m,L,ibin)
+  SUBROUTINE sharpen_k_2D(dk,mn,m,ibin)
 
     USE special_functions
     USE fft
+
+    ! Sharpens a 3D Fourier array to account for the binning
     IMPLICIT NONE
-    DOUBLE COMPLEX, INTENT(INOUT) :: dk(mn,m,m)
-    INTEGER, INTENT(IN) :: mn, m, ibin
-    REAL, INTENT(IN) :: L
-    INTEGER :: i, j, k
-    Real :: kx, ky, kz, kmod
-    REAL :: kxh, kyh, kzh
-    REAL :: fcx, fcy, fcz, fcorr
+    DOUBLE COMPLEX, INTENT(INOUT) :: dk(mn,m)
+    INTEGER, INTENT(IN) :: mn
+    INTEGER, INTENT(IN) :: m
+    INTEGER, INTENT(IN) :: ibin
+    INTEGER :: i, j
+    REAL :: kx, ky, kmod
+    REAL :: kxh, kyh
+    REAL :: fcx, fcy, fcorr
+    REAL :: crap
+    REAL, PARAMETER :: L=1. ! This does not matter for this routine
 
     ! Check that the array is sensible
     IF(mn==m) THEN
@@ -539,12 +620,67 @@ CONTAINS
     ELSE IF(mn==m/2+1) THEN
        ! Do nothing
     ELSE
-       WRITE(*,*) 'SHARPEN_K: Array x size:', mn
-       WRITE(*,*) 'SHARPEN_K: Array general size:', m
-       STOP 'SHARPEN_K: Error, the array is not sensible'
+       WRITE(*,*) 'SHARPEN_K_2D: Array first-dimension size:', mn
+       WRITE(*,*) 'SHARPEN_K_2D: Array general size:', m
+       STOP 'SHARPEN_K_2D: Error, the array is not sensible'
     END IF
 
-    !Now correct for binning!
+    ! Now correct for binning
+    DO j=1,m
+       DO i=1,mn
+
+          CALL k_fft(i,j,1,m,kx,ky,crap,kmod,L)
+
+          kxh=L*kx/(2.*real(m))
+          kyh=L*ky/(2.*real(m))
+
+          fcx=sinc(kxh)
+          fcy=sinc(kyh)
+
+          IF(ibin==1) THEN
+             fcorr=fcx*fcy
+          ELSE IF(ibin==2) THEN
+             fcorr=(fcx*fcy)**2
+          ELSE
+             STOP 'SHARPEN_K_2D: Error, ibin specified incorrectly'
+          END IF
+
+          dk(i,j)=dk(i,j)/fcorr
+
+       END DO
+    END DO
+
+  END SUBROUTINE sharpen_k_2D
+
+  SUBROUTINE sharpen_k_3D(dk,mn,m,ibin)
+
+    USE special_functions
+    USE fft
+
+    ! Sharpens a 3D array to account for the binning
+    IMPLICIT NONE
+    DOUBLE COMPLEX, INTENT(INOUT) :: dk(mn,m,m)
+    INTEGER, INTENT(IN) :: mn
+    INTEGER, INTENT(IN) :: m
+    INTEGER, INTENT(IN) :: ibin
+    INTEGER :: i, j, k
+    REAL :: kx, ky, kz, kmod
+    REAL :: kxh, kyh, kzh
+    REAL :: fcx, fcy, fcz, fcorr
+    REAL, PARAMETER :: L=1. ! This does not matter for this routine
+
+    ! Check that the array is sensible
+    IF(mn==m) THEN
+       ! Do nothing
+    ELSE IF(mn==m/2+1) THEN
+       ! Do nothing
+    ELSE
+       WRITE(*,*) 'SHARPEN_K_3D: Array first-dimension size:', mn
+       WRITE(*,*) 'SHARPEN_K_3D: Array general size:', m
+       STOP 'SHARPEN_K_3D: Error, the array is not sensible'
+    END IF
+
+    ! Now correct for binning
     DO k=1,m
        DO j=1,m
           DO i=1,mn
@@ -564,7 +700,7 @@ CONTAINS
              ELSE IF(ibin==2) THEN
                 fcorr=(fcx*fcy*fcz)**2
              ELSE
-                STOP 'SHARPEN_K: Error, ibin specified incorrectly'
+                STOP 'SHARPEN_K_3D: Error, ibin specified incorrectly'
              END IF
 
              dk(i,j,k)=dk(i,j,k)/fcorr
@@ -573,9 +709,9 @@ CONTAINS
        END DO
     END DO
 
-  END SUBROUTINE sharpen_k
+  END SUBROUTINE sharpen_k_3D
 
-  SUBROUTINE smooth2D(d,m,r,L)
+  SUBROUTINE smooth_2D(d,m,r,L)
 
     !arr(n,n): input array of size n x n
     !r: smoothing scale in Mpc/h
@@ -594,19 +730,19 @@ CONTAINS
     ! TODO: Test real version
     LOGICAL, PARAMETER :: complex=.TRUE.
 
-    WRITE(*,*) 'SMOOTH2D: Smoothing array'
-    WRITE(*,*) 'SMOOTH2D: Assuming array is periodic'
-    WRITE(*,*) 'SMOOTH2D: Smoothing scale [Mpc/h]:', r
+    WRITE(*,*) 'SMOOTH_2D: Smoothing array'
+    WRITE(*,*) 'SMOOTH_2D: Assuming array is periodic'
+    WRITE(*,*) 'SMOOTH_2D: Smoothing scale [Mpc/h]:', r
 
     IF(complex) THEN
        mn=m
-       WRITE(*,*) 'SMOOTH2D: Doing complex->complex FFT'       
+       WRITE(*,*) 'SMOOTH_2D: Doing complex->complex FFT'       
     ELSE
        mn=m/2+1
-       WRITE(*,*) 'SMOOTH2D: Doing real->complex FFT'
+       WRITE(*,*) 'SMOOTH_2D: Doing real->complex FFT'
     END IF
-    WRITE(*,*) 'SMOOTH2D: Mesh size:', m
-    WRITE(*,*) 'SMOOTH2D: Mesh size x:', mn
+    WRITE(*,*) 'SMOOTH_2D: Mesh size:', m
+    WRITE(*,*) 'SMOOTH_2D: Mesh size x:', mn
     ALLOCATE(dk(mn,m))
 
     ! Fourier transform
@@ -639,10 +775,10 @@ CONTAINS
     END IF
     DEALLOCATE(dk)
 
-    WRITE(*,*) 'SMOOTH2D: Done'
+    WRITE(*,*) 'SMOOTH_2D: Done'
     WRITE(*,*)
 
-  END SUBROUTINE smooth2D
+  END SUBROUTINE smooth_2D
 
 !!$  SUBROUTINE smooth2D_nonperiodic(arr,n,r,L)
 !!$
@@ -711,7 +847,7 @@ CONTAINS
 !!$
 !!$  END SUBROUTINE smooth2D_nonperiodic
 
-  SUBROUTINE smooth3D(d,m,r,L)
+  SUBROUTINE smooth_3D(d,m,r,L)
 
     USE fft
     !USE special_functions
@@ -729,17 +865,17 @@ CONTAINS
     ! TODO: Test real version
     LOGICAL, PARAMETER :: complex=.TRUE.
 
-    WRITE(*,*) 'SMOOTH3D: Smoothing array'
+    WRITE(*,*) 'SMOOTH_3D: Smoothing array'
 
     IF(complex) THEN
        mn=m
-       WRITE(*,*) 'SMOOTH3D: Doing complex->complex FFT'
+       WRITE(*,*) 'SMOOTH_3D: Doing complex->complex FFT'
     ELSE
        mn=m/2+1
-       WRITE(*,*) 'SMOOTH3D: Doing real->complex FFT'
+       WRITE(*,*) 'SMOOTH_3D: Doing real->complex FFT'
     END IF
-    WRITE(*,*) 'SMOOTH3D: Mesh size:', m
-    WRITE(*,*) 'SMOOTH3D: Mesh size x:', mn
+    WRITE(*,*) 'SMOOTH_3D: Mesh size:', m
+    WRITE(*,*) 'SMOOTH_3D: Mesh size x:', mn
     ALLOCATE(dk(mn,m,m))
 
     ! Move to Fourier space
@@ -775,10 +911,10 @@ CONTAINS
     END IF
     DEALLOCATE(dk)
 
-    WRITE(*,*) 'SMOOTH3D: Done'
+    WRITE(*,*) 'SMOOTH_3D: Done'
     WRITE(*,*)
 
-  END SUBROUTINE smooth3D
+  END SUBROUTINE smooth_3D
 
   SUBROUTINE add_to_stack_3D(x,stack,Ls,ms,back,Lb,mb)
 
@@ -992,24 +1128,162 @@ CONTAINS
 
   END FUNCTION count_empty_cells
 
+  SUBROUTINE compute_power_spectrum_2D(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma)
+     
+    USE table_integer
+    USE constants
+    USE array_operations
+    USE fft
+
+    ! Takes in a dk(m,m) array and computes the power spectrum
+    ! NOTE: Leave the double complex as it allows the running to determine complex vs real
+    IMPLICIT NONE
+    DOUBLE COMPLEX, INTENT(IN) :: dk1(:,:) ! Fourier components of field 1 
+    DOUBLE COMPLEX, INTENT(IN) :: dk2(:,:) ! Fourier components of field 2
+    INTEGER, INTENT(IN) :: m  ! mesh size for fields
+    REAL, INTENT(IN) :: L     ! box size [Mpc/h]
+    REAL, INTENT(IN) :: kmin  ! minimum and maximum wavenumber [h/Mpc]
+    REAL, INTENT(IN) :: kmax  ! minimum and maximum wavenumber [h/Mpc]
+    INTEGER, INTENT(IN) :: nk ! number of k bins
+    REAL, ALLOCATABLE, INTENT(OUT) :: k(:)         ! Output k values
+    REAL, ALLOCATABLE, INTENT(OUT) :: pow(:)       ! Output Delta^2(k) values
+    INTEGER, ALLOCATABLE, INTENT(OUT) :: nmodes(:) ! Output Number of modes contributing to the k bin
+    REAL, ALLOCATABLE, INTENT(OUT) :: sigma(:)     ! Output varaicnce in bin
+    INTEGER :: i, ix, iy, n, mn
+    REAL :: kx, ky, kmod, Dk, crap
+    REAL, ALLOCATABLE :: kbin(:)  
+    DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f 
+    INTEGER*8 :: nmodes8(nk)
+
+    REAL, PARAMETER :: dbin=1e-3 ! Bin slop parameter for first and last bin edges
+    LOGICAL, PARAMETER :: logmeank=.FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
+
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_2D: Computing isotropic power spectrum'
+
+    ! Set summation variables to 0.d0
+    k8=0.d0
+    pow8=0.d0
+    nmodes8=0
+    sigma8=0.d0
+
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_2D: Binning power'
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_2D: Mesh:', m
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_2D: Bins:', nk
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_2D: k_min [h/Mpc]:', kmin
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_2D: k_max [h/Mpc]:', kmax
+
+    ! Fill array of k bins with linear-log spacing
+    CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
+    kbin=exp(kbin)
+
+    ! Explicitly extend the first and last bins to be sure to include *all* modes
+    ! This is necessary due to rounding errors!
+    kbin(1)=kbin(1)*(1.-dbin)
+    kbin(nk+1)=kbin(nk+1)*(1.+dbin)
+
+    ! Cell location of Nyquist
+    mn=m/2+1
+
+    ! Loop over all independent elements of dk
+    DO iy=1,m
+       DO ix=1,mn
+
+          ! Cycle for the zero mode (k=0)
+          IF(ix==1 .AND. iy==1) CYCLE
+
+          ! Cycle for the repeated zero modes and Nyquist modes
+          ! I *think* this is correct to avoid double counting zero modes and Nyquist modes
+          ! For example 0,1 is the same as 0,-1
+          IF((ix==1 .OR. ix==mn) .AND. iy>mn) CYCLE
+
+          CALL k_fft(ix,iy,1,m,kx,ky,crap,kmod,L)
+
+          ! Find integer 'n' in bins from place in table
+          IF(kmod>=kbin(1) .AND. kmod<=kbin(nk+1)) THEN
+             n=select_table_integer(kmod,kbin,nk+1,3)
+             IF(n<1 .OR. n>nk) THEN
+                CYCLE
+             ELSE
+                k8(n)=k8(n)+kmod
+                f=real(dk1(ix,iy)*CONJG(dk2(ix,iy)))/(DBLE(m)**6) ! Note the division by m^6 here
+                pow8(n)=pow8(n)+f
+                sigma8(n)=sigma8(n)+f**2
+                nmodes8(n)=nmodes8(n)+1
+             END IF
+          END IF
+
+       END DO
+    END DO
+
+    ! Deallocate and reallocate arrays
+    ! TODO: Do I need to bother deallocating these arrays?
+    ! TODO: Should I pass in allocatable arrays or should they already be allocated?
+    IF(ALLOCATED(k))      DEALLOCATE(k)
+    IF(ALLOCATED(pow))    DEALLOCATE(pow)
+    IF(ALLOCATED(nmodes)) DEALLOCATE(nmodes)
+    IF(ALLOCATED(sigma))  DEALLOCATE(sigma)
+    ALLOCATE(k(nk),pow(nk),nmodes(nk),sigma(nk))
+
+    ! Now create the power spectrum and k array
+    DO i=1,nk       
+       IF(nmodes8(i)==0) THEN
+          k(i)=sqrt(kbin(i+1)*kbin(i))       
+          pow8(i)=0.d0
+          sigma8(i)=0.d0
+       ELSE
+          IF(logmeank) THEN
+             k(i)=sqrt(kbin(i+1)*kbin(i))             
+          ELSE
+             k(i)=real(k8(i))/real(nmodes8(i))
+          END IF
+          pow8(i)=pow8(i)/real(nmodes8(i))
+          IF(nmodes8(i)==1) THEN
+             sigma8(i)=0
+          ELSE
+             sigma8(i)=sigma8(i)/real(nmodes8(i)) ! Create <P(k)^2>
+             sigma8(i)=sqrt(sigma8(i)-pow8(i)**2) ! Create biased estimate of sigma
+             sigma8(i)=sigma8(i)*real(nmodes8(i))/real(nmodes8(i)-1) ! Correct for bias
+             sigma8(i)=sigma8(i)/sqrt(real(nmodes8(i))) ! Convert to error on the mean
+          END IF
+          Dk=2.*pi*(k(i)*L/twopi)**2
+          pow8(i)=pow8(i)*Dk
+          sigma8(i)=sigma8(i)*Dk
+       END IF
+    END DO
+
+    ! Convert from double precision to reals
+    pow=real(pow8)
+    sigma=real(sigma8)
+    nmodes=INT(nmodes8)
+
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_2D: Power computed'
+    WRITE(*,*) 
+
+  END SUBROUTINE compute_power_spectrum_2D
+
   !SUBROUTINE pk(dk1,dk2,m,L,kmin,kmax,bins,k,pow,nbin)
-  SUBROUTINE compute_power_spectrum(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma)
+  SUBROUTINE compute_power_spectrum_3D(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma)
 
     ! Takes in a dk(m,m,m) array and computes the power spectrum
     USE table_integer
     USE constants
     USE array_operations
     USE fft
+
+    ! Takes in a dk(m,m) array and computes the power spectrum
+    ! NOTE: Leave the double complex as it allows the running to determine complex vs real
     IMPLICIT NONE
-    DOUBLE COMPLEX, INTENT(IN) :: dk1(:,:,:), dk2(:,:,:) ! Fourier components of fields LEAVE THIS: It allows the running to determine complex vs real
-    INTEGER, INTENT(IN) :: m ! mesh size for fields
-    REAL, INTENT(IN) :: L ! box size [Mpc/h]
-    REAL, INTENT(IN) :: kmin, kmax ! minimum and maximum wavenumber [h/Mpc]
+    DOUBLE COMPLEX, INTENT(IN) :: dk1(:,:,:) ! Fourier components of field 1
+    DOUBLE COMPLEX, INTENT(IN) :: dk2(:,:,:) ! Fourier components of field 2
+    INTEGER, INTENT(IN) :: m  ! mesh size for fields
+    REAL, INTENT(IN) :: L     ! box size [Mpc/h]
+    REAL, INTENT(IN) :: kmin  ! minimum and maximum wavenumber [h/Mpc]
+    REAL, INTENT(IN) :: kmax  ! minimum and maximum wavenumber [h/Mpc]
     INTEGER, INTENT(IN) :: nk ! number of k bins
-    REAL, ALLOCATABLE, INTENT(INOUT) :: k(:) ! Output of k values
-    REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:) ! Output of Delta^2(k) values
-    INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:) ! Number of modes contributing to the k bin
-    REAL, ALLOCATABLE, INTENT(INOUT) :: sigma(:) ! Output of..
+    REAL, ALLOCATABLE, INTENT(OUT) :: k(:)         ! Output k values
+    REAL, ALLOCATABLE, INTENT(OUT) :: pow(:)       ! Output Delta^2(k) values
+    INTEGER, ALLOCATABLE, INTENT(OUT) :: nmodes(:) ! Output Number of modes contributing to the k bin
+    REAL, ALLOCATABLE, INTENT(OUT) :: sigma(:)     ! Output varaicnce in bin
     INTEGER :: i, ix, iy, iz, n, mn
     REAL :: kx, ky, kz, kmod, Dk
     REAL, ALLOCATABLE :: kbin(:)  
@@ -1019,7 +1293,7 @@ CONTAINS
     REAL, PARAMETER :: dbin=1e-3 ! Bin slop parameter for first and last bin edges
     LOGICAL, PARAMETER :: logmeank=.FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
 
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Computing isotropic power spectrum'
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_3D: Computing isotropic power spectrum'
 
     ! Set summation variables to 0.d0
     k8=0.d0
@@ -1027,13 +1301,13 @@ CONTAINS
     nmodes8=0
     sigma8=0.d0
 
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Binning power'
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Mesh:', m
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Bins:', nk
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: k_min [h/Mpc]:', kmin
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: k_max [h/Mpc]:', kmax
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_3D: Binning power'
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_3D: Mesh:', m
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_3D: Bins:', nk
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_3D: k_min [h/Mpc]:', kmin
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_3D: k_max [h/Mpc]:', kmax
 
-    ! Fill array of k bins
+    ! Fill array of k bins with linear-log spacing
     CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
     kbin=exp(kbin)
 
@@ -1079,10 +1353,13 @@ CONTAINS
     END DO
 
     ! Deallocate and reallocate arrays
+    ! TODO: Do I need to bother deallocating these arrays?
+    ! TODO: Should I pass in allocatable arrays or should they already be allocated?
     IF(ALLOCATED(k))      DEALLOCATE(k)
     IF(ALLOCATED(pow))    DEALLOCATE(pow)
     IF(ALLOCATED(nmodes)) DEALLOCATE(nmodes)
-    ALLOCATE(k(nk),pow(nk),nmodes(nk))
+    IF(ALLOCATED(sigma))  DEALLOCATE(sigma)
+    ALLOCATE(k(nk),pow(nk),nmodes(nk),sigma(nk))
 
     ! Now create the power spectrum and k array
     DO i=1,nk       
@@ -1105,7 +1382,7 @@ CONTAINS
              sigma8(i)=sigma8(i)*real(nmodes8(i))/real(nmodes8(i)-1) ! Correct for bias
              sigma8(i)=sigma8(i)/sqrt(real(nmodes8(i))) ! Convert to error on the mean
           END IF
-          Dk=4.*pi*((k(i)*L)**3)/twopi**3
+          Dk=4.*pi*(k(i)*L/twopi)**3
           pow8(i)=pow8(i)*Dk
           sigma8(i)=sigma8(i)*Dk
        END IF
@@ -1114,12 +1391,12 @@ CONTAINS
     ! Convert from double precision to reals
     pow=real(pow8)
     sigma=real(sigma8)
-    nmodes=INT(nmodes8)    
+    nmodes=INT(nmodes8)
 
-    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM: Power computed'
+    WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_3D: Power computed'
     WRITE(*,*) 
 
-  END SUBROUTINE compute_power_spectrum
+  END SUBROUTINE compute_power_spectrum_3D
 
 !!$  SUBROUTINE compute_power_spectrum(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma)
 !!$
