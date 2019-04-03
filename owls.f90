@@ -277,39 +277,41 @@ CONTAINS
 
   CHARACTER(len=32) FUNCTION BAHAMAS_snapshot(z)
 
+    USE logical_operations
     IMPLICIT NONE
     REAL, INTENT(IN) :: z
+    REAL, PARAMETER :: eps=1e-3
 
     ! Set the redshift
-    IF(z==0.0) THEN
+    IF(requal(z,0.0,eps)) THEN
        BAHAMAS_snapshot='snap32'
-    ELSE IF(z==0.125) THEN
+    ELSE IF(requal(z,0.125,eps)) THEN
        BAHAMAS_snapshot='snap31'
-    ELSE IF(z==0.25) THEN
+    ELSE IF(requal(z,0.25,eps)) THEN
        BAHAMAS_snapshot='snap30'
-    ELSE IF(z==0.375) THEN
+    ELSE IF(requal(z,0.375,eps)) THEN
        BAHAMAS_snapshot='snap29'
-    ELSE IF(z==0.5) THEN
+    ELSE IF(requal(z,0.5,eps)) THEN
        BAHAMAS_snapshot='snap28'
-    ELSE IF(z==0.75) THEN
+    ELSE IF(requal(z,0.75,eps)) THEN
        BAHAMAS_snapshot='snap27'
-    ELSE IF(z==1.0) THEN
+    ELSE IF(requal(z,1.0,eps)) THEN
        BAHAMAS_snapshot='snap26'
-    ELSE IF(z==1.25) THEN
+    ELSE IF(requal(z,1.25,eps)) THEN
        BAHAMAS_snapshot='snap25'
-    ELSE IF(z==1.5) THEN
+    ELSE IF(requal(z,1.5,eps)) THEN
        BAHAMAS_snapshot='snap24'
-    ELSE IF(z==1.75) THEN
+    ELSE IF(requal(z,1.75,eps)) THEN
        BAHAMAS_snapshot='snap23'
-    ELSE IF(z==2.0) THEN
+    ELSE IF(requal(z,2.0,eps)) THEN
        BAHAMAS_snapshot='snap22'
-    ELSE IF(z==2.25) THEN
+    ELSE IF(requal(z,2.25,eps)) THEN
        BAHAMAS_snapshot='snap21'
-    ELSE IF(z==2.5) THEN
+    ELSE IF(requal(z,2.5,eps)) THEN
        BAHAMAS_snapshot='snap20'
-    ELSE IF(z==2.75) THEN
+    ELSE IF(requal(z,2.75,eps)) THEN
        BAHAMAS_snapshot='snap19'
-    ELSE IF(z==3.0) THEN
+    ELSE IF(requal(z,3.0,eps)) THEN
        BAHAMAS_snapshot='snap18'
     ELSE
        WRITE(*,*) 'BAHAMAS_SNAPSHOT: z', z
