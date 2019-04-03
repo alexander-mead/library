@@ -42,19 +42,9 @@ CONTAINS
     IF(x==0.) THEN
        ! Catch this edge case
        NGP_cell=1
-!!$    ELSE IF(x==L) THEN
-!!$       STOP 'NGP_CELL: Error, particle is at x=L'
     ELSE
        NGP_cell=ceiling(x*real(m)/L)
     END IF
-
-!!$    IF(periodic .AND. (NGP_cell<1 .OR. NGP_cell>m)) THEN
-!!$       WRITE(*,*) 'NGP_CELL: Particle position:', x
-!!$       WRITE(*,*) 'NGP_CELL: Box size:', L
-!!$       WRITE(*,*) 'NGP_CELL: Mesh size:', m 
-!!$       WRITE(*,*) 'NGP_CELL: Assigned cell:', NGP_cell
-!!$       STOP 'NGP_CELL: Error, the assigned cell position is outside the mesh'
-!!$    END IF
 
   END FUNCTION NGP_cell
 
@@ -792,7 +782,7 @@ CONTAINS
 
   SUBROUTINE add_to_stack_3D(x,stack,Ls,ms,back,Lb,mb)
 
-    !Adds some points in a density field to a stack
+    ! Adds some points in a density field to a stack
     IMPLICIT NONE
     INTEGER :: i, j, k, is(3), ib(3), d
     INTEGER, INTENT(IN) :: ms, mb
@@ -801,43 +791,43 @@ CONTAINS
     REAL, INTENT(IN) :: back(mb,mb,mb)
     REAL :: xb(3)
 
-    !Assumes the background field is periodic
-    !'stack' should have been previously allocated
-    !'stack' should be set to zero before using this subroutine
-    !'*s' variables refer to the stacked field
-    !'*_back' variables refer to the background field
+    ! Assumes the background field is periodic
+    ! 'stack' should have been previously allocated
+    ! 'stack' should be set to zero before using this subroutine
+    ! '*s' variables refer to the stacked field
+    ! '*_back' variables refer to the background field
 
-    !Loop over cells on stacking mesh
+    ! Loop over cells on stacking mesh
     DO i=1,ms
        DO j=1,ms
           DO k=1,ms
 
-             !Set the stack integer array
+             ! Set the stack integer array
              is(1)=i
              is(2)=j
              is(3)=k
 
              DO d=1,3
 
-                !Get coordinates of position on the stack
-                !This changes coordiantes from stack to simulation coordinates
+                ! Get coordinates of position on the stack
+                ! This changes coordiantes from stack to simulation coordinates
                 xb(d)=x(d)+Ls*(0.5+real(is(d)-1))/real(ms)-Ls/2.
 
-                !Bring the coordinates back into the simulation box if they are outside
+                ! Bring the coordinates back into the simulation box if they are outside
                 IF(xb(d)<=0.) THEN
                    xb(d)=xb(d)+Lb
                 ELSE IF(xb(d)>Lb) THEN
                    xb(d)=xb(d)-Lb
                 END IF
 
-                !Find the integer coordinates of mesh cell in the background mesh
-                !This is just an NGP-type scheme. Could/should be improved?
+                ! Find the integer coordinates of mesh cell in the background mesh
+                ! This is just an NGP-type scheme. Could/should be improved?
                 ib(d)=ceiling(real(mb)*xb(d)/Lb)
 
              END DO
 
-             !Add the value to the stack
-             !Should there be a volume factor here?
+             ! Add the value to the stack
+             ! Should there be a volume factor here?
              stack(is(1),is(2),is(3))=stack(is(1),is(2),is(3))+back(ib(1),ib(2),ib(3))
 
           END DO
@@ -901,7 +891,7 @@ CONTAINS
     !    dep=0.25*(1.+erf(d0/(sqrt(2.*var1))))**2.
     !    IF(verbose==1) WRITE(*,*) 'Expected large-scale power depletion factor:', dep
 
-    !Now do the clipping
+    ! Now do the clipping
     DO k=1,m3
        DO j=1,m2
           DO i=1,m1
@@ -955,7 +945,7 @@ CONTAINS
     !    dep=0.25*(1.+erf(d0/(sqrt(2.*var1))))**2.
     !    IF(verbose==1) WRITE(*,*) 'Expected large-scale power depletion factor:', dep
 
-    !Now do the clipping
+    ! Now do the clipping
     DO k=1,m
        DO j=1,m
           DO i=1,m
@@ -1804,7 +1794,7 @@ CONTAINS
   FUNCTION periodic_distance(x1,x2,L)
 
     ! Calculates the distance between x1 and x2 assuming that they are coordinates in a periodic box
-     !This is in field_operations because it needs coordinates, *not* necessarily particles
+    ! This is in field_operations because it needs coordinates, *not* necessarily particles
     IMPLICIT NONE
     REAL :: periodic_distance
     REAL, INTENT(IN) :: x1(3), x2(3), L
@@ -1828,15 +1818,15 @@ CONTAINS
 
   FUNCTION periodic_mean(x1,x2,L)
 
-    !Calculates the periodic mean of two coordinates in a box
-    !This is in field_operations because it needs coordinates, *not* necessarily particles
+    ! Calculates the periodic mean of two coordinates in a box
+    ! This is in field_operations because it needs coordinates, *not* necessarily particles
     IMPLICIT NONE
     REAL :: periodic_mean(3)
     REAL, INTENT(IN) :: x1(3), x2(3), L
     REAL :: dx(3)
     INTEGER :: i
 
-    !Initially dx is just the absolute vector difference
+    ! Initially dx is just the absolute vector difference
     dx=abs(x2-x1)
 
     DO i=1,3
@@ -1861,9 +1851,9 @@ CONTAINS
     INTEGER :: i1, i2, i3, j1, j2, j3, i(3), j(3), k, dim
     REAL :: r, x1(3), x2(3)
 
-    !This double counts, so time could be at least halved
-    !Also could be parrallelised
-    !Also could just not be complete shit, but it should get the job done
+    ! This double counts, so time could be at least halved
+    ! Also could be parrallelised
+    ! Also could just not be complete shit, but it should get the job done
 
     rmin=r_array(1)
     rmax=r_array(n)

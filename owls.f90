@@ -31,9 +31,9 @@ CONTAINS
     LOGICAL :: lexist
 
     ! Open the file using stream
+    WRITE(*,*) 'READ_MCCARTHY: Reading in binary file: ', trim(infile)
     INQUIRE(file=infile, exist=lexist)
     IF(.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'
-    WRITE(*,*) 'READ_MCCARTHY: Reading in binary file: ', trim(infile)
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) n
     CLOSE(7)
@@ -96,9 +96,9 @@ CONTAINS
     LOGICAL :: lexist   
     
     ! Read in the binary file
-    INQUIRE(file=infile, exist=lexist)
-    IF(.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Reading in binary file: ', trim(infile)
+    INQUIRE(file=infile, exist=lexist)
+    IF(.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'    
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
     READ(7) n
     CLOSE(7)
@@ -122,7 +122,7 @@ CONTAINS
 
     ! Write information to the screen
     WRITE(*,*) 'READ_MCCARTHY_GAS: Calculating kT from physical electron pressure'
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Note that the electron pressure is *not* comoving'
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Note that the electron pressure calcuated here is *not* comoving'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'READ_MCCARTHY_GAS: Hydrogen mass fraction: f_H, Y_H:', fh
     WRITE(*,*) 'READ_MCCARTHY_GAS: Mean particle mass: mu_p [m_p]:', mup
