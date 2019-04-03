@@ -1,6 +1,49 @@
 MODULE logical_operations
 
+  INTERFACE read_command_argument
+     MODULE PROCEDURE read_command_argument_real
+     MODULE PROCEDURE read_command_argument_integer
+  END INTERFACE read_command_argument
+
 CONTAINS
+
+  SUBROUTINE read_command_argument_real(i,x,desc)
+
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: i             ! Position of command-line argument
+    REAL, INTENT(OUT) :: x               ! Real number to be assigned command-line argument
+    CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
+    CHARACTER(len=256) :: word
+
+    CALL get_command_argument(i,word)
+    IF(word=='') THEN
+       WRITE(*,*) 'READ_COMMAND_ARGUMENT: Missing command-line argument number:', i
+       WRITE(*,*) 'READ_COMMAND_ARGUMENT: Missing command-line argument: ', TRIM(desc)
+       STOP
+    ELSE
+       READ(word,*) x
+    END IF
+
+  END SUBROUTINE read_command_argument_real
+
+  SUBROUTINE read_command_argument_integer(i,x,desc)
+
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: i             ! Position of command-line argument
+    INTEGER, INTENT(OUT) :: x            ! Real number to be assigned command-line argument
+    CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
+    CHARACTER(len=256) :: word
+
+    CALL get_command_argument(i,word)
+    IF(word=='') THEN
+       WRITE(*,*) 'READ_COMMAND_ARGUMENT: Missing command-line argument:', i
+       WRITE(*,*) 'READ_COMMAND_ARGUMENT: Missing command-line argument: ', TRIM(desc)
+       STOP
+    ELSE
+       READ(word,*) x
+    END IF
+
+  END SUBROUTINE read_command_argument_integer
 
   LOGICAL FUNCTION positive(x)
 
