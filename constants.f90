@@ -6,15 +6,15 @@ MODULE constants
   !!
 
   ! Mathematical constants
-  REAL, PARAMETER :: pi=3.14159265359 ! pi
-  REAL, PARAMETER :: twopi=2.*pi      ! 2pi or tau
+  REAL, PARAMETER :: pi=3.14159265359 ! pi  
   REAL, PARAMETER :: em=0.5772156649  ! Euler–Mascheroni
   REAL, PARAMETER :: zero=0.          ! zero
   REAL, PARAMETER :: one=1.           ! one
   REAL, PARAMETER :: rad2deg=180./pi  ! radians-to-degrees conversion
 
   ! Mathematical derived
-  REAL, PARAMETER :: deg2rad=1./rad2deg       ! degress-to-radians conversion
+  REAL, PARAMETER :: twopi=2.*pi        ! 2pi or tau
+  REAL, PARAMETER :: deg2rad=1./rad2deg ! degress-to-radians conversion
 
   !!
 
@@ -42,7 +42,7 @@ MODULE constants
   ! Astronomy constants
   REAL, PARAMETER :: Htime=9.7776                   ! Hubble time (1/H0) [Gyrs/h] ! TODO: relate this to fundamental constants
   REAL, PARAMETER :: H0=3.243e-18                   ! Hubble parameter, H0 [s]
-  REAL, PARAMETER :: critical_density=2.7755e11     ! Universal critical density at (equal to 3*H0^2 / 8piG) [(M_sun/h)/(Mpc/h)^3] 
+  REAL, PARAMETER :: critical_density=2.7755e11     ! Universal critical density at (equal to 3*H0^2 / 8piG) [(M_sun/h)/(Mpc/h)^3] ! TODO: relate this to fundamental constants
   REAL, PARAMETER :: dc0=(3./20.)*(12.*pi)**(2./3.) ! Einstein-de Sitter linear collapse density ~1.686
   REAL, PARAMETER :: Dv0=18.*pi**2                  ! Einsten-de Sitter virialised collapse threshold ~178
   REAL, PARAMETER :: Msun=1.989e30                  ! Solar mass [kg]

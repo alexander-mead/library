@@ -1209,7 +1209,7 @@ CONTAINS
                 CYCLE
              ELSE
                 k8(n)=k8(n)+kmod
-                f=real(dk1(ix,iy)*CONJG(dk2(ix,iy)))/(DBLE(m)**6) ! Note the division by m^6 here
+                f=real(dk1(ix,iy)*CONJG(dk2(ix,iy)))/(DBLE(m)**4) ! Note the division by m^4 here
                 pow8(n)=pow8(n)+f
                 sigma8(n)=sigma8(n)+f**2
                 nmodes8(n)=nmodes8(n)+1
@@ -1249,7 +1249,7 @@ CONTAINS
              sigma8(i)=sigma8(i)*real(nmodes8(i))/real(nmodes8(i)-1) ! Correct for bias
              sigma8(i)=sigma8(i)/sqrt(real(nmodes8(i))) ! Convert to error on the mean
           END IF
-          Dk=2.*pi*(k(i)*L/twopi)**2
+          Dk=twopi*(k(i)*L/twopi)**2
           pow8(i)=pow8(i)*Dk
           sigma8(i)=sigma8(i)*Dk
        END IF
