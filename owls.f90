@@ -199,7 +199,7 @@ CONTAINS
 
        ! Convert to particle internal energy that can be mapped to grid
        IF(scheme==1) THEN
-          kT_dble=kT_dble*(m/mue) ! [eV*Msun] BUG: I think there should be a factor of h here due to Msun/h units
+          kT_dble=kT_dble*(m/mue) ! [eV*Msun/h] BUG: I think there should be a factor of h here due to Msun/h units
        ELSE IF(scheme==2) THEN
           kT_dble=kT_dble*(m/(h*mue)) ! [eV*Msun]
        ELSE
@@ -214,11 +214,11 @@ CONTAINS
 
        ! Convert units of comoving electron pressure
        ! Note that there are no h factors here
-       units=msun
-       units=units/mp         ! Divide out proton mass here [eV/Mpc^3]
-       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow
-       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow
-       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow
+       units=msun             ! [kg]
+       units=units/mp         ! Divide out proton mass here [dimensionless]
+       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow [kg/cm^1]
+       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow [kg/cm^2]
+       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow [kg/cm^3]
        kT_dble=kT_dble*units  ! [eV/cm^3]
 
     ELSE IF(scheme==3) THEN
@@ -233,7 +233,7 @@ CONTAINS
        units=units/Mpc
 
        ! Final quantity
-       kT_dble=units*(m/(mue*mp))*kT_dble/V
+       kT_dble=units*(m/(mue*mp))*kT_dble/V ! [eV/cm^3]
 
     ELSE
        STOP 'CONVERT_KT_TO_ELECTRON_PRESSURE: Error, scheme specified incorrectly'
