@@ -594,8 +594,8 @@ CONTAINS
     ! Fixed parameters
     !hmod%alpha=0.33333 ! Non-virial temperature correction for static gas
     !hmod%beta=0.33333  ! Non-virial temperature correction for hot gas
-    hmod%alpha=0.7     ! Non-virial temperature correction for static gas
-    hmod%beta=0.7      ! Non-virial temperature correction for hot gas
+    hmod%alpha=1.0     ! Non-virial temperature correction for static gas
+    hmod%beta=1.0      ! Non-virial temperature correction for hot gas
     hmod%eps=1.        ! Concentration modification
     hmod%Gamma=1.17    ! Polytropic gas index
     hmod%M0=1e14       ! Halo mass that has lost half gas
