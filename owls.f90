@@ -226,7 +226,7 @@ CONTAINS
        ! Comoving volume
        V=L**3 ! [(Mpc)^3]
 
-       ! Big blob of units
+       ! Big blob of units (see notes)
        units=(Msun*(h**2)*(0.01)**3)
        units=units/Mpc
        units=units/Mpc
