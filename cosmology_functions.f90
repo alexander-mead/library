@@ -1405,8 +1405,13 @@ CONTAINS
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    IF(cosm%has_distance .EQV. .FALSE.) CALL init_distances(cosm)
-    comoving_distance=find(a,cosm%a_r,cosm%r,cosm%n_r,3,3,2)
+    IF(a>1.) THEN
+       WRITE(*,*) 'COMOVING_DISTANCE: a:', a
+       STOP 'COMOVING_DISTANCE: Error, tried to calculate distance in the future'
+    ELSE
+       IF(cosm%has_distance .EQV. .FALSE.) CALL init_distances(cosm)
+       comoving_distance=find(a,cosm%a_r,cosm%r,cosm%n_r,3,3,2)
+    END IF
 
   END FUNCTION comoving_distance
 

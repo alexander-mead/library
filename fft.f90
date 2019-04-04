@@ -32,11 +32,21 @@ MODULE fft
      MODULE PROCEDURE FFT3_real_single    
   END INTERFACE FFT3
 
-!!$  INTERFACE FFT
-!!$     MODULE PROCEDURE FFT1
-!!$     MODULE PROCEDURE FFT2
-!!$     MODULE PROCEDURE FFT3
-!!$  END INTERFACE FFT
+! This works, but cannot be called FFT as this is the same name as fft.f90
+!!$  INTERFACE FFTs
+!!$     MODULE PROCEDURE FFT1_complex_double
+!!$     MODULE PROCEDURE FFT1_complex_single
+!!$     MODULE PROCEDURE FFT1_real_double
+!!$     MODULE PROCEDURE FFT1_real_single
+!!$     MODULE PROCEDURE FFT2_complex_double
+!!$     MODULE PROCEDURE FFT2_complex_single
+!!$     MODULE PROCEDURE FFT2_real_double
+!!$     MODULE PROCEDURE FFT2_real_single
+!!$     MODULE PROCEDURE FFT3_complex_double
+!!$     MODULE PROCEDURE FFT3_complex_single
+!!$     MODULE PROCEDURE FFT3_real_double
+!!$     MODULE PROCEDURE FFT3_real_single
+!!$  END INTERFACE FFTs
 
 CONTAINS
 

@@ -3,6 +3,7 @@ MODULE logical_operations
   INTERFACE read_command_argument
      MODULE PROCEDURE read_command_argument_real
      MODULE PROCEDURE read_command_argument_integer
+     MODULE PROCEDURE read_command_argument_character
   END INTERFACE read_command_argument
 
 CONTAINS
@@ -17,8 +18,8 @@ CONTAINS
 
     CALL get_command_argument(i,word)
     IF(word=='') THEN
-       WRITE(*,*) 'READ_COMMAND_ARGUMENT: Missing command-line argument number:', i
-       WRITE(*,*) 'READ_COMMAND_ARGUMENT: Missing command-line argument: ', TRIM(desc)
+       WRITE(*,*) 'READ_COMMAND_ARGUMENT_REAL: Missing command-line argument number:', i
+       WRITE(*,*) 'READ_COMMAND_ARGUMENT_REAL: Missing command-line argument: ', TRIM(desc)
        STOP
     ELSE
        READ(word,*) x
@@ -36,14 +37,33 @@ CONTAINS
 
     CALL get_command_argument(i,word)
     IF(word=='') THEN
-       WRITE(*,*) 'READ_COMMAND_ARGUMENT: Missing command-line argument:', i
-       WRITE(*,*) 'READ_COMMAND_ARGUMENT: Missing command-line argument: ', TRIM(desc)
+       WRITE(*,*) 'READ_COMMAND_ARGUMENT_INTEGER: Missing command-line argument:', i
+       WRITE(*,*) 'READ_COMMAND_ARGUMENT_INTEGER: Missing command-line argument: ', TRIM(desc)
        STOP
     ELSE
        READ(word,*) x
     END IF
 
   END SUBROUTINE read_command_argument_integer
+
+  SUBROUTINE read_command_argument_character(i,x,desc)
+
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: i             ! Position of command-line argument
+    CHARACTER(len=256), INTENT(OUT) :: x ! String to be assigned command-line argument
+    CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
+    CHARACTER(len=256) :: word
+
+    CALL get_command_argument(i,word)
+    IF(word=='') THEN
+       WRITE(*,*) 'READ_COMMAND_ARGUMENT_CHARACTER: Missing command-line argument:', i
+       WRITE(*,*) 'READ_COMMAND_ARGUMENT_CHARACTER: Missing command-line argument: ', TRIM(desc)
+       STOP
+    ELSE
+       x=word
+    END IF
+
+  END SUBROUTINE read_command_argument_character
 
   LOGICAL FUNCTION positive(x)
 

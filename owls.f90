@@ -117,8 +117,8 @@ CONTAINS
     READ(7) nh ! physical hydrogen number density for the partcle in [/cm^3]
     CLOSE(7)
 
-    ! Convert masses into Solar masses
-    m=m*mfac
+    ! Convert particle masses
+    m=m*mfac ! [Msun/h]
 
     ! Write information to the screen
     WRITE(*,*) 'READ_MCCARTHY_GAS: Calculating kT from physical electron pressure'
@@ -128,9 +128,6 @@ CONTAINS
     WRITE(*,*) 'READ_MCCARTHY_GAS: Mean particle mass: mu_p [m_p]:', mup
     WRITE(*,*) 'READ_MCCARTHY_GAS: Number of electrons per hydrogen: X_e/X_H:', Xeh
     WRITE(*,*) 'READ_MCCARTHY_GAS: Number of ions per hydrogen: X_i/X_H:', Xih
-
-    ! Calculate and write the 'particle mass per free electron: mu_e'
-    !mue=mup*(Xe+Xi)/Xe
     WRITE(*,*) 'READ_MCCARTHY_GAS: Mean particle mass per electron: mu_e [m_p]:', mue
 
     ! Convert the physical hydrogen number density into a physical particle mass density [mp/cm^3]
@@ -143,8 +140,6 @@ CONTAINS
     ! This is the temperature of gas particles (equal for all species)
     ! Temperature is neither comoving nor physical
     ALLOCATE(kT(n))
-    !kT=((Xe+Xi)/Xe)*(ep/nh)*mu*fh
-    !kT=(ep/nh)*mue*fh
     kT=(ep/rho)*mue
     kT=kT/eV_erg ! Convert internal energy from erg to eV    
     DEALLOCATE(ep) ! Deallocate the physical electron pressure array   
@@ -152,7 +147,7 @@ CONTAINS
     ! Write information to the screen
     WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle mass [Msun/h]:', minval(m)
     WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle mass [Msun/h]:', maxval(m)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Total particle mass [Msun/h]:', sum(m)
+    WRITE(*,*) 'READ_MCCARTHY_GAS: Total mass of all particles [Msun/h]:', sum(m)
     WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle x coordinate [Mpc/h]:', minval(x(1,:))
     WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle x coordinate [Mpc/h]:', maxval(x(1,:))
     WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle y coordinate [Mpc/h]:', minval(x(2,:))
@@ -183,6 +178,7 @@ CONTAINS
     REAL, INTENT(IN) :: h        ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors) 
     REAL :: V
     DOUBLE PRECISION :: units, kT_dble(n)
+    INTEGER, PARAMETER :: scheme=1
 
     ! Exclude gas that is sufficiently dense to not be ionised and be forming stars
     IF(apply_nh_cut) CALL exclude_nh(nh_cut,kT,rho,n)
@@ -191,34 +187,57 @@ CONTAINS
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Using numbers appropriate for BAHAMAS'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Note that this is COMOVING'
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Y_H:', fh
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_p:', mup
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xe/h:', Xeh
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Xi/h:', Xih
-
-    !mue=mup*(Xe+Xi)/Xe
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_e:', mue
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_p [mp]:', mup
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: X_e/X_H:', Xeh
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: X_i/X_H:', Xih
+    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_e [mp]:', mue
 
     ! Use double precision because all the constants are dreadful 
     kT_dble=kT ! [eV]
-    
-    ! Convert to particle internal energy that can be mapped to grid
-    !kT_dble=kT_dble*(m/mu)*Xe/(Xe+Xi) ! [eV*Msun]
-    kT_dble=kT_dble*(m/mue) ! [eV*Msun]
 
-    ! Comoving volume
-    V=(L/h)**3 ! [(Mpc)^3]
+    IF(scheme==1 .OR. scheme==2) THEN
 
-    ! This is now comoving electron pressure
-    kT_dble=kT_dble/V ! [Msun*eV/Mpc^3]
+       ! Convert to particle internal energy that can be mapped to grid
+       IF(scheme==1) THEN
+          kT_dble=kT_dble*(m/mue) ! [eV*Msun] BUG: I think there should be a factor of h here due to Msun/h units
+       ELSE IF(scheme==2) THEN
+          kT_dble=kT_dble*(m/(h*mue)) ! [eV*Msun]
+       ELSE
+          STOP 'CONVERT_KT_TO_ELECTRON_PRESSURE: Error, scheme specified incorrectly'
+       END IF
 
-    ! Convert units of comoving electron pressure
-    ! Note that there are no h factors here
-    units=msun
-    units=units/mp ! Divide out proton mass here [eV/Mpc^3]
-    units=units/(Mpc/0.01)
-    units=units/(Mpc/0.01)
-    units=units/(Mpc/0.01)
-    kT_dble=kT_dble*units ! [eV/cm^3]
+       ! Comoving volume
+       V=(L/h)**3 ! [(Mpc)^3]
+
+       ! This is now comoving electron pressure
+       kT_dble=kT_dble/V ! [eV*Msun/Mpc^3]
+
+       ! Convert units of comoving electron pressure
+       ! Note that there are no h factors here
+       units=msun
+       units=units/mp         ! Divide out proton mass here [eV/Mpc^3]
+       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow
+       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow
+       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow
+       kT_dble=kT_dble*units  ! [eV/cm^3]
+
+    ELSE IF(scheme==3) THEN
+
+       ! Comoving volume
+       V=(L/h)**3 ! [(Mpc)^3]
+
+       ! Big blob of units
+       units=(Msun*(h**2)*(0.01)**3)
+       units=units/Mpc
+       units=units/Mpc
+       units=units/Mpc
+
+       ! Final quantity
+       kT_dble=units*(m/(mue*mp))*kT_dble/V
+
+    ELSE
+       STOP 'CONVERT_KT_TO_ELECTRON_PRESSURE: Error, scheme specified incorrectly'
+    END IF
 
     ! Go back to single precision
     kT=real(kT_dble) ! [eV/cm^3]

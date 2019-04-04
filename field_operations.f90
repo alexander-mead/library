@@ -393,6 +393,10 @@ CONTAINS
     REAL :: x, y
 
     WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Writing to: ', trim(outfile)
+    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Minimum field value:', minval(d)
+    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Maximum field value:', maxval(d)
+    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Field mesh size:', m
+    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Field physical size:', L
 
     OPEN(8,file=outfile)
     DO j=1,m
