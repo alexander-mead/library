@@ -11,7 +11,7 @@ MODULE field_operations
   END INTERFACE smooth
 
   INTERFACE sharpen
-     !MODULE PROCEDURE sharpen_2D
+     MODULE PROCEDURE sharpen_2D
      MODULE PROCEDURE sharpen_3D
   END INTERFACE sharpen
 

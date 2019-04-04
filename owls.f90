@@ -246,6 +246,7 @@ CONTAINS
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Maximum electron pressure [eV/cm^3]: ', maxval(kT)
     WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Done'
     WRITE(*,*)
+    STOP
 
   END SUBROUTINE convert_kT_to_comoving_electron_pressure
 
