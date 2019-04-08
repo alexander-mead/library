@@ -21,6 +21,11 @@ MODULE array_operations
      MODULE PROCEDURE add_to_array_3D
   END INTERFACE add_to_array
 
+  INTERFACE splay
+     MODULE PROCEDURE splay_2D
+     MODULE PROCEDURE splay_3D
+  END INTERFACE splay
+
 CONTAINS
 
   SUBROUTINE add_to_array_2D(a,m,v,i)
@@ -283,11 +288,33 @@ CONTAINS
 
   END SUBROUTINE reverse
 
-  FUNCTION splay(a,n1,n2,n3)
+  FUNCTION splay_2D(a,n1,n2)
 
     ! This splays out a 3d array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
     IMPLICIT NONE
-    REAL :: splay(n1*n2*n3)
+    REAL :: splay_2D(n1*n2)
+    REAL, INTENT(IN) :: a(n1,n2)
+    INTEGER, INTENT(IN) :: n1, n2
+    INTEGER :: i, j, ii
+
+    ! Set sum integer to zero
+    ii=0
+
+    DO j=1,n2
+       DO i=1,n1
+          ii=ii+1
+          splay_2D(ii)=a(i,j)
+       END DO
+    END DO
+
+  END FUNCTION splay_2D
+
+  FUNCTION splay_3D(a,n1,n2,n3)
+
+    ! This splays out a 3d array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
+    ! TODO: Should i, j, k order of loops be reversed?
+    IMPLICIT NONE
+    REAL :: splay_3D(n1*n2*n3)
     REAL, INTENT(IN) :: a(n1,n2,n3)
     INTEGER, INTENT(IN) :: n1, n2, n3
     INTEGER :: i, j, k, ii
@@ -299,12 +326,12 @@ CONTAINS
        DO j=1,n2
           DO k=1,n3             
              ii=ii+1
-             splay(ii)=a(i,j,k)
+             splay_3D(ii)=a(i,j,k)
           END DO
        END DO
     END DO
 
-  END FUNCTION splay
+  END FUNCTION splay_3D
 
   SUBROUTINE binning(a,a1,a2,n,b,c,ilog)
 

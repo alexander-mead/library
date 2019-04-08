@@ -1,5 +1,15 @@
 MODULE field_operations
 
+  INTERFACE read_field_binary
+     MODULE PROCEDURE read_field_binary_2D
+     MODULE PROCEDURE read_field_binary_3D
+  END INTERFACE read_field_binary
+
+  INTERFACE write_field_binary
+     MODULE PROCEDURE write_field_binary_2D
+     MODULE PROCEDURE write_field_binary_3D
+  END INTERFACE write_field_binary
+
   INTERFACE compute_power_spectrum
      MODULE PROCEDURE compute_power_spectrum_2D
      MODULE PROCEDURE compute_power_spectrum_3D
@@ -309,30 +319,89 @@ CONTAINS
 
   END SUBROUTINE generate_displacement_fields
 
-  SUBROUTINE read_field(d,m,infile)
+  SUBROUTINE read_field_binary_2D(d,m,L,infile)
 
     ! Read in a binary 'field' file
     USE array_operations
     USE statistics
     IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(OUT) :: d(:,:)
+    INTEGER, INTENT(OUT) :: m
+    REAL, INTENT(OUT) :: L
     CHARACTER(len=*), INTENT(IN) :: infile
-    REAL, INTENT(OUT) :: d(m,m,m)
-    INTEGER, INTENT(IN) :: m
+    LOGICAL :: lexist
 
-    ! Output unformatted data
-    WRITE(*,*) 'READ_FIELD: Binary input: ', trim(infile)
-    WRITE(*,*) 'READ_FIELD: Mesh size:', m
+    ! Write file name to screen and check it exists
+    WRITE(*,*) 'READ_FIELD_BINARY_2D: Binary input: ', trim(infile)
+    INQUIRE(file=infile,exist=lexist)
+    IF(.NOT. lexist) STOP 'READ_SIMULATION_POWER_SPECTRUM: File does not exist'
+
+    ! First get mesh size and physical size
     OPEN(7,file=infile,form='unformatted',access='stream',status='old')
+    READ(7) m
+    READ(7) L
+    CLOSE(7)
+    WRITE(*,*) 'READ_FIELD_BINARY_2D: Mesh size:', m
+    WRITE(*,*) 'READ_FIELD_BINARY_2D: Field size:', L
+
+    ALLOCATE(d(m,m))
+    
+    ! Read unformatted data    
+    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
+    READ(7) m
+    READ(7) L
     READ(7) d
     CLOSE(7)
-    WRITE(*,*) 'READ_FIELD: Minval:', minval(d)
-    WRITE(*,*) 'READ_FIELD: Maxval:', maxval(d)
-    WRITE(*,*) 'READ_FIELD: Average:', mean(splay(d,m,m,m),m**3)
-    WRITE(*,*) 'READ_FIELD: Variance:', variance(splay(d,m,m,m),m**3)
-    WRITE(*,*) 'READ_FIELD: Done'
+    WRITE(*,*) 'READ_FIELD_BINARY_2D: Minimum field value:', minval(d)
+    WRITE(*,*) 'READ_FIELD_BINARY_2D: Maximum field value:', maxval(d)
+    WRITE(*,*) 'READ_FIELD_BINARY_2D: Average:', mean(splay(d,m,m),m**2)
+    WRITE(*,*) 'READ_FIELD_BINARY_2D: Variance:', variance(splay(d,m,m),m**2)
+    WRITE(*,*) 'READ_FIELD_BINARY_2D: Done'
     WRITE(*,*)
 
-  END SUBROUTINE read_field
+  END SUBROUTINE read_field_binary_2D
+
+  SUBROUTINE read_field_binary_3D(d,m,L,infile)
+
+    ! Read in a binary 'field' file
+    USE array_operations
+    USE statistics
+    IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(OUT) :: d(:,:,:)
+    INTEGER, INTENT(OUT) :: m
+    REAL, INTENT(OUT) :: L
+    CHARACTER(len=*), INTENT(IN) :: infile
+    LOGICAL :: lexist
+
+    ! Write file name to screen and check it exists
+    WRITE(*,*) 'READ_FIELD_BINARY_3D: Binary input: ', trim(infile)
+    INQUIRE(file=infile,exist=lexist)
+    IF(.NOT. lexist) STOP 'READ_SIMULATION_POWER_SPECTRUM: File does not exist'
+
+    ! First get mesh size and physical size
+    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
+    READ(7) m
+    READ(7) L
+    CLOSE(7)
+    WRITE(*,*) 'READ_FIELD_BINARY_3D: Mesh size:', m
+    WRITE(*,*) 'READ_FIELD_BINARY_3D: Field size:', L
+
+    ALLOCATE(d(m,m,m))
+    
+    ! Read unformatted data    
+    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
+    READ(7) m
+    READ(7) L
+    READ(7) d
+    CLOSE(7)
+    WRITE(*,*) 'READ_FIELD_BINARY_3D: Minval:', minval(d)
+    WRITE(*,*) 'READ_FIELD_BINARY_3D: Maxval:', maxval(d)
+    WRITE(*,*) 'READ_FIELD_BINARY_3D: Average:', mean(splay(d,m,m,m),m**3)
+    WRITE(*,*) 'READ_FIELD_BINARY_3D: Variance:', variance(splay(d,m,m,m),m**3)
+    WRITE(*,*) 'READ_FIELD_BINARY_3D: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE read_field_binary_3D
 
   SUBROUTINE read_field8(d,m,infile)
 
@@ -351,8 +420,8 @@ CONTAINS
     READ(7) d8
     CLOSE(7)
     d=real(d8)
-    WRITE(*,*) 'READ_FIELD: Minval:', minval(d)
-    WRITE(*,*) 'READ_FIELD: Maxval:', maxval(d)
+    WRITE(*,*) 'READ_FIELD: Minimum field value:', minval(d)
+    WRITE(*,*) 'READ_FIELD: Maximum field value:', maxval(d)
     WRITE(*,*) 'READ_FIELD: Average:', real(mean(splay(d,m,m,m),m**3))
     WRITE(*,*) 'READ_FIELD: Variance:', real(variance(splay(d,m,m,m),m**3))
     WRITE(*,*) 'READ_FIELD: Done'
@@ -360,30 +429,59 @@ CONTAINS
 
   END SUBROUTINE read_field8
 
+  SUBROUTINE write_field_binary_2D(d,m,L,outfile)
+
+    ! Write out a binary 'field' file
+    IMPLICIT NONE    
+    REAL, INTENT(IN) :: d(m,m)
+    INTEGER, INTENT(IN) :: m
+    REAL, INTENT(IN) :: L
+    CHARACTER(len=*), INTENT(IN) :: outfile
+
+    WRITE(*,*) 'WRITE_FIELD_BINARY_2D: Binary output: ', trim(outfile)
+    WRITE(*,*) 'WRITE_FIELD_BINARY_2D: Mesh size:', m
+    WRITE(*,*) 'WRITE_FIELD_BINARY_2D: Field size:', L
+    WRITE(*,*) 'WRITE_FIELD_BINARY_2D: Minimum field value:', minval(d)
+    WRITE(*,*) 'WRITE_FIELD_BINARY_2D: Maximum field value:', maxval(d)
+    WRITE(*,*) 'WRITE_FIELD_BINARY_2D: Using new version with access=stream'
+    OPEN(7,file=outfile,form='unformatted',access='stream',status='replace')
+    WRITE(7) m
+    WRITE(7) L
+    WRITE(7) d
+    CLOSE(7)
+    WRITE(*,*) 'WRITE_FIELD_BINARY_2D: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE write_field_binary_2D
+
   ! Used to be called write_field
-  SUBROUTINE write_field_binary(d,m,outfile)
+  SUBROUTINE write_field_binary_3D(d,m,L,outfile)
 
     ! Write out a binary 'field' file
     IMPLICIT NONE    
     REAL, INTENT(IN) :: d(m,m,m)
     INTEGER, INTENT(IN) :: m
+    REAL, INTENT(IN) :: L
     CHARACTER(len=*), INTENT(IN) :: outfile
 
-    WRITE(*,*) 'WRITE_FIELD_BINARY: Binary output: ', trim(outfile)
-    WRITE(*,*) 'WRITE_FIELD_BINARY: Mesh size:', m
-    WRITE(*,*) 'WRITE_FIELD_BINARY: Minval:', minval(d)
-    WRITE(*,*) 'WRITE_FIELD_BINARY: Maxval:', maxval(d)
-    WRITE(*,*) 'WRITE_FIELD_BINARY: Using new version with access=stream'
+    WRITE(*,*) 'WRITE_FIELD_BINARY_3D: Binary output: ', trim(outfile)
+    WRITE(*,*) 'WRITE_FIELD_BINARY_3D: Mesh size:', m
+    WRITE(*,*) 'WRITE_FIELD_BINARY_3D: Field size:', L
+    WRITE(*,*) 'WRITE_FIELD_BINARY_3D: Minimum field value:', minval(d)
+    WRITE(*,*) 'WRITE_FIELD_BINARY_3D: Maximum field value:', maxval(d)
+    WRITE(*,*) 'WRITE_FIELD_BINARY_3D: Using new version with access=stream'
     OPEN(7,file=outfile,form='unformatted',access='stream',status='replace')
+    WRITE(7) m
+    WRITE(7) L
     WRITE(7) d
     CLOSE(7)
-    WRITE(*,*) 'WRITE_3D_FIELD_BINARY: Done'
+    WRITE(*,*) 'WRITE_FIELD_BINARY_3D: Done'
     WRITE(*,*)
 
-  END SUBROUTINE write_field_binary
+  END SUBROUTINE write_field_binary_3D
 
   ! Used to be called print_2D_field
-  SUBROUTINE write_2D_field_ascii(d,m,L,outfile)
+  SUBROUTINE write_field_ascii_2D(d,m,L,outfile)
 
     IMPLICIT NONE
     REAL, INTENT(IN) :: d(m,m), L
@@ -392,12 +490,12 @@ CONTAINS
     INTEGER :: i, j
     REAL :: x, y
 
-    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Writing to: ', trim(outfile)
-    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Minimum field value:', minval(d)
-    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Maximum field value:', maxval(d)
-    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Field mesh size:', m
-    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Field physical size:', L
-
+    WRITE(*,*) 'WRITE_FIELD_ASCII_2D: Writing to: ', trim(outfile)
+    WRITE(*,*) 'WRITE_FIELD_ASCII_2D: Field mesh size:', m
+    WRITE(*,*) 'WRITE_FIELD_ASCII_2D: Field physical size:', L
+    WRITE(*,*) 'WRITE_FIELD_ASCII_2D: Minimum field value:', minval(d)
+    WRITE(*,*) 'WRITE_FIELD_ASCII_2D: Maximum field value:', maxval(d)
+    
     OPEN(8,file=outfile)
     DO j=1,m
        DO i=1,m
@@ -411,10 +509,10 @@ CONTAINS
     END DO
     CLOSE(8)
 
-    WRITE(*,*) 'WRITE_2D_FIELD_ASCII: Done'
+    WRITE(*,*) 'WRITE_FIELD_ASCII_2D: Done'
     WRITE(*,*)
 
-  END SUBROUTINE write_2D_field_ascii
+  END SUBROUTINE write_field_ascii_2D
 
   ! Used to be called print_projected_field
   SUBROUTINE write_3D_field_projection_ascii(d,m,L,nz,outfile)

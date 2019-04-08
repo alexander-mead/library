@@ -58,4 +58,11 @@ def integrate_rectangular(fx,x):
     dx = x[1]-x[0]
     return sum(fx)*dx
 
+# https://stackoverflow.com/questions/845058/how-to-get-line-count-cheaply-in-python
+def file_length(fname):
+    with open(fname) as f:
+        for i, l in enumerate(f):
+            pass
+    return i + 1
+
     

@@ -4,6 +4,7 @@ MODULE simulations
   ! Anything that involves only the fields should go in field_operations.f90
   ! Each routine should take particle properties (e.g., positions) as an argument
 
+  USE logical_operations
   USE field_operations
   
   IMPLICIT NONE
@@ -632,7 +633,7 @@ CONTAINS
 
   END SUBROUTINE sparse_sample
 
-  SUBROUTINE replace(x,n,L)
+  SUBROUTINE replace(x,n,L,verbose)
 
     ! Ensures/enforces periodicity by cycling particles round that may have strayed
     ! This forces all particles to be 0<=x<L, so they cannot be exactly at x=L
@@ -640,10 +641,11 @@ CONTAINS
     REAL, INTENT(INOUT) :: x(3,n)
     INTEGER, INTENT(IN) :: n
     REAL, INTENT(IN) :: L
+    LOGICAL, OPTIONAL :: verbose
     INTEGER :: i, j
     INTEGER :: m
 
-    WRITE(*,*) 'REPLACE: Replacing particles that may have strayed'
+    IF(present_and_correct(verbose)) WRITE(*,*) 'REPLACE: Replacing particles that may have strayed'
 
     ! Loop over all particles and coordinates
     DO i=1,n
@@ -659,76 +661,87 @@ CONTAINS
        END DO
     END DO
 
-    WRITE(*,*) 'REPLACE: Done'
-    WRITE(*,*)
+    IF(present_and_correct(verbose)) THEN
+       WRITE(*,*) 'REPLACE: Done'
+       WRITE(*,*)
+    END IF
 
   END SUBROUTINE replace
 
-  SUBROUTINE random_translation(x,n,L)
+  SUBROUTINE random_translation(x,n,L,verbose)
 
     USE random_numbers
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n)
     INTEGER, INTENT(IN) :: n
     REAL, INTENT(IN) :: L
+    LOGICAL, OPTIONAL :: verbose
     INTEGER :: i
     REAL :: T(3)
 
-    WRITE(*,*) 'RANDOM_TRANSLATION: Applying random translation'
+    IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_TRANSLATION: Applying random translation'
 
     ! Calculate and apply the translations
     DO i=1,3
        T(i)=random_uniform(0.,L)
-       WRITE(*,*) 'RANDOM_TRANSLATION: Direction', i
-       WRITE(*,*) 'RANDOM_TRANSLATION: Translation [Mpc/h]:', T(i)
+       IF(present_and_correct(verbose)) THEN
+          WRITE(*,*) 'RANDOM_TRANSLATION: Direction', i
+          WRITE(*,*) 'RANDOM_TRANSLATION: Translation [Mpc/h]:', T(i)
+       END IF
        x(i,:)=x(i,:)+T(i)
     END DO
 
-    WRITE(*,*) 'RANDOM_TRANSLATION: Done'
-    WRITE(*,*)
+    IF(present_and_correct(verbose)) THEN
+       WRITE(*,*) 'RANDOM_TRANSLATION: Done'
+       WRITE(*,*)
+    END IF
 
     ! Replace particles within the cube
-    CALL replace(x,n,L)
+    CALL replace(x,n,L,verbose)
   
   END SUBROUTINE random_translation
 
-  SUBROUTINE random_inversion(x,n,L)
+  SUBROUTINE random_inversion(x,n,L,verbose)
 
     USE random_numbers
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n)
     INTEGER, INTENT(IN) :: n
     REAL, INTENT(IN) :: L
+    LOGICAL, OPTIONAL :: verbose
     INTEGER :: i
     INTEGER :: pm(3)
 
-    WRITE(*,*) 'RANDOM_INVERSION: Applying random inversion'
+    IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_INVERSION: Applying random inversion'
 
     ! Calculate and apply the translations
     DO i=1,3
        pm(i)=random_sign()
-       WRITE(*,*) 'RANDOM_INVERSION: Direction', i, 'Sign:', pm(i)
+       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_INVERSION: Direction', i, 'Sign:', pm(i)
        x(i,:)=x(i,:)*pm(i)
     END DO
 
-    WRITE(*,*) 'RANDOM_INVERSION: Done'
-    WRITE(*,*)
+    IF(present_and_correct(verbose)) THEN
+       WRITE(*,*) 'RANDOM_INVERSION: Done'
+       WRITE(*,*)
+    END IF
 
     ! Replace particles within the cube
-    CALL replace(x,n,L)
+    CALL replace(x,n,L,verbose)
   
   END SUBROUTINE random_inversion
 
-  SUBROUTINE random_rotation(x,n)
+  SUBROUTINE random_rotation(x,n,verbose)
 
     USE random_numbers
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n)
     INTEGER, INTENT(IN) :: n
+    LOGICAL, OPTIONAL :: verbose
     REAL :: y(3,n)
     INTEGER :: type
 
-    WRITE(*,*) 'RANDOM_ROTATION: Applying random rotation'
+    IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Applying random rotation'
 
     ! Save old coordinates
     y=x
@@ -738,44 +751,47 @@ CONTAINS
 
     ! Apply random rotation
     IF(type==1) THEN
-       WRITE(*,*) 'RANDOM_ROTATION: Doing 123'
+       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 123'
        !x(1,:)=y(1,:)
        !x(2,:)=y(2,:)
        !x(3,:)=y(3,:)
     ELSE IF(type==2) THEN
-       WRITE(*,*) 'RANDOM_ROTATION: Doing 132'
+       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 132'
        !x(1,:)=y(1,:)
        x(2,:)=y(3,:)
        x(3,:)=y(2,:)
     ELSE IF(type==3) THEN
-       WRITE(*,*) 'RANDOM_ROTATION: Doing 213'
+       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 213'
        x(1,:)=y(2,:)
        x(2,:)=y(1,:)
        !x(3,:)=y(3,:)
     ELSE IF(type==4) THEN
-       WRITE(*,*) 'RANDOM_ROTATION: Doing 231'
+       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 231'
        x(1,:)=y(2,:)
        x(2,:)=y(3,:)
        x(3,:)=y(1,:)
     ELSE IF(type==5) THEN
-       WRITE(*,*) 'RANDOM_ROTATION: Doing 312'
+       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 312'
        x(1,:)=y(3,:)
        x(2,:)=y(1,:)
        x(3,:)=y(2,:)
     ELSE IF(type==6) THEN
-       WRITE(*,*) 'RANDOM_ROTATION: Doing 321'
+       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 321'
        x(1,:)=y(3,:)
        !x(2,:)=y(2,:)
        x(3,:)=y(1,:)
     END IF
-    WRITE(*,*) 'RANDOM_ROTATION: Done'
-    WRITE(*,*)
-  
+    IF(present_and_correct(verbose)) THEN
+       WRITE(*,*) 'RANDOM_ROTATION: Done'
+       WRITE(*,*)
+    END IF
+    
   END SUBROUTINE random_rotation
 
   SUBROUTINE particle_bin_2D(x,n,L,w,d,m,ibin,all,periodic)
 
     ! Bin particle properties onto a mesh, summing as you go
+    ! TODO: Adapt for different lengths and different meshes in x,y
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(2,n)       ! 2D particle positions
     INTEGER, INTENT(IN) :: n         ! Total number of particles in area
@@ -902,7 +918,7 @@ CONTAINS
 
     ! Nearest-grid-point binning routine
     ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
-    USE statistics
+    !USE statistics
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(2,n)    ! particle positions
     INTEGER, INTENT(IN) :: n      ! Total number of particles in area
@@ -963,7 +979,7 @@ CONTAINS
 
     ! Nearest-grid-point binning routine
     ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
-    USE statistics
+    !USE statistics
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(3,n)      ! particle positions
     INTEGER, INTENT(IN) :: n        ! Total number of particles in area
@@ -1849,23 +1865,23 @@ CONTAINS
 
        output=number_file_zeroes(base,m1,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
-       CALL write_2D_field_ascii(field1,m1,Lsub,output)
+       CALL write_field_ascii_2D(field1,m1,Lsub,output)
 
        output=number_file_zeroes(base,m2,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
-       CALL write_2D_field_ascii(field2,m2,Lsub,output)
+       CALL write_field_ascii_2D(field2,m2,Lsub,output)
 
        output=number_file_zeroes(base,m3,4,ext)       
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
-       CALL write_2D_field_ascii(field3,m3,Lsub,output)
+       CALL write_field_ascii_2D(field3,m3,Lsub,output)
 
        output=number_file_zeroes(base,m4,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
-       CALL write_2D_field_ascii(field4,m4,Lsub,output)
+       CALL write_field_ascii_2D(field4,m4,Lsub,output)
 
        output=number_file_zeroes(base,m5,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
-       CALL write_2D_field_ascii(field5,m5,Lsub,output)
+       CALL write_field_ascii_2D(field5,m5,Lsub,output)
 
     END IF
 
@@ -2013,7 +2029,7 @@ CONTAINS
     WRITE(*,*)
 
     ! Finally write out an ascii file for plotting
-    CALL write_2D_field_ascii(d,m1,Lsub,outfile)
+    CALL write_field_ascii_2D(d,m1,Lsub,outfile)
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Done'
     WRITE(*,*)
 
