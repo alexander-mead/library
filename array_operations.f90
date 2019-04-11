@@ -22,8 +22,8 @@ MODULE array_operations
   END INTERFACE add_to_array
 
   INTERFACE splay
-     MODULE PROCEDURE splay_2D
-     MODULE PROCEDURE splay_3D
+     PROCEDURE splay_2D
+     PROCEDURE splay_3D
   END INTERFACE splay
 
 CONTAINS

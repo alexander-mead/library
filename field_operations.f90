@@ -10,6 +10,10 @@ MODULE field_operations
      MODULE PROCEDURE write_field_binary_3D
   END INTERFACE write_field_binary
 
+  INTERFACE write_field_ascii
+     MODULE PROCEDURE write_field_ascii_2D
+  END INTERFACE write_field_ascii
+
   INTERFACE compute_power_spectrum
      MODULE PROCEDURE compute_power_spectrum_2D
      MODULE PROCEDURE compute_power_spectrum_3D
@@ -29,6 +33,10 @@ MODULE field_operations
      MODULE PROCEDURE sharpen_k_2D
      MODULE PROCEDURE sharpen_k_3D
   END INTERFACE sharpen_k
+
+  INTERFACE empty_cells
+     MODULE PROCEDURE empty_cells_3D
+  END INTERFACE empty_cells
   
 CONTAINS
 
@@ -1102,6 +1110,7 @@ CONTAINS
   SUBROUTINE clip(d,m1,m2,m3,d0,verbose)
 
     USE statistics
+    USE array_operations
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: d(:,:,:)
     REAL, INTENT(IN) :: d0
@@ -1156,6 +1165,7 @@ CONTAINS
   SUBROUTINE anticlip(d,m1,m2,m3,d0,verbose)
 
     USE statistics
+    USE array_operations
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: d(m1,m2,m3)
     INTEGER, INTENT(IN) :: m1, m2, m3
@@ -2293,5 +2303,28 @@ CONTAINS
     WRITE(*,*)
 
   END SUBROUTINE field_correlation_function
+
+  INTEGER FUNCTION empty_cells_3D(d,m)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: d(m,m,m)
+    INTEGER, INTENT(IN) :: m
+    INTEGER*8 :: sum
+    INTEGER :: i, j, k
+
+    sum=0
+    DO k=1,m
+       DO j=1,m
+          DO i=1,m
+             IF(d(i,j,k)==0.) THEN
+                sum=sum+1
+             END IF
+          END DO
+       END DO
+    END DO
+
+    empty_cells_3D=int(sum)
+
+  END FUNCTION empty_cells_3D
 
 END MODULE field_operations

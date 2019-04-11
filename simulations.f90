@@ -268,7 +268,7 @@ CONTAINS
 
     ! Bin the particles with equal weight to create the particle-number field in cells [dimensionless]
     w=1.
-    CALL particle_bin(x,n,L,w,d,m,ibin,all=.TRUE.,periodic=.TRUE.)
+    CALL particle_bin(x,n,L,w,d,m,ibin,all=.TRUE.,periodic=.TRUE.,verbose=.TRUE.)
 
     ! Now compute the mean particle number density in a cell [dimensionless]
     dbar=real(n)/real(m)**3
@@ -362,7 +362,7 @@ CONTAINS
     ! Bin for the 2D density field and convert to relative density
     ALLOCATE(w2D(n2D))
     w2D=1.
-    CALL particle_bin(x2D,n2D,L,w2D,d,m,ibin,all=.TRUE.,periodic=.TRUE.)
+    CALL particle_bin(x2D,n2D,L,w2D,d,m,ibin,all=.TRUE.,periodic=.TRUE.,verbose=.TRUE.)
     DEALLOCATE(x2D)
     vfac=(z2-z1)/L
     dbar=(real(n)*vfac)/real(m**2)
@@ -788,20 +788,21 @@ CONTAINS
     
   END SUBROUTINE random_rotation
 
-  SUBROUTINE particle_bin_2D(x,n,L,w,d,m,ibin,all,periodic)
+  SUBROUTINE particle_bin_2D(x,n,L,w,d,m,ibin,all,periodic,verbose)
 
     ! Bin particle properties onto a mesh, summing as you go
     ! TODO: Adapt for different lengths and different meshes in x,y
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(2,n)       ! 2D particle positions
-    INTEGER, INTENT(IN) :: n         ! Total number of particles in area
+    INTEGER, INTENT(IN) :: n         ! Total number of particles
     REAL, INTENT(IN) :: L            ! Area side length
-    REAL, INTENT(IN) :: w(n)         ! Weight array
+    REAL, INTENT(IN) :: w(n)         ! Weight array for each particle
     REAL, INTENT(OUT) :: d(m,m)      ! Output of eventual 2D density field
     INTEGER, INTENT(IN) :: m         ! Mesh size for density field
-    INTEGER, INTENT(IN) :: ibin   ! Binning strategy
+    INTEGER, INTENT(IN) :: ibin      ! Binning strategy
     LOGICAL, INTENT(IN) :: all       ! Should all particles be contributing to the binning?
     LOGICAL, INTENT(IN) :: periodic  ! Is the volume periodic?
+    LOGICAL, INTENT(IN) :: verbose   ! Verbose?
 
     IF(periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_2D: Very strange to have periodic and not all particles contribute'
 
@@ -814,28 +815,29 @@ CONTAINS
 !!$    END IF
 
     IF(ibin==1) THEN
-       CALL NGP_2D(x,n,L,w,d,m,all)
+       CALL NGP_2D(x,n,L,w,d,m,all,verbose)
     ELSE IF(ibin==2) THEN
-       CALL CIC_2D(x,n,L,w,d,m,all,periodic)
+       CALL CIC_2D(x,n,L,w,d,m,all,periodic,verbose)
     ELSE
        STOP 'PARTICLE_BIN_2D: Error, ibin not specified correctly'
     END IF
 
   END SUBROUTINE particle_bin_2D
 
-  SUBROUTINE particle_bin_3D(x,n,L,w,d,m,ibin,all,periodic)
+  SUBROUTINE particle_bin_3D(x,n,L,w,d,m,ibin,all,periodic,verbose)
 
     !Bin particle properties onto a mesh, summing as you go
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x(3,n)
-    INTEGER, INTENT(IN) :: n
-    REAL, INTENT(IN) :: L
-    REAL, INTENT(IN) :: w(n)
-    REAL, INTENT(INOUT) :: d(m,m,m)
-    INTEGER, INTENT(IN) :: m
-    INTEGER, INTENT(IN) :: ibin
+    REAL, INTENT(IN) :: x(3,n)      ! 3D particle positions
+    INTEGER, INTENT(IN) :: n        ! Total number of particles
+    REAL, INTENT(IN) :: L           ! Volume side length
+    REAL, INTENT(IN) :: w(n)        ! Weight array for each particle
+    REAL, INTENT(INOUT) :: d(m,m,m) ! Output of eventual 3D density field
+    INTEGER, INTENT(IN) :: m        ! Mesh size for density field
+    INTEGER, INTENT(IN) :: ibin     ! Binning strategy
     LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
     LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
+    LOGICAL, INTENT(IN) :: verbose  ! Verbose?
 
     IF(periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_3D: Very strange to have periodic and not all particles contribute'
 
@@ -848,9 +850,9 @@ CONTAINS
 !!$    END IF
 
     IF(ibin==1) THEN
-       CALL NGP_3D(x,n,L,w,d,m,all)
+       CALL NGP_3D(x,n,L,w,d,m,all,verbose)
     ELSE IF(ibin==2) THEN
-       CALL CIC_3D(x,n,L,w,d,m,all,periodic)
+       CALL CIC_3D(x,n,L,w,d,m,all,periodic,verbose)
     ELSE
        STOP 'PARTICLE_BIN_3D: Error, ibin not specified correctly'
     END IF
@@ -882,11 +884,11 @@ CONTAINS
 
     !Call the binning twice, first to bin particle property and second to count
     IF(ibin==1) THEN
-       CALL NGP_3D(x,n,L,w,d,m,all)
-       CALL NGP_3D(x,n,L,one,number,m,all)
+       CALL NGP_3D(x,n,L,w,d,m,all,verbose=.TRUE.)
+       CALL NGP_3D(x,n,L,one,number,m,all,verbose=.TRUE.)
     ELSE IF(ibin==2) THEN
-       CALL CIC_3D(x,n,L,w,d,m,all,periodic)
-       CALL CIC_3D(x,n,L,one,number,m,all,periodic)
+       CALL CIC_3D(x,n,L,w,d,m,all,periodic,verbose=.TRUE.)
+       CALL CIC_3D(x,n,L,one,number,m,all,periodic,verbose=.TRUE.)
     ELSE
        STOP 'PARTICLE_BIN_AVERAGE: Error, ibin not specified correctly'
     END IF
@@ -914,26 +916,29 @@ CONTAINS
 
   END SUBROUTINE particle_bin_average_3D
 
-  SUBROUTINE NGP_2D(x,n,L,w,d,m,all)
+  SUBROUTINE NGP_2D(x,n,L,w,d,m,all,verbose)
 
     ! Nearest-grid-point binning routine
     ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
     !USE statistics
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x(2,n)    ! particle positions
-    INTEGER, INTENT(IN) :: n      ! Total number of particles in area
-    REAL, INTENT(IN) :: L         ! Area side length
-    REAL, INTENT(IN) :: w(n)      ! Weight array
-    REAL, INTENT(INOUT) :: d(m,m) ! Output of eventual 2D density field
-    INTEGER, INTENT(IN) :: m      ! Mesh size for density field
-    LOGICAL, INTENT(IN) :: all    ! Should all particles be contributing to the binning?
+    REAL, INTENT(IN) :: x(2,n)     ! particle positions
+    INTEGER, INTENT(IN) :: n       ! Total number of particles in area
+    REAL, INTENT(IN) :: L          ! Area side length
+    REAL, INTENT(IN) :: w(n)       ! Weight array
+    REAL, INTENT(INOUT) :: d(m,m)  ! Output of eventual 2D density field
+    INTEGER, INTENT(IN) :: m       ! Mesh size for density field
+    LOGICAL, INTENT(IN) :: all     ! Should all particles be contributing to the binning?
+    LOGICAL, INTENT(IN) :: verbose ! Verbose
     INTEGER :: i, j, ix(2)
     LOGICAL :: outside
     INTEGER, PARAMETER :: dim=2
-    
-    WRITE(*,*) 'NGP_2D: Binning particles and creating field'
-    WRITE(*,*) 'NGP_2D: Binning region size:', L
-    WRITE(*,*) 'NGP_2D: Cells:', m
+
+    IF(verbose) THEN
+       WRITE(*,*) 'NGP_2D: Binning particles and creating field'
+       WRITE(*,*) 'NGP_2D: Binning region size:', L
+       WRITE(*,*) 'NGP_2D: Cells:', m
+    END IF
 
 !!$    ! Set array to zero explicitly
 !!$    !d=0.
@@ -970,12 +975,14 @@ CONTAINS
 
     END DO
 
-    WRITE(*,*) 'NGP_2D: Binning complete'
-    WRITE(*,*)
+    IF(verbose) THEN
+       WRITE(*,*) 'NGP_2D: Binning complete'
+       WRITE(*,*)
+    END IF
 
   END SUBROUTINE NGP_2D
 
-  SUBROUTINE NGP_3D(x,n,L,w,d,m,all)
+  SUBROUTINE NGP_3D(x,n,L,w,d,m,all,verbose)
 
     ! Nearest-grid-point binning routine
     ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
@@ -988,14 +995,17 @@ CONTAINS
     REAL, INTENT(INOUT) :: d(m,m,m) ! Output of eventual 2D density field
     INTEGER, INTENT(IN) :: m        ! Mesh size for density field
     LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
+    LOGICAL, INTENT(IN) :: verbose  ! Verbose
     INTEGER :: i, j, ix(3)
     LOGICAL :: outside
     INTEGER, PARAMETER :: dim=3
 
-    WRITE(*,*) 'NGP_3D: Binning particles and creating field'
-    WRITE(*,*) 'NGP_3D: Binning region size:', L
-    WRITE(*,*) 'NGP_3D: Cells:', m
-
+    IF(verbose) THEN
+       WRITE(*,*) 'NGP_3D: Binning particles and creating field'
+       WRITE(*,*) 'NGP_3D: Binning region size:', L
+       WRITE(*,*) 'NGP_3D: Cells:', m
+    END IF
+    
 !!$    ! Set array to zero explicitly
 !!$    !d=0.
 
@@ -1031,8 +1041,10 @@ CONTAINS
 
     END DO
 
-    WRITE(*,*) 'NGP_3D: Binning complete'
-    WRITE(*,*)
+    IF(verbose) THEN
+       WRITE(*,*) 'NGP_3D: Binning complete'
+       WRITE(*,*)
+    END IF
 
   END SUBROUTINE NGP_3D
 
@@ -1098,7 +1110,7 @@ CONTAINS
 !!$
 !!$  END SUBROUTINE NGP_3D
 
-  SUBROUTINE CIC_2D(x,n,L,w,d,m,all,periodic)
+  SUBROUTINE CIC_2D(x,n,L,w,d,m,all,periodic,verbose)
 
     ! Cloud-in-cell binning routine
     ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
@@ -1112,15 +1124,18 @@ CONTAINS
     INTEGER, INTENT(IN) :: m        ! Mesh size for density field
     LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
     LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
+    LOGICAL, INTENT(IN) :: verbose  ! Verbose
     INTEGER :: i, j, k
     INTEGER :: ix(2), iy(2), ic(2)
     REAL :: dx(2), eps
     LOGICAL :: outside
     INTEGER, PARAMETER :: dim=2
 
-    WRITE(*,*) 'CIC_2D: Binning particles and creating density field'
-    WRITE(*,*) 'CIC_2D: Binning region size:', L
-    WRITE(*,*) 'CIC_2D: Cells:', m
+    IF(verbose) THEN
+       WRITE(*,*) 'CIC_2D: Binning particles and creating density field'
+       WRITE(*,*) 'CIC_2D: Binning region size:', L
+       WRITE(*,*) 'CIC_2D: Cells:', m
+    END IF
 
     ! Needs to be set to 
     eps=0.
@@ -1212,12 +1227,14 @@ CONTAINS
 
     END DO
 
-    WRITE(*,*) 'CIC_2D: Binning complete'
-    WRITE(*,*)
+    IF(verbose) THEN
+       WRITE(*,*) 'CIC_2D: Binning complete'
+       WRITE(*,*)
+    END IF
 
   END SUBROUTINE CIC_2D
 
-  SUBROUTINE CIC_3D(x,n,L,w,d,m,all,periodic)
+  SUBROUTINE CIC_3D(x,n,L,w,d,m,all,periodic,verbose)
      
     ! Cloud-in-cell binning routine
     ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
@@ -1231,15 +1248,18 @@ CONTAINS
     INTEGER, INTENT(IN) :: m        ! Mesh size for density field
     LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
     LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
+    LOGICAL, INTENT(IN) :: verbose  ! Verbose
     INTEGER :: i, j, k
     INTEGER :: ix(3), iy(3), ic(3)
     REAL :: dx(3), eps
     LOGICAL :: outside
     INTEGER, PARAMETER :: dim=3
 
-    WRITE(*,*) 'CIC_3D: Binning particles and creating density field'
-    WRITE(*,*) 'CIC_3D: Binning region size:', L
-    WRITE(*,*) 'CIC_3D: Cells:', m
+    IF(verbose) THEN
+       WRITE(*,*) 'CIC_3D: Binning particles and creating density field'
+       WRITE(*,*) 'CIC_3D: Binning region size:', L
+       WRITE(*,*) 'CIC_3D: Cells:', m
+    END IF
 
     ! Set array to zero explicitly
     !d=0.
@@ -1356,8 +1376,10 @@ CONTAINS
 
     END DO
 
-    WRITE(*,*) 'CIC_3D: Binning complete'
-    WRITE(*,*)
+    IF(verbose) THEN
+       WRITE(*,*) 'CIC_3D: Binning complete'
+       WRITE(*,*)
+    END IF
 
   END SUBROUTINE CIC_3D
 
@@ -1805,22 +1827,22 @@ CONTAINS
     END IF
 
     ! Do binning of particles on each mesh resolution
-    CALL particle_bin(y,np,Lsub,ones,count1,m1,ibin,all,periodic)
-    CALL particle_bin(y,np,Lsub,ones,count2,m2,ibin,all,periodic)
-    CALL particle_bin(y,np,Lsub,ones,count3,m3,ibin,all,periodic)
-    CALL particle_bin(y,np,Lsub,ones,count4,m4,ibin,all,periodic)
-    CALL particle_bin(y,np,Lsub,ones,count5,m5,ibin,all,periodic)
+    CALL particle_bin(y,np,Lsub,ones,count1,m1,ibin,all,periodic,verbose=.TRUE.)
+    CALL particle_bin(y,np,Lsub,ones,count2,m2,ibin,all,periodic,verbose=.TRUE.)
+    CALL particle_bin(y,np,Lsub,ones,count3,m3,ibin,all,periodic,verbose=.TRUE.)
+    CALL particle_bin(y,np,Lsub,ones,count4,m4,ibin,all,periodic,verbose=.TRUE.)
+    CALL particle_bin(y,np,Lsub,ones,count5,m5,ibin,all,periodic,verbose=.TRUE.)
 
     ! Now bin field values, rather than particle numbers
     ! Need to multiply the weights through by factors of mesh to give the contribution to the mesh cell
     ! For example, for overdensity u is m_i/M, where M is now the subvolume mass
     ! This changes it to be the contribution to the density per mesh cell
     ! Same for pressure contributions
-    CALL particle_bin(y,np,Lsub,u*m1**2,field1,m1,ibin,all,periodic)
-    CALL particle_bin(y,np,Lsub,u*m2**2,field2,m2,ibin,all,periodic)
-    CALL particle_bin(y,np,Lsub,u*m3**2,field3,m3,ibin,all,periodic)
-    CALL particle_bin(y,np,Lsub,u*m4**2,field4,m4,ibin,all,periodic)
-    CALL particle_bin(y,np,Lsub,u*m5**2,field5,m5,ibin,all,periodic)
+    CALL particle_bin(y,np,Lsub,u*m1**2,field1,m1,ibin,all,periodic,verbose=.TRUE.)
+    CALL particle_bin(y,np,Lsub,u*m2**2,field2,m2,ibin,all,periodic,verbose=.TRUE.)
+    CALL particle_bin(y,np,Lsub,u*m3**2,field3,m3,ibin,all,periodic,verbose=.TRUE.)
+    CALL particle_bin(y,np,Lsub,u*m4**2,field4,m4,ibin,all,periodic,verbose=.TRUE.)
+    CALL particle_bin(y,np,Lsub,u*m5**2,field5,m5,ibin,all,periodic,verbose=.TRUE.)
 
     ! Smooth fields
     CALL smooth(field1,m1,fcell*Lsub/real(m1),Lsub)

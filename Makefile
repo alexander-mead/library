@@ -47,7 +47,6 @@ OBJS = \
 	ode_solvers.o \
 	vectors.o \
 	orbits.o \
-	owls.o \
 	solve_equations.o \
 	sorting.o \
 	string_operations.o \
@@ -56,7 +55,8 @@ OBJS = \
 	cosmic_emu_stuff.o \
 	multidark_stuff.o \
 	Limber.o \
-	HMx
+	HMx.o \
+	owls
 
 # Default compile option
 all: FFLAGS += -O3 
