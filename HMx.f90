@@ -600,10 +600,10 @@ CONTAINS
     hmod%Gamma=1.17    ! Polytropic gas index
     hmod%M0=1e14       ! Halo mass that has lost half gas
     hmod%Astar=0.03    ! Maximum star-formation efficiency
-    hmod%Twhim=3e6     ! WHIM temperature [K]
+    hmod%Twhim=10**6.5 ! WHIM temperature [K]
     hmod%cstar=10.     ! Stellar concentration r_* = rv/c
     hmod%sstar=1.2     ! sigma_* for f_* distribution
-    hmod%Mstar=5e12    ! M* for most efficient halo mass for star formation
+    hmod%Mstar=10**12.5! M* for most efficient halo mass for star formation
     hmod%fcold=0.0     ! Fraction of bound gas that is cold
     hmod%fhot=0.0      ! Fraction of bound gas that is hot
     hmod%eta=0.0       ! Power-law for central galaxy mass fraction
