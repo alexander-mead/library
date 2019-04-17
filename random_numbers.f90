@@ -49,13 +49,10 @@ CONTAINS
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: i1 ! Lower bound
     INTEGER, INTENT(IN) :: i2 ! Upper bound
-    INTEGER :: n
     REAL*4 :: rand ! Necessary to define for ifort
 
-    ! Range for the number
-    n=1+i2-i1
-
-    random_integer=i1-1+ceiling(rand(0)*real(n))
+    random_integer=i1-1+ceiling(rand(0)*real(1+i2-i1))
+    IF(random_integer==i1-1) random_integer=i1
 
   END FUNCTION random_integer
 
