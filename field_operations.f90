@@ -605,6 +605,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: ibin
     DOUBLE COMPLEX, ALLOCATABLE :: dk(:,:)
     DOUBLE COMPLEX :: dkout(m,m)
+    !DOUBLE COMPLEX :: dk(m,m)
     DOUBLE PRECISION :: dc(m,m)
     INTEGER :: mn
 
@@ -624,6 +625,8 @@ CONTAINS
     WRITE(*,*) 'SHARPEN_2D: Mesh size general:', m
     WRITE(*,*) 'SHARPEN_2D: Mesh size first-dimension:', mn
 
+    ALLOCATE(dk(mn,m))
+
     IF(complex) THEN
        dk=d
        CALL fft2(dk,dkout,m,m,-1)
@@ -631,8 +634,7 @@ CONTAINS
     ELSE
        dc=d
        CALL fft2(dc,dk,m,m,-1)
-    END IF
-    ALLOCATE(dk(mn,m))
+    END IF    
 
     CALL sharpen_k_2D(dk,mn,m,ibin)
 
@@ -661,6 +663,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: ibin
     DOUBLE COMPLEX, ALLOCATABLE :: dk(:,:,:)
     DOUBLE COMPLEX :: dkout(m,m,m)
+    !DOUBLE COMPLEX :: dk(m,m,m)
     DOUBLE PRECISION :: dc(m,m,m)
     INTEGER :: mn
 
@@ -680,6 +683,8 @@ CONTAINS
     WRITE(*,*) 'SHARPEN_3D: Mesh size general:', m
     WRITE(*,*) 'SHARPEN_3D: Mesh size first-dimension:', mn
 
+    ALLOCATE(dk(mn,m,m))
+
     IF(complex) THEN
        dk=d
        CALL fft3(dk,dkout,m,m,m,-1)
@@ -688,7 +693,6 @@ CONTAINS
        dc=d
        CALL fft3(dc,dk,m,m,m,-1)
     END IF
-    ALLOCATE(dk(mn,m,m))
 
     CALL sharpen_k_3D(dk,mn,m,ibin)
 
