@@ -780,7 +780,10 @@ CONTAINS
        x(1,:)=y(3,:)
        !x(2,:)=y(2,:)
        x(3,:)=y(1,:)
+    ELSE
+       STOP 'RANDOM_ROTATION: Error, something went very wrong'
     END IF
+    
     IF(present_and_correct(verbose)) THEN
        WRITE(*,*) 'RANDOM_ROTATION: Done'
        WRITE(*,*)
