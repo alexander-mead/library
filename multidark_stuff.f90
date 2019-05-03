@@ -2,12 +2,13 @@ MODULE multidark_stuff
 
 CONTAINS
 
-  SUBROUTINE read_multidark_haloes(infile,x,m,n)
+  SUBROUTINE read_multidark_haloes(infile,mmin,x,m,n)
 
     ! TODO: Make minimum mass (or minimum halo-particle number) an input
     USE file_info
     IMPLICIT NONE
     CHARACTER(len=*), INTENT(IN) :: infile
+    REAL, INTENT(IN) :: mmin
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:)
     REAL, ALLOCATABLE, INTENT(OUT) :: m(:)
     INTEGER, INTENT(OUT) :: n
@@ -18,17 +19,17 @@ CONTAINS
     REAL :: mm!, xx, yy, zz
     REAL, ALLOCATABLE :: data(:)
     
-    INTEGER, PARAMETER :: hash_lines=58 ! Number of lines beginning with #
-    REAL, PARAMETER :: mmin=1.74e12     ! Minimum halo mass [Msun/h] (corresponds to N>200 for MDR1; 1e12 would mean n~115)
-    INTEGER, PARAMETER :: columns=73    ! Total number of columns in file
-    INTEGER, PARAMETER :: column_pid=6  ! Column for PID (-1 if unique halo)
-    INTEGER, PARAMETER :: column_mv=11  ! Column for virial mass (unbinding done) [Msun/h]
-    INTEGER, PARAMETER :: column_x=18   ! Column for x position [Mpc/h]
-    INTEGER, PARAMETER :: column_y=19   ! Column for y position [Mpc/h]
-    INTEGER, PARAMETER :: column_z=20   ! Column for z position [Mpc/h]
-    INTEGER, PARAMETER :: column_vx=21  ! Column for vx position [km/s]
-    INTEGER, PARAMETER :: column_vy=22  ! Column for vy position [km/s]
-    INTEGER, PARAMETER :: column_vz=23  ! Column for vz position [km/s]
+    INTEGER, PARAMETER :: hash_lines=58 ! Number of lines beginning with # (Both Multidark and Bolshoi have 58)
+    !REAL, PARAMETER :: mmin=1.74e12     ! Minimum halo mass [Msun/h] (corresponds to N>200 for MDR1; 1e12 would mean n~115)
+    INTEGER, PARAMETER :: columns=73       ! Total number of columns in file
+    INTEGER, PARAMETER :: column_pid=6     ! Column for PID (-1 if unique halo)
+    INTEGER, PARAMETER :: column_mv=11     ! Column for virial mass (unbinding done) [Msun/h]
+    INTEGER, PARAMETER :: column_x=18      ! Column for x position [Mpc/h]
+    INTEGER, PARAMETER :: column_y=19      ! Column for y position [Mpc/h]
+    INTEGER, PARAMETER :: column_z=20      ! Column for z position [Mpc/h]
+    INTEGER, PARAMETER :: column_vx=21     ! Column for vx position [km/s]
+    INTEGER, PARAMETER :: column_vy=22     ! Column for vy position [km/s]
+    INTEGER, PARAMETER :: column_vz=23     ! Column for vz position [km/s]
     INTEGER, PARAMETER :: column_mvu=37    ! Column for total virial mass (no particle unbinding; for distinct haloes this difference is only 1-2%; Msun/h)
     INTEGER, PARAMETER :: column_m200=38   ! Column for M200 [Msun/h]
     INTEGER, PARAMETER :: column_m200c=39  ! Column for M200 critical [Msun/h]
@@ -40,7 +41,7 @@ CONTAINS
     IF(.NOT. lexist) STOP 'READ_MULTIDARK_HALOES: Error, catalogue file does not exist'
 
     ! Welcome message
-    WRITE(*,*) 'READ_MULTIDARK_HALOES: Reading in halo catalogue'
+    WRITE(*,*) 'READ_MULTIDARK_HALOES: Reading in halo catalogue: ', trim(infile)
 
     ! Find file length
     n=file_length(infile,verbose=.FALSE.)

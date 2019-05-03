@@ -2,10 +2,9 @@ MODULE numerology
 
 CONTAINS
 
-  FUNCTION first_digit(x)
+  INTEGER FUNCTION first_digit(x)
 
     IMPLICIT NONE
-    INTEGER :: first_digit
     REAL, INTENT(IN) :: x
     REAL :: y
 
@@ -40,16 +39,29 @@ CONTAINS
 
   END SUBROUTINE swap_real
 
-  SUBROUTINE swap_int(a,b)
+!!$  SUBROUTINE swap_int(a,b)
+!!$
+!!$    !Swaps the values of integers a and b
+!!$    IMPLICIT NONE
+!!$    INTEGER, INTENT(INOUT) :: a, b
+!!$    INTEGER :: c    
+!!$
+!!$    c=a
+!!$    a=b
+!!$    b=c
+!!$    
+!!$  END SUBROUTINE swap_int
 
-    !Swaps the values of variables a and b
+  SUBROUTINE swap_int(n,m)
+
+    ! Swap integers n and m in the most memory-efficient way possible
     IMPLICIT NONE
-    INTEGER, INTENT(INOUT) :: a, b
-    INTEGER :: c    
+    INTEGER, INTENT(INOUT) :: n
+    INTEGER, INTENT(INOUT) :: m
 
-    c=a
-    a=b
-    b=c
+    n=n+m ! n' = n+m
+    m=n-m ! m' = n'-m = n+m-m = n
+    n=n-m ! n'' = n'-m' = n+m-n = m
     
   END SUBROUTINE swap_int
   

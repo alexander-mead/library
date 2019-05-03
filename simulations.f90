@@ -731,20 +731,80 @@ CONTAINS
   
   END SUBROUTINE random_inversion
 
+!!$  SUBROUTINE random_rotation(x,n,verbose)
+!!$
+!!$    USE random_numbers
+!!$    IMPLICIT NONE
+!!$    REAL, INTENT(INOUT) :: x(3,n)
+!!$    INTEGER, INTENT(IN) :: n
+!!$    LOGICAL, OPTIONAL :: verbose
+!!$    REAL :: y(3,n)
+!!$    INTEGER :: type
+!!$
+!!$    IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Applying random rotation'
+!!$
+!!$    ! Save old coordinates
+!!$    y=x
+!!$
+!!$    ! Choose random rotation
+!!$    type=random_integer(1,6)
+!!$
+!!$    ! Apply random rotation
+!!$    IF(type==1) THEN
+!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 123'
+!!$       !x(1,:)=y(1,:)
+!!$       !x(2,:)=y(2,:)
+!!$       !x(3,:)=y(3,:)
+!!$    ELSE IF(type==2) THEN
+!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 132'
+!!$       !x(1,:)=y(1,:)
+!!$       x(2,:)=y(3,:)
+!!$       x(3,:)=y(2,:)
+!!$    ELSE IF(type==3) THEN
+!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 213'
+!!$       x(1,:)=y(2,:)
+!!$       x(2,:)=y(1,:)
+!!$       !x(3,:)=y(3,:)
+!!$    ELSE IF(type==4) THEN
+!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 231'
+!!$       x(1,:)=y(2,:)
+!!$       x(2,:)=y(3,:)
+!!$       x(3,:)=y(1,:)
+!!$    ELSE IF(type==5) THEN
+!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 312'
+!!$       x(1,:)=y(3,:)
+!!$       x(2,:)=y(1,:)
+!!$       x(3,:)=y(2,:)
+!!$    ELSE IF(type==6) THEN
+!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 321'
+!!$       x(1,:)=y(3,:)
+!!$       !x(2,:)=y(2,:)
+!!$       x(3,:)=y(1,:)
+!!$    ELSE
+!!$       STOP 'RANDOM_ROTATION: Error, something went very wrong'
+!!$    END IF
+!!$    
+!!$    IF(present_and_correct(verbose)) THEN
+!!$       WRITE(*,*) 'RANDOM_ROTATION: Done'
+!!$       WRITE(*,*)
+!!$    END IF
+!!$    
+!!$  END SUBROUTINE random_rotation
+
   SUBROUTINE random_rotation(x,n,verbose)
 
+    ! Do a random rotation of the box by 90 degrees, I think this also captures inversions
+    ! This way is memory efficient
+    ! TODO: This raises an 'array temporary' warning because non-contiguous sections of x are passed to swap_arrays
     USE random_numbers
+    USE array_operations
     IMPLICIT NONE
     REAL, INTENT(INOUT) :: x(3,n)
     INTEGER, INTENT(IN) :: n
     LOGICAL, OPTIONAL :: verbose
-    REAL :: y(3,n)
     INTEGER :: type
 
     IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Applying random rotation'
-
-    ! Save old coordinates
-    y=x
 
     ! Choose random rotation
     type=random_integer(1,6)
@@ -752,34 +812,24 @@ CONTAINS
     ! Apply random rotation
     IF(type==1) THEN
        IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 123'
-       !x(1,:)=y(1,:)
-       !x(2,:)=y(2,:)
-       !x(3,:)=y(3,:)
+       ! Do nothing here
     ELSE IF(type==2) THEN
        IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 132'
-       !x(1,:)=y(1,:)
-       x(2,:)=y(3,:)
-       x(3,:)=y(2,:)
+       CALL swap_arrays(x(2,:),x(3,:),n) ! Swap 2<->3 (123 -> 132)
     ELSE IF(type==3) THEN
        IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 213'
-       x(1,:)=y(2,:)
-       x(2,:)=y(1,:)
-       !x(3,:)=y(3,:)
+       CALL swap_arrays(x(1,:),x(2,:),n) ! Swap 1<->2 (123 -> 213)
     ELSE IF(type==4) THEN
        IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 231'
-       x(1,:)=y(2,:)
-       x(2,:)=y(3,:)
-       x(3,:)=y(1,:)
+       CALL swap_arrays(x(1,:),x(2,:),n) ! Swap 1<->2 (123 -> 213)
+       CALL swap_arrays(x(2,:),x(3,:),n) ! Swap 2<->3 (213 -> 231)
     ELSE IF(type==5) THEN
        IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 312'
-       x(1,:)=y(3,:)
-       x(2,:)=y(1,:)
-       x(3,:)=y(2,:)
+       CALL swap_arrays(x(2,:),x(3,:),n) ! Swap 1<->2 (123 -> 132)
+       CALL swap_arrays(x(1,:),x(2,:),n) ! Swap 2<->3 (132 -> 312)
     ELSE IF(type==6) THEN
        IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 321'
-       x(1,:)=y(3,:)
-       !x(2,:)=y(2,:)
-       x(3,:)=y(1,:)
+       CALL swap_arrays(x(1,:),x(3,:),n) ! Swap 1<->3 (123 -> 321)
     ELSE
        STOP 'RANDOM_ROTATION: Error, something went very wrong'
     END IF

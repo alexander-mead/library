@@ -26,7 +26,48 @@ MODULE array_operations
      PROCEDURE splay_3D
   END INTERFACE splay
 
+  INTERFACE write_array_list
+     PROCEDURE write_array_list_real
+     PROCEDURE write_array_list_int
+  END INTERFACE write_array_list
+
 CONTAINS
+
+  LOGICAL FUNCTION within_array(x,a,n)
+
+    ! Checks to see if x falls within the range of values in array a
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x    ! Value to check
+    REAL, INTENT(IN) :: a(n) ! Array (of x values, presumably)
+    INTEGER, INTENT(IN) :: n ! Size of array
+
+    IF(x>=minval(a) .AND. x<=maxval(a)) THEN
+       within_array=.TRUE.
+    ELSE
+       within_array=.FALSE.
+    END IF
+    
+  END FUNCTION within_array
+
+  SUBROUTINE swap_arrays(x,y,n)
+
+    ! Swap arrays x<->y in a memory-efficient way
+    ! Only one excess real number is ever stored
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: x(n) ! Array 1
+    REAL, INTENT(INOUT) :: y(n) ! Array 2
+    INTEGER, INTENT(IN) :: n    ! Size of arrays
+    INTEGER :: i
+    REAL :: h
+
+    ! Loop over array and swap element by element
+    DO i=1,n
+       h=x(i)
+       x(i)=y(i)
+       y(i)=h
+    END DO
+    
+  END SUBROUTINE swap_arrays
 
   SUBROUTINE add_to_array_2D(a,m,v,i)
 
@@ -121,7 +162,7 @@ CONTAINS
 
   SUBROUTINE array_positions(x,a,n,b,m)
 
-    ! Returns the locationS in the array of value x
+    ! Returns the location in the array of value x
     ! If x is not in array then returns zero
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: x    ! Value to check if it is in array
@@ -164,43 +205,42 @@ CONTAINS
 
   END FUNCTION sum_double
 
-  SUBROUTINE amputate(arr,n_old,n_new)
+!!$  SUBROUTINE amputate(arr,n_old,n_new)
+!!$
+!!$    ! Chop an array down to a smaller size
+!!$    ! TODO: Retire
+!!$    IMPLICIT NONE
+!!$    REAL, ALLOCATABLE, INTENT(INOUT) :: arr(:)
+!!$    REAL, ALLOCATABLE :: hold(:)
+!!$    INTEGER, INTENT(IN) :: n_new
+!!$    INTEGER, INTENT(IN) :: n_old
+!!$    INTEGER :: i    
+!!$
+!!$    IF(n_old<n_new) STOP 'AMPUTATE: Error, new array should be smaller than the old one'
+!!$
+!!$    ALLOCATE(hold(n_old))
+!!$    hold=arr
+!!$    DEALLOCATE(arr)
+!!$    ALLOCATE(arr(n_new))
+!!$    
+!!$    DO i=1,n_new
+!!$       arr(i)=hold(i)
+!!$    END DO
+!!$    
+!!$    DEALLOCATE(hold)
+!!$
+!!$  END SUBROUTINE amputate
 
-    ! Chop an array down to a smaller size
-    ! TODO: Retire
-    IMPLICIT NONE
-    REAL, ALLOCATABLE, INTENT(INOUT) :: arr(:)
-    REAL, ALLOCATABLE :: hold(:)
-    INTEGER, INTENT(IN) :: n_new
-    INTEGER, INTENT(IN) :: n_old
-    INTEGER :: i    
-
-    IF(n_old<n_new) STOP 'AMPUTATE: Error, new array should be smaller than the old one'
-
-    ALLOCATE(hold(n_old))
-    hold=arr
-    DEALLOCATE(arr)
-    ALLOCATE(arr(n_new))
-    
-    DO i=1,n_new
-       arr(i)=hold(i)
-    END DO
-    
-    DEALLOCATE(hold)
-
-  END SUBROUTINE amputate
-
-  SUBROUTINE amputate_general(a,n,m,i1,i2)
+  SUBROUTINE amputate_array(a,n,i1,i2)
 
     ! Chop an array of size a(n) down to a smaller size demarked by indices i1, i2
     ! If i1=1 and i2=n then this does nothing
     IMPLICIT NONE
     REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
     INTEGER, INTENT(IN) :: n
-    INTEGER, INTENT(OUT) :: m
     INTEGER, INTENT(IN) :: i1, i2
     REAL, ALLOCATABLE :: b(:)
-    INTEGER :: i
+    INTEGER :: i, m
 
     IF(i2<i1) THEN
        STOP 'AMPUTATE: Error, i2 should be greater than i1'
@@ -227,9 +267,9 @@ CONTAINS
     ! Deallocate holding array
     DEALLOCATE(b)
 
-  END SUBROUTINE amputate_general
+  END SUBROUTINE amputate_array
 
-  SUBROUTINE reduce(arr1,n1,arr2,n2)
+  SUBROUTINE reduce_array(arr1,n1,arr2,n2)
 
     ! Reduces the size of array1 to the size of array2
     ! This will not preserve the spacing of entries in array1 and might be a terrible idea in many cases
@@ -244,11 +284,12 @@ CONTAINS
        arr2(i)=arr1(j)
     END DO
 
-  END SUBROUTINE reduce
+  END SUBROUTINE reduce_array
 
   SUBROUTINE reduceto(arr1,n)
 
     ! Reduces the array from whatever size to size 'n'
+    ! TODO: Remove
     IMPLICIT NONE
     REAL, ALLOCATABLE, INTENT(INOUT) :: arr1(:)
     INTEGER, INTENT(IN) :: n
@@ -271,7 +312,7 @@ CONTAINS
 
   END SUBROUTINE reduceto
 
-  SUBROUTINE reverse(arry,n)
+  SUBROUTINE reverse_array(arry,n)
 
     ! Reverses the contents of arry
     IMPLICIT NONE
@@ -286,7 +327,123 @@ CONTAINS
        arry(i)=hold(n-i+1)
     END DO
 
-  END SUBROUTINE reverse
+  END SUBROUTINE reverse_array
+
+  SUBROUTINE remove_array_element(a,n,i)
+
+    ! Remove element i from array a(n)
+    IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Input array
+    INTEGER, INTENT(IN) :: n                 ! Original length of array, it will change to n-1
+    INTEGER, INTENT(IN) :: i                 ! Element to remove
+    REAL :: b(n-1)
+    INTEGER :: j, jj
+
+    IF(i<1 .OR. i>n) THEN
+       WRITE(*,*) 'Array size:', n
+       WRITE(*,*) 'Element to remove:', i
+       STOP 'REMOVE_ARRAY_ELEMENT: Error, element to remove is outside array bounds'
+    END IF
+
+    jj=0
+    DO j=1,n
+       IF(j==i) THEN
+          CYCLE
+       ELSE
+          jj=jj+1
+          b(jj)=a(j)
+       END IF
+    END DO
+
+    DEALLOCATE(a)
+    ALLOCATE(a(n-1))
+    a=b
+    
+  END SUBROUTINE remove_array_element
+
+  SUBROUTINE remove_repeated_array_elements(a,n,m)
+
+    ! Remove any repeated entries from the array
+    ! Assumes the array is sorted
+    IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Array to consider
+    INTEGER, INTENT(IN) :: n                 ! Orignal size of array
+    INTEGER, INTENT(OUT) :: m                ! Final size of array
+    INTEGER :: i
+    LOGICAL :: remove(n)
+
+    remove=.FALSE.
+
+    m=n
+    DO i=1,n-1
+       IF(a(i)==a(i+1)) THEN
+          remove(i+1)=.TRUE.
+          m=m-1
+       END IF
+    END DO
+
+    a=PACK(a,.NOT. remove)
+    
+  END SUBROUTINE remove_repeated_array_elements
+
+  SUBROUTINE remove_repeated_two_array_elements(a,b,n,m)
+
+    ! Remove any repeated entries in the array a from both a and b
+    ! Assumes the array a is sorted
+    IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
+    REAL, ALLOCATABLE, INTENT(INOUT) :: b(:)
+    INTEGER, INTENT(IN) :: n
+    INTEGER, INTENT(OUT) :: m
+    INTEGER :: i
+    LOGICAL :: remove(n)
+
+    remove=.FALSE.
+
+    m=n
+    DO i=1,n-1
+       IF(a(i)==a(i+1)) THEN
+          remove(i+1)=.TRUE.
+          m=m-1
+       END IF
+    END DO
+
+    a=PACK(a,.NOT. remove)
+    b=PACK(b,.NOT. remove)
+    
+  END SUBROUTINE remove_repeated_two_array_elements
+
+  SUBROUTINE write_array_list_real(a,n)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a(n)
+    INTEGER, INTENT(IN) :: n
+    INTEGER :: i
+
+    WRITE(*,*) 'WRITE_ARRAY_LIST: Writing array'
+    DO i=1,n
+       WRITE(*,*) 'WRITE_ARRAY_LIST:', i, a(i)
+    END DO
+    WRITE(*,*) 'WRITE_ARRAY_LIST: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE write_array_list_real
+
+  SUBROUTINE write_array_list_int(a,n)
+
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: a(n)
+    INTEGER, INTENT(IN) :: n
+    INTEGER :: i
+
+    WRITE(*,*) 'WRITE_ARRAY_LIST: Writing array'
+    DO i=1,n
+       WRITE(*,*) 'WRITE_ARRAY_LIST:', i, a(i)
+    END DO
+    WRITE(*,*) 'WRITE_ARRAY_LIST: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE write_array_list_int
 
   FUNCTION splay_2D(a,n1,n2)
 

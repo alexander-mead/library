@@ -41,8 +41,8 @@ CONTAINS
 
     IF(xtab(1)>xtab(n)) THEN
        ! Reverse the arrays in this case
-       CALL reverse(xtab,n)
-       CALL reverse(ytab,n)
+       CALL reverse_array(xtab,n)
+       CALL reverse_array(ytab,n)
     END IF
 
     IF(x<xtab(1)) THEN

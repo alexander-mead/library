@@ -47,10 +47,13 @@ CONTAINS
   SUBROUTINE histogram(xmin,xmax,x,hist,n,data,m)
 
     IMPLICIT NONE
-    REAL, INTENT(IN) :: xmin, xmax, data(m)
-    INTEGER, INTENT(IN) :: n, m
-    REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
-    INTEGER, ALLOCATABLE, INTENT(OUT) :: hist(:)
+    REAL, INTENT(IN) :: xmin     ! Minimum x value
+    REAL, INTENT(IN) :: xmax     ! Maximum x value
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:)       ! Output array of bin edges, size n+1
+    INTEGER, ALLOCATABLE, INTENT(OUT) :: hist(:) ! Output integer array of bin counts, size n
+    INTEGER, INTENT(IN) :: n     ! Number of bins
+    REAL, INTENT(IN) :: data(m)  ! Data to be binned    
+    INTEGER, INTENT(IN) :: m     ! Number of points to be binned 
     INTEGER :: i, j
 
     WRITE(*,*) 'HISTOGRAM: Assiging arrays'

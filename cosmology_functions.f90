@@ -2560,10 +2560,14 @@ CONTAINS
           END DO
 
           ! Cut away parts of the arrays for a>ac
-          CALL amputate(a,n,k)
-          CALL amputate(d,n,k)
-          CALL amputate(dnl,n,k)
-          CALL amputate(rnl,n,k)
+          !CALL amputate(a,n,k)
+          !CALL amputate(d,n,k)
+          !CALL amputate(dnl,n,k)
+          !CALL amputate(rnl,n,k)
+          CALL amputate_array(a,n,1,k)
+          CALL amputate_array(d,n,1,k)
+          CALL amputate_array(dnl,n,1,k)
+          CALL amputate_array(rnl,n,1,k)
 
           ! Collapse has occured so use previous a as ac and d as dc
           ac=a(k)
@@ -2628,9 +2632,9 @@ CONTAINS
     IF(cosm%verbose) WRITE(*,*) 'SPHERICAL COLLAPSE: calculation complete'
 
     ! Reverse the arrays so that they run lowest a to highest a
-    CALL reverse(cosm%log_a_dcDv,m)
-    CALL reverse(cosm%dc,m)
-    CALL reverse(cosm%Dv,m)
+    CALL reverse_array(cosm%log_a_dcDv,m)
+    CALL reverse_array(cosm%dc,m)
+    CALL reverse_array(cosm%Dv,m)
 
     IF(verbose) THEN
        WRITE(*,*) '===================================='
@@ -2655,9 +2659,12 @@ CONTAINS
     END IF
 
     ! Remove bits of the array that are unnecessary
-    CALL amputate(cosm%log_a_dcDv,m,cosm%n_dcDv)
-    CALL amputate(cosm%dc,m,cosm%n_dcDv)
-    CALL amputate(cosm%Dv,m,cosm%n_dcDv)
+    !CALL amputate(cosm%log_a_dcDv,m,cosm%n_dcDv)
+    !CALL amputate(cosm%dc,m,cosm%n_dcDv)
+    !CALL amputate(cosm%Dv,m,cosm%n_dcDv)
+    CALL amputate_array(cosm%log_a_dcDv,m,1,cosm%n_dcDv)
+    CALL amputate_array(cosm%dc,m,1,cosm%n_dcDv)
+    CALL amputate_array(cosm%Dv,m,1,cosm%n_dcDv)
 
     ! Take a logarithm
     cosm%log_a_dcDv=log(cosm%log_a_dcDv)

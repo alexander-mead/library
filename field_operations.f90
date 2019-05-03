@@ -605,7 +605,6 @@ CONTAINS
     INTEGER, INTENT(IN) :: ibin
     DOUBLE COMPLEX, ALLOCATABLE :: dk(:,:)
     DOUBLE COMPLEX :: dkout(m,m)
-    !DOUBLE COMPLEX :: dk(m,m)
     DOUBLE PRECISION :: dc(m,m)
     INTEGER :: mn
 
@@ -663,7 +662,6 @@ CONTAINS
     INTEGER, INTENT(IN) :: ibin
     DOUBLE COMPLEX, ALLOCATABLE :: dk(:,:,:)
     DOUBLE COMPLEX :: dkout(m,m,m)
-    !DOUBLE COMPLEX :: dk(m,m,m)
     DOUBLE PRECISION :: dc(m,m,m)
     INTEGER :: mn
 
