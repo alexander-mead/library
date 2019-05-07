@@ -8,6 +8,28 @@ MODULE logical_operations
 
 CONTAINS
 
+  SUBROUTINE fix_min(x,xmin)
+
+    ! If x is below xmin then set to xmin
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: x ! Value to fix
+    REAL, INTENT(IN) :: xmin ! Minimum value for x
+
+    IF(x<xmin) x=xmin
+    
+  END SUBROUTINE fix_min
+
+  SUBROUTINE fix_max(x,xmax)
+
+    ! If x is above xmax then set to xmax
+    IMPLICIT NONE
+    REAL, INTENT(INOUT) :: x ! Value to fix
+    REAL, INTENT(IN) :: xmax ! Maximum value for x
+
+    IF(x>xmax) x=xmax
+    
+  END SUBROUTINE fix_max
+
   SUBROUTINE read_command_argument_real(i,x,desc)
 
     IMPLICIT NONE

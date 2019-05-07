@@ -586,13 +586,15 @@ CONTAINS
 
   SUBROUTINE fill_array(min,max,arr,n)
 
-    ! Fills array 'arr' in equally spaced intervals
-    ! TODO: I'm not sure if inputting an array like this is okay
+    ! Fills array 'arr' in linearly spaced intervals
+    ! e.g., 4 values between 0 and 1 would be 0, 1/3, 2/3, and 1
+    ! This means that min and max are included in the array
     IMPLICIT NONE
+    REAL, INTENT(IN) :: min ! Minimum value for array
+    REAL, INTENT(IN) :: max ! Maximum value for array
+    REAL, ALLOCATABLE, INTENT(OUT) :: arr(:) ! Output array
+    INTEGER, INTENT(IN) :: n ! Number of entries in array
     INTEGER :: i
-    REAL, INTENT(IN) :: min, max
-    REAL, ALLOCATABLE, INTENT(OUT) :: arr(:)
-    INTEGER, INTENT(IN) :: n
 
     ! Allocate the array, and deallocate it if it is full
     IF(ALLOCATED(arr)) DEALLOCATE(arr)
@@ -609,15 +611,35 @@ CONTAINS
 
   END SUBROUTINE fill_array
 
+  SUBROUTINE fill_pixels(min,max,arr,n)
+
+    ! Fill an array between min and max as if the values should correspond to central pixel values
+    ! e.g., 3 pixel values between 0 and 1 would be 1/6, 1/2 and 5/6
+    ! This means that min and max are not included in the array
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: min ! Minimum value bordering array
+    REAL, INTENT(IN) :: max ! Maximum value bordering array
+    REAL, ALLOCATABLE, INTENT(OUT) :: arr(:) ! Output array
+    INTEGER, INTENT(IN) :: n ! Number of pixels in array
+    REAL :: mmin, mmax, pixel_size
+
+    pixel_size=(max-min)/real(n) ! Calculate the pixel size
+    mmin=min+pixel_size/2. ! Offset minimum value by half a pixel into the region
+    mmax=max-pixel_size/2. ! Offset maximum value by half a pixel into the region
+
+    CALL fill_array(mmin,mmax,arr,n) ! Linearly fill array
+    
+  END SUBROUTINE fill_pixels
+
   SUBROUTINE fill_array_double(min,max,arr,n)
 
     ! Fills array 'arr' in equally spaced intervals
     ! TODO: Not sure if inputting an array like this is okay
-    IMPLICIT NONE
-    INTEGER :: i
+    IMPLICIT NONE   
     DOUBLE PRECISION, INTENT(IN) :: min, max
     DOUBLE PRECISION, ALLOCATABLE, INTENT(INOUT) :: arr(:)
     INTEGER, INTENT(IN) :: n
+    INTEGER :: i
 
     ! Allocate the array, and deallocate it if it is full
     IF(ALLOCATED(arr)) DEALLOCATE(arr)

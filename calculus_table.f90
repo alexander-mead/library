@@ -1,5 +1,10 @@
 MODULE calculus_table
 
+  INTERFACE integrate_table
+     MODULE PROCEDURE integrate_table_1D
+     MODULE PROCEDURE integrate_table_2D
+  END INTERFACE integrate_table
+
 CONTAINS
 
   FUNCTION derivative_table(x,xin,yin,n,iorder,imeth)
@@ -189,13 +194,12 @@ CONTAINS
 
   END FUNCTION derivative_table
 
-  FUNCTION integrate_table(x,y,n,n1,n2,iorder)
+  REAL FUNCTION integrate_table_1D(x,y,n,n1,n2,iorder)
 
     USE fix_polynomial
 
     ! Integrates tables y(x)dx
     IMPLICIT NONE
-    REAL :: integrate_table
     INTEGER, INTENT(IN) :: n, n1, n2
     REAL, INTENT(IN) :: x(n), y(n)
     REAL :: a, b, c, d, h
@@ -307,13 +311,13 @@ CONTAINS
 
     ELSE
 
-       STOP 'INTEGRATE_TABLE: Error, order not specified correctly'
+       STOP 'INTEGRATE_TABLE_1D: Error, order not specified correctly'
 
     END IF
 
-    integrate_table=real(sum)
+    integrate_table_1D=real(sum)
 
-  END FUNCTION integrate_table
+  END FUNCTION integrate_table_1D
 
   REAL FUNCTION integrate_table_2D(x,y,F,nx,ny)
 
@@ -341,6 +345,7 @@ CONTAINS
           sum=sum+dx*dy*(F(ix,iy)+F(ix+1,iy)+F(ix,iy+1)+F(ix+1,iy+1))/4.
           
        END DO
+       
     END DO
 
     integrate_table_2D=real(sum)

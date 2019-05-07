@@ -1362,6 +1362,9 @@ CONTAINS
     INTEGER, INTENT(IN) :: nk, na ! Number of entries of k and a in arrays
     REAL, INTENT(IN) :: logktab(nk), logatab(na), logptab(nk,na) ! Arrays of log(k), log(a) and log(P(k,a))
     REAL :: logk, loga
+    INTEGER, PARAMETER :: iorder=3 ! 3 - Cubic interpolation
+    INTEGER, PARAMETER :: ifind=3  ! 3 - Midpoint finding scheme
+    INTEGER, PARAMETER :: imeth=1  ! 1 - Polynomial method
 
     logk=log(k)
     loga=log(a)
@@ -1374,7 +1377,7 @@ CONTAINS
     ELSE IF(a<amin_pka .OR. a>amax_pka) THEN
        find_pka=0.
     ELSE
-       find_pka=exp(find2d(logk,logktab,loga,logatab,logptab,nk,na,3,3,1))
+       find_pka=exp(find(logk,logktab,loga,logatab,logptab,nk,na,iorder,ifind,imeth))
     END IF
 
   END FUNCTION find_pka
