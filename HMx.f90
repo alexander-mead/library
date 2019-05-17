@@ -8,6 +8,7 @@ MODULE HMx
   USE string_operations
   USE calculus_table
   USE cosmology_functions
+  USE logical_operations
 
   IMPLICIT NONE
 
@@ -61,13 +62,7 @@ MODULE HMx
   PUBLIC :: mass_function
   PUBLIC :: multiplicity_function
   PUBLIC :: halo_bias
-  !PUBLIC :: b_ps     ! TODO: Private
-  !PUBLIC :: b_st     ! TODO: Private
-  !PUBLIC :: b_Tinker ! TODO: Private
-  !PUBLIC :: g_ps     ! TODO: Private
-  !PUBLIC :: g_st     ! TODO: Private  
-  !PUBLIC :: g_Tinker ! TODO: Private
-
+  
   ! HMx functions
   PUBLIC :: HMx_alpha
   PUBLIC :: HMx_beta
@@ -100,9 +95,14 @@ MODULE HMx
   PUBLIC :: field_CIB_353
   PUBLIC :: field_CIB_545
   PUBLIC :: field_CIB_857
-  PUBLIC :: field_halo_low_mass
-  PUBLIC :: field_halo_med_mass
-  PUBLIC :: field_halo_high_mass
+  PUBLIC :: field_halo_11p0_11p5
+  PUBLIC :: field_halo_11p5_12p0
+  PUBLIC :: field_halo_12p0_12p5
+  PUBLIC :: field_halo_12p5_13p0
+  PUBLIC :: field_halo_13p0_13p5
+  PUBLIC :: field_halo_13p5_14p0
+  PUBLIC :: field_halo_14p0_14p5
+  PUBLIC :: field_halo_14p5_15p0
   PUBLIC :: i1_fields
   PUBLIC :: i2_fields
 
@@ -264,7 +264,7 @@ MODULE HMx
 
   ! Minimum fraction before haloes are treated as delta functions (dangerous)
   ! TODO: Hydro tests passed if 1e-4, but I worry a bit, also it was a fairly minor speed up (25%)
-  ! TODO: Also, not obvious that a constant frac_min is corret because some species have low abundance but we ususally care about perturbations to this abundance
+  ! TODO: Also, not obvious that a constant frac_min is correct because some species have low abundance but we ususally care about perturbations to this abundance
   REAL, PARAMETER :: frac_min=0.
 
   ! Halo types
@@ -295,11 +295,16 @@ MODULE HMx
   INTEGER, PARAMETER :: field_CIB_353=18
   INTEGER, PARAMETER :: field_CIB_545=19
   INTEGER, PARAMETER :: field_CIB_857=20
-  INTEGER, PARAMETER :: field_halo_low_mass=21
-  INTEGER, PARAMETER :: field_halo_med_mass=22
-  INTEGER, PARAMETER :: field_halo_high_mass=23
+  INTEGER, PARAMETER :: field_halo_11p0_11p5=21
+  INTEGER, PARAMETER :: field_halo_11p5_12p0=22
+  INTEGER, PARAMETER :: field_halo_12p0_12p5=23
+  INTEGER, PARAMETER :: field_halo_12p5_13p0=24
+  INTEGER, PARAMETER :: field_halo_13p0_13p5=25
+  INTEGER, PARAMETER :: field_halo_13p5_14p0=26
+  INTEGER, PARAMETER :: field_halo_14p0_14p5=27
+  INTEGER, PARAMETER :: field_halo_14p5_15p0=28
   INTEGER, PARAMETER :: i1_fields=-1
-  INTEGER, PARAMETER :: i2_fields=23
+  INTEGER, PARAMETER :: i2_fields=28
 
    ! Fitting parameters
   INTEGER, PARAMETER :: param_alpha=1
@@ -400,9 +405,9 @@ CONTAINS
     names(39)='HMx: AGN tuned'
     names(40)='HMx: AGN 8.0'
     names(41)='Put some galaxy mass in the halo/satellites'
-    names(42)='Tinker with M200c'
+    names(42)='Tinker mass function and bias; M200c'
     names(43)='Standard halo-model (Seljak 2000) in matter response'
-    names(44)='Tinker with M200'
+    names(44)='Tinker mass function and bias; M200'
     names(45)='No stars'
     names(46)='Isothermal beta model for gas'
     names(47)='Isothermal beta model for gas in response'
@@ -1190,16 +1195,16 @@ CONTAINS
        hmod%halo_static_gas=2
        hmod%response=1
     ELSE IF(ihm==48) THEN
-       ! Non-linear halo bias for standard halo model
+       ! Non-linear halo bias for standard halo model with virial haloes
        hmod%ibias=3   ! Non-linear halo bias
-       hmod%i1hdamp=3 ! One-halo damping like k^4
-       hmod%ikstar=2  ! One-halo damping via k* from Mead et al. (2015)
+       !hmod%i1hdamp=3 ! One-halo damping like k^4
+       !hmod%ikstar=2  ! One-halo damping via k* from Mead et al. (2015)
     ELSE IF(ihm==49) THEN
-       ! Non-linear halo bias and Tinker mass function for virial mass haloes
+       ! Non-linear halo bias and Tinker mass function and virial mass haloes
        hmod%imf=3     ! Tinker mass function and bias
        hmod%ibias=3   ! Non-linear halo bias
-       hmod%i1hdamp=3 ! One-halo damping like k^4
-       hmod%ikstar=2  ! One-halo damping via k* from Mead et al. (2015)
+       !hmod%i1hdamp=3 ! One-halo damping like k^4
+       !hmod%ikstar=2  ! One-halo damping via k* from Mead et al. (2015)
     ELSE
        STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
     END IF
@@ -1988,9 +1993,14 @@ CONTAINS
     IF(i==field_CIB_353)            halo_type='CIB 353 GHz'
     IF(i==field_CIB_545)            halo_type='CIB 545 GHz'
     IF(i==field_CIB_857)            halo_type='CIB 857 GHz'
-    IF(i==field_halo_low_mass)      halo_type='Low-mass haloes (3e11 -> 3e12 Msun/h)'
-    IF(i==field_halo_med_mass)      halo_type='Medium-mass haloes (3e12 -> 3e13 Msun/h)'
-    IF(i==field_halo_high_mass)     halo_type='High-mass haloes (3e13 -> 3e14 Msun/h)'
+    IF(i==field_halo_11p0_11p5)     halo_type='Haloes (10^11.0 -> 10^11.5)'
+    IF(i==field_halo_11p5_12p0)     halo_type='Haloes (10^11.5 -> 10^12.0)'
+    IF(i==field_halo_12p0_12p5)     halo_type='Haloes (10^12.0 -> 10^12.5)'
+    IF(i==field_halo_12p5_13p0)     halo_type='Haloes (10^12.5 -> 10^13.0)'
+    IF(i==field_halo_13p0_13p5)     halo_type='Haloes (10^13.0 -> 10^13.5)'
+    IF(i==field_halo_13p5_14p0)     halo_type='Haloes (10^13.5 -> 10^14.0)'
+    IF(i==field_halo_14p0_14p5)     halo_type='Haloes (10^14.0 -> 10^14.5)'
+    IF(i==field_halo_14p5_15p0)     halo_type='Haloes (10^14.5 -> 10^15.0)'
     IF(halo_type=='') STOP 'HALO_TYPE: Error, i not specified correctly'
 
   END FUNCTION halo_type
@@ -2505,6 +2515,10 @@ CONTAINS
     REAL :: I_11, I_12(n), I_21(n), I_22(n,n)
     REAL :: I2h, I2hs(2)
     INTEGER :: i, j
+    LOGICAL, PARAMETER :: add_missing_bits=.TRUE.
+
+    ! Necessary to prevent warning for some reason
+    I_11=0.
 
     rhom=comoving_matter_density(cosm)
 
@@ -2615,8 +2629,11 @@ CONTAINS
 
           !WRITE(*,*) 'B_NL:', k, Inl_11, Inl_12, Inl_21, Inl_22
 
-          Inl=Inl_11+Inl_21+Inl_12+Inl_22
-          !Inl=Inl_22
+          IF(add_missing_bits) THEN
+             Inl=Inl_11+Inl_21+Inl_12+Inl_22
+          ELSE
+             Inl=Inl_22
+          END IF
 
           p_2h=p_2h+plin*Inl
           
@@ -2675,7 +2692,6 @@ CONTAINS
 
   SUBROUTINE I_2h(ih,int,wk,n,hmod,cosm,ibias)
 
-    USE logical_operations
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: ih
     REAL, INTENT(OUT) :: int
@@ -2727,10 +2743,10 @@ CONTAINS
        ELSE IF(hmod%ip2h_corr==3) THEN
           ! Put the missing part of the integrand as a delta function at the low-mass limit of the integral
           ! I think this is the best thing to do
-          IF(requal(hmod%m(1),mmin_HMx,eps_p2h)) THEN
-             m0=hmod%m(1)           
-             int=int+hmod%gbmin*(rhom*wk(1)/m0)
-          END IF
+          !IF(requal(hmod%m(1),mmin_HMx,eps_p2h)) THEN
+          m0=hmod%m(1)           
+          int=int+hmod%gbmin*(rhom*wk(1)/m0)
+          !END IF          
        ELSE
           STOP 'P_2h: Error, ip2h_corr not specified correctly'
        END IF
@@ -3033,7 +3049,6 @@ CONTAINS
   !REAL FUNCTION BNL(k,nu1,nu2,rv1,rv2,hmod)
   REAL FUNCTION BNL(k,nu1,nu2,hmod)
 
-    USE logical_operations
     IMPLICIT NONE
     REAL, INTENT(IN) :: k
     REAL, INTENT(IN) :: nu1
@@ -3042,14 +3057,14 @@ CONTAINS
     !REAL, INTENT(IN) :: rv2
     TYPE(halomod), INTENT(INOUT) :: hmod
     INTEGER  :: nk, nnu
-    REAL :: nuu1, nuu2
+    REAL :: nuu1, nuu2, kk
     INTEGER, PARAMETER :: iorder=1 ! 1 - Linear interpolation
     INTEGER, PARAMETER :: ifind=3  ! 3 - Midpoint finding scheme
-    INTEGER, PARAMETER :: imeth=1  ! 1 - Polynomial method
-    REAL, PARAMETER :: kmin=3e-2   ! kmin=1e-2 is okay for Multidark
-    REAL, PARAMETER :: kmax=1.     ! kmax=2 is okay for Multidark with M1024, kmax=1 is okay for M512
-    REAL, PARAMETER :: BNL_lowk=0.
-    REAL, PARAMETER :: BNL_min=-1.
+    INTEGER, PARAMETER :: imeth=1  ! 1 - Polynomial method    
+    REAL, PARAMETER :: kmin=3e-2   ! Below this wavenumber set BNL to zero
+    REAL, PARAMETER :: numin=0.    ! Below this halo mass set  BNL to zero
+    REAL, PARAMETER :: numax=10.   ! Above this halo mass set  BNL to zero
+    REAL, PARAMETER :: BNL_min=-1. ! Minimum value that BNL is allowed to be (could be below -1)
 
     IF(.NOT. hmod%has_bnl) CALL init_BNL(hmod)
 
@@ -3063,14 +3078,20 @@ CONTAINS
     CALL fix_min(nuu2,hmod%nu_bnl(1))
     CALL fix_max(nuu2,hmod%nu_bnl(hmod%nnu_bnl))
 
-    IF(k<kmin) THEN
-       BNL=BNL_lowk
-    ELSE IF(k>kmax) THEN
-       BNL=BNL_min
+    ! Ensure that k is not outside array boundary at high end
+    kk=k
+    CALL fix_max(kk,hmod%k_bnl(hmod%nk_bnl))
+
+    IF(kk<kmin) THEN
+       BNL=0.
+    ELSE IF(nu1<numin .OR. nu2<numin) THEN
+       BNL=0.
+    ELSE IF(nu1>numax .OR. nu2>numax) THEN
+       BNL=0.  
     ELSE
        nk=hmod%nk_bnl
        nnu=hmod%nnu_bnl
-       BNL=find(log(k),log(hmod%k_bnl),nuu1,hmod%nu_bnl,nuu2,hmod%nu_bnl,hmod%bnl,nk,nnu,nnu,iorder,ifind,imeth)
+       BNL=find(log(kk),log(hmod%k_bnl),nuu1,hmod%nu_bnl,nuu2,hmod%nu_bnl,hmod%bnl,nk,nnu,nnu,iorder,ifind,imeth)
     END IF
 
     !IF(BNL<BNL_min) BNL=BNL_min
@@ -3085,19 +3106,34 @@ CONTAINS
     INTEGER :: i, ibin, jbin, ik
     INTEGER :: nbin, nk
     REAL :: crap
-    CHARACTER(len=256) :: infile, fbase, fmid, fext
+    CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext
     !CHARACTER(len=256) :: base='/Users/Mead/Physics/data/Bolshoi/power/M512'
     CHARACTER(len=256) :: base='/Users/Mead/Physics/data/Multidark/power/M512'
+    REAL, PARAMETER :: eps=1e-2
 
     WRITE(*,*) 'INIT_BNL: Running'
 
     ! Read in the nu values from the binstats file
-    infile=trim(base)//'/MD_binstats.dat'
+    IF(requal(hmod%z,0.00,eps)) THEN
+       inbase=trim(base)//'/BNL_1.00109'
+    ELSE IF(requal(hmod%z,0.47,eps)) THEN
+       inbase=trim(base)//'/BNL_0.68215'
+    ELSE IF(requal(hmod%z,0.69,eps)) THEN
+       inbase=trim(base)//'/BNL_0.59103'
+    ELSE IF(requal(hmod%z,1.00,eps)) THEN
+       inbase=trim(base)//'/BNL_0.49990'
+    ELSE IF(requal(hmod%z,2.89,eps)) THEN
+       inbase=trim(base)//'/BNL_0.25690'
+    ELSE
+       STOP 'INIT_BNL: Error, your redshift is not supported'
+    END IF
+
+    infile=trim(inbase)//'_binstats.dat'
     nbin=file_length(infile)
     WRITE(*,*) 'INIT_BNL: Number of nu bins: ', nbin
     hmod%nnu_bnl=nbin
     ALLOCATE(hmod%nu_bnl(nbin))
-    WRITE(*,*) 'INIT_BNL: Reading input binstats file: ', trim(infile)
+    WRITE(*,*) 'INIT_BNL: Reading: ', trim(infile)
     OPEN(7,file=infile)
     DO i=1,nbin
        READ(7,*) crap, crap, crap, crap, crap, hmod%nu_bnl(i)
@@ -3107,18 +3143,20 @@ CONTAINS
     WRITE(*,*) 'INIT_BNL: Done with nu'
 
     ! Read in k and Bnl(k,nu1,nu2)
-    infile=trim(base)//'/MD_bin1_bin1_power.dat'
+    !infile=trim(base)//'/BNL_1.00109_bin1_bin1_power.dat'
+    infile=trim(inbase)//'_bin1_bin1_power.dat'
     nk=file_length(infile)
     hmod%nk_bnl=nk
     WRITE(*,*) 'INIT_BNL: Number of k values: ', nk
     ALLOCATE(hmod%k_bnl(nk),hmod%bnl(nk,nbin,nbin))
     DO ibin=1,nbin
        DO jbin=1,nbin
-          fbase=trim(base)//'/MD_bin'
+          !fbase=trim(base)//'/BNL_1.00109_bin'
+          fbase=trim(inbase)//'_bin'
           fmid='_bin'
           fext='_power.dat'
           infile=number_file2(fbase,ibin,fmid,jbin,fext)
-          WRITE(*,*) 'INIT_BNL: Reading input power files: ', trim(infile)
+          WRITE(*,*) 'INIT_BNL: Reading: ', trim(infile)
           OPEN(7,file=infile)
           DO ik=1,nk
              READ(7,*) hmod%k_bnl(ik), crap, crap, crap, crap, hmod%bnl(ik,ibin,jbin)
@@ -4894,16 +4932,34 @@ CONTAINS
           STOP 'WIN_TYPE: Error, ifield specified incorrectly' 
        END IF
        win_type=win_CIB(real_space,nu,k,m,rv,rs,hmod,cosm)
-    ELSE IF(ifield==field_halo_low_mass .OR. ifield==field_halo_med_mass .OR. ifield==field_halo_high_mass) THEN
-       IF(ifield==field_halo_low_mass) THEN
-          mmin=3e11 ! Minimum halo mass [Msun/h]
-          mmax=3e12 ! Maximum halo mass [Msun/h]
-       ELSE IF(ifield==field_halo_med_mass) THEN
-          mmin=3e12 ! Minimum halo mass [Msun/h]
-          mmax=3e13 ! Maximum halo mass [Msun/h]
-       ELSE IF(ifield==field_halo_high_mass) THEN
-          mmin=3e13 ! Minimum halo mass [Msun/h]
-          mmax=3e14 ! Maximum halo mass [Msun/h]
+    ELSE IF(ifield==field_halo_11p0_11p5 .OR. ifield==field_halo_11p5_12p0 .OR. &
+         ifield==field_halo_12p0_12p5 .OR. ifield==field_halo_12p5_13p0 .OR. &
+         ifield==field_halo_13p0_13p5 .OR. ifield==field_halo_13p5_14p0 .OR. &
+         ifield==field_halo_14p0_14p5 .OR. ifield==field_halo_14p5_15p0) THEN        
+       IF(ifield==field_halo_11p0_11p5) THEN
+          mmin=10**11.0 ! Minimum halo mass [Msun/h]
+          mmax=10**11.5 ! Maximum halo mass [Msun/h]
+       ELSE IF(ifield==field_halo_11p5_12p0) THEN
+          mmin=10**11.5 ! Minimum halo mass [Msun/h]
+          mmax=10**12.0 ! Maximum halo mass [Msun/h]
+       ELSE IF(ifield==field_halo_12p0_12p5) THEN
+          mmin=10**12.0 ! Minimum halo mass [Msun/h]
+          mmax=10**12.5 ! Maximum halo mass [Msun/h]
+       ELSE IF(ifield==field_halo_12p5_13p0) THEN
+          mmin=10**12.5 ! Minimum halo mass [Msun/h]
+          mmax=10**13.0 ! Maximum halo mass [Msun/h]
+       ELSE IF(ifield==field_halo_13p0_13p5) THEN
+          mmin=10**13.0 ! Minimum halo mass [Msun/h]
+          mmax=10**13.5 ! Maximum halo mass [Msun/h]
+       ELSE IF(ifield==field_halo_13p5_14p0) THEN
+          mmin=10**13.5 ! Minimum halo mass [Msun/h]
+          mmax=10**14.0 ! Maximum halo mass [Msun/h]
+       ELSE IF(ifield==field_halo_14p0_14p5) THEN
+          mmin=10**14.0 ! Minimum halo mass [Msun/h]
+          mmax=10**14.5 ! Maximum halo mass [Msun/h]
+       ELSE IF(ifield==field_halo_14p5_15p0) THEN
+          mmin=10**14.5 ! Minimum halo mass [Msun/h]
+          mmax=10**15.0 ! Maximum halo mass [Msun/h]          
        ELSE
           STOP 'WIN_TYPE: Error, ifield specified incorrectly' 
        END IF
