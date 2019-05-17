@@ -123,6 +123,35 @@ CONTAINS
     
   END SUBROUTINE correlation_function
 
+  SUBROUTINE create_mass_function(mmin,mmax,halo_masses,n_haloes,mass_bins,mass_function,n_bins,L)
+
+    USE statistics
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: mmin                           ! Minimum halo mass for the mass function [Msun/h]
+    REAL, INTENT(IN) :: mmax                           ! Maximum halo mass for the mass function [Msun/h]
+    REAL, INTENT(IN) :: halo_masses(n_haloes)          ! Array of halo masses [Msun/h]
+    INTEGER, INTENT(IN) :: n_haloes                    ! Total number of haloes
+    REAL, ALLOCATABLE, INTENT(OUT) :: mass_bins(:)     ! Mass function bin values [Msun/h]
+    REAL, ALLOCATABLE, INTENT(OUT) :: mass_function(:) ! Mass function
+    INTEGER, INTENT(IN) :: n_bins                      ! Number of bins in mass function
+    REAL, INTENT(IN) :: L                              ! Simulation volume [Mpc/h]
+    INTEGER :: i
+    REAL, ALLOCATABLE :: mass_bin_edges(:)
+    INTEGER, ALLOCATABLE :: counts(:)
+    
+    CALL histogram(log(mmin),log(mmax),mass_bin_edges,counts,n_bins,log(halo_masses),n_haloes)
+    mass_bin_edges=exp(mass_bin_edges)
+
+    ALLOCATE(mass_bins(n_bins))
+    ALlOCATE(mass_function(n_bins))
+
+    DO i=1,n_bins
+       mass_bins(i)=sqrt(mass_bin_edges(i)*mass_bin_edges(i+1))
+       mass_function(i)=real(counts(i))/((mass_bin_edges(i+1)-mass_bin_edges(i))*L**3)
+    END DO
+    
+  END SUBROUTINE create_mass_function
+
   SUBROUTINE halo_mass_cut(mmin,mmax,x,m,n)
 
     IMPLICIT NONE
