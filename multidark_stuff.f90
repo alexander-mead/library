@@ -1,11 +1,12 @@
 MODULE multidark_stuff
 
+  USE file_info
+
 CONTAINS
 
   SUBROUTINE read_multidark_haloes(infile,mmin,x,m,n)
 
     ! TODO: Make minimum mass (or minimum halo-particle number) an input
-    USE file_info
     IMPLICIT NONE
     CHARACTER(len=*), INTENT(IN) :: infile
     REAL, INTENT(IN) :: mmin
@@ -113,6 +114,57 @@ CONTAINS
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Done'
     WRITE(*,*)
 
-  END SUBROUTINE
+  END SUBROUTINE read_multidark_haloes
+
+  SUBROUTINE read_multidark_halo_catalogue(infile,m,x,n)
+
+    IMPLICIT NONE
+    CHARACTER(len=*), INTENT(IN) :: infile
+    REAL, ALLOCATABLE, INTENT(OUT) :: m(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:)
+    INTEGER, INTENT(OUT) :: n
+    INTEGER :: i
+
+    n=file_length(infile,verbose=.FALSE.)
+    ALLOCATE(m(n),x(3,n))
+
+    WRITE(*,*) 'READ_MULTIDARK_HALO_CATALOGUE: ', trim(infile)
+    WRITE(*,*) 'READ_MULTIDARK_HALO_CATALOGUE: Number of haloes:', n
+    OPEN(7,file=infile,status='old')
+    DO i=1,n
+       READ(7,*) m(i), x(1,i), x(2,i), x(3,i)
+    END DO
+    CLOSE(7)
+    WRITE(*,*) 'READ_MULTIDARK_HALO_CATALOGUE: Done'
+    WRITE(*,*)
+    
+  END SUBROUTINE read_multidark_halo_catalogue
+
+  SUBROUTINE read_multidark_particles(infile,x,n)
+
+    IMPLICIT NONE
+    CHARACTER(len=*), INTENT(IN) :: infile
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:)
+    INTEGER, INTENT(OUT) :: n
+    INTEGER :: i
+    REAL :: crap
+
+    WRITE(*,*) 'READ_MULTIDARK_PARTICLES: ', trim(infile)
+
+    n=file_length(infile,verbose=.FALSE.)
+    n=n-1 ! First line is comment
+    ALLOCATE(x(3,n))
+   
+    WRITE(*,*) 'READ_MULTIDARK_PARTICLES: Number of particles:', n
+    OPEN(7,file=infile,status='old')
+    READ(7,*) ! First line is comment
+    DO i=1,n
+       READ(7,*) crap, x(1,i), x(2,i), x(3,i)
+    END DO
+    CLOSE(7)
+    WRITE(*,*) 'READ_MULTIDARK_PARTICLES: Done'
+    WRITE(*,*)
+    
+  END SUBROUTINE read_multidark_particles
   
 END MODULE multidark_stuff
