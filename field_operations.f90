@@ -1242,7 +1242,7 @@ CONTAINS
 
   END FUNCTION count_empty_cells
 
-  SUBROUTINE compute_power_spectrum_2D(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma)
+  SUBROUTINE compute_power_spectrum_2D(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma,linear_k_range)
      
     USE table_integer
     USE constants
@@ -1263,6 +1263,7 @@ CONTAINS
     REAL, ALLOCATABLE, INTENT(OUT) :: pow(:)       ! Output Delta^2(k) values
     INTEGER, ALLOCATABLE, INTENT(OUT) :: nmodes(:) ! Output Number of modes contributing to the k bin
     REAL, ALLOCATABLE, INTENT(OUT) :: sigma(:)     ! Output varaicnce in bin
+    LOGICAL, OPTIONAL, INTENT(IN) :: linear_k_range
     INTEGER :: i, ix, iy, n, mn
     REAL :: kx, ky, kmod, Dk, crap
     REAL, ALLOCATABLE :: kbin(:)  
@@ -1286,9 +1287,13 @@ CONTAINS
     WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_2D: k_min [h/Mpc]:', kmin
     WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_2D: k_max [h/Mpc]:', kmax
 
-    ! Fill array of k bins with linear-log spacing
-    CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
-    kbin=exp(kbin)
+    ! Fill array of k bins with linear/log spacing
+    IF(present_and_correct(linear_k_range)) THEN
+       CALL fill_array(kmin,kmax,kbin,nk+1)
+    ELSE
+       CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
+       kbin=exp(kbin)
+    END IF
 
     ! Explicitly extend the first and last bins to be sure to include *all* modes
     ! This is necessary due to rounding errors!
@@ -1376,7 +1381,7 @@ CONTAINS
   END SUBROUTINE compute_power_spectrum_2D
 
   !SUBROUTINE pk(dk1,dk2,m,L,kmin,kmax,bins,k,pow,nbin)
-  SUBROUTINE compute_power_spectrum_3D(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma)
+  SUBROUTINE compute_power_spectrum_3D(dk1,dk2,m,L,kmin,kmax,nk,k,pow,nmodes,sigma,linear_k_range)
 
     ! Takes in a dk(m,m,m) array and computes the power spectrum
     USE table_integer
@@ -1398,6 +1403,7 @@ CONTAINS
     REAL, ALLOCATABLE, INTENT(OUT) :: pow(:)       ! Output Delta^2(k) values
     INTEGER, ALLOCATABLE, INTENT(OUT) :: nmodes(:) ! Output Number of modes contributing to the k bin
     REAL, ALLOCATABLE, INTENT(OUT) :: sigma(:)     ! Output varaicnce in bin
+    LOGICAL, OPTIONAL, INTENT(IN) :: linear_k_range
     INTEGER :: i, ix, iy, iz, n, mn
     REAL :: kx, ky, kz, kmod, Dk
     REAL, ALLOCATABLE :: kbin(:)  
@@ -1421,9 +1427,13 @@ CONTAINS
     WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_3D: k_min [h/Mpc]:', kmin
     WRITE(*,*) 'COMPUTE_POWER_SPECTRUM_3D: k_max [h/Mpc]:', kmax
 
-    ! Fill array of k bins with linear-log spacing
-    CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
-    kbin=exp(kbin)
+    ! Fill array of k bins with linear/log spacing
+    IF(present_and_correct(linear_k_range)) THEN
+       CALL fill_array(kmin,kmax,kbin,nk+1)
+    ELSE
+       CALL fill_array(log(kmin),log(kmax),kbin,nk+1)
+       kbin=exp(kbin)
+    END IF
 
     ! Explicitly extend the first and last bins to be sure to include *all* modes
     ! This is necessary due to rounding errors!
