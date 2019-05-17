@@ -66,7 +66,7 @@ CONTAINS
     REAL :: Xe, Xi
 
     ! Names of pre-defined cosmologies    
-    INTEGER, PARAMETER :: ncosmo=237
+    INTEGER, PARAMETER :: ncosmo=337
     CHARACTER(len=256) :: names(0:ncosmo)
     names=''
     names(0)='User defined'
@@ -94,7 +94,7 @@ CONTAINS
     names(22)='IDE3'
     names(23)='IDE10'
     names(24)='Random Mira Titan cosmology'
-    names(25)='Random Cosmic Emu cosmology'
+    names(25)='Random Fanken Emu cosmology'
     names(26)='Boring: CAMB linear spectrum'
     names(27)='Illustris TNG 75'
     names(28)='Boring: Finite box'
@@ -107,6 +107,7 @@ CONTAINS
     names(35)='Boring LCDM: w = -1.3; wa =  0.5; z=1 normalisation'
     names(36)='Einsten-de Sitter LCDM; z=1 normalisation'
     names(37)='Multidark: WMAP 5'
+    names(38)='Random Cosmic Emu cosmology'
     
     names(100)='Mira Titan M000'
     names(101)='Mira Titan M001'
@@ -146,44 +147,83 @@ CONTAINS
     names(135)='Mira Titan M035'
     names(136)='Mira Titan M036'
     
-    names(200)='Cosmic Emu M000'
-    names(201)='Cosmic Emu M001'
-    names(202)='Cosmic Emu M002'
-    names(203)='Cosmic Emu M003'
-    names(204)='Cosmic Emu M004'
-    names(205)='Cosmic Emu M005'
-    names(206)='Cosmic Emu M006'
-    names(207)='Cosmic Emu M007'
-    names(208)='Cosmic Emu M008'
-    names(209)='Cosmic Emu M009'
-    names(210)='Cosmic Emu M010'
-    names(211)='Cosmic Emu M011'
-    names(212)='Cosmic Emu M012'
-    names(213)='Cosmic Emu M013'
-    names(214)='Cosmic Emu M014'
-    names(215)='Cosmic Emu M015'
-    names(216)='Cosmic Emu M016'
-    names(217)='Cosmic Emu M017'
-    names(218)='Cosmic Emu M018'
-    names(219)='Cosmic Emu M019'
-    names(220)='Cosmic Emu M020'
-    names(221)='Cosmic Emu M021'
-    names(222)='Cosmic Emu M022'
-    names(223)='Cosmic Emu M023'
-    names(224)='Cosmic Emu M024'
-    names(225)='Cosmic Emu M025'
-    names(226)='Cosmic Emu M026'
-    names(227)='Cosmic Emu M027'
-    names(228)='Cosmic Emu M028'
-    names(229)='Cosmic Emu M029'
-    names(230)='Cosmic Emu M030'
-    names(231)='Cosmic Emu M031'
-    names(232)='Cosmic Emu M032'
-    names(233)='Cosmic Emu M033'
-    names(234)='Cosmic Emu M034'
-    names(235)='Cosmic Emu M035'
-    names(236)='Cosmic Emu M036'
-    names(237)='Cosmic Emu M037'
+    names(200)='Franken Emu M000'
+    names(201)='Franken Emu M001'
+    names(202)='Franken Emu M002'
+    names(203)='Franken Emu M003'
+    names(204)='Franken Emu M004'
+    names(205)='Franken Emu M005'
+    names(206)='Franken Emu M006'
+    names(207)='Franken Emu M007'
+    names(208)='Franken Emu M008'
+    names(209)='Franken Emu M009'
+    names(210)='Franken Emu M010'
+    names(211)='Franken Emu M011'
+    names(212)='Franken Emu M012'
+    names(213)='Franken Emu M013'
+    names(214)='Franken Emu M014'
+    names(215)='Franken Emu M015'
+    names(216)='Franken Emu M016'
+    names(217)='Franken Emu M017'
+    names(218)='Franken Emu M018'
+    names(219)='Franken Emu M019'
+    names(220)='Franken Emu M020'
+    names(221)='Franken Emu M021'
+    names(222)='Franken Emu M022'
+    names(223)='Franken Emu M023'
+    names(224)='Franken Emu M024'
+    names(225)='Franken Emu M025'
+    names(226)='Franken Emu M026'
+    names(227)='Franken Emu M027'
+    names(228)='Franken Emu M028'
+    names(229)='Franken Emu M029'
+    names(230)='Franken Emu M030'
+    names(231)='Franken Emu M031'
+    names(232)='Franken Emu M032'
+    names(233)='Franken Emu M033'
+    names(234)='Franken Emu M034'
+    names(235)='Franken Emu M035'
+    names(236)='Franken Emu M036'
+    names(237)='Franken Emu M037'
+
+    names(300)='Cosmic Emu M000'
+    names(301)='Cosmic Emu M001'
+    names(302)='Cosmic Emu M002'
+    names(303)='Cosmic Emu M003'
+    names(304)='Cosmic Emu M004'
+    names(305)='Cosmic Emu M005'
+    names(306)='Cosmic Emu M006'
+    names(307)='Cosmic Emu M007'
+    names(308)='Cosmic Emu M008'
+    names(309)='Cosmic Emu M009'
+    names(310)='Cosmic Emu M010'
+    names(311)='Cosmic Emu M011'
+    names(312)='Cosmic Emu M012'
+    names(313)='Cosmic Emu M013'
+    names(314)='Cosmic Emu M014'
+    names(315)='Cosmic Emu M015'
+    names(316)='Cosmic Emu M016'
+    names(317)='Cosmic Emu M017'
+    names(318)='Cosmic Emu M018'
+    names(319)='Cosmic Emu M019'
+    names(320)='Cosmic Emu M020'
+    names(321)='Cosmic Emu M021'
+    names(322)='Cosmic Emu M022'
+    names(323)='Cosmic Emu M023'
+    names(324)='Cosmic Emu M024'
+    names(325)='Cosmic Emu M025'
+    names(326)='Cosmic Emu M026'
+    names(327)='Cosmic Emu M027'
+    names(328)='Cosmic Emu M028'
+    names(329)='Cosmic Emu M029'
+    names(330)='Cosmic Emu M030'
+    names(331)='Cosmic Emu M031'
+    names(332)='Cosmic Emu M032'
+    names(333)='Cosmic Emu M033'
+    names(334)='Cosmic Emu M034'
+    names(335)='Cosmic Emu M035'
+    names(336)='Cosmic Emu M036'
+    names(337)='Cosmic Emu M037'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_COSMOLOGY: Assigning cosmological model parameters'
 
@@ -418,12 +458,14 @@ CONTAINS
           cosm%Om_ws=0.02
        END IF
     ELSE IF(icosmo==24) THEN
+       ! Random Mira Titan cosmology
        CALL random_Mira_Titan_cosmology(cosm)
        cosm%itk=2 ! Set to CAMB linear power
        cosm%iw=3 ! Set to w(a) dark energy
        cosm%Om_v=0. ! Necessary for CAMB
     ELSE IF(icosmo==25) THEN
-       CALL random_Cosmic_Emu_cosmology(cosm)   
+       ! Random Franken Emu cosmology
+       CALL random_Franken_Emu_cosmology(cosm)   
        cosm%itk=2 ! Set to CAMB linear power
        cosm%iw=4 ! Set to constant w dark energy
        cosm%Om_v=0. ! Necessary for CAMB
@@ -476,18 +518,32 @@ CONTAINS
        cosm%h=0.70
        cosm%Om_b=0.0469
        cosm%Om_m=0.27
-       cosm%Om_v=1.-cosm%Om_m       
+       cosm%Om_v=1.-cosm%Om_m
        cosm%n=0.95
        cosm%sig8=0.82
-    ELSE IF(icosmo>=100 .AND. icosmo<=137) THEN
-       CALL Mira_Titan_node_cosmology(icosmo-100,cosm)
-       cosm%itk=2 ! Set to CAMB linear power
-       cosm%iw=3 ! Set to w(a) dark energy
-       cosm%Om_v=0. ! Necessary for CAMB
-    ELSE IF(icosmo>=200 .AND. icosmo<=237) THEN
-       CALL Cosmic_Emu_node_cosmology(icosmo-200,cosm)
+    ELSE IF(icosmo==38) THEN
+       ! Random cosmic emu model
+       CALL random_Cosmic_Emu_cosmology(cosm)   
        cosm%itk=2 ! Set to CAMB linear power
        cosm%iw=4 ! Set to constant w dark energy
+       cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo>=100 .AND. icosmo<=137) THEN
+       ! Mira Titan nodes
+       CALL Mira_Titan_node_cosmology(icosmo-100,cosm)
+       cosm%itk=2   ! Set to CAMB linear power
+       cosm%iw=3    ! Set to w(a) dark energy
+       cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo>=200 .AND. icosmo<=237) THEN
+       ! Franken Emu nodes (which are the same as Franken Emu nodes)
+       CALL Franken_Emu_node_cosmology(icosmo-200,cosm)
+       cosm%itk=2   ! Set to CAMB linear power
+       cosm%iw=4    ! Set to constant w dark energy
+       cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo>=300 .AND. icosmo<=337) THEN
+       ! Cosmic Emu nodes (which are the same as Franken Emu nodes)
+       CALL Cosmic_Emu_node_cosmology(icosmo-300,cosm)
+       cosm%itk=2   ! Set to CAMB linear power
+       cosm%iw=4    ! Set to constant w dark energy
        cosm%Om_v=0. ! Necessary for CAMB
     ELSE
        STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly'
@@ -680,6 +736,8 @@ CONTAINS
        END IF
        WRITE(*,*) '===================================='
        WRITE(*,*) 'COSMOLOGY: Derived parameters'
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_m:', cosm%Om_m*cosm%h**2
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_b:', cosm%Om_b*cosm%h**2
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_r:', cosm%Om_r
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega:', cosm%Om
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_c:', cosm%Om_c
@@ -3411,7 +3469,47 @@ CONTAINS
 
   SUBROUTINE random_Cosmic_Emu_cosmology(cosm)
 
-    !Generate some random cosmological parameter
+    ! Generate some random cosmological parameters
+    USE random_numbers
+    IMPLICIT NONE
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+
+    REAL, PARAMETER :: om_m_min=0.120
+    REAL, PARAMETER :: om_m_max=0.155
+
+    REAL, PARAMETER :: om_b_min=0.0215
+    REAL, PARAMETER :: om_b_max=0.0235
+
+    REAL, PARAMETER :: n_min=0.85
+    REAL, PARAMETER :: n_max=1.05
+
+    REAL, PARAMETER :: w_min=-1.3
+    REAL, PARAMETER :: w_max=-0.7
+
+    REAL, PARAMETER :: sig8_min=0.616
+    REAL, PARAMETER :: sig8_max=0.9
+
+    STOP 'RANDOM_COSMIC_EMU_COSMOLOGY: Need to implement the CMB distance condition on h'
+
+    cosm%Om_m=random_uniform(om_m_min,om_m_max)/cosm%h**2
+
+    cosm%Om_b=random_uniform(om_b_min,om_b_max)/cosm%h**2
+
+    ! Enforce flatness
+    ! Note - need to have Om_w for dark enegry
+    cosm%Om_w=1.-cosm%Om_m
+
+    cosm%n=random_uniform(n_min,n_max)   
+
+    cosm%w=random_uniform(w_min,w_max)
+
+    cosm%sig8=random_uniform(sig8_min,sig8_max)
+
+  END SUBROUTINE random_Cosmic_Emu_cosmology
+
+  SUBROUTINE random_Franken_Emu_cosmology(cosm)
+
+    ! Generate some random cosmological parameters
     USE random_numbers
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -3440,7 +3538,7 @@ CONTAINS
 
     cosm%Om_b=random_uniform(om_b_min,om_b_max)/cosm%h**2
 
-    !Enforce flatness
+    ! Enforce flatness
     ! Note - need to have Om_w for dark enegry
     cosm%Om_w=1.-cosm%Om_m
 
@@ -3451,7 +3549,7 @@ CONTAINS
     cosm%sig8=random_uniform(sig8_min,sig8_max)
 
 
-  END SUBROUTINE random_Cosmic_Emu_cosmology
+  END SUBROUTINE random_Franken_Emu_cosmology
 
   SUBROUTINE Cosmic_Emu_node_cosmology(node,cosm)
     
@@ -3652,8 +3750,7 @@ CONTAINS
        cosm%n=0.9016
        cosm%w=1.261
        cosm%sig8=0.6664
-       !cosm%h=0.8694 ! This seems wrong (typo in FrankenEmu?, or something to do with adding h?)
-       cosm%h=0.8500
+       cosm%h=0.8694
     ELSE IF(node==24) THEN
        ! M024
        om_m=0.1302
@@ -3767,7 +3864,7 @@ CONTAINS
        cosm%sig8=0.8999 ! Moved off boundary
        cosm%h=0.7313
     ELSE
-       STOP 'FRANKENEMU_NODE_COSMOLOGY: Error, node specified incorrectly'
+       STOP 'COSMIC_EMU_NODE_COSMOLOGY: Error, node specified incorrectly'
     END IF
 
     cosm%w=-cosm%w
@@ -3776,6 +3873,30 @@ CONTAINS
     cosm%Om_w=1.-cosm%Om_m
     
   END SUBROUTINE Cosmic_Emu_node_cosmology
+
+  SUBROUTINE Franken_Emu_node_cosmology(node,cosm)
+
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: node
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: om_m, om_b
+
+    IF(node==23) THEN
+       ! M023
+       om_m=0.1211
+       om_b=0.0220
+       cosm%n=0.9016
+       cosm%w=-1.261
+       cosm%sig8=0.6664
+       cosm%h=0.8500 ! Have to round down from 0.8694 to 0.85 for FrankenEmu shrunken space
+       cosm%Om_m=om_m/cosm%h**2
+       cosm%Om_b=om_b/cosm%h**2
+       cosm%Om_w=1.-cosm%Om_m
+    ELSE
+       CALL Cosmic_Emu_node_cosmology(node,cosm)
+    END IF
+    
+  END SUBROUTINE Franken_Emu_node_cosmology
 
   SUBROUTINE random_Mira_Titan_cosmology(cosm)
 
