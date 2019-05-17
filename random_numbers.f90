@@ -223,4 +223,22 @@ CONTAINS
     
   END FUNCTION accept_reject
 
+  INTEGER FUNCTION dice(dmin,dmax,ndice)
+
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: dmin
+    INTEGER, INTENT(IN) :: dmax
+    INTEGER, INTENT(IN) :: ndice
+    INTEGER :: i
+
+    IF(ndice<0) STOP 'DICE: Error, number of rolls must be positive or zero'
+    
+    ! Roll the dice and sum the score
+    dice=0
+    DO i=1,ndice
+       dice=dice+random_integer(dmin,dmax)
+    END DO
+    
+  END FUNCTION dice
+
 END MODULE random_numbers
