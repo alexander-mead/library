@@ -1,6 +1,9 @@
 MODULE cosmic_emu_stuff
 
+  USE file_info
+  USE array_operations
   USE cosmology_functions
+  USE interpolate
 
 CONTAINS
 
@@ -174,6 +177,7 @@ CONTAINS
 
   SUBROUTINE read_Mira_Titan_power(k,P,n,z,cosm,rebin)
 
+    USE constants
     IMPLICIT NONE
     REAL, ALLOCATABLE, INTENT(OUT) :: k(:), P(:)
     INTEGER, INTENT(OUT) :: n

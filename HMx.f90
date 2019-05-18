@@ -9,6 +9,8 @@ MODULE HMx
   USE calculus_table
   USE cosmology_functions
   USE logical_operations
+  USE interpolate
+  USE file_info
 
   IMPLICIT NONE
 
@@ -4670,7 +4672,7 @@ CONTAINS
     cosm_LCDM%verbose=.FALSE.
     CALL init_cosmology(cosm_LCDM) ! This is **essential**
 
-    ginf_LCDM=growth_Linder(ainf,cosm_LCDM)
+    ginf_LCDM=grow_Linder(ainf,cosm_LCDM)
     f=ginf_wCDM/ginf_LCDM
 
     ! Changed this to a power of 1.5, which produces more accurate results for extreme DE
@@ -4681,7 +4683,7 @@ CONTAINS
     ELSE IF(hmod%iDolag==4) THEN
        a=hmod%a
        g_wCDM=grow(a,cosm)
-       g_LCDM=growth_Linder(a,cosm_LCDM)
+       g_LCDM=grow_Linder(a,cosm_LCDM)
        g=g_wCDM/g_LCDM       
        hmod%c=hmod%c*f/g
     ELSE

@@ -6,6 +6,76 @@ MODULE cosmology_functions
 
   IMPLICIT NONE
 
+  PRIVATE
+
+  ! Type
+  PUBLIC :: cosmology
+
+  ! Basic routines
+  PUBLIC :: assign_cosmology
+  PUBLIC :: init_cosmology
+  PUBLIC :: print_cosmology
+
+  ! Scale factor and z
+  PUBLIC :: scale_factor_z
+  PUBLIC :: redshift_r
+  PUBLIC :: redshift_a  
+
+  ! Friedmann
+  PUBLIC :: Hubble2
+  PUBLIC :: Omega_m
+  PUBLIC :: Omega_r
+  PUBLIC :: Omega_v
+  PUBLIC :: Omega_w
+  PUBLIC :: Omega
+  PUBLIC :: w_de
+  PUBLIC :: w_de_total
+  PUBLIC :: w_eff
+
+  ! Distances and times
+  PUBLIC :: f_k
+  PUBLIC :: fdash_k
+  PUBLIC :: comoving_distance
+  PUBLIC :: physical_distance
+  PUBLIC :: comoving_particle_horizon
+  PUBLIC :: comoving_angular_distance
+  PUBLIC :: physical_angular_distance
+  PUBLIC :: luminosity_distance  
+  PUBLIC :: cosmic_time
+  PUBLIC :: look_back_time
+
+  ! Densities
+  PUBLIC :: comoving_critical_density
+  PUBLIC :: comoving_matter_density
+  PUBLIC :: physical_critical_density
+  PUBLIC :: physical_matter_density
+
+  ! Linear growth
+  PUBLIC :: ungrow
+  PUBLIC :: grow
+  PUBLIC :: grow_CPT
+  PUBLIC :: grow_Linder
+  PUBLIC :: growth_rate
+  PUBlIC :: growth_rate_Linder
+  PUBLIC :: acc_growth
+
+  ! Spherical collapse
+  PUBLIC :: Dv_BryanNorman
+  PUBLIC :: Dv_Mead
+  PUBLIC :: Dv_Spherical
+  PUBLIC :: dc_NakamuraSuto
+  PUBLIC :: dc_Mead
+  PUBLIC :: dc_Spherical
+
+  ! Linear perturbations
+  PUBLIC :: p_lin
+  PUBLIC :: xi_lin
+  PUBLIC :: sigma
+  PUBLIC :: sigmaV
+
+  ! Halofit
+  PUBLIC :: calculate_halofit_a
+  
   INTERFACE integrate_cosm
      MODULE PROCEDURE integrate1_cosm
      MODULE PROCEDURE integrate2_cosm
@@ -595,7 +665,7 @@ CONTAINS
     END IF
 
     ! Correction to vacuum density in order for radiation to maintain flatness
-    cosm%Om_v_mod=cosm%Om_v-cosm%Om_r    
+    cosm%Om_v_mod=cosm%Om_v-cosm%Om_r
 
     ! Information about how vacuum is changed to enforece flatness
     If(cosm%verbose) THEN
@@ -1441,12 +1511,11 @@ CONTAINS
 
   REAL FUNCTION distance_integrand(a,cosm)
 
-    ! The integrand for the cosmic-distance calculation
+    ! The integrand for the cosmic-distance calculation [Mpc/h]
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
-
-    REAL, PARAMETER :: amin=1e-5
+    REAL, PARAMETER :: amin=1e-5 ! Below this scale factor we need to use a different integration technique
 
     IF(a<amin) THEN
        distance_integrand=Hdist/sqrt(Hubble2a4_highz(cosm))
@@ -1458,7 +1527,7 @@ CONTAINS
 
   REAL FUNCTION comoving_distance(a,cosm)
 
-    ! The comoving distance to a galaxy at scale-factor a
+    ! The comoving distance to a galaxy at scale-factor 'a' [Mpc/h]
     ! TODO: Include low-z approximation?
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
@@ -1473,6 +1542,17 @@ CONTAINS
     END IF
 
   END FUNCTION comoving_distance
+
+  REAL FUNCTION comoving_particle_horizon(a,cosm)
+
+    ! The particle horizon at scale factor 'a' [Mpc/h]
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+
+    comoving_particle_horizon=integrate_cosm(0.,a,distance_integrand,cosm,acc_cosm,3)
+
+  END FUNCTION comoving_particle_horizon
 
   REAL FUNCTION physical_distance(a,cosm)
 
@@ -1568,7 +1648,7 @@ CONTAINS
 
   FUNCTION age_of_universe(cosm)
 
-    ! The total age of the universe
+    ! The total age of the universe [Gyr/h]
     IMPLICIT NONE
     REAL :: age_of_universe
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1579,7 +1659,7 @@ CONTAINS
 
   FUNCTION cosmic_time(a,cosm)
 
-    ! The age of the universe at scale-factor 'a'
+    ! The age of the universe at scale-factor 'a' [Gyr/h]
     IMPLICIT NONE
     REAL :: cosmic_time
     REAL, INTENT(IN) :: a
@@ -1591,7 +1671,7 @@ CONTAINS
 
   FUNCTION look_back_time(a,cosm)
 
-    ! The time in the past that photons at scale-factor 'a' were emitted
+    ! The time in the past that photons at scale-factor 'a' were emitted [Gyr/h]
     IMPLICIT NONE
     REAL :: look_back_time
     REAL, INTENT(IN) :: a
@@ -1603,7 +1683,7 @@ CONTAINS
 
   FUNCTION time_integrand(a,cosm)
 
-    ! The integrand for the cosmic-distance calculation
+    ! The integrand for the cosmic-distance calculation [Gyr/h]
     IMPLICIT NONE
     REAL :: time_integrand
     REAL, INTENT(IN) :: a
@@ -2053,10 +2133,9 @@ CONTAINS
     
   END FUNCTION t_sigma_integrand
 
-  FUNCTION sigmaV(R,a,cosm)
+  REAL FUNCTION sigmaV(R,a,cosm)
 
     IMPLICIT NONE
-    REAL :: sigmaV
     REAL, INTENT(IN) :: R, a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL, PARAMETER :: tmin=0.
@@ -2069,13 +2148,12 @@ CONTAINS
 
   END FUNCTION sigmaV
 
-  FUNCTION sigmaV2_integrand(t,R,a,cosm)
+  REAL FUNCTION sigmaV2_integrand(t,R,a,cosm)
 
     ! This is the integrand for the velocity dispersion integral
     ! TODO: Optimize alpha(R); not really a problem when only called for R = 0, 100 Mpc/h
     USE special_functions
     IMPLICIT NONE
-    REAL :: sigmaV2_integrand
     REAL, INTENT(IN) :: t, a, R
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: k, kR, w_hat, alpha
@@ -2099,11 +2177,10 @@ CONTAINS
 
   END FUNCTION sigmaV2_integrand
 
-  FUNCTION grow(a,cosm)
+  REAL FUNCTION grow(a,cosm)
 
     ! Scale-independent growth function | normalised g(z=0)=1
     IMPLICIT NONE
-    REAL :: grow
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -2116,11 +2193,10 @@ CONTAINS
 
   END FUNCTION grow
 
-  FUNCTION ungrow(a,cosm)
+  REAL FUNCTION ungrow(a,cosm)
 
     ! Unnormalised growth function
     IMPLICIT NONE
-    REAL :: ungrow
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
    
@@ -2128,11 +2204,10 @@ CONTAINS
 
   END FUNCTION ungrow
 
-  FUNCTION growth_rate(a,cosm)
+  REAL FUNCTION growth_rate(a,cosm)
 
     ! Growth rate: dln(g) / dln(a)
     IMPLICIT NONE
-    REAL :: growth_rate
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -2141,11 +2216,10 @@ CONTAINS
 
   END FUNCTION growth_rate
 
-  FUNCTION acc_growth(a,cosm)
+  REAL FUNCTION acc_growth(a,cosm)
 
     ! Accumulated growth function: int_0^a g(a)/a da
     IMPLICIT NONE
-    REAL :: acc_growth
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -2154,11 +2228,10 @@ CONTAINS
 
   END FUNCTION acc_growth
 
-  FUNCTION growth_rate_Linder(a,cosm)
+  REAL FUNCTION growth_rate_Linder(a,cosm)
 
     ! Approximation for the growth rate from Linder xxxx.xxxx
     IMPLICIT NONE
-    REAL :: growth_rate_Linder
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: gam
@@ -2175,35 +2248,32 @@ CONTAINS
     
   END FUNCTION growth_rate_Linder
 
-  FUNCTION growth_Linder_integrand(a,cosm)
+  REAL FUNCTION grow_Linder_integrand(a,cosm)
 
     ! Integrand for the approximate growth integral using Linder approximate growth rate
     IMPLICIT NONE
-    REAL :: growth_Linder_integrand
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    growth_Linder_integrand=growth_rate_Linder(a,cosm)/a
+    grow_Linder_integrand=growth_rate_Linder(a,cosm)/a
 
-  END FUNCTION growth_Linder_integrand
+  END FUNCTION grow_Linder_integrand
 
-  FUNCTION growth_Linder(a,cosm)
+  REAL FUNCTION grow_Linder(a,cosm)
 
     ! Calculate the growth function from the Linder growth rate via integration
     IMPLICIT NONE
-    REAL :: growth_Linder
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    growth_Linder=exp(-integrate_cosm(a,1.,growth_Linder_integrand,cosm,acc_cosm,3))
+    grow_Linder=exp(-integrate_cosm(a,1.,grow_Linder_integrand,cosm,acc_cosm,3))
     
-  END FUNCTION growth_Linder
+  END FUNCTION grow_Linder
 
-  FUNCTION growth_CPT(a,cosm)
+  REAL FUNCTION grow_CPT(a,cosm)
 
     ! Carrol, Press & Turner (1992) approximation to growth function (good to 5%)
     IMPLICIT NONE
-    REAL :: growth_CPT
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: Om_mz, Om_vz, Om_m, Om_v
@@ -2215,15 +2285,14 @@ CONTAINS
     Om_v=cosm%Om_v_mod+cosm%Om_w
 
     ! Now call CPT twice, second time to normalise it
-    growth_CPT=CPT(a,Om_mz,Om_vz)/CPT(1.,Om_m,Om_v)
+    grow_CPT=CPT(a,Om_mz,Om_vz)/CPT(1.,Om_m,Om_v)
 
-  END FUNCTION growth_CPT
+  END FUNCTION grow_CPT
 
-  FUNCTION CPT(a,Om_m,Om_v)
+  REAL FUNCTION CPT(a,Om_m,Om_v)
 
     ! The CPT growth function approximation from 1992
     IMPLICIT NONE
-    REAL :: CPT
     REAL, INTENT(IN) :: a, Om_m, Om_v
 
     CPT=a*Om_m/((Om_m**(4./7.))-Om_v+(1.+Om_m/2.)*(1.+Om_v/70.))
@@ -3941,7 +4010,7 @@ CONTAINS
     cosm%Om_b=om_b/cosm%h**2
 
     om_nu=random_uniform(om_nu_min,om_nu_max)
-    cosm%m_nu=94.1*om_nu
+    cosm%m_nu=neutrino_constant*om_nu
     cosm%m_nu=0.
 
     ! Enforce flatness, ensure Omega_w is used for dark energy, Omega_v = 0
@@ -4346,7 +4415,7 @@ CONTAINS
 
     cosm%Om_m=om_m/cosm%h**2
     cosm%Om_b=om_b/cosm%h**2
-    cosm%m_nu=94.1*om_nu
+    cosm%m_nu=neutrino_constant*om_nu
     cosm%Om_w=1.-cosm%Om_m
         
   END SUBROUTINE Mira_Titan_node_cosmology
