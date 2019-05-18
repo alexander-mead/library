@@ -1,5 +1,15 @@
 MODULE sorting
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: index
+  PUBLIC :: sort
+  PUBLIC :: check_sorted
+  PUBLIC :: check_sorted_index
+  PUBLIC :: reindex
+
   INTERFACE index
      MODULE PROCEDURE index_real
      MODULE PROCEDURE index_int     
@@ -85,18 +95,18 @@ CONTAINS
 
   END SUBROUTINE stupid_sort
 
-   RECURSIVE SUBROUTINE QsortC(A)
+  RECURSIVE SUBROUTINE QsortC(A)
 
     ! Stolen from http://www.fortran.com/qsort_c.f95
     IMPLICIT NONE
     REAL, INTENT(INOUT), DIMENSION(:) :: A
     INTEGER :: iq
 
-    if(size(A) > 1) then
-       call Partition(A, iq)
-       call QsortC(A(:iq-1))
-       call QsortC(A(iq:))
-    endif
+    IF(size(A) > 1) THEN
+       CALL Partition(A, iq)
+       CALL QsortC(A(:iq-1))
+       CALL QsortC(A(iq:))
+    END IF
     
   END SUBROUTINE QsortC
 

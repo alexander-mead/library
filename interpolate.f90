@@ -4,6 +4,13 @@ MODULE interpolate
   USE table_integer
   USE array_operations
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: find
+  PUBLIC :: interpolate_array
+
   INTERFACE find
      MODULE PROCEDURE find_1D
      MODULE PROCEDURE find_2D

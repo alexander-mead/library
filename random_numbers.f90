@@ -2,7 +2,31 @@ MODULE random_numbers
 
   !TODO: Think about using intrinsic 'random_number' instead of 'rand()'
   USE logical_operations
+  
   IMPLICIT NONE
+
+  PRIVATE
+
+  ! Setting routine
+  PUBLIC :: RNG_set
+
+  ! Integer distributions
+  PUBLIC :: random_integer
+  PUBLIC :: random_sign
+  PUBLIC :: dice
+
+  ! Real number distributions
+  PUBLIC :: random_uniform
+  PUBLIC :: random_Rayleigh
+  PUBLIC :: random_Lorentzian
+  PUBLIC :: random_Gaussian
+  PUBLIC :: random_lognormal
+  PUBLIC :: random_exponential
+  PUBLIC :: random_polynomial
+  PUBLIC :: random_theta
+
+  ! Draw from any real-number distribution
+  PUBLIC :: accept_reject
   
 CONTAINS
 
@@ -55,6 +79,24 @@ CONTAINS
     IF(random_integer==i1-1) random_integer=i1
 
   END FUNCTION random_integer
+
+  INTEGER FUNCTION dice(dmin,dmax,ndice)
+
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: dmin
+    INTEGER, INTENT(IN) :: dmax
+    INTEGER, INTENT(IN) :: ndice
+    INTEGER :: i
+
+    IF(ndice<0) STOP 'DICE: Error, number of rolls must be positive or zero'
+    
+    ! Roll the dice and sum the score
+    dice=0
+    DO i=1,ndice
+       dice=dice+random_integer(dmin,dmax)
+    END DO
+    
+  END FUNCTION dice
 
   INTEGER FUNCTION random_sign()
 
@@ -222,23 +264,5 @@ CONTAINS
     END DO
     
   END FUNCTION accept_reject
-
-  INTEGER FUNCTION dice(dmin,dmax,ndice)
-
-    IMPLICIT NONE
-    INTEGER, INTENT(IN) :: dmin
-    INTEGER, INTENT(IN) :: dmax
-    INTEGER, INTENT(IN) :: ndice
-    INTEGER :: i
-
-    IF(ndice<0) STOP 'DICE: Error, number of rolls must be positive or zero'
-    
-    ! Roll the dice and sum the score
-    dice=0
-    DO i=1,ndice
-       dice=dice+random_integer(dmin,dmax)
-    END DO
-    
-  END FUNCTION dice
 
 END MODULE random_numbers

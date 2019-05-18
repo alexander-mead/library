@@ -1,4 +1,13 @@
 MODULE fix_polynomial
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: Lagrange_polynomial
+  PUBLIC :: fix_line
+  PUBLIC :: fix_quadratic
+  PUBLIC :: fix_cubic
   
 CONTAINS
 

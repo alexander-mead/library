@@ -1,8 +1,16 @@
 MODULE physics
 
   USE constants
+  
   IMPLICIT NONE
 
+  PRIVATE
+
+  PUBLIC :: black_body_nu
+  PUBLIC :: black_body_lambda
+  PUBLIC :: wein_law_nu
+  PUBLIC :: wein_law_lambda
+  
 CONTAINS
 
   REAL FUNCTION black_body_nu(nu,T)

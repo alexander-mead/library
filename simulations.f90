@@ -3,11 +3,47 @@ MODULE simulations
   ! This module should contain only routines that pertain to simualtion particles specifically
   ! Anything that involves only the fields should go in field_operations.f90
   ! Each routine should take particle properties (e.g., positions) as an argument
-
+  
   USE logical_operations
   USE field_operations
   
   IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: particle_bin
+  PUBLIC :: particle_bin_average
+  !PUBLIC :: NGP
+  !PUBLIC :: CIC
+  PUBLIC :: correlation_function
+  PUBLIC :: create_mass_function
+  PUBLIC :: halo_mass_cut
+  PUBLIC :: halo_mass_weights
+  PUBLIC :: write_power_spectrum
+  PUBLIC :: write_density_slice_ascii
+  PUBLIC :: Zeldovich_ICs
+  PUBLIC :: replace
+  
+  PUBLIC :: generate_randoms
+  PUBLIC :: generate_poor_glass
+  PUBLIC :: generate_grid
+  
+  PUBLIC :: sparse_sample
+  
+  PUBLIC :: random_translation
+  PUBLIC :: random_inversion
+  PUBLIC :: random_rotation
+
+  PUBLIC :: shot_noise
+  PUBLIC :: shot_noise_simple
+  PUBLIC :: shot_noise_mass
+  PUBLIC :: shot_noise_k
+  
+  PUBLIC :: SOD
+  PUBLIC :: find_pairs
+  PUBLIC :: zshift
+  PUBLIC :: write_slice_ascii
+  PUBLIC :: write_adaptive_field
 
   INTERFACE particle_bin
      MODULE PROCEDURE particle_bin_2D
@@ -1969,23 +2005,23 @@ CONTAINS
 
        output=number_file_zeroes(base,m1,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
-       CALL write_field_ascii_2D(field1,m1,Lsub,output)
+       CALL write_field_ascii(field1,m1,Lsub,output)
 
        output=number_file_zeroes(base,m2,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
-       CALL write_field_ascii_2D(field2,m2,Lsub,output)
+       CALL write_field_ascii(field2,m2,Lsub,output)
 
        output=number_file_zeroes(base,m3,4,ext)       
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
-       CALL write_field_ascii_2D(field3,m3,Lsub,output)
+       CALL write_field_ascii(field3,m3,Lsub,output)
 
        output=number_file_zeroes(base,m4,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
-       CALL write_field_ascii_2D(field4,m4,Lsub,output)
+       CALL write_field_ascii(field4,m4,Lsub,output)
 
        output=number_file_zeroes(base,m5,4,ext)
        WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Writing: ', trim(output)
-       CALL write_field_ascii_2D(field5,m5,Lsub,output)
+       CALL write_field_ascii(field5,m5,Lsub,output)
 
     END IF
 
@@ -2133,7 +2169,7 @@ CONTAINS
     WRITE(*,*)
 
     ! Finally write out an ascii file for plotting
-    CALL write_field_ascii_2D(d,m1,Lsub,outfile)
+    CALL write_field_ascii(d,m1,Lsub,outfile)
     WRITE(*,*) 'WRITE_ADAPTIVE_FIELD: Done'
     WRITE(*,*)
 

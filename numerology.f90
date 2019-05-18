@@ -1,5 +1,17 @@
 MODULE numerology
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: first_digit
+  PUBLIC :: swap
+
+  INTERFACE swap
+     MODULE PROCEDURE swap_real
+     MODULE PROCEDURE swap_int
+  END INTERFACE swap
+
 CONTAINS
 
   INTEGER FUNCTION first_digit(x)

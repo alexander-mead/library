@@ -1,14 +1,23 @@
 MODULE table_integer
 
-  CONTAINS
+  IMPLICIT NONE
 
-  FUNCTION select_table_integer(x,xtab,n,imeth)
+  PRIVATE
 
-    !Chooses between ways to find the integer location below some value in an array
+  PUBLIC :: select_table_integer
+
+CONTAINS
+
+  INTEGER FUNCTION select_table_integer(x,xtab,n,imeth)
+
+    ! Chooses between ways to find the integer location below some value in an array
+    ! If x is within the table then the value returned will be between 1 and n-1
+    ! If x is below the lower value of the array then 0 is returned
+    ! If x is above the upper value of the array then n is returned
     IMPLICIT NONE
-    INTEGER :: select_table_integer
     INTEGER, INTENT(IN) :: n
-    REAL, INTENT(IN) :: x, xtab(n)
+    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: xtab(n)
     INTEGER, INTENT(IN) :: imeth
 
     IF(x<xtab(1)) THEN
@@ -27,20 +36,20 @@ MODULE table_integer
 
   END FUNCTION select_table_integer
 
-  FUNCTION linear_table_integer(x,xtab,n)
+  INTEGER FUNCTION linear_table_integer(x,xtab,n)
 
-    !Assuming the table is exactly linear this gives you the integer position
+    ! Assuming the table is exactly linear this gives you the integer position
     IMPLICIT NONE
-    INTEGER :: linear_table_integer
-    INTEGER, INTENT(IN) :: n
-    REAL, INTENT(IN) :: x, xtab(n)
+    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: xtab(n)
+    INTEGER, INTENT(IN) :: n    
     REAL :: x1, xn
-    
-    !REAL, PARAMETER :: acc=1e-3 !Test for linear table
 
-    !Returns the integer (table position) below the value of x
-    !eg. if x(3)=6. and x(4)=7. and x=6.5 this will return 6
-    !Assumes table is organised linearly (care for logs)
+    !REAL, PARAMETER :: acc=1e-3 ! Test for linear table
+
+    ! Returns the integer (table position) below the value of x
+    ! eg. if x(3)=6. and x(4)=7. and x=6.5 this will return 6
+    ! Assumes table is organised linearly (care for logs)
 
     !Tests for linear table integer
     !x1=xtab(1)
@@ -55,13 +64,13 @@ MODULE table_integer
 
   END FUNCTION linear_table_integer
 
-  FUNCTION search_int(x,xtab,n)
+  INTEGER FUNCTION search_int(x,xtab,n)
 
-    !Does a stupid search through the table from beginning to end to find integer
+    ! Does a stupid search through the table from beginning to end to find integer
     IMPLICIT NONE
-    INTEGER :: search_int
-    INTEGER, INTENT(IN) :: n
-    REAL, INTENT(IN) :: x, xtab(n)
+    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: xtab(n)
+    INTEGER, INTENT(IN) :: n   
     INTEGER :: i
 
     IF(xtab(1)>xtab(n)) STOP 'SEARCH_INT: table in wrong order'
@@ -74,13 +83,13 @@ MODULE table_integer
 
   END FUNCTION search_int
 
-  FUNCTION int_split(x,xtab,n)
+  INTEGER FUNCTION int_split(x,xtab,n)
 
-    !Finds the position of the value in the table by continually splitting it in half
+    ! Finds the position of the value in the table by continually splitting it in half
     IMPLICIT NONE
-    INTEGER :: int_split
+    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: xtab(n)
     INTEGER, INTENT(IN) :: n
-    REAL, INTENT(IN) :: x, xtab(n)
     INTEGER :: i1, i2, imid
 
     IF(xtab(1)>xtab(n)) STOP 'INT_SPLIT: table in wrong order'
@@ -89,7 +98,7 @@ MODULE table_integer
     i2=n
 
     DO
-       
+
        imid=nint((i1+i2)/2.)
 
        IF(x<xtab(imid)) THEN
@@ -101,7 +110,7 @@ MODULE table_integer
        IF(i2==i1+1) EXIT
 
     END DO
-    
+
     int_split=i1
 
   END FUNCTION int_split

@@ -16,6 +16,41 @@ MODULE array_operations
 !!$     MODULE PROCEDURE progression_log_double
 !!$  END INTERFACE progression_log
 
+  PRIVATE
+
+  PUBLIC :: within_array
+  PUBLIC :: swap_arrays
+  PUBLIC :: add_to_array  
+  PUBLIC :: splay
+  PUBLIC :: write_array_list
+  PUBLIC :: maximum
+  PUBLIC :: sum_double
+  PUBLIC :: repeated_entries
+  PUBLIC :: array_position  
+  PUBLIC :: reverse_array
+  PUBLIC :: remove_array_element
+  PUBLIC :: array_positions
+  PUBLIC :: amputate_array
+  PUBLIC :: unique_index  
+  PUBLIC :: reduce_array
+  PUBLIC :: fill_pixels
+  PUBLIC :: binning
+  PUBLIC :: merge_arrays
+  PUBLIC :: mask
+
+  PUBLIC :: unique_entries
+  PUBLIC :: number_of_appearances
+  PUBLIC :: remove_repeated_array_elements
+  PUBLIC :: remove_repeated_two_array_elements
+
+  PUBLIC :: progression
+  PUBLIC :: progression_double
+  PUBLIC :: progression_log
+  PUBLIC :: progression_log_double
+  
+  PUBLIC :: fill_array
+  PUBLIC :: fill_array_double
+
   INTERFACE add_to_array
      MODULE PROCEDURE add_to_array_2D
      MODULE PROCEDURE add_to_array_3D
@@ -286,31 +321,31 @@ CONTAINS
 
   END SUBROUTINE reduce_array
 
-  SUBROUTINE reduceto(arr1,n)
-
-    ! Reduces the array from whatever size to size 'n'
-    ! TODO: Remove
-    IMPLICIT NONE
-    REAL, ALLOCATABLE, INTENT(INOUT) :: arr1(:)
-    INTEGER, INTENT(IN) :: n
-    REAL, ALLOCATABLE :: hold(:)
-    INTEGER :: i, j
-
-    ALLOCATE(hold(n))
-
-    DO i=1,n
-       j=1+ceiling(real((n-1)*(i-1))/real(n-1))
-       hold(i)=arr1(j)
-    END DO
-
-    DEALLOCATE(arr1)
-    ALLOCATE(arr1(n))
-
-    arr1=hold
-
-    DEALLOCATE(hold)
-
-  END SUBROUTINE reduceto
+!!$  SUBROUTINE reduceto(arr1,n)
+!!$
+!!$    ! Reduces the array from whatever size to size 'n'
+!!$    ! TODO: Remove
+!!$    IMPLICIT NONE
+!!$    REAL, ALLOCATABLE, INTENT(INOUT) :: arr1(:)
+!!$    INTEGER, INTENT(IN) :: n
+!!$    REAL, ALLOCATABLE :: hold(:)
+!!$    INTEGER :: i, j
+!!$
+!!$    ALLOCATE(hold(n))
+!!$
+!!$    DO i=1,n
+!!$       j=1+ceiling(real((n-1)*(i-1))/real(n-1))
+!!$       hold(i)=arr1(j)
+!!$    END DO
+!!$
+!!$    DEALLOCATE(arr1)
+!!$    ALLOCATE(arr1(n))
+!!$
+!!$    arr1=hold
+!!$
+!!$    DEALLOCATE(hold)
+!!$
+!!$  END SUBROUTINE reduceto
 
   SUBROUTINE reverse_array(arry,n)
 
@@ -700,13 +735,12 @@ CONTAINS
     
   END FUNCTION progression_log_double
 
-  FUNCTION maximum(x,y,n)
+  REAL FUNCTION maximum(x,y,n)
 
     USE fix_polynomial
     
     ! From an array y(x) finds the x location of the first maximum
     IMPLICIT NONE
-    REAL :: maximum
     REAL, INTENT(IN) :: x(n), y(n)
     INTEGER, INTENT(IN) :: n
     REAL :: x1, x2, x3, y1, y2, y3, a, b, c
@@ -830,11 +864,11 @@ CONTAINS
   SUBROUTINE unique_index(array,n,unique,m,match)
 
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: array(n)
-    INTEGER, INTENT(IN) :: n
-    INTEGER, ALLOCATABLE, INTENT(OUT) :: unique(:)
-    INTEGER, INTENT(OUT) :: m
-    INTEGER, INTENT(OUT) :: match(n)
+    INTEGER, INTENT(IN) :: array(n) ! Array to find the unique indices of
+    INTEGER, INTENT(IN) :: n        ! Number of entries in input array
+    INTEGER, ALLOCATABLE, INTENT(OUT) :: unique(:) ! Output array of unique indices
+    INTEGER, INTENT(OUT) :: m                      ! Number of unique indices
+    INTEGER, INTENT(OUT) :: match(n)               ! Array for matching input and unique arrays
     INTEGER :: i, j, p
     LOGICAL :: increment
     
@@ -856,6 +890,7 @@ CONTAINS
           END IF
        END DO
        IF(increment) p=p+1
+       IF(p==m) EXIT ! Added this in haste
     END DO
 
     ! Now fill the matching array

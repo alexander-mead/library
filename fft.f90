@@ -11,6 +11,14 @@ MODULE fft
   !INCLUDE '/usr/include/fftw3.f' !Linux'
   INCLUDE 'fftw3.f'
 
+  PRIVATE
+
+  PUBLIC :: FFT1
+  PUBLIC :: FFT2
+  PUBLIC :: FFT3
+
+  PUBLIC :: k_FFT
+
   INTERFACE FFT1
      MODULE PROCEDURE FFT1_complex_double
      MODULE PROCEDURE FFT1_complex_single
@@ -50,7 +58,7 @@ MODULE fft
 
 CONTAINS
 
-  SUBROUTINE k_fft(ix,iy,iz,m,kx,ky,kz,kmod,L)
+  SUBROUTINE k_FFT(ix,iy,iz,m,kx,ky,kz,kmod,L)
 
     ! Finds the wavevector associated with the FFT cell
     USE constants
@@ -75,7 +83,7 @@ CONTAINS
 
     kmod=sqrt(kx**2+ky**2+kz**2)
 
-  END SUBROUTINE k_fft
+  END SUBROUTINE k_FFT
 
   SUBROUTINE FFT1_complex_double(in,out,n,ifb)
 

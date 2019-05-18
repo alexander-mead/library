@@ -2,6 +2,14 @@ MODULE statistics
 
   USE table_integer
   USE array_operations
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: mean
+  PUBLIC :: variance
+  PUBLIC :: histogram
   
 CONTAINS
 

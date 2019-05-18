@@ -3,6 +3,7 @@ MODULE cosmology_functions
   USE interpolate
   USE constants
   USE file_info
+  USE array_operations
 
   IMPLICIT NONE
 
@@ -19,7 +20,8 @@ MODULE cosmology_functions
   ! Scale factor and z
   PUBLIC :: scale_factor_z
   PUBLIC :: redshift_r
-  PUBLIC :: redshift_a  
+  PUBLIC :: redshift_a
+  PUBLIC :: scale_factor_r
 
   ! Friedmann
   PUBLIC :: Hubble2
@@ -43,6 +45,7 @@ MODULE cosmology_functions
   PUBLIC :: luminosity_distance  
   PUBLIC :: cosmic_time
   PUBLIC :: look_back_time
+  PUBLIC :: age_of_universe
 
   ! Densities
   PUBLIC :: comoving_critical_density
@@ -1448,7 +1451,7 @@ CONTAINS
 
   REAL FUNCTION scale_factor_r(r,cosm)
 
-    ! The redshift corresponding to comoving distance r
+    ! The scale factor corresponding to comoving distance 'r'
     IMPLICIT NONE
     REAL, INTENT(IN) :: r
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1460,9 +1463,9 @@ CONTAINS
 
   REAL FUNCTION redshift_r(r,cosm)
 
-    ! The redshift corresponding to comoving distance r
+    ! The redshift corresponding to comoving distance 'r'
     IMPLICIT NONE
-    REAL, INTENT(IN) :: r
+    REAL, INTENT(IN) :: r ! Comoving distance [Mpc/h]
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     !IF(cosm%has_distance .EQV. .FALSE.) CALL init_distances(cosm)
@@ -1473,7 +1476,7 @@ CONTAINS
 
   REAL FUNCTION f_k(r,cosm)
 
-    ! Curvature function
+    ! Curvature function [Mpc/h]
     IMPLICIT NONE
     REAL, INTENT(IN) :: r
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1492,7 +1495,7 @@ CONTAINS
 
   REAL FUNCTION fdash_k(r,cosm)
 
-    ! Derivative of curvature function
+    ! Derivative of curvature function df_k(r)/dr
     IMPLICIT NONE
     REAL, INTENT(IN) :: r
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1975,7 +1978,7 @@ CONTAINS
     DO i=1,nsig
 
        ! Equally spaced r in log
-       r=progression_log(rmin_sigma,rmax_sigma,i,nsig)
+       r=exp(progression(log(rmin_sigma),log(rmax_sigma),i,nsig))
 
        sigma=sigma_integral(r,a,cosm)
 
@@ -2514,11 +2517,11 @@ CONTAINS
 
     ! delta_c fitting function from Mead (2017)
     IMPLICIT NONE
-    REAL, INTENT(IN) :: a !scale factor
+    REAL, INTENT(IN) :: a ! scale factor
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: lg, bG, Om_m
 
-    ! See Appendix A of Mead (2016) for naming convention
+    ! See Appendix A of Mead (2017) for naming convention
     REAL, PARAMETER :: p10=-0.0069
     REAL, PARAMETER :: p11=-0.0208
     REAL, PARAMETER :: p12=0.0312
@@ -2617,6 +2620,7 @@ CONTAINS
 
   SUBROUTINE init_spherical_collapse(cosm)
 
+    USE table_integer
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: dinit, ainit, vinit, ac, dc
@@ -2659,7 +2663,8 @@ CONTAINS
     DO j=1,m       
 
        ! log range of initial delta
-       dinit=progression_log(dmin,dmax,j,m)
+       !dinit=progression_log(dmin,dmax,j,m)
+       dinit=exp(progression(log(dmin),log(dmax),j,m))
 
        ! Do both with the same a1 and a2 and using the same number of time steps
        ! This means that arrays a, and anl will be identical, which simplifies calculation
@@ -2719,7 +2724,8 @@ CONTAINS
           rv=rmax/2.
 
           ! Need to assign new arrays for the collapse branch of r such that it is monotonic
-          k2=int_split(d_rmax,dnl,k)
+          !k2=int_split(d_rmax,dnl,k)
+          k2=select_table_integer(d_rmax,dnl,k,imeth=3)
 
           ! Allocate collapse branch arrays
           ALLOCATE(a_coll(k-k2+1),r_coll(k-k2+1))

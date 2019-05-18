@@ -2,6 +2,21 @@ MODULE calculus
 
   USE array_operations
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: derivative
+  PUBLIC :: derivative_x
+  PUBLIC :: derivative_y
+  
+  PUBLIC :: integrate
+  PUBLIC :: integrate_basic
+  PUBLIC :: integrate_log
+  PUBLIC :: integrate_cubic
+  PUBLIC :: integrate_jac
+  PUBLIC :: integrate_monte_carlo
+
 CONTAINS
 
   REAL FUNCTION derivative(f,x,acc)
@@ -43,11 +58,11 @@ CONTAINS
 
   END FUNCTION derivative
 
-  FUNCTION derivative_x(f,x,y,acc)
+  REAL FUNCTION derivative_x(f,x,y,acc)
 
     ! Calculates the derivative of a function 'f' at the point x to accuracy acc!
     IMPLICIT NONE
-    REAL :: acc, x, dnew, dold, dx, derivative_x, y
+    REAL :: acc, x, dnew, dold, dx, y
     INTEGER :: i
 
     INTEGER, PARAMETER :: n=100
@@ -200,12 +215,11 @@ CONTAINS
 
   END FUNCTION integrate_basic
 
-  FUNCTION integrate(a,b,f,acc,iorder)
+  REAL FUNCTION integrate(a,b,f,acc,iorder)
 
     ! Integrates between a and b until desired accuracy is reached
     ! Stores information to reduce function calls
     IMPLICIT NONE
-    REAL :: integrate
     REAL, INTENT(IN) :: a, b, acc
     INTEGER, INTENT(IN) :: iorder
     INTEGER :: i, j
@@ -296,11 +310,10 @@ CONTAINS
 
   END FUNCTION integrate
 
-  FUNCTION integrate_log(a,b,f,acc,iorder,ilog)
+  REAL FUNCTION integrate_log(a,b,f,acc,iorder,ilog)
 
     ! Integrates between a and b until desired accuracy is reached!
     IMPLICIT NONE
-    REAL :: integrate_log
     REAL, INTENT(IN) :: a, b, acc
     INTEGER, INTENT(IN) :: ilog, iorder
     INTEGER :: i, j, n
@@ -410,7 +423,7 @@ CONTAINS
 
   END FUNCTION integrate_log
 
-  FUNCTION cubeint(a,b,f,acc)
+  REAL FUNCTION integrate_cubic(a,b,f,acc)
 
     USE fix_polynomial
 
@@ -418,7 +431,6 @@ CONTAINS
     ! Fits a cubic between successive 4 points
     ! Only useful if points are not eqaully spaced, thus this routine is probably redundant
     IMPLICIT NONE
-    REAL :: cubeint 
     REAL, INTENT(IN) :: a, b, acc
     INTEGER :: i, j, nint, nsec
     REAL :: a3, a2, a1, a0
@@ -437,7 +449,7 @@ CONTAINS
 
     IF(a==b) THEN
 
-       cubeint=0.
+       integrate_cubic=0.
 
     ELSE
 
@@ -483,11 +495,11 @@ CONTAINS
           END DO
 
           IF(j .NE. 1 .AND. abs(-1.+sum2/sum1)<acc) THEN
-             !WRITE(*,*) 'CUBEINT: Number of sections', nsec
-             !WRITE(*,*) 'CUBEINT: Number of function points', nint
+             !WRITE(*,*) 'INTEGRATE_CUBIC: Number of sections', nsec
+             !WRITE(*,*) 'INTEGRATE_CUBIC: Number of function points', nint
              EXIT
           ELSE IF(j==jmax) THEN
-             STOP 'CUBEINT: Integration timed out'
+             STOP 'INTEGRATE_CUBIC: Integration timed out'
           ELSE
              sum1=sum2
              sum2=0.
@@ -495,18 +507,17 @@ CONTAINS
 
        END DO
 
-       cubeint=real(sum2)
+       integrate_cubic=real(sum2)
 
     END IF
 
-  END FUNCTION cubeint
+  END FUNCTION integrate_cubic
 
-  FUNCTION integrate_jac(a,b,f,acc,iorder,g,gi,dg)
+  REAL FUNCTION integrate_jac(a,b,f,acc,iorder,g,gi,dg)
 
     ! Integrates between a and b until desired accuracy is reached
     ! Uses a Jacobian to speed up the integration
     IMPLICIT NONE
-    REAL :: integrate_jac
     REAL, INTENT(IN) :: a, b, acc
     INTEGER, INTENT(IN) :: iorder
     INTEGER :: i, j, n

@@ -1,5 +1,36 @@
 MODULE field_operations
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: NGP_cell
+  PUBLIC :: cell_position
+  PUBLIC :: make_Gaussian_random_field
+  PUBLIC :: generate_displacement_fields
+  PUBLIC :: write_3D_field_projection_ascii
+  PUBLIC :: compress_field
+  PUBLIC :: add_to_stack_3D
+  PUBLIC :: project_3D_to_2D
+  PUBLIC :: clip
+  PUBLIC :: anticlip
+  PUBLIC :: periodic_distance
+
+  PUBLIC :: compute_power_spectrum_pole
+  PUBLIC :: compute_power_spectrum_rsd
+  PUBLIC :: compute_power_spectrum_rsd2
+
+  PUBLIC :: field_correlation_function
+
+  PUBLIC :: read_field_binary
+  PUBLIC :: write_field_binary
+  PUBLIC :: write_field_ascii
+  PUBLIC :: compute_power_spectrum
+  PUBLIC :: smooth
+  PUBLIC :: sharpen
+  PUBLIC :: sharpen_k
+  PUBLIC :: empty_cells
+
   INTERFACE read_field_binary
      MODULE PROCEDURE read_field_binary_2D
      MODULE PROCEDURE read_field_binary_3D
@@ -411,31 +442,31 @@ CONTAINS
 
   END SUBROUTINE read_field_binary_3D
 
-  SUBROUTINE read_field8(d,m,infile)
-
-    USE array_operations
-    USE statistics
-    IMPLICIT NONE
-    CHARACTER(len=*), INTENT(IN) :: infile
-    REAL, INTENT(OUT) :: d(m,m,m)
-    DOUBLE PRECISION :: d8(m,m,m)
-    INTEGER, INTENT(IN) :: m
-
-    ! Input unformatted data
-    WRITE(*,*) 'READ_FIELD: Binary input: ', trim(infile)
-    WRITE(*,*) 'READ_FIELD: Mesh size:', m
-    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
-    READ(7) d8
-    CLOSE(7)
-    d=real(d8)
-    WRITE(*,*) 'READ_FIELD: Minimum field value:', minval(d)
-    WRITE(*,*) 'READ_FIELD: Maximum field value:', maxval(d)
-    WRITE(*,*) 'READ_FIELD: Average:', real(mean(splay(d,m,m,m),m**3))
-    WRITE(*,*) 'READ_FIELD: Variance:', real(variance(splay(d,m,m,m),m**3))
-    WRITE(*,*) 'READ_FIELD: Done'
-    WRITE(*,*)
-
-  END SUBROUTINE read_field8
+!!$  SUBROUTINE read_field8(d,m,infile)
+!!$
+!!$    USE array_operations
+!!$    USE statistics
+!!$    IMPLICIT NONE
+!!$    CHARACTER(len=*), INTENT(IN) :: infile
+!!$    REAL, INTENT(OUT) :: d(m,m,m)
+!!$    DOUBLE PRECISION :: d8(m,m,m)
+!!$    INTEGER, INTENT(IN) :: m
+!!$
+!!$    ! Input unformatted data
+!!$    WRITE(*,*) 'READ_FIELD: Binary input: ', trim(infile)
+!!$    WRITE(*,*) 'READ_FIELD: Mesh size:', m
+!!$    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
+!!$    READ(7) d8
+!!$    CLOSE(7)
+!!$    d=real(d8)
+!!$    WRITE(*,*) 'READ_FIELD: Minimum field value:', minval(d)
+!!$    WRITE(*,*) 'READ_FIELD: Maximum field value:', maxval(d)
+!!$    WRITE(*,*) 'READ_FIELD: Average:', real(mean(splay(d,m,m,m),m**3))
+!!$    WRITE(*,*) 'READ_FIELD: Variance:', real(variance(splay(d,m,m,m),m**3))
+!!$    WRITE(*,*) 'READ_FIELD: Done'
+!!$    WRITE(*,*)
+!!$
+!!$  END SUBROUTINE read_field8
 
   SUBROUTINE write_field_binary_2D(d,m,L,outfile)
 
@@ -1248,6 +1279,7 @@ CONTAINS
     USE constants
     USE array_operations
     USE fft
+    USE logical_operations
 
     ! Takes in a dk(m,m) array and computes the power spectrum
     ! NOTE: Leave the double complex as it allows the running to determine complex vs real
@@ -1388,6 +1420,7 @@ CONTAINS
     USE constants
     USE array_operations
     USE fft
+    USE logical_operations
 
     ! Takes in a dk(m,m) array and computes the power spectrum
     ! NOTE: Leave the double complex as it allows the running to determine complex vs real

@@ -4,6 +4,17 @@ MODULE fitting
 
   IMPLICIT NONE
 
+  PRIVATE
+
+  ! TODO: Interface
+
+  PUBLIC :: adapt_1
+  PUBLIC :: adapt_3
+  PUBLIC :: grid_fit_1
+  PUBLIC :: gradient_fit_1
+  PUBLIC :: gradient_fit_2
+  PUBLIC :: quadratic_fit_1
+
 CONTAINS
 
   SUBROUTINE adapt_1(xmin,func,min,max,ref,ngrid,nref)

@@ -4,6 +4,15 @@ MODULE owls
   
   IMPLICIT NONE
 
+  PRIVATE
+
+  PUBLIC :: read_mccarthy
+  PUBLIC :: read_mccarthy_gas
+  PUBLIC :: convert_kT_to_comoving_electron_pressure
+  PUBLIC :: write_mccarthy
+  PUBLIC :: BAHAMAS_snapshot
+  PUBLIC :: BAHAMAS_scale_factors
+
   ! BAHAMAS simulation parameters
   REAL, PARAMETER :: fh=0.752      ! Hydrogen mass fraction
   REAL, PARAMETER :: mup=0.61      ! Mean particle mass relative to proton

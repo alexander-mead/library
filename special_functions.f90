@@ -2,6 +2,33 @@ MODULE special_functions
 
   USE constants
 
+  PRIVATE
+
+  PUBLIC :: triangle_number
+  PUBLIC :: factorial
+
+  PUBLIC :: Legendre_polynomial
+  PUBLIC :: Si
+  PUBLIC :: Ci
+  PUBLIC :: Bessel
+  PUBLIC :: sinc
+  PUBLIC :: wk_tophat
+  PUBLIC :: Gaussian
+  PUBLIC :: lognormal
+  PUBLIC :: uniform
+  PUBLIC :: Rayleigh
+  PUBLIC :: Poisson
+  PUBLIC :: exponential
+  PUBLIC :: Lorentzian
+  PUBLIC :: polynomial
+  
+  PUBLIC :: apodise
+  PUBLIC :: smooth_apodise
+  PUBLIC :: blob
+  PUBLIC :: smooth_blob
+  PUBLIC :: sigmoid_tanh
+  PUBLIC :: sigmoid_log
+  
 CONTAINS
 
   INTEGER FUNCTION triangle_number(n)
@@ -14,6 +41,25 @@ CONTAINS
     triangle_number=n*(n+1)/2
 
   END FUNCTION triangle_number
+  
+  INTEGER FUNCTION factorial(n)
+
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: n 
+    INTEGER*8 :: factorial8    
+    INTEGER :: i
+
+    factorial8=1
+
+    IF(n .NE. 1 .AND. n .NE. 0) THEN
+       DO i=2,n
+          factorial8=factorial8*i
+       END DO
+    END IF
+
+    factorial=INT(factorial8)
+
+  END FUNCTION factorial
 
   REAL FUNCTION sigmoid_tanh(x)
 
@@ -57,25 +103,6 @@ CONTAINS
     END IF
 
   END FUNCTION Legendre_Polynomial
-
-  INTEGER FUNCTION factorial(n)
-
-    IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n 
-    INTEGER*8 :: factorial8    
-    INTEGER :: i
-
-    factorial8=1
-
-    IF(n .NE. 1 .AND. n .NE. 0) THEN
-       DO i=2,n
-          factorial8=factorial8*i
-       END DO
-    END IF
-
-    factorial=INT(factorial8)
-
-  END FUNCTION factorial
 
   REAL FUNCTION sinc(x)
 
@@ -138,26 +165,27 @@ CONTAINS
 
   END FUNCTION apodise
 
-  REAL FUNCTION smoothapodise(x,x1,x2,n)
+  REAL FUNCTION smooth_apodise(x,x1,x2,n)
 
     !Apodises a function between x1 and x2
     !Goes to one smoothly at x1 and zero smoothly at x2
     !n govenrns the severity of the transition
+    ! RENAME :: smoothapodise -> smooth_apodise
     IMPLICIT NONE
     REAL, INTENT(IN) :: x, x1, x2, n
 
     IF(n<=0.) STOP 'APODISE: Error, n must be greater than zero'
 
     IF(x<x1) THEN
-       smoothapodise=1.
+       smooth_apodise=1.
     ELSE IF(x>x2) THEN
-       smoothapodise=0.
+       smooth_apodise=0.
     ELSE
-       smoothapodise=0.5*(1.+cos(pi*(x-x1)/(x2-x1)))
-       smoothapodise=smoothapodise**n
+       smooth_apodise=0.5*(1.+cos(pi*(x-x1)/(x2-x1)))
+       smooth_apodise=smooth_apodise**n
     END IF
 
-  END FUNCTION smoothapodise
+  END FUNCTION smooth_apodise
 
   REAL FUNCTION blob(x,x1,x2,n)
 
@@ -180,26 +208,27 @@ CONTAINS
 
   END FUNCTION blob
 
-  REAL FUNCTION smoothblob(x,x1,x2,n)
+  REAL FUNCTION smooth_blob(x,x1,x2,n)
 
-    !Makes a blob between x1 and x2, with zero elsewhere
-    !Blob goes to zero smoothly at x1 and x2
-    !n governs the severity (blobiness) of the blob
+    ! Makes a blob between x1 and x2, with zero elsewhere
+    ! Blob goes to zero smoothly at x1 and x2
+    ! n governs the severity (blobiness) of the blob
+    ! RENAME :: smoothblob -> smooth_blob
     IMPLICIT NONE
     REAL, INTENT(IN) :: x, x1, x2, n
 
     IF(n<=0.) STOP 'APODISE: Error, n must be greater than zero'
 
     IF(x<x1) THEN
-       smoothblob=0.
+       smooth_blob=0.
     ELSE IF(x>x2) THEN
-       smoothblob=0.
+       smooth_blob=0.
     ELSE
-       smoothblob=(1.+cos(twopi*(x-x1)/(x2-x1)))/2.
-       smoothblob=(1.-smoothblob)**n
+       smooth_blob=(1.+cos(twopi*(x-x1)/(x2-x1)))/2.
+       smooth_blob=(1.-smooth_blob)**n
     END IF
 
-  END FUNCTION smoothblob
+  END FUNCTION smooth_blob
 
   REAL FUNCTION Si(x)
 
@@ -396,7 +425,8 @@ CONTAINS
 
     ! Normalised discrete Poisson probability distribution
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, nbar
+    INTEGER, INTENT(IN) :: n
+    INTEGER, INTENT(IN) :: nbar
 
     Poisson=exp(-real(nbar))*(nbar**n)/factorial(n)
 

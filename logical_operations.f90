@@ -1,5 +1,19 @@
 MODULE logical_operations
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: fix_min
+  PUBLIC :: fix_max
+  PUBLIC :: read_command_argument
+  PUBLIC :: positive
+  PUBLIC :: negative
+  PUBLIC :: even
+  PUBLIC :: odd
+  PUBLIC :: requal
+  PUBLIC :: present_and_correct
+
   INTERFACE read_command_argument
      MODULE PROCEDURE read_command_argument_real
      MODULE PROCEDURE read_command_argument_integer
@@ -102,19 +116,47 @@ CONTAINS
     
   END FUNCTION positive
 
+  LOGICAL FUNCTION negative(x)
+
+    ! Returns true if argument is negative
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: x
+
+    IF(positive(x)) THEN
+       negative=.FALSE.
+    ELSE
+       negative=.TRUE.
+    END IF
+    
+  END FUNCTION negative
+
   LOGICAL FUNCTION even(i)
 
     ! Tests for i being even, returns true if even
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: i
 
-    IF(odd(i)) THEN
-       even=.FALSE.
-    ELSE
+    IF(mod(i,2)==0) THEN
        even=.TRUE.
+    ELSE
+       even=.FALSE.
     END IF
     
   END FUNCTION even
+
+!!$  LOGICAL FUNCTION odd(i)
+!!$
+!!$    ! Tests for i being odd, returns true if odd
+!!$    IMPLICIT NONE
+!!$    INTEGER, INTENT(IN) :: i  
+!!$
+!!$    IF(mod(i,2)==0) THEN
+!!$       odd=.FALSE.
+!!$    ELSE
+!!$       odd=.TRUE.
+!!$    END IF
+!!$
+!!$  END FUNCTION odd
 
   LOGICAL FUNCTION odd(i)
 
@@ -122,14 +164,14 @@ CONTAINS
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: i  
 
-    IF(mod(i,2)==0) THEN
+    IF(even(i)) THEN
        odd=.FALSE.
     ELSE
        odd=.TRUE.
     END IF
 
   END FUNCTION odd
-
+  
   LOGICAL FUNCTION requal(x,y,eps)
 
     ! Tests if two REAL numbers are within some tolerance of each other

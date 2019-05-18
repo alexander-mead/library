@@ -1,5 +1,12 @@
 MODULE file_info
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: file_length
+  PUBLIC :: count_number_of_lines
+  
 CONTAINS
 
   INTEGER FUNCTION file_length(file_name,verbose)

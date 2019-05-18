@@ -1,18 +1,26 @@
 MODULE string_operations
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: number_file
+  PUBLIC :: number_file2
+  PUBLIC :: number_file_zeroes
+
 CONTAINS
 
-  ! I cannot remember where (or why) I stole this from
-  elemental subroutine str2int(str,int,stat)
-    
-    implicit none
-    character(len=*),intent(in) :: str
-    integer,intent(out)         :: int
-    integer,intent(out)         :: stat
-
-    read(str,*,iostat=stat) int
-    
-  end subroutine str2int
+!!$  ! I cannot remember where (or why) I stole this from
+!!$  elemental subroutine str2int(str,int,stat)
+!!$    
+!!$    implicit none
+!!$    character(len=*),intent(in) :: str
+!!$    integer,intent(out)         :: int
+!!$    integer,intent(out)         :: stat
+!!$
+!!$    read(str,*,iostat=stat) int
+!!$    
+!!$  end subroutine str2int
 
   FUNCTION number_file(fbase,i,fext)
 

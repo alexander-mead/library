@@ -2,6 +2,13 @@ MODULE ODE_solvers
 
   USE array_operations
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: ODE
+  PUBLIC :: ODE_adaptive
+
 CONTAINS
 
   SUBROUTINE ODE(x,v,t,ti,tf,xi,vi,fx,fv,n,imeth,ilog)

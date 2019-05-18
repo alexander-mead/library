@@ -2,6 +2,14 @@ MODULE multidark_stuff
 
   USE file_info
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: read_multidark_haloes
+  PUBLIC :: read_multidark_halo_catalogue
+  PUBLIC :: read_multidark_particles
+
 CONTAINS
 
   SUBROUTINE read_multidark_haloes(infile,mmin,x,m,n)

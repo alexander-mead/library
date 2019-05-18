@@ -1,5 +1,12 @@
 MODULE calculus_table
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: derivative_table
+  PUBLIC :: integrate_table
+
   INTERFACE integrate_table
      MODULE PROCEDURE integrate_table_1D
      MODULE PROCEDURE integrate_table_2D

@@ -1,5 +1,25 @@
 MODULE vectors
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: shift_angle_to_circle
+  PUBLIC :: unit
+  PUBLIC :: modulus
+  PUBLIC :: cross_product
+  PUBLIC :: rotation
+  PUBLIC :: matrix_multiply
+  PUBLIC :: matrix_vector
+  PUBLIC :: distance
+  PUBLIC :: rotate_vector
+  PUBLIC :: rotate_vector_fast
+
+  ! Unit vectors
+  PUBLIC  :: xhat
+  PUBLIC  :: yhat
+  PUBLIC  :: zhat
+
   REAL, PARAMETER :: xhat(3)=[1.,0.,0.]
   REAL, PARAMETER :: yhat(3)=[0.,1.,0.]
   REAL, PARAMETER :: zhat(3)=[0.,0.,1.]

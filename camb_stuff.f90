@@ -2,6 +2,10 @@ MODULE camb_stuff
   
   IMPLICIT NONE
 
+  PRIVATE
+
+  PUBLIC :: read_CAMB_Pk
+
 CONTAINS
 
   SUBROUTINE read_CAMB_Pk(k,p,n,infile)

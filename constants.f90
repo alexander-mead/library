@@ -1,6 +1,5 @@
 MODULE constants
 
-  ! TODO: Can I do calculations in this file? For example, for non-fundamental constants like sigma_T
   IMPLICIT NONE
 
   !!
@@ -42,24 +41,24 @@ MODULE constants
   
   ! Astronomy constants
 
-  REAL, PARAMETER :: au=149597870700.               ! Astronomical unit [m] (https://en.wikipedia.org/wiki/Astronomical_unit)
-  !REAL, PARAMETER :: H0=3.243e-18                   ! Hubble parameter, H0 [s^-1]
+  REAL, PARAMETER :: au=149597870700.               ! Astronomical unit [m] (https://en.wikipedia.org/wiki/Astronomical_unit)  
   REAL, PARAMETER :: H0_cos=100.                    ! Hubble parameter [km s^-1 (Mpc/h)^-1]  
   REAL, PARAMETER :: Msun=1.98847e30                ! Solar mass [kg] (https://en.wikipedia.org/wiki/Solar_mass)
+  REAL, PARAMETER :: Jansky=1e-26                   ! [W m^-2 Hz^-1 / Jy]
+  !REAL, PARAMETER :: H0=3.243e-18                   ! Hubble parameter, H0 [s^-1]
   !REAL, PARAMETER :: Mpc=3.086e22                   ! Mpc [m]  
   !REAL, PARAMETER :: SI_to_Jansky=1e26              ! [W m^-2 Hz^-1 / Jy]
-  REAL, PARAMETER :: Jansky=1e-26                   ! [W m^-2 Hz^-1 / Jy]
 
   ! Derived astronomy constants
-  REAL, PARAMETER :: pc=60.*60.*180*au/pi                           ! Parsec [m]
+  REAL, PARAMETER :: pc=60.*60.*180*au/pi                           ! Parsec [m] ~3.086e16
   REAL, PARAMETER :: kpc=pc*1e3                                     ! kpc [m]
   REAL, PARAMETER :: Mpc=kpc*1e3                                    ! Mpc [m]
   REAL, PARAMETER :: Gpc=Mpc*1e3                                    ! Gpc [m]
   REAL, PARAMETER :: H0=H0_cos*1e3/Mpc                              ! Hubble constant [s^-1] ~3.243e-18
   REAL, PARAMETER :: bigG_cos=bigG*Msun/(1e6*Mpc)                   ! Gravitational constant [(Msun/h)^-1 (km/s)^2 (Mpc/h)]
   REAL, PARAMETER :: critical_density=3.*H0_cos**2/(8.*pi*bigG_cos) ! Universal critical density at (equal to 3*H0^2 / 8piG) [(M_sun/h)/(Mpc/h)^3] ~2.776e11
-  REAL, PARAMETER :: Hdist=c_light/(H0_cos*1e3)                     ! Hubble distance (c/H0) [Mpc/h] ~3000 Mpc/h
-  REAL, PARAMETER :: Htime=1./(H0*60*60*24*365.25*1e9)              ! Hubble time (1/H0) [Gyrs/h]    ~9.78 Gyr/h
+  REAL, PARAMETER :: Hdist=c_light/(H0_cos*1e3)                     ! Hubble distance (c/H0) [Mpc/h] ~3000
+  REAL, PARAMETER :: Htime=1./(H0*60*60*24*365.25*1e9)              ! Hubble time (1/H0) [Gyrs/h]    ~9.78
   REAL, PARAMETER :: yfac=sigma_T/(me*c_light**2)                   ! sigma_T/m_e*c^2 [kg^-1 s^2], prefactor of Compton-y integral over *pressure*
   REAL, PARAMETER :: dc0=(3./20.)*(12.*pi)**(2./3.)                 ! Einstein-de Sitter linear collapse density ~1.686
   REAL, PARAMETER :: Dv0=18.*pi**2                                  ! Einsten-de Sitter virialised collapse threshold ~178

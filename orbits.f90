@@ -2,7 +2,26 @@ MODULE orbits
 
   USE constants
   USE vectors
+  
   IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: Kepler_period
+  PUBLIC :: orbit_radius
+  PUBLIC :: orbit_position
+  PUBLIC :: orbit_velocity
+  PUBLIC :: reduced_energy
+  PUBLIC :: reduced_angular_momentum
+  PUBLIC :: Laplace_Runge_Lenz
+  PUBLIC :: semi_latus_rectum
+  PUBLIC :: semi_major_axis
+  PUBLIC :: semi_minor_axis
+  PUBLIC :: polar_angle
+  PUBLIC :: true_anomaly
+  PUBLIC :: argument_of_periapsis
+  PUBLIC :: eccentricity
+  
   REAL, PARAMETER :: G_orbit=1.              ! Gravitational constant for sensible units for orbits
   REAL, PARAMETER :: M_Jupiter=9.54265748e-4 ! Jupiter mass [Msun]
   REAL, PARAMETER :: M_Earth=3.003e-6        ! Earth mass [Msun]

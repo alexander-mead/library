@@ -1884,6 +1884,7 @@ CONTAINS
   SUBROUTINE init_dewiggle(hmod,cosm)
 
     ! Initialise the dewiggled power spectrum
+    USE fix_polynomial
     IMPLICIT NONE
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -7276,6 +7277,7 @@ CONTAINS
   REAL FUNCTION winint_approx(rn,rm,i,k,rmin,rmax,rv,rs,p1,p2,irho,iorder)
 
     ! Approximate forms for the integral over the sine bump times a polynomial
+    USE fix_polynomial
     IMPLICIT NONE
     REAL, INTENT(IN) :: rn, rm
     INTEGER, INTENT(IN) :: i
@@ -7339,6 +7341,7 @@ CONTAINS
 
     ! An attempt to do an automatic combination of approximation and proper integration
     ! It turned out to be very slow
+    USE fix_polynomial
     IMPLICIT NONE
     REAL, INTENT(IN) :: rn, rm
     INTEGER, INTENT(IN) :: i

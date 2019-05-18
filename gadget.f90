@@ -1,6 +1,15 @@
 MODULE gadget
 
   USE array_operations
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: read_gadget
+  PUBLIC :: write_gadget
+  PUBLIC :: read_catalogue
+  PUBLIC :: write_catalogue
   
 CONTAINS
 

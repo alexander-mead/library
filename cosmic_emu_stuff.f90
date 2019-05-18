@@ -5,9 +5,17 @@ MODULE cosmic_emu_stuff
   USE cosmology_functions
   USE interpolate
 
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: get_Cosmic_Emu_power
+  PUBLIC :: get_Franken_Emu_power
+  PUBLIC :: get_Mira_Titan_power
+
 CONTAINS
 
-  SUBROUTINE read_Cosmic_Emu_power(k,P,n,z,cosm,rebin)
+  SUBROUTINE get_Cosmic_Emu_power(k,P,n,z,cosm,rebin)
 
     USE logical_operations
     IMPLICIT NONE
@@ -50,19 +58,19 @@ CONTAINS
     ALLOCATE(k(n),P(n))
 
     ! Write useful things to screen
-    WRITE(*,*) 'READ_COSMIC_EMU_POWER: z:', z
-    WRITE(*,*) 'READ_COSMIC_EMU_POWER: P(k) file length:', n
-    WRITE(*,*) 'READ_COSMIC_EMU_POWER: Reading in P(k): ', trim(output)
+    WRITE(*,*) 'GET_COSMIC_EMU_POWER: z:', z
+    WRITE(*,*) 'GET_COSMIC_EMU_POWER: P(k) file length:', n
+    WRITE(*,*) 'GET_COSMIC_EMU_POWER: Reading in P(k): ', trim(output)
 
     ! Read in data file
     OPEN(7,file=output)
     DO i=1-nh,n
        IF(i==h_li-nh) THEN
           READ(7,*) crap, crap, crap, crap, crap, crap, crap, crap, h
-          WRITE(*,*) 'READ_COSMIC_EMU_POWER: CMB derived h:', h
-          WRITE(*,*) 'READ_COSMIC_EMU_POWER: Cosmology h:', cosm%h
-          WRITE(*,*) 'READ_COSMIC_EMU_POWER: h ratio:', cosm%h/h
-          IF(.NOT. requal(h,cosm%h,eps_h)) STOP 'READ_COSMIC_EMU_POWER: Error, h values differ'
+          WRITE(*,*) 'GET_COSMIC_EMU_POWER: CMB derived h:', h
+          WRITE(*,*) 'GET_COSMIC_EMU_POWER: Cosmology h:', cosm%h
+          WRITE(*,*) 'GET_COSMIC_EMU_POWER: h ratio:', cosm%h/h
+          IF(.NOT. requal(h,cosm%h,eps_h)) STOP 'GET_COSMIC_EMU_POWER: Error, h values differ'
        ELSE IF(i<1) THEN
           READ(7,*)          
        ELSE
@@ -90,12 +98,12 @@ CONTAINS
     END IF
 
     ! Done
-    WRITE(*,*) 'READ_COSMIC_EMU_POWER: Done'
+    WRITE(*,*) 'GET_COSMIC_EMU_POWER: Done'
     WRITE(*,*)
 
-  END SUBROUTINE read_Cosmic_Emu_power
+  END SUBROUTINE get_Cosmic_Emu_power
 
-  SUBROUTINE read_Franken_Emu_power(k,P,n,z,cosm,rebin)
+  SUBROUTINE get_Franken_Emu_power(k,P,n,z,cosm,rebin)
 
     IMPLICIT NONE
     REAL, ALLOCATABLE, INTENT(OUT) :: k(:), P(:)
@@ -136,9 +144,9 @@ CONTAINS
     ALLOCATE(k(n),P(n))
 
     ! Write useful things to screen
-    WRITE(*,*) 'READ_FRANKENEMU_POWER: z:', z
-    WRITE(*,*) 'READ_FRANKENEMU_POWER: P(k) file length:', n
-    WRITE(*,*) 'READ_FRANKENEMU_POWER: Reading in P(k): ', trim(output)
+    WRITE(*,*) 'GET_FRANKENEMU_POWER: z:', z
+    WRITE(*,*) 'GET_FRANKENEMU_POWER: P(k) file length:', n
+    WRITE(*,*) 'GET_FRANKENEMU_POWER: Reading in P(k): ', trim(output)
 
     ! Read in data file
     OPEN(7,file=output)
@@ -170,12 +178,12 @@ CONTAINS
     END IF
 
     ! Done
-    WRITE(*,*) 'READ_FRANKENEMU_POWER: Done'
+    WRITE(*,*) 'GET_FRANKENEMU_POWER: Done'
     WRITE(*,*)
 
-  END SUBROUTINE read_Franken_Emu_power
+  END SUBROUTINE get_Franken_Emu_power
 
-  SUBROUTINE read_Mira_Titan_power(k,P,n,z,cosm,rebin)
+  SUBROUTINE get_Mira_Titan_power(k,P,n,z,cosm,rebin)
 
     USE constants
     IMPLICIT NONE
@@ -204,9 +212,9 @@ CONTAINS
     IF(ALLOCATED(P)) DEALLOCATE(P)
     ALLOCATE(k(n),P(n))
 
-    WRITE(*,*) 'READ_MIRA_TITAN_POWER: z:', z
-    WRITE(*,*) 'READ_MIRA_TITAN_POWER: P(k) file length:', n
-    WRITE(*,*) 'READ_MIRA_TITAN_POWER: Reading in P(k)'
+    WRITE(*,*) 'GET_MIRA_TITAN_POWER: z:', z
+    WRITE(*,*) 'GET_MIRA_TITAN_POWER: P(k) file length:', n
+    WRITE(*,*) 'GET_MIRA_TITAN_POWER: Reading in P(k)'
 
     OPEN(7,file=output)
     DO i=1,n
@@ -238,9 +246,9 @@ CONTAINS
        DEALLOCATE(k2,P2)
     END IF
 
-    WRITE(*,*) 'READ_MIRA_TITAN_POWER: Done'
+    WRITE(*,*) 'GET_MIRA_TITAN_POWER: Done'
     WRITE(*,*)
 
-  END SUBROUTINE read_Mira_Titan_power
+  END SUBROUTINE get_Mira_Titan_power
   
 END MODULE cosmic_emu_stuff
