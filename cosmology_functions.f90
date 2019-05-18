@@ -235,12 +235,15 @@ CONTAINS
              ! Do nothing
           ELSE IF(i>=200 .AND. i<=237) THEN
              ! Do nothing
+          ELSE IF(i>=300 .AND. i<=337) THEN
+             ! Do nothing
           ELSE IF(names(i) .NE. '') THEN
              WRITE(*,*) i, '- ', trim(names(i))
           END IF
        END DO
        WRITE(*,*) ' 100 -> 136 - Mira Titan M000 -> M036'
-       WRITE(*,*) ' 200 -> 237 - Cosmic Emu M000 -> M037'
+       WRITE(*,*) ' 200 -> 237 - Franken Emu M000 -> M037'
+       WRITE(*,*) ' 300 -> 337 - Cosmic Emu M000 -> M037'
        READ(*,*) icosmo
        WRITE(*,*) '==========================================='
     END IF
@@ -565,10 +568,8 @@ CONTAINS
     REAL :: Xs, f1, f2
     REAL :: rho_g, Om_g_h2
     REAL, PARAMETER :: small=1e-5 ! Some small number for writing curvature things
-    REAL, PARAMETER :: neutrino_constant=94.1 ! Number that appears in neutrino formula [eV]
-    REAL, PARAMETER :: neff_contribution=0.227 ! Contribution to Omega_r per n_eff'
 
-    ! Set all 'has' to false
+    ! Set all 'has/is' to false
     cosm%has_distance=.FALSE.
     cosm%has_growth=.FALSE.
     cosm%has_sigma=.FALSE.
@@ -582,7 +583,7 @@ CONTAINS
     IF(cosm%verbose) WRITE(*,*) 'INIT_COSMOLOGY: Calcuating radiation density'
 
     ! Calculate radiation density
-    rho_g=(4.*SBconst*cosm%T_CMB**4/c_light**3) ! Photon physcial density from CMB temperature
+    rho_g=(4.*SBconst*cosm%T_CMB**4/c_light**3) ! Photon physical density from CMB temperature [kg/m^3]
     Om_g_h2=rho_g*(8.*pi*bigG/3.)/H0**2 ! Photon cosmological density
     cosm%Om_r=Om_g_h2*(1.+neff_contribution*cosm%neff)/cosm%h**2 ! Radiation density by including neutrinos
 

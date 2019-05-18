@@ -6140,7 +6140,7 @@ CONTAINS
 
     z=hmod%z
     win_CIB=grey_body_nu((1.+z)*nu,T,beta) ! Get the black-body radiance [W m^-2 Sr^-1 Hz^-1]
-    win_CIB=win_CIB*SI_to_Jansky ! Convert units to Jansky [Jy Sr^-1]
+    win_CIB=win_CIB/Jansky     ! Convert units to Jansky [Jy Sr^-1]
     win_CIB=win_CIB*(a*rv)**2  ! [Jy Sr^-1 (Mpc/h)^2]
     !win_CIB=win_CIB/(1e-3+luminosity_distance(a,cosm))**2 ! Bad idea because divide by zero when z=0
 
