@@ -1324,7 +1324,7 @@ CONTAINS
                 CYCLE
              ELSE
                 k8(n)=k8(n)+kmod
-                f=real(dk1(ix,iy)*CONJG(dk2(ix,iy)))/(DBLE(m)**4) ! Note the division by m^4 here
+                f=real(dk1(ix,iy)*conjg(dk2(ix,iy)))/(dble(m)**4) ! Note the division by m^4 here
                 pow8(n)=pow8(n)+f
                 sigma8(n)=sigma8(n)+f**2
                 nmodes8(n)=nmodes8(n)+1
@@ -1465,7 +1465,7 @@ CONTAINS
                    CYCLE
                 ELSE
                    k8(n)=k8(n)+kmod
-                   f=real(dk1(ix,iy,iz)*CONJG(dk2(ix,iy,iz)))/(DBLE(m)**6) ! Note the division by m^6 here
+                   f=real(dk1(ix,iy,iz)*conjg(dk2(ix,iy,iz)))/(dble(m)**6) ! Note the division by m^6 here
                    pow8(n)=pow8(n)+f
                    sigma8(n)=sigma8(n)+f**2
                    nmodes8(n)=nmodes8(n)+1
