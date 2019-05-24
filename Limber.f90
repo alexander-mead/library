@@ -483,11 +483,11 @@ CONTAINS
     REAL :: rmax1, rmax2
 
     !Fix the maximum redshift and distance (which may fixed at source plane)
-    rmax1=MAXVAL(proj(1)%r_x)
-    rmax2=MAXVAL(proj(2)%r_x)
+    rmax1=maxval(proj(1)%r_x)
+    rmax2=maxval(proj(2)%r_x)
     
     !Subtract a small distance here because of rounding errors in recalculating zmax
-    maxdist=MIN(rmax1,rmax2)-dr_max
+    maxdist=min(rmax1,rmax2)-dr_max
     
   END FUNCTION maxdist
 
@@ -624,7 +624,7 @@ CONTAINS
     IF(ALLOCATED(proj%q)) DEALLOCATE(proj%q)
     ALLOCATE(proj%q(proj%nq))
 
-    DO i=1,proj%nq       
+    DO i=1,proj%nq
        r=proj%r_q(i)
        z=redshift_r(r,cosm)
        IF(r==0.) THEN
@@ -741,8 +741,9 @@ CONTAINS
     ! Get the distance range for the projection function
     ! Use the same as that for the distance calculation
     ! Assign arrays for the kernel function
-    rmax=comoving_distance(0.,cosm) ! Cheat to ensure that init_distance has been run
-    rmax=MAXVAL(cosm%r)
+    !rmax=comoving_distance(0.,cosm) ! Cheat to ensure that init_distance has been run
+    !rmax=maxval(cosm%r)
+    rmax=comoving_distance(scale_factor_z(cosm%z_CMB),cosm) ! TODO: Worry
     CALL fill_array(rmin_kernel,rmax,proj%r_X,proj%nX)
     IF(verbose_Limber) THEN
        WRITE(*,*) 'FILL_KERNEL: minimum r [Mpc/h]:', real(rmin_kernel)
