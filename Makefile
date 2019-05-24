@@ -43,7 +43,6 @@ OBJS = \
 	statistics.o \
 	fitting.o \
 	gadget.o \
-	numerology.o \
 	ode_solvers.o \
 	vectors.o \
 	orbits.o \

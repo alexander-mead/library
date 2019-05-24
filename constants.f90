@@ -64,8 +64,8 @@ MODULE constants
   REAL, PARAMETER :: Dv0=18.*pi**2                                  ! Einsten-de Sitter virialised collapse threshold ~178
 
    ! TODO: Relate these to fundamental constants
-  REAL, PARAMETER :: neutrino_constant=94.1         ! Number that appears in neutrino formula [eV]
-  REAL, PARAMETER :: neff_contribution=0.227        ! Contribution to Omega_r per n_eff
+  REAL, PARAMETER :: neutrino_constant=94.1         ! Critical mass for neutrino density to close Universe [eV] (or is it 93.03 eV, or 93.14 eV; https://arxiv.org/pdf/1812.02102.pdf)
+  !REAL, PARAMETER :: neff_contribution=0.227        ! Contribution to Omega_r per n_eff (7/8)*(4/11)**(4/3)
   !REAL, PARAMETER :: critical_density=2.7755e11     ! Universal critical density at (equal to 3*H0^2 / 8piG) [(M_sun/h)/(Mpc/h)^3]
   !REAL, PARAMETER :: Htime=9.7776                   ! Hubble time (1/H0) [Gyrs/h]
 

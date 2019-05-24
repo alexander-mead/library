@@ -26,16 +26,13 @@ CONTAINS
 
     INTERFACE
 
-       !fx is what dx/dt is equal to
-       !this is almost always just v
-       FUNCTION fx(x,v,t)
-         REAL :: fx
+       !fx is what dx/dt is equal to, this is almost always just v
+       REAL FUNCTION fx(x,v,t)
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fx
 
        !fv is what dv/dt is equal to
-       FUNCTION fv(x,v,t)
-         REAL :: fv
+       REAL FUNCTION fv(x,v,t)
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fv
 
@@ -86,14 +83,13 @@ CONTAINS
 
     INTERFACE
 
-       !fx is what dx/dt is equal to
-       !this is almost always just v
+       ! fx is what dx/dt is equal to this is almost always just v
        FUNCTION fx(x,v,t)
          REAL :: fx
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fx
 
-       !fv is what dv/dt is equal to
+       ! fv is what dv/dt is equal to
        FUNCTION fv(x,v,t)
          REAL :: fv
          REAL, INTENT(IN) :: x, v, t

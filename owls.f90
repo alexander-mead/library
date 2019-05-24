@@ -13,6 +13,9 @@ MODULE owls
   PUBLIC :: BAHAMAS_snapshot
   PUBLIC :: BAHAMAS_scale_factors
 
+  PUBLIC :: nh_cut
+  PUBLIC :: mue
+
   ! BAHAMAS simulation parameters
   REAL, PARAMETER :: fh=0.752      ! Hydrogen mass fraction
   REAL, PARAMETER :: mup=0.61      ! Mean particle mass relative to proton

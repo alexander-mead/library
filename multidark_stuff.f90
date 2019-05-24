@@ -9,6 +9,7 @@ MODULE multidark_stuff
   PUBLIC :: read_multidark_haloes
   PUBLIC :: read_multidark_halo_catalogue
   PUBLIC :: read_multidark_particles
+  PUBLIC :: write_multidark_halo_catalogue
 
 CONTAINS
 
@@ -16,16 +17,15 @@ CONTAINS
 
     ! TODO: Make minimum mass (or minimum halo-particle number) an input
     IMPLICIT NONE
-    CHARACTER(len=*), INTENT(IN) :: infile
-    REAL, INTENT(IN) :: mmin
-    REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:)
-    REAL, ALLOCATABLE, INTENT(OUT) :: m(:)
-    INTEGER, INTENT(OUT) :: n
+    CHARACTER(len=*), INTENT(IN) :: infile      ! File to read in
+    REAL, INTENT(IN) :: mmin                    ! Minimum halo virial mass [Msun/h]
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:)    ! Position array [Mpc/h]
+    REAL, ALLOCATABLE, INTENT(OUT) :: m(:,:)    ! Virial halo mass [Msun/h]
+    INTEGER, INTENT(OUT) :: n                   ! Total number of haloes
     LOGICAL :: lexist
-    !REAL :: c
     INTEGER :: i, j
     INTEGER :: p, pid
-    REAL :: mm!, xx, yy, zz
+    REAL :: mm
     REAL, ALLOCATABLE :: data(:)
     
     INTEGER, PARAMETER :: hash_lines=58 ! Number of lines beginning with # (Both Multidark and Bolshoi have 58)
@@ -39,7 +39,7 @@ CONTAINS
     INTEGER, PARAMETER :: column_vx=21     ! Column for vx position [km/s]
     INTEGER, PARAMETER :: column_vy=22     ! Column for vy position [km/s]
     INTEGER, PARAMETER :: column_vz=23     ! Column for vz position [km/s]
-    INTEGER, PARAMETER :: column_mvu=37    ! Column for total virial mass (no particle unbinding; for distinct haloes this difference is only 1-2%; Msun/h)
+    INTEGER, PARAMETER :: column_mvu=37    ! Column for total virial mass (no unbinding) [Msun/h]
     INTEGER, PARAMETER :: column_m200=38   ! Column for M200 [Msun/h]
     INTEGER, PARAMETER :: column_m200c=39  ! Column for M200 critical [Msun/h]
     INTEGER, PARAMETER :: column_m500c=40  ! Column for M500 critical [Msun/h]
@@ -47,8 +47,11 @@ CONTAINS
 
     ! Check file exists
     INQUIRE(file=infile, exist=lexist)
-    IF(.NOT. lexist) STOP 'READ_MULTIDARK_HALOES: Error, catalogue file does not exist'
-
+    IF(.NOT. lexist) THEN
+       WRITE(*,*) 'READ_MULTIDARK_HALOES: Error, catalogue file does not exist: ', trim(infile)
+       STOP
+    END IF
+       
     ! Welcome message
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Reading in halo catalogue: ', trim(infile)
 
@@ -69,7 +72,7 @@ CONTAINS
     DO i=1,n
        !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
        READ(7,*) (data(j), j=1,columns)
-       mm=data(column_mvu)
+       mm=data(column_mvu) ! Read virial mass
        pid=NINT(data(column_pid))
        IF(mm>mmin .AND. pid==-1) p=p+1
     END DO
@@ -78,7 +81,7 @@ CONTAINS
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Total number of distinct haloes:', p   
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Fraction of distinct haloes:', REAL(p)/REAL(n)
 
-    ALLOCATE(x(3,p),m(p))
+    ALLOCATE(x(3,p),m(6,p))
 
     ! Fill arrays with unique halo properties
     p=0
@@ -94,15 +97,16 @@ CONTAINS
        mm=data(column_mvu)
        pid=NINT(data(column_pid))
        IF(mm>=mmin .AND. pid==-1) THEN
-          p=p+1
-          !m(p)=mm
-          !x(1,p)=xx
-          !x(2,p)=yy
-          !x(3,p)=zz
-          m(p)=mm
+          p=p+1        
           x(1,p)=data(column_x)
           x(2,p)=data(column_y)
           x(3,p)=data(column_z)
+          m(1,p)=data(column_mv)
+          m(2,p)=data(column_mvu)
+          m(3,p)=data(column_m200)
+          m(4,p)=data(column_m200c)
+          m(5,p)=data(column_m500c)
+          m(6,p)=data(column_m2500c)
        END IF
     END DO
     CLOSE(7)
@@ -117,36 +121,60 @@ CONTAINS
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Maximum y [Mpc/h]:', MAXVAL(x(2,:))
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Minimum z [Mpc/h]:', MINVAL(x(3,:))
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Maximum z [Mpc/h]:', MAXVAL(x(3,:))
-    WRITE(*,*) 'READ_MULTIDARK_HALOES: Minimum halo mass [Msun/h]:', MINVAL(m)
-    WRITE(*,*) 'READ_MULTIDARK_HALOES: Maximum halo mass [Msun/h]:', MAXVAL(m)
+    WRITE(*,*) 'READ_MULTIDARK_HALOES: Minimum virial halo mass [Msun/h]:', MINVAL(m(1,:))
+    WRITE(*,*) 'READ_MULTIDARK_HALOES: Maximum virial halo mass [Msun/h]:', MAXVAL(m(1,:))
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Done'
     WRITE(*,*)
 
   END SUBROUTINE read_multidark_haloes
 
-  SUBROUTINE read_multidark_halo_catalogue(infile,m,x,n)
+  SUBROUTINE read_multidark_halo_catalogue(infile,x,m,n)
 
     IMPLICIT NONE
     CHARACTER(len=*), INTENT(IN) :: infile
-    REAL, ALLOCATABLE, INTENT(OUT) :: m(:)
     REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: m(:,:)   
     INTEGER, INTENT(OUT) :: n
     INTEGER :: i
 
     n=file_length(infile,verbose=.FALSE.)
-    ALLOCATE(m(n),x(3,n))
+    ALLOCATE(x(3,n),m(6,n))
 
     WRITE(*,*) 'READ_MULTIDARK_HALO_CATALOGUE: ', trim(infile)
     WRITE(*,*) 'READ_MULTIDARK_HALO_CATALOGUE: Number of haloes:', n
     OPEN(7,file=infile,status='old')
     DO i=1,n
-       READ(7,*) m(i), x(1,i), x(2,i), x(3,i)
+       READ(7,*) x(1,i), x(2,i), x(3,i), m(1,i), m(2,i), m(3,i), m(4,i), m(5,i), m(6,i)
     END DO
     CLOSE(7)
     WRITE(*,*) 'READ_MULTIDARK_HALO_CATALOGUE: Done'
     WRITE(*,*)
     
   END SUBROUTINE read_multidark_halo_catalogue
+
+  SUBROUTINE write_multidark_halo_catalogue(outfile,x,m,idx,n)
+
+    IMPLICIT NONE
+    CHARACTER(len=*), INTENT(IN) :: outfile
+    REAL, INTENT(IN) :: x(3,n)
+    REAL, INTENT(IN) :: m(6,n)
+    INTEGER, INTENT(IN) :: idx(n)
+    INTEGER, INTENT(IN) :: n
+    INTEGER :: i, j
+
+    ! Write out the little catalogue
+    WRITE(*,*) 'MAKE_SMALL_MULTIDARK_CATALOGUES: Writing data'
+    WRITE(*,*) 'MAKE_SMALL_MULTIDARK_CATALOGUES: Outfile:', TRIM(outfile)
+    OPEN(7,file=outfile)
+    DO i=1,n
+       j=idx(n+1-i)
+       WRITE(7,*) x(1,j), x(2,j), x(3,j), m(1,j), m(2,j), m(3,j), m(4,j), m(5,j), m(6,j)
+    END DO
+    CLOSE(7)
+    WRITE(*,*) 'MAKE_SMALL_MULTIDARK_CATALOGUES: Done'
+    WRITE(*,*)
+
+  END SUBROUTINE write_multidark_halo_catalogue
 
   SUBROUTINE read_multidark_particles(infile,x,n)
 
