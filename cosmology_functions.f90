@@ -46,7 +46,7 @@ MODULE cosmology_functions
   PUBLIC :: luminosity_distance  
   PUBLIC :: cosmic_time
   PUBLIC :: look_back_time
-  PUBLIC :: age_of_universe
+  !PUBLIC :: age_of_universe
 
   ! Densities
   PUBLIC :: comoving_critical_density
@@ -101,12 +101,13 @@ MODULE cosmology_functions
      REAL, ALLOCATABLE :: log_sigma(:), log_r_sigma(:) ! Arrays for sigma(R)
      REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
      REAL, ALLOCATABLE :: log_p(:), log_a_p(:)         ! Arrays for distance (particle horizon)
+     REAL, ALLOCATABLE :: log_t(:), log_a_t(:)         ! Arrays for time
      REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:)   ! Arrays for input linear P(k)
      REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:)  ! Arrays for spherical-collapse parameters
-     INTEGER :: n_sigma, n_growth, n_p, n_plin, n_dcDv ! Array entries
+     INTEGER :: n_sigma, n_growth, n_p, n_t, n_plin, n_dcDv ! Array entries
      REAL :: gnorm ! Growth-factor normalisation
      CHARACTER(len=256) :: name ! Name for cosmological model
-     LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power
+     LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time
      LOGICAL :: is_init, is_normalised
      LOGICAL :: tcdm, derive_gas_numbers
      LOGICAL :: verbose
@@ -133,6 +134,9 @@ MODULE cosmology_functions
   REAL, PARAMETER :: atay_distance=1e-5 ! Below this do a Taylor expansion to avoid divergence
 
   ! Time
+  REAL, PARAMETER :: amin_time=1e-4 ! Minimum value in look-up table
+  REAL, PARAMETER :: amax_time=1.   ! Maximum value in look-up table
+  INTEGER, PARAMETER :: n_time=128  ! Number of entries in look-up table
   REAL, PARAMETER :: atay_time=1e-5 ! Below this do a Taylor expansion to avoid divergence
 
   ! Growth
@@ -1471,7 +1475,7 @@ CONTAINS
     REAL :: p
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    IF(cosm%has_distance .EQV. .FALSE.) CALL init_distances(cosm)
+    IF(cosm%has_distance .EQV. .FALSE.) CALL init_distance(cosm)
     IF(r==0.) THEN
        scale_factor_r=1.
     ELSE
@@ -1537,7 +1541,7 @@ CONTAINS
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    IF(cosm%has_distance .EQV. .FALSE.) CALL init_distances(cosm)
+    IF(cosm%has_distance .EQV. .FALSE.) CALL init_distance(cosm)
 
     IF(a==0.) THEN
        comoving_particle_horizon=0.
@@ -1566,11 +1570,11 @@ CONTAINS
     ! The comoving distance to a galaxy at scale-factor 'a' [Mpc/h]
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
-    REAL :: ph
     TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: p
 
-    ph=comoving_particle_horizon(a,cosm)
-    comoving_distance=cosm%horizon-ph
+    p=comoving_particle_horizon(a,cosm) ! Ensures that init_distance is run
+    comoving_distance=cosm%horizon-p
 
   END FUNCTION comoving_distance
 
@@ -1619,13 +1623,14 @@ CONTAINS
 
   END FUNCTION luminosity_distance
 
-  SUBROUTINE init_distances(cosm)
+  SUBROUTINE init_distance(cosm)
 
     ! Fill up tables of a vs. r(a) (comoving particle horizon)
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: zmin, zmax, amin, amax, a, b, r
     INTEGER :: i
+    INTEGER, PARAMETER :: iorder=3
 
     ! Get from PARAMETERS
     amin=amin_distance
@@ -1652,7 +1657,7 @@ CONTAINS
     DO i=1,cosm%n_p
        a=exp(cosm%log_a_p(i))
        b=sqrt(a) ! Parameter to make the integrand not diverge for small values (a=b^2)
-       r=integrate_cosm(0.,b,distance_integrand,cosm,acc_cosm,3)
+       r=integrate_cosm(0.,b,distance_integrand,cosm,acc_cosm,iorder)
        cosm%log_p(i)=log(r)
     END DO
     IF(cosm%verbose) THEN
@@ -1662,7 +1667,7 @@ CONTAINS
 
     ! Find the horizon distance in your cosmology
     ! exp(log) ensures the value is the same as what comes out of the (log) look-up tables
-    cosm%horizon=exp(log(integrate_cosm(0.,1.,distance_integrand,cosm,acc_cosm,3))) 
+    cosm%horizon=exp(log(integrate_cosm(0.,1.,distance_integrand,cosm,acc_cosm,iorder))) 
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_DISTANCE: Horizon distance [Mpc/h]:', real(cosm%horizon)
        WRITE(*,*) 'INIT_DISTANCE: Done'
@@ -1671,7 +1676,7 @@ CONTAINS
 
     cosm%has_distance=.TRUE.
 
-  END SUBROUTINE init_distances
+  END SUBROUTINE init_distance
 
   REAL FUNCTION distance_integrand(b,cosm)
 
@@ -1698,15 +1703,16 @@ CONTAINS
 
   END FUNCTION distance_integrand
 
-  REAL FUNCTION age_of_universe(cosm)
-
-    ! The total age of the universe [Gyr/h]
-    IMPLICIT NONE
-    TYPE(cosmology), INTENT(INOUT) :: cosm
-
-    age_of_universe=cosmic_time(1.,cosm)
-
-  END FUNCTION age_of_universe
+!!$  REAL FUNCTION age_of_universe(cosm)
+!!$
+!!$    ! The total age of the universe [Gyr/h]
+!!$    IMPLICIT NONE
+!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
+!!$
+!!$    !age_of_universe=cosmic_time(1.,cosm)
+!!$    age_of_universe=cosm%age
+!!$
+!!$  END FUNCTION age_of_universe
 
   REAL FUNCTION cosmic_time(a,cosm)
 
@@ -1716,7 +1722,14 @@ CONTAINS
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    cosmic_time=integrate_cosm(0.,a,time_integrand,cosm,acc_cosm,3)
+    IF(.NOT. cosm%has_time) CALL init_time(cosm)
+
+    !cosmic_time=integrate_cosm(0.,a,time_integrand,cosm,acc_cosm,3)
+    IF(a==0.) THEN
+       cosmic_time=0.
+    ELSE
+       cosmic_time=exp(find(log(a),cosm%log_a_t,cosm%log_t,cosm%n_p,3,3,2))
+    END IF
 
   END FUNCTION cosmic_time
 
@@ -1726,10 +1739,67 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: t
 
-    look_back_time=integrate_cosm(a,1.,time_integrand,cosm,acc_cosm,3)
+    !look_back_time=integrate_cosm(a,1.,time_integrand,cosm,acc_cosm,3)
+    t=cosmic_time(a,cosm) ! Ensures that init_time is run
+    look_back_time=cosm%age-t
 
   END FUNCTION look_back_time
+
+  SUBROUTINE init_time(cosm)
+
+    ! Fill up tables of a vs. r(a) (comoving particle horizon)
+    IMPLICIT NONE
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: zmin, zmax, amin, amax, a, t
+    INTEGER :: i
+    INTEGER, PARAMETER :: iorder=3
+
+    ! Get from PARAMETERS
+    amin=amin_time
+    amax=amax_time
+    cosm%n_t=n_time
+
+    ! Calculate redshifts
+    zmin=redshift_a(amax)
+    zmax=redshift_a(amin)
+    IF(cosm%verbose) THEN
+       WRITE(*,*) 'INIT_TIME: Redshift range for r(z) tables'
+       WRITE(*,*) 'INIT_TIME: minimum z:', real(zmin)
+       WRITE(*,*) 'INIT_TIME: maximum z:', real(zmax)
+       WRITE(*,*) 'INIT_TIME: minimum a:', real(amin)
+       WRITE(*,*) 'INIT_TIME: maximum a:', real(amax)
+    END IF
+
+    ! Fill array of 'a' in log space
+    CALL fill_array(log(amin),log(amax),cosm%log_a_t,cosm%n_t)
+    IF(ALLOCATED(cosm%log_t)) DEALLOCATE(cosm%log_t)
+    ALLOCATE(cosm%log_t(cosm%n_t))
+
+    ! Now do the r(a) calculation
+    DO i=1,cosm%n_t
+       a=exp(cosm%log_a_t(i))
+       t=integrate_cosm(0.,a,time_integrand,cosm,acc_cosm,iorder)
+       cosm%log_t(i)=log(t)
+    END DO
+    IF(cosm%verbose) THEN
+       WRITE(*,*) 'INIT_TIME: minimum t [Gyr/h]:', real(exp(cosm%log_t(1)))
+       WRITE(*,*) 'INIT_TIME: maximum t [Gyr/h]:', real(exp(cosm%log_t(cosm%n_t)))
+    END IF
+
+    ! Find the horizon distance in your cosmology
+    ! exp(log) ensures the value is the same as what comes out of the (log) look-up tables
+    cosm%age=exp(log(integrate_cosm(0.,1.,time_integrand,cosm,acc_cosm,iorder))) 
+    IF(cosm%verbose) THEN
+       WRITE(*,*) 'INIT_TIME: Age [Gyr/h]:', real(cosm%age)
+       WRITE(*,*) 'INIT_TIME: Done'
+       WRITE(*,*)
+    END IF
+
+    cosm%has_time=.TRUE.
+
+  END SUBROUTINE init_time
 
   REAL FUNCTION time_integrand(a,cosm)
 
