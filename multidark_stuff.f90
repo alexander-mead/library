@@ -82,6 +82,8 @@ CONTAINS
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Fraction of distinct haloes:', REAL(p)/REAL(n)
 
     ALLOCATE(x(3,p),m(6,p))
+    x=0.
+    m=0.
 
     ! Fill arrays with unique halo properties
     p=0
@@ -102,11 +104,11 @@ CONTAINS
           x(2,p)=data(column_y)
           x(3,p)=data(column_z)
           m(1,p)=data(column_mv)
-          m(2,p)=data(column_mvu)
-          m(3,p)=data(column_m200)
-          m(4,p)=data(column_m200c)
-          m(5,p)=data(column_m500c)
-          m(6,p)=data(column_m2500c)
+          !m(2,p)=data(column_mvu)
+          !m(3,p)=data(column_m200)
+          !m(4,p)=data(column_m200c)
+          !m(5,p)=data(column_m500c)
+          !m(6,p)=data(column_m2500c)
        END IF
     END DO
     CLOSE(7)
