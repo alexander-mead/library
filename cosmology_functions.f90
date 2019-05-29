@@ -100,10 +100,9 @@ MODULE cosmology_functions
      LOGICAL :: box
      REAL, ALLOCATABLE :: log_sigma(:), log_r_sigma(:) ! Arrays for sigma(R)
      REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
-     !REAL, ALLOCATABLE :: r(:), a_r(:) ! Arrays for distance
-     REAL, ALLOCATABLE :: log_p(:), log_a_p(:) ! Arrays for distance (particle horizon)
-     REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:) ! Arrays for input linear P(k)
-     REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:) ! Arrays for spherical-collapse parameters
+     REAL, ALLOCATABLE :: log_p(:), log_a_p(:)         ! Arrays for distance (particle horizon)
+     REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:)   ! Arrays for input linear P(k)
+     REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:)  ! Arrays for spherical-collapse parameters
      INTEGER :: n_sigma, n_growth, n_p, n_plin, n_dcDv ! Array entries
      REAL :: gnorm ! Growth-factor normalisation
      CHARACTER(len=256) :: name ! Name for cosmological model

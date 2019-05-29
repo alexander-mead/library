@@ -7714,6 +7714,7 @@ CONTAINS
 
     ! Mass function g(nu) times dnu/dmu = alpha*mu^(alpha-1); nu=mu^alpha
     ! This transformation makes the integral easier at low nu
+    ! TODO: Implement a Taylor expansion for low nu/mu
     IMPLICIT NONE
     REAL, INTENT(IN) :: mu
     TYPE(halomod), INTENT(INOUT) :: hmod
@@ -7734,7 +7735,6 @@ CONTAINS
     REAL, INTENT(IN) :: nu
     TYPE(halomod), INTENT(INOUT) :: hmod
     REAL :: crap
-
     REAL, PARAMETER :: A=sqrt(2./pi)
 
     ! Stop compile-time warnings
@@ -7750,6 +7750,7 @@ CONTAINS
     ! Note I use nu=dc/sigma(M) and this Sheth & Tormen (1999) use nu=(dc/sigma)^2, which accounts for some small differences
     ! Haloes defined with SO relative to mean matter density with SC Delta_v relation
     ! A redshift dependent delta_c is used for barrier height, again from SC
+    ! TODO: Implement a Taylor expansion for low nu
     IMPLICIT NONE
     REAL, INTENT(IN) :: nu
     TYPE(halomod), INTENT(INOUT) :: hmod
@@ -7787,6 +7788,7 @@ CONTAINS
 
   SUBROUTINE init_mass_function(hmod)
 
+    ! Initialise anything to do with the halo mass function
     IMPLICIT NONE
     TYPE(halomod), INTENT(INOUT) :: hmod
 
@@ -7804,15 +7806,19 @@ CONTAINS
 
   SUBROUTINE init_ST(hmod)
 
+    ! Normalises ST mass function
     IMPLICIT NONE
     TYPE(halomod), INTENT(INOUT) :: hmod
     REAL :: p, q
 
+    ! ST parameters
     p=hmod%ST_p
     q=hmod%ST_q
 
-    hmod%ST_A=1./(sqrt(pi/(2.*q))+sqrt(q)*(2.**(-p))*Gamma(0.5-p))
+    ! Normalisation of ST mass function (involves Gamma function)
+    hmod%ST_A=1./(sqrt(pi/(2.*q))+(1./sqrt(q))*(2.**(-p-0.5))*Gamma(0.5-p))
 
+    ! Set the flag to true
     hmod%has_mass_function=.TRUE.
     
   END SUBROUTINE init_ST
@@ -7822,7 +7828,7 @@ CONTAINS
     ! Initialise the parameters of the Tinker et al. (2010) mass function and bias
     IMPLICIT NONE
     TYPE(halomod), INTENT(INOUT) :: hmod
-    REAL :: alpha, beta, Gamma, phi, eta
+    REAL :: beta, Gamma, phi, eta
     REAL :: z, Dv
 
     ! Parameter arrays from Tinker (2010): Table 4
