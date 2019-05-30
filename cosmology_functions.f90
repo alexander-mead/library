@@ -88,7 +88,7 @@ MODULE cosmology_functions
 
   ! Contains cosmological parameters that only need to be calculated once
   TYPE cosmology     
-     REAL :: Om_m, Om_b, Om_v, Om_w, m_nu, h, n, sig8, w, wa, inv_m_wdm, YH ! Primary parameters
+     REAL :: Om_m, Om_b, Om_v, Om_w, m_nu(3), h, n, sig8, w, wa, inv_m_wdm, YH ! Primary parameters
      REAL :: Om_m_pow, Om_b_pow, h_pow
      REAL :: A, z_CMB, T_CMB, neff, Gamma ! Less primary parameters
      REAL :: Om, k, Om_k, Om_c, Om_r, Om_v_mod, Om_nu, f_nu, age, horizon ! Derived parameters
@@ -128,15 +128,15 @@ MODULE cosmology_functions
   REAL, PARAMETER :: alpha_sigmaV=3.
 
   ! Distance
-  REAL, PARAMETER :: amin_distance=1e-4 ! Minimum value in look-up table
-  REAL, PARAMETER :: amax_distance=1.   ! Maximum value in look-up table
-  INTEGER, PARAMETER :: n_distance=128  ! Number of entries in look-up table
+  REAL, PARAMETER :: amin_distance=1e-4 ! Minimum scale factor in look-up table
+  REAL, PARAMETER :: amax_distance=1.   ! Maximum scale factor in look-up table
+  INTEGER, PARAMETER :: n_distance=128  ! Number of scale factor entries in look-up table
   REAL, PARAMETER :: atay_distance=1e-5 ! Below this do a Taylor expansion to avoid divergence
 
   ! Time
-  REAL, PARAMETER :: amin_time=1e-4 ! Minimum value in look-up table
-  REAL, PARAMETER :: amax_time=1.   ! Maximum value in look-up table
-  INTEGER, PARAMETER :: n_time=128  ! Number of entries in look-up table
+  REAL, PARAMETER :: amin_time=1e-4 ! Minimum scale factor in look-up table
+  REAL, PARAMETER :: amax_time=1.   ! Maximum scale factor in look-up table
+  INTEGER, PARAMETER :: n_time=128  ! Number of scale factor entries in look-up table
   REAL, PARAMETER :: atay_time=1e-5 ! Below this do a Taylor expansion to avoid divergence
 
   ! Growth
@@ -150,7 +150,7 @@ MODULE cosmology_functions
   REAL, PARAMETER :: dmax_spherical=1e-3   ! Maximum starting value for perturbation
   INTEGER, PARAMETER :: m_spherical=128    ! Number of collapse scale-factors to try to calculate
   INTEGER, PARAMETER :: n_spherical=100000 ! Number of points for ODE calculations
-  REAL, PARAMETER :: dinf_spherical=1e8 ! Value considered to be 'infinite' for the perturbation
+  REAL, PARAMETER :: dinf_spherical=1e8    ! Value considered to be 'infinite' for the perturbation
 
   ! Power
   REAL, PARAMETER :: kmin_plin=0.  ! Power below this wavenumber is set to zero [h/Mpc]
@@ -671,6 +671,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: Xs, f1, f2
     REAL :: rho_g, Om_g_h2
+    INTEGER :: i
     REAL, PARAMETER :: small=1e-5 ! Some small number for writing curvature things
     REAL, PARAMETER :: neff_constant=(7./8.)*(4./11.)**(4./3.)
 
@@ -709,8 +710,10 @@ CONTAINS
     END IF
 
     ! Massive neutrinos
-    IF(cosm%m_nu .NE. 0.) STOP 'INIT_COSMOLOGY: Error, massive neutrinos not supported yet'
-    cosm%Om_nu=cosm%m_nu/(neutrino_constant*cosm%h**2)
+    DO i=1,3
+       IF(cosm%m_nu(i) .NE. 0.) STOP 'INIT_COSMOLOGY: Error, massive neutrinos not supported yet'
+    END DO
+    cosm%Om_nu=sum(cosm%m_nu)/(neutrino_constant*cosm%h**2)
     cosm%f_nu=cosm%Om_nu/cosm%Om_m
 
     ! Derived cosmological parameters    
@@ -839,7 +842,9 @@ CONTAINS
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'z_CMB:', cosm%z_CMB
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_eff:', cosm%neff
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Y_H:', cosm%YH
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu [eV]:', cosm%m_nu
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 1 [eV]:', cosm%m_nu(1)
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 2 [eV]:', cosm%m_nu(2)
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 3 [eV]:', cosm%m_nu(3)
        IF(cosm%box) WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
        IF(cosm%inv_m_wdm .NE. 0.) THEN
           WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', 1./cosm%inv_m_wdm
@@ -4122,7 +4127,7 @@ CONTAINS
     cosm%Om_b=om_b/cosm%h**2
 
     om_nu=random_uniform(om_nu_min,om_nu_max)
-    cosm%m_nu=neutrino_constant*om_nu
+    cosm%m_nu=neutrino_constant*om_nu/3. ! Split equally over 3 mass eigenstates
     cosm%m_nu=0.
 
     ! Enforce flatness, ensure Omega_w is used for dark energy, Omega_v = 0
@@ -4527,7 +4532,7 @@ CONTAINS
 
     cosm%Om_m=om_m/cosm%h**2
     cosm%Om_b=om_b/cosm%h**2
-    cosm%m_nu=neutrino_constant*om_nu
+    cosm%m_nu=neutrino_constant*om_nu/3. ! Split equally over three mass eigenstates
     cosm%Om_w=1.-cosm%Om_m
         
   END SUBROUTINE Mira_Titan_node_cosmology
