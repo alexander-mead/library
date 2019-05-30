@@ -46,7 +46,6 @@ MODULE cosmology_functions
   PUBLIC :: luminosity_distance  
   PUBLIC :: cosmic_time
   PUBLIC :: look_back_time
-  !PUBLIC :: age_of_universe
 
   ! Densities
   PUBLIC :: comoving_critical_density
@@ -87,30 +86,54 @@ MODULE cosmology_functions
   END INTERFACE integrate_cosm
 
   ! Contains cosmological parameters that only need to be calculated once
-  TYPE cosmology     
-     REAL :: Om_m, Om_b, Om_v, Om_w, m_nu(3), h, n, sig8, w, wa, inv_m_wdm, YH ! Primary parameters
-     REAL :: Om_m_pow, Om_b_pow, h_pow
-     REAL :: A, z_CMB, T_CMB, neff, Gamma ! Less primary parameters
-     REAL :: Om, k, Om_k, Om_c, Om_r, Om_v_mod, Om_nu, f_nu, age, horizon ! Derived parameters
-     REAL :: mue, mup ! Derived thermal parameters
-     REAL :: a1, a2, ns, ws, am, dm, wm ! DE parameters     
-     REAL :: Om_ws, as, a1n, a2n ! Derived DE parameters
-     REAL :: Lbox, kbox ! Box size
-     INTEGER :: iw, itk ! Switches
+  TYPE cosmology
+
+     ! Primary parameters
+     CHARACTER(len=256) :: name ! Name for cosmological model
+     REAL :: Om_m, Om_b, Om_v, Om_w, m_nu(3)      ! Primary parameters
+     REAL :: h, n, sig8, w, wa, inv_m_wdm, YH     ! Primary parameters
+     REAL :: a1, a2, ns, ws, am, dm, wm           ! DE parameters      
+     REAL :: z_CMB, T_CMB, neff                   ! Less primary parameters
+     REAL :: Om_m_pow, Om_b_pow, Om_nu_pow, h_pow ! Cosmological parameters used for P(k) if different from background
+
+     ! Derived parameters
+     REAL :: A                           ! Power spectrum normalisation
+     REAL :: Gamma                       ! Power spectrum shape parameter for DEFW
+     REAL :: Om, k, Om_k, Om_c, Om_r     ! Derived Omegas
+     REAL :: Om_v_mod                    ! Modified Omega_v to maintain flatness when adding radiation
+     REAL :: Om_nu, f_nu, omega_nu       ! Neutrino stuff
+     INTEGER :: N_massive_nu             ! Neutrino stuff
+     REAL :: omega_m, omega_b, omega_c   ! Physical densities
+     REAL :: Om_c_pow                    ! Cosmological parameters used for P(k) if different from background
+     REAL :: age, horizon                ! Derived distance/time
+     REAL :: mue, mup, YHe               ! Derived thermal parameters        
+     REAL :: Om_ws, as, a1n, a2n         ! Derived DE parameters
+     REAL :: gnorm                       ! Growth-factor normalisation
+
+     ! Box size
+     REAL :: Lbox, kbox
      LOGICAL :: box
+
+     ! Switches
+     INTEGER :: iw, itk 
+     LOGICAL :: power_Omegas, derive_gas_numbers
+     
+     ! Look-up tables
      REAL, ALLOCATABLE :: log_sigma(:), log_r_sigma(:) ! Arrays for sigma(R)
      REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
      REAL, ALLOCATABLE :: log_p(:), log_a_p(:)         ! Arrays for distance (particle horizon)
      REAL, ALLOCATABLE :: log_t(:), log_a_t(:)         ! Arrays for time
      REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:)   ! Arrays for input linear P(k)
      REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:)  ! Arrays for spherical-collapse parameters
-     INTEGER :: n_sigma, n_growth, n_p, n_t, n_plin, n_dcDv ! Array entries
-     REAL :: gnorm ! Growth-factor normalisation
-     CHARACTER(len=256) :: name ! Name for cosmological model
+     INTEGER :: n_sigma, n_growth, n_p, n_t, n_plin, n_dcDv ! Array entries     
      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time
+
+     ! Have normalisations and initialisations been done?
      LOGICAL :: is_init, is_normalised
-     LOGICAL :: tcdm, derive_gas_numbers
+
+     ! Verbose
      LOGICAL :: verbose
+     
   END TYPE cosmology
 
   ! Global parameters
@@ -395,11 +418,12 @@ CONTAINS
     cosm%is_init=.FALSE.
     cosm%is_normalised=.FALSE.
 
-    ! TCDM options
+    ! Omegas for power spectrum if different from background cosmological parameters
     cosm%Om_m_pow=0.
     cosm%Om_b_pow=0.
+    cosm%Om_nu_pow=0.
     cosm%h_pow=0.
-    cosm%tcdm=.FALSE.
+    cosm%power_Omegas=.FALSE.
 
     ! Gas options
     cosm%derive_gas_numbers=.TRUE.
@@ -445,13 +469,15 @@ CONTAINS
        !  6 - Einstein-de Sitter (SCDM)
        ! 15 - Einstein-de Sitter (TCDM)
        IF(icosmo==15) THEN
-          cosm%tcdm=.TRUE.
+          cosm%power_Omegas=.TRUE.
           cosm%Om_m_pow=cosm%Om_m
           cosm%Om_b_pow=cosm%Om_b
+          cosm%Om_nu_pow=cosm%Om_nu
           cosm%h_pow=cosm%h
        END IF
        cosm%Om_m=1.
-       cosm%Om_v=0.     
+       cosm%Om_v=0.
+       cosm%m_nu=0.
     ELSE IF(icosmo==7) THEN
        ! IDE I
        cosm%iw=5
@@ -689,39 +715,43 @@ CONTAINS
     IF(cosm%verbose) WRITE(*,*) 'INIT_COSMOLOGY: Calcuating radiation density'
 
     ! Calculate radiation density
-    rho_g=(4.*SBconst*cosm%T_CMB**4/c_light**3) ! Photon physical density from CMB temperature [kg/m^3]
-    Om_g_h2=rho_g*(8.*pi*bigG/3.)/H0**2 ! Photon cosmological density
-    cosm%Om_r=Om_g_h2*(1.+neff_constant*cosm%neff)/cosm%h**2 ! Radiation density by including neutrinos
+    rho_g=(4.*SBconst*cosm%T_CMB**4/c_light**3) ! Photon physical density at z=0 from CMB temperature [kg/m^3]
+    Om_g_h2=rho_g*(8.*pi*bigG/3.)/H0**2 ! Photon cosmological density (TODO: Use constants?)
+    cosm%Om_r=Om_g_h2*(1.+neff_constant*cosm%neff)/cosm%h**2 ! Radiation density including neutrinos
 
     ! Information about how radiation density is calculated
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_r:', cosm%Om_r  
-       WRITE(*,*) 'INIT_COSMOLOGY: Altering vacuum density to account for radiation'
+       WRITE(*,*) 'INIT_COSMOLOGY: Altering vacuum density to account for radiation and maintain flatness'
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_v prior to change:', cosm%Om_v
     END IF
 
     ! Correction to vacuum density in order for radiation to maintain flatness
     cosm%Om_v_mod=cosm%Om_v-cosm%Om_r
-
-    ! Information about how vacuum is changed to enforece flatness
     If(cosm%verbose) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_v post change:', cosm%Om_v_mod
        WRITE(*,*) 'INIT_COSMOLOGY: Calculating derived parameters'
     END IF
 
     ! Massive neutrinos
+    cosm%N_massive_nu=0
     DO i=1,3
-       IF(cosm%m_nu(i) .NE. 0.) STOP 'INIT_COSMOLOGY: Error, massive neutrinos not supported yet'
+       !IF(cosm%m_nu(i) .NE. 0.) STOP 'INIT_COSMOLOGY: Error, massive neutrinos not supported yet'
+       IF(cosm%m_nu(i) .NE. 0) cosm%N_massive_nu=cosm%N_massive_nu+1 ! Count massive neutrinos
     END DO
     cosm%Om_nu=sum(cosm%m_nu)/(neutrino_constant*cosm%h**2)
     cosm%f_nu=cosm%Om_nu/cosm%Om_m
+    IF(cosm%verbose) THEN
+       WRITE(*,*) 'INIT_COSMOLOGY: Number of massive nu:', cosm%N_massive_nu
+       WRITE(*,*) 'INIT_COSMOLOGY: Omega_nu:', cosm%Om_nu
+       WRITE(*,*) 'INIT_COSMOLOGY: f_nu:', cosm%f_nu
+    END IF
 
     ! Derived cosmological parameters    
     cosm%Om_c=cosm%Om_m-cosm%Om_b-cosm%Om_nu
     cosm%Om=cosm%Om_m+cosm%Om_v_mod+cosm%Om_r+cosm%Om_w
     cosm%Om_k=1.-cosm%Om
     cosm%k=(cosm%Om-1.)/(Hdist**2)
-
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_c:', cosm%Om_c
        WRITE(*,*) 'INIT_COSMOLOGY: Omega:', cosm%Om
@@ -732,15 +762,43 @@ CONTAINS
        END IF
     END IF
 
+    ! Physical density parameters
+    cosm%omega_m=cosm%Om_m*cosm%h**2   ! Physical matter density
+    cosm%omega_b=cosm%Om_b*cosm%h**2   ! Physical baryon density
+    cosm%omega_c=cosm%Om_c*cosm%h**2   ! Physical CDM density
+    cosm%omega_nu=cosm%Om_nu*cosm%h**2 ! Physical neutrino density
+
+    ! Write physical densities to screen
+    IF(cosm%verbose) THEN
+       WRITE(*,*) 'INIT_COSMOLOGY: omega_m:', cosm%omega_m
+       WRITE(*,*) 'INIT_COSMOLOGY: omega_b:', cosm%omega_b
+       WRITE(*,*) 'INIT_COSMOLOGY: omega_c:', cosm%omega_c
+       WRITE(*,*) 'INIT_COSMOLOGY: omega_nu:', cosm%omega_nu 
+    END IF
+
+    ! Using different background Omegas compared to power Omegas
+    IF(cosm%power_Omegas) THEN
+       cosm%Om_c_pow=cosm%Om_m_pow-cosm%Om_b_pow
+    ELSE
+       cosm%Om_c_pow=0.
+    END IF
+
     ! Gas parameters
     IF(cosm%derive_gas_numbers) THEN
        cosm%mup=4./(5.*cosm%YH+3.) ! Mean mass per gas particle divided by proton mass (~0.588 if fH=0.76, gas is ionised and H and He only; 0.61 in BAHAMAS)
        cosm%mue=2./(1.+cosm%YH)    ! Mean mass per gas electron divided by proton mass (~1.136 if fH=0.76, gas is ionised and H and He only; 1.17 in BAHAMAS)
+       cosm%YHe=1.-cosm%YH
     END IF
 
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: mu_p:', cosm%mup
        WRITE(*,*) 'INIT_COSMOLOGY: mu_e:', cosm%mue
+    END IF
+
+    ! Gamma for DEFW
+    cosm%Gamma=cosm%Om_m*cosm%h
+    IF(cosm%verbose) THEN
+       WRITE(*,*) 'INIT_COSMOLOGY: Gamma:', cosm%Gamma
     END IF
     
     cosm%is_init=.TRUE.
@@ -762,7 +820,7 @@ CONTAINS
        ! Top and bottom of fraction
        f1=cosm%a1n*(2.*Xs-(1.+cosm%a1n))
        f2=(1.+cosm%a1n)-2.*Xs*cosm%a1n
-       cosm%a2n=f1/f2 !Finally! a2
+       cosm%a2n=f1/f2 ! Finally! a2
        !IF(a2<a1) a2=a1
     ELSE IF(cosm%iw==7) THEN
        ! Scale-factor at which Om_w(a*) is most important
@@ -776,10 +834,15 @@ CONTAINS
 
     ! Ensure deallocate distances
     cosm%has_distance=.FALSE.
-    !IF(ALLOCATED(cosm%r))   DEALLOCATE(cosm%r)
-    !IF(ALLOCATED(cosm%a_r)) DEALLOCATE(cosm%a_r)
     IF(ALLOCATED(cosm%log_p))   DEALLOCATE(cosm%log_p)
     IF(ALLOCATED(cosm%log_a_p)) DEALLOCATE(cosm%log_a_p)
+    cosm%horizon=0.
+
+    ! Ensure deallocate time
+    cosm%has_time=.FALSE.
+    IF(ALLOCATED(cosm%log_t))   DEALLOCATE(cosm%log_t)
+    IF(ALLOCATED(cosm%log_a_t)) DEALLOCATE(cosm%log_a_t)
+    cosm%age=0.
 
     ! Ensure deallocate growth
     cosm%has_growth=.FALSE.
@@ -787,12 +850,14 @@ CONTAINS
     IF(ALLOCATED(cosm%log_growth))      DEALLOCATE(cosm%log_growth)
     IF(ALLOCATED(cosm%growth_rate))     DEALLOCATE(cosm%growth_rate)
     IF(ALLOCATED(cosm%log_acc_growth))  DEALLOCATE(cosm%log_acc_growth)
+    cosm%gnorm=0.
 
     ! Ensure deallocate sigma
     cosm%has_sigma=.FALSE.
     IF(ALLOCATED(cosm%log_r_sigma)) DEALLOCATE(cosm%log_r_sigma)
     IF(ALLOCATED(cosm%log_sigma))   DEALLOCATE(cosm%log_sigma)
 
+    ! Switch for power?
     IF(cosm%itk==1) THEN
        ! Default to use internal linear P(k) from Eisenstein & Hu
        cosm%has_power=.FALSE.
@@ -812,6 +877,7 @@ CONTAINS
     IF(ALLOCATED(cosm%dc))         DEALLOCATE(cosm%dc)
     IF(ALLOCATED(cosm%Dv))         DEALLOCATE(cosm%Dv)
 
+    ! Write finishing message to screen
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: Done'
        WRITE(*,*)
@@ -851,8 +917,10 @@ CONTAINS
        END IF
        WRITE(*,*) '===================================='
        WRITE(*,*) 'COSMOLOGY: Derived parameters'
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_m:', cosm%Om_m*cosm%h**2
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_b:', cosm%Om_b*cosm%h**2
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_m:', cosm%omega_m
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_c:', cosm%omega_c
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_b:', cosm%omega_b
+       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_nu:', cosm%omega_nu
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_r:', cosm%Om_r
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega:', cosm%Om
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_c:', cosm%Om_c
@@ -1167,7 +1235,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%is_init .EQV. .FALSE.) STOP 'HUBBLE2: Error, cosmology is not initialised'
-    Hubble2=cosm%Om_m*a**(-3)+cosm%Om_nu*a**(-3)+cosm%Om_r*a**(-4)+cosm%Om_v_mod+cosm%Om_w*X_de(a,cosm)+(1.-cosm%om)*a**(-2)
+    Hubble2=cosm%Om_m*a**(-3)+cosm%Om_r*a**(-4)+cosm%Om_v_mod+cosm%Om_w*X_de(a,cosm)+(1.-cosm%om)*a**(-2)
 
   END FUNCTION Hubble2
 
@@ -1189,7 +1257,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%is_init .EQV. .FALSE.) STOP 'AH: Error, cosmology is not initialised'
-    AH=cosm%Om_m*a**(-3)+cosm%Om_nu*a**(-3)+2.*cosm%Om_r*a**(-4)-2.*cosm%Om_v_mod+cosm%Om_w*(1.+3.*w_de(a,cosm))*X_de(a,cosm)
+    AH=cosm%Om_m*a**(-3)+2.*cosm%Om_r*a**(-4)-2.*cosm%Om_v_mod+cosm%Om_w*(1.+3.*w_de(a,cosm))*X_de(a,cosm)
     AH=-AH/2.
 
   END FUNCTION AH
@@ -1646,7 +1714,7 @@ CONTAINS
     zmin=redshift_a(amax)
     zmax=redshift_a(amin)
     IF(cosm%verbose) THEN
-       WRITE(*,*) 'INIT_DISTANCE: Redshift range for r(z) tables'
+       WRITE(*,*) 'INIT_DISTANCE: Redshift range for distance tables'
        WRITE(*,*) 'INIT_DISTANCE: minimum z:', real(zmin)
        WRITE(*,*) 'INIT_DISTANCE: maximum z:', real(zmax)
        WRITE(*,*) 'INIT_DISTANCE: minimum a:', real(amin)
@@ -1770,7 +1838,7 @@ CONTAINS
     zmin=redshift_a(amax)
     zmax=redshift_a(amin)
     IF(cosm%verbose) THEN
-       WRITE(*,*) 'INIT_TIME: Redshift range for r(z) tables'
+       WRITE(*,*) 'INIT_TIME: Redshift range for time tables'
        WRITE(*,*) 'INIT_TIME: minimum z:', real(zmin)
        WRITE(*,*) 'INIT_TIME: maximum z:', real(zmax)
        WRITE(*,*) 'INIT_TIME: minimum a:', real(amin)
@@ -1890,13 +1958,13 @@ CONTAINS
     REAL :: Om_m, Om_b, h, Omh2, Obh2
 
     ! Define some useful variables
-    IF(cosm%tcdm) THEN
+    IF(cosm%power_Omegas) THEN
        Om_m=cosm%Om_m_pow
        Om_b=cosm%Om_b_pow
        h=cosm%h_pow
     ELSE
        Om_m=cosm%Om_m
-       Om_b=cosm%Om_b
+       Om_b=cosm%Om_b 
        h=cosm%h
     END IF
 
@@ -1976,11 +2044,66 @@ CONTAINS
     m_wdm=1./cosm%inv_m_wdm
 
     alpha=0.074*0.7*m_wdm**(-1.15) ! alpha from equation (5), units Mpc/h
-    mu=1.12 ! mu from equation (4), dimensionless
+    mu=1.12                        ! mu from equation (4), dimensionless
 
     Tk_wdm=(1.+(alpha*k)**(2.*mu))**(-5./mu) ! Equation (2)
     
   END FUNCTION Tk_WDM
+
+  REAL FUNCTION Tcb_Tcbnu_ratio(k,z,cosm)
+
+    ! Calculates the ratio of T(k) for cold vs. all matter
+    ! Uses approximations in Eisenstein & Hu (1999; arXiv 9710252)
+    ! Note that this assumes that there are exactly 3 species of neutrinos with
+    ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: k
+    REAL, INTENT(IN) :: z
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs
+    REAL :: BigT    
+
+    IF(cosm%f_nu==0.) THEN
+
+        Tcb_Tcbnu_ratio=1.
+
+    ELSE
+
+        ! Growth exponent under the assumption that neutrinos are completely unclustered (equation 11)
+        pcb=(5.-sqrt(1.+24.*(1.-cosm%f_nu)))/4.
+
+        ! Theta for temperature (BigT=T/2.7 K)
+        BigT=cosm%T_CMB/2.7
+
+        ! The matter-radiation equality redshift
+        zeq=(2.5e4)*cosm%om_m*(cosm%h**2.)*(BigT**(-4.))
+
+        ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
+        ! For my purpose (just the ratio) seems to work better using the EdS growth function result, \propto a .
+        ! In any case, can't use grow at the moment because that is normalised by default.
+        D=(1.+zeq)/(1.+z)
+
+        ! Wave number relative to the horizon scale at equality (equation 5)
+        ! Extra factor of h becauase all my k are in units of h/Mpc
+        q=k*cosm%h*BigT**2./(cosm%om_m*cosm%h**2.)
+
+        ! Free streaming scale (equation 14)
+        ! Note that Eisenstein & Hu (1999) only consider the case of 3 neutrinos
+        ! with Nnu of these being massve with the mass split evenly between Nnu species.
+        yfs=17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(cosm%N_massive_nu*q/cosm%f_nu)**2.
+
+        ! These are (almost) the scale-dependent growth functions for each component in Eisenstein & Hu (1999)
+        ! Some part is missing, but this cancels when they are divided by each other, which is all I need them for.
+        ! Equations (12) and (13)
+        Dcb=(1.+(D/(1.+yfs))**0.7)**(pcb/0.7)
+        Dcbnu=((1.-cosm%f_nu)**(0.7/pcb)+(D/(1.+yfs))**0.7)**(pcb/0.7)
+
+        ! Finally, the ratio
+        Tcb_Tcbnu_ratio=Dcb/Dcbnu
+
+    END IF
+
+    END FUNCTION Tcb_Tcbnu_ratio
 
   RECURSIVE FUNCTION p_lin(k,a,cosm)
 
@@ -3511,63 +3634,124 @@ CONTAINS
 
   SUBROUTINE get_CAMB_power(z,non_linear,halofit_version,cosm)
 
+    ! TODO: Add neutrinos
+    ! TODO: Rearrange to match CAMB input file examples
+    USE CAMB_stuff
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
     INTEGER, INTENT(IN) :: halofit_version
     LOGICAL,INTENT(IN) :: non_linear
     REAL, INTENT(IN) :: z
     REAL, ALLOCATABLE :: k(:), Pk(:)
-    INTEGER :: i, n
-    REAL :: Om_c, Om_b, Om_w, h  
-    CHARACTER(len=256), PARAMETER :: camb=trim('/Users/Mead/Physics/CAMB/camb')
-    CHARACTER(len=256), PARAMETER :: matterpower=trim('/Users/Mead/Physics/CAMB_files/tmp/temp_matterpower.dat')
+    INTEGER :: n
+    REAL :: Om_c, Om_b, Om_nu, h, ombh2, omch2, omnuh2
+    CHARACTER(len=256), PARAMETER :: camb='camb'
+    CHARACTER(len=256), PARAMETER :: dir='/Users/Mead/Physics/CAMB_files/tmp/'
+    CHARACTER(len=256), PARAMETER :: root=trim(dir)//'temp'
+    CHARACTER(len=256), PARAMETER :: matterpower=trim(root)//'_matterpower.dat'
+    CHARACTER(len=256), PARAMETER :: transfer=trim(root)//'_transfer_out.dat'
+    CHARACTER(len=256), PARAMETER :: params=trim(root)//'_params.ini'
 
-    ! Needs to be changed to accomodate neutrino masses and degeneracy structure
-    ! Talk to Alex Hall about this
+    ! Check for massive neutrinos
+    IF(cosm%Om_nu .NE. 0.) THEN
+       STOP 'GET_CAMB_POWER: Error, massive neutrinos not supported yet'
+    END IF
 
-    IF(cosm%tcdm) THEN
-       Om_c=cosm%Om_m_pow-cosm%Om_b_pow
+    ! Set the cosmological parameters for CAMB
+    IF(cosm%power_Omegas) THEN
+       Om_c=cosm%Om_c_pow
        Om_b=cosm%Om_b_pow
-       Om_w=1.-cosm%Om_m_pow
+       Om_nu=cosm%Om_nu_pow
        h=cosm%h_pow
     ELSE
        Om_c=cosm%Om_c
        Om_b=cosm%Om_b
-       Om_w=cosm%Om_w
+       Om_nu=cosm%Om_nu       
        h=cosm%h
     END IF
 
-    IF(cosm%Om_v .NE. 0.) STOP 'GET_CAMB_POWER: Error, Omega_v not zero, should set Omega_w'
+    ! Physical density parameters that CAMB requires
+    ombh2=Om_b*h**2
+    omch2=Om_c*h**2
+    omnuh2=Om_nu*h**2
 
-    OPEN(7,file='/Users/Mead/Physics/CAMB_files/tmp/params.ini',status='replace')
-    WRITE(7,*) 'output_root = /Users/Mead/Physics/CAMB_files/tmp/temp'
+    !IF(cosm%Om_v .NE. 0.) STOP 'GET_CAMB_POWER: Error, Omega_v not zero, should set Omega_w'
+
+    CALL SYSTEM('rm '//trim(params))
+    OPEN(7,file=params,status='replace')
+    WRITE(7,*) 'output_root = ', trim(root)
+
+    ! Things to get
     WRITE(7,*) 'get_scalar_cls = F'
     WRITE(7,*) 'get_vector_cls = F'
     WRITE(7,*) 'get_tensor_cls = F'
-    WRITE(7,*) 'COBE_normalize = F'
-    WRITE(7,*) 'CMB_outputscale = 7.4311e12'
     WRITE(7,*) 'get_transfer = T'
+
+    ! Lensing
+    WRITE(7,*) 'do_lensing = F'
+    
     IF(non_linear) THEN
        WRITE(7,*) 'do_nonlinear = 1'
     ELSE
        WRITE(7,*) 'do_nonlinear = 0'
-    END IF
+    END IF    
     WRITE(7,*) 'halofit_version =', halofit_version
+    
+    ! Standard cosmological parameters
+    WRITE(7,*) 'ombh2 =', ombh2
+    WRITE(7,*) 'omch2 =', omch2
+    WRITE(7,*) 'omnuh2 =', omnuh2
+    WRITE(7,*) 'omk = ', cosm%Om_k
+    WRITE(7,*) 'hubble =', 100.*h
+
+    ! Dark energy
+    WRITE(7,*) 'dark_energy_model = ppf'
     WRITE(7,*) 'w =', cosm%w
     WRITE(7,*) 'wa =', cosm%wa
     WRITE(7,*) 'cs2_lam = 1'
-    WRITE(7,*) 'hubble =', 100.*h
-    WRITE(7,*) 'use_physical = F'
-    WRITE(7,*) 'omega_baryon =', Om_b
-    WRITE(7,*) 'omega_cdm =', Om_c
-    WRITE(7,*) 'omega_lambda =', Om_w
-    WRITE(7,*) 'omega_neutrino =', cosm%Om_nu
-    WRITE(7,*) 'temp_cmb = 2.7255'
-    WRITE(7,*) 'helium_fraction = 0.24'
-    WRITE(7,*) 'massless_neutrinos = 0'
-    WRITE(7,*) 'massive_neutrinos = 3'
-    WRITE(7,*) 'nu_mass_eigenstates = 1'
-    WRITE(7,*) 'nu_mass_fractions ='
+
+    ! CMB temperature and Helium fraction
+    WRITE(7,*) 'temp_cmb = ', cosm%T_CMB
+    WRITE(7,*) 'helium_fraction = ', cosm%YHe
+
+    ! Neutrinos
+    WRITE(7,*) 'massless_neutrinos = ', cosm%neff
+    WRITE(7,*) 'massive_neutrinos = ', cosm%N_massive_nu
+    WRITE(7,*) 'nu_mass_eigenstates = 0'
+    WRITE(7,*) 'share_delta_neff = T'
+    WRITE(7,*) 'nu_mass_fractions = 0'
+    WRITE(7,*) 'nu_mass_degeneracies ='
+
+    ! Primoridial power spectrum properties
+    WRITE(7,*) 'initial_power_num = 1'
+    WRITE(7,*) 'scalar_spectral_index(1) =', cosm%n
+    WRITE(7,*) 'scalar_nrun(1) = 0'
+    WRITE(7,*) 'scalar_amp(1) =', cosm%A
+    WRITE(7,*) 'pivot_scalar = 0.05'
+    WRITE(7,*) 'pivot_tensor = 0.05'
+
+    ! Reionisation
+    WRITE(7,*) 'reionization = T'
+    WRITE(7,*) 're_use_optical_depth = T'
+    WRITE(7,*) 're_optical_depth = 0.09'
+    WRITE(7,*) 're_delta_redshift = 1.5'
+    WRITE(7,*) 're_ionization_frac = -1'
+    
+    ! RECFAST
+    WRITE(7,*) 'recombination_model = Recfast'
+    WRITE(7,*) 'RECFAST_fudge = 1.14'
+    WRITE(7,*) 'RECFAST_fudge_He = 0.86'
+    WRITE(7,*) 'RECFAST_Heswitch = 6'
+    WRITE(7,*) 'RECFAST_Hswitch = T'
+
+    ! Adiabatic/isocurvature etc.
+    WRITE(7,*) 'initial_condition = 1' ! 1 - Adiabatic initial condtions
+
+    ! ?
+    WRITE(7,*) 'COBE_normalize = F'
+    WRITE(7,*) 'CMB_outputscale = 7.4311e12'
+
+    ! Power spectrum requirements
     WRITE(7,*) 'transfer_high_precision = F'
     WRITE(7,*) 'transfer_kmax = 10'
     WRITE(7,*) 'transfer_k_per_logint = 0'
@@ -3575,69 +3759,62 @@ CONTAINS
     WRITE(7,*) 'transfer_interp_matterpower = T'
     WRITE(7,*) 'transfer_power_var = 7'
     WRITE(7,*) 'transfer_redshift(1) =', z
-    WRITE(7,*) 'transfer_filename(1) = transfer_out.dat'
-    WRITE(7,*) 'transfer_matterpower(1) = matterpower.dat'
-    WRITE(7,*) 'reionization = T'
-    WRITE(7,*) 're_use_optical_depth = T'
-    WRITE(7,*) 're_optical_depth = 0.09'
-    WRITE(7,*) 're_delta_redshift = 1.5'
-    WRITE(7,*) 're_ionization_frac = -1'
-    WRITE(7,*) 'pivot_scalar = 0.05'
-    WRITE(7,*) 'pivot_tensor = 0.05'
-    WRITE(7,*) 'initial_power_num = 1'
-    WRITE(7,*) 'scalar_spectral_index(1) =', cosm%n
-    WRITE(7,*) 'scalar_nrun(1) = 0'
-    WRITE(7,*) 'scalar_amp(1) =', cosm%A
-    WRITE(7,*) 'RECFAST_fudge_He = 0.86'
-    WRITE(7,*) 'RECFAST_Heswitch = 6'
-    WRITE(7,*) 'RECFAST_Hswitch = T'
-    WRITE(7,*) 'RECFAST_fudge = 1.14'
+    WRITE(7,*) 'transfer_filename(1) = transfer_out.dat'   ! TODO: Parameter
+    WRITE(7,*) 'transfer_matterpower(1) = matterpower.dat' ! TODO: Parameter
+
+    ! Bispectra
     WRITE(7,*) 'do_lensing_bispectrum = F'
     WRITE(7,*) 'do_primordial_bispectrum = F'
-    WRITE(7,*) 'initial_condition = 1'
+
+    ! Verbosity
+    WRITE(7,*) 'feedback_level = 1'
+
+    ! Print out a comment describing file headers
+    WRITE(7,*) 'output_file_headers = T'
+
+    ! Write out derived parameters
+    WRITE(7,*) 'derived_parameters = T'
+
+    ! ?
+    WRITE(7,*) 'massive_nu_approx = 1'
+
+    ! Accuracy parameters for polarization and reionization
     WRITE(7,*) 'accurate_polarization = T'
     WRITE(7,*) 'accurate_reionization = T'
+
+    WRITE(7,*) 'lensing_method = 1'
     WRITE(7,*) 'accurate_BB = F'
-    WRITE(7,*) 'do_late_rad_truncation = T'
+
+    ! ?
     WRITE(7,*) 'do_tensor_neutrinos = T'
-    WRITE(7,*) 'feedback_level = 1'
-    WRITE(7,*) 'massive_nu_approx = 1'
+
+    ! ?
+    WRITE(7,*) 'do_late_rad_truncation = T'
+
+    ! OMP threads
     WRITE(7,*) 'number_of_threads = 4'
+
+    ! Accuracy parameters
     WRITE(7,*) 'accuracy_boost = 1'
     WRITE(7,*) 'l_accuracy_boost = 1'
-    WRITE(7,*) 'high_accuracy_default = T'
-    WRITE(7,*) 'use_spline_template =  T'
+    !WRITE(7,*) 'high_accuracy_default = T' ! Removed in CAMB v1
+    !WRITE(7,*) 'use_spline_template =  T'  ! Removed in CAMB v1
     WRITE(7,*) 'l_sample_boost = 1'
     CLOSE(7)
 
+    ! Remove old files and run CAMB
     IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: Running CAMB (note weird problems with this function in library)'
-    CALL SYSTEM('rm /Users/Mead/Physics/CAMB_files/tmp/temp_transfer_out.dat')
-    CALL SYSTEM('rm /Users/Mead/Physics/CAMB_files/tmp/temp_matterpower.dat')
+    CALL SYSTEM('rm '//trim(transfer))
+    CALL SYSTEM('rm '//trim(matterpower))
     IF(cosm%verbose) THEN
-       CALL SYSTEM('/Users/Mead/Physics/CAMB/camb /Users/Mead/Physics/CAMB_files/tmp/params.ini > /dev/null')
+       CALL SYSTEM(trim(camb)//' '//trim(params)//' > /dev/null')
     ELSE
-       CALL SYSTEM('/Users/Mead/Physics/CAMB/camb /Users/Mead/Physics/CAMB_files/tmp/params.ini')
+       CALL SYSTEM(trim(camb)//' '//trim(params))
     END IF
     IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: CAMB run complete'
 
-    ! Read in the now-generated CAMB linear spectra
-    IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: Reading in CAMB data'
-    n=file_length(matterpower,.FALSE.)-1
-    IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: Number of entries:', n
-    ALLOCATE(k(n),Pk(n))
-    OPEN(7,file=matterpower)
-    DO i=0,n
-       IF(i==0) THEN
-          READ(7,*)
-       ELSE
-          READ(7,*) k(i), Pk(i)
-       END IF
-    END DO
-    CLOSE(7)
-    IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: Data done'    
-
-    ! Convert from P(k) -> Delta^2(k)
-    Pk=Pk*(k**3)*4.*pi/twopi**3
+    ! Read in the power spectrum that has been generated
+    CALL read_CAMB_Pk(k,Pk,n,matterpower)
 
     ! Add to cosm arrays and convert to log
     IF(ALLOCATED(cosm%log_k_plin)) DEALLOCATE(cosm%log_k_plin)
