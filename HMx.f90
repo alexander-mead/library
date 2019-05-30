@@ -396,7 +396,7 @@ CONTAINS
     names(12)='Spherical collapse used for Mead (2017) results'
     names(13)='Experimental sigmoid transition'
     names(14)='Experimental scale-dependent halo bias'
-    names(15)='HMcode (Mead et al. 2018)'
+    names(15)='HMcode (Mead et al. in prep)'
     names(16)='Halo-void model'
     names(17)='Tilman HMx - AGN 7.6'
     names(18)='Tilman HMx - AGN tuned'
@@ -7646,7 +7646,7 @@ CONTAINS
     REAL, INTENT(IN) :: nu
     TYPE(halomod), INTENT(INOUT) :: hmod
     REAL :: dc
-    REAL :: alpha, beta, gamma, phi, eta
+    REAL :: beta, gamma, phi, eta
 
     !IF(.NOT. hmod%has_Tinker) CALL init_Tinker(hmod)
 
@@ -7897,12 +7897,7 @@ CONTAINS
     IF(z>3.) z=3. ! Recommendation from Tinker et al. (2010)
     Dv=hmod%Dv
 
-    ! Delta_v dependence
-    !alpha=find(Dv,Delta_v,alpha0,n,iorder,ifind,imeth)
-    !beta=find(Dv,Delta_v,beta0,n,iorder,ifind,imeth)
-    !gamma=find(Dv,Delta_v,gamma0,n,iorder,ifind,imeth)
-    !phi=find(Dv,Delta_v,phi0,n,iorder,ifind,imeth)
-    !eta=find(Dv,Delta_v,eta0,n,iorder,ifind,imeth)
+    ! Delta_v dependence (changed to log Dv finding)
     !alpha=find(log(Dv),log(Delta_v),alpha0,n,iorder,ifind,imeth) ! Not needed if you normalise explicitly
     beta=find(log(Dv),log(Delta_v),beta0,n,iorder,ifind,imeth)
     gamma=find(log(Dv),log(Delta_v),gamma0,n,iorder,ifind,imeth)
@@ -7918,7 +7913,6 @@ CONTAINS
     END IF
 
     ! Set the Tinker parameters
-    !hmod%Tinker_alpha=alpha
     hmod%Tinker_alpha=1. ! Fix to unity before normalisation
     hmod%Tinker_beta=beta
     hmod%Tinker_gamma=gamma
