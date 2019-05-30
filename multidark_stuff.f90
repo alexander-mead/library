@@ -72,7 +72,7 @@ CONTAINS
     DO i=1,n
        !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
        READ(7,*) (data(j), j=1,columns)
-       mm=data(column_mvu) ! Read virial mass
+       mm=data(column_mv) ! Read virial mass
        pid=NINT(data(column_pid))
        IF(mm>mmin .AND. pid==-1) p=p+1
     END DO
@@ -96,7 +96,7 @@ CONTAINS
        ! Halo is unique iff pid=-1 (pid is column 6)
        !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm, c, c, c, c, c, c, xx, yy, zz
        READ(7,*) (data(j), j=1,columns)
-       mm=data(column_mvu)
+       mm=data(column_mv)
        pid=NINT(data(column_pid))
        IF(mm>=mmin .AND. pid==-1) THEN
           p=p+1        
