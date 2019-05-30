@@ -160,15 +160,24 @@ MODULE HMx
   PUBLIC :: param_HMcode_As
   PUBLIC :: param_HMcode_alpha0
   PUBLIC :: param_HMcode_alpha1
-
+  !PUBLIC :: param_HMcode_Dvnu
+  !PUBLIC :: param_HMcode_dcnu
 
   ! Halo-model stuff that needs to be recalculated for each new z
   TYPE halomod
-     
+
+     ! Redshift and scale factor
+     REAL :: z, a
+
+     ! Switches
      INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, ip2h_corr
      INTEGER :: idc, iDv, ieta, ikstar, i2hdamp, i1hdamp, itrans
+
+     ! Void stuff
      LOGICAL :: voids
-     REAL :: z, a, dc, Dv
+
+     ! Spherical collapse parameters
+     REAL :: dc, Dv
 
      ! HMx baryon parameters
      REAL :: alpha, beta, eps, Gamma, M0, Astar, Twhim, ibeta ! HMx baryon parameters
@@ -186,25 +195,30 @@ MODULE HMx
      REAL, ALLOCATABLE :: c(:), rv(:), nu(:), sig(:), zc(:), m(:), rr(:), sigf(:), log_m(:)
      REAL, ALLOCATABLE :: r500(:), m500(:), c500(:), r200(:), m200(:), c200(:)
      REAL, ALLOCATABLE :: r500c(:), m500c(:), c500c(:), r200c(:), m200c(:), c200c(:)
+     INTEGER :: n
 
      ! Window-function (not used?)
      REAL, ALLOCATABLE :: k(:), wk(:,:,:)
-     INTEGER :: nk, n
+     INTEGER :: nk
      
      REAL :: sigv, sigv100, c3, knl, rnl, mnl, neff, sig8z, Rh, Mh, Mp
-     REAL :: gmin, gmax, gbmin, gbmax, gnorm
+
+     ! HOD etc.
+     REAL :: mhalo_min, mhalo_max, HImin, HImax, rcore, hmass
      REAL :: n_c, n_s, n_g, rho_HI, dlnc
 
+     ! Mass function integrals
+     REAL :: gmin, gmax, gbmin, gbmax, gnorm
+     
      ! HMcode parameters
-     REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1 
-
-     REAL :: mhalo_min, mhalo_max, HImin, HImax, rcore, hmass
+     REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1, Dvnu, dcnu     
 
      ! Halo types
      INTEGER :: halo_DMONLY, halo_CDM, halo_static_gas, halo_cold_gas, halo_hot_gas, halo_free_gas
      INTEGER :: halo_central_stars, halo_satellite_stars, halo_HI
      INTEGER :: halo_void, halo_compensated_void, electron_pressure
-     
+
+     ! Halo components
      INTEGER :: frac_central_stars, frac_stars, frac_HI
      INTEGER :: frac_bound_gas, frac_cold_bound_gas, frac_hot_bound_gas
      
@@ -366,7 +380,7 @@ CONTAINS
     INTEGER :: i
 
     ! Names of pre-defined halo models
-    INTEGER, PARAMETER :: nhalomod=49 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+    INTEGER, PARAMETER :: nhalomod=50 ! Total number of pre-defined halo-model types (TODO: this is stupid)
     CHARACTER(len=256):: names(nhalomod)    
     names(1)='HMcode (Mead et al. 2016)'
     names(2)='Basic halo-model (Two-halo term is linear)'
@@ -417,6 +431,7 @@ CONTAINS
     names(47)='Isothermal beta model for gas in response'
     names(48)='Non-linear halo bias for standard model'
     names(49)='Non-linear halo bias with Tinker but virial haloes'
+    names(50)='HMcode (Mead et al. 2016) with Dolag pow=1 bug'
 
     IF(verbose) WRITE(*,*) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -481,9 +496,10 @@ CONTAINS
     ! Linear collapse threshold delta_c
     ! 1 - Fixed 1.686
     ! 2 - Nakamura & Suto (1997) fitting function
-    ! 3 - Mead et al. (2015)
+    ! 3 - Mead et al. (2016)
     ! 4 - Mead (2017) fitting function
     ! 5 - Spherical-collapse calculation
+    ! 6 - Mead et al. (2015)
     hmod%idc=2
 
     ! Virial density Delta_v
@@ -653,6 +669,10 @@ CONTAINS
     hmod%As=3.13
     hmod%alp0=3.24
     hmod%alp1=1.85
+    hmod%Dvnu=0.916
+    hmod%dcnu=0.262
+
+    ! Baryon model (relates eta0 and A)
     hmod%one_parameter_baryons=.FALSE.
 
     ! HMx parameters
@@ -789,12 +809,13 @@ CONTAINS
        WRITE(*,*)
     END IF
 
-    IF(ihm==1 .OR. ihm==7 .OR. ihm==15 .OR. ihm==28 .OR. ihm==31) THEN
-       !  1 - Accurate HMcode (Mead et al. 2016)
-       !  7 - Accurate HMcode (Mead et al. 2015)
-       ! 15 - Accurate HMcode (Mead et al. 2018)
-       ! 28 - ?
-       ! 31 - Accurate HMcode (Mead et al. 2016 w/ additional BAO damping)
+    IF(ihm==1 .OR. ihm==7 .OR. ihm==15 .OR. ihm==28 .OR. ihm==31 .OR. ihm==50) THEN
+       !  1 - HMcode (Mead et al. 2016)
+       !  7 - HMcode (Mead et al. 2015)
+       ! 15 - HMcode (Mead et al. 2018)
+       ! 28 - HMcode (Mead et al. 2016 w/ one parameter baryon model)
+       ! 31 - HMcode (Mead et al. 2016 w/ additional BAO damping)
+       ! 50 - HMcode (Mead et al. 2016 w/ pow=1 bug in Dolag)
        hmod%ip2h=1
        hmod%i1hdamp=2
        hmod%iconc=1
@@ -808,6 +829,7 @@ CONTAINS
        hmod%iDolag=3
        IF(ihm==7) THEN
           ! Mead et al. (2015)
+          hmod%idc=6
           hmod%i2hdamp=2
           hmod%itrans=2
           hmod%f0=0.188
@@ -815,6 +837,8 @@ CONTAINS
           hmod%alp0=2.93
           hmod%alp1=1.77
           hmod%iDolag=2
+          hmod%Dvnu=0.
+          hmod%dcnu=0.
        ELSE IF(ihm==15) THEN
           ! Mead et al. (2018)
           hmod%i1hdamp=3 ! k^4 at large scales for one-halo term
@@ -831,19 +855,7 @@ CONTAINS
           hmod%ks=0.6358
           hmod%As=3.0745
           hmod%alp0=3.129
-          hmod%alp1=1.850
-!!$          hmod%Dv0=469.38
-!!$          hmod%Dv1=-0.3687
-!!$          hmod%dc0=1.6238
-!!$          hmod%dc1=0.00167
-!!$          hmod%eta0=0.4974
-!!$          hmod%eta1=0.1648
-!!$          hmod%f0=0.0988
-!!$          hmod%f1=3.8581
-!!$          hmod%ks=0.6887
-!!$          hmod%As=2.761
-!!$          hmod%alp0=2.954
-!!$          hmod%alp1=1.8298          
+          hmod%alp1=1.850         
        ELSE IF(ihm==28) THEN
           ! One-parameter baryon model
           hmod%one_parameter_baryons=.TRUE.
@@ -851,6 +863,9 @@ CONTAINS
        ELSE IF(ihm==31) THEN
           ! Damped BAO
           hmod%ip2h=3
+       ELSE IF(ihm==50) THEN
+          ! Bug present in CAMB when Dolag power is set to 1 rather than 1.5
+          hmod%iDolag=2
        END IF
     ELSE IF(ihm==2) THEN
        ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686))
@@ -966,7 +981,6 @@ CONTAINS
     ELSE IF(ihm==23) THEN
        ! Tinker (2010) mass function and bias; virial halo mass
        hmod%imf=3 ! Tinker mass function and bias
-       !hmod%iDv=8 ! Fix M360
     ELSE IF(ihm==24) THEN
        ! Non-linear halo bias for M200c haloes
        hmod%ibias=3   ! Non-linear halo bias
@@ -1796,23 +1810,24 @@ CONTAINS
        ! delta_c
        IF(hmod%idc==1) WRITE(*,*) 'HALOMODEL: Fixed delta_c = 1.686'
        IF(hmod%idc==2) WRITE(*,*) 'HALOMODEL: delta_c from Nakamura & Suto (1997) fitting function'
-       IF(hmod%idc==3) WRITE(*,*) 'HALOMODEL: delta_c from Mead et al. (2015, 2016) power spectrum fit'
+       IF(hmod%idc==3) WRITE(*,*) 'HALOMODEL: delta_c from Mead et al. (2016) power spectrum fit'
        IF(hmod%idc==4) WRITE(*,*) 'HALOMODEL: delta_c from Mead (2017) fitting function'
        IF(hmod%idc==5) WRITE(*,*) 'HALOMODEL: delta_c from spherical-collapse calculation'
+       IF(hmod%idc==6) WRITE(*,*) 'HALOMODEL: delta_c from Mead et al. (2015) power spectrum fit'
 
        ! Delta_v
        IF(hmod%iDv==1) WRITE(*,*) 'HALOMODEL: Fixed Delta_v = 200'
        IF(hmod%iDv==2) WRITE(*,*) 'HALOMODEL: Delta_v from Bryan & Norman (1998) fitting function'
-       IF(hmod%iDv==3) WRITE(*,*) 'HALOMODEL: Delta_v from Mead et al. (2015, 2016) power spectrum fit'
+       IF(hmod%iDv==3) WRITE(*,*) 'HALOMODEL: Delta_v from Mead et al. (2016) power spectrum fit'
        IF(hmod%iDv==4) WRITE(*,*) 'HALOMODEL: Delta_v from Mead (2017) fitting function'
        IF(hmod%iDv==5) WRITE(*,*) 'HALOMODEL: Delta_v from spherical-collapse calculation'
        IF(hmod%iDv==6) WRITE(*,*) 'HALOMODEL: Delta_v to give haloes Lagrangian radius'
        IF(hmod%iDv==7) WRITE(*,*) 'HALOMODEL: Fixed Delta_v for M200c'
-       IF(hmod%iDv==8) WRITE(*,*) 'HALOMODEL: Fixed Delta_v = 360'
+       IF(hmod%iDv==8) WRITE(*,*) 'HALOMODEL: Delta_v from Mead et al. (2015) power spectrum fit'
 
        ! eta for halo window function
        IF(hmod%ieta==1) WRITE(*,*) 'HALOMODEL: eta = 0 fixed'
-       IF(hmod%ieta==2) WRITE(*,*) 'HALOMODEL: eta from Mead et al. (2015, 2016) power spectrum fit'
+       IF(hmod%ieta==2) WRITE(*,*) 'HALOMODEL: eta from Mead et al. (2015,2016) power spectrum fit'
 
        ! Small-scale two-halo term damping coefficient
        IF(hmod%i2hdamp==1) WRITE(*,*) 'HALOMODEL: No two-halo term damping at small scales'
@@ -1875,6 +1890,23 @@ CONTAINS
        END IF
        WRITE(*,*) '======================================='
        WRITE(*,*) 'HALOMODEL: HMcode parameters'
+       WRITE(*,*) '======================================='
+       WRITE(*,fmt='(A30,F10.5)') 'Dv0:', hmod%Dv0
+       WRITE(*,fmt='(A30,F10.5)') 'Dv1:', hmod%Dv1
+       WRITE(*,fmt='(A30,F10.5)') 'dc0:', hmod%dc0
+       WRITE(*,fmt='(A30,F10.5)') 'dc1:', hmod%dc1 
+       WRITE(*,fmt='(A30,F10.5)') 'eta0:', hmod%eta0
+       WRITE(*,fmt='(A30,F10.5)') 'eta1:', hmod%eta1
+       WRITE(*,fmt='(A30,F10.5)') 'f0:', hmod%f0
+       WRITE(*,fmt='(A30,F10.5)') 'f1:', hmod%f1
+       WRITE(*,fmt='(A30,F10.5)') 'ks:', hmod%ks
+       WRITE(*,fmt='(A30,F10.5)') 'As:', hmod%As 
+       WRITE(*,fmt='(A30,F10.5)') 'alpha0:', hmod%alp0
+       WRITE(*,fmt='(A30,F10.5)') 'alpha1:', hmod%alp1
+       WRITE(*,fmt='(A30,F10.5)') 'Dvnu:', hmod%Dvnu
+       WRITE(*,fmt='(A30,F10.5)') 'dcnu:', hmod%dcnu
+       WRITE(*,*) '======================================='
+       WRITE(*,*) 'HALOMODEL: HMcode variables'
        WRITE(*,*) '======================================='
        WRITE(*,fmt='(A30,F10.5)') 'eta:', eta_HMcode(hmod,cosm)
        WRITE(*,fmt='(A30,F10.5)') 'k*:', kstar_HMcode(hmod,cosm)
@@ -3519,7 +3551,7 @@ CONTAINS
 
   SUBROUTINE write_halo_transforms(m,hmod,cosm,outfile)
 
-    !Writes out to file the Fourier transform of the halo density profiles
+    ! Writes out to file the Fourier transform of the halo density profiles
     IMPLICIT NONE
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
@@ -3534,7 +3566,7 @@ CONTAINS
     INTEGER, PARAMETER :: n=512       ! Number of points
     LOGICAL, PARAMETER :: rsp=.FALSE. ! Fourier profiles
 
-    !Calculate halo attributes
+    ! Calculate halo attributes
     rv=exp(find(log(m),hmod%log_m,log(hmod%rv),hmod%n,3,3,2))
     c=find(log(m),hmod%log_m,hmod%c,hmod%n,3,3,2)
     rs=rv/c
@@ -3548,10 +3580,10 @@ CONTAINS
     fields(4)=field_star
     fields(5)=field_electron_pressure
 
-    !Need mean density
+    ! Need mean density
     rhobar=comoving_matter_density(cosm)
 
-    !Write file
+    ! Write file
     OPEN(7,file=outfile)
     DO i=1,n
        x=exp(progression(log(xmin),log(xmax),i,n))
@@ -3564,7 +3596,7 @@ CONTAINS
 
   REAL FUNCTION delta_c(hmod,cosm)
 
-    !Linear collapse density
+    ! Linear collapse density
     IMPLICIT NONE
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -3573,20 +3605,24 @@ CONTAINS
     a=hmod%a
 
     IF(hmod%idc==1) THEN
-       !Fixed value
+       ! Fixed value
        delta_c=1.686
     ELSE IF(hmod%idc==2) THEN
-       !From Nakamura & Suto (1997) LCDM fitting function
+       ! From Nakamura & Suto (1997) LCDM fitting function
        delta_c=dc_NakamuraSuto(a,cosm)
-    ELSE IF(hmod%idc==3) THEN
-       !From Mead et al. (2015, 2016)
-       delta_c=hmod%dc0+hmod%dc1*log(sigma(8.,a,cosm))
-       delta_c=delta_c*(dc_NakamuraSuto(a,cosm)/dc0)
+    ELSE IF(hmod%idc==3 .OR. hmod%idc==6) THEN
+       ! From Mead et al. (2015)
+       delta_c=hmod%dc0+hmod%dc1*log(sigma(8.,a,cosm))       
+       IF(hmod%idc==3) THEN
+          ! Mead et al. (2016) addition of small cosmology and neutrino dependence
+          delta_c=delta_c*(1.+hmod%dcnu*cosm%f_nu)
+          delta_c=delta_c*(dc_NakamuraSuto(a,cosm)/dc0)          
+       END IF
     ELSE IF(hmod%idc==4) THEN
-       !From Mead (2017) fitting function
+       ! From Mead (2017) fitting function
        delta_c=dc_Mead(a,cosm)
     ELSE IF(hmod%idc==5) THEN
-       !From spheircal-collapse calculation
+       ! From spheircal-collapse calculation
        delta_c=dc_spherical(a,cosm)
     ELSE
        WRITE(*,*) 'DELTA_C: idc:', hmod%idc
@@ -3611,9 +3647,13 @@ CONTAINS
     ELSE IF(hmod%iDv==2) THEN
        ! From Bryan & Norman (1998; arXiv:astro-ph/9710107) fitting functions
        Delta_v=Dv_BryanNorman(a,cosm)    
-    ELSE IF(hmod%iDv==3) THEN
+    ELSE IF(hmod%iDv==3 .OR. hmod%iDv==8) THEN
        ! From Mead et al. (2015, 2016)
        Delta_v=hmod%Dv0*Omega_m(a,cosm)**hmod%Dv1
+       IF(hmod%iDv==3) THEN
+          ! Mead et al. (2016) neutrino addition
+          Delta_v=Delta_v*(1.+hmod%Dvnu*cosm%f_nu) 
+       END IF
     ELSE IF(hmod%iDv==4) THEN
        ! From Mead (2017) fitting function
        Delta_v=Dv_Mead(a,cosm)
@@ -3624,11 +3664,8 @@ CONTAINS
        ! Lagrangian radius
        Delta_v=1.
     ELSE IF(hmod%iDv==7) THEN
-       ! M200c converted to matter from critical
+       ! M200c
        Delta_v=200./Omega_m(a,cosm)
-    ELSE IF(hmod%iDv==8) THEN
-       ! Fixed value; M360
-       Delta_v=360.
     ELSE
        STOP 'DELTA_V: Error, iDv defined incorrectly'
     END IF
@@ -4719,6 +4756,7 @@ CONTAINS
 
   SUBROUTINE Dolag_correction(hmod,cosm)
 
+    ! Applies the Dolag et al. (2004) correction to concentration-mass relation
     IMPLICIT NONE
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4732,7 +4770,6 @@ CONTAINS
     ! Save the growth function in the current cosmology
     ginf_wCDM=grow(ainf,cosm)
     
-
     ! Make a flat LCDM cosmology and calculate growth
     cosm_LCDM=cosm
     cosm_LCDM%iw=1
@@ -4743,15 +4780,20 @@ CONTAINS
     cosm_LCDM%verbose=.FALSE.
     CALL init_cosmology(cosm_LCDM) ! This is **essential**
 
+    ! Growth factor in LCDM at 'infinity' calculated using Linder approximation
     ginf_LCDM=grow_Linder(ainf,cosm_LCDM)
-    f=ginf_wCDM/ginf_LCDM
 
-    ! Changed this to a power of 1.5, which produces more accurate results for extreme DE
+    ! Fractional difference compared to LCDM
+    f=ginf_wCDM/ginf_LCDM
+    
     IF(hmod%iDolag==2) THEN
+       ! Standard correction (Mead et al. 2015)
        hmod%c=hmod%c*f
     ELSE IF(hmod%iDolag==3) THEN
+       ! Changed this to a power of 1.5 in Mead et al. 2016, produces more accurate results for extreme DE
        hmod%c=hmod%c*f**1.5
     ELSE IF(hmod%iDolag==4) THEN
+       ! Correction with a sensible redshift dependence
        a=hmod%a
        g_wCDM=grow(a,cosm)
        g_LCDM=grow_Linder(a,cosm_LCDM)
