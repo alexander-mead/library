@@ -25,7 +25,7 @@ CONTAINS
     LOGICAL :: lexist
     INTEGER :: i, j
     INTEGER :: p, pid
-    REAL :: mm
+    REAL :: mm, c
     REAL, ALLOCATABLE :: data(:)
     
     INTEGER, PARAMETER :: hash_lines=58 ! Number of lines beginning with # (Both Multidark and Bolshoi have 58)
