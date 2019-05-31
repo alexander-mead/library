@@ -101,8 +101,9 @@ MODULE cosmology_functions
      REAL :: Gamma                       ! Power spectrum shape parameter for DEFW
      REAL :: Om, k, Om_k, Om_c, Om_r     ! Derived Omegas
      REAL :: Om_v_mod                    ! Modified Omega_v to maintain flatness when adding radiation
-     REAL :: Om_nu, f_nu, omega_nu       ! Neutrino stuff
-     INTEGER :: N_massive_nu             ! Neutrino stuff
+     REAL :: Om_nu, f_nu, omega_nu       ! Neutrinos
+     REAL :: M_nu_total                  ! Neutrinos
+     INTEGER :: N_massive_nu             ! Neutrinos
      REAL :: omega_m, omega_b, omega_c   ! Physical densities
      REAL :: Om_c_pow                    ! Cosmological parameters used for P(k) if different from background
      REAL :: age, horizon                ! Derived distance/time
@@ -739,9 +740,11 @@ CONTAINS
        !IF(cosm%m_nu(i) .NE. 0.) STOP 'INIT_COSMOLOGY: Error, massive neutrinos not supported yet'
        IF(cosm%m_nu(i) .NE. 0) cosm%N_massive_nu=cosm%N_massive_nu+1 ! Count massive neutrinos
     END DO
-    cosm%Om_nu=sum(cosm%m_nu)/(neutrino_constant*cosm%h**2)
+    cosm%M_nu_total=sum(cosm%m_nu)
+    cosm%Om_nu=cosm%M_nu_total/(neutrino_constant*cosm%h**2)
     cosm%f_nu=cosm%Om_nu/cosm%Om_m
     IF(cosm%verbose) THEN
+       WRITE(*,*) 'INIT_COSMOLOGY: Total neutrino mass [eV]:', cosm%m_nu_total
        WRITE(*,*) 'INIT_COSMOLOGY: Number of massive nu:', cosm%N_massive_nu
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_nu:', cosm%Om_nu
        WRITE(*,*) 'INIT_COSMOLOGY: f_nu:', cosm%f_nu
@@ -3643,7 +3646,7 @@ CONTAINS
     LOGICAL,INTENT(IN) :: non_linear
     REAL, INTENT(IN) :: z
     REAL, ALLOCATABLE :: k(:), Pk(:)
-    INTEGER :: n
+    INTEGER :: j, n
     REAL :: Om_c, Om_b, Om_nu, h, ombh2, omch2, omnuh2
     CHARACTER(len=256), PARAMETER :: camb='camb'
     CHARACTER(len=256), PARAMETER :: dir='/Users/Mead/Physics/CAMB_files/tmp/'
@@ -3653,9 +3656,9 @@ CONTAINS
     CHARACTER(len=256), PARAMETER :: params=trim(root)//'_params.ini'
 
     ! Check for massive neutrinos
-    IF(cosm%Om_nu .NE. 0.) THEN
-       STOP 'GET_CAMB_POWER: Error, massive neutrinos not supported yet'
-    END IF
+    !IF(cosm%Om_nu .NE. 0.) THEN
+    !   STOP 'GET_CAMB_POWER: Error, massive neutrinos not supported yet'
+    !END IF
 
     ! Set the cosmological parameters for CAMB
     IF(cosm%power_Omegas) THEN
@@ -3677,8 +3680,13 @@ CONTAINS
 
     !IF(cosm%Om_v .NE. 0.) STOP 'GET_CAMB_POWER: Error, Omega_v not zero, should set Omega_w'
 
+    ! Remove previous parameters file
     CALL SYSTEM('rm '//trim(params))
+
+    ! Open new parameters file for writing
     OPEN(7,file=params,status='replace')
+
+    ! Output root
     WRITE(7,*) 'output_root = ', trim(root)
 
     ! Things to get
@@ -3715,12 +3723,17 @@ CONTAINS
     WRITE(7,*) 'helium_fraction = ', cosm%YHe
 
     ! Neutrinos
-    WRITE(7,*) 'massless_neutrinos = ', cosm%neff
-    WRITE(7,*) 'massive_neutrinos = ', cosm%N_massive_nu
-    WRITE(7,*) 'nu_mass_eigenstates = 0'
-    WRITE(7,*) 'share_delta_neff = T'
-    WRITE(7,*) 'nu_mass_fractions = 0'
-    WRITE(7,*) 'nu_mass_degeneracies ='
+    WRITE(7,*) 'massless_neutrinos = ', cosm%neff-real(cosm%N_massive_nu)    
+    WRITE(7,*) 'share_delta_neff = T'   
+    IF(omnuh2==0.) THEN
+       WRITE(7,*) 'nu_mass_eigenstates = 0'
+       WRITE(7,*) 'massive_neutrinos = 0'
+    ELSE       
+       WRITE(7,*) 'nu_mass_eigenstates = 3'
+       WRITE(7,*) 'massive_neutrinos = 1 1 1'
+       WRITE(7,*) 'nu_mass_fractions = ', (cosm%m_nu(j)/cosm%M_nu_total, j=1,3)
+       !WRITE(7,*) 'nu_mass_degeneracies ='
+    END IF
 
     ! Primoridial power spectrum properties
     WRITE(7,*) 'initial_power_num = 1'
@@ -3800,6 +3813,8 @@ CONTAINS
     !WRITE(7,*) 'high_accuracy_default = T' ! Removed in CAMB v1
     !WRITE(7,*) 'use_spline_template =  T'  ! Removed in CAMB v1
     WRITE(7,*) 'l_sample_boost = 1'
+
+    ! Close file
     CLOSE(7)
 
     ! Remove old files and run CAMB
@@ -4332,7 +4347,7 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: om_m, om_b, om_nu
 
-    ! M000 -> M010 of Mira Titan (m_nu = 0 eV; Table 3 in 1705.03388)
+    ! M000 -> M036 of Mira Titan (m_nu = 0 eV for M000 -> M010; Table 3 in 1705.03388)
     IF(node==0) THEN
        ! M000
        om_m=0.1335
@@ -4656,7 +4671,7 @@ CONTAINS
     ELSE IF(node==32) THEN
        ! M032
        om_m=0.1369
-       om_b=0.0215
+       om_b=0.021501 ! Moved off boundary
        cosm%sig8=0.8812
        cosm%h=0.8019
        cosm%n=1.0005
