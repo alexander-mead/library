@@ -58,8 +58,8 @@ def draw_from_2D(n,f,x1,x2,nx,y1,y2,ny):
     dy = (y2-y1)/np.real(ny)
 
     # Linearly spaced arrays of values corresponding to pixel centres
-    x = np.linspace(x1,x2,nx) 
-    y = np.linspace(y1,y2,ny)
+    x = np.linspace(x1+dx/2.,x2-dx/2.,nx)
+    y = np.linspace(y1+dy/2.,y2-dy/2.,ny)
 
     # Make a grid of xy coordinate pairs
     xy = np.array(np.meshgrid(x,y))
@@ -68,9 +68,9 @@ def draw_from_2D(n,f,x1,x2,nx,y1,y2,ny):
     
     # Make array of function values corresponding to the xy coordinates
     X,Y = np.meshgrid(x,y)
-    z = f(X,Y) # Array of function values
+    z = f(X,Y)      # Array of function values
     z = z.flatten() # Flatten array to create a long list of function values
-    z = z/sum(z) # Force normalisation
+    z = z/sum(z)    # Force normalisation
 
     # Make a list of integers linking xy coordiantes to function values
     i = list(range(z.size)) 
