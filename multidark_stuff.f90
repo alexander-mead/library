@@ -107,12 +107,12 @@ CONTAINS
           x(3,p)=data(column_z)
           !WRITE(*,*) x(1,p), x(2,p), x(3,p)
           m(1,p)=data(column_mv)
-          !m(2,p)=data(column_mvu)
-          !m(3,p)=data(column_m200)
-          !m(4,p)=data(column_m200c)
-          !m(5,p)=data(column_m500c)
-          !m(6,p)=data(column_m2500c)
-          WRITE(*,*) m(1,p)
+          m(2,p)=data(column_mvu)
+          m(3,p)=data(column_m200)
+          m(4,p)=data(column_m200c)
+          m(5,p)=data(column_m500c)
+          m(6,p)=data(column_m2500c)
+          !WRITE(*,*) m(1,p)
           !WRITE(*,*)
        END IF
     END DO
