@@ -73,7 +73,7 @@ CONTAINS
        !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
        READ(7,*) (data(j), j=1,columns)
        mm=data(column_mv) ! Read virial mass
-       pid=NINT(data(column_pid))
+       pid=nint(data(column_pid))
        IF(mm>mmin .AND. pid==-1) p=p+1
     END DO
     CLOSE(7)
@@ -86,7 +86,7 @@ CONTAINS
     m=0.
 
     ! Fill arrays with unique halo properties
-    p=0
+    p=0 ! Reset sum variable to zero
     OPEN(7,file=infile)
     DO i=1,hash_lines
        READ(7,*)
@@ -97,8 +97,8 @@ CONTAINS
        !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm, c, c, c, c, c, c, xx, yy, zz
        READ(7,*) (data(j), j=1,columns)
        mm=data(column_mv)
-       pid=NINT(data(column_pid))
-       IF(mm>=mmin .AND. pid==-1) THEN
+       pid=nint(data(column_pid))
+       IF(mm>mmin .AND. pid==-1) THEN
           p=p+1        
           x(1,p)=data(column_x)
           x(2,p)=data(column_y)
