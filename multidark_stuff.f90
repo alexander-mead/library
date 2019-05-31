@@ -70,8 +70,8 @@ CONTAINS
        READ(7,*)
     END DO
     DO i=1,n
-       !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
-       READ(7,*) (data(j), j=1,columns)
+       READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
+       !READ(7,*) (data(j), j=1,columns)
        mm=data(column_mv) ! Read virial mass
        pid=nint(data(column_pid))
        IF(mm>mmin .AND. pid==-1) p=p+1
@@ -80,6 +80,7 @@ CONTAINS
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Minimum allowed halo mass [Msun/h]:', mmin
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Total number of distinct haloes:', p   
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Fraction of distinct haloes:', REAL(p)/REAL(n)
+    STOP
 
     ALLOCATE(x(3,p),m(6,p))
     x=0.
@@ -100,11 +101,11 @@ CONTAINS
        pid=nint(data(column_pid))
        IF(mm>mmin .AND. pid==-1) THEN
           p=p+1
-          WRITE(*,*) p
+          !WRITE(*,*) p
           x(1,p)=data(column_x)
           x(2,p)=data(column_y)
           x(3,p)=data(column_z)
-          WRITE(*,*) x(1,p), x(2,p), x(3,p)
+          !WRITE(*,*) x(1,p), x(2,p), x(3,p)
           m(1,p)=data(column_mv)
           !m(2,p)=data(column_mvu)
           !m(3,p)=data(column_m200)
@@ -112,7 +113,7 @@ CONTAINS
           !m(5,p)=data(column_m500c)
           !m(6,p)=data(column_m2500c)
           WRITE(*,*) m(1,p)
-          WRITE(*,*)
+          !WRITE(*,*)
        END IF
     END DO
     CLOSE(7)
