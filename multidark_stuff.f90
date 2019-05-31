@@ -72,8 +72,8 @@ CONTAINS
     DO i=1,n
        READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
        !READ(7,*) (data(j), j=1,columns)
-       mm=data(column_mv) ! Read virial mass
-       pid=nint(data(column_pid))
+       !mm=data(column_mv) ! Read virial mass
+       !pid=nint(data(column_pid))
        IF(mm>mmin .AND. pid==-1) p=p+1
     END DO
     CLOSE(7)
