@@ -25,12 +25,13 @@ CONTAINS
     LOGICAL :: lexist
     INTEGER :: i, j
     INTEGER :: p, pid
-    REAL :: mm, c
+    REAL :: mm!, c
     REAL, ALLOCATABLE :: data(:)
     
     INTEGER, PARAMETER :: hash_lines=58 ! Number of lines beginning with # (Both Multidark and Bolshoi have 58)
     !REAL, PARAMETER :: mmin=1.74e12     ! Minimum halo mass [Msun/h] (corresponds to N>200 for MDR1; 1e12 would mean n~115)
-    INTEGER, PARAMETER :: columns=73       ! Total number of columns in file
+    !INTEGER, PARAMETER :: columns=73       ! Total number of columns in file
+    INTEGER, PARAMETER :: columns=41       ! Total number of columns to read from file
     INTEGER, PARAMETER :: column_pid=6     ! Column for PID (-1 if unique halo)
     INTEGER, PARAMETER :: column_mv=11     ! Column for virial mass (unbinding done) [Msun/h]
     INTEGER, PARAMETER :: column_x=18      ! Column for x position [Mpc/h]
@@ -70,17 +71,16 @@ CONTAINS
        READ(7,*)
     END DO
     DO i=1,n
-       READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
-       !READ(7,*) (data(j), j=1,columns)
-       !mm=data(column_mv) ! Read virial mass
-       !pid=nint(data(column_pid))
+       !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
+       READ(7,*) (data(j), j=1,columns)
+       mm=data(column_mv) ! Read virial mass
+       pid=nint(data(column_pid))
        IF(mm>mmin .AND. pid==-1) p=p+1
     END DO
     CLOSE(7)
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Minimum allowed halo mass [Msun/h]:', mmin
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Total number of distinct haloes:', p   
     WRITE(*,*) 'READ_MULTIDARK_HALOES: Fraction of distinct haloes:', REAL(p)/REAL(n)
-    STOP
 
     ALLOCATE(x(3,p),m(6,p))
     x=0.
