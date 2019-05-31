@@ -236,6 +236,8 @@ CONTAINS
     names(36)='Einsten-de Sitter LCDM; z=1 normalisation'
     names(37)='Multidark: WMAP 5'
     names(38)='Random Cosmic Emu cosmology'
+    names(39)='Random cosmology'
+    names(40)='Random CAMB cosmology'
     
     names(100)='Mira Titan M000'
     names(101)='Mira Titan M001'
@@ -661,6 +663,18 @@ CONTAINS
        cosm%itk=2 ! Set to CAMB linear power
        cosm%iw=4 ! Set to constant w dark energy
        cosm%Om_v=0. ! Necessary for CAMB
+    ELSE IF(icosmo==39) THEN
+       ! Random cosmology
+       CALL random_cosmology(cosm)
+       cosm%itk=1
+       cosm%Om_v=0.
+       cosm%iw=4
+    ELSE IF(icosmo==40) THEN
+       ! Random cosmology
+       CALL random_cosmology(cosm)
+       cosm%itk=2
+       cosm%Om_v=0.
+       cosm%iw=4
     ELSE IF(icosmo>=100 .AND. icosmo<=137) THEN
        ! Mira Titan nodes
        CALL Mira_Titan_node_cosmology(icosmo-100,cosm)
@@ -3846,6 +3860,56 @@ CONTAINS
     END IF
     
   END SUBROUTINE get_CAMB_power
+
+  SUBROUTINE random_cosmology(cosm)
+
+    ! Generate some random cosmological parameters
+    USE random_numbers
+    IMPLICIT NONE
+    TYPE(cosmology), INTENT(INOUT) :: cosm
+
+    REAL, PARAMETER :: Om_c_min=0.001
+    REAL, PARAMETER :: Om_c_max=0.5
+
+    REAL, PARAMETER :: Om_b_min=0.01
+    REAL, PARAMETER :: Om_b_max=0.07
+
+    REAL, PARAMETER :: h_min=0.4
+    REAL, PARAMETER :: h_max=1.0
+
+    REAL, PARAMETER :: n_min=0.7
+    REAL, PARAMETER :: n_max=1.3
+
+    REAL, PARAMETER :: w_min=-1.3
+    REAL, PARAMETER :: w_max=-0.7
+
+    !REAL, PARAMETER :: wa_min=-1.3
+    !REAL, PARAMETER :: wa_max=-0.7
+
+    REAL, PARAMETER :: sig8_min=0.6
+    REAL, PARAMETER :: sig8_max=0.9
+
+    !CALL RNG_set(seed=0)
+
+    cosm%h=random_uniform(h_min,h_max)
+
+    cosm%Om_c=random_uniform(Om_c_min,Om_c_max)
+
+    cosm%Om_b=random_uniform(Om_b_min,Om_b_max)
+
+    cosm%Om_m=cosm%Om_c+cosm%Om_b
+
+    ! Enforce flatness
+    ! Note - need to have Om_w for dark enegry
+    cosm%Om_w=1.-cosm%Om_m
+
+    cosm%n=random_uniform(n_min,n_max)   
+
+    cosm%w=random_uniform(w_min,w_max)
+
+    cosm%sig8=random_uniform(sig8_min,sig8_max)
+
+  END SUBROUTINE random_cosmology
 
   SUBROUTINE random_Cosmic_Emu_cosmology(cosm)
 
