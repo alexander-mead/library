@@ -165,15 +165,14 @@ CONTAINS
     INTEGER :: i, j
 
     ! Write out the little catalogue
-    WRITE(*,*) 'MAKE_SMALL_MULTIDARK_CATALOGUES: Writing data'
-    WRITE(*,*) 'MAKE_SMALL_MULTIDARK_CATALOGUES: Outfile:', TRIM(outfile)
+    WRITE(*,*) 'WRITE_MULTIDARK_HALO_CATALOGUE: Writing outfile: ', trim(outfile)
     OPEN(7,file=outfile)
     DO i=1,n
        j=idx(n+1-i)
        WRITE(7,*) x(1,j), x(2,j), x(3,j), m(1,j), m(2,j), m(3,j), m(4,j), m(5,j), m(6,j)
     END DO
     CLOSE(7)
-    WRITE(*,*) 'MAKE_SMALL_MULTIDARK_CATALOGUES: Done'
+    WRITE(*,*) 'WRITE_MULTIDARK_HALO_CATALOGUE: Done'
     WRITE(*,*)
 
   END SUBROUTINE write_multidark_halo_catalogue
