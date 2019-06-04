@@ -6,6 +6,9 @@ MODULE special_functions
 
   PUBLIC :: triangle_number
   PUBLIC :: factorial
+  PUBLIC :: get_factorials
+  PUBLIC :: Fibonacci
+  PUBLIC :: get_Fibonaccis
 
   PUBLIC :: Legendre_polynomial
   PUBLIC :: Si
@@ -41,23 +44,91 @@ CONTAINS
     triangle_number=n*(n+1)/2
 
   END FUNCTION triangle_number
-  
-  INTEGER FUNCTION factorial(n)
 
+  SUBROUTINE get_Fibonaccis(F,n)
+
+    ! Provides a sequence of the first n Fibonacci numbers
+    ! F(0)=0 is not provided
+    ! F(1)=1, F(2)=1, F(3)=2, F(4)=3, ..., F(n)=F(n-1)+F(n-2)
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n 
-    INTEGER*8 :: factorial8    
+    INTEGER, INTENT(OUT) :: F(n)
+    INTEGER, INTENT(IN) :: n
     INTEGER :: i
 
-    factorial8=1
-
-    IF(n .NE. 1 .AND. n .NE. 0) THEN
-       DO i=2,n
-          factorial8=factorial8*i
+    IF(n<=0) THEN
+       STOP 'GET_FIBONACCIS: Error, this cannot be called for n<=0'
+    ELSE
+       DO i=1,n
+          IF(i==1 .OR. i==2) THEN
+             F(i)=1
+          ELSE
+             F(i)=F(i-1)+F(i-2)
+          END IF
        END DO
     END IF
+    
+  END SUBROUTINE get_Fibonaccis
 
-    factorial=INT(factorial8)
+  INTEGER FUNCTION Fibonacci(n)
+
+    ! Returns the nth Fibonacci number
+    ! F(0)=0, F(1)=1, F(2)=1, F(3)=2, F(4)=3, ..., F(n)=F(n-1)+F(n-2)
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: n
+    INTEGER :: F(n)
+
+    IF(n<0) THEN
+       STOP 'FIBONACCI: Error, Fibonacci numbers undefined for n<0'
+    ELSE IF(n==0) THEN
+       Fibonacci=0
+    ELSE
+       CALL get_Fibonaccis(F,n)
+       Fibonacci=F(n)
+    END IF
+
+  END FUNCTION Fibonacci
+
+  SUBROUTINE get_factorials(f,n)
+
+    ! Provides a sequence of factorial numbers up to n
+    ! f(0)=1 is not provided
+    ! f(1)=1, f(2)=2, f(3)=6, f(4)=24, ..., f(n)=n*f(n-1)
+    ! TODO: Should this really be INT8 here?
+    IMPLICIT NONE
+    INTEGER*8, INTENT(OUT) :: f(n)
+    INTEGER, INTENT(IN) :: n
+    INTEGER :: i
+
+    IF(n<=0) THEN
+       STOP 'GET_FACTORIALS: Error, this cannot be called for n<=0'
+    ELSE
+       DO i=1,n
+          IF(i==1) THEN
+             f(i)=1
+          ELSE
+             f(i)=i*f(i-1)
+          END IF
+       END DO
+    END IF
+    
+  END SUBROUTINE get_factorials
+
+  INTEGER FUNCTION factorial(n)
+
+    ! Calculates the nth factorial number
+    ! TODO: Any way of avoiding the INT8 here?
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: n 
+    INTEGER*8 :: f8(n)
+
+    IF(n<0) THEN
+       STOP 'FACTORIAL: Error, factorials not defined for n<0'
+    ELSE IF(n==0) THEN
+       factorial=1
+    ELSE
+       CALL get_factorials(f8,n)
+       factorial=INT(f8(n))
+    END IF
 
   END FUNCTION factorial
 
