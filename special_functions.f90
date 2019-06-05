@@ -4,12 +4,14 @@ MODULE special_functions
 
   PRIVATE
 
+  ! Integer functions
   PUBLIC :: triangle_number
   PUBLIC :: factorial
   PUBLIC :: get_factorials
   PUBLIC :: Fibonacci
   PUBLIC :: get_Fibonaccis
 
+  ! Real functions
   PUBLIC :: Legendre_polynomial
   PUBLIC :: Si
   PUBLIC :: Ci
@@ -24,7 +26,8 @@ MODULE special_functions
   PUBLIC :: exponential
   PUBLIC :: Lorentzian
   PUBLIC :: polynomial
-  
+
+  ! Silly functions
   PUBLIC :: apodise
   PUBLIC :: smooth_apodise
   PUBLIC :: blob
@@ -37,7 +40,7 @@ CONTAINS
   INTEGER FUNCTION triangle_number(n)
 
     ! Calculates the nth triangle number
-    ! T(1) = 1; T(2) = 3; T(3) = 6; T(4) = 10; ...
+    ! T(1) = 1, T(2) = 3, T(3) = 6, T(4) = 10, ..., T(n)=(1/2)*n*(n+1)
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n
 
@@ -49,7 +52,7 @@ CONTAINS
 
     ! Provides a sequence of the first n Fibonacci numbers
     ! F(0)=0 is not provided
-    ! F(1)=1, F(2)=1, F(3)=2, F(4)=3, ..., F(n)=F(n-1)+F(n-2)
+    ! F(1)=1; F(2)=1; F(3)=2; F(4)=3; ...; F(n)=F(n-1)+F(n-2)
     IMPLICIT NONE
     INTEGER, INTENT(OUT) :: F(n)
     INTEGER, INTENT(IN) :: n
@@ -113,7 +116,7 @@ CONTAINS
     
   END SUBROUTINE get_factorials
 
-  INTEGER FUNCTION factorial(n)
+  INTEGER*8 FUNCTION factorial(n)
 
     ! Calculates the nth factorial number
     ! TODO: Any way of avoiding the INT8 here?
@@ -127,7 +130,8 @@ CONTAINS
        factorial=1
     ELSE
        CALL get_factorials(f8,n)
-       factorial=INT(f8(n))
+       !factorial=INT(f8(n))
+       factorial=f8(n)
     END IF
 
   END FUNCTION factorial
@@ -159,16 +163,21 @@ CONTAINS
 
   REAL FUNCTION Legendre_Polynomial(n,x)
 
+    ! Returns the nth order Legendre polynomail: P_n(x)
     IMPLICIT NONE
     REAL, INTENT(IN) :: x
     INTEGER, INTENT(IN) :: n
 
     IF(n==0) THEN
        Legendre_Polynomial=1.
+    ELSE IF(n==1) THEN
+       Legendre_Polynomial=x
     ELSE IF(n==2) THEN
-       Legendre_Polynomial=(3.*(x**2.)-1.)/2.
+       Legendre_Polynomial=(3.*x**2-1.)/2.
+    ELSE IF(n==3) THEN
+       Legendre_Polynomial=(5.*x**3-3.*x)/2.
     ELSE IF(n==4) THEN
-       Legendre_Polynomial=(35.*(x**4.)-30.*(x**2.)+3.)/8.
+       Legendre_Polynomial=(35.*x**4-30.*x**2+3.)/8.
     ELSE
        STOP 'LEGENDRE_POLYNOMIAL: polynomial of this order not stored'
     END IF
@@ -177,15 +186,14 @@ CONTAINS
 
   REAL FUNCTION sinc(x)
 
-    !sinc function
+    ! sinc function: sin(x)/x
+    ! TODO: Is this unnecessary?
     IMPLICIT NONE
     REAL, INTENT(IN) :: x
-    REAL, PARAMETER :: dx=1e-3
-
-    !This may actually be unnecessary
+    REAL, PARAMETER :: dx=1e-3 ! small |x| below which to use Taylor expansion
 
     IF(abs(x)<dx) THEN
-       sinc=1.-(x**2)/6.
+       sinc=1.-(x**2)/6.+(x**4)/120.
     ELSE
        sinc=sin(x)/x
     END IF
@@ -194,18 +202,17 @@ CONTAINS
 
   REAL FUNCTION wk_tophat(x)
 
-    !The normlaised Fourier Transform of a spherical top-hat
+    ! The normlaised Fourier Transform of a spherical top-hat
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x
-    
+    REAL, INTENT(IN) :: x   
     REAL, PARAMETER :: dx=1e-3 ! Taylor expansion for |x|<dx
     REAL, PARAMETER :: mx=1e12 ! Set to zero to avoid problems for |x|>mx
 
-    !Taylor expansion used for low x to avoid cancellation problems
+    ! Taylor expansion used for low x to avoid cancelation problems
     IF(x==0.) THEN
        wk_tophat=1.
     ELSE IF(abs(x)>mx) THEN
-       wk_tophat=0.
+       wk_tophat=0. ! TODO: Is this necessary?
     ELSE IF(abs(x)<dx) THEN
        wk_tophat=1.-x**2/10.
     ELSE
@@ -216,10 +223,10 @@ CONTAINS
 
   REAL FUNCTION apodise(x,x1,x2,n)
 
-    !Apodises a function between x1 and x2
-    !Goes to one smoothly at x1
-    !Goes to zero linearly at x2, so the gradient change is discontinous
-    !n govenrns the severity of the transition
+    ! Apodises a function between x1 and x2
+    ! Goes to one smoothly at x1
+    ! Goes to zero linearly at x2, so the gradient change is discontinous
+    ! n govenrns the severity of the transition
     IMPLICIT NONE
     REAL, INTENT(IN) :: x, x1, x2, n
 
@@ -238,9 +245,9 @@ CONTAINS
 
   REAL FUNCTION smooth_apodise(x,x1,x2,n)
 
-    !Apodises a function between x1 and x2
-    !Goes to one smoothly at x1 and zero smoothly at x2
-    !n govenrns the severity of the transition
+    ! Apodises a function between x1 and x2
+    ! Goes to one smoothly at x1 and zero smoothly at x2
+    ! n govenrns the severity of the transition
     ! RENAME :: smoothapodise -> smooth_apodise
     IMPLICIT NONE
     REAL, INTENT(IN) :: x, x1, x2, n
@@ -260,9 +267,9 @@ CONTAINS
 
   REAL FUNCTION blob(x,x1,x2,n)
 
-    !Makes a blob between x1 and x2, with zero elsewhere
-    !Blob goes to zero linearly at x1 and x2, so the gradient change is discontinous
-    !n governs the severity (blobiness) of the blob
+    ! Makes a blob between x1 and x2, with zero elsewhere
+    ! Blob goes to zero linearly at x1 and x2, so the gradient change is discontinous
+    ! n governs the severity (blobiness) of the blob
     IMPLICIT NONE
     REAL, INTENT(IN) :: x, x1, x2, n
 
@@ -303,13 +310,12 @@ CONTAINS
 
   REAL FUNCTION Si(x)
 
-    !Calculates the 'sine integral' function Si(x)
+    ! Returns the 'sine integral' function: Si(x)=int_0^x sin(t)/t dt
     REAL, INTENT(IN) :: x
     DOUBLE PRECISION :: x2, y, f, g, si8
+    REAL, PARAMETER :: x0=4. ! Transition between two different approximations
 
-    REAL, PARAMETER :: x0=4.
-
-    !Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
+    ! Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
     IF(abs(x)<=x0) THEN
 
        x2=x*x
@@ -358,13 +364,12 @@ CONTAINS
 
   REAL FUNCTION Ci(x)
 
-    !Calculates the 'cosine integral' function Ci(x)
+    ! Returns the 'cosine integral' function Ci(x): -int_x^inf cos(t)/t dt
     REAL, INTENT(IN) :: x
     DOUBLE PRECISION :: x2, y, f, g, ci8
+    REAL, PARAMETER :: x0=4. ! Transition between two different approximations
 
-    REAL, PARAMETER :: x0=4.
-
-    !Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
+    ! Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
     IF(abs(x)<=x0) THEN
 
        x2=x*x
@@ -410,17 +415,17 @@ CONTAINS
 
   REAL FUNCTION Bessel(n,x)
 
-    !A Bessel function of order 'n'
+    ! Returns the Bessel function of order 'n'
+    ! Wraps the Fortran intrinsic functions
     IMPLICIT NONE
     REAL, INTENT(IN) :: x
     INTEGER, INTENT(IN) :: n
-
-    REAL, PARAMETER :: xlarge=1.e15
+    REAL, PARAMETER :: xlarge=1e15 ! Set to zero for large values
 
     IF(x>xlarge) THEN
 
-       !To stop it going mental for very large values of x
-       Bessel=0.d0
+       ! To stop it going mental for very large values of x
+       Bessel=0.
 
     ELSE
 
@@ -440,7 +445,7 @@ CONTAINS
 
   REAL FUNCTION Gaussian(x,mu,sigma)
 
-    !A normalised Gaussian
+    ! Returns the integral-normalised Gaussian
     IMPLICIT NONE
     REAL, INTENT(IN) :: x, mu, sigma
     REAL :: f1, f2
@@ -454,9 +459,9 @@ CONTAINS
 
   REAL FUNCTION lognormal(x,mean_x,sigma_lnx)
 
-    !A normalised lognormal [x: 0->inf], function of x
-    !mean_x: <x>
-    !log_sigma is sigma for ln(x)
+    ! Returns integral-normalised lognormal [x: 0->inf], function of x
+    ! mean_x: <x>
+    ! log_sigma is sigma for ln(x)
     IMPLICIT NONE
     REAL, INTENT(IN) :: x, mean_x, sigma_lnx
     REAL :: mu, sigma
@@ -470,7 +475,7 @@ CONTAINS
 
   REAL FUNCTION uniform(x,x1,x2)
 
-    !A normalised one-dimensional top-hat function between x1 and x2
+    ! Returns integral-normalised one-dimensional top-hat function between x1 and x2
     IMPLICIT NONE
     REAL, INTENT(IN) :: x, x1, x2
 
@@ -484,7 +489,7 @@ CONTAINS
 
   REAL FUNCTION Rayleigh(x,sigma)
 
-    ! A normalised Rayleigh distribution
+    ! Returns integral-normalised Rayleigh distribution x[0,inf]
     IMPLICIT NONE
     REAL, INTENT(IN) :: x, sigma
 
@@ -496,18 +501,19 @@ CONTAINS
 
     ! Normalised discrete Poisson probability distribution
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n
-    INTEGER, INTENT(IN) :: nbar
+    INTEGER, INTENT(IN) :: n  ! Number of events to evaluate P_n at, n>=0
+    REAL, INTENT(IN) :: nbar  ! Mean number of events >0
 
-    Poisson=exp(-real(nbar))*(nbar**n)/factorial(n)
+    Poisson=exp(-nbar)*(nbar**n)/int(factorial(n))
 
   END FUNCTION Poisson
 
   REAL FUNCTION exponential(x,mean)
 
-    ! Normalised exponential distribution
+    ! Returns integral-normalised exponential distribution
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x, mean
+    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: mean
 
     exponential=exp(-x/mean)/mean
 
@@ -515,7 +521,7 @@ CONTAINS
 
   REAL FUNCTION Lorentzian(x)
 
-    ! Normalised Lorentzian distribution
+    ! Returns integral-normalised Lorentzian distribution
     IMPLICIT NONE
     REAL, INTENT(IN) :: x
 
@@ -525,11 +531,18 @@ CONTAINS
 
   REAL FUNCTION polynomial(x,n)
 
-    !A normalised polynomial distribution [x:0->1]
+    ! Returns integral-normalised polynomial distribution
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x, n
+    REAL, INTENT(IN) :: x ! x[0->1]
+    REAL, INTENT(IN) :: n ! Polynomail order [n>-1]
 
-    polynomial=(n+1.)*x**n
+    IF(n<-1) STOP 'POLYNOMIAL: Error, index is less than -1'
+
+    IF(x<0. .OR. x>1.) THEN
+       STOP 'POLYNOMIAL: Error, x is outside range 0 to 1'
+    ELSE
+       polynomial=(n+1.)*x**n
+    END IF
 
   END FUNCTION polynomial
 
