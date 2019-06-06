@@ -73,7 +73,7 @@ CONTAINS
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: i1 ! Lower bound
     INTEGER, INTENT(IN) :: i2 ! Upper bound
-    REAL*4 :: rand ! Necessary to define for ifort
+    REAL*4 :: rand            ! Necessary to define for ifort
 
     random_integer=i1-1+ceiling(rand(0)*real(1+i2-i1))
     IF(random_integer==i1-1) random_integer=i1
@@ -83,9 +83,9 @@ CONTAINS
   INTEGER FUNCTION dice(dmin,dmax,ndice)
 
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: dmin
-    INTEGER, INTENT(IN) :: dmax
-    INTEGER, INTENT(IN) :: ndice
+    INTEGER, INTENT(IN) :: dmin  ! Minimum value on di
+    INTEGER, INTENT(IN) :: dmax  ! Maximum value on di (assumes all integers on di between dmin and dmax)
+    INTEGER, INTENT(IN) :: ndice ! Number of dice to roll
     INTEGER :: i
 
     IF(ndice<0) STOP 'DICE: Error, number of rolls must be positive or zero'
@@ -115,32 +115,30 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: x1 ! Lower bound
     REAL, INTENT(IN) :: x2 ! Upper bound
-    REAL*4 :: rand !I think this needs to be defined for ifort
+    REAL*4 :: rand         ! I think this needs to be defined for ifort
 
     ! rand is some inbuilt function
     random_uniform=x1+(x2-x1)*(rand(0))
 
   END FUNCTION random_uniform
 
-  FUNCTION random_Rayleigh(sigma)
+  REAL FUNCTION random_Rayleigh(sigma)
 
     ! Produces a Rayleigh-distributed random number
     IMPLICIT NONE
-    REAL :: random_Rayleigh
-    REAL, INTENT(IN) :: sigma
-    REAL, PARAMETER :: small=1e-10
+    REAL, INTENT(IN) :: sigma      ! Sigma parameters (*not* root-variance for the distribution)
+    REAL, PARAMETER :: small=1e-10 ! To avoid ever getting a log(0) call
 
     ! Problems if small=0. because log(0.) gets called sometimes
     random_Rayleigh=sigma*sqrt(-2.*log(random_uniform(small,1.)))
 
   END FUNCTION random_Rayleigh
 
-  FUNCTION random_Lorentzian()
+  REAL FUNCTION random_Lorentzian()
 
     ! Produces a Lorentzian-distributed random number
     USE constants
     IMPLICIT NONE
-    REAL :: random_Lorentzian
 
     random_Lorentzian=tan(random_uniform(0.,pi/2.))
 
@@ -148,11 +146,13 @@ CONTAINS
 
   FUNCTION random_Gaussian_pair(mean,sigma)
     
-    ! Gets a pair of Gaussian random numbers
+    ! Gets a pair of independent Gaussian random numbers
+    ! This uses the Box-Muller method (https://en.wikipedia.org/wiki/Box-Muller_transform)
     USE constants
     IMPLICIT NONE
     REAL :: random_Gaussian_pair(2)
-    REAL, INTENT(IN) :: mean, sigma
+    REAL, INTENT(IN) :: mean  ! Mean of the distribution
+    REAL, INTENT(IN) :: sigma ! Root-variance of the distribution
     REAL :: r, theta
 
     r=random_Rayleigh(sigma)
@@ -164,36 +164,31 @@ CONTAINS
 
   END FUNCTION random_Gaussian_pair
 
-  FUNCTION random_Gaussian(mean,sigma)
+  REAL FUNCTION random_Gaussian(mean,sigma)
     
     ! Gets a single Gaussian random number
-    IMPLICIT NONE
-    REAL :: random_Gaussian
-    REAL, INTENT(IN) :: mean, sigma
-    REAL :: G(2)
-
     ! This is wasteful as there is a second, independent Gaussian random number
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: mean  ! Mean of the distribution
+    REAL, INTENT(IN) :: sigma ! Root-variance of the distribution
+    REAL :: G(2)
+   
     G=random_Gaussian_pair(mean,sigma)
     random_Gaussian=G(1)
 
   END FUNCTION random_Gaussian
 
-  FUNCTION random_lognormal(mean_x,sigma_lnx)
+  REAL FUNCTION random_lognormal(mean_x,sigma_lnx)
     
-    ! Gets a single Gaussian random number
-    ! mean_x: <x>
-    ! sigma_lnx: rms of the logarithm of x
+    ! Gets a single log-normal random number
     IMPLICIT NONE
-    REAL :: random_lognormal
-    REAL, INTENT(IN) :: mean_x, sigma_lnx
+    REAL, INTENT(IN) :: mean_x    ! Mean of the distribution
+    REAL, INTENT(IN) :: sigma_lnx ! Root-variance of natural log of the distribution
     REAL :: mu, sigma, G(2)
 
     sigma=sigma_lnx
     mu=log(mean_x)-0.5*sigma**2
-
-    ! This is wasteful as there is a second, independent Gaussian random number
-    G=random_Gaussian_pair(mu,sigma)
-    random_lognormal=exp(G(1))
+    random_lognormal=exp(random_Gaussian(mu,sigma))
 
   END FUNCTION random_lognormal
 
@@ -201,7 +196,7 @@ CONTAINS
 
     ! Produces a exponentially-distributed random number
     IMPLICIT NONE
-    REAL, INTENT(IN) :: mean
+    REAL, INTENT(IN) :: mean       ! Mean of the distribution
     REAL, PARAMETER :: small=1e-10 ! Introducted because there will be problems here if log(0) is ever called
   
     random_exponential=-mean*log(random_uniform(small,1.))
@@ -212,7 +207,9 @@ CONTAINS
 
     ! Generate a polynomailly distributed number [x:0->1]
     IMPLICIT NONE
-    REAL, INTENT(IN) :: n
+    REAL, INTENT(IN) :: n ! Order for the polynomial [-1:inf]
+
+    IF(n<=-1) STOP 'RANDOM_POLYNOMIAL: Error, n is less than -1'
 
     random_polynomial=(random_uniform(0.,1.))**(1./(n+1))
 
@@ -220,7 +217,7 @@ CONTAINS
 
   REAL FUNCTION random_theta()
 
-    ! A random spherical angle such that the space is equally populated
+    ! A random spherical-polar angle such that the solid-angle is uniformally populated
     IMPLICIT NONE
 
     random_theta=acos(random_uniform(-1.,1.))
@@ -233,8 +230,8 @@ CONTAINS
     ! TODO: Increase to n-dimensions
     ! TODO: Include more complicated bounding structure (at the moment it is just a box)
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x1, x2
-    REAL, INTENT(IN) :: fmax
+    REAL, INTENT(IN) :: x1, x2 ! Values to consider the function between
+    REAL, INTENT(IN) :: fmax   ! Maximum value of the function in the interval x1 to x2
     REAL :: x, y, f
    
     INTERFACE
