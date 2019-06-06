@@ -1200,7 +1200,7 @@ CONTAINS
   REAL FUNCTION comoving_critical_density(a,cosm)
 
     ! Comoving critical density [(Msun/h) / (Mpc/h)^3]
-    ! Constant in the past, increases like a^3 in the future
+    ! For LCDM this is constant in the past, increases like a^3 in the future
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1212,7 +1212,7 @@ CONTAINS
   REAL FUNCTION physical_critical_density(a,cosm)
 
     ! Physical critical density [(Msun/h) / (Mpc/h)^3]
-    ! Tends to a constant in the future, behaves like a^-3 in the past
+    ! For LCDM tends to a constant in the future, behaves like a^-3 in the past
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1246,7 +1246,7 @@ CONTAINS
 
   REAL FUNCTION Hubble2(a,cosm)
 
-    ! Calculates Hubble^2 in units such that H^2(z=0)=1.
+    ! Calculates Hubble^2 in units such that H^2(a=1)=1
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1258,6 +1258,8 @@ CONTAINS
 
   REAL FUNCTION Hubble2_norad(a,cosm)
 
+    ! Squared Hubble parameter but ignoring the radiation component
+    ! Units such that Hubble^2(a=1)=1 (as long as radiation is not important at a=1)
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1268,7 +1270,8 @@ CONTAINS
 
   REAL FUNCTION AH(a,cosm)
 
-    ! \ddot{a}/a
+    ! Acceleration function: \ddot{a}/a
+    ! Some people call this the Raychaudri equation
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1281,6 +1284,7 @@ CONTAINS
 
   REAL FUNCTION AH_norad(a,cosm)
 
+    ! Acceleration function without the radiation contribution
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1291,7 +1295,7 @@ CONTAINS
 
   REAL FUNCTION Omega_m(a,cosm)
 
-    ! This calculates Omega_m variations with a
+    ! This calculates Omega_m variations with a (note this is not proportional to a^-3 always)
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1314,7 +1318,7 @@ CONTAINS
 
   REAL FUNCTION Omega_b(a,cosm)
 
-    ! This calculates Omega_m variations with a
+    ! This calculates Omega_m variations with a (note this is not proportional to a^-3 always)
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1325,7 +1329,7 @@ CONTAINS
 
   REAL FUNCTION Omega_c(a,cosm)
 
-    ! This calculates Omega_c variations with a
+    ! This calculates Omega_c variations with a (note this is not proportional to a^-3 always)
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1336,7 +1340,8 @@ CONTAINS
 
   REAL FUNCTION Omega_nu(a,cosm)
 
-    ! This calculates Omega_nu variations with a, assuming that nu scales like matter
+    ! This calculates Omega_nu variations with a
+    ! Assuming that nu scales like matter which is obviously inaccurate at early times
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1347,7 +1352,7 @@ CONTAINS
 
   REAL FUNCTION Omega_r(a,cosm)
 
-    ! This calculates Omega_r variations with a
+    ! This calculates Omega_r variations with a (note this is *not* proportional to a^-4 always)
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1359,7 +1364,7 @@ CONTAINS
 
   REAL FUNCTION Omega_v(a,cosm)
 
-    ! This calculates Omega_v variations with a
+    ! This calculates Omega_v variations with a (note this is not constant)
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1444,7 +1449,7 @@ CONTAINS
 
   REAL FUNCTION w_de_total(a,cosm)
 
-    ! Do an average over the DE components
+    ! Do an average over the dark energy components
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1460,7 +1465,7 @@ CONTAINS
 
   REAL FUNCTION w_eff(a,cosm)
 
-    ! Do an average over the DE components
+    ! Do an average over all components
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1529,13 +1534,13 @@ CONTAINS
 
   REAL FUNCTION scale_factor_z(z)
 
-    ! The scale factor corresponding to redshift z
+    ! The scale factor corresponding to redshift 'z'
     IMPLICIT NONE
     REAL, INTENT(IN) :: z
 
-    IF(z<-1.) THEN
-       WRITE(*,*) 'SCALE_FACTOR_Z: z', z
-       STOP 'SCALE_FACTOR_Z: Error, routine called for z < -1'
+    IF(z<0.) THEN
+       WRITE(*,*) 'SCALE_FACTOR_Z: z:', z
+       STOP 'SCALE_FACTOR_Z: Error, routine called for z<0'
     END IF
 
     scale_factor_z=1./(1.+z)
@@ -1544,13 +1549,16 @@ CONTAINS
 
   REAL FUNCTION redshift_a(a)
 
-    ! The redshift corresponding to scale-factor a
+    ! The redshift corresponding to scale-factor 'a'
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
 
     IF(a==0.) THEN
-       WRITE(*,*) 'REDSHIFT_A: a', a
-       STOP 'REDSHIFT_A: Error, routine called with a = 0'
+       WRITE(*,*) 'REDSHIFT_A: a:', a
+       STOP 'REDSHIFT_A: Error, routine called with a=0'
+    ELSE IF(a>1.) THEN
+       WRITE(*,*) 'REDSHIFT_A: a:', a
+       STOP 'REDSHIFT_A: Error, routine called with a>1'
     END IF
 
     redshift_a=-1.+1./a
@@ -1562,8 +1570,8 @@ CONTAINS
     ! The scale factor corresponding to comoving distance 'r'
     IMPLICIT NONE
     REAL, INTENT(IN) :: r
-    REAL :: p
     TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL :: p  
 
     IF(cosm%has_distance .EQV. .FALSE.) CALL init_distance(cosm)
     IF(r==0.) THEN
@@ -1590,7 +1598,7 @@ CONTAINS
 
     ! Curvature function, also comoving angular-diameter distance [Mpc/h]
     IMPLICIT NONE
-    REAL, INTENT(IN) :: r
+    REAL, INTENT(IN) :: r ! Comoving distance [Mpc/h]
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%k==0.) THEN
@@ -1609,7 +1617,7 @@ CONTAINS
 
     ! Derivative of curvature function df_k(r)/dr
     IMPLICIT NONE
-    REAL, INTENT(IN) :: r
+    REAL, INTENT(IN) :: r ! Comoving distance [Mpc/h]
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%k==0.) THEN
@@ -1626,7 +1634,8 @@ CONTAINS
 
   REAL FUNCTION comoving_particle_horizon(a,cosm)
 
-    ! The particle horizon at scale factor 'a' [Mpc/h]
+    ! The comoving particle horizon [Mpc/h]
+    ! This is the furthest distance a particle can have travelled since a=0
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1646,7 +1655,7 @@ CONTAINS
 
   REAL FUNCTION physical_particle_horizon(a,cosm)
 
-    ! The physical distance to a galaxy at scale-factor a
+    ! The physical particle horizon [Mpc/h]
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1657,20 +1666,20 @@ CONTAINS
 
   REAL FUNCTION comoving_distance(a,cosm)
 
-    ! The comoving distance to a galaxy at scale-factor 'a' [Mpc/h]
+    ! The comoving distance [Mpc/h]
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: p
 
-    p=comoving_particle_horizon(a,cosm) ! Ensures that init_distance is run
+    p=comoving_particle_horizon(a,cosm) ! Ensures that init_distance is run and therefore that horizon is calculated
     comoving_distance=cosm%horizon-p
 
   END FUNCTION comoving_distance
 
   REAL FUNCTION physical_distance(a,cosm)
 
-    ! The physical distance to a galaxy at scale-factor a
+    ! The physical distance [Mpc/h]
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1681,7 +1690,7 @@ CONTAINS
 
   REAL FUNCTION physical_angular_distance(a,cosm)
 
-    ! The physical angular-diameter distance to a galaxy at scale-factor a [Mpc/h]
+    ! The physical angular-diameter distance [Mpc/h]
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1692,7 +1701,7 @@ CONTAINS
 
   REAL FUNCTION comoving_angular_distance(a,cosm)
 
-    ! The comoving angular-diameter distance to a galaxy at scale-factor a [Mpc/h]
+    ! The comoving angular-diameter distance [Mpc/h]
     ! Some people call this the 'effective distance'
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
@@ -1704,7 +1713,7 @@ CONTAINS
 
   REAL FUNCTION luminosity_distance(a,cosm)
 
-    ! The (physical) luminosity distance to a galaxy at scale-factor a [Mpc/h]
+    ! The luminosity distance [Mpc/h]
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1715,12 +1724,12 @@ CONTAINS
 
   SUBROUTINE init_distance(cosm)
 
-    ! Fill up tables of a vs. r(a) (comoving particle horizon)
+    ! Fill up tables of a vs. p(a) (comoving particle horizon)
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: zmin, zmax, amin, amax, a, b, r
     INTEGER :: i
-    INTEGER, PARAMETER :: iorder=3
+    INTEGER, PARAMETER :: iorder=3 ! Order for integration
 
     ! Get from PARAMETERS
     amin=amin_distance
@@ -1806,7 +1815,7 @@ CONTAINS
 
   REAL FUNCTION cosmic_time(a,cosm)
 
-    ! The age of the universe at scale-factor 'a' [Gyr/h]
+    ! The age of the universe [Gyr/h]
     ! TODO: Look-up table for t(a)?
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
@@ -1825,14 +1834,14 @@ CONTAINS
 
   REAL FUNCTION look_back_time(a,cosm)
 
-    ! The time in the past that photons at scale-factor 'a' were emitted [Gyr/h]
+    ! The time in the past [Gyr/h]
     IMPLICIT NONE
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: t
 
     !look_back_time=integrate_cosm(a,1.,time_integrand,cosm,acc_cosm,3)
-    t=cosmic_time(a,cosm) ! Ensures that init_time is run
+    t=cosmic_time(a,cosm) ! Ensures that init_time is run and therefore that age is calculated
     look_back_time=cosm%age-t
 
   END FUNCTION look_back_time
@@ -1912,11 +1921,11 @@ CONTAINS
 
   END FUNCTION time_integrand
 
-  FUNCTION Tk(k,cosm)
+  REAL FUNCTION Tk(k,cosm)
 
     ! Transfer function selection
     IMPLICIT NONE
-    REAL :: Tk, k
+    REAL :: k ! Wavenumber [h/Mpc]
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     IF(cosm%itk==1) THEN
@@ -1935,10 +1944,11 @@ CONTAINS
 
   REAL FUNCTION Tk_DEFW(k,cosm)
 
-    ! This function was written by John Peacock
     ! The DEFW transfer function approximation
+    ! Relies on the power-spectrum scale parameter Gamma=Omega_m*h
+    ! This function was written by John Peacock   
     IMPLICIT NONE
-    REAL, INTENT(IN) :: k
+    REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
     TYPE(cosmology), INTENT(IN) :: cosm
     REAL :: keff, q, tk
     DOUBLE PRECISION :: q8, tk8
@@ -1953,7 +1963,7 @@ CONTAINS
 
   END FUNCTION Tk_DEFW
 
-  FUNCTION Tk_EH(yy,cosm)
+  REAL FUNCTION Tk_EH(k,cosm)
 
     USE special_functions
 
@@ -1961,8 +1971,7 @@ CONTAINS
     ! JP: the astonishing D.J. Eisenstein & W. Hu fitting formula (ApJ 496 605 [1998])
     ! JP: remember I use k/h, whereas they use pure k, Om_m is cdm + baryons
     IMPLICIT NONE
-    REAL :: Tk_eh
-    REAL, INTENT(IN) :: yy
+    REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: rk, e, thet, b1, b2, zd, ze, rd, re, rke, s, rks
     REAL :: q
@@ -1990,7 +1999,7 @@ CONTAINS
     Obh2=Om_b*h**2
 
     ! Wave-number
-    rk=yy*h
+    rk=k*h ! Convert to [1/Mpc]
 
     ! 2.718...
     e=exp(1.)
@@ -2054,7 +2063,7 @@ CONTAINS
     ! This version and equation references were taken from arxiv:1605.05973
     ! Originally from Bode et al. (2001; arixv:0010389)
     IMPLICIT NONE
-    REAL, INTENT(IN) :: k
+    REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: alpha, mu, m_wdm
 
@@ -2067,18 +2076,21 @@ CONTAINS
     
   END FUNCTION Tk_WDM
 
-  REAL FUNCTION Tcb_Tcbnu_ratio(k,z,cosm)
+  REAL FUNCTION Tcb_Tcbnu_ratio(k,a,cosm)
 
     ! Calculates the ratio of T(k) for cold vs. all matter
     ! Uses approximations in Eisenstein & Hu (1999; arXiv 9710252)
     ! Note that this assumes that there are exactly 3 species of neutrinos with
     ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
     IMPLICIT NONE
-    REAL, INTENT(IN) :: k
-    REAL, INTENT(IN) :: z
+    REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
+    REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs
-    REAL :: BigT    
+    REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
+    REAL :: BigT
+
+    ! Get the redshift
+    z=redshift_a(a)
 
     IF(cosm%f_nu==0.) THEN
 
@@ -2098,7 +2110,7 @@ CONTAINS
         ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
         ! For my purpose (just the ratio) seems to work better using the EdS growth function result, \propto a .
         ! In any case, can't use grow at the moment because that is normalised by default.
-        D=(1.+zeq)/(1.+z)
+        D=(1.+zeq)/(1.+z) ! TODO: Could update this
 
         ! Wave number relative to the horizon scale at equality (equation 5)
         ! Extra factor of h becauase all my k are in units of h/Mpc
@@ -2122,12 +2134,12 @@ CONTAINS
 
     END FUNCTION Tcb_Tcbnu_ratio
 
-  RECURSIVE FUNCTION p_lin(k,a,cosm)
+  REAL RECURSIVE FUNCTION p_lin(k,a,cosm)
 
     ! Linear matter power spectrum
     ! Must be a recursive function because normalise_power calls this function again
+    ! CHANGE: Changed RECURSIVE FUNCTION to REAL RECURSIVE FUNCTION
     IMPLICIT NONE
-    REAL :: p_lin
     REAL, INTENT (IN) :: k, a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -2269,7 +2281,7 @@ CONTAINS
 
     ! Calculates sigma(R) by intergration
     IMPLICIT NONE
-    REAL, INTENT(IN) :: r
+    REAL, INTENT(IN) :: r ! Smoothing scale to calculate sigma [Mpc/h]
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: tmin, tmax, kmin, kmax, part1, part2
@@ -2299,7 +2311,7 @@ CONTAINS
 
     ! Finds sigma_cold from look-up tables
     IMPLICIT NONE
-    REAL, INTENT(IN) :: R
+    REAL, INTENT(IN) :: R ! Smoothing scale to calculate sigma [Mpc/h]
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     
@@ -2358,7 +2370,7 @@ CONTAINS
 
   REAL FUNCTION ksplit_sigma(R)
 
-    ! Wavenumber at which to split the integral into two
+    ! Wavenumber at which to split the integral into two [h/Mpc]
     IMPLICIT NONE
     REAL, INTENT(IN) :: R
 
@@ -2401,7 +2413,8 @@ CONTAINS
   REAL FUNCTION sigmaV(R,a,cosm)
 
     IMPLICIT NONE
-    REAL, INTENT(IN) :: R, a
+    REAL, INTENT(IN) :: R
+    REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL, PARAMETER :: tmin=0.
     REAL, PARAMETER :: tmax=1.
@@ -2419,7 +2432,9 @@ CONTAINS
     ! TODO: Optimize alpha(R); not really a problem when only called for R = 0, 100 Mpc/h
     USE special_functions
     IMPLICIT NONE
-    REAL, INTENT(IN) :: t, a, R
+    REAL, INTENT(IN) :: t
+    REAL, INTENT(IN) :: R
+    REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: k, kR, w_hat, alpha
 
@@ -2558,7 +2573,9 @@ CONTAINS
 
     ! The CPT growth function approximation from 1992
     IMPLICIT NONE
-    REAL, INTENT(IN) :: a, Om_m, Om_v
+    REAL, INTENT(IN) :: a    ! Scale factor
+    REAL, INTENT(IN) :: Om_m ! Matter-density parameter
+    REAL, INTENT(IN) :: Om_v ! Vacuum-density parameter
 
     CPT=a*Om_m/((Om_m**(4./7.))-Om_v+(1.+Om_m/2.)*(1.+Om_v/70.))
     
@@ -2566,10 +2583,9 @@ CONTAINS
 
   SUBROUTINE init_growth(cosm)
 
-    USE calculus_table
-
     ! Fills a table of the growth function vs. a
     ! TODO: Figure out why if I set amax=10, rather than amax=1, I start getting weird f(a) around a=0.001
+    USE calculus_table
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
     INTEGER :: i, na
@@ -2675,16 +2691,18 @@ CONTAINS
 
   END SUBROUTINE init_growth
 
-  FUNCTION fd(d,v,k,a,cosm)
+  REAL FUNCTION fd(d,v,k,a,cosm)
 
     ! Needed for growth function solution
     ! This is the fd in \dot{\delta}=fd
     IMPLICIT NONE
-    REAL :: fd
-    REAL, INTENT(IN) :: d, v, k, a
-    REAL :: crap
+    REAL, INTENT(IN) :: d
+    REAL, INTENT(IN) :: v
+    REAL, INTENT(IN) :: k
+    REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
-
+    REAL :: crap
+    
     ! To prevent compile-time warnings
     crap=d
     crap=k
@@ -2695,13 +2713,15 @@ CONTAINS
 
   END FUNCTION fd
 
-  FUNCTION fv(d,v,k,a,cosm)
+  REAL FUNCTION fv(d,v,k,a,cosm)
 
     ! Needed for growth function solution
     ! This is the fv in \ddot{\delta}=fv
     IMPLICIT NONE
-    REAL :: fv
-    REAL, INTENT(IN) :: d, v, k, a
+    REAL, INTENT(IN) :: d
+    REAL, INTENT(IN) :: v
+    REAL, INTENT(IN) :: k
+    REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: f1, f2
     REAL :: crap
@@ -2715,12 +2735,14 @@ CONTAINS
 
   END FUNCTION fv
 
-  FUNCTION fvnl(d,v,k,a,cosm)
+  REAL FUNCTION fvnl(d,v,k,a,cosm)
 
     ! Function used for ODE solver in non-linear growth calculation
     IMPLICIT NONE
-    REAL :: fvnl
-    REAL, INTENT(IN) :: d, v, k, a
+    REAL, INTENT(IN) :: d
+    REAL, INTENT(IN) :: v
+    REAL, INTENT(IN) :: k
+    REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: f1, f2, f3
     REAL :: crap
@@ -4807,8 +4829,8 @@ CONTAINS
 
     ! calculate matter density, vacuum density at desired redshift
 
-    om_mz=omega_m(a,cosm) 
-    om_vz=omega_v(a,cosm)
+    om_mz=Omega_m(a,cosm) 
+    om_vz=Omega_v(a,cosm)
 
     ! calculate nonlinear wavenumber (rknl), effective spectral index (rneff) and 
     ! curvature (rncur) of the power spectrum at the desired redshift, using method 
