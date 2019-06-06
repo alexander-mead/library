@@ -11,7 +11,7 @@ MODULE constants
   REAL, PARAMETER :: one=1.           ! one
   REAL, PARAMETER :: degrees=360.     ! Degrees in a circle
 
-  ! Mathematical derived  
+  ! Mathematical derived constants
   REAL, PARAMETER :: twopi=2.*pi           ! 2pi or tau ~6.283
   REAL, PARAMETER :: rad2deg=degrees/twopi ! radians-to-degrees conversion
   REAL, PARAMETER :: deg2rad=1./rad2deg    ! degress-to-radians conversion
@@ -45,9 +45,6 @@ MODULE constants
   REAL, PARAMETER :: H0_cos=100.                    ! Hubble parameter [km s^-1 (Mpc/h)^-1]  
   REAL, PARAMETER :: Msun=1.98847e30                ! Solar mass [kg] (https://en.wikipedia.org/wiki/Solar_mass)
   REAL, PARAMETER :: Jansky=1e-26                   ! [W m^-2 Hz^-1 / Jy]
-  !REAL, PARAMETER :: H0=3.243e-18                   ! Hubble parameter, H0 [s^-1]
-  !REAL, PARAMETER :: Mpc=3.086e22                   ! Mpc [m]  
-  !REAL, PARAMETER :: SI_to_Jansky=1e26              ! [W m^-2 Hz^-1 / Jy]
 
   ! Derived astronomy constants
   REAL, PARAMETER :: pc=60.*60.*180*au/pi                           ! Parsec [m] ~3.086e16
@@ -64,10 +61,7 @@ MODULE constants
   REAL, PARAMETER :: Dv0=18.*pi**2                                  ! Einsten-de Sitter virialised collapse threshold ~178
 
    ! TODO: Relate these to fundamental constants
-  REAL, PARAMETER :: neutrino_constant=94.1         ! Critical mass for neutrino density to close Universe [eV] (or is it 93.03 eV, or 93.14 eV; https://arxiv.org/pdf/1812.02102.pdf)
-  !REAL, PARAMETER :: neff_contribution=0.227        ! Contribution to Omega_r per n_eff (7/8)*(4/11)**(4/3)
-  !REAL, PARAMETER :: critical_density=2.7755e11     ! Universal critical density at (equal to 3*H0^2 / 8piG) [(M_sun/h)/(Mpc/h)^3]
-  !REAL, PARAMETER :: Htime=9.7776                   ! Hubble time (1/H0) [Gyrs/h]
+  REAL, PARAMETER :: neutrino_constant=94.1         ! Critical mass for neutrino density to close Universe [eV] (or is it 93.03 eV, or 93.14 eV?; https://arxiv.org/pdf/1812.02102.pdf)
 
   !!
   
