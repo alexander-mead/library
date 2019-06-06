@@ -311,6 +311,7 @@ CONTAINS
   REAL FUNCTION Si(x)
 
     ! Returns the 'sine integral' function: Si(x)=int_0^x sin(t)/t dt
+    IMPLICIT NONE
     REAL, INTENT(IN) :: x
     DOUBLE PRECISION :: x2, y, f, g, si8
     REAL, PARAMETER :: x0=4. ! Transition between two different approximations
@@ -365,6 +366,7 @@ CONTAINS
   REAL FUNCTION Ci(x)
 
     ! Returns the 'cosine integral' function Ci(x): -int_x^inf cos(t)/t dt
+    IMPLICIT NONE
     REAL, INTENT(IN) :: x
     DOUBLE PRECISION :: x2, y, f, g, ci8
     REAL, PARAMETER :: x0=4. ! Transition between two different approximations
@@ -447,7 +449,9 @@ CONTAINS
 
     ! Returns the integral-normalised Gaussian
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x, mu, sigma
+    REAL, INTENT(IN) :: x     ! [-inf:inf]
+    REAL, INTENT(IN) :: mu    ! Mean value
+    REAL, INTENT(IN) :: sigma ! Root-variance
     REAL :: f1, f2
 
     f1=exp(-((x-mu)**2)/(2.*sigma**2))
@@ -459,12 +463,15 @@ CONTAINS
 
   REAL FUNCTION lognormal(x,mean_x,sigma_lnx)
 
-    ! Returns integral-normalised lognormal [x: 0->inf], function of x
-    ! mean_x: <x>
-    ! log_sigma is sigma for ln(x)
+    ! Returns integral-normalised lognormal distribution
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x, mean_x, sigma_lnx
+    REAL, INTENT(IN) :: x         ! x [0,inf]
+    REAL, INTENT(IN) :: mean_x    ! Mean value of x
+    REAL, INTENT(IN) :: sigma_lnx ! Sigma for the value of ln(x) !IMPORTANT!
     REAL :: mu, sigma
+
+    IF(mean_x<=0.)   STOP 'LOGNORMAL: Error, mean_x cannot be less than or equal to zero'
+    IF(sigma_lnx<0.) STOP 'LOGNORMAL: Error, sigma_lnx cannot be less than zero'
 
     sigma=sigma_lnx
     mu=log(mean_x)-0.5*sigma**2
@@ -477,7 +484,9 @@ CONTAINS
 
     ! Returns integral-normalised one-dimensional top-hat function between x1 and x2
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x, x1, x2
+    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: x1 ! Lower limit
+    REAL, INTENT(IN) :: x2 ! Upper limit
 
     IF(x<x1 .OR. x>x2) THEN
        uniform=0.
@@ -489,11 +498,18 @@ CONTAINS
 
   REAL FUNCTION Rayleigh(x,sigma)
 
-    ! Returns integral-normalised Rayleigh distribution x[0,inf]
+    ! Returns integral-normalised Rayleigh distribution
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x, sigma
+    REAL, INTENT(IN) :: x     ! [0:inf]
+    REAL, INTENT(IN) :: sigma ! Sigma parameter (*not* root-variance for this distribution)
 
-    Rayleigh=x*exp(-(x**2)/(2.*(sigma**2)))/(sigma**2)
+    IF(sigma<=0.) STOP 'RAYLEIGH: Error, sigma cannot be less than or equal to zero'
+
+    IF(x<0.) THEN
+       STOP 'RAYLEIGH: Error, x cannot be less than zero'
+    ELSE
+       Rayleigh=x*exp(-(x**2)/(2.*(sigma**2)))/(sigma**2)
+    END IF
 
   END FUNCTION Rayleigh
 
