@@ -47,21 +47,23 @@ MODULE constants
   REAL, PARAMETER :: Jansky=1e-26                   ! [W m^-2 Hz^-1 / Jy]
 
   ! Derived astronomy constants
-  REAL, PARAMETER :: pc=60.*60.*180*au/pi                           ! Parsec [m] ~3.086e16
-  REAL, PARAMETER :: kpc=pc*1e3                                     ! kpc [m]
-  REAL, PARAMETER :: Mpc=kpc*1e3                                    ! Mpc [m]
-  REAL, PARAMETER :: Gpc=Mpc*1e3                                    ! Gpc [m]
-  REAL, PARAMETER :: H0=H0_cos*1e3/Mpc                              ! Hubble constant [s^-1] ~3.243e-18
-  REAL, PARAMETER :: bigG_cos=bigG*Msun/(1e6*Mpc)                   ! Gravitational constant [(Msun/h)^-1 (km/s)^2 (Mpc/h)]
-  REAL, PARAMETER :: critical_density=3.*H0_cos**2/(8.*pi*bigG_cos) ! Universal critical density at (equal to 3*H0^2 / 8piG) [(M_sun/h)/(Mpc/h)^3] ~2.776e11
-  REAL, PARAMETER :: Hdist=c_light/(H0_cos*1e3)                     ! Hubble distance (c/H0) [Mpc/h] ~3000
-  REAL, PARAMETER :: Htime=1./(H0*60*60*24*365.25*1e9)              ! Hubble time (1/H0) [Gyrs/h]    ~9.78
-  REAL, PARAMETER :: yfac=sigma_T/(me*c_light**2)                   ! sigma_T/m_e*c^2 [kg^-1 s^2], prefactor of Compton-y integral over *pressure*
-  REAL, PARAMETER :: dc0=(3./20.)*(12.*pi)**(2./3.)                 ! Einstein-de Sitter linear collapse density ~1.686
-  REAL, PARAMETER :: Dv0=18.*pi**2                                  ! Einsten-de Sitter virialised collapse threshold ~178
+  REAL, PARAMETER :: pc=60.*60.*180*au/pi                               ! Parsec [m] ~3.086e16
+  REAL, PARAMETER :: kpc=pc*1e3                                         ! kpc [m]
+  REAL, PARAMETER :: Mpc=kpc*1e3                                        ! Mpc [m]
+  REAL, PARAMETER :: Gpc=Mpc*1e3                                        ! Gpc [m]
+  REAL, PARAMETER :: H0=H0_cos*1e3/Mpc                                  ! Hubble constant [s^-1] ~3.243e-18
+  REAL, PARAMETER :: bigG_cos=bigG*Msun/(1e6*Mpc)                       ! Gravitational constant [(Msun/h)^-1 (km/s)^2 (Mpc/h)]
+  REAL, PARAMETER :: critical_density=3.*H0**2/(8.*pi*bigG)             ! Critical density [h^2 kg/m^3]
+  REAL, PARAMETER :: critical_density_cos=3.*H0_cos**2/(8.*pi*bigG_cos) ! Universal critical density at (equal to 3*H0^2 / 8piG) [(M_sun/h)/(Mpc/h)^3] ~2.776e11
+  REAL, PARAMETER :: Hdist=c_light/(H0_cos*1e3)                         ! Hubble distance (c/H0) [Mpc/h] ~3000
+  REAL, PARAMETER :: Htime=1./(H0*60.*60.*24.*365.25*1e9)               ! Hubble time (1/H0) [Gyrs/h]    ~9.78
+  REAL, PARAMETER :: yfac=sigma_T/(me*c_light**2)                       ! sigma_T/m_e*c^2 [kg^-1 s^2], prefactor of Compton-y integral over *pressure*
+  REAL, PARAMETER :: dc0=(3./20.)*(12.*pi)**(2./3.)                     ! Einstein-de Sitter linear collapse density ~1.686
+  REAL, PARAMETER :: Dv0=18.*pi**2                                      ! Einsten-de Sitter virialised collapse threshold ~178
 
    ! TODO: Relate these to fundamental constants
   REAL, PARAMETER :: neutrino_constant=94.1         ! Critical mass for neutrino density to close Universe [eV] (or is it 93.03 eV, or 93.14 eV?; https://arxiv.org/pdf/1812.02102.pdf)
+  REAL, PARAMETER :: neff_constant=(7./8.)*(4./11.)**(4./3.)
 
   !!
   
