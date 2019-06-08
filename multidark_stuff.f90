@@ -31,7 +31,7 @@ CONTAINS
     INTEGER, PARAMETER :: hash_lines=58 ! Number of lines beginning with # (Both Multidark and Bolshoi have 58)
     !REAL, PARAMETER :: mmin=1.74e12     ! Minimum halo mass [Msun/h] (corresponds to N>200 for MDR1; 1e12 would mean n~115)
     !INTEGER, PARAMETER :: columns=73       ! Total number of columns in file
-    INTEGER, PARAMETER :: columns=41       ! Total number of columns to read from file
+    INTEGER, PARAMETER :: columns=41       ! Total number of columns to read from file (weird errors if this is set to 73)
     INTEGER, PARAMETER :: column_pid=6     ! Column for PID (-1 if unique halo)
     INTEGER, PARAMETER :: column_mv=11     ! Column for virial mass (unbinding done) [Msun/h]
     INTEGER, PARAMETER :: column_x=18      ! Column for x position [Mpc/h]
