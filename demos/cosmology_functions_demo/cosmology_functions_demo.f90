@@ -85,6 +85,7 @@ PROGRAM cosmology_functions_demo
         WRITE(15,*) a, dc_NakamuraSuto(a,cosm), dc_Mead(a,cosm), dc_spherical(a,cosm)
         WRITE(16,*) a, Dv_BryanNorman(a,cosm), Dv_Mead(a,cosm), Dv_spherical(a,cosm)
         WRITE(17,*) a, cosmic_time(a,cosm), look_back_time(a,cosm)
+        !WRITE(*,*) i, a, (Omega_c(a,cosm)+Omega_b(a,cosm)+Omega_nu(a,cosm))/Omega_m(a,cosm), (Omega_nu(a,cosm)+Omega_g(a,cosm))/Omega_r(a,cosm)
      END DO
      CLOSE(10)
      CLOSE(11)
