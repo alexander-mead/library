@@ -718,7 +718,7 @@ CONTAINS
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: Xs, f1, f2
-    REAL :: rho_g, Om_g_h2, rho_crit, Om_nu_rad, f_nu_rad
+    REAL :: rho_g, Om_g_h2, rho_crit, f_nu_rad
     INTEGER :: i
     REAL, PARAMETER :: small=1e-5 ! Some small number for writing curvature things
 
@@ -741,14 +741,14 @@ CONTAINS
     rho_crit=3.*H0**2/(8.*pi*bigG) ! Critical density [h^2 kg/m^3] TODO: Constants?
     Om_g_h2=rho_g/rho_crit ! Photon cosmological density [h^2]
     cosm%Om_g=Om_g_h2/cosm%h**2 ! Photon density parameter
-    Om_nu_rad=cosm%Om_g*neff_constant*cosm%neff ! Relativisitic neutrino density
+    cosm%Om_nu_rad=cosm%Om_g*neff_constant*cosm%neff ! Relativisitic neutrino density
     cosm%Om_r=cosm%Om_g+cosm%Om_nu_rad ! Radiation is sum of photon and neutrino densities
-    f_nu_rad=Om_nu_rad/cosm%Om_r ! Fraction of radiation that is in neutrinos (~0.40)
+    f_nu_rad=cosm%Om_nu_rad/cosm%Om_r ! Fraction of radiation that is in neutrinos (~0.40)
 
     ! Information about how radiation density is calculated
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_g:', cosm%Om_g
-       WRITE(*,*) 'INIT_COSMOLOGY: Omega_nu (radiation):', Om_nu_rad
+       WRITE(*,*) 'INIT_COSMOLOGY: Omega_nu (radiation):', cosm%Om_nu_rad
        WRITE(*,*) 'INIT_COSMOLOGY: Omega_r:', cosm%Om_r
        WRITE(*,*) 'INIT_COSMOLOGY: f_nu (radiation):', f_nu_rad          
     END IF
@@ -771,7 +771,7 @@ CONTAINS
     cosm%f_nu=cosm%Om_nu/cosm%Om_m
     IF(cosm%m_nu .NE. 0.) THEN
        !cosm%a_nu=1./(1900.*cosm%m_nu)
-       cosm%a_nu=Om_nu_rad/cosm%Om_nu
+       cosm%a_nu=cosm%Om_nu_rad/cosm%Om_nu
     ELSE
        cosm%a_nu=1.
     END IF
@@ -1303,7 +1303,7 @@ CONTAINS
          cosm%Om_c*X_c(a)+&
          cosm%Om_b*X_b(a)+&
          cosm%Om_g*X_r(a)+&
-         cosm%Om_nu*X_nu(a,cosm)+&
+         Omega_nu_0(a,cosm)*X_nu(a,cosm)+&
          cosm%Om_v_mod*X_v(a)+&
          cosm%Om_w*X_de(a,cosm)+&
          (1.-cosm%Om)*a**(-2)
@@ -1337,7 +1337,7 @@ CONTAINS
          cosm%Om_c*(1.+3*w_c)*X_c(a)+&
          cosm%Om_b*(1.+3*w_b)*X_b(a)+&
          cosm%Om_g*(1.+3*w_g)*X_g(a)+&
-         cosm%Om_nu*(1.+3*w_nu(a,cosm))*X_nu(a,cosm)+&
+         Omega_nu_0(a,cosm)*(1.+3*w_nu(a,cosm))*X_nu(a,cosm)+&
          cosm%Om_v*(1.+3*w_v)*X_v(a)+&
          cosm%Om_w*(1.+3.*w_de(a,cosm))*X_de(a,cosm)
     AH=-AH/2.
@@ -1474,9 +1474,23 @@ CONTAINS
 !!$       Omega_nu=cosm%Om_nu*X_nu(a,cosm)/Hubble2(a,cosm)
 !!$    END IF
 
-    Omega_nu=cosm%Om_nu*X_nu(a,cosm)/Hubble2(a,cosm)
+    Omega_nu=Omega_nu_0(a,cosm)*X_nu(a,cosm)/Hubble2(a,cosm)
 
   END FUNCTION Omega_nu
+
+  REAL FUNCTION Omega_nu_0(a,cosm)
+
+    IMPLICIT NONE
+    REAL, INTENT(IN) :: a
+    TYPE(cosmology), INTENT(IN) :: cosm
+
+    IF(a>cosm%a_nu) THEN
+       Omega_nu_0=cosm%Om_nu
+    ELSE
+       Omega_nu_0=cosm%Om_nu_rad
+    END IF
+    
+  END FUNCTION Omega_nu_0
 
 !!$  REAL FUNCTION Omega_nu(a,cosm)
 !!$
@@ -1602,10 +1616,10 @@ CONTAINS
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    IF(a<cosm%a_nu) THEN
-       w_nu=1./3.
-    ELSE
+    IF(a>cosm%a_nu) THEN
        w_nu=0.
+    ELSE
+       w_nu=1./3.
     END IF
 
   END FUNCTION w_nu
@@ -1767,10 +1781,10 @@ CONTAINS
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    IF(a<cosm%a_nu) THEN
-       X_nu=a**(-4)
-    ELSE
+    IF(a>cosm%a_nu) THEN
        X_nu=a**(-3)
+    ELSE
+       X_nu=a**(-4)
     END IF
 
   END FUNCTION X_nu
@@ -3284,6 +3298,8 @@ CONTAINS
     ! TODO: Change to account for massive neutrinos: g(a)=a^(1-3*f_nu/5)
     ainit=dmin_spherical
     vinit=1.*(dmin_spherical/ainit) ! vinit=1 is EdS growing mode solution
+    ainit=dmin_spherical**(1./(1.-3.*cosm%f_nu/5.))
+    vinit=(1.-3.*cosm%f_nu/5.)*ainit**(-3.*cosm%f_nu/5.)
 
     ! Now loop over all initial density fluctuations
     DO j=1,m
