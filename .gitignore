@@ -8,4 +8,4 @@ old
 meadlib
 python/__pycache__
 *.pyc
-demos/**/*.dat
+*.dat
