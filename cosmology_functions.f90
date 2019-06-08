@@ -101,18 +101,16 @@ MODULE cosmology_functions
      REAL :: Om_m_pow, Om_b_pow, h_pow         ! Cosmological parameters used for P(k) if different from background
 
      ! Derived parameters
-     REAL :: A                       ! Power spectrum normalisation
-     REAL :: Gamma                   ! Power spectrum shape parameter for DEFW
-     REAL :: Om, k, Om_k, Om_c, Om_g ! Derived Omegas
-     REAL :: Om_v_mod, Om_r          ! Modified Omega_v to maintain flatness when adding radiation
-     REAL :: Om_nu, f_nu, a_nu, z_nu ! Neutrinos
-     REAL :: Om_nu_rad, omega_nu     ! Neutrinos
-     REAL :: omega_m, omega_b, omega_c ! Physical densities
-     REAL :: Om_c_pow                  ! Cosmological parameters used for P(k) if different from background
-     REAL :: age, horizon              ! Derived distance/time
-     REAL :: mue, mup, YHe             ! Derived thermal parameters        
-     REAL :: Om_ws, as, a1n, a2n       ! Derived DE parameters
-     REAL :: gnorm                     ! Growth-factor normalisation
+     REAL :: A, Gamma, k                ! Power spectrum amplitude and shape parameter for DEFW
+     REAL :: Om, Om_k, Om_c, Om_g, Om_r ! Derived Omegas
+     REAL :: Om_nu, f_nu, a_nu, z_nu    ! Neutrinos
+     REAL :: Om_nu_rad, omega_nu        ! Neutrinos
+     REAL :: omega_m, omega_b, omega_c  ! Physical densities
+     REAL :: Om_c_pow                   ! Cosmological parameters used for P(k) if different from background
+     REAL :: age, horizon               ! Derived distance/time
+     REAL :: mue, mup, YHe              ! Derived thermal parameters        
+     REAL :: Om_ws, as, a1n, a2n        ! Derived DE parameters
+     REAL :: gnorm                      ! Growth-factor normalisation
 
      ! Box size
      REAL :: Lbox, kbox
@@ -247,6 +245,7 @@ CONTAINS
     names(38)='Random Cosmic Emu cosmology'
     names(39)='Random cosmology'
     names(40)='Random CAMB cosmology'
+    names(41)='SCDM with high neutrino mass'
     
     names(100)='Mira Titan M000'
     names(101)='Mira Titan M001'
@@ -487,7 +486,6 @@ CONTAINS
        END IF
        cosm%Om_m=1.
        cosm%Om_v=0.
-       cosm%m_nu=0.
     ELSE IF(icosmo==7) THEN
        ! IDE I
        cosm%iw=5
@@ -682,6 +680,11 @@ CONTAINS
        cosm%itk=2
        cosm%Om_v=0.
        cosm%iw=4
+    ELSE IF(icosmo==41) THEN
+       ! SCDM with high neutrino mass
+       cosm%Om_m=1.
+       cosm%Om_v=0.
+       cosm%m_nu=4.
     ELSE IF(icosmo>=100 .AND. icosmo<=137) THEN
        ! Mira Titan nodes
        CALL Mira_Titan_node_cosmology(icosmo-100,cosm)
@@ -758,13 +761,13 @@ CONTAINS
        STOP 'INIT_COSMOLOGY: Error, radiation density is too high'
     END IF
 
-    ! Correction to vacuum density in order for radiation to maintain flatness
-    cosm%Om_v_mod=cosm%Om_v-cosm%Om_r
-    If(cosm%verbose) THEN
-       WRITE(*,*) 'INIT_COSMOLOGY: Altering vacuum density to account for radiation and maintain flatness'
-       WRITE(*,*) 'INIT_COSMOLOGY: Omega_v prior to change:', cosm%Om_v
-       WRITE(*,*) 'INIT_COSMOLOGY: Omega_v post change:', cosm%Om_v_mod
-    END IF
+!!$    ! Correction to vacuum density in order for radiation to maintain flatness
+!!$    cosm%Om_v_mod=cosm%Om_v-cosm%Om_r
+!!$    If(cosm%verbose) THEN
+!!$       WRITE(*,*) 'INIT_COSMOLOGY: Altering vacuum density to account for radiation and maintain flatness'
+!!$       WRITE(*,*) 'INIT_COSMOLOGY: Omega_v prior to change:', cosm%Om_v
+!!$       WRITE(*,*) 'INIT_COSMOLOGY: Omega_v post change:', cosm%Om_v_mod
+!!$    END IF
 
     ! Massive neutrinos
     cosm%Om_nu=cosm%m_nu/(neutrino_constant*cosm%h**2)
@@ -784,7 +787,7 @@ CONTAINS
     END IF
 
     ! Check neutrino mass fraction is not too high
-    IF(cosm%f_nu>0.05) STOP 'INIT_COSMOLOGY: Error, neutrino mass fraction is too high'
+    IF(cosm%f_nu>0.5) STOP 'INIT_COSMOLOGY: Error, neutrino mass fraction is too high'
     IF((cosm%m_nu .NE. 0.) .AND. cosm%a_nu>0.1) STOP 'INIT_COSMOLOGY: Error, neutrinos are too light'
 
     ! Decide on scale-dependent growth
@@ -796,11 +799,12 @@ CONTAINS
     END IF
 
     ! Check that we are able to cope with scale-dependent growth
-    IF(cosm%growk .AND. (cosm%itk .NE. 2)) STOP 'INIT_COSMOLOGY: Error, scale-dependent growth requires CAMB for linear spectra'
+    !IF(cosm%growk .AND. (cosm%itk .NE. 2)) STOP 'INIT_COSMOLOGY: Error, scale-dependent growth requires CAMB for linear spectra'
 
     ! Derived cosmological parameters    
     cosm%Om_c=cosm%Om_m-cosm%Om_b-cosm%Om_nu ! Omega_m defined to include CDM, baryons and massive neutrinos
-    cosm%Om=cosm%Om_m+cosm%Om_v_mod+cosm%Om_r+cosm%Om_w
+    !cosm%Om=cosm%Om_m+cosm%Om_v_mod+cosm%Om_r+cosm%Om_w
+    cosm%Om=cosm%Om_m+cosm%Om_v+cosm%Om_w ! Ignore radiation here
     cosm%Om_k=1.-cosm%Om
     cosm%k=(cosm%Om-1.)/(Hdist**2)
     IF(cosm%verbose) THEN
@@ -989,7 +993,7 @@ CONTAINS
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_c:', cosm%Om_c
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_nu:', cosm%Om_nu
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'f_nu:', cosm%f_nu
-       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v'':', cosm%Om_v_mod
+!!$       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v'':', cosm%Om_v_mod
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_k:', cosm%Om_k
        WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [Mpc/h]^-2:', cosm%k
        IF(abs(cosm%k)>small) THEN
@@ -1304,7 +1308,7 @@ CONTAINS
          cosm%Om_b*X_b(a)+&
          cosm%Om_g*X_r(a)+&
          Omega_nu_0(a,cosm)*X_nu(a,cosm)+&
-         cosm%Om_v_mod*X_v(a)+&
+         cosm%Om_v*X_v(a)+&
          cosm%Om_w*X_de(a,cosm)+&
          (1.-cosm%Om)*a**(-2)
 
@@ -1513,7 +1517,8 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     !Omega_v=cosm%Om_v_mod/Hubble2(a,cosm)
-    Omega_v=cosm%Om_v_mod*X_v(a)/Hubble2(a,cosm)
+    !Omega_v=cosm%Om_v_mod*X_v(a)/Hubble2(a,cosm)
+    Omega_v=cosm%Om_v*X_v(a)/Hubble2(a,cosm)
 
   END FUNCTION Omega_v
 
@@ -1696,7 +1701,7 @@ CONTAINS
     REAL, INTENT(IN) :: a
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    IF(cosm%Om_v_mod==0. .AND. cosm%Om_w==0.) THEN
+    IF(cosm%Om_v==0. .AND. cosm%Om_w==0.) THEN
        w_de_total=-1.
     ELSE
        w_de_total=w_de(a,cosm)*Omega_w(a,cosm)-Omega_v(a,cosm)
@@ -2908,8 +2913,8 @@ CONTAINS
     !Om_mz=Omega_m_norad(a,cosm)
     Om_mz=Omega_cold_norad(a,cosm)
     Om_vz=Omega_v(a,cosm)+Omega_w(a,cosm)
-    Om_m=cosm%Om_m
-    Om_v=cosm%Om_v_mod+cosm%Om_w
+    Om_m=cosm%Om_b+cosm%Om_c
+    Om_v=cosm%Om_v+cosm%Om_w
 
     ! Now call CPT twice, second time to normalise it
     grow_CPT=CPT(a,Om_mz,Om_vz)/CPT(1.,Om_m,Om_v)
@@ -3140,7 +3145,7 @@ CONTAINS
     Om_mz=Omega_cold_norad(a,cosm)
     x=Om_mz-1.
 
-    IF(cosm%Om_v_mod==0. .AND. cosm%Om_w==0.) THEN
+    IF(cosm%Om_v==0. .AND. cosm%Om_w==0.) THEN
        ! Open model results
        Dv_BryanNorman=Dv0+60.*x-32.*x**2
        Dv_BryanNorman=Dv_BryanNorman/Om_mz
@@ -3296,10 +3301,10 @@ CONTAINS
     ! BCs for integration. Note ainit=dinit means that collapse should occur around a=1 for dmin
     ! amax should be slightly greater than 1 to ensure at least a few points for a>0.9 (i.e not to miss out a=1)
     ! TODO: Change to account for massive neutrinos: g(a)=a^(1-3*f_nu/5)
-    ainit=dmin_spherical
-    vinit=1.*(dmin_spherical/ainit) ! vinit=1 is EdS growing mode solution
+    !ainit=dmin_spherical
+    !vinit=1.*(dmin_spherical/ainit) ! vinit=1 is EdS growing mode solution
     ainit=dmin_spherical**(1./(1.-3.*cosm%f_nu/5.))
-    vinit=(1.-3.*cosm%f_nu/5.)*ainit**(-3.*cosm%f_nu/5.)
+    vinit=(1.-3.*cosm%f_nu/5.)*ainit**(-3.*cosm%f_nu/5.) ! vinit=1 is EdS growing mode solution
 
     ! Now loop over all initial density fluctuations
     DO j=1,m
