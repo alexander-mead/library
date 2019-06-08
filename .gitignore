@@ -1,6 +1,5 @@
-BACKUP
-OLD
-MERGE
+backup
+old
 *.mod
 *.o
 *.e
@@ -9,3 +8,4 @@ MERGE
 meadlib
 python/__pycache__
 *.pyc
+*.dat
