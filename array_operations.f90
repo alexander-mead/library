@@ -20,7 +20,7 @@ MODULE array_operations
 
   PUBLIC :: within_array
   PUBLIC :: swap_arrays
-  PUBLIC :: add_to_array  
+  PUBLIC :: append
   PUBLIC :: splay
   PUBLIC :: write_array_list
   PUBLIC :: maximum
@@ -103,6 +103,27 @@ CONTAINS
     END DO
     
   END SUBROUTINE swap_arrays
+
+  SUBROUTINE append(a,n,b)
+
+   ! Append b to array a(n) to make a new array a(n+1)
+   IMPLICIT NONE
+   INTEGER, ALLOCATABLE, INTENT(INOUT) :: a(:)
+   INTEGER, INTENT(IN) :: n
+   INTEGER, INTENT(IN) :: b
+   INTEGER :: hold(n)
+   INTEGER :: i
+
+   hold=a
+   DEALLOCATE(a)
+   ALLOCATE(a(n+1))
+
+   DO i=1,n
+      a(i)=hold(i)
+   END DO
+   a(n+1)=b
+
+ END SUBROUTINE append
 
   SUBROUTINE add_to_array_2D(a,m,v,i)
 
@@ -816,27 +837,6 @@ CONTAINS
     WRITE(*,*)
 
   END SUBROUTINE mask
-
-  SUBROUTINE add_to_array(a,n,b)
-
-    ! Append b to array a(n) to make a new array a(n+1)
-    IMPLICIT NONE
-    INTEGER, ALLOCATABLE, INTENT(INOUT) :: a(:)
-    INTEGER, INTENT(IN) :: n
-    INTEGER, INTENT(IN) :: b
-    INTEGER :: hold(n)
-    INTEGER :: i
-
-    hold=a
-    DEALLOCATE(a)
-    ALLOCATE(a(n+1))
-
-    DO i=1,n
-       a(i)=hold(i)
-    END DO
-    a(n+1)=b
-
-  END SUBROUTINE add_to_array
 
   INTEGER FUNCTION unique_entries(a,n)
 
