@@ -4273,7 +4273,7 @@ CONTAINS
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    Omega_stars=rhobar(hmod%nu(1),hmod%large_nu,rhobar_star_integrand,hmod,cosm)
+    Omega_stars=rhobar_tracer(hmod%nu(1),hmod%large_nu,rhobar_star_integrand,hmod,cosm)
     Omega_stars=Omega_stars/comoving_critical_density(hmod%a,cosm)
 
   END FUNCTION Omega_stars
@@ -4288,8 +4288,8 @@ CONTAINS
 
     nu_min=nu_M(hmod%mhalo_min,hmod,cosm)
     nu_max=nu_M(hmod%mhalo_max,hmod,cosm)
-    hmod%n_c=rhobar(nu_min,nu_max,rhobar_central_integrand,hmod,cosm)
-    hmod%n_s=rhobar(nu_min,nu_max,rhobar_satellite_integrand,hmod,cosm)
+    hmod%n_c=rhobar_tracer(nu_min,nu_max,rhobar_central_integrand,hmod,cosm)
+    hmod%n_s=rhobar_tracer(nu_min,nu_max,rhobar_satellite_integrand,hmod,cosm)
     hmod%n_g=hmod%n_c+hmod%n_s
     IF(verbose_galaxies) THEN
        WRITE(*,*) 'INIT_GALAXIES: Comoving density of central galaxies [(Mpc/h)^-3]:', REAL(hmod%n_c)
@@ -4312,7 +4312,7 @@ CONTAINS
 
     nu_min=hmod%nu(1)
     nu_max=hmod%nu(hmod%n)
-    hmod%rho_HI=rhobar(nu_min,hmod%large_nu,rhobar_HI_integrand,hmod,cosm)
+    hmod%rho_HI=rhobar_tracer(nu_min,hmod%large_nu,rhobar_HI_integrand,hmod,cosm)
     IF(verbose_HI) THEN
        WRITE(*,*) 'INIT_HI: z:', hmod%z
        WRITE(*,*) 'INIT_HI: HI density [log10(rho/(Msun/h)/(Mpc/h)^3)]:', REAL(log10(hmod%rho_HI))
@@ -4425,7 +4425,7 @@ CONTAINS
 
   END FUNCTION rhobar_HI_integrand
 
-  REAL FUNCTION rhobar(nu_min,nu_max,integrand,hmod,cosm)
+  REAL FUNCTION rhobar_tracer(nu_min,nu_max,integrand,hmod,cosm)
 
     ! Calculate the mean density of a tracer
     ! Integrand here is a function of mass, i.e. I(M); R = rho * Int I(M)dM
@@ -4445,9 +4445,9 @@ CONTAINS
        END FUNCTION integrand
     END INTERFACE
 
-    rhobar=comoving_matter_density(cosm)*integrate_hmod_cosm_exp(log(nu_min),log(nu_max),integrand,hmod,cosm,hmod%acc_HMx,3)
+    rhobar_tracer=comoving_matter_density(cosm)*integrate_hmod_cosm_exp(log(nu_min),log(nu_max),integrand,hmod,cosm,hmod%acc_HMx,3)
 
-  END FUNCTION rhobar
+  END FUNCTION rhobar_tracer
 
   FUNCTION one_halo_amplitude(hmod,cosm)
 

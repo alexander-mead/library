@@ -175,7 +175,8 @@ CONTAINS
     
     OPEN(7,file=infile)
     DO i=1,n
-       READ(7,*) x(1,i), x(2,i), x(3,i), v(1,i), v(2,i), v(3,i), m(i), npart(i), disp(i), c(i), env(i), Dv(i), rmax(i), avg_r(i), rms_r(i)
+       READ(7,*) x(1,i), x(2,i), x(3,i), v(1,i), v(2,i), v(3,i), &
+       m(i), npart(i), disp(i), c(i), env(i), Dv(i), rmax(i), avg_r(i), rms_r(i)
     END DO
     CLOSE(7)
 
@@ -204,7 +205,8 @@ CONTAINS
 
     OPEN(7,file=outfile)
     DO i=1,n
-       WRITE(7,*) x(1,i), x(2,i), x(3,i), v(1,i), v(2,i), v(3,i), m(i), npart(i), disp(i), c(i), env(i), Dv(i), rmax(i), avg_r(i), rms_r(i)
+       WRITE(7,*) x(1,i), x(2,i), x(3,i), v(1,i), v(2,i), v(3,i), &
+       m(i), npart(i), disp(i), c(i), env(i), Dv(i), rmax(i), avg_r(i), rms_r(i)
     END DO
     CLOSE(7)
 
