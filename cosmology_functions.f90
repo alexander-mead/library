@@ -788,7 +788,7 @@ CONTAINS
 
     ! Check neutrino mass fraction is not too high
     IF(cosm%f_nu>0.5) STOP 'INIT_COSMOLOGY: Error, neutrino mass fraction is too high'
-    IF((cosm%m_nu .NE. 0.) .AND. cosm%a_nu>0.1) STOP 'INIT_COSMOLOGY: Error, neutrinos are too light'
+    IF((cosm%m_nu .NE. 0.) .AND. cosm%a_nu>0.2) STOP 'INIT_COSMOLOGY: Error, neutrinos are too light'
 
     ! Decide on scale-dependent growth
     IF(cosm%m_nu .NE. 0.) THEN
@@ -2502,12 +2502,13 @@ CONTAINS
     ELSE
        IF(cosm%has_power) THEN
           ! TODO: Do something cleverer here. Could use the ln(k)^2 behaviour at high k, could just truncate
-          IF(cosm%growk) THEN
-             p_lin=exp(find(log(k),cosm%log_k_plin,log(a),cosm%log_a_plin,cosm%log_plina,cosm%n_plin_k,cosm%n_plin_a,&
-            iorder,ifind,imeth))
-          ELSE
-             p_lin=exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,iorder,ifind,imeth))
-          END IF
+!!$          IF(cosm%growk) THEN
+!!$             p_lin=exp(find(log(k),cosm%log_k_plin,log(a),cosm%log_a_plin,cosm%log_plina,cosm%n_plin_k,cosm%n_plin_a,&
+!!$            iorder,ifind,imeth))
+!!$          ELSE
+!!$             p_lin=exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,iorder,ifind,imeth))
+!!$          END IF
+          p_lin=exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,iorder,ifind,imeth))
        ELSE
           ! In this case get the power from the transfer function
           p_lin=(cosm%A**2)*(Tk(k,cosm)**2)*(k**(cosm%n+3.))
@@ -2661,12 +2662,13 @@ CONTAINS
     
     IF(cosm%has_sigma .EQV. .FALSE.) CALL init_sigma(cosm)
 
-    IF(cosm%growk) THEN
-       sigma=exp(find(log(R),cosm%log_r_sigma,log(a),cosm%log_a_sigma,cosm%log_sigmaa,cosm%n_sigma_r,cosm%n_sigma_a,&
-            iorder,ifind,imeth))
-    ELSE
-       sigma=grow(a,cosm)*exp(find(log(R),cosm%log_r_sigma,cosm%log_sigma,cosm%n_sigma,iorder,ifind,imeth))
-    END IF
+!!$    IF(cosm%growk) THEN
+!!$       sigma=exp(find(log(R),cosm%log_r_sigma,log(a),cosm%log_a_sigma,cosm%log_sigmaa,cosm%n_sigma_r,cosm%n_sigma_a,&
+!!$            iorder,ifind,imeth))
+!!$    ELSE
+!!$       sigma=grow(a,cosm)*exp(find(log(R),cosm%log_r_sigma,cosm%log_sigma,cosm%n_sigma,iorder,ifind,imeth))
+!!$    END IF
+    sigma=grow(a,cosm)*exp(find(log(R),cosm%log_r_sigma,cosm%log_sigma,cosm%n_sigma,iorder,ifind,imeth))
 
   END FUNCTION sigma
 
@@ -4128,15 +4130,17 @@ CONTAINS
     !WRITE(7,*) 'massless_neutrinos = ', cosm%neff-real(cosm%N_massive_nu)   
     WRITE(7,*) 'share_delta_neff = T'   
     IF(omnuh2==0.) THEN
+       ! Massless neutrinos
        WRITE(7,*) 'massless_neutrinos = ', cosm%neff
        WRITE(7,*) 'nu_mass_eigenstates = 0'
        WRITE(7,*) 'massive_neutrinos = 0'
     ELSE
+       ! Three equal-mass neutrinos
        WRITE(7,*) 'massless_neutrinos = ', cosm%neff-3.
        WRITE(7,*) 'nu_mass_eigenstates = 1'
        WRITE(7,*) 'massive_neutrinos = 3'
        !WRITE(7,*) 'nu_mass_fractions = ', (cosm%m_nu(j)/cosm%M_nu_total, j=1,3)
-       WRITE(7,*) 'nu_mass_fractions = 0.3333 0.3333 0.3334'
+       WRITE(7,*) 'nu_mass_fractions = 1'
        !WRITE(7,*) 'nu_mass_degeneracies ='
     END IF
 
