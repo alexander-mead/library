@@ -1010,11 +1010,10 @@ CONTAINS
 
   END SUBROUTINE fill_nz_table
 
-  FUNCTION nz(z,ix)
+  REAL FUNCTION nz(z,ix)
 
     ! Analytical n(z) for different surveys
     IMPLICIT NONE
-    REAL :: nz
     REAL, INTENT(IN) :: z
     INTEGER, INTENT(IN) :: ix
     REAL :: a, b, c, d, e, f, g, h, i
@@ -1159,7 +1158,7 @@ CONTAINS
     REAL, INTENT(IN) :: r, z
     TYPE(cosmology), INTENT(INOUT) :: cosm
     TYPE(projection), INTENT(IN) :: proj
-    REAL :: rdash, nz, a
+    REAL :: rdash, nzz, a
 
     a=scale_factor_z(z)
 
@@ -1169,9 +1168,9 @@ CONTAINS
        ! Find the r'(z) variable that is integrated over     
        rdash=comoving_distance(a,cosm)
        ! Find the n(z)
-       nz=find(z,proj%z_nz,proj%nz,proj%nnz,3,3,2)
+       nzz=find(z,proj%z_nz,proj%nz,proj%nnz,3,3,2)
        ! This is then the integrand
-       q_integrand=nz*f_k(rdash-r,cosm)/f_k(rdash,cosm)
+       q_integrand=nzz*f_k(rdash-r,cosm)/f_k(rdash,cosm)
     END IF
 
   END FUNCTION q_integrand
