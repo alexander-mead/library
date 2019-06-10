@@ -184,7 +184,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: mean_x    ! Mean of the distribution
     REAL, INTENT(IN) :: sigma_lnx ! Root-variance of natural log of the distribution
-    REAL :: mu, sigma, G(2)
+    REAL :: mu, sigma
 
     sigma=sigma_lnx
     mu=log(mean_x)-0.5*sigma**2
