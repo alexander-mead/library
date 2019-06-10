@@ -21,6 +21,7 @@ MODULE array_operations
   PUBLIC :: within_array
   PUBLIC :: swap_arrays
   PUBLIC :: append
+  PUBLIC :: add_to_array
   PUBLIC :: splay
   PUBLIC :: write_array_list
   PUBLIC :: maximum
