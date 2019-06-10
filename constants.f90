@@ -47,8 +47,8 @@ MODULE constants
   REAL, PARAMETER :: Jansky=1e-26                   ! [W m^-2 Hz^-1 / Jy]
 
   ! Derived astronomy constants
-  REAL, PARAMETER :: pc=60.*60.*180*au/pi                               ! Parsec [m] ~3.086e16
-  REAL, PARAMETER :: kpc=pc*1e3                                         ! kpc [m]
+  REAL, PARAMETER :: parsec=60.*60.*180*au/pi                           ! Parsec [m] ~3.086e16
+  REAL, PARAMETER :: kpc=parsec*1e3                                     ! kpc [m]
   REAL, PARAMETER :: Mpc=kpc*1e3                                        ! Mpc [m]
   REAL, PARAMETER :: Gpc=Mpc*1e3                                        ! Gpc [m]
   REAL, PARAMETER :: H0=H0_cos*1e3/Mpc                                  ! Hubble constant [s^-1] ~3.243e-18
