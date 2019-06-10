@@ -722,7 +722,6 @@ CONTAINS
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: Xs, f1, f2
     REAL :: rho_g, Om_g_h2, rho_crit, f_nu_rad
-    INTEGER :: i
     REAL, PARAMETER :: small=1e-5 ! Some small number for writing curvature things
 
     ! Set all 'has/is' to false
@@ -867,7 +866,10 @@ CONTAINS
     ! Dark energy models
     IF(cosm%iw==5) THEN
        !Om_w=Om_w*(Om_m*astar**(-3)+Om_v)/(X(astar)*(1.-Om_w))
-       cosm%Om_w=cosm%Om_ws*(Hubble2(cosm%a,cosm)-cosm%Om_ws*X_de(cosm%as,cosm)+cosm%Om_ws*cosm%as**(-2))/(X_de(cosm%as,cosm)*(1.-cosm%Om_ws)+cosm%Om_ws*cosm%as**(-2))
+      f1=cosm%Om_ws*X_de(cosm%as,cosm)+cosm%Om_ws*cosm%as**(-2)
+      f2=X_de(cosm%as,cosm)*(1.-cosm%Om_ws)+cosm%Om_ws*cosm%as**(-2)
+       cosm%Om_w=cosm%Om_ws*(Hubble2(cosm%a,cosm)-f1/f2)
+       !cosm%Om_w=cosm%Om_ws*(Hubble2(cosm%a,cosm)-cosm%Om_ws*X_de(cosm%as,cosm)+cosm%Om_ws*cosm%as**(-2))/(X_de(cosm%as,cosm)*(1.-cosm%Om_ws)+cosm%Om_ws*cosm%as**(-2))
     ELSE IF(cosm%iw==6) THEN
        ! Define a1^n
        cosm%a1n=cosm%as**cosm%ns
@@ -2282,16 +2284,16 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
     TYPE(cosmology), INTENT(IN) :: cosm
-    REAL :: keff, q, tk
+    REAL :: keff, q, tk4
     DOUBLE PRECISION :: q8, tk8
 
     keff=0.172+0.011*log(cosm%Gamma/0.36)*log(cosm%Gamma/0.36)
     q=1.e-20 + k/cosm%Gamma
     q8=1.e-20 + keff/cosm%Gamma
-    tk=1./(1.+(6.4*q+(3.0*q)**1.5+(1.7*q)**2)**1.13)**(1./1.13)
+    tk4=1./(1.+(6.4*q+(3.0*q)**1.5+(1.7*q)**2)**1.13)**(1./1.13)
     tk8=1./(1.+(6.4*q8+(3.0*q8)**1.5+(1.7*q8)**2)**1.13)**(1./1.13)
 
-    tk_defw=tk/real(tk8)
+    tk_defw=tk4/real(tk8)
 
   END FUNCTION Tk_DEFW
 
@@ -2565,7 +2567,7 @@ CONTAINS
     ! and prevents a large number of calls to the sigma integration functions
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: r, sigma
+    REAL :: r, sig
     INTEGER :: i
 
     ! These values of 'r' work fine for any power spectrum of cosmological importance
@@ -2596,11 +2598,11 @@ CONTAINS
        ! Equally spaced r in log
        r=exp(progression(log(rmin_sigma),log(rmax_sigma),i,nsig))
 
-       sigma=sigma_integral(r,a,cosm)
+       sig=sigma_integral(r,a,cosm)
 
        ! Fill look-up tables
        cosm%log_r_sigma(i)=r
-       cosm%log_sigma(i)=sigma
+       cosm%log_sigma(i)=sig
 
     END DO
 
@@ -4050,7 +4052,7 @@ CONTAINS
     LOGICAL,INTENT(IN) :: non_linear
     REAL, INTENT(IN) :: z
     REAL, ALLOCATABLE :: k(:), Pk(:)
-    INTEGER :: j, n
+    INTEGER :: n
     REAL :: Om_c, Om_b, Om_nu, h, ombh2, omch2, omnuh2
     CHARACTER(len=256), PARAMETER :: camb='camb'
     CHARACTER(len=256), PARAMETER :: dir='/Users/Mead/Physics/CAMB_files/tmp/'
