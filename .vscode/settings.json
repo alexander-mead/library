@@ -1,3 +1,5 @@
 {
-    "fortran-ls.executablePath": "/usr/local/bin/fortls"
+    "fortran-ls.executablePath": "/usr/local/bin/fortls",
+    "workbench.colorTheme": "Tomorrow Night Blue",
+    "fortran.preferredCase": "uppercase"
 }
