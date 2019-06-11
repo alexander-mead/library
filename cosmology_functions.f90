@@ -76,7 +76,8 @@ MODULE cosmology_functions
 
   ! Power and correlation
   PUBLIC :: p_lin
-  PUBLIC :: sigma
+  PUBLIC :: sigma_all
+  PUBLIC :: sigma_cold
   PUBLIC :: sigmaV
   PUBLIC :: xi_lin
 
@@ -127,7 +128,7 @@ MODULE cosmology_functions
      REAL, ALLOCATABLE :: log_p(:), log_a_p(:)         ! Arrays for distance (particle horizon)
      REAL, ALLOCATABLE :: log_t(:), log_a_t(:)         ! Arrays for time   
      REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:)  ! Arrays for spherical-collapse parameters
-     INTEGER :: n_sigma, n_growth, n_p, n_t, n_plin, n_dcDv, n_sigma_r, n_sigma_a, n_plin_k, n_plin_a ! Array entries  
+     INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, na_plin ! Array entries  
      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time ! What has been calculated   
 
      ! Have normalisations and initialisations been done?
@@ -138,54 +139,60 @@ MODULE cosmology_functions
      
   END TYPE cosmology
 
-  ! Global parameters
-  REAL, PARAMETER :: acc_cosm=1e-4 ! Global accuacy for the cosmological integrations
+! Global parameters
+REAL, PARAMETER :: acc_cosm=1e-4 ! Global accuacy for the cosmological integrations
 
-  ! sigma(R)
-  REAL, PARAMETER :: alpha_sigma=3.    ! I have made no attempt to optimise this number, nor tried alpha(R)
-  REAL, PARAMETER :: sigma_out=10.     ! How far out to go in 1/R units for sigma^2 split integral
-  INTEGER, PARAMETER :: nsig=128       ! Number of entries for sigma(R) tables
-  REAL, PARAMETER :: rmin_sigma=1e-4   ! Minimum r value (NB. sigma(R) needs to be power-law below)
-  REAL, PARAMETER :: rmax_sigma=1e3    ! Maximum r value (NB. sigma(R) needs to be power-law above)
-  REAL, PARAMETER :: Rsplit_sigma=1e-2 ! R value at which to split between the integration methods
+! Equation of state parameters
+REAL, PARAMETER :: w_c=0.    ! CDM
+REAL, PARAMETER :: w_b=0.    ! Baryons
+REAL, PARAMETER :: w_g=1./3. ! Photons
+REAL, PARAMETER :: w_v=-1.   ! Vacuum energy
 
-  ! sigma_v(R)
-  REAL, PARAMETER :: alpha_sigmaV=3.
+! Distance
+REAL, PARAMETER :: amin_distance=1e-4 ! Minimum scale factor in look-up table
+REAL, PARAMETER :: amax_distance=1.   ! Maximum scale factor in look-up table
+INTEGER, PARAMETER :: n_distance=128  ! Number of scale factor entries in look-up table
+REAL, PARAMETER :: atay_distance=1e-5 ! Below this do a Taylor expansion to avoid divergence
 
-  ! Distance
-  REAL, PARAMETER :: amin_distance=1e-4 ! Minimum scale factor in look-up table
-  REAL, PARAMETER :: amax_distance=1.   ! Maximum scale factor in look-up table
-  INTEGER, PARAMETER :: n_distance=128  ! Number of scale factor entries in look-up table
-  REAL, PARAMETER :: atay_distance=1e-5 ! Below this do a Taylor expansion to avoid divergence
+! Time
+REAL, PARAMETER :: amin_time=1e-4 ! Minimum scale factor in look-up table
+REAL, PARAMETER :: amax_time=1.   ! Maximum scale factor in look-up table
+INTEGER, PARAMETER :: n_time=128  ! Number of scale factor entries in look-up table
+REAL, PARAMETER :: atay_time=1e-5 ! Below this do a Taylor expansion to avoid divergence
 
-  ! Time
-  REAL, PARAMETER :: amin_time=1e-4 ! Minimum scale factor in look-up table
-  REAL, PARAMETER :: amax_time=1.   ! Maximum scale factor in look-up table
-  INTEGER, PARAMETER :: n_time=128  ! Number of scale factor entries in look-up table
-  REAL, PARAMETER :: atay_time=1e-5 ! Below this do a Taylor expansion to avoid divergence
+! Growth
+REAL, PARAMETER :: ainit_growth=1e-3 ! Starting value for integratiton (should start | Omega_m(a)=1)
+REAL, PARAMETER :: amax_growth=1.    ! Finishing value for integratiton (should be a=1)
+INTEGER, PARAMETER :: n_growth=128   ! Number of entries for growth tables  
 
-  ! Growth
-  REAL, PARAMETER :: ainit_growth=1e-3 ! Starting value for integratiton (should start | Omega_m(a)=1)
-  REAL, PARAMETER :: amax_growth=1.    ! Finishing value for integratiton (should be a=1)
-  INTEGER, PARAMETER :: n_growth=128   ! Number of entries for growth tables  
+! Spherical collapse
+REAL, PARAMETER :: amax_spherical=2.     ! Maximum scale factor to consider
+REAL, PARAMETER :: dmin_spherical=1e-7   ! Minimum starting value for perturbation
+REAL, PARAMETER :: dmax_spherical=1e-3   ! Maximum starting value for perturbation
+INTEGER, PARAMETER :: m_spherical=128    ! Number of collapse scale-factors to try to calculate
+INTEGER, PARAMETER :: n_spherical=100000 ! Number of points for ODE calculations
+REAL, PARAMETER :: dinf_spherical=1e8    ! Value considered to be 'infinite' for the perturbation
 
-  ! Spherical collapse
-  REAL, PARAMETER :: amax_spherical=2.     ! Maximum scale factor to consider
-  REAL, PARAMETER :: dmin_spherical=1e-7   ! Minimum starting value for perturbation
-  REAL, PARAMETER :: dmax_spherical=1e-3   ! Maximum starting value for perturbation
-  INTEGER, PARAMETER :: m_spherical=128    ! Number of collapse scale-factors to try to calculate
-  INTEGER, PARAMETER :: n_spherical=100000 ! Number of points for ODE calculations
-  REAL, PARAMETER :: dinf_spherical=1e8    ! Value considered to be 'infinite' for the perturbation
+! Power
+REAL, PARAMETER :: kmin_plin=0.  ! Power below this wavenumber is set to zero [h/Mpc]
+REAL, PARAMETER :: kmax_plin=1e8 ! Power above this wavenumber is set to zero [h/Mpc]
+REAL, PARAMETER :: amin_plin=0.1 ! Minimum a value for P(k,a) tables when linear growth is scale dependent
+REAL, PARAMETER :: amax_plin=1.0 ! Maximum a value for P(k,a) tables when linear growth is scale dependent
+INTEGER, PARAMETER :: na_plin=16 ! Number of a values for sigma(R,a) tables
 
-  ! Power
-  REAL, PARAMETER :: kmin_plin=0.  ! Power below this wavenumber is set to zero [h/Mpc]
-  REAL, PARAMETER :: kmax_plin=1e8 ! Power above this wavenumber is set to zero [h/Mpc]
+! sigma(R)
+REAL, PARAMETER :: alpha_sigma=3.    ! I have made no attempt to optimise this number, nor tried alpha(R)
+REAL, PARAMETER :: sigma_out=10.     ! How far out to go in 1/R units for sigma^2 split integral
+REAL, PARAMETER :: Rsplit_sigma=1e-2 ! R value at which to split between the integration methods
+REAL, PARAMETER :: rmin_sigma=1e-4   ! Minimum r value (NB. sigma(R) needs to be power-law below)
+REAL, PARAMETER :: rmax_sigma=1e3    ! Maximum r value (NB. sigma(R) needs to be power-law above)
+INTEGER, PARAMETER :: nr_sigma=128   ! Number of r entries for sigma(R) tables
+REAL, PARAMETER :: amin_sigma=0.1    ! Minimum a value for sigma(R,a) tables when linear growth is scale dependent
+REAL, PARAMETER :: amax_sigma=1.0    ! Maximum a value for sigma(R,a) tables when linear growth is scale dependent
+INTEGER, PARAMETER :: na_sigma=16    ! Number of a values for sigma(R,a) tables
 
-  ! Equation of state parameters
-  REAL, PARAMETER :: w_c=0.    ! CDM
-  REAL, PARAMETER :: w_b=0.    ! Baryons
-  REAL, PARAMETER :: w_g=1./3. ! Photons
-  REAL, PARAMETER :: w_v=-1.   ! Vacuum energy
+! sigma_v(R)
+REAL, PARAMETER :: alpha_sigmaV=3.
 
 CONTAINS
 
@@ -792,7 +799,7 @@ CONTAINS
     ! Decide on scale-dependent growth
     IF(cosm%m_nu .NE. 0.) THEN
        cosm%growk=.TRUE.
-       WRITE(*,*) 'INIT_COSMOLOGY: Scale-dependent growth'
+       IF(cosm%verbose) WRITE(*,*) 'INIT_COSMOLOGY: Scale-dependent growth'
     ELSE
        cosm%growk=.FALSE.
     END IF
@@ -1160,7 +1167,7 @@ CONTAINS
     REAL :: sigi, sigf, kbox
     REAL, PARAMETER :: R=8. ! Because we are doing sigma(R=8Mpc/h) normalisation
     REAL, PARAMETER :: a=1. ! Because we are doing simga(R=8Mpc/h,a=1) normalisation
-    LOGICAL, PARAMETER :: run_twice=.FALSE.
+    LOGICAL, PARAMETER :: run_twice=.FALSE. ! This is almost always a stupid thing to do
 
     ! Need to give this a value otherwise get a warning in debug mode
     kbox=0.
@@ -1182,7 +1189,7 @@ CONTAINS
        IF(cosm%verbose) WRITE(*,*) 'NORMALISE_POWER: Normalising power to get correct sigma_8'
 
        ! Calculate the initial sigma_8 value (will not be correct)
-       sigi=sigma_integral(R,a,cosm)
+       sigi=sigma_all(R,a,cosm)
 
        IF(cosm%verbose) WRITE(*,*) 'NORMALISE_POWER: Initial sigma_8:', real(sigi)
 
@@ -1191,7 +1198,7 @@ CONTAINS
        !cosm%A=391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
 
        ! Recalculate sigma8, should be correct this time
-       sigf=sigma_integral(R,a,cosm)
+       sigf=sigma_all(R,a,cosm)
 
        ! Write to screen
        IF(cosm%verbose) THEN
@@ -1212,9 +1219,7 @@ CONTAINS
        ! Run first time to get power
        cosm%A=2.1e-9
        CALL get_CAMB_power(non_linear=.FALSE.,halofit_version=5,cosm=cosm)
-       WRITE(*,*) 'Boop'
-       sigi=sigma_integral(R,a,cosm)
-       WRITE(*,*) 'Poop'
+       sigi=sigma_all(R,a,cosm)
 
        IF(cosm%verbose) THEN
           WRITE(*,*) 'NORMALISE_POWER: Normalising power to get correct sigma_8'
@@ -1229,11 +1234,15 @@ CONTAINS
           CALL get_CAMB_power(non_linear=.FALSE.,halofit_version=5,cosm=cosm)          
        ELSE
           ! Normalise using sigma8 and rescaling linear power
-          cosm%log_plin=cosm%log_plin+2.*log(cosm%sig8/sigi)
+         IF(cosm%growk) THEN
+            cosm%log_plina=cosm%log_plina+2.*log(cosm%sig8/sigi)
+         ELSE
+            cosm%log_plin=cosm%log_plin+2.*log(cosm%sig8/sigi)
+         END IF
        END IF
 
        ! Check that the normalisation has been done correctly
-       sigf=sigma_integral(R,a,cosm)
+       sigf=sigma_all(R,a,cosm)
 
        ! Write to screen
        IF(cosm%verbose) THEN
@@ -2412,64 +2421,76 @@ CONTAINS
     
   END FUNCTION Tk_WDM
 
-  REAL FUNCTION Tcb_Tcbnu_ratio(k,a,cosm)
+REAL FUNCTION Tcold_approx(cosm)
 
-    ! Calculates the ratio of T(k) for cold vs. all matter
-    ! Uses approximations in Eisenstein & Hu (1999; arXiv 9710252)
-    ! Note that this assumes that there are exactly 3 species of neutrinos with
-    ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-    REAL, INTENT(IN) :: a
-    TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
-    REAL :: BigT
-    INTEGER, PARAMETER :: N_massive_nu=3
+! Approximation for how power is suppressed by massive nu at small scales
+! Calculated assuming perturbation grow from z~1000 and that neutrinos are hot and therefore completely smooth
+! Related to the growth-function approximation: g(a) = a^(1-3f_nu/5)
+IMPLICIT NONE
+TYPE(cosmology), INTENT(INOUT) :: cosm
 
-    ! Get the redshift
-    z=redshift_a(a)
+Tcold_approx=sqrt(1.-8.*cosm%f_nu)
 
-    IF(cosm%f_nu==0.) THEN
+END FUNCTION Tcold_approx
 
-        Tcb_Tcbnu_ratio=1.
+REAL FUNCTION Tcold_ratio(k,a,cosm)
 
-    ELSE
+   ! Calculates the ratio of T(k) for cold vs. all matter
+   ! Uses approximations in Eisenstein & Hu (1999; arXiv 9710252)
+   ! Note that this assumes that there are exactly 3 species of neutrinos with
+   ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
+   IMPLICIT NONE
+   REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
+   REAL, INTENT(IN) :: a
+   TYPE(cosmology), INTENT(INOUT) :: cosm
+   REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
+   REAL :: BigT
+   INTEGER, PARAMETER :: N_massive_nu=3
 
-        ! Growth exponent under the assumption that neutrinos are completely unclustered (equation 11)
-        pcb=(5.-sqrt(1.+24.*(1.-cosm%f_nu)))/4.
+   ! Get the redshift
+   z=redshift_a(a)
 
-        ! Theta for temperature (BigT=T/2.7 K)
-        BigT=cosm%T_CMB/2.7
+   IF(cosm%f_nu==0.) THEN
 
-        ! The matter-radiation equality redshift
-        zeq=(2.5e4)*cosm%om_m*(cosm%h**2.)*(BigT**(-4.))
+      Tcold_ratio=1.
 
-        ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
-        ! For my purpose (just the ratio) seems to work better using the EdS growth function result, \propto a .
-        ! In any case, can't use grow at the moment because that is normalised by default.
-        D=(1.+zeq)/(1.+z) ! TODO: Could update this
+   ELSE
 
-        ! Wave number relative to the horizon scale at equality (equation 5)
-        ! Extra factor of h becauase all my k are in units of h/Mpc
-        q=k*cosm%h*BigT**2./(cosm%om_m*cosm%h**2.)
+      ! Growth exponent under the assumption that neutrinos are completely unclustered (equation 11)
+      pcb=(5.-sqrt(1.+24.*(1.-cosm%f_nu)))/4.
 
-        ! Free streaming scale (equation 14)
-        ! Note that Eisenstein & Hu (1999) only consider the case of 3 neutrinos
-        ! with Nnu of these being massve with the mass split evenly between Nnu species.
-        yfs=17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(real(N_massive_nu)*q/cosm%f_nu)**2.
+      ! Theta for temperature (BigT=T/2.7 K)
+      BigT=cosm%T_CMB/2.7
 
-        ! These are (almost) the scale-dependent growth functions for each component in Eisenstein & Hu (1999)
-        ! Some part is missing, but this cancels when they are divided by each other, which is all I need them for.
-        ! Equations (12) and (13)
-        Dcb=(1.+(D/(1.+yfs))**0.7)**(pcb/0.7)
-        Dcbnu=((1.-cosm%f_nu)**(0.7/pcb)+(D/(1.+yfs))**0.7)**(pcb/0.7)
+      ! The matter-radiation equality redshift
+      zeq=(2.5e4)*cosm%om_m*(cosm%h**2.)*(BigT**(-4.))
 
-        ! Finally, the ratio
-        Tcb_Tcbnu_ratio=Dcb/Dcbnu
+      ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
+      ! For my purpose (just the ratio) seems to work better using the EdS growth function result, \propto a .
+      ! In any case, can't use grow at the moment because that is normalised by default.
+      D=(1.+zeq)/(1.+z) ! TODO: Could update this
 
-    END IF
+      ! Wave number relative to the horizon scale at equality (equation 5)
+      ! Extra factor of h becauase all my k are in units of h/Mpc
+      q=k*cosm%h*BigT**2./(cosm%om_m*cosm%h**2.)
 
-    END FUNCTION Tcb_Tcbnu_ratio
+      ! Free streaming scale (equation 14)
+      ! Note that Eisenstein & Hu (1999) only consider the case of 3 neutrinos
+      ! with Nnu of these being massive with the mass split evenly between Nnu species.
+      yfs=17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(real(N_massive_nu)*q/cosm%f_nu)**2.
+
+      ! These are (almost) the scale-dependent growth functions for each component in Eisenstein & Hu (1999)
+      ! Some part is missing, but this cancels when they are divided by each other, which is all I need them for.
+      ! Equations (12) and (13)
+      Dcb=(1.+(D/(1.+yfs))**0.7)**(pcb/0.7)
+      Dcbnu=((1.-cosm%f_nu)**(0.7/pcb)+(D/(1.+yfs))**0.7)**(pcb/0.7)
+
+      ! Finally, the ratio
+      Tcold_ratio=Dcb/Dcbnu
+
+   END IF
+
+   END FUNCTION Tcold_ratio
 
   REAL RECURSIVE FUNCTION p_lin(k,a,cosm)
 
@@ -2507,9 +2528,9 @@ CONTAINS
        IF(cosm%has_power) THEN
           ! TODO: Do something cleverer here. Could use the ln(k)^2 behaviour at high k, could just truncate...
           IF(cosm%growk) THEN
-             p_lin=exp(find(log(k),cosm%log_k_plin,log(a),cosm%log_a_plin,cosm%log_plina,cosm%n_plin_k,cosm%n_plin_a,iorder,ifind,imeth=1))
+             p_lin=exp(find(log(k),cosm%log_k_plin,log(a),cosm%log_a_plin,cosm%log_plina,cosm%nk_plin,cosm%na_plin,iorder,ifind,imeth=1))
           ELSE
-             p_lin=(grow(a,cosm)**2)*exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,iorder,ifind,imeth))
+             p_lin=(grow(a,cosm)**2)*exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%nk_plin,iorder,ifind,imeth))
           END IF
           !p_lin=exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,iorder,ifind,imeth))
        ELSE
@@ -2566,49 +2587,53 @@ CONTAINS
     ! and prevents a large number of calls to the sigma integration functions
     IMPLICIT NONE
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: r, sig
-    INTEGER :: i
-
-    ! These values of 'r' work fine for any power spectrum of cosmological importance
-    ! rmin and rmax need to be decided in advance and are chosen such that
-    ! R vs. sigma(R) is a power-law below and above these values of R   
-    REAL, PARAMETER :: a=1. ! These look-up tables are to be filled at z=0
+    REAL :: r, a, sig
+    INTEGER :: i, j
+    LOGICAL, PARAMETER :: cold=.TRUE.
 
     !IF(cosm%inv_m_wdm .NE. 0.) STOP 'INIT_SIGMA: This will crash with WDM'
 
     ! Deallocate tables if they are already allocated
     IF(ALLOCATED(cosm%log_r_sigma)) DEALLOCATE(cosm%log_r_sigma)
     IF(ALLOCATED(cosm%log_sigma))   DEALLOCATE(cosm%log_sigma)
-
-    ! Allocate arrays
-    ALLOCATE(cosm%log_r_sigma(nsig),cosm%log_sigma(nsig))
+    IF(ALLOCATED(cosm%log_a_sigma)) DEALLOCATE(cosm%log_a_sigma)
+    IF(ALLOCATED(cosm%log_sigmaa))  DEALLOCATE(cosM%log_sigmaa)
 
     ! Write to screen
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_SIGMA: Filling sigma(R) interpolation table'
        WRITE(*,*) 'INIT_SIGMA: R minimum [Mpc/h]:', real(rmin_sigma)
        WRITE(*,*) 'INIT_SIGMA: R maximum [Mpc/h]:', real(rmax_sigma)
-       WRITE(*,*) 'INIT_SIGMA: number of points:', nsig
+       WRITE(*,*) 'INIT_SIGMA: number of points:', nr_sigma
     END IF
 
-    ! Loop over R values at which to calculate sigma(R)
-    DO i=1,nsig
+    ! Allocate and fill array of R values
+    CALL fill_array(log(rmin_sigma),log(rmax_sigma),cosm%log_r_sigma,nr_sigma)
+    cosm%nr_sigma=nr_sigma
 
-       ! Equally spaced r in log
-       r=exp(progression(log(rmin_sigma),log(rmax_sigma),i,nsig))
-
-       sig=sigma_integral(r,a,cosm)
-
-       ! Fill look-up tables
-       cosm%log_r_sigma(i)=r
-       cosm%log_sigma(i)=sig
-
-    END DO
-
-    ! Make the tables logarithmic
-    cosm%log_r_sigma=log(cosm%log_r_sigma)
-    cosm%log_sigma=log(cosm%log_sigma)
-    cosm%n_sigma=nsig
+    IF(cosm%growk) THEN
+      cosm%na_sigma=na_sigma
+      CALL fill_array(log(amin_sigma),log(amax_sigma),cosm%log_a_sigma,na_sigma)
+      ALLOCATE(cosm%log_sigmaa(nr_sigma,na_sigma))
+      DO j=1,na_sigma
+         a=exp(cosm%log_a_sigma(j))
+         DO i=1,nr_sigma
+            r=exp(cosm%log_r_sigma(i))
+            sig=sigma_cold_integral(r,a,cosm)
+            cosm%log_sigmaa(i,j)=log(sig)
+         END DO
+      END DO
+    ELSE
+      ! Loop over R values and calculate sigma(R)
+      ALLOCATE(cosm%log_sigma(nr_sigma))
+      a=1. ! Fill this table at a=1
+      DO i=1,nr_sigma
+         !r=exp(progression(log(rmin_sigma),log(rmax_sigma),i,nsig))
+         r=exp(cosm%log_r_sigma(i))
+         sig=sigma_cold_integral(r,a,cosm)
+         cosm%log_sigma(i)=log(sig)
+      END DO
+   END IF
 
     IF(cosm%verbose) THEN
        WRITE(*,*) 'INIT_SIGMA: Done'
@@ -2620,106 +2645,172 @@ CONTAINS
 
   END SUBROUTINE init_sigma
 
-  REAL FUNCTION sigma_integral(r,a,cosm)
+REAL FUNCTION sigma_all(r,a,cosm)
 
-    ! Calculates sigma(R) by intergration
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: r ! Smoothing scale to calculate sigma [Mpc/h]
-    REAL, INTENT(IN) :: a
-    TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: tmin, tmax, kmin, kmax, part1, part2
+   ! Calculates sigma(R) by intergration
+   IMPLICIT NONE
+   REAL, INTENT(IN) :: r ! Smoothing scale to calculate sigma [Mpc/h]
+   REAL, INTENT(IN) :: a ! Scale factor
+   TYPE(cosmology), INTENT(INOUT) :: cosm
+   REAL :: tmin, tmax, kmin, kmax, part1, part2
 
-    ! Integration method changes depending on r to make this as fast as possible
-    IF(r>=Rsplit_sigma) THEN
-       ! Integration upper limit (c = 1 corresponds to k = 0)
-       tmin=0.
-       tmax=1.
-       sigma_integral=sqrt(integrate_cosm(tmin,tmax,sigma2_integrand_transformed,r,a,cosm,2.*acc_cosm,3))
-    ELSE IF(r<Rsplit_sigma) THEN
-       ! Integration limits, the split of the integral is done at k = 1/R
-       tmin=t_sigma_integrand(ksplit_sigma(R),R)
-       tmax=1.  ! Integration limit corresponding to k=0
-       kmin=ksplit_sigma(R) ! From the split wavenumber...
-       kmax=sigma_out/R     ! ...out to k = inf, but in practice just go out a finite distance in kR
-       part1=integrate_cosm(tmin,tmax,sigma2_integrand_transformed,r,a,cosm,2.*acc_cosm,3)          
-       part2=integrate_cosm(kmin,kmax,sigma2_integrand,r,a,cosm,2.*acc_cosm,3)
-       sigma_integral=sqrt(part1+part2)
-    ELSE
-       STOP 'INIT_SIGMA: Error, something went wrong'
-    END IF
+   ! Integration method changes depending on r to make this as fast as possible
+   IF(r>=Rsplit_sigma) THEN
+      ! Integration upper limit (c = 1 corresponds to k = 0)
+      tmin=0.
+      tmax=1.
+      sigma_all=sqrt(integrate_cosm(tmin,tmax,sigma2_all_integrand_transformed,r,a,cosm,2.*acc_cosm,3))
+   ELSE IF(r<Rsplit_sigma) THEN
+      ! Integration limits, the split of the integral is done at k = 1/R
+      tmin=t_sigma_integrand(ksplit_sigma(R),R)
+      tmax=1.  ! Integration limit corresponding to k=0
+      kmin=ksplit_sigma(R) ! From the split wavenumber...
+      kmax=sigma_out/R     ! ...out to k = inf, but in practice just go out a finite distance in kR
+      part1=integrate_cosm(tmin,tmax,sigma2_all_integrand_transformed,r,a,cosm,2.*acc_cosm,3)          
+      part2=integrate_cosm(kmin,kmax,sigma2_all_integrand,r,a,cosm,2.*acc_cosm,3)
+      sigma_all=sqrt(part1+part2)
+   ELSE
+      STOP 'INIT_SIGMA: Error, something went wrong'
+   END IF
 
-  END FUNCTION sigma_integral
+END FUNCTION sigma_all
 
-  REAL FUNCTION sigma(R,a,cosm)
+REAL FUNCTION sigma_cold_integral(r,a,cosm)
 
-    ! Finds sigma_cold from look-up tables
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: R ! Smoothing scale to calculate sigma [Mpc/h]
-    REAL, INTENT(IN) :: a
-    TYPE(cosmology), INTENT(INOUT) :: cosm
-    INTEGER, PARAMETER :: iorder=3 ! Order for interpolation
-    INTEGER, PARAMETER :: ifind=3  ! Finding scheme in table
-    INTEGER, PARAMETER :: imeth=2  ! Method for polynomials
-    
-    IF(cosm%has_sigma .EQV. .FALSE.) CALL init_sigma(cosm)
+   ! Calculates sigma(R) by intergration
+   IMPLICIT NONE
+   REAL, INTENT(IN) :: r ! Smoothing scale to calculate sigma [Mpc/h]
+   REAL, INTENT(IN) :: a ! Scale factor
+   TYPE(cosmology), INTENT(INOUT) :: cosm
+   REAL :: tmin, tmax, kmin, kmax, part1, part2
 
-!!$    IF(cosm%growk) THEN
-!!$       sigma=exp(find(log(R),cosm%log_r_sigma,log(a),cosm%log_a_sigma,cosm%log_sigmaa,cosm%n_sigma_r,cosm%n_sigma_a,&
-!!$            iorder,ifind,imeth))
-!!$    ELSE
-!!$       sigma=grow(a,cosm)*exp(find(log(R),cosm%log_r_sigma,cosm%log_sigma,cosm%n_sigma,iorder,ifind,imeth))
-!!$    END IF
-    sigma=grow(a,cosm)*exp(find(log(R),cosm%log_r_sigma,cosm%log_sigma,cosm%n_sigma,iorder,ifind,imeth))
+   ! Integration method changes depending on r to make this as fast as possible
+   IF(r>=Rsplit_sigma) THEN
+      ! Integration upper limit (c = 1 corresponds to k = 0)
+      tmin=0.
+      tmax=1.
+      sigma_cold_integral=sqrt(integrate_cosm(tmin,tmax,sigma2_cold_integrand_transformed,r,a,cosm,2.*acc_cosm,3))
+   ELSE IF(r<Rsplit_sigma) THEN
+      ! Integration limits, the split of the integral is done at k = 1/R
+      tmin=t_sigma_integrand(ksplit_sigma(R),R)
+      tmax=1.  ! Integration limit corresponding to k=0
+      kmin=ksplit_sigma(R) ! From the split wavenumber...
+      kmax=sigma_out/R     ! ...out to k = inf, but in practice just go out a finite distance in kR
+      part1=integrate_cosm(tmin,tmax,sigma2_cold_integrand_transformed,r,a,cosm,2.*acc_cosm,3)          
+      part2=integrate_cosm(kmin,kmax,sigma2_cold_integrand,r,a,cosm,2.*acc_cosm,3)
+      sigma_cold_integral=sqrt(part1+part2)
+   ELSE
+      STOP 'INIT_SIGMA: Error, something went wrong'
+   END IF
 
-  END FUNCTION sigma
+END FUNCTION sigma_cold_integral
 
-  REAL FUNCTION sigma2_integrand(k,R,a,cosm)
+REAL FUNCTION sigma_cold(R,a,cosm)
 
-    ! The integrand for the sigma(R) integrals
-    USE special_functions
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: k
-    REAL, INTENT(IN) :: R
-    REAL, INTENT(IN) :: a
-    TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: w_hat
+   ! Finds sigma_cold from look-up tables
+   IMPLICIT NONE
+   REAL, INTENT(IN) :: R ! Smoothing scale to calculate sigma [Mpc/h]
+   REAL, INTENT(IN) :: a ! Scale factor
+   TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+   INTEGER, PARAMETER :: iorder=3 ! Order for interpolation (3 - Cubic)
+   INTEGER, PARAMETER :: ifind=3  ! Finding scheme in table (3 - Mid-point method)
+   INTEGER, PARAMETER :: imeth=2  ! Method for polynomials (2 - Lagrange polynomails)
+   
+   IF(cosm%has_sigma .EQV. .FALSE.) CALL init_sigma(cosm)
 
-    IF(k==0.) THEN
-       sigma2_integrand=0.
-    ELSE
-       w_hat=wk_tophat(k*R)
-       sigma2_integrand=p_lin(k,a,cosm)*(w_hat**2)/k
-    END IF
+   IF(cosm%growk) THEN
+      sigma_cold=exp(find(log(R),cosm%log_r_sigma,log(a),cosm%log_a_sigma,cosm%log_sigmaa,cosm%nr_sigma,cosm%na_sigma,iorder,ifind,imeth=1))
+   ELSE
+      sigma_cold=grow(a,cosm)*exp(find(log(R),cosm%log_r_sigma,cosm%log_sigma,cosm%nr_sigma,iorder,ifind,imeth))
+   END IF
+   !sigma=grow(a,cosm)*exp(find(log(R),cosm%log_r_sigma,cosm%log_sigma,cosm%n_sigma,iorder,ifind,imeth))
 
-  END FUNCTION sigma2_integrand
+END FUNCTION sigma_cold
 
-  REAL FUNCTION sigma2_integrand_transformed(t,R,a,cosm)
+REAL FUNCTION sigma2_all_integrand(k,R,a,cosm)
 
-    ! The integrand for the sigma(R) integrals
-    USE special_functions
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: t
-    REAL, INTENT(IN) :: R
-    REAL, INTENT(IN) :: a
-    TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: k, kR, w_hat
+   ! The integrand for the sigma(R) integrals
+   USE special_functions
+   IMPLICIT NONE
+   REAL, INTENT(IN) :: k
+   REAL, INTENT(IN) :: R
+   REAL, INTENT(IN) :: a
+   TYPE(cosmology), INTENT(INOUT) :: cosm
+   REAL :: w_hat
 
-    ! Integrand to the sigma integral in terms of t. Defined by kR=(1/t-1)**alpha
-    ! alpha_sigma can be any positive number, can even be a function of R
-    IF(t==0.) THEN
-       ! t=0 corresponds to k=infintiy when W(kR)=0
-       sigma2_integrand_transformed=0.
-    ELSE IF(t==1.) THEN
-       ! t=1 corresponds to k=0 when P(k)=0
-       sigma2_integrand_transformed=0.
-    ELSE
-       k=k_sigma_integrand(t,R)
-       kR=k*R
-       w_hat=wk_tophat(kR)
-       sigma2_integrand_transformed=p_lin(k,a,cosm)*(w_hat**2)*alpha_sigma/(t*(1.-t))
-    END IF
+   IF(k==0.) THEN
+      sigma2_all_integrand=0.
+   ELSE
+      w_hat=wk_tophat(k*R)       
+      sigma2_all_integrand=p_lin(k,a,cosm)*(w_hat**2)/k
+   END IF
 
-  END FUNCTION sigma2_integrand_transformed
+END FUNCTION sigma2_all_integrand
+
+REAL FUNCTION sigma2_cold_integrand(k,R,a,cosm)
+
+  IMPLICIT NONE
+  REAL, INTENT(IN) :: k
+  REAL, INTENT(IN) :: R
+  REAL, INTENT(IN) :: a
+  TYPE(cosmology), INTENT(INOUT) :: cosm
+  REAL :: T
+
+  !T=Tcold_ratio(k,a,cosm)
+  T=Tcold_approx(cosm)
+  sigma2_cold_integrand=sigma2_all_integrand(k,R,a,cosm)*T**2
+
+END FUNCTION sigma2_cold_integrand
+
+REAL FUNCTION sigma2_all_integrand_transformed(t,R,a,cosm)
+
+   ! The integrand for the sigma(R) integrals
+   USE special_functions
+   IMPLICIT NONE
+   REAL, INTENT(IN) :: t
+   REAL, INTENT(IN) :: R
+   REAL, INTENT(IN) :: a
+   TYPE(cosmology), INTENT(INOUT) :: cosm
+   REAL :: k, kR, w_hat
+
+   ! Integrand to the sigma integral in terms of t. Defined by kR=(1/t-1)**alpha
+   ! alpha_sigma can be any positive number, can even be a function of R
+   IF(t==0.) THEN
+      ! t=0 corresponds to k=infintiy when W(kR)=0
+      sigma2_all_integrand_transformed=0.
+   ELSE IF(t==1.) THEN
+      ! t=1 corresponds to k=0 when P(k)=0
+      sigma2_all_integrand_transformed=0.
+   ELSE
+      k=k_sigma_integrand(t,R)
+      kR=k*R
+      w_hat=wk_tophat(kR)
+      sigma2_all_integrand_transformed=p_lin(k,a,cosm)*(w_hat**2)*alpha_sigma/(t*(1.-t))
+   END IF
+
+END FUNCTION sigma2_all_integrand_transformed
+
+REAL FUNCTION sigma2_cold_integrand_transformed(t,R,a,cosm)
+
+  IMPLICIT NONE
+  REAL, INTENT(IN) :: t
+  REAL, INTENT(IN) :: R
+  REAL, INTENT(IN) :: a
+  TYPE(cosmology), INTENT(INOUT) :: cosm
+  REAL :: Tcold, k
+
+  IF(t==0.) THEN
+   sigma2_cold_integrand_transformed=0.
+  ELSE IF(t==1.) THEN
+   sigma2_cold_integrand_transformed=0.
+  ELSE
+   k=k_sigma_integrand(t,R)
+   !Tcold=Tcold_ratio(k,a,cosm)
+   Tcold=Tcold_approx(cosm)
+   sigma2_cold_integrand_transformed=sigma2_all_integrand_transformed(t,R,a,cosm)*Tcold**2
+  END IF
+
+END FUNCTION sigma2_cold_integrand_transformed
 
   REAL FUNCTION ksplit_sigma(R)
 
@@ -2783,6 +2874,7 @@ CONTAINS
 
     ! This is the integrand for the velocity dispersion integral
     ! TODO: Optimize alpha(R); not really a problem when only called for R = 0, 100 Mpc/h
+   ! TODO: Should this use cold or all matter power spectrum?
     USE special_functions
     IMPLICIT NONE
     REAL, INTENT(IN) :: t
@@ -2805,6 +2897,8 @@ CONTAINS
           k=kR/R          
        END IF
        w_hat=wk_tophat(kR)
+       !sigmaV2_integrand=(Tcold_ratio(k,a,cosm)**2)*(p_lin(k,a,cosm)/k**2)*(w_hat**2)*alpha/(t*(1.-t))
+       !sigmaV2_integrand=(Tcold_approx(cosm)**2)*(p_lin(k,a,cosm)/k**2)*(w_hat**2)*alpha/(t*(1.-t))
        sigmaV2_integrand=(p_lin(k,a,cosm)/k**2)*(w_hat**2)*alpha/(t*(1.-t))
     END IF
 
@@ -4072,9 +4166,6 @@ CONTAINS
     REAL, ALLOCATABLE :: k(:), Pk(:)
     INTEGER :: i, nk
     REAL :: Om_c, Om_b, Om_nu, h, ombh2, omch2, omnuh2
-    REAL, PARAMETER :: amin=0.1
-    REAL, PARAMETER :: amax=1.0
-    INTEGER, PARAMETER :: na=16
     CHARACTER(len=256), PARAMETER :: camb='camb'
     CHARACTER(len=256), PARAMETER :: dir='/Users/Mead/Physics/CAMB_files/tmp/'
     CHARACTER(len=256), PARAMETER :: root=trim(dir)//'temp'
@@ -4097,8 +4188,8 @@ CONTAINS
 
     ! For scale-dependent growth fill the scale-factor array first
     IF(cosm%growk) THEN
-      CALL fill_array(log(amin),log(amax),cosm%log_a_plin,na)
-      cosm%n_plin_a=na
+      CALL fill_array(log(amin_plin),log(amax_plin),cosm%log_a_plin,na_plin)
+      cosm%na_plin=na_plin
     END IF  
 
     ! Physical density parameters that CAMB requires
@@ -4202,8 +4293,8 @@ CONTAINS
     WRITE(7,*) 'transfer_interp_matterpower = T'
     WRITE(7,*) 'transfer_power_var = 7'
     IF(cosm%growk) THEN
-      WRITE(7,*) 'transfer_num_redshifts =', na
-      DO i=1,na
+      WRITE(7,*) 'transfer_num_redshifts =', na_plin
+      DO i=1,na_plin
          !WRITE(7,*) 'transfer_redshift(1) = 0'
          WRITE(7,*) number_file(trim('transfer_redshift('),i,trim(') =')), redshift_a(exp(cosm%log_a_plin(i)))
       END DO 
@@ -4268,15 +4359,17 @@ CONTAINS
    IF(cosm%growk) THEN
 
       ! Loop over redshifts and read CAMB power into arrays
-      DO i=1,na
+      DO i=1,na_plin
          CALL read_CAMB_Pk(k,Pk,nk,number_file(matterpower,i,trim('.dat')))
          IF(i==1) THEN
-            cosm%n_plin_k=nk
+            cosm%nk_plin=nk
+            IF(ALLOCATED(cosm%log_k_plin)) DEALLOCATE(cosm%log_k_plin)
+            IF(ALLOCATED(cosm%log_plina))  DEALLOCATE(cosm%log_plina)
             ALLOCATE(cosm%log_k_plin(nk))
-            ALLOCATE(cosm%log_plina(nk,na))
+            ALLOCATE(cosm%log_plina(nk,na_plin))
             cosm%log_k_plin=log(k)
          END IF
-         cosm%log_plina(:,i)=Pk
+         cosm%log_plina(:,i)=log(Pk)
       END DO
 
    ELSE 
@@ -4286,11 +4379,12 @@ CONTAINS
 
       ! Add to cosm arrays and convert to log
       IF(ALLOCATED(cosm%log_k_plin)) DEALLOCATE(cosm%log_k_plin)
-      IF(ALLOCATED(cosm%log_plin)) DEALLOCATE(cosm%log_plin)
-      ALLOCATE(cosm%log_plin(nk),cosm%log_k_plin(nk))
+      IF(ALLOCATED(cosm%log_plin))   DEALLOCATE(cosm%log_plin)
+      ALLOCATE(cosm%log_plin(nk))
+      ALLOCATE(cosm%log_k_plin(nk))
       cosm%log_k_plin=log(k)
       cosm%log_plin=log(Pk)
-      cosm%n_plin=nk
+      cosm%nk_plin=nk
    
    END IF
 

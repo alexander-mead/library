@@ -1290,7 +1290,7 @@ CONTAINS
     ! Find value of sigma_V
     hmod%sigv=sigmaV(0.,a,cosm)
     IF(hmod%i2hdamp==3) hmod%sigv100=sigmaV(100.,a,cosm)
-    hmod%sig8z=sigma(8.,a,cosm)
+    hmod%sig8z=sigma_all(8.,a,cosm)
 
     IF(verbose) THEN
        WRITE(*,*) 'INIT_HALOMOD: Filling look-up tables'
@@ -1307,7 +1307,7 @@ CONTAINS
 
        m=exp(progression(log(mmin),log(mmax),i,hmod%n))
        R=radius_m(m,cosm)
-       sig=sigma(R,a,cosm)
+       sig=sigma_cold(R,a,cosm)
        nu=nu_R(R,hmod,cosm)
 
        hmod%m(i)=m
@@ -1993,7 +1993,7 @@ CONTAINS
 
     IF(.NOT. ALLOCATED(cosm%log_k_plin)) STOP 'DEWIGGLE_INIT: Error, P(k) needs to be tabulated for this to work'
 
-    nk=cosm%n_plin
+    nk=cosm%nk_plin
     hmod%n_pdamp=nk
     sigv=hmod%sigv
     a=hmod%a
@@ -3612,7 +3612,9 @@ CONTAINS
        delta_c=dc_NakamuraSuto(a,cosm)
     ELSE IF(hmod%idc==3 .OR. hmod%idc==6) THEN
        ! From Mead et al. (2015)
-       delta_c=hmod%dc0+hmod%dc1*log(sigma(8.,a,cosm))       
+      ! TODO: Should this be sigma_all or sigma_cold?
+      delta_c=hmod%dc0+hmod%dc1*log(sigma_cold(8.,a,cosm))
+      !delta_c=hmod%dc0+hmod%dc1*log(hmod%sig8z)
        IF(hmod%idc==3) THEN
           ! Mead et al. (2016) addition of small cosmology and neutrino dependence
           delta_c=delta_c*(1.+hmod%dcnu*cosm%f_nu)
@@ -3689,7 +3691,9 @@ CONTAINS
        ELSE
           eta0=hmod%eta0
        END IF
-       eta_HMcode=eta0-hmod%eta1*(sigma(8.,hmod%a,cosm))
+       ! TODO: Should this be sigma_all or sigma_cold?
+       eta_HMcode=eta0-hmod%eta1*sigma_cold(8.,hmod%a,cosm)
+       !eta_HMcode=eta0-hmod%eta1*hmod%sig8z
     ELSE
        STOP 'ETA_HMcode: Error, ieta defined incorrectly'
     END IF
@@ -3764,6 +3768,7 @@ CONTAINS
        fdamp_HMcode=hmod%f0*hmod%sig8z**hmod%f1
     ELSE IF(hmod%i2hdamp==3) THEN
        ! Mead et al. (2016)
+      ! TODO: Should this be sigma_v for all matter or only cold matter?
        fdamp_HMcode=hmod%f0*hmod%sigv100**hmod%f1
     ELSE
        STOP 'FDAMP_HMcode: Error, i2hdamp defined incorrectly'
@@ -4336,7 +4341,7 @@ CONTAINS
     REAL :: a
 
     a=hmod%a
-    nu_R=delta_c(hmod,cosm)/sigma(R,a,cosm)
+    nu_R=delta_c(hmod,cosm)/sigma_cold(R,a,cosm)
 
   END FUNCTION nu_R
 
@@ -4836,7 +4841,7 @@ CONTAINS
     ! Fills up a table for sigma(fM) for Bullock c(m) relation    
     IF(hmod%iconc==1) THEN
        DO i=1,hmod%n
-          hmod%sigf(i)=sigma(hmod%rr(i)*f,a,cosm)
+          hmod%sigf(i)=sigma_cold(hmod%rr(i)*f,a,cosm)
        END DO
     END IF
 
