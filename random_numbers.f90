@@ -33,6 +33,7 @@ CONTAINS
   SUBROUTINE RNG_set(seed,verbose)
 
     ! Seeds the RNG
+    ! TODO: Retire rand, replace with random_number
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: seed
     LOGICAL, OPTIONAL, INTENT(IN) :: verbose
@@ -70,6 +71,7 @@ CONTAINS
   INTEGER FUNCTION random_integer(i1,i2)
 
     ! Picks an integer with uniform random probability between i1 and i2 spaced with 1
+    ! TODO: Retire rand, replace with random_number
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: i1 ! Lower bound
     INTEGER, INTENT(IN) :: i2 ! Upper bound
@@ -112,13 +114,17 @@ CONTAINS
   REAL FUNCTION random_uniform(x1,x2)
 
     ! Produces a uniform random number between x1 and x2
+    ! TODO: Retire rand, replace with random_number
     IMPLICIT NONE
     REAL, INTENT(IN) :: x1 ! Lower bound
     REAL, INTENT(IN) :: x2 ! Upper bound
     REAL*4 :: rand         ! I think this needs to be defined for ifort
+    !REAL :: r
 
     ! rand is some inbuilt function
     random_uniform=x1+(x2-x1)*(rand(0))
+    !CALL random_number(r)
+    !random_uniform=x1+(x2-x1)*r
 
   END FUNCTION random_uniform
 
