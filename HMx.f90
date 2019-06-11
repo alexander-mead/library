@@ -3824,7 +3824,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
-    REAL :: z, T, A, B, C, D, E, Mp
+    REAL :: z, T, A, B, C, D, E, Mpiv
 
     IF(hmod%HMx_mode==1) THEN
 
@@ -3832,14 +3832,14 @@ CONTAINS
 
     ELSE IF(hmod%HMx_mode==2) THEN
 
-       Mp=pivot_mass(hmod)
-       HMx_alpha=hmod%alpha*((m/Mp)**hmod%alphap)
+       Mpiv=pivot_mass(hmod)
+       HMx_alpha=hmod%alpha*((m/Mpiv)**hmod%alphap)
 
     ELSE IF(hmod%HMx_mode==3) THEN
 
-       Mp=pivot_mass(hmod)
+       Mpiv=pivot_mass(hmod)
        z=hmod%z
-       HMx_alpha=hmod%alpha*((m/Mp)**hmod%alphap)*((1.+z)**hmod%alphaz)
+       HMx_alpha=hmod%alpha*((m/Mpiv)**hmod%alphap)*((1.+z)**hmod%alphaz)
 
     ELSE IF(hmod%HMx_mode==4) THEN
 
@@ -3870,7 +3870,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
-    REAL :: z, Mp
+    REAL :: z, Mpiv
 
     IF(hmod%HMx_mode==1) THEN
 
@@ -3878,14 +3878,14 @@ CONTAINS
 
     ELSE IF(hmod%HMx_mode==2) THEN
 
-       Mp=pivot_mass(hmod)
-       HMx_beta=hmod%beta*((m/Mp)**hmod%betap)
+       Mpiv=pivot_mass(hmod)
+       HMx_beta=hmod%beta*((m/Mpiv)**hmod%betap)
 
     ELSE IF(hmod%HMx_mode==3) THEN
 
-       Mp=pivot_mass(hmod)
+       Mpiv=pivot_mass(hmod)
        z=hmod%z
-       HMx_beta=hmod%beta*((m/Mp)**hmod%betap)*((1.+z)**hmod%betaz)
+       HMx_beta=hmod%beta*((m/Mpiv)**hmod%betap)*((1.+z)**hmod%betaz)
 
     ELSE IF(hmod%HMx_mode==4) THEN
 
@@ -3941,7 +3941,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
-    REAL :: z, T, A, B, C, D, E, Mp
+    REAL :: z, T, A, B, C, D, E, Mpiv
 
     IF(hmod%HMx_mode==1) THEN
 
@@ -3949,14 +3949,14 @@ CONTAINS
 
     ELSE IF(hmod%HMx_mode==2) THEN
 
-       Mp=pivot_mass(hmod)
-       HMx_Gamma=hmod%Gamma*((m/Mp)**hmod%Gammap)
+       Mpiv=pivot_mass(hmod)
+       HMx_Gamma=hmod%Gamma*((m/Mpiv)**hmod%Gammap)
 
     ELSE IF(hmod%HMx_mode==3) THEN
 
-       Mp=pivot_mass(hmod)
+       Mpiv=pivot_mass(hmod)
        z=hmod%z
-       HMx_Gamma=hmod%Gamma*((m/Mp)**hmod%Gammap)*((1.+z)**hmod%Gammaz)
+       HMx_Gamma=hmod%Gamma*((m/Mpiv)**hmod%Gammap)*((1.+z)**hmod%Gammaz)
 
     ELSE IF(hmod%HMx_mode==4) THEN
 
@@ -3987,7 +3987,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
-    REAL :: z, Mp
+    REAL :: z, Mpiv
 
     IF(hmod%HMx_mode==1) THEN
 
@@ -3995,14 +3995,14 @@ CONTAINS
 
     ELSE IF(hmod%HMx_mode==2) THEN
 
-       Mp=pivot_mass(hmod)
-       HMx_iso_beta=hmod%ibeta*((m/Mp)**hmod%ibetap)
+       Mpiv=pivot_mass(hmod)
+       HMx_iso_beta=hmod%ibeta*((m/Mpiv)**hmod%ibetap)
 
     ELSE IF(hmod%HMx_mode==3) THEN
 
-       Mp=pivot_mass(hmod)
+       Mpiv=pivot_mass(hmod)
        z=hmod%z
-       HMx_iso_beta=hmod%ibeta*((m/Mp)**hmod%ibetap)*((1.+z)**hmod%ibetaz)
+       HMx_iso_beta=hmod%ibeta*((m/Mpiv)**hmod%ibetap)*((1.+z)**hmod%ibetaz)
 
     ELSE
 
@@ -4055,7 +4055,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
-    REAL :: z, T, A, B, C, D, Mp
+    REAL :: z, T, A, B, C, D, Mpiv
 
     IF(hmod%HMx_mode==1) THEN
 
@@ -4063,14 +4063,14 @@ CONTAINS
 
     ELSE IF(hmod%HMx_mode==2) THEN
 
-       Mp=pivot_mass(hmod)
-       HMx_Astar=hmod%Astar*((m/Mp)**hmod%Astarp)
+       Mpiv=pivot_mass(hmod)
+       HMx_Astar=hmod%Astar*((m/Mpiv)**hmod%Astarp)
 
     ELSE IF(hmod%HMx_mode==3) THEN
 
-       Mp=pivot_mass(hmod)
+       Mpiv=pivot_mass(hmod)
        z=hmod%z
-       HMx_Astar=hmod%Astar*((m/Mp)**hmod%Astarp)*((1.+z)**hmod%Astarz)
+       HMx_Astar=hmod%Astar*((m/Mpiv)**hmod%Astarp)*((1.+z)**hmod%Astarz)
 
     ELSE IF(hmod%HMx_mode==4) THEN
 
@@ -4135,7 +4135,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
-    REAL :: Mp, z
+    REAL :: Mpiv, z
 
     IF(hmod%HMx_mode==1) THEN
 
@@ -4143,14 +4143,14 @@ CONTAINS
 
     ELSE IF(hmod%HMx_mode==2) THEN
 
-       Mp=pivot_mass(hmod)
-       HMx_cstar=hmod%cstar*((m/Mp)**hmod%cstarp)
+       Mpiv=pivot_mass(hmod)
+       HMx_cstar=hmod%cstar*((m/Mpiv)**hmod%cstarp)
 
     ELSE IF(hmod%HMx_mode==3) THEN
 
-       Mp=pivot_mass(hmod)
+       Mpiv=pivot_mass(hmod)
        z=hmod%z
-       HMx_cstar=hmod%cstar*((m/Mp)**hmod%cstarp)*((1.+z)**hmod%cstarz)
+       HMx_cstar=hmod%cstar*((m/Mpiv)**hmod%cstarp)*((1.+z)**hmod%cstarz)
 
     ELSE IF(hmod%HMx_mode==4) THEN
 
@@ -5347,7 +5347,8 @@ CONTAINS
           ELSE
              ! The electron pressure window is T(r) x rho_e(r), we want unnormalised, so multiply through by normalisation
              ! TODO: Can I make the code more efficient here by having an unnorm window function?
-             win_static_gas=win_norm(k,rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)*normalisation(rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
+             win_static_gas=win_norm(k,rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
+             win_static_gas=win_static_gas*normalisation(rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
              !win_static_gas=winint(k,rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
           END IF
 
@@ -5512,7 +5513,8 @@ CONTAINS
           ELSE
              ! The electron pressure window is T(r) x rho_e(r), we want unnormalised, so multiply through by normalisation
              ! TODO: Can I make the code more efficient here by having an unnorm window function?
-             win_hot_gas=win_norm(k,rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)*normalisation(rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
+             win_hot_gas=win_norm(k,rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
+             win_hot_gas=win_hot_gas*normalisation(rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
           END IF
 
           ! Calculate the value of the density profile prefactor and change units from cosmological to SI
@@ -5744,7 +5746,8 @@ CONTAINS
                 r=k
                 win_free_gas=rho(r,rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
              ELSE  
-                win_free_gas=win_norm(k,rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)*normalisation(rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
+                win_free_gas=win_norm(k,rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
+                win_free_gas=win_free_gas*normalisation(rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
              END IF
 
              ! Calculate the value of the density profile prefactor [(Msun/h)/(Mpc/h)^3] and change units from cosmological to SI
@@ -7875,7 +7878,7 @@ CONTAINS
 
     ! Parameter arrays from Tinker (2010): Table 4
     INTEGER, PARAMETER :: n=9 ! Number of entries in parameter lists
-    REAL, PARAMETER :: Delta_v(n)=[200.,300.,400.,600.,800.,1200.,1600.,2400.,3200.]
+    REAL, PARAMETER :: Deltav(n)=[200.,300.,400.,600.,800.,1200.,1600.,2400.,3200.]
     !REAL, PARAMETER :: alpha0(n)=[0.368,0.363,0.385,0.389,0.393,0.365,0.379,0.355,0.327] ! Not needed if you normalise explicitly
     REAL, PARAMETER :: beta0(n)=[0.589,0.585,0.544,0.543,0.564,0.623,0.637,0.673,0.702]
     REAL, PARAMETER :: gamma0(n)=[0.864,0.922,0.987,1.09,1.20,1.34,1.50,1.68,1.81]
@@ -7899,10 +7902,10 @@ CONTAINS
 
     ! Delta_v dependence (changed to log Dv finding)
     !alpha=find(log(Dv),log(Delta_v),alpha0,n,iorder,ifind,imeth) ! Not needed if you normalise explicitly
-    beta=find(log(Dv),log(Delta_v),beta0,n,iorder,ifind,imeth)
-    gamma=find(log(Dv),log(Delta_v),gamma0,n,iorder,ifind,imeth)
-    phi=find(log(Dv),log(Delta_v),phi0,n,iorder,ifind,imeth)
-    eta=find(log(Dv),log(Delta_v),eta0,n,iorder,ifind,imeth)
+    beta=find(log(Dv),log(Deltav),beta0,n,iorder,ifind,imeth)
+    gamma=find(log(Dv),log(Deltav),gamma0,n,iorder,ifind,imeth)
+    phi=find(log(Dv),log(Deltav),phi0,n,iorder,ifind,imeth)
+    eta=find(log(Dv),log(Deltav),eta0,n,iorder,ifind,imeth)
 
     ! Redshift dependence
     IF(z_dependence) THEN
@@ -8099,16 +8102,16 @@ CONTAINS
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm    
-    REAL :: m0, sigma, beta
+    REAL :: m0, sig, beta
 
     IF(hmod%frac_bound_gas==1) THEN
        ! From Fedeli (2014a)
        m0=1e12
-       sigma=3.
+       sig=3.
        IF(m<m0) THEN
           halo_bound_gas_fraction=0.
        ELSE
-          halo_bound_gas_fraction=erf(log10(m/m0)/sigma)*cosm%om_b/cosm%om_m
+          halo_bound_gas_fraction=erf(log10(m/m0)/sig)*cosm%om_b/cosm%om_m
        END IF
     ELSE IF(hmod%frac_bound_gas==2) THEN
        ! From Schneider & Teyssier (2015)
@@ -8196,7 +8199,7 @@ CONTAINS
     REAL, INTENT(IN) :: m
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: m0, sigma, A
+    REAL :: m0, sig, A
     REAL :: crap
 
     crap=cosm%A
@@ -8206,8 +8209,8 @@ CONTAINS
        A=HMx_Astar(m,hmod)
        !m0=hmod%Mstar
        m0=HMx_Mstar(hmod)
-       sigma=hmod%sstar
-       halo_star_fraction=A*exp(-((log10(m/m0))**2)/(2.*sigma**2))
+       sig=hmod%sstar
+       halo_star_fraction=A*exp(-((log10(m/m0))**2)/(2.*sig**2))
        IF(hmod%frac_stars==3) THEN
           ! Suggested by Ian, the relation I have is for the central stellar mass
           ! in reality this saturates for high-mass haloes (due to satellite contribution)
