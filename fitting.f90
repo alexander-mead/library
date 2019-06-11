@@ -22,14 +22,18 @@ CONTAINS
     USE array_operations
     IMPLICIT NONE
     REAL, INTENT(OUT) :: xmin
-    REAL, INTENT(IN) :: min, max, ref
-    INTEGER, INTENT(IN) :: ngrid, nref
+    REAL, EXTERNAL :: func
+    REAL, INTENT(IN) :: min
+    REAL, INTENT(IN) :: max
+    REAL, INTENT(IN) :: ref
+    INTEGER, INTENT(IN) :: ngrid
+    INTEGER, INTENT(IN) :: nref
     REAL :: fom, fommin, range, x
     REAL :: x1, x2
     INTEGER :: i, j, imin
 
     INTERFACE
-       REAL FUNCTION func(x)
+       FUNCTION func(x)
          REAL, INTENT(IN) :: x
        END FUNCTION func
     END INTERFACE
@@ -324,13 +328,14 @@ CONTAINS
 !!$
 !!$  END SUBROUTINE grid_fit_3
 
-  FUNCTION gradient_fit_1(f,x,acc)
+  REAL FUNCTION gradient_fit_1(f,x,acc)
 
     !Finds the minimum of the function 'f' starting at value x0 with accuracy acc!
 
     IMPLICIT NONE
-    REAL :: gradient_fit_1
-    REAL, INTENT(IN) :: x, acc
+    REAL, EXTERNAL :: f
+    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: acc
     REAL :: xold, xnew, df
     INTEGER :: i
 
@@ -339,7 +344,6 @@ CONTAINS
 
     INTERFACE
        FUNCTION f(x)
-         REAL :: f
          REAL, INTENT(IN) :: x
        END FUNCTION f
     END INTERFACE
@@ -377,13 +381,15 @@ CONTAINS
 
     IMPLICIT NONE
     REAL :: gradient_fit_2(2)
-    REAL, INTENT(IN) :: x, y, acc
+    REAL, EXTERNAL :: f
+    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: y
+    REAL, INTENT(IN) :: acc
     REAL :: xold, xnew, yold, ynew, dfx, dfy
     INTEGER :: i
 
     INTERFACE
        FUNCTION f(x,y)
-         REAL :: f
          REAL, INTENT(IN) :: x,y
        END FUNCTION f
     END INTERFACE

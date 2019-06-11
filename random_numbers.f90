@@ -230,12 +230,14 @@ CONTAINS
     ! TODO: Increase to n-dimensions
     ! TODO: Include more complicated bounding structure (at the moment it is just a box)
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x1, x2 ! Values to consider the function between
-    REAL, INTENT(IN) :: fmax   ! Maximum value of the function in the interval x1 to x2
+    REAL, EXTERNAL :: func
+    REAL, INTENT(IN) :: x1   ! Lower bound for function
+    REAL, INTENT(IN) :: x2   ! Upper bound for function
+    REAL, INTENT(IN) :: fmax ! Maximum value of the function in the interval x1 to x2
     REAL :: x, y, f
    
     INTERFACE
-       REAL FUNCTION func(x)
+       FUNCTION func(x)
          REAL, INTENT(IN) :: x
        END FUNCTION func
     END INTERFACE
