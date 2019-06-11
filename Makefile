@@ -38,6 +38,7 @@ OBJS = \
 	interpolate.o \
 	special_functions.o \
 	calculus_table.o \
+	string_operations.o \
 	cosmology_functions.o \
 	fft.o \
 	statistics.o \
@@ -48,14 +49,14 @@ OBJS = \
 	orbits.o \
 	solve_equations.o \
 	sorting.o \
-	string_operations.o \
 	field_operations.o \
 	simulations.o \
 	cosmic_emu_stuff.o \
 	multidark_stuff.o \
 	Limber.o \
 	HMx.o \
-	owls
+	owls.o \
+	owls_extras
 
 # Default compile option
 all: FFLAGS += -O3 
@@ -80,6 +81,6 @@ meadlib: $(OBJS).o
 
 # Clean up
 clean:
-	rm meadlib
-	rm *.mod
-	rm *.o
+	rm -f meadlib
+	rm -f *.mod
+	rm -f *.o
