@@ -2971,7 +2971,7 @@ CONTAINS
     END IF
 
     ! Solve the ODE
-    CALL ODE_adaptive_cosmology(d_tab,v_tab,0.,a_tab,cosm,ainit_growth,amax_growth,dinit,vinit,fd,fv,acc_cosm,3,.FALSE.)
+    CALL ODE_adaptive_cosmology(d_tab,v_tab,0.,a_tab,cosm,ainit_growth,amax_growth,dinit,vinit,ddda,dvda,acc_cosm,3,.FALSE.)
     IF(cosm%verbose) WRITE(*,*) 'INIT_GROWTH: ODE done'
     na=SIZE(a_tab)
 
@@ -3053,10 +3053,10 @@ CONTAINS
 
   END SUBROUTINE init_growth
 
-  REAL FUNCTION fd(d,v,k,a,cosm)
+  REAL FUNCTION ddda(d,v,k,a,cosm)
 
     ! Needed for growth function solution
-    ! This is the fd in \dot{\delta}=fd
+    ! This is the dd in \dot{\delta}=dd
     IMPLICIT NONE
     REAL, INTENT(IN) :: d
     REAL, INTENT(IN) :: v
@@ -3071,14 +3071,14 @@ CONTAINS
     crap=cosm%A
     crap=a    
 
-    fd=v
+    ddda=v
 
-  END FUNCTION fd
+  END FUNCTION ddda
 
-  REAL FUNCTION fv(d,v,k,a,cosm)
+  REAL FUNCTION dvda(d,v,k,a,cosm)
 
     ! Needed for growth function solution
-    ! This is the fv in \ddot{\delta}=fv
+    ! This is the dv in \ddot{\delta}=dv
     IMPLICIT NONE
     REAL, INTENT(IN) :: d
     REAL, INTENT(IN) :: v
@@ -3094,11 +3094,11 @@ CONTAINS
     !f1=1.5*Omega_m_norad(a,cosm)*d/(a**2)
     f1=1.5*Omega_cold_norad(a,cosm)*d/(a**2)
     f2=-(2.+AH_norad(a,cosm)/Hubble2_norad(a,cosm))*(v/a)
-    fv=f1+f2
+    dvda=f1+f2
 
-  END FUNCTION fv
+  END FUNCTION dvda
 
-  REAL FUNCTION fvnl(d,v,k,a,cosm)
+  REAL FUNCTION dvdanl(d,v,k,a,cosm)
 
     ! Function used for ODE solver in non-linear growth calculation
     IMPLICIT NONE
@@ -3118,9 +3118,9 @@ CONTAINS
     f2=-(2.+AH_norad(a,cosm)/Hubble2_norad(a,cosm))*(v/a)
     f3=4.*(v**2)/(3.*(1.+d))
 
-    fvnl=f1+f2+f3
+    dvdanl=f1+f2+f3
 
-  END FUNCTION fvnl
+  END FUNCTION dvdanl
 
   REAL FUNCTION dc_NakamuraSuto(a,cosm)
 
@@ -3318,9 +3318,9 @@ CONTAINS
 
        ! Do both with the same a1 and a2 and using the same number of time steps
        ! This means that arrays a, and anl will be identical, which simplifies calculation
-       CALL ODE_spherical(dnl,vnl,0.,a,cosm,ainit,amax_spherical,dinit,vinit,fd,fvnl,n,3,.TRUE.)
+       CALL ODE_spherical(dnl,vnl,0.,a,cosm,ainit,amax_spherical,dinit,vinit,ddda,dvdanl,n,3,.TRUE.)
        DEALLOCATE(a)
-       CALL ODE_spherical(d,v,0.,a,cosm,ainit,amax_spherical,dinit,vinit,fd,fv,n,3,.TRUE.)
+       CALL ODE_spherical(d,v,0.,a,cosm,ainit,amax_spherical,dinit,vinit,ddda,dvda,n,3,.TRUE.)
 
        ! If this condition is met then collapse occured some time a<amax
        IF(dnl(n)==0.) THEN
@@ -3464,10 +3464,19 @@ CONTAINS
     ! I have sometimes called this ODE_crass
     ! It has a fixed number of time steps, n
     IMPLICIT NONE
-    REAL, ALLOCATABLE, INTENT(OUT) :: x(:), v(:), t(:)
-    REAL, INTENT(IN) :: kk, xi, vi, ti, tf
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
+    REAL, INTENT(IN) :: kk
+    REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    INTEGER, INTENT(IN) :: imeth, n
+    REAL, INTENT(IN) :: ti
+    REAL, INTENT(IN) :: tf
+    REAL, INTENT(IN) :: xi
+    REAL, INTENT(IN) :: vi
+    REAL, EXTERNAL :: fx
+    REAL, EXTERNAL :: fv
+    INTEGER, INTENT(IN) :: n
+    INTEGER, INTENT(IN) :: imeth
     LOGICAL, INTENT(IN) :: ilog     
     DOUBLE PRECISION, ALLOCATABLE :: x8(:), v8(:), t8(:)
     INTEGER :: i
@@ -3482,7 +3491,6 @@ CONTAINS
        !fx is what x' is equal to
        FUNCTION fx(x,v,k,t,cosm)
          IMPORT :: cosmology
-         REAL :: fx
          REAL, INTENT(IN) :: x, v, k, t
          TYPE(cosmology), INTENT(INOUT) :: cosm
        END FUNCTION fx
@@ -3490,7 +3498,6 @@ CONTAINS
        ! fv is what v' is equal to
        FUNCTION fv(x,v,k,t,cosm)
          IMPORT :: cosmology
-         REAL :: fv
          REAL, INTENT(IN) :: x, v, k, t
          TYPE(cosmology), INTENT(INOUT) :: cosm
        END FUNCTION fv
@@ -3542,9 +3549,18 @@ CONTAINS
     ! acc is the desired accuracy across the entire solution
     ! time steps are increased until convergence is achieved
     IMPLICIT NONE
-    REAL, ALLOCATABLE, INTENT(OUT) :: x(:), t(:), v(:)
-    REAL, INTENT(IN) :: kk, xi, vi, ti, tf, acc
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
+    REAL, INTENT(IN) :: kk
+    REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
     TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL, INTENT(IN) :: ti
+    REAL, INTENT(IN) :: tf
+    REAL, INTENT(IN) :: xi
+    REAL, INTENT(IN) :: vi
+    REAL, EXTERNAL :: fx
+    REAL, EXTERNAL :: fv
+    REAL, INTENT(IN) :: acc
     INTEGER, INTENT(IN) :: imeth
     LOGICAL, INTENT(IN) :: ilog
     DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)      
@@ -3562,7 +3578,6 @@ CONTAINS
        ! fx is what x' is equal to
        FUNCTION fx(x,v,k,t,cosm)
          IMPORT :: cosmology
-         REAL :: fx
          REAL, INTENT(IN) :: x, v, k, t
          TYPE(cosmology), INTENT(INOUT) :: cosm
        END FUNCTION fx
@@ -3570,7 +3585,6 @@ CONTAINS
        ! fv is what v' is equal to
        FUNCTION fv(x,v,k,t,cosm)
          IMPORT :: cosmology
-         REAL :: fv
          REAL, INTENT(IN) :: x, v, k, t
          TYPE(cosmology), INTENT(INOUT) :: cosm
        END FUNCTION fv
@@ -3654,8 +3668,14 @@ CONTAINS
   SUBROUTINE ODE_advance_cosmology(x1,x2,v1,v2,t1,t2,fx,fv,imeth,k,cosm)
 
     IMPLICIT NONE
-    DOUBLE PRECISION, INTENT(IN) :: x1, v1, t1, t2
-    DOUBLE PRECISION, INTENT(OUT) :: x2, v2
+    DOUBLE PRECISION, INTENT(IN) :: x1
+    DOUBLE PRECISION, INTENT(OUT) :: x2
+    DOUBLE PRECISION, INTENT(IN) :: v1
+    DOUBLE PRECISION, INTENT(OUT) :: v2
+    DOUBLE PRECISION, INTENT(IN) :: t1
+    DOUBLE PRECISION, INTENT(IN) :: t2
+    REAL, EXTERNAL :: fx
+    REAL, EXTERNAL :: fv
     INTEGER, INTENT(IN) :: imeth
     REAL, INTENT(IN) :: k
     TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -3668,7 +3688,6 @@ CONTAINS
        ! fx is what x' is equal to
        FUNCTION fx(x,v,k,t,cosm)
          IMPORT :: cosmology
-         REAL :: fx
          REAL, INTENT(IN) :: x, v, k, t
          TYPE(cosmology), INTENT(INOUT) :: cosm
        END FUNCTION fx
@@ -3676,7 +3695,6 @@ CONTAINS
        ! fv is what v' is equal to
        FUNCTION fv(x,v,k,t,cosm)
          IMPORT :: cosmology
-         REAL :: fv
          REAL, INTENT(IN) :: x, v, k, t
          TYPE(cosmology), INTENT(INOUT) :: cosm
        END FUNCTION fv
@@ -3739,6 +3757,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: a ! Integration lower limit
     REAL, INTENT(IN) :: b ! Integration upper limit
+    REAL, EXTERNAL :: f
     TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
     REAL, INTENT(IN) :: acc ! Accuracy
     INTEGER, INTENT(IN) :: iorder ! Order for integration
@@ -3751,7 +3770,7 @@ CONTAINS
     INTEGER, PARAMETER :: jmax=30
 
     INTERFACE
-       REAL FUNCTION f(x,cosm)
+       FUNCTION f(x,cosm)
          IMPORT :: cosmology
          REAL, INTENT(IN) :: x
          TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -3840,6 +3859,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: a ! Integration lower limit for first arguement in 'f'
     REAL, INTENT(IN) :: b ! Integration upper limit for first arguement in 'f'
+    REAL, EXTERNAL :: f
     REAL, INTENT(IN) :: y ! Second argument in 'f'
     TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
     REAL, INTENT(IN) :: acc ! Accuracy
@@ -3853,7 +3873,7 @@ CONTAINS
     INTEGER, PARAMETER :: jmax=30
 
     INTERFACE
-       REAL FUNCTION f(x,y,cosm)
+       FUNCTION f(x,y,cosm)
          IMPORT :: cosmology
          REAL, INTENT(IN) :: x
          REAL, INTENT(IN) :: y
@@ -3943,6 +3963,7 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
     REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
+    REAL, EXTERNAL :: f
     REAL, INTENT(IN) :: y ! Second argument in 'f'
     REAL, INTENT(IN) :: z ! Third argument in 'f'
     TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
@@ -3957,7 +3978,7 @@ CONTAINS
     INTEGER, PARAMETER :: jmax=30
 
     INTERFACE
-       REAL FUNCTION f(x,y,z,cosm)
+       FUNCTION f(x,y,z,cosm)
          IMPORT :: cosmology
          REAL, INTENT(IN) :: x
          REAL, INTENT(IN) :: y

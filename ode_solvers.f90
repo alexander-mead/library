@@ -16,8 +16,15 @@ CONTAINS
     !Solves 2nd order ODE d2x/dt2 from ti to tf and creates arrays of x, v, t values
     !I have sometimes called this ODE_crass because it has a fixed number of time steps, n
     IMPLICIT NONE
-    REAL, ALLOCATABLE, INTENT(OUT) :: x(:), v(:), t(:)
-    REAL, INTENT(IN) :: xi, vi, ti, tf
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
+    REAL, INTENT(IN) :: ti
+    REAL, INTENT(IN) :: tf
+    REAL, INTENT(IN) :: xi
+    REAL, INTENT(IN) :: vi
+    REAL, EXTERNAL :: fx
+    REAL, EXTERNAL :: fv
     INTEGER, INTENT(IN) :: n, imeth
     LOGICAL, INTENT(IN) :: ilog   
     DOUBLE PRECISION :: x8(n), v8(n)
@@ -27,12 +34,12 @@ CONTAINS
     INTERFACE
 
        !fx is what dx/dt is equal to, this is almost always just v
-       REAL FUNCTION fx(x,v,t)
+       FUNCTION fx(x,v,t)
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fx
 
        !fv is what dv/dt is equal to
-       REAL FUNCTION fv(x,v,t)
+       FUNCTION fv(x,v,t)
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fv
 
@@ -71,8 +78,16 @@ CONTAINS
     !acc is the desired accuracy across the entire solution
     !time steps are increased until convergence is achieved
     IMPLICIT NONE
-    REAL, ALLOCATABLE, INTENT(OUT) :: x(:), t(:), v(:)
-    REAL, INTENT(IN) :: xi, vi, ti, tf, acc
+    REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
+    REAL, INTENT(IN) :: ti
+    REAL, INTENT(IN) :: tf
+    REAL, INTENT(IN) :: xi
+    REAL, INTENT(IN) :: vi
+    REAL, EXTERNAL :: fx
+    REAL, EXTERNAL :: fv
+    REAL, INTENT(IN) :: acc
     INTEGER, INTENT(IN) :: imeth
     LOGICAL, INTENT(IN) :: ilog
     DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)    
@@ -85,13 +100,11 @@ CONTAINS
 
        ! fx is what dx/dt is equal to this is almost always just v
        FUNCTION fx(x,v,t)
-         REAL :: fx
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fx
 
        ! fv is what dv/dt is equal to
        FUNCTION fv(x,v,t)
-         REAL :: fv
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fv
 
@@ -191,8 +204,14 @@ CONTAINS
 
     !Advances the ODE system from t1 to t2, updating x1 to x2 and v1 to v2
     IMPLICIT NONE
-    DOUBLE PRECISION, INTENT(IN) :: x1, v1, t1, t2
-    DOUBLE PRECISION, INTENT(OUT) :: x2, v2
+    DOUBLE PRECISION, INTENT(IN) :: x1
+    DOUBLE PRECISION, INTENT(OUT) :: x2
+    DOUBLE PRECISION, INTENT(IN) :: v1
+    DOUBLE PRECISION, INTENT(OUT) :: v2
+    DOUBLE PRECISION, INTENT(IN) :: t1
+    DOUBLE PRECISION, INTENT(IN) :: t2
+    REAL, EXTERNAL :: fx
+    REAL, EXTERNAL :: fv
     INTEGER, INTENT(IN) :: imeth
     REAL :: x, v, t, dt
     REAL :: kx1, kx2, kx3, kx4
@@ -207,13 +226,11 @@ CONTAINS
 
        !fx is what dx/dt is equal to; this is almost always just v for 2ODE
        FUNCTION fx(x,v,t)
-         REAL :: fx
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fx
 
        !fv is what dv/dt is equal to
        FUNCTION fv(x,v,t)
-         REAL :: fv
          REAL, INTENT(IN) :: x, v, t
        END FUNCTION fv
 

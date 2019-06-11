@@ -4433,11 +4433,12 @@ CONTAINS
     ! TODO: This uses integrate_hmod_cosm_exp, which is weird, surely can use some transformed integrand instead?
     IMPLICIT NONE
     REAL, INTENT(IN) :: nu_min, nu_max
+    REAL, EXTERNAL :: integrand
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
 
     INTERFACE
-       REAL FUNCTION integrand(M,hmod,cosm)
+       FUNCTION integrand(M,hmod,cosm)
          IMPORT :: halomod, cosmology
          REAL, INTENT(IN) :: M
          TYPE(halomod), INTENT(INOUT) :: hmod
@@ -8361,15 +8362,17 @@ CONTAINS
 
   END FUNCTION halo_HI_fraction
 
-  FUNCTION integrate_hmod(a,b,f,hmod,acc,iorder)
+  REAL FUNCTION integrate_hmod(a,b,f,hmod,acc,iorder)
 
     ! Integrates between a and b until desired accuracy is reached
     ! Stores information to reduce function calls
     IMPLICIT NONE
-    REAL :: integrate_hmod
-    REAL, INTENT(IN) :: a, b, acc
-    INTEGER, INTENT(IN) :: iorder
+    REAL, INTENT(IN) :: a
+    REAL, INTENT(IN) :: b
+    REAL, EXTERNAL :: f
     TYPE(halomod), INTENT(INOUT) :: hmod
+    REAL, INTENT(IN) :: acc
+    INTEGER, INTENT(IN) :: iorder
     INTEGER :: i, j
     INTEGER :: n
     REAL :: x, dx
@@ -8380,7 +8383,7 @@ CONTAINS
     INTEGER, PARAMETER :: jmax=30
 
     INTERFACE
-       REAL FUNCTION f(x,hmod)
+       FUNCTION f(x,hmod)
          IMPORT :: halomod
          REAL, INTENT(IN) :: x
          TYPE(halomod), INTENT(INOUT) :: hmod
@@ -8459,16 +8462,18 @@ CONTAINS
 
   END FUNCTION integrate_hmod
 
-  FUNCTION integrate_hmod_cosm(a,b,f,hmod,cosm,acc,iorder)
+  REAL FUNCTION integrate_hmod_cosm(a,b,f,hmod,cosm,acc,iorder)
 
     ! Integrates between a and b until desired accuracy is reached
     ! Stores information to reduce function calls
     IMPLICIT NONE
-    REAL :: integrate_hmod_cosm
-    REAL, INTENT(IN) :: a, b, acc
-    INTEGER, INTENT(IN) :: iorder
+    REAL, INTENT(IN) :: a
+    REAL, INTENT(IN) :: b
+    REAL, EXTERNAL :: f
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL, INTENT(IN) :: acc
+    INTEGER, INTENT(IN) :: iorder
     INTEGER :: i, j
     INTEGER :: n
     REAL :: x, dx
@@ -8479,7 +8484,7 @@ CONTAINS
     INTEGER, PARAMETER :: jmax=30
 
     INTERFACE
-       REAL FUNCTION f(x,hmod,cosm)
+       FUNCTION f(x,hmod,cosm)
          IMPORT :: halomod
          IMPORT :: cosmology
          REAL, INTENT(IN) :: x
@@ -8560,16 +8565,18 @@ CONTAINS
 
   END FUNCTION integrate_hmod_cosm
 
-  FUNCTION integrate_hmod_cosm_exp(a,b,f,hmod,cosm,acc,iorder)
+  REAL FUNCTION integrate_hmod_cosm_exp(a,b,f,hmod,cosm,acc,iorder)
 
     ! Integrates between a and b until desired accuracy is reached
     ! Stores information to reduce function calls
     IMPLICIT NONE
-    REAL :: integrate_hmod_cosm_exp
-    REAL, INTENT(IN) :: a, b, acc
-    INTEGER, INTENT(IN) :: iorder
+    REAL, INTENT(IN) :: a
+    REAL, INTENT(IN) :: b
+    REAL, EXTERNAL :: f
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
+    REAL, INTENT(IN) :: acc
+    INTEGER, INTENT(IN) :: iorder
     INTEGER :: i, j
     INTEGER :: n
     REAL :: x, dx
@@ -8580,7 +8587,7 @@ CONTAINS
     INTEGER, PARAMETER :: jmax=30
 
     INTERFACE
-       REAL FUNCTION f(nu,hmod,cosm)
+       FUNCTION f(nu,hmod,cosm)
          IMPORT :: halomod
          IMPORT :: cosmology
          REAL, INTENT(IN) :: nu
