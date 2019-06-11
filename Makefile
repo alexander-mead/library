@@ -3,6 +3,12 @@
 # Set the Fortran compiler
 FC = gfortran
 
+# Source-code directory
+SRC_DIR = src
+
+# Build directory
+BUILD_DIR = build
+
 # Standard Fortran compile flags
 FFLAGS = \
 	-Warray-bounds \
@@ -23,7 +29,7 @@ DEBUG_FLAGS = \
 	-Og
 
 # All the object files that the library is composed of 
-OBJS = \
+_OBJ = \
 	precision.o \
 	constants.o \
 	physics.o \
@@ -58,6 +64,9 @@ OBJS = \
 	owls.o \
 	owls_extras
 
+# Add prefix of build directory to objects
+OBJ = $(addprefix $(BUILD_DIR)/,$(_OBJ))
+
 # Default compile option
 all: FFLAGS += -O3 
 all: meadlib
@@ -67,20 +76,20 @@ debug: FFLAGS += $(DEBUG_FLAGS)
 debug: meadlib
 
 # Make the library
-meadlib: $(OBJS).o
+meadlib: $(OBJ).o
 	@echo
 	@$(FC) --version
 	@echo 'compiling library'
-	@ar rc meadlib $(OBJS).o
+	@ar rc meadlib $(OBJ).o
 	@echo 'done'
 	@echo
 
-# Rule to create the object file
-%.o: %.f90
-	$(FC) $(FFLAGS) -c -o $@ $< 
+# Rule to create the object files
+$(BUILD_DIR)/%.o: %.f90
+	$(FC) $(FFLAGS) -c -o $@ $< -J$(BUILD_DIR)
 
 # Clean up
 clean:
 	rm -f meadlib
-	rm -f *.mod
-	rm -f *.o
+	rm -f $(BUILD_DIR)/*.mod
+	rm -f $(BUILD_DIR)/*.o
