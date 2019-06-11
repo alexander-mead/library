@@ -125,6 +125,7 @@ CONTAINS
   REAL FUNCTION random_Rayleigh(sigma)
 
     ! Produces a Rayleigh-distributed random number
+    USE constants
     IMPLICIT NONE
     REAL, INTENT(IN) :: sigma      ! Sigma parameters (*not* root-variance for the distribution)
     REAL, PARAMETER :: small=1e-10 ! To avoid ever getting a log(0) call
