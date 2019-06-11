@@ -3,6 +3,18 @@
 # Set the Fortran compiler
 FC = gfortran
 
+FFLAGS = \
+	-Warray-bounds \
+	-fmax-errors=4 \
+	-ffpe-trap=invalid,zero,overflow \
+	-fimplicit-none \
+	-O3 \
+	-fdefault-real-8 \
+	-fdefault-double-8 \
+	-fopenmp \
+	-lgfortran \
+	-lm
+
 # Source-code directory
 SRC_DIR = src
 
@@ -86,7 +98,7 @@ meadlib: $(OBJ).o
 
 # Rule to create the object files
 $(BUILD_DIR)/%.o: %.f90
-	$(FC) $(FFLAGS) -c -o $@ $< -J$(BUILD_DIR)
+	$(FC) $(FFLAGS) -c -o $@ $< -J$(BUILD_DIR) $(FFLAGS)
 
 # Clean up
 clean:
