@@ -130,7 +130,7 @@ CONTAINS
     REAL, PARAMETER :: small=1e-10 ! To avoid ever getting a log(0) call
 
     ! Problems if small=0. because log(0.) gets called sometimes
-    random_Rayleigh=sigma*sqrt(-2.*log(random_uniform(small,1.)))
+    random_Rayleigh=sigma*sqrt(-2.*log(random_uniform(small,one)))
 
   END FUNCTION random_Rayleigh
 
@@ -140,7 +140,7 @@ CONTAINS
     USE constants
     IMPLICIT NONE
 
-    random_Lorentzian=tan(random_uniform(0.,pi/2.))
+    random_Lorentzian=tan(random_uniform(zero,pi/2.))
 
   END FUNCTION random_Lorentzian
 
@@ -156,7 +156,7 @@ CONTAINS
     REAL :: r, theta
 
     r=random_Rayleigh(sigma)
-    theta=random_uniform(0.,twopi)
+    theta=random_uniform(zero,twopi)
 
     ! Both of these numbers are Gaussian
     random_Gaussian_pair(1)=r*sin(theta)+mean

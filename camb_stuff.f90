@@ -14,7 +14,8 @@ CONTAINS
     USE constants
     IMPLICIT NONE
     CHARACTER(len=*), INTENT(IN) :: infile
-    REAL, ALLOCATABLE, INTENT(OUT) :: k(:), p(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+    REAL, ALLOCATABLE, INTENT(OUT) :: p(:)
     INTEGER, INTENT(OUT) :: n
     INTEGER :: i
     
