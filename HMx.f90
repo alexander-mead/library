@@ -201,7 +201,7 @@ MODULE HMx
      REAL, ALLOCATABLE :: k(:), wk(:,:,:)
      INTEGER :: nk
      
-     REAL :: sigv, sigv100, c3, knl, rnl, mnl, neff, sig8z, Rh, Mh, Mp
+     REAL :: sigv, sigv100, c3, knl, rnl, mnl, neff, sig8_all, sig8_cold, Rh, Mh, Mp
 
      ! HOD etc.
      REAL :: mhalo_min, mhalo_max, HImin, HImax, rcore, hmass
@@ -1290,7 +1290,8 @@ CONTAINS
     ! Find value of sigma_V
     hmod%sigv=sigmaV(0.,a,cosm)
     IF(hmod%i2hdamp==3) hmod%sigv100=sigmaV(100.,a,cosm)
-    hmod%sig8z=sigma_all(8.,a,cosm)
+    hmod%sig8_all=sigma_all(8.,a,cosm)
+    hmod%sig8_cold=sigma_cold(8.,a,cosm)
 
     IF(verbose) THEN
        WRITE(*,*) 'INIT_HALOMOD: Filling look-up tables'
@@ -1299,7 +1300,8 @@ CONTAINS
        WRITE(*,*) 'INIT_HALOMOD: Tables being filled at scale-factor:', REAL(a)
        WRITE(*,*) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigv)
        IF(hmod%i2hdamp==3) WRITE(*,*) 'INIT_HALOMOD: sigmaV_100 [Mpc/h]:', REAL(hmod%sigv100)
-       WRITE(*,*) 'INIT_HALOMOD: sigma_8(z):', REAL(hmod%sig8z)
+       WRITE(*,*) 'INIT_HALOMOD: sigma_8(z) (all):', REAL(hmod%sig8_all)
+       WRITE(*,*) 'INIT_HALOMOD: sigma_8(z) (cold):', REAL(hmod%sig8_cold)
     END IF
 
     ! Loop over halo masses and fill arrays
@@ -3613,8 +3615,7 @@ CONTAINS
     ELSE IF(hmod%idc==3 .OR. hmod%idc==6) THEN
        ! From Mead et al. (2015)
       ! TODO: Should this be sigma_all or sigma_cold?
-      delta_c=hmod%dc0+hmod%dc1*log(sigma_cold(8.,a,cosm))
-      !delta_c=hmod%dc0+hmod%dc1*log(hmod%sig8z)
+      delta_c=hmod%dc0+hmod%dc1*log(hmod%sig8_cold)
        IF(hmod%idc==3) THEN
           ! Mead et al. (2016) addition of small cosmology and neutrino dependence
           delta_c=delta_c*(1.+hmod%dcnu*cosm%f_nu)
@@ -3692,8 +3693,7 @@ CONTAINS
           eta0=hmod%eta0
        END IF
        ! TODO: Should this be sigma_all or sigma_cold?
-       eta_HMcode=eta0-hmod%eta1*sigma_cold(8.,hmod%a,cosm)
-       !eta_HMcode=eta0-hmod%eta1*hmod%sig8z
+       eta_HMcode=eta0-hmod%eta1*hmod%sig8_cold
     ELSE
        STOP 'ETA_HMcode: Error, ieta defined incorrectly'
     END IF
@@ -3765,7 +3765,8 @@ CONTAINS
        fdamp_HMcode=0.
     ELSE IF(hmod%i2hdamp==2) THEN
        ! Mead et al. (2015)
-       fdamp_HMcode=hmod%f0*hmod%sig8z**hmod%f1
+      ! Note that sig8 is for all matter here because Mead (2015) did not consider massive nu
+       fdamp_HMcode=hmod%f0*hmod%sig8_all**hmod%f1
     ELSE IF(hmod%i2hdamp==3) THEN
        ! Mead et al. (2016)
       ! TODO: Should this be sigma_v for all matter or only cold matter?

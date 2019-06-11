@@ -1189,7 +1189,7 @@ CONTAINS
        IF(cosm%verbose) WRITE(*,*) 'NORMALISE_POWER: Normalising power to get correct sigma_8'
 
        ! Calculate the initial sigma_8 value (will not be correct)
-       sigi=sigma_all(R,a,cosm)
+       sigi=sigma_all_integral(R,a,cosm)
 
        IF(cosm%verbose) WRITE(*,*) 'NORMALISE_POWER: Initial sigma_8:', real(sigi)
 
@@ -1198,7 +1198,7 @@ CONTAINS
        !cosm%A=391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
 
        ! Recalculate sigma8, should be correct this time
-       sigf=sigma_all(R,a,cosm)
+       sigf=sigma_all_integral(R,a,cosm)
 
        ! Write to screen
        IF(cosm%verbose) THEN
@@ -1219,7 +1219,7 @@ CONTAINS
        ! Run first time to get power
        cosm%A=2.1e-9
        CALL get_CAMB_power(non_linear=.FALSE.,halofit_version=5,cosm=cosm)
-       sigi=sigma_all(R,a,cosm)
+       sigi=sigma_all_integral(R,a,cosm)
 
        IF(cosm%verbose) THEN
           WRITE(*,*) 'NORMALISE_POWER: Normalising power to get correct sigma_8'
@@ -1242,7 +1242,7 @@ CONTAINS
        END IF
 
        ! Check that the normalisation has been done correctly
-       sigf=sigma_all(R,a,cosm)
+       sigf=sigma_all_integral(R,a,cosm)
 
        ! Write to screen
        IF(cosm%verbose) THEN
@@ -2421,13 +2421,35 @@ CONTAINS
     
   END FUNCTION Tk_WDM
 
+REAL FUNCTION Tcold(k,a,cosm)
+
+! Ratio of transfer function for cold matter relative to all matter
+! TODO: Add exact result from CAMB
+IMPLICIT NONE
+REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
+REAL, INTENT(IN) :: a ! Scale factor
+TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+INTEGER, PARAMETER :: method=3
+
+IF(method==1) THEN
+   Tcold=1.
+ELSE IF(method==2) THEN
+   Tcold=Tcold_approx(cosm)
+ELSE IF(method==3) THEN
+   Tcold=Tcold_ratio(k,a,cosm)
+ELSE
+   STOP 'TCOLD: Error, method not specified correctly'
+END IF
+
+END FUNCTION Tcold
+
 REAL FUNCTION Tcold_approx(cosm)
 
 ! Approximation for how power is suppressed by massive nu at small scales
 ! Calculated assuming perturbation grow from z~1000 and that neutrinos are hot and therefore completely smooth
 ! Related to the growth-function approximation: g(a) = a^(1-3f_nu/5)
 IMPLICIT NONE
-TYPE(cosmology), INTENT(INOUT) :: cosm
+TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
 
 Tcold_approx=sqrt(1.-8.*cosm%f_nu)
 
@@ -2441,20 +2463,20 @@ REAL FUNCTION Tcold_ratio(k,a,cosm)
    ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
    IMPLICIT NONE
    REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-   REAL, INTENT(IN) :: a
-   TYPE(cosmology), INTENT(INOUT) :: cosm
+   REAL, INTENT(IN) :: a ! Scale factor
+   TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
    REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
    REAL :: BigT
    INTEGER, PARAMETER :: N_massive_nu=3
-
-   ! Get the redshift
-   z=redshift_a(a)
 
    IF(cosm%f_nu==0.) THEN
 
       Tcold_ratio=1.
 
    ELSE
+
+      ! Get the redshift
+      z=redshift_a(a)
 
       ! Growth exponent under the assumption that neutrinos are completely unclustered (equation 11)
       pcb=(5.-sqrt(1.+24.*(1.-cosm%f_nu)))/4.
@@ -2620,6 +2642,7 @@ REAL FUNCTION Tcold_ratio(k,a,cosm)
          DO i=1,nr_sigma
             r=exp(cosm%log_r_sigma(i))
             sig=sigma_cold_integral(r,a,cosm)
+            !sig=sigma_all_integral(r,a,cosm)
             cosm%log_sigmaa(i,j)=log(sig)
          END DO
       END DO
@@ -2631,6 +2654,7 @@ REAL FUNCTION Tcold_ratio(k,a,cosm)
          !r=exp(progression(log(rmin_sigma),log(rmax_sigma),i,nsig))
          r=exp(cosm%log_r_sigma(i))
          sig=sigma_cold_integral(r,a,cosm)
+         !sig=sigma_all_integral(r,a,cosm)
          cosm%log_sigma(i)=log(sig)
       END DO
    END IF
@@ -2645,7 +2669,7 @@ REAL FUNCTION Tcold_ratio(k,a,cosm)
 
   END SUBROUTINE init_sigma
 
-REAL FUNCTION sigma_all(r,a,cosm)
+REAL FUNCTION sigma_all_integral(r,a,cosm)
 
    ! Calculates sigma(R) by intergration
    IMPLICIT NONE
@@ -2659,7 +2683,7 @@ REAL FUNCTION sigma_all(r,a,cosm)
       ! Integration upper limit (c = 1 corresponds to k = 0)
       tmin=0.
       tmax=1.
-      sigma_all=sqrt(integrate_cosm(tmin,tmax,sigma2_all_integrand_transformed,r,a,cosm,2.*acc_cosm,3))
+      sigma_all_integral=sqrt(integrate_cosm(tmin,tmax,sigma2_all_integrand_transformed,r,a,cosm,2.*acc_cosm,3))
    ELSE IF(r<Rsplit_sigma) THEN
       ! Integration limits, the split of the integral is done at k = 1/R
       tmin=t_sigma_integrand(ksplit_sigma(R),R)
@@ -2668,12 +2692,12 @@ REAL FUNCTION sigma_all(r,a,cosm)
       kmax=sigma_out/R     ! ...out to k = inf, but in practice just go out a finite distance in kR
       part1=integrate_cosm(tmin,tmax,sigma2_all_integrand_transformed,r,a,cosm,2.*acc_cosm,3)          
       part2=integrate_cosm(kmin,kmax,sigma2_all_integrand,r,a,cosm,2.*acc_cosm,3)
-      sigma_all=sqrt(part1+part2)
+      sigma_all_integral=sqrt(part1+part2)
    ELSE
       STOP 'INIT_SIGMA: Error, something went wrong'
    END IF
 
-END FUNCTION sigma_all
+END FUNCTION sigma_all_integral
 
 REAL FUNCTION sigma_cold_integral(r,a,cosm)
 
@@ -2704,6 +2728,20 @@ REAL FUNCTION sigma_cold_integral(r,a,cosm)
    END IF
 
 END FUNCTION sigma_cold_integral
+
+REAL FUNCTION sigma_all(R,a,cosm)
+
+! Gets sigma
+! TODO: Could add look-up table
+
+IMPLICIT NONE
+REAL, INTENT(IN) :: R ! Smoothing scale to calculate sigma [Mpc/h]
+REAL, INTENT(IN) :: a ! Scale factor
+TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+
+sigma_all=sigma_all_integral(R,a,cosm)
+
+END FUNCTION sigma_all
 
 REAL FUNCTION sigma_cold(R,a,cosm)
 
@@ -2749,16 +2787,13 @@ END FUNCTION sigma2_all_integrand
 
 REAL FUNCTION sigma2_cold_integrand(k,R,a,cosm)
 
-  IMPLICIT NONE
-  REAL, INTENT(IN) :: k
-  REAL, INTENT(IN) :: R
-  REAL, INTENT(IN) :: a
-  TYPE(cosmology), INTENT(INOUT) :: cosm
-  REAL :: T
+IMPLICIT NONE
+REAL, INTENT(IN) :: k
+REAL, INTENT(IN) :: R
+REAL, INTENT(IN) :: a
+TYPE(cosmology), INTENT(INOUT) :: cosm
 
-  !T=Tcold_ratio(k,a,cosm)
-  T=Tcold_approx(cosm)
-  sigma2_cold_integrand=sigma2_all_integrand(k,R,a,cosm)*T**2
+sigma2_cold_integrand=sigma2_all_integrand(k,R,a,cosm)*Tcold(k,a,cosm)**2
 
 END FUNCTION sigma2_cold_integrand
 
@@ -2797,7 +2832,7 @@ REAL FUNCTION sigma2_cold_integrand_transformed(t,R,a,cosm)
   REAL, INTENT(IN) :: R
   REAL, INTENT(IN) :: a
   TYPE(cosmology), INTENT(INOUT) :: cosm
-  REAL :: Tcold, k
+  REAL :: k
 
   IF(t==0.) THEN
    sigma2_cold_integrand_transformed=0.
@@ -2805,9 +2840,7 @@ REAL FUNCTION sigma2_cold_integrand_transformed(t,R,a,cosm)
    sigma2_cold_integrand_transformed=0.
   ELSE
    k=k_sigma_integrand(t,R)
-   !Tcold=Tcold_ratio(k,a,cosm)
-   Tcold=Tcold_approx(cosm)
-   sigma2_cold_integrand_transformed=sigma2_all_integrand_transformed(t,R,a,cosm)*Tcold**2
+   sigma2_cold_integrand_transformed=sigma2_all_integrand_transformed(t,R,a,cosm)*Tcold(k,a,cosm)**2
   END IF
 
 END FUNCTION sigma2_cold_integrand_transformed
