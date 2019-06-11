@@ -3,34 +3,21 @@
 # Set the Fortran compiler
 FC = gfortran
 
-FFLAGS = \
-	-Warray-bounds \
-	-fmax-errors=4 \
-	-ffpe-trap=invalid,zero,overflow \
-	-fimplicit-none \
-	-O3 \
-	-fdefault-real-8 \
-	-fdefault-double-8 \
-	-fopenmp \
-	-lgfortran \
-	-lm
-
-# Source-code directory
-SRC_DIR = src
-
-# Build directory
-BUILD_DIR = build
-
 # Standard Fortran compile flags
 FFLAGS = \
 	-Warray-bounds \
 	-fmax-errors=4 \
 	-ffpe-trap=invalid,zero,overflow \
 	-fimplicit-none \
+	-O3 \
 	-std=gnu \
+	-lgfortran \
 	-ffree-line-length-none \
 	-I/usr/local/include \
 	-I/usr/include
+
+# -std=f2008
+# - pedantic
 
 # Debug flags
 DEBUG_FLAGS = \
@@ -39,6 +26,12 @@ DEBUG_FLAGS = \
 	-fbounds-check \
 	-fbacktrace \
 	-Og
+
+# Source-code directory
+SRC_DIR = src
+
+# Build directory
+BUILD_DIR = build
 
 # All the object files that the library is composed of 
 _OBJ = \
@@ -80,7 +73,7 @@ _OBJ = \
 OBJ = $(addprefix $(BUILD_DIR)/,$(_OBJ))
 
 # Default compile option
-all: FFLAGS += -O3 
+#all: FFLAGS += -O3 
 all: meadlib
 
 # Debug mode
