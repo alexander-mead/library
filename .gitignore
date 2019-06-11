@@ -9,3 +9,4 @@ meadlib
 python/__pycache__
 *.pyc
 *.dat
+.vscode
