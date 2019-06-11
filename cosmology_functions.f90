@@ -1211,8 +1211,10 @@ CONTAINS
 
        ! Run first time to get power
        cosm%A=2.1e-9
-       CALL get_CAMB_power(z=0.,non_linear=.FALSE.,halofit_version=5,cosm=cosm)
+       CALL get_CAMB_power(non_linear=.FALSE.,halofit_version=5,cosm=cosm)
+       WRITE(*,*) 'Boop'
        sigi=sigma_integral(R,a,cosm)
+       WRITE(*,*) 'Poop'
 
        IF(cosm%verbose) THEN
           WRITE(*,*) 'NORMALISE_POWER: Normalising power to get correct sigma_8'
@@ -1224,7 +1226,7 @@ CONTAINS
        IF(run_twice) THEN
           ! Run again to normalise
           cosm%A=cosm%A*(cosm%sig8/sigi)**2 
-          CALL get_CAMB_power(z=0.,non_linear=.FALSE.,halofit_version=5,cosm=cosm)          
+          CALL get_CAMB_power(non_linear=.FALSE.,halofit_version=5,cosm=cosm)          
        ELSE
           ! Normalise using sigma8 and rescaling linear power
           cosm%log_plin=cosm%log_plin+2.*log(cosm%sig8/sigi)
@@ -2477,9 +2479,9 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT (IN) :: k, a
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    INTEGER, PARAMETER :: iorder=3 ! Order for interpolation
-    INTEGER, PARAMETER :: ifind=3  ! Finding scheme in table
-    INTEGER, PARAMETER :: imeth=2  ! Method for polynomials
+    INTEGER, PARAMETER :: iorder=3 ! Order for interpolation (3 - cubic)
+    INTEGER, PARAMETER :: ifind=3  ! Finding scheme in table (3 - Mid-point method)
+    INTEGER, PARAMETER :: imeth=2  ! Method for polynomials (2 - Lagrange polynomials)
 
     ! Using init_power seems to provide no significant speed improvements to HMx
     !IF(cosm%has_power .EQV. .FALSE.) CALL init_power(cosm)
@@ -2503,20 +2505,17 @@ CONTAINS
        p_lin=0.
     ELSE
        IF(cosm%has_power) THEN
-          ! TODO: Do something cleverer here. Could use the ln(k)^2 behaviour at high k, could just truncate
-!!$          IF(cosm%growk) THEN
-!!$             p_lin=exp(find(log(k),cosm%log_k_plin,log(a),cosm%log_a_plin,cosm%log_plina,cosm%n_plin_k,cosm%n_plin_a,&
-!!$            iorder,ifind,imeth))
-!!$          ELSE
-!!$             p_lin=exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,iorder,ifind,imeth))
-!!$          END IF
-          p_lin=exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,iorder,ifind,imeth))
+          ! TODO: Do something cleverer here. Could use the ln(k)^2 behaviour at high k, could just truncate...
+          IF(cosm%growk) THEN
+             p_lin=exp(find(log(k),cosm%log_k_plin,log(a),cosm%log_a_plin,cosm%log_plina,cosm%n_plin_k,cosm%n_plin_a,iorder,ifind,imeth=1))
+          ELSE
+             p_lin=(grow(a,cosm)**2)*exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,iorder,ifind,imeth))
+          END IF
+          !p_lin=exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,iorder,ifind,imeth))
        ELSE
           ! In this case get the power from the transfer function
-          p_lin=(cosm%A**2)*(Tk(k,cosm)**2)*(k**(cosm%n+3.))
+          p_lin=(cosm%A**2)*(grow(a,cosm)**2)*(Tk(k,cosm)**2)*(k**(cosm%n+3.))
        END IF
-       ! 'Grow' the power from z=0 to the redshift of interest
-       p_lin=p_lin*grow(a,cosm)**2
     END IF
 
   END FUNCTION p_lin
@@ -4062,30 +4061,26 @@ CONTAINS
 
   END FUNCTION integrate3_cosm
 
-  SUBROUTINE get_CAMB_power(z,non_linear,halofit_version,cosm)
+  SUBROUTINE get_CAMB_power(non_linear,halofit_version,cosm)
 
-    ! TODO: Add neutrinos
-    ! TODO: Rearrange to match CAMB input file examples
     USE CAMB_stuff
+    USE string_operations
     IMPLICIT NONE
-    TYPE(cosmology), INTENT(INOUT) :: cosm
-    INTEGER, INTENT(IN) :: halofit_version
     LOGICAL,INTENT(IN) :: non_linear
-    REAL, INTENT(IN) :: z
+    INTEGER, INTENT(IN) :: halofit_version
+    TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL, ALLOCATABLE :: k(:), Pk(:)
-    INTEGER :: n
+    INTEGER :: i, nk
     REAL :: Om_c, Om_b, Om_nu, h, ombh2, omch2, omnuh2
+    REAL, PARAMETER :: amin=0.1
+    REAL, PARAMETER :: amax=1.0
+    INTEGER, PARAMETER :: na=16
     CHARACTER(len=256), PARAMETER :: camb='camb'
     CHARACTER(len=256), PARAMETER :: dir='/Users/Mead/Physics/CAMB_files/tmp/'
     CHARACTER(len=256), PARAMETER :: root=trim(dir)//'temp'
-    CHARACTER(len=256), PARAMETER :: matterpower=trim(root)//'_matterpower.dat'
-    CHARACTER(len=256), PARAMETER :: transfer=trim(root)//'_transfer_out.dat'
+    CHARACTER(len=256), PARAMETER :: matterpower=trim(root)//'_matterpower_'
+    CHARACTER(len=256), PARAMETER :: transfer=trim(root)//'_transfer_'
     CHARACTER(len=256), PARAMETER :: params=trim(root)//'_params.ini'
-
-    ! Check for massive neutrinos
-    !IF(cosm%Om_nu .NE. 0.) THEN
-    !   STOP 'GET_CAMB_POWER: Error, massive neutrinos not supported yet'
-    !END IF
 
     ! Set the cosmological parameters for CAMB
     IF(cosm%power_Omegas) THEN
@@ -4099,6 +4094,12 @@ CONTAINS
        Om_nu=cosm%Om_nu       
        h=cosm%h
     END IF
+
+    ! For scale-dependent growth fill the scale-factor array first
+    IF(cosm%growk) THEN
+      CALL fill_array(log(amin),log(amax),cosm%log_a_plin,na)
+      cosm%n_plin_a=na
+    END IF  
 
     ! Physical density parameters that CAMB requires
     ombh2=Om_b*h**2
@@ -4162,9 +4163,7 @@ CONTAINS
        WRITE(7,*) 'massless_neutrinos = ', cosm%neff-3.
        WRITE(7,*) 'nu_mass_eigenstates = 1'
        WRITE(7,*) 'massive_neutrinos = 3'
-       !WRITE(7,*) 'nu_mass_fractions = ', (cosm%m_nu(j)/cosm%M_nu_total, j=1,3)
        WRITE(7,*) 'nu_mass_fractions = 1'
-       !WRITE(7,*) 'nu_mass_degeneracies ='
     END IF
 
     ! Primoridial power spectrum properties
@@ -4200,12 +4199,18 @@ CONTAINS
     WRITE(7,*) 'transfer_high_precision = F'
     WRITE(7,*) 'transfer_kmax = 10'
     WRITE(7,*) 'transfer_k_per_logint = 0'
-    WRITE(7,*) 'transfer_num_redshifts = 1'
     WRITE(7,*) 'transfer_interp_matterpower = T'
     WRITE(7,*) 'transfer_power_var = 7'
-    WRITE(7,*) 'transfer_redshift(1) =', z
-    WRITE(7,*) 'transfer_filename(1) = transfer_out.dat'   ! TODO: Parameter
-    WRITE(7,*) 'transfer_matterpower(1) = matterpower.dat' ! TODO: Parameter
+    IF(cosm%growk) THEN
+      WRITE(7,*) 'transfer_num_redshifts =', na
+      DO i=1,na
+         !WRITE(7,*) 'transfer_redshift(1) = 0'
+         WRITE(7,*) number_file(trim('transfer_redshift('),i,trim(') =')), redshift_a(exp(cosm%log_a_plin(i)))
+      END DO 
+    ELSE
+      WRITE(7,*) 'transfer_num_redshifts = 1'
+      WRITE(7,*) 'transfer_redshift(1) = 0'
+    END IF
 
     ! Bispectra
     WRITE(7,*) 'do_lensing_bispectrum = F'
@@ -4251,8 +4256,8 @@ CONTAINS
 
     ! Remove old files and run CAMB
     IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: Running CAMB (note weird problems with this function in library)'
-    CALL SYSTEM('rm '//trim(transfer))
-    CALL SYSTEM('rm '//trim(matterpower))
+    CALL SYSTEM('rm '//trim(transfer)//'*')
+    CALL SYSTEM('rm '//trim(matterpower)//'*')
     IF(cosm%verbose) THEN
        CALL SYSTEM(trim(camb)//' '//trim(params)//' > /dev/null')
     ELSE
@@ -4260,16 +4265,35 @@ CONTAINS
     END IF
     IF(cosm%verbose) WRITE(*,*) 'GET_CAMB_POWER: CAMB run complete'
 
-    ! Read in the power spectrum that has been generated
-    CALL read_CAMB_Pk(k,Pk,n,matterpower)
+   IF(cosm%growk) THEN
 
-    ! Add to cosm arrays and convert to log
-    IF(ALLOCATED(cosm%log_k_plin)) DEALLOCATE(cosm%log_k_plin)
-    IF(ALLOCATED(cosm%log_plin)) DEALLOCATE(cosm%log_plin)
-    ALLOCATE(cosm%log_plin(n),cosm%log_k_plin(n))
-    cosm%log_k_plin=log(k)
-    cosm%log_plin=log(Pk)
-    cosm%n_plin=n
+      ! Loop over redshifts and read CAMB power into arrays
+      DO i=1,na
+         CALL read_CAMB_Pk(k,Pk,nk,number_file(matterpower,i,trim('.dat')))
+         IF(i==1) THEN
+            cosm%n_plin_k=nk
+            ALLOCATE(cosm%log_k_plin(nk))
+            ALLOCATE(cosm%log_plina(nk,na))
+            cosm%log_k_plin=log(k)
+         END IF
+         cosm%log_plina(:,i)=Pk
+      END DO
+
+   ELSE 
+
+      ! Read in the power spectrum that has been generated
+      CALL read_CAMB_Pk(k,Pk,nk,trim(matterpower)//trim('1.dat'))
+
+      ! Add to cosm arrays and convert to log
+      IF(ALLOCATED(cosm%log_k_plin)) DEALLOCATE(cosm%log_k_plin)
+      IF(ALLOCATED(cosm%log_plin)) DEALLOCATE(cosm%log_plin)
+      ALLOCATE(cosm%log_plin(nk),cosm%log_k_plin(nk))
+      cosm%log_k_plin=log(k)
+      cosm%log_plin=log(Pk)
+      cosm%n_plin=nk
+   
+   END IF
+
     cosm%has_power=.TRUE.
 
     IF(cosm%verbose) THEN
