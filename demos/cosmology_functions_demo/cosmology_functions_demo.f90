@@ -57,14 +57,15 @@ PROGRAM cosmology_functions_demo
   ! Test background quantities
   IF(test_background) THEN
      IF(verbose) WRITE(*,*) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing background quantities'
-     OPEN(10,file='Omegas.dat')
-     OPEN(11,file='Hubble.dat')
-     OPEN(12,file='growth.dat')
-     OPEN(13,file='wa.dat')
-     OPEN(14,file='distance.dat')
-     OPEN(15,file='delta_c.dat')
-     OPEN(16,file='Delta_v.dat')
-     OPEN(17,file='time.dat')
+     OPEN(10,file='data/Omegas.dat')
+     OPEN(11,file='data/Hubble.dat')
+     OPEN(12,file='data/growth.dat')
+     OPEN(13,file='data/wa.dat')
+     OPEN(14,file='data/distance.dat')
+     OPEN(15,file='data/delta_c.dat')
+     OPEN(16,file='data/Delta_v.dat')
+     OPEN(17,file='data/time.dat')
+     OPEN(18,file='data/density.dat')
      DO i=1,na
         a=progression_log(amin,amax,i,na)
         z=redshift_a(a)
@@ -85,6 +86,16 @@ PROGRAM cosmology_functions_demo
         WRITE(15,*) a, dc_NakamuraSuto(a,cosm), dc_Mead(a,cosm), dc_spherical(a,cosm)
         WRITE(16,*) a, Dv_BryanNorman(a,cosm), Dv_Mead(a,cosm), Dv_spherical(a,cosm)
         WRITE(17,*) a, cosmic_time(a,cosm), look_back_time(a,cosm)
+        WRITE(18,*) a, &
+            Omega_m(a,cosm)*Hubble2(a,cosm), &
+            Omega_c(a,cosm)*Hubble2(a,cosm), &
+            Omega_b(a,cosm)*Hubble2(a,cosm), &
+            Omega_r(a,cosm)*Hubble2(a,cosm), &
+            Omega_g(a,cosm)*Hubble2(a,cosm), &
+            Omega_nu(a,cosm)*Hubble2(a,cosm), &
+            Omega_v(a,cosm)*Hubble2(a,cosm), &
+            Omega_w(a,cosm)*Hubble2(a,cosm), &
+            Omega(a,cosm)*Hubble2(a,cosm)
         !WRITE(*,*) i, a, (Omega_c(a,cosm)+Omega_b(a,cosm)+Omega_nu(a,cosm))/Omega_m(a,cosm), (Omega_nu(a,cosm)+Omega_g(a,cosm))/Omega_r(a,cosm)
      END DO
      CLOSE(10)
@@ -95,6 +106,7 @@ PROGRAM cosmology_functions_demo
      CLOSE(15)
      CLOSE(16)
      CLOSE(17)
+     CLOSE(18)
      IF(verbose) THEN
         WRITE(*,*) 'COSMOLOGY_FUNCTIONS_DEMO: Done'
         WRITE(*,*)
@@ -104,7 +116,7 @@ PROGRAM cosmology_functions_demo
   ! Test power spectrum
   IF(test_power) THEN
      IF(verbose) WRITE(*,*) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing power spectrum'
-     OPEN(10,file='power.dat')
+     OPEN(10,file='data/power.dat')
      DO i=1,nk
         k=progression_log(kmin,kmax,i,nk)
         WRITE(10,*) k, p_lin(k,1.,cosm), p_lin(k,0.5,cosm)
@@ -119,7 +131,7 @@ PROGRAM cosmology_functions_demo
   ! Test correlation function
   IF(test_correlation) THEN
      IF(verbose) WRITE(*,*) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing correlation function'
-     OPEN(10,file='correlation.dat')
+     OPEN(10,file='data/correlation.dat')
      DO i=1,nk
         r=progression_log(rmin,rmax,i,nr)
         xi=xi_lin(r,1.,cosm)
@@ -136,10 +148,10 @@ PROGRAM cosmology_functions_demo
   ! Test sigma(R)
   IF(test_sigma) THEN
      IF(verbose) WRITE(*,*) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing sigma(R)'
-     OPEN(10,file='sigma.dat')
+     OPEN(10,file='data/sigma.dat')
      DO i=1,nr
         r=progression_log(rmin,rmax,i,nr)
-        WRITE(10,*) r, sigma(r,1.,cosm), sigma(r,0.5,cosm)
+        WRITE(10,*) r, sigma_all(r,1.,cosm), sigma_all(r,0.5,cosm)
      END DO
      CLOSE(10)
      IF(verbose) THEN
@@ -160,7 +172,7 @@ PROGRAM cosmology_functions_demo
      WRITE(*,*) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=0 Mpc/h,   a=1.0) time [s]:', t2-t1
      WRITE(*,*) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=100 Mpc/h, a=1.0):', sigv100
      WRITE(*,*) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=100 Mpc/h, a=1.0) time [s]:', t3-t2
-     OPEN(10,file='sigmaV.dat')
+     OPEN(10,file='data/sigmaV.dat')
      DO i=1,nr
         r=progression_log(rmin,rmax,i,nr)
         !WRITE(*,*)  r, sigmaV(r,1.0,cosm), sigmaV(r,0.5,cosm)

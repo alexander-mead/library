@@ -90,7 +90,7 @@ meadlib: $(OBJ).o
 	@echo
 
 # Rule to create the object files
-$(BUILD_DIR)/%.o: %.f90
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90
 	$(FC) $(FFLAGS) -c -o $@ $< -J$(BUILD_DIR) $(FFLAGS)
 
 # Clean up

@@ -4,8 +4,8 @@ reset
 if(!exists('print')){print=0}
 if(print==0) set term aqua dashed
 
-dc_file='delta_c.dat'
-Dv_file='Delta_v.dat'
+dc_file='data/delta_c.dat'
+Dv_file='data/Delta_v.dat'
 
 #Scale factor a axis
 axis=1
