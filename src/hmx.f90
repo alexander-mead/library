@@ -861,7 +861,7 @@ CONTAINS
           hmod%As=3.0745
           hmod%alp0=3.129
           hmod%alp1=1.850
-          hmod%isigma=1
+          hmod%isigma=1 ! This seemed to produce better neutrino results, wah, wah 
        ELSE IF(ihm==28) THEN
           ! One-parameter baryon model
           hmod%one_parameter_baryons=.TRUE.
