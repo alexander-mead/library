@@ -847,7 +847,7 @@ CONTAINS
        ELSE IF(ihm==15) THEN
           ! Mead et al. (in prep)
           hmod%i1hdamp=3 ! k^4 at large scales for one-halo term
-          !hmod%ip2h=3    ! Linear theory with damped wiggles
+          hmod%ip2h=3    ! Linear theory with damped wiggles
           hmod%i2hdamp=2 ! Change back to Mead (2015) model for two-halo damping
           hmod%Dv0=444.87
           hmod%Dv1=-0.3170
@@ -861,7 +861,7 @@ CONTAINS
           hmod%As=3.0745
           hmod%alp0=3.129
           hmod%alp1=1.850
-          hmod%isigma=1 ! This seemed to produce better neutrino results, wah, wah 
+          hmod%isigma=1 ! This seemed to produce better neutrino results,
        ELSE IF(ihm==28) THEN
           ! One-parameter baryon model
           hmod%one_parameter_baryons=.TRUE.
