@@ -171,7 +171,7 @@ MODULE HMx
 
      ! Switches
      INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, ip2h_corr
-     INTEGER :: idc, iDv, ieta, ikstar, i2hdamp, i1hdamp, itrans
+     INTEGER :: idc, iDv, ieta, ikstar, i2hdamp, i1hdamp, itrans, isigma
 
      ! Void stuff
      LOGICAL :: voids
@@ -492,6 +492,11 @@ CONTAINS
     ! 7 - Duffy et al. (2008; astro-ph/0804.2486): relaxed virial
     ! 8 - Duffy et al. (2008; astro-ph/0804.2486): relaxed 200c
     hmod%iconc=4
+
+    ! How to calculate sigma(R)
+    ! 1 - Use all matter
+    ! 2 - Use cold matter
+    hmod%isigma=2
 
     ! Linear collapse threshold delta_c
     ! 1 - Fixed 1.686
@@ -840,9 +845,9 @@ CONTAINS
           hmod%Dvnu=0.
           hmod%dcnu=0.
        ELSE IF(ihm==15) THEN
-          ! Mead et al. (2018)
+          ! Mead et al. (in prep)
           hmod%i1hdamp=3 ! k^4 at large scales for one-halo term
-          hmod%ip2h=3    ! Linear theory with damped wiggles
+          !hmod%ip2h=3    ! Linear theory with damped wiggles
           hmod%i2hdamp=2 ! Change back to Mead (2015) model for two-halo damping
           hmod%Dv0=444.87
           hmod%Dv1=-0.3170
@@ -855,7 +860,8 @@ CONTAINS
           hmod%ks=0.6358
           hmod%As=3.0745
           hmod%alp0=3.129
-          hmod%alp1=1.850         
+          hmod%alp1=1.850
+          hmod%isigma=1
        ELSE IF(ihm==28) THEN
           ! One-parameter baryon model
           hmod%one_parameter_baryons=.TRUE.
@@ -1309,7 +1315,13 @@ CONTAINS
 
        m=exp(progression(log(mmin),log(mmax),i,hmod%n))
        R=radius_m(m,cosm)
-       sig=sigma_cold(R,a,cosm)
+       IF(hmod%isigma==1) THEN
+         sig=sigma_all(R,a,cosm)
+       ELSE IF(hmod%isigma==2) THEN
+         sig=sigma_cold(R,a,cosm)
+       ELSE 
+         STOP 'INIT_HALOMOD: Error, isigma not specified correctly'
+       END IF 
        nu=nu_R(R,hmod,cosm)
 
        hmod%m(i)=m
@@ -1808,6 +1820,10 @@ CONTAINS
           IF(hmod%halo_compensated_void==1) WRITE(*,*) 'HALOMODEL: Compensated void model: Top-hat'
 
        END IF
+
+       ! sigma(R) type
+       IF(hmod%isigma==1) WRITE(*,*) 'HALOMODEL: Sigma being calculated using all matter'
+       IF(hmod%isigma==2) WRITE(*,*) 'HALOMODEL: Sigma being calculated using cold matter'
 
        ! delta_c
        IF(hmod%idc==1) WRITE(*,*) 'HALOMODEL: Fixed delta_c = 1.686'
@@ -3614,7 +3630,6 @@ CONTAINS
        delta_c=dc_NakamuraSuto(a,cosm)
     ELSE IF(hmod%idc==3 .OR. hmod%idc==6) THEN
        ! From Mead et al. (2015)
-      ! TODO: Should this be sigma_all or sigma_cold?
       delta_c=hmod%dc0+hmod%dc1*log(hmod%sig8_cold)
        IF(hmod%idc==3) THEN
           ! Mead et al. (2016) addition of small cosmology and neutrino dependence
@@ -3692,7 +3707,6 @@ CONTAINS
        ELSE
           eta0=hmod%eta0
        END IF
-       ! TODO: Should this be sigma_all or sigma_cold?
        eta_HMcode=eta0-hmod%eta1*hmod%sig8_cold
     ELSE
        STOP 'ETA_HMcode: Error, ieta defined incorrectly'
@@ -3723,63 +3737,63 @@ CONTAINS
 
   END FUNCTION kstar_HMcode
 
-  REAL FUNCTION A_HMcode(hmod,cosm)
+REAL FUNCTION A_HMcode(hmod,cosm)
 
-    ! Halo concentration pre-factor
-    IMPLICIT NONE
-    TYPE(halomod), INTENT(INOUT) :: hmod
-    TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: crap
+   ! Halo concentration pre-factor
+   IMPLICIT NONE
+   TYPE(halomod), INTENT(INOUT) :: hmod
+   TYPE(cosmology), INTENT(INOUT) :: cosm
+   REAL :: crap
 
-    ! To prevent compile-time warnings
-    crap=cosm%A
+   ! To prevent compile-time warnings
+   crap=cosm%A
 
-    IF(hmod%iAs==1) THEN
-       ! Set to 4 for the standard Bullock value
-       A_HMcode=4.
-    ELSE IF(hmod%iAs==2) THEN
-       ! This is the 'A' halo-concentration parameter in Mead et al. (2015; arXiv 1505.07833, 2016)
-       A_HMcode=hmod%As
-    ELSE
-       STOP 'A_HMcode: Error, iAs defined incorrectly'
-    END IF
+   IF(hmod%iAs==1) THEN
+      ! Set to 4 for the standard Bullock value
+      A_HMcode=4.
+   ELSE IF(hmod%iAs==2) THEN
+      ! This is the 'A' halo-concentration parameter in Mead et al. (2015; arXiv 1505.07833, 2016)
+      A_HMcode=hmod%As
+   ELSE
+      STOP 'A_HMcode: Error, iAs defined incorrectly'
+   END IF
 
-    ! Now this is divided by 4 so as to be relative to the Bullock base result
-    A_HMcode=A_HMcode/4.
+   ! Now this is divided by 4 so as to be relative to the Bullock base result
+   A_HMcode=A_HMcode/4.
 
-  END FUNCTION A_HMcode
+END FUNCTION A_HMcode
 
-  REAL FUNCTION fdamp_HMcode(hmod,cosm)
+REAL FUNCTION fdamp_HMcode(hmod,cosm)
 
-    ! Calculates the linear-theory damping factor
-    IMPLICIT NONE
-    TYPE(halomod), INTENT(INOUT) :: hmod
-    TYPE(cosmology), INTENT(INOUT) :: cosm    
-    REAL :: crap
+   ! Calculates the linear-theory damping factor
+   IMPLICIT NONE
+   TYPE(halomod), INTENT(INOUT) :: hmod
+   TYPE(cosmology), INTENT(INOUT) :: cosm    
+   REAL :: crap
 
-    ! To prevent compile-time warnings
-    crap=cosm%A
+   ! To prevent compile-time warnings
+   crap=cosm%A
 
-    IF(hmod%i2hdamp==1) THEN
-       ! Set to 0 for the standard linear theory two halo term
-       fdamp_HMcode=0.
-    ELSE IF(hmod%i2hdamp==2) THEN
-       ! Mead et al. (2015)
+   IF(hmod%i2hdamp==1) THEN
+      ! Set to 0 for the standard linear theory two halo term
+      fdamp_HMcode=0.
+   ELSE IF(hmod%i2hdamp==2) THEN
+      ! Mead et al. (2015)
       ! Note that sig8 is for all matter here because Mead (2015) did not consider massive nu
-       fdamp_HMcode=hmod%f0*hmod%sig8_all**hmod%f1
-    ELSE IF(hmod%i2hdamp==3) THEN
-       ! Mead et al. (2016)
+      fdamp_HMcode=hmod%f0*hmod%sig8_all**hmod%f1
+   ELSE IF(hmod%i2hdamp==3) THEN
+      ! Mead et al. (2016)
       ! TODO: Should this be sigma_v for all matter or only cold matter?
-       fdamp_HMcode=hmod%f0*hmod%sigv100**hmod%f1
-    ELSE
-       STOP 'FDAMP_HMcode: Error, i2hdamp defined incorrectly'
-    END IF
+      fdamp_HMcode=hmod%f0*hmod%sigv100**hmod%f1
+   ELSE
+      STOP 'FDAMP_HMcode: Error, i2hdamp defined incorrectly'
+   END IF
 
     ! Catches extreme values of fdamp that occur for ridiculous cosmologies
     IF(fdamp_HMcode<fdamp_HMcode_min) fdamp_HMcode=0.
     IF(fdamp_HMcode>fdamp_HMcode_max) fdamp_HMcode=fdamp_HMcode_max
 
-  END FUNCTION fdamp_HMcode
+END FUNCTION fdamp_HMcode
 
   REAL FUNCTION alpha_HMcode(hmod,cosm)
 
@@ -4339,10 +4353,21 @@ CONTAINS
     REAL, INTENT(IN) :: R
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
-    REAL :: a
+    REAL :: a, sig
 
+    ! Scale factor
     a=hmod%a
-    nu_R=delta_c(hmod,cosm)/sigma_cold(R,a,cosm)
+
+    ! Choose sigma type
+    IF(hmod%isigma==1) THEN
+      sig=sigma_all(R,a,cosm)
+    ELSE IF(hmod%isigma==2) THEN
+      sig=sigma_cold(R,a,cosm)
+    ELSE 
+      STOP 'NU_R: Error, isigma not specified correctly'
+    END IF  
+
+    nu_R=delta_c(hmod,cosm)/sig
 
   END FUNCTION nu_R
 
@@ -4831,19 +4856,25 @@ CONTAINS
     REAL, INTENT(IN) :: z
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm    
-    REAL :: dc
-    REAL :: af, zf, RHS, a, growz
+    REAL :: dc, af, zf, RHS, a, growz, rf, sigma
     INTEGER :: i
-
     REAL, PARAMETER :: f=0.01**(1./3.) ! This is the f=0.01 parameter in the Bullock realtion sigma(fM,z)
 
     a=scale_factor_z(z)
 
     ! Fills up a table for sigma(fM) for Bullock c(m) relation    
     IF(hmod%iconc==1) THEN
-       DO i=1,hmod%n
-          hmod%sigf(i)=sigma_cold(hmod%rr(i)*f,a,cosm)
-       END DO
+      DO i=1,hmod%n
+         rf=hmod%rr(i)*f
+         IF(hmod%isigma==1) THEN
+            sigma=sigma_all(rf,a,cosm)
+         ELSE IF(hmod%isigma==2) THEN
+            sigma=sigma_cold(rf,a,cosm)
+         ELSE  
+            STOP 'ZCOLL_BULLOCK: Error, isigma is specified incorrectly'
+         END IF
+         hmod%sigf(i)=sigma
+      END DO
     END IF
 
     ! Do numerical inversion
