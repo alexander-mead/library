@@ -3229,7 +3229,8 @@ CONTAINS
     REAL :: crap
     CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext
     !CHARACTER(len=256) :: base='/Users/Mead/Physics/data/Bolshoi/power/M512'
-    CHARACTER(len=256) :: base='/Users/Mead/Physics/data/Multidark/power/M512'
+    !CHARACTER(len=256) :: base='/Users/Mead/Physics/data/Multidark/power/M512'
+    CHARACTER(len=256) :: base='/Users/Mead/Physics/Multidark/data/M512'
     REAL, PARAMETER :: eps=1e-2
 
     WRITE(*,*) 'INIT_BNL: Running'
@@ -3698,6 +3699,10 @@ CONTAINS
     TYPE(halomod), INTENT(INOUT) :: hmod
     TYPE(cosmology), INTENT(INOUT) :: cosm
     REAL :: eta0
+    REAL :: crap
+
+    ! To prevent compile-time warnings
+    crap=cosm%A
 
     IF(hmod%ieta==1) THEN
        eta_HMcode=0.
