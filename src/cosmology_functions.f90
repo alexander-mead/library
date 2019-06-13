@@ -4993,16 +4993,17 @@ END FUNCTION sigma2_cold_integrand_transformed
        cosm%wa=0.0
        om_nu=0.
     ELSE IF(node==1) THEN
-       ! M001
-       ! Something seems funnny with this cosmology
-       om_m=0.1472
-       om_b=0.02261
-       cosm%sig8=0.8778
-       cosm%h=0.6167
-       cosm%n=0.9611
-       cosm%w=-0.7000
-       cosm%wa=0.67220
-       om_nu=0.
+      ! M001
+      ! Something seems funnny with this cosmology, the halo-model prediction is awful
+      ! This model has w0 ~ -wa ~ 0.7, so w(a=0) = w0+wa ~ 0, so DE scales almost like matter at early times
+      om_m=0.1472
+      om_b=0.02261
+      cosm%sig8=0.8778
+      cosm%h=0.6167
+      cosm%n=0.9611
+      cosm%w=-0.7000
+      cosm%wa=0.67220
+      om_nu=0.
     ELSE IF(node==2) THEN
        ! M002
        om_m=0.1356
@@ -5019,7 +5020,7 @@ END FUNCTION sigma2_cold_integrand_transformed
        om_b=0.02194
        cosm%sig8=0.9000
        cosm%h=0.7167
-       cosm%n=0.8944
+        cosm%n=0.8944
        cosm%w=-1.1000
        cosm%wa=-0.28330
        om_nu=0.

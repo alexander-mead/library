@@ -2010,6 +2010,7 @@ CONTAINS
     INTEGER :: i, nk
 
     IF(.NOT. ALLOCATED(cosm%log_k_plin)) STOP 'DEWIGGLE_INIT: Error, P(k) needs to be tabulated for this to work'
+    IF(cosm%growk) STOP 'DEWIGGLE_INIT: Error, this does not support scale-dependent growth yet'
 
     nk=cosm%nk_plin
     hmod%n_pdamp=nk
