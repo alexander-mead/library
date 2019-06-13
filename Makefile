@@ -78,7 +78,7 @@ all: meadlib
 
 # Debug mode
 debug: FFLAGS += $(DEBUG_FLAGS)
-debug: meadlib
+debug: meadlib_debug
 
 # Make the library
 meadlib: $(OBJ).o
@@ -89,6 +89,15 @@ meadlib: $(OBJ).o
 	@echo 'done'
 	@echo
 
+# Make the library
+meadlib_debug: $(OBJ).o
+	@echo
+	@$(FC) --version
+	@echo 'compiling debuggin library'
+	@ar rc meadlib_debug $(OBJ).o
+	@echo 'done'
+	@echo
+
 # Rule to create the object files
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90
 	$(FC) $(FFLAGS) -c -o $@ $< -J$(BUILD_DIR) $(FFLAGS)
@@ -96,5 +105,6 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90
 # Clean up
 clean:
 	rm -f meadlib
+	rm -f meadlib_debug
 	rm -f $(BUILD_DIR)/*.mod
 	rm -f $(BUILD_DIR)/*.o
