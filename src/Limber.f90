@@ -396,66 +396,78 @@ CONTAINS
 
   END SUBROUTINE write_Cl
 
-  SUBROUTINE calculate_angular_xi(th_tab,xi_tab,nth,l_tab,cl_tab,nl,lmax)
+   SUBROUTINE calculate_angular_xi(th_tab,xi_tab,nth,l_tab,cl_tab,nl,lmax)
 
-    ! Calcuate the correlation functions given a C(ell) table
-    USE special_functions
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: l_tab(nl), cl_tab(nl)
-    REAL, INTENT(OUT) :: th_tab(nth), xi_tab(3,nth)
-    INTEGER, INTENT(IN) :: nl, lmax, nth
-    INTEGER :: i, j
-    REAL :: logl(nl), logCl(nl)
-    REAL :: theta, Cl, l, xi0, xi2, xi4
+      ! Calcuate the two-dimensional correlation functions given a C(ell) array
+      ! This uses the direct sum over discrete ell do the transformation
+      ! This does correlation functions associated with J0, J2 and J4
+      ! TODO: Can I bunch together ell in the sum when ell is high?
+      USE special_functions
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: th_tab(nth)    ! Angles for correlation function [degrees]
+      REAL, INTENT(OUT) :: xi_tab(3,nth) ! Correlation functions (J0, J2 and J4)
+      INTEGER, INTENT(IN) :: nth         ! Number of angles to compute
+      REAL, INTENT(IN) :: l_tab(nl)      ! Array of ell
+      REAL, INTENT(IN) :: cl_tab(nl)     ! Array of C(ell)
+      INTEGER, INTENT(IN) :: nl          ! Number of ell
+      INTEGER, INTENT(IN) :: lmax        ! Maximum ell to go to in summation
+      INTEGER :: i, j
+      REAL :: logl(nl), logCl(nl)
+      REAL :: theta, Cl, l, xi0, xi2, xi4
+      INTEGER :: iorder=3
+      INTEGER :: ifind=3
+      INTEGER :: imeth=2
 
-    ! Speed up find routine by doing logarithms in advance
-    logl=log(l_tab)
-    logCl=log(cl_tab)
+      ! Speed up find routine by doing logarithms in advance
+      logl=log(l_tab)
+      logCl=log(cl_tab)
 
-    IF(verbose_xi) WRITE(*,*) 'CALCULATE_ANGULAR_XI: Computing correlation functions via sum'
-    DO i=1,nth
+      IF(verbose_xi) WRITE(*,*) 'CALCULATE_ANGULAR_XI: Computing correlation functions via sum'
+      DO i=1,nth
 
-       ! Get theta value and convert from degrees to radians
-       theta=th_tab(i)/rad2deg
+         ! Get theta value and convert from degrees to radians
+         theta=th_tab(i)/rad2deg
 
-       ! Set values to zero before summing
-       xi0=0.
-       xi2=0.
-       xi4=0.
+         ! Set values to zero before summing
+         xi0=0.
+         xi2=0.
+         xi4=0.
 
-       ! Do the conversion from Cl to xi as a summation over integer l
-       DO j=1,lmax
+         ! Do the conversion from Cl to xi as a summation over integer l
+         DO j=1,lmax
 
-          l=real(j)
-          Cl=exp(find(log(l),logl,logCl,nl,3,3,2))
+            ! Get the C(l) value associated with integer l
+            l=real(j)
+            Cl=exp(find(log(l),logl,logCl,nl,iorder,ifind,imeth))
 
-          xi0=xi0+(2.*l+1.)*Cl*Bessel(0,l*theta) ! J0
-          xi2=xi2+(2.*l+1.)*Cl*Bessel(2,l*theta) ! J2
-          xi4=xi4+(2.*l+1.)*Cl*Bessel(4,l*theta) ! J4
+            ! Add to the running todays for the correlation functions
+            xi0=xi0+(2.*l+1.)*Cl*Bessel(0,l*theta) ! J0
+            xi2=xi2+(2.*l+1.)*Cl*Bessel(2,l*theta) ! J2
+            xi4=xi4+(2.*l+1.)*Cl*Bessel(4,l*theta) ! J4
 
-       END DO
+         END DO
 
-       ! Divide by correct pre-factor
-       xi0=xi0/(4.*pi)
-       xi2=xi2/(4.*pi)
-       xi4=xi4/(4.*pi)
+         ! Divide by correct pre-factor
+         xi0=xi0/(4.*pi)
+         xi2=xi2/(4.*pi)
+         xi4=xi4/(4.*pi)
 
-       ! Convert theta from radians to degrees
-       theta=theta*rad2deg
+         ! Convert theta from radians to degrees
+         !theta=theta*rad2deg
+         !th_tab(i)=theta
 
-       ! Populate tables
-       th_tab(i)=theta
-       xi_tab(1,i)=xi0
-       xi_tab(2,i)=xi2
-       xi_tab(3,i)=xi4
+         ! Populate tables    
+         xi_tab(1,i)=xi0
+         xi_tab(2,i)=xi2
+         xi_tab(3,i)=xi4
 
-    END DO
-    IF(verbose_xi) THEN
-       WRITE(*,*) 'CALCULATE_ANGULAR_XI: Done'
-       WRITE(*,*)
-    END IF
+      END DO
+      IF(verbose_xi) THEN
+         WRITE(*,*) 'CALCULATE_ANGULAR_XI: Done'
+         WRITE(*,*)
+      END IF
 
-  END SUBROUTINE calculate_angular_xi
+   END SUBROUTINE calculate_angular_xi
 
   SUBROUTINE write_angular_xi(th_tab,xi_tab,nth,outfile)
 
