@@ -34,6 +34,7 @@ CONTAINS
       REAL :: a, b, c, d
       REAL :: x1, x2, x3, x4
       REAL :: y1, y2, y3, y4
+      REAL :: L1, L2
       INTEGER :: i
 
       ! This version interpolates if the value is off either end of the array
@@ -199,7 +200,10 @@ CONTAINS
                find_1D = find_1D+(a*x**2+b*x+c)/2.
             ELSE IF (imeth == 2) THEN
                ! In this case take the average of two quadratic Lagrange polynomials
-  find_1D = (Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))+Lagrange_polynomial(x, 2, (/x2, x3, x4/), (/y2, y3, y4/)))/2.
+               L1 = Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))
+               L2 = Lagrange_polynomial(x, 2, (/x2, x3, x4/), (/y2, y3, y4/))
+               !find_1D = (Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))+Lagrange_polynomial(x, 2, (/x2, x3, x4/), (/y2, y3, y4/)))/2.
+               find_1D = (L1+L2)/2.
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
             END IF

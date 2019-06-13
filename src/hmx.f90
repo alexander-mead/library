@@ -4630,7 +4630,7 @@ CONTAINS
          END DO
 
          !First find the radius R | f(R)=0; I am fairly certain that I can use log on 'r' here
-         r2(i) = exp(find_solve(0., log(r), f, n))
+         r2(i) = exp(find_solve(log(r), f, n))
 
          !Now do the concentration and mass conversions
          c2(i) = r2(i)/rs
@@ -4638,7 +4638,8 @@ CONTAINS
          !m2(i)=m1(i)*NFW_factor(c2(i))/NFW_factor(c1(i))
 
          IF (verbose_convert_mass) THEN
-    WRITE (*, fmt='(ES15.7,6F15.7)') m1(i), r1(i), c1(i), m2(i)/m1(i), r2(i)/r1(i), c2(i)/c1(i), NFW_factor(c2(i))/NFW_factor(c1(i))
+            WRITE (*, fmt='(ES15.7,6F15.7)') m1(i), r1(i), c1(i), m2(i)/m1(i), r2(i)/r1(i), c2(i)/c1(i), &
+               NFW_factor(c2(i))/NFW_factor(c1(i))
          END IF
 
       END DO

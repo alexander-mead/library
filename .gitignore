@@ -11,3 +11,4 @@ python/__pycache__
 *.dat
 .vscode
 build/
+*.sh

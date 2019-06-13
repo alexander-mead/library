@@ -11,18 +11,20 @@ MODULE solve_equations
 
 CONTAINS
 
-   REAL FUNCTION find_solve(a, xtab, ytab, n)
+   REAL FUNCTION find_solve(xtab, ytab, n)
 
-      ! Solves y(x)=a for x
-      ! TODO: Change so that a=0.
+      ! Solves y(x)=0. for x
       USE interpolate
       IMPLICIT NONE
-      REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: xtab(n)
       REAL, INTENT(IN) :: ytab(n)
       INTEGER, INTENT(IN) :: n
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
+      REAL, PARAMETER :: a = 0. ! y(x)=a; a=0 here
 
-      find_solve = find(a, ytab, xtab, n, 3, 3, 2)
+      find_solve = find(a, ytab, xtab, n, iorder, ifind, imeth)
 
    END FUNCTION find_solve
 
@@ -35,9 +37,12 @@ CONTAINS
       REAL, INTENT(IN) :: xtab(n)
       REAL, INTENT(IN) :: ytab(n)
       INTEGER, INTENT(IN) :: n
-      REAL :: x1, x2, y1, y2, x, y
       REAL, INTENT(IN) :: acc
+      REAL :: x1, x2, y1, y2, x, y
       INTEGER :: i
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
 
       ! Initial values taken from top and bottom of table
       x1 = xtab(1)
@@ -50,7 +55,7 @@ CONTAINS
       DO
          i = i+1
          x = 0.5*(x1+x2)
-         y = find(x, xtab, ytab, n, 3, 3, 2)
+         y = find(x, xtab, ytab, n, iorder, ifind, imeth)
          IF (abs(y) < acc) THEN
             EXIT
          ELSE IF (positive(y1) .EQV. positive(y)) THEN
