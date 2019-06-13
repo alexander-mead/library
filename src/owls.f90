@@ -1,403 +1,403 @@
 MODULE owls
 
-  USE constants
-  
-  IMPLICIT NONE
+   USE constants
 
-  PRIVATE
+   IMPLICIT NONE
 
-  PUBLIC :: read_mccarthy
-  PUBLIC :: read_mccarthy_gas
-  PUBLIC :: convert_kT_to_comoving_electron_pressure
-  PUBLIC :: write_mccarthy
-  PUBLIC :: BAHAMAS_snapshot
-  PUBLIC :: BAHAMAS_scale_factors
+   PRIVATE
 
-  PUBLIC :: nh_cut
-  PUBLIC :: mue
+   PUBLIC :: read_mccarthy
+   PUBLIC :: read_mccarthy_gas
+   PUBLIC :: convert_kT_to_comoving_electron_pressure
+   PUBLIC :: write_mccarthy
+   PUBLIC :: BAHAMAS_snapshot
+   PUBLIC :: BAHAMAS_scale_factors
 
-  ! BAHAMAS simulation parameters
-  REAL, PARAMETER :: fh=0.752      ! Hydrogen mass fraction
-  REAL, PARAMETER :: mup=0.61      ! Mean particle mass relative to proton
-  REAL, PARAMETER :: Xeh=1.17      ! Number of electrons per hydrogen (X_{e/H} in my notation)
-  REAL, PARAMETER :: Xih=1.08      ! Number of ions per hydrogen (X_{i/H}; all gas particles are either electrons or ions)
-  REAL, PARAMETER :: mfac=1e10     ! Mass conversion factor to get Msun/h
-  REAL, PARAMETER :: eV_erg=eV*1e7 ! eV in ergs
+   PUBLIC :: nh_cut
+   PUBLIC :: mue
 
-  ! BAHAMAS derived parameters
-  REAL, PARAMETER :: mue=mup*(Xeh+Xih)/Xeh ! Mean particle mass per electron relative to proton
+   ! BAHAMAS simulation parameters
+   REAL, PARAMETER :: fh = 0.752      ! Hydrogen mass fraction
+   REAL, PARAMETER :: mup = 0.61      ! Mean particle mass relative to proton
+   REAL, PARAMETER :: Xeh = 1.17      ! Number of electrons per hydrogen (X_{e/H} in my notation)
+   REAL, PARAMETER :: Xih = 1.08      ! Number of ions per hydrogen (X_{i/H}; all gas particles are either electrons or ions)
+   REAL, PARAMETER :: mfac = 1e10     ! Mass conversion factor to get Msun/h
+   REAL, PARAMETER :: eV_erg = eV*1e7 ! eV in ergs
 
-  ! Cuts to remove neutral gas
-  LOGICAL, PARAMETER :: apply_nh_cut=.TRUE. ! Apply a cut in hydrogen density?
-  REAL, PARAMETER :: nh_cut=0.1             ! Cut in the hydrogen number density [#/cm^3] gas denser than this is not ionised
-  
+   ! BAHAMAS derived parameters
+   REAL, PARAMETER :: mue = mup*(Xeh+Xih)/Xeh ! Mean particle mass per electron relative to proton
+
+   ! Cuts to remove neutral gas
+   LOGICAL, PARAMETER :: apply_nh_cut = .TRUE. ! Apply a cut in hydrogen density?
+   REAL, PARAMETER :: nh_cut = 0.1             ! Cut in the hydrogen number density [#/cm^3] gas denser than this is not ionised
+
 CONTAINS
 
-   SUBROUTINE read_mccarthy(x,m,n,infile)
+   SUBROUTINE read_mccarthy(x, m, n, infile)
 
-    ! Read in a McCarthy format particle data file
-    IMPLICIT NONE
-    CHARACTER(len=*), INTENT(IN) :: infile
-    REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:), m(:)
-    INTEGER, INTENT(OUT) :: n
-    LOGICAL :: lexist
+      ! Read in a McCarthy format particle data file
+      IMPLICIT NONE
+      CHARACTER(len=*), INTENT(IN) :: infile
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :), m(:)
+      INTEGER, INTENT(OUT) :: n
+      LOGICAL :: lexist
 
-    ! Open the file using stream
-    WRITE(*,*) 'READ_MCCARTHY: Reading in binary file: ', trim(infile)
-    INQUIRE(file=infile, exist=lexist)
-    IF(.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'
-    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
-    READ(7) n
-    CLOSE(7)
+      ! Open the file using stream
+      WRITE (*, *) 'READ_MCCARTHY: Reading in binary file: ', trim(infile)
+      INQUIRE (file=infile, exist=lexist)
+      IF (.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'
+      OPEN (7, file=infile, form='unformatted', access='stream', status='old')
+      READ (7) n
+      CLOSE (7)
 
-    ! In case the array is empty, but actually Ian has n=1 set (e.g., UVB_stars)
-    IF(n==1) THEN
-       n=0
-    END IF
+      ! In case the array is empty, but actually Ian has n=1 set (e.g., UVB_stars)
+      IF (n == 1) THEN
+         n = 0
+      END IF
 
-    ! Write information to screen
-    WRITE(*,*) 'READ_MCCARTHY: Particle number:', n
-    WRITE(*,*) 'READ_MCCARTHY: Which is ~', nint(n**(1./3.)), 'cubed.'
+      ! Write information to screen
+      WRITE (*, *) 'READ_MCCARTHY: Particle number:', n
+      WRITE (*, *) 'READ_MCCARTHY: Which is ~', nint(n**(1./3.)), 'cubed.'
 
-    ! Allocate arrays
-    ALLOCATE(x(3,n),m(n))
+      ! Allocate arrays
+      ALLOCATE (x(3, n), m(n))
 
-    IF(n .NE. 0) THEN
+      IF (n .NE. 0) THEN
 
-       ! Need to read in 'n' again with stream access
-       OPEN(7,file=infile,form='unformatted',access='stream',status='old')
-       READ(7) n
-       READ(7) m
-       READ(7) x
-       CLOSE(7)
+         ! Need to read in 'n' again with stream access
+         OPEN (7, file=infile, form='unformatted', access='stream', status='old')
+         READ (7) n
+         READ (7) m
+         READ (7) x
+         CLOSE (7)
 
-       ! Multiply by mass factor
-       m=m*mfac
+         ! Multiply by mass factor
+         m = m*mfac
 
-       ! Write information to screen
-       WRITE(*,*) 'READ_MCCARTHY: Minimum particle mass [Msun/h]:', minval(m)
-       WRITE(*,*) 'READ_MCCARTHY: Maximum particle mass [Msun/h]:', maxval(m)
-       WRITE(*,*) 'READ_MCCARTHY: Total particle mass [Msun/h]:', sum(m)
-       WRITE(*,*) 'READ_MCCARTHY: Minimum particle x coordinate [Mpc/h]:', minval(x(1,:))
-       WRITE(*,*) 'READ_MCCARTHY: Maximum particle x coordinate [Mpc/h]:', maxval(x(1,:))
-       WRITE(*,*) 'READ_MCCARTHY: Minimum particle y coordinate [Mpc/h]:', minval(x(2,:))
-       WRITE(*,*) 'READ_MCCARTHY: Maximum particle y coordinate [Mpc/h]:', maxval(x(2,:))
-       WRITE(*,*) 'READ_MCCARTHY: Minimum particle z coordinate [Mpc/h]:', minval(x(3,:))
-       WRITE(*,*) 'READ_MCCARTHY: Maximum particle z coordinate [Mpc/h]:', maxval(x(3,:))
-       WRITE(*,*) 'READ_MCCARTHY: Finished reading in file'
+         ! Write information to screen
+         WRITE (*, *) 'READ_MCCARTHY: Minimum particle mass [Msun/h]:', minval(m)
+         WRITE (*, *) 'READ_MCCARTHY: Maximum particle mass [Msun/h]:', maxval(m)
+         WRITE (*, *) 'READ_MCCARTHY: Total particle mass [Msun/h]:', sum(m)
+         WRITE (*, *) 'READ_MCCARTHY: Minimum particle x coordinate [Mpc/h]:', minval(x(1, :))
+         WRITE (*, *) 'READ_MCCARTHY: Maximum particle x coordinate [Mpc/h]:', maxval(x(1, :))
+         WRITE (*, *) 'READ_MCCARTHY: Minimum particle y coordinate [Mpc/h]:', minval(x(2, :))
+         WRITE (*, *) 'READ_MCCARTHY: Maximum particle y coordinate [Mpc/h]:', maxval(x(2, :))
+         WRITE (*, *) 'READ_MCCARTHY: Minimum particle z coordinate [Mpc/h]:', minval(x(3, :))
+         WRITE (*, *) 'READ_MCCARTHY: Maximum particle z coordinate [Mpc/h]:', maxval(x(3, :))
+         WRITE (*, *) 'READ_MCCARTHY: Finished reading in file'
 
-    END IF
+      END IF
 
-    ! Final white space
-    WRITE(*,*)
+      ! Final white space
+      WRITE (*, *)
 
-  END SUBROUTINE read_mccarthy
+   END SUBROUTINE read_mccarthy
 
-  SUBROUTINE read_mccarthy_gas(x,m,kT,rho,n,infile)
+   SUBROUTINE read_mccarthy_gas(x, m, kT, rho, n, infile)
 
-    ! Read in a McCarthy format gas file
-    USE constants
-    IMPLICIT NONE    
-    REAL, ALLOCATABLE, INTENT(OUT) :: x(:,:) ! Particle positions [Mpc/h]
-    REAL, ALLOCATABLE, INTENT(OUT) :: m(:)   ! Particle mass [Msun/h]
-    REAL, ALLOCATABLE, INTENT(OUT) :: kT(:)  ! Particle internal energy [eV]
-    REAL, ALLOCATABLE, INTENT(OUT) :: rho(:) ! Particle SPH physical density [mp/cm^3]
-    INTEGER, INTENT(OUT) :: n                ! Total number of gas particles
-    CHARACTER(len=*), INTENT(IN) :: infile   ! Input file name
-    REAL, ALLOCATABLE :: nh(:), ep(:)
-    LOGICAL :: lexist   
-    
-    ! Read in the binary file
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Reading in binary file: ', trim(infile)
-    INQUIRE(file=infile, exist=lexist)
-    IF(.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'    
-    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
-    READ(7) n
-    CLOSE(7)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Particle number:', n
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Which is ~', nint(n**(1./3.)), 'cubed.'
+      ! Read in a McCarthy format gas file
+      USE constants
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :) ! Particle positions [Mpc/h]
+      REAL, ALLOCATABLE, INTENT(OUT) :: m(:)   ! Particle mass [Msun/h]
+      REAL, ALLOCATABLE, INTENT(OUT) :: kT(:)  ! Particle internal energy [eV]
+      REAL, ALLOCATABLE, INTENT(OUT) :: rho(:) ! Particle SPH physical density [mp/cm^3]
+      INTEGER, INTENT(OUT) :: n                ! Total number of gas particles
+      CHARACTER(len=*), INTENT(IN) :: infile   ! Input file name
+      REAL, ALLOCATABLE :: nh(:), ep(:)
+      LOGICAL :: lexist
 
-    ! Allocate arrays for quantities in the file
-    ALLOCATE(x(3,n),m(n),ep(n),nh(n))
-    
-    ! Need to read in 'n' again with stream access
-    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
-    READ(7) n
-    READ(7) m
-    READ(7) x
-    READ(7) ep ! physical electron pressure for the particle [erg/cm^3]
-    READ(7) nh ! physical hydrogen number density for the partcle in [/cm^3]
-    CLOSE(7)
+      ! Read in the binary file
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Reading in binary file: ', trim(infile)
+      INQUIRE (file=infile, exist=lexist)
+      IF (.NOT. lexist) STOP 'READ_MCCARTHY: Error, input file does not exist'
+      OPEN (7, file=infile, form='unformatted', access='stream', status='old')
+      READ (7) n
+      CLOSE (7)
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Particle number:', n
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Which is ~', nint(n**(1./3.)), 'cubed.'
 
-    ! Convert particle masses
-    m=m*mfac ! [Msun/h]
+      ! Allocate arrays for quantities in the file
+      ALLOCATE (x(3, n), m(n), ep(n), nh(n))
 
-    ! Write information to the screen
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Calculating kT from physical electron pressure'
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Note that the electron pressure calcuated here is *not* comoving'
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Using numbers appropriate for BAHAMAS'
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Hydrogen mass fraction: f_H, Y_H:', fh
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Mean particle mass: mu_p [m_p]:', mup
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Number of electrons per hydrogen: X_e/X_H:', Xeh
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Number of ions per hydrogen: X_i/X_H:', Xih
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Mean particle mass per electron: mu_e [m_p]:', mue
+      ! Need to read in 'n' again with stream access
+      OPEN (7, file=infile, form='unformatted', access='stream', status='old')
+      READ (7) n
+      READ (7) m
+      READ (7) x
+      READ (7) ep ! physical electron pressure for the particle [erg/cm^3]
+      READ (7) nh ! physical hydrogen number density for the partcle in [/cm^3]
+      CLOSE (7)
 
-    ! Convert the physical hydrogen number density into a physical particle mass density [mp/cm^3]
-    ! Note that these densities are physical *not* comoving
-    ALLOCATE(rho(n))
-    rho=nh/fh ! Convert physical hydrogen number density [#/cm^3] to physsical particle SPH density [mp/cm^3]    
-    DEALLOCATE(nh) ! Deallocate the physical electron pressure array 
-    
-    ! Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT [erg]
-    ! This is the temperature of gas particles (equal for all species)
-    ! Temperature is neither comoving nor physical
-    ALLOCATE(kT(n))
-    kT=(ep/rho)*mue
-    kT=kT/eV_erg ! Convert internal energy from erg to eV    
-    DEALLOCATE(ep) ! Deallocate the physical electron pressure array   
+      ! Convert particle masses
+      m = m*mfac ! [Msun/h]
 
-    ! Write information to the screen
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle mass [Msun/h]:', minval(m)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle mass [Msun/h]:', maxval(m)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Total mass of all particles [Msun/h]:', sum(m)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle x coordinate [Mpc/h]:', minval(x(1,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle x coordinate [Mpc/h]:', maxval(x(1,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle y coordinate [Mpc/h]:', minval(x(2,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle y coordinate [Mpc/h]:', maxval(x(2,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle z coordinate [Mpc/h]:', minval(x(3,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle z coordinate [Mpc/h]:', maxval(x(3,:))
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle internal energy [eV]:', minval(kT)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle internal energy [eV]:', maxval(kT)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Minimum particle SPH density [mp/cm^3]:', minval(rho)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Maximum particle SPH density [mp/cm^3]:', maxval(rho)
-    WRITE(*,*) 'READ_MCCARTHY_GAS: Finished reading in file'
-    WRITE(*,*)
+      ! Write information to the screen
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Calculating kT from physical electron pressure'
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Note that the electron pressure calcuated here is *not* comoving'
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Using numbers appropriate for BAHAMAS'
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Hydrogen mass fraction: f_H, Y_H:', fh
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Mean particle mass: mu_p [m_p]:', mup
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Number of electrons per hydrogen: X_e/X_H:', Xeh
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Number of ions per hydrogen: X_i/X_H:', Xih
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Mean particle mass per electron: mu_e [m_p]:', mue
 
-  END SUBROUTINE read_mccarthy_gas
+      ! Convert the physical hydrogen number density into a physical particle mass density [mp/cm^3]
+      ! Note that these densities are physical *not* comoving
+      ALLOCATE (rho(n))
+      rho = nh/fh ! Convert physical hydrogen number density [#/cm^3] to physsical particle SPH density [mp/cm^3]
+      DEALLOCATE (nh) ! Deallocate the physical electron pressure array
 
-  SUBROUTINE convert_kT_to_comoving_electron_pressure(kT,rho,m,n,L,h)
+      ! Convert the physical electron pressure [erg/cm^3] and hydrogen density [#/cm^3] into kT [erg]
+      ! This is the temperature of gas particles (equal for all species)
+      ! Temperature is neither comoving nor physical
+      ALLOCATE (kT(n))
+      kT = (ep/rho)*mue
+      kT = kT/eV_erg ! Convert internal energy from erg to eV
+      DEALLOCATE (ep) ! Deallocate the physical electron pressure array
 
-    ! This routine converts the input particle internal energy kT [eV] to comoving electron pressure, Pe [eV/cm^3]
-    ! Note very well that Pe will be the contribution to the total pressure in the volume per particle
-    ! CARE: I removed factors of 'm', pressure is now contribution to entire volume, rather than the contribution per mesh cell
-    USE constants
-    IMPLICIT NONE
-    REAL, INTENT(INOUT) :: kT(n) ! particle internal energy [eV], output as electron pressure [eV/cm^3]
-    REAL, INTENT(IN) :: rho(n)   ! physical gas particle SPH density [mp/cm^3]
-    REAL, INTENT(IN) :: m(n)     ! hydrodynamic particle mass [Msun/h]
-    INTEGER, INTENT(IN) :: n     ! total number of particles
-    REAL, INTENT(IN) :: L        ! box size [Mpc/h]
-    REAL, INTENT(IN) :: h        ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors) 
-    REAL :: V
-    DOUBLE PRECISION :: units, kT_dble(n)
-    INTEGER, PARAMETER :: scheme=3
+      ! Write information to the screen
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Minimum particle mass [Msun/h]:', minval(m)
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Maximum particle mass [Msun/h]:', maxval(m)
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Total mass of all particles [Msun/h]:', sum(m)
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Minimum particle x coordinate [Mpc/h]:', minval(x(1, :))
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Maximum particle x coordinate [Mpc/h]:', maxval(x(1, :))
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Minimum particle y coordinate [Mpc/h]:', minval(x(2, :))
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Maximum particle y coordinate [Mpc/h]:', maxval(x(2, :))
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Minimum particle z coordinate [Mpc/h]:', minval(x(3, :))
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Maximum particle z coordinate [Mpc/h]:', maxval(x(3, :))
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Minimum particle internal energy [eV]:', minval(kT)
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Maximum particle internal energy [eV]:', maxval(kT)
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Minimum particle SPH density [mp/cm^3]:', minval(rho)
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Maximum particle SPH density [mp/cm^3]:', maxval(rho)
+      WRITE (*, *) 'READ_MCCARTHY_GAS: Finished reading in file'
+      WRITE (*, *)
 
-    ! Exclude gas that is sufficiently dense to not be ionised and be forming stars
-    IF(apply_nh_cut) CALL exclude_nh(nh_cut,kT,rho,n)
+   END SUBROUTINE read_mccarthy_gas
 
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Converting kT to comoving electron pressure'
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Using numbers appropriate for BAHAMAS'
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Note that this is COMOVING'
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Y_H:', fh
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_p [mp]:', mup
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: X_e/X_H:', Xeh
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: X_i/X_H:', Xih
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_e [mp]:', mue
+   SUBROUTINE convert_kT_to_comoving_electron_pressure(kT, rho, m, n, L, h)
 
-    ! Use double precision because all the constants are dreadful 
-    kT_dble=kT ! [eV]
+      ! This routine converts the input particle internal energy kT [eV] to comoving electron pressure, Pe [eV/cm^3]
+      ! Note very well that Pe will be the contribution to the total pressure in the volume per particle
+      ! CARE: I removed factors of 'm', pressure is now contribution to entire volume, rather than the contribution per mesh cell
+      USE constants
+      IMPLICIT NONE
+      REAL, INTENT(INOUT) :: kT(n) ! particle internal energy [eV], output as electron pressure [eV/cm^3]
+      REAL, INTENT(IN) :: rho(n)   ! physical gas particle SPH density [mp/cm^3]
+      REAL, INTENT(IN) :: m(n)     ! hydrodynamic particle mass [Msun/h]
+      INTEGER, INTENT(IN) :: n     ! total number of particles
+      REAL, INTENT(IN) :: L        ! box size [Mpc/h]
+      REAL, INTENT(IN) :: h        ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors)
+      REAL :: V
+      DOUBLE PRECISION :: units, kT_dble(n)
+      INTEGER, PARAMETER :: scheme = 3
 
-    IF(scheme==1 .OR. scheme==2) THEN
+      ! Exclude gas that is sufficiently dense to not be ionised and be forming stars
+      IF (apply_nh_cut) CALL exclude_nh(nh_cut, kT, rho, n)
 
-       ! Convert to particle internal energy that can be mapped to grid
-       IF(scheme==1) THEN
-          kT_dble=kT_dble*(m/mue) ! [eV*Msun/h] BUG: I think there should be a factor of h here due to Msun/h units
-       ELSE IF(scheme==2) THEN
-          kT_dble=kT_dble*(m/(h*mue)) ! [eV*Msun]
-       ELSE
-          STOP 'CONVERT_KT_TO_ELECTRON_PRESSURE: Error, scheme specified incorrectly'
-       END IF
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Converting kT to comoving electron pressure'
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Using numbers appropriate for BAHAMAS'
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Note that this is COMOVING'
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Y_H:', fh
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_p [mp]:', mup
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: X_e/X_H:', Xeh
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: X_i/X_H:', Xih
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: mu_e [mp]:', mue
 
-       ! Comoving volume
-       V=(L/h)**3 ! [(Mpc)^3]
+      ! Use double precision because all the constants are dreadful
+      kT_dble = kT ! [eV]
 
-       ! This is now comoving electron pressure
-       kT_dble=kT_dble/V ! [eV*Msun/Mpc^3]
+      IF (scheme == 1 .OR. scheme == 2) THEN
 
-       ! Convert units of comoving electron pressure
-       ! Note that there are no h factors here
-       units=msun             ! [kg]
-       units=units/mp         ! Divide out proton mass here [dimensionless]
-       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow [kg/cm^1]
-       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow [kg/cm^2]
-       units=units/(Mpc/0.01) ! Necessary to do this in stages due to overflow [kg/cm^3]
-       kT_dble=kT_dble*units  ! [eV/cm^3]
+         ! Convert to particle internal energy that can be mapped to grid
+         IF (scheme == 1) THEN
+            kT_dble = kT_dble*(m/mue) ! [eV*Msun/h] BUG: I think there should be a factor of h here due to Msun/h units
+         ELSE IF (scheme == 2) THEN
+            kT_dble = kT_dble*(m/(h*mue)) ! [eV*Msun]
+         ELSE
+            STOP 'CONVERT_KT_TO_ELECTRON_PRESSURE: Error, scheme specified incorrectly'
+         END IF
 
-    ELSE IF(scheme==3) THEN
+         ! Comoving volume
+         V = (L/h)**3 ! [(Mpc)^3]
 
-       ! Comoving volume
-       V=L**3 ! [(Mpc)^3]
+         ! This is now comoving electron pressure
+         kT_dble = kT_dble/V ! [eV*Msun/Mpc^3]
 
-       ! Big blob of units (see notes)
-       units=(Msun*(h**2)*(0.01)**3)
-       units=units/Mpc
-       units=units/Mpc
-       units=units/Mpc
+         ! Convert units of comoving electron pressure
+         ! Note that there are no h factors here
+         units = msun             ! [kg]
+         units = units/mp         ! Divide out proton mass here [dimensionless]
+         units = units/(Mpc/0.01) ! Necessary to do this in stages due to overflow [kg/cm^1]
+         units = units/(Mpc/0.01) ! Necessary to do this in stages due to overflow [kg/cm^2]
+         units = units/(Mpc/0.01) ! Necessary to do this in stages due to overflow [kg/cm^3]
+         kT_dble = kT_dble*units  ! [eV/cm^3]
 
-       ! Final quantity
-       kT_dble=units*(m/(mue*mp))*kT_dble/V ! [eV/cm^3]
+      ELSE IF (scheme == 3) THEN
 
-    ELSE
-       STOP 'CONVERT_KT_TO_ELECTRON_PRESSURE: Error, scheme specified incorrectly'
-    END IF
+         ! Comoving volume
+         V = L**3 ! [(Mpc)^3]
 
-    ! Go back to single precision
-    kT=real(kT_dble) ! [eV/cm^3]
+         ! Big blob of units (see notes)
+         units = (Msun*(h**2)*(0.01)**3)
+         units = units/Mpc
+         units = units/Mpc
+         units = units/Mpc
 
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Minimum electron pressure [eV/cm^3]: ', minval(kT)
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Maximum electron pressure [eV/cm^3]: ', maxval(kT)
-    WRITE(*,*) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Done'
-    WRITE(*,*)
+         ! Final quantity
+         kT_dble = units*(m/(mue*mp))*kT_dble/V ! [eV/cm^3]
 
-  END SUBROUTINE convert_kT_to_comoving_electron_pressure
+      ELSE
+         STOP 'CONVERT_KT_TO_ELECTRON_PRESSURE: Error, scheme specified incorrectly'
+      END IF
 
-  SUBROUTINE write_mccarthy(x,m,n,outfile)
+      ! Go back to single precision
+      kT = real(kT_dble) ! [eV/cm^3]
 
-    ! Write a particle data file using McCarthy format
-    IMPLICIT NONE
-    CHARACTER(len=*), INTENT(IN) :: outfile
-    REAL, INTENT(IN) :: x(3,n)
-    REAL, INTENT(IN) :: m(n)
-    INTEGER, INTENT(IN) :: n
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Minimum electron pressure [eV/cm^3]: ', minval(kT)
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Maximum electron pressure [eV/cm^3]: ', maxval(kT)
+      WRITE (*, *) 'CONVERT_KT_TO_ELECTRON_PRESSURE: Done'
+      WRITE (*, *)
 
-    WRITE(*,*) 'WRITE_MCCARTHY: Outputting binary file: ', trim(outfile)
+   END SUBROUTINE convert_kT_to_comoving_electron_pressure
 
-    WRITE(*,*) 'WRITE_MCCARTHY: Particle number:', n
-    WRITE(*,*) 'WRITE_MCCARTHY: Which is ~', nint(n**(1./3.)), 'cubed.'
+   SUBROUTINE write_mccarthy(x, m, n, outfile)
 
-    OPEN(7,file=outfile,form='unformatted',access='stream',status='replace')
-    WRITE(7) n
-    WRITE(7) m/mfac
-    WRITE(7) x
-    CLOSE(7)
-    
-    WRITE(*,*) 'WRITE_MCCARTHY: Finished writing file'
-    WRITE(*,*)
+      ! Write a particle data file using McCarthy format
+      IMPLICIT NONE
+      CHARACTER(len=*), INTENT(IN) :: outfile
+      REAL, INTENT(IN) :: x(3, n)
+      REAL, INTENT(IN) :: m(n)
+      INTEGER, INTENT(IN) :: n
 
-  END SUBROUTINE write_mccarthy
+      WRITE (*, *) 'WRITE_MCCARTHY: Outputting binary file: ', trim(outfile)
 
-  SUBROUTINE exclude_nh(nhcut,kT,rho,n)
+      WRITE (*, *) 'WRITE_MCCARTHY: Particle number:', n
+      WRITE (*, *) 'WRITE_MCCARTHY: Which is ~', nint(n**(1./3.)), 'cubed.'
 
-    ! Set the gas particle internal energy to zero for high-density particles that have nh > nhcut
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: nhcut     ! Cut to impose on hydrogen number density [#/cm^3]
-    REAL, INTENT(INOUT) :: kT(n)  ! Gas particle internal energy [eV]
-    REAL, INTENT(IN) :: rho(n)    ! Gap particle SPH density [mp/cm^3]
-    INTEGER, INTENT(IN) :: n      ! Total number of particles
-    INTEGER :: i
-    REAL :: rhocut
+      OPEN (7, file=outfile, form='unformatted', access='stream', status='replace')
+      WRITE (7) n
+      WRITE (7) m/mfac
+      WRITE (7) x
+      CLOSE (7)
 
-    ! Convert the hydrogen number density cut into a cut on particle SPH density
-    rhocut=nhcut/fh
+      WRITE (*, *) 'WRITE_MCCARTHY: Finished writing file'
+      WRITE (*, *)
 
-    DO i=1,n
-       IF(rho(i)>rhocut) kT(i)=0.
-    END DO
-    
-  END SUBROUTINE exclude_nh
+   END SUBROUTINE write_mccarthy
 
-  CHARACTER(len=32) FUNCTION BAHAMAS_snapshot(z)
+   SUBROUTINE exclude_nh(nhcut, kT, rho, n)
 
-    USE logical_operations
-    IMPLICIT NONE
-    REAL, INTENT(IN) :: z
-    REAL, PARAMETER :: eps=1e-3
+      ! Set the gas particle internal energy to zero for high-density particles that have nh > nhcut
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nhcut     ! Cut to impose on hydrogen number density [#/cm^3]
+      REAL, INTENT(INOUT) :: kT(n)  ! Gas particle internal energy [eV]
+      REAL, INTENT(IN) :: rho(n)    ! Gap particle SPH density [mp/cm^3]
+      INTEGER, INTENT(IN) :: n      ! Total number of particles
+      INTEGER :: i
+      REAL :: rhocut
 
-    ! Set the redshift
-    IF(requal(z,0.0,eps)) THEN
-       BAHAMAS_snapshot='snap32'
-    ELSE IF(requal(z,0.125,eps)) THEN
-       BAHAMAS_snapshot='snap31'
-    ELSE IF(requal(z,0.25,eps)) THEN
-       BAHAMAS_snapshot='snap30'
-    ELSE IF(requal(z,0.375,eps)) THEN
-       BAHAMAS_snapshot='snap29'
-    ELSE IF(requal(z,0.5,eps)) THEN
-       BAHAMAS_snapshot='snap28'
-    ELSE IF(requal(z,0.75,eps)) THEN
-       BAHAMAS_snapshot='snap27'
-    ELSE IF(requal(z,1.0,eps)) THEN
-       BAHAMAS_snapshot='snap26'
-    ELSE IF(requal(z,1.25,eps)) THEN
-       BAHAMAS_snapshot='snap25'
-    ELSE IF(requal(z,1.5,eps)) THEN
-       BAHAMAS_snapshot='snap24'
-    ELSE IF(requal(z,1.75,eps)) THEN
-       BAHAMAS_snapshot='snap23'
-    ELSE IF(requal(z,2.0,eps)) THEN
-       BAHAMAS_snapshot='snap22'
-    ELSE IF(requal(z,2.25,eps)) THEN
-       BAHAMAS_snapshot='snap21'
-    ELSE IF(requal(z,2.5,eps)) THEN
-       BAHAMAS_snapshot='snap20'
-    ELSE IF(requal(z,2.75,eps)) THEN
-       BAHAMAS_snapshot='snap19'
-    ELSE IF(requal(z,3.0,eps)) THEN
-       BAHAMAS_snapshot='snap18'
-    ELSE
-       WRITE(*,*) 'BAHAMAS_SNAPSHOT: z', z
-       STOP 'BAHAMAS_SNAPSHOT: Error, redshift specified incorrectly'
-    END IF
+      ! Convert the hydrogen number density cut into a cut on particle SPH density
+      rhocut = nhcut/fh
 
-  END FUNCTION BAHAMAS_snapshot
+      DO i = 1, n
+         IF (rho(i) > rhocut) kT(i) = 0.
+      END DO
 
-  SUBROUTINE BAHAMAS_scale_factors(a,n)
+   END SUBROUTINE exclude_nh
 
-    USE cosmology_functions
-    IMPLICIT NONE
-    REAL, ALLOCATABLE, INTENT(OUT) :: a(:)
-    INTEGER, INTENT(IN) :: n
+   CHARACTER(len=32) FUNCTION BAHAMAS_snapshot(z)
 
-    IF(ALLOCATED(a)) DEALLOCATE(a)
-    ALLOCATE(a(n))
+      USE logical_operations
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: z
+      REAL, PARAMETER :: eps = 1e-3
 
-    IF(n==4) THEN        
-       a(1)=scale_factor_z(2.0)
-       a(2)=scale_factor_z(1.0)
-       a(3)=scale_factor_z(0.5)
-       a(4)=scale_factor_z(0.0)
-    ELSE IF(n==11) THEN
-       a(1)=scale_factor_z(2.0)
-       a(2)=scale_factor_z(1.75)
-       a(3)=scale_factor_z(1.5)
-       a(4)=scale_factor_z(1.25)
-       a(5)=scale_factor_z(1.0)
-       a(6)=scale_factor_z(0.75)
-       a(7)=scale_factor_z(0.5)
-       a(8)=scale_factor_z(0.375)
-       a(9)=scale_factor_z(0.25)
-       a(10)=scale_factor_z(0.125)
-       a(11)=scale_factor_z(0.0)
-    ELSE IF(n==15) THEN
-       a(1)=scale_factor_z(3.0)
-       a(2)=scale_factor_z(2.75)
-       a(3)=scale_factor_z(2.5)
-       a(4)=scale_factor_z(2.25)
-       a(5)=scale_factor_z(2.0)
-       a(6)=scale_factor_z(1.75)
-       a(7)=scale_factor_z(1.5)
-       a(8)=scale_factor_z(1.25)
-       a(9)=scale_factor_z(1.0)
-       a(10)=scale_factor_z(0.75)
-       a(11)=scale_factor_z(0.5)
-       a(12)=scale_factor_z(0.375)
-       a(13)=scale_factor_z(0.25)
-       a(14)=scale_factor_z(0.125)
-       a(15)=scale_factor_z(0.0)
-    ELSE
-       STOP 'BAHAMAS_ZS: Error, nz specified incorrectly'
-    END IF
+      ! Set the redshift
+      IF (requal(z, 0.0, eps)) THEN
+         BAHAMAS_snapshot = 'snap32'
+      ELSE IF (requal(z, 0.125, eps)) THEN
+         BAHAMAS_snapshot = 'snap31'
+      ELSE IF (requal(z, 0.25, eps)) THEN
+         BAHAMAS_snapshot = 'snap30'
+      ELSE IF (requal(z, 0.375, eps)) THEN
+         BAHAMAS_snapshot = 'snap29'
+      ELSE IF (requal(z, 0.5, eps)) THEN
+         BAHAMAS_snapshot = 'snap28'
+      ELSE IF (requal(z, 0.75, eps)) THEN
+         BAHAMAS_snapshot = 'snap27'
+      ELSE IF (requal(z, 1.0, eps)) THEN
+         BAHAMAS_snapshot = 'snap26'
+      ELSE IF (requal(z, 1.25, eps)) THEN
+         BAHAMAS_snapshot = 'snap25'
+      ELSE IF (requal(z, 1.5, eps)) THEN
+         BAHAMAS_snapshot = 'snap24'
+      ELSE IF (requal(z, 1.75, eps)) THEN
+         BAHAMAS_snapshot = 'snap23'
+      ELSE IF (requal(z, 2.0, eps)) THEN
+         BAHAMAS_snapshot = 'snap22'
+      ELSE IF (requal(z, 2.25, eps)) THEN
+         BAHAMAS_snapshot = 'snap21'
+      ELSE IF (requal(z, 2.5, eps)) THEN
+         BAHAMAS_snapshot = 'snap20'
+      ELSE IF (requal(z, 2.75, eps)) THEN
+         BAHAMAS_snapshot = 'snap19'
+      ELSE IF (requal(z, 3.0, eps)) THEN
+         BAHAMAS_snapshot = 'snap18'
+      ELSE
+         WRITE (*, *) 'BAHAMAS_SNAPSHOT: z', z
+         STOP 'BAHAMAS_SNAPSHOT: Error, redshift specified incorrectly'
+      END IF
 
-  END SUBROUTINE BAHAMAS_scale_factors
+   END FUNCTION BAHAMAS_snapshot
+
+   SUBROUTINE BAHAMAS_scale_factors(a, n)
+
+      USE cosmology_functions
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(OUT) :: a(:)
+      INTEGER, INTENT(IN) :: n
+
+      IF (ALLOCATED(a)) DEALLOCATE (a)
+      ALLOCATE (a(n))
+
+      IF (n == 4) THEN
+         a(1) = scale_factor_z(2.0)
+         a(2) = scale_factor_z(1.0)
+         a(3) = scale_factor_z(0.5)
+         a(4) = scale_factor_z(0.0)
+      ELSE IF (n == 11) THEN
+         a(1) = scale_factor_z(2.0)
+         a(2) = scale_factor_z(1.75)
+         a(3) = scale_factor_z(1.5)
+         a(4) = scale_factor_z(1.25)
+         a(5) = scale_factor_z(1.0)
+         a(6) = scale_factor_z(0.75)
+         a(7) = scale_factor_z(0.5)
+         a(8) = scale_factor_z(0.375)
+         a(9) = scale_factor_z(0.25)
+         a(10) = scale_factor_z(0.125)
+         a(11) = scale_factor_z(0.0)
+      ELSE IF (n == 15) THEN
+         a(1) = scale_factor_z(3.0)
+         a(2) = scale_factor_z(2.75)
+         a(3) = scale_factor_z(2.5)
+         a(4) = scale_factor_z(2.25)
+         a(5) = scale_factor_z(2.0)
+         a(6) = scale_factor_z(1.75)
+         a(7) = scale_factor_z(1.5)
+         a(8) = scale_factor_z(1.25)
+         a(9) = scale_factor_z(1.0)
+         a(10) = scale_factor_z(0.75)
+         a(11) = scale_factor_z(0.5)
+         a(12) = scale_factor_z(0.375)
+         a(13) = scale_factor_z(0.25)
+         a(14) = scale_factor_z(0.125)
+         a(15) = scale_factor_z(0.0)
+      ELSE
+         STOP 'BAHAMAS_ZS: Error, nz specified incorrectly'
+      END IF
+
+   END SUBROUTINE BAHAMAS_scale_factors
 
 END MODULE owls
