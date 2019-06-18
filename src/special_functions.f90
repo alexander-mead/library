@@ -431,7 +431,10 @@ CONTAINS
 
       ELSE
 
-         IF (n < 0) STOP 'Error: cannot call for negative n'
+         IF (n < 0) THEN
+            WRITE(*,*) 'BESSEL: Order:', n
+            STOP 'BESSEL: cannot call for negative n'
+         END IF
 
          IF (n == 0) THEN
             Bessel = Bessel_J0(real(x))
