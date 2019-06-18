@@ -396,42 +396,42 @@ CONTAINS
 
    END SUBROUTINE write_Cl
 
-   SUBROUTINE calculate_angular_xi(th_tab, xi_tab, nth, l_tab, cl_tab, nl, lmax)
+   SUBROUTINE calculate_angular_xi(ibessel, m, th_tab, xi_tab, n, l_tab, cl_tab, nl, lmax)
 
       ! Calcuate the two-dimensional correlation functions given a C(ell) array
       ! This uses the direct sum over discrete ell do the transformation
-      ! This does correlation functions associated with J0, J2 and J4
       ! TODO: Can I bunch together ell in the sum when ell is high?
       USE special_functions
       IMPLICIT NONE
-      REAL, INTENT(IN) :: th_tab(nth)    ! Angles for correlation function [degrees]
-      REAL, INTENT(OUT) :: xi_tab(3, nth) ! Correlation functions (J0, J2 and J4)
-      INTEGER, INTENT(IN) :: nth         ! Number of angles to compute
-      REAL, INTENT(IN) :: l_tab(nl)      ! Array of ell
-      REAL, INTENT(IN) :: cl_tab(nl)     ! Array of C(ell)
-      INTEGER, INTENT(IN) :: nl          ! Number of ell
-      INTEGER, INTENT(IN) :: lmax        ! Maximum ell to go to in summation
-      INTEGER :: i, j
+      INTEGER, INTENT(IN) :: ibessel(m) ! Bessel function to use
+      INTEGER, INTENT(IN) :: m          ! Number of transforms
+      REAL, INTENT(IN) :: th_tab(n)     ! Angles for correlation function [degrees]
+      REAL, INTENT(OUT) :: xi_tab(m,n)  ! Correlation function
+      INTEGER, INTENT(IN) :: n          ! Number of angles to compute
+      REAL, INTENT(IN) :: l_tab(nl)     ! Array of ell
+      REAL, INTENT(IN) :: cl_tab(nl)    ! Array of C(ell)
+      INTEGER, INTENT(IN) :: nl         ! Number of ell
+      INTEGER, INTENT(IN) :: lmax       ! Maximum ell to go to in summation
+      INTEGER :: i, j, k
       REAL :: logl(nl), logCl(nl)
-      REAL :: theta, Cl, l, xi0, xi2, xi4
-      INTEGER :: iorder = 3
-      INTEGER :: ifind = 3
-      INTEGER :: imeth = 2
+      REAL :: theta, Cl, l, xi(m)
+      INTEGER, PARAMETER :: iorder = 3 ! Order for interpolation to find C(l) (3 - cubic)
+      INTEGER, PARAMETER :: ifind = 3  ! Finding scheme for interpolation of C(l) (3 - mid-point)
+      INTEGER, PARAMETER :: imeth = 2  ! Interpolation polynomial (2 - Lagrange polynomial)
 
       ! Speed up find routine by doing logarithms in advance
       logl = log(l_tab)
       logCl = log(cl_tab)
 
       IF (verbose_xi) WRITE (*, *) 'CALCULATE_ANGULAR_XI: Computing correlation functions via sum'
-      DO i = 1, nth
+
+      DO i = 1, n
 
          ! Get theta value and convert from degrees to radians
          theta = th_tab(i)/rad2deg
 
          ! Set values to zero before summing
-         xi0 = 0.
-         xi2 = 0.
-         xi4 = 0.
+         xi = 0.
 
          ! Do the conversion from Cl to xi as a summation over integer l
          DO j = 1, lmax
@@ -440,28 +440,24 @@ CONTAINS
             l = real(j)
             Cl = exp(find(log(l), logl, logCl, nl, iorder, ifind, imeth))
 
-            ! Add to the running todays for the correlation functions
-            xi0 = xi0+(2.*l+1.)*Cl*Bessel(0, l*theta) ! J0
-            xi2 = xi2+(2.*l+1.)*Cl*Bessel(2, l*theta) ! J2
-            xi4 = xi4+(2.*l+1.)*Cl*Bessel(4, l*theta) ! J4
+            ! Loop over Bessel functions to use for transform
+            DO k=1,m
+
+               ! Add to the running todays for the correlation functions
+               xi(k) = xi(k)+(2.*l+1.)*Cl*Bessel(ibessel(k), l*theta)
+
+            END DO
 
          END DO
 
          ! Divide by correct pre-factor
-         xi0 = xi0/(4.*pi)
-         xi2 = xi2/(4.*pi)
-         xi4 = xi4/(4.*pi)
-
-         ! Convert theta from radians to degrees
-         !theta=theta*rad2deg
-         !th_tab(i)=theta
+         xi = xi/(4.*pi)
 
          ! Populate tables
-         xi_tab(1, i) = xi0
-         xi_tab(2, i) = xi2
-         xi_tab(3, i) = xi4
+         xi_tab(:, i) = xi
 
       END DO
+
       IF (verbose_xi) THEN
          WRITE (*, *) 'CALCULATE_ANGULAR_XI: Done'
          WRITE (*, *)
@@ -469,18 +465,21 @@ CONTAINS
 
    END SUBROUTINE calculate_angular_xi
 
-   SUBROUTINE write_angular_xi(th_tab, xi_tab, nth, outfile)
+   SUBROUTINE write_angular_xi(th_tab, xi_tab, nb, nth, outfile)
 
       ! Write angular correlation functions to disk
+      ! TODO: Is this a bit absurd?
       IMPLICIT NONE
-      REAL, INTENT(IN) :: th_tab(nth), xi_tab(3, nth)
-      INTEGER, INTENT(IN) :: nth
-      CHARACTER(len=256), INTENT(IN) :: outfile
-      INTEGER :: i
+      REAL, INTENT(IN) :: th_tab(nth)     ! Array of theta values [probably degress]
+      REAL, INTENT(IN) :: xi_tab(nb, nth) ! Correlation functions
+      INTEGER, INTENT(IN) :: nb           ! Number of Bessel functions used
+      INTEGER, INTENT(IN) :: nth          ! Number of theta values
+      CHARACTER(len=256), INTENT(IN) :: outfile ! Output file
+      INTEGER :: i, j
 
       OPEN (7, file=outfile)
       DO i = 1, nth
-         WRITE (7, *) th_tab(i), xi_tab(1, i), xi_tab(2, i), xi_tab(3, i)
+         WRITE (7, *) th_tab(i), (xi_tab(j, i), j=1,nb)
       END DO
       CLOSE (7)
 
