@@ -437,11 +437,11 @@ CONTAINS
          END IF
 
          IF (n == 0) THEN
-            Bessel = Bessel_J0(real(x))
+            Bessel = Bessel_J0(x)
          ELSE IF (n == 1) THEN
-            Bessel = Bessel_J1(real(x))
+            Bessel = Bessel_J1(x)
          ELSE
-            Bessel = Bessel_JN(n, real(x))
+            Bessel = Bessel_JN(n, x)
          END IF
 
       END IF
