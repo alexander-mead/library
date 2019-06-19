@@ -180,7 +180,7 @@ CONTAINS
 
       absx = abs(x)
       absy = abs(y)
-      diff = abs(x - y)
+      diff = abs(x-y)
 
       IF (x == y) THEN
          requal = .TRUE.
@@ -191,7 +191,7 @@ CONTAINS
             requal = .FALSE.
          END IF
       ELSE
-         IF (diff/(absx + absy) < eps) THEN
+         IF (diff/(absx+absy) < eps) THEN
             requal = .TRUE.
          ELSE
             requal = .FALSE.
@@ -274,9 +274,9 @@ CONTAINS
       INTEGER, INTENT(INOUT) :: n
       INTEGER, INTENT(INOUT) :: m
 
-      n = n + m ! n' = n+m
-      m = n - m ! m' = n'-m = n+m-m = n
-      n = n - m ! n'' = n'-m' = n+m-n = m
+      n = n+m ! n' = n+m
+      m = n-m ! m' = n'-m = n+m-m = n
+      n = n-m ! n'' = n'-m' = n+m-n = m
 
    END SUBROUTINE swap_int
 
