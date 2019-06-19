@@ -17,6 +17,7 @@ MODULE logical_operations
    PUBLIC :: present_and_correct
    PUBLIC :: first_digit
    PUBLIC :: swap
+   PUBLIC :: regular_spacing
 
    INTERFACE swap
       MODULE PROCEDURE swap_real
@@ -179,7 +180,7 @@ CONTAINS
 
       absx = abs(x)
       absy = abs(y)
-      diff = abs(x-y)
+      diff = abs(x - y)
 
       IF (x == y) THEN
          requal = .TRUE.
@@ -190,7 +191,7 @@ CONTAINS
             requal = .FALSE.
          END IF
       ELSE
-         IF (diff/(absx+absy) < eps) THEN
+         IF (diff/(absx + absy) < eps) THEN
             requal = .TRUE.
          ELSE
             requal = .FALSE.
@@ -273,10 +274,35 @@ CONTAINS
       INTEGER, INTENT(INOUT) :: n
       INTEGER, INTENT(INOUT) :: m
 
-      n = n+m ! n' = n+m
-      m = n-m ! m' = n'-m = n+m-m = n
-      n = n-m ! n'' = n'-m' = n+m-n = m
+      n = n + m ! n' = n+m
+      m = n - m ! m' = n'-m = n+m-m = n
+      n = n - m ! n'' = n'-m' = n+m-n = m
 
    END SUBROUTINE swap_int
+
+   LOGICAL FUNCTION regular_spacing(a, n)
+
+      ! Returns true if array a is regularly spaced
+      USE array_operations
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: a(n)
+      INTEGER, INTENT(IN) :: n
+      REAL :: amin, amax, b
+      INTEGER :: i
+      REAL, PARAMETER :: eps = 1e-5
+
+      amin = a(1)
+      amax = a(n)
+
+      regular_spacing = .TRUE.
+      DO i = 1, n
+         b = progression(amin, amax, i, n)
+         IF (.NOT. requal(b, a(i), eps)) THEN
+            regular_spacing = .FALSE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION
 
 END MODULE logical_operations
