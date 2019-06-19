@@ -493,7 +493,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: nl       ! Number of entries in l-Cl arrays
       INTEGER, INTENT(IN) :: lmax     ! Maximum number of l to sum
       REAL, INTENT(IN) :: acc         ! Accuracy
-      INTEGER :: l, i
+      INTEGER :: l
       REAL :: Cl, xi
       DOUBLE PRECISION :: sum
       INTEGER, PARAMETER :: iorder = 3    ! Order for interpolation to find C(l) (3 - cubic)
@@ -522,7 +522,7 @@ CONTAINS
       END DO
 
       ! Divide by correct pre-factor
-      angular_xi_summation_adaptive = sum/(4.*pi)
+      angular_xi_summation_adaptive = real(sum)/(4.*pi)
 
    END FUNCTION angular_xi_summation_adaptive
 
@@ -570,7 +570,7 @@ CONTAINS
       END DO
 
       ! Divide by correct pre-factor
-      angular_xi_summation = sum/(4.*pi)
+      angular_xi_summation = real(sum)/(4.*pi)
 
    END FUNCTION angular_xi_summation
 
@@ -587,7 +587,6 @@ CONTAINS
       INTEGER, INTENT(IN) :: nl         ! Number of entries in l-Cl arrays
       INTEGER :: l, i
       REAL :: xi(n)
-      INTEGER :: ifind
       DOUBLE PRECISION :: sum(n)
 
       ! Set values to zero before summing
@@ -605,7 +604,7 @@ CONTAINS
       END DO
 
       ! Divide by correct pre-factor
-      angular_xi_summation_precompute = sum/(4.*pi)
+      angular_xi_summation_precompute = real(sum)/(4.*pi)
 
    END FUNCTION angular_xi_summation_precompute
 
