@@ -20,6 +20,11 @@ CONTAINS
       REAL, INTENT(IN) :: xtab(n)
       INTEGER, INTENT(IN) :: imeth
 
+      ! Methods (imeth)
+      ! 1 - Get integer assuming the array has linear spacing
+      ! 2 - Search array from first entry to last entry (often a silly thing to do)
+      ! 3 - Mid-point search method to find integer (efficient for 2^n)
+
       IF (x < xtab(1)) THEN
          select_table_integer = 0
       ELSE IF (x > xtab(n)) THEN
@@ -44,19 +49,6 @@ CONTAINS
       REAL, INTENT(IN) :: xtab(n)
       INTEGER, INTENT(IN) :: n
       REAL :: x1, xn
-
-      !REAL, PARAMETER :: acc=1e-3 ! Test for linear table
-
-      ! Returns the integer (table position) below the value of x
-      ! eg. if x(3)=6. and x(4)=7. and x=6.5 this will return 6
-      ! Assumes table is organised linearly (care for logs)
-
-      !Tests for linear table integer
-      !x1=xtab(1)
-      !x2=xtab(2)
-      !xn=xtab(n)
-      !IF(x1>xn) STOP 'LINEAR_TABLE_INTEGER: Error, table in the wrong order'
-      !IF(abs(-1.+float(n-1)*(x2-x1)/(xn-x1))>acc) STOP 'LINEAR_TABLE_INTEGER: Error, table does not seem to be linear'
 
       x1 = xtab(1)
       xn = xtab(n)
