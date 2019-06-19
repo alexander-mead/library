@@ -401,19 +401,23 @@ CONTAINS
       ! Calcuate the two-dimensional correlation functions given a C(ell) array
       ! This uses the direct sum over discrete ell do the transformation
       ! TODO: Can I bunch together ell in the sum when ell is high?
+      USE logical_operations
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: ibessel(m) ! Bessel functions to use
       INTEGER, INTENT(IN) :: m          ! Number of Bessel function transforms
       REAL, INTENT(IN) :: th_tab(n)     ! Angles for correlation function [degrees]
-      REAL, INTENT(OUT) :: xi_tab(m, n)  ! Correlation function
+      REAL, INTENT(OUT) :: xi_tab(m, n) ! Correlation function
       INTEGER, INTENT(IN) :: n          ! Number of angles to compute
       REAL, INTENT(IN) :: l_tab(nl)     ! Array of ell
       REAL, INTENT(IN) :: cl_tab(nl)    ! Array of C(ell)
       INTEGER, INTENT(IN) :: nl         ! Number of ell
       INTEGER, INTENT(IN) :: lmax       ! Maximum ell to go to in summation
       INTEGER :: i, j, l
+      INTEGER :: ifind
       REAL :: logl(nl), logCl(nl), Cl(lmax)
       REAL :: theta, xi(m)
+      INTEGER, PARAMETER :: iorder=3
+      INTEGER, PARAMETER :: imeth=2
 
       ! Method
       ! 1 - Summation with accuracy parameter (converges very slowly, accuracy condition seems to not work)
@@ -428,8 +432,13 @@ CONTAINS
 
       IF (method == 4) THEN
          ! Need to precompute C(l) at each integer l for this method
+         IF (regular_spacing(logl, nl)) THEN
+            ifind = 1 ! Array is linearly spaced
+         ELSE
+            ifind = 3 ! Mid-point method
+         END IF
          DO l = 1, lmax
-            Cl(l) = exp(find(log(real(l)), logl, logCl, nl, iorder=3, ifind=3, imeth=2))
+            Cl(l) = exp(find(log(real(l)), logl, logCl, nl, iorder, ifind, imeth))
          END DO
       END IF
 

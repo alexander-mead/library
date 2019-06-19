@@ -13,8 +13,6 @@ MODULE simulations
 
    PUBLIC :: particle_bin
    PUBLIC :: particle_bin_average
-   !PUBLIC :: NGP
-   !PUBLIC :: CIC
    PUBLIC :: correlation_function
    PUBLIC :: create_mass_function
    PUBLIC :: halo_mass_cut
@@ -23,6 +21,7 @@ MODULE simulations
    PUBLIC :: write_density_slice_ascii
    PUBLIC :: Zeldovich_ICs
    PUBLIC :: replace
+   PUBLIC :: sharp_Fourier_density_contrast
 
    PUBLIC :: generate_randoms
    PUBLIC :: generate_poor_glass

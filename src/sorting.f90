@@ -31,7 +31,8 @@ CONTAINS
 
       IMPLICIT NONE
       REAL, INTENT(INOUT) :: a(n)
-      INTEGER, INTENT(IN) :: n, imeth
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: imeth
 
       IF (imeth == 1) THEN
          CALL stupid_sort(a, n)
@@ -156,8 +157,9 @@ CONTAINS
       ! Index the array 'a' from lowest to highest value
       IMPLICIT NONE
       REAL, INTENT(IN) :: a(n)
-      INTEGER, INTENT(IN) :: n, imeth
+      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(OUT) :: ind(n)
+      INTEGER, INTENT(IN) :: imeth
 
       IF (imeth == 1) THEN
          CALL stupid_index_real(a, ind, n)
@@ -173,8 +175,11 @@ CONTAINS
 
       ! Index the array 'a' from lowest to highest value
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n, imeth, a(n)
+      INTEGER, INTENT(IN) :: a(n)
       INTEGER, INTENT(OUT) :: ind(n)
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: imeth
+      
 
       IF (imeth == 1) THEN
          CALL stupid_index_int(a, ind, n)
@@ -191,8 +196,8 @@ CONTAINS
       ! Create an index array for a(:) that indexes from smallest to largest value
       IMPLICIT NONE
       REAL, INTENT(IN) :: a(n)
-      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(OUT) :: ind(n)
+      INTEGER, INTENT(IN) :: n 
       INTEGER :: i, isort, hold
 
       DO i = 1, n
@@ -218,8 +223,9 @@ CONTAINS
 
       ! Create an index array for integer a(:) that indexes from smallest to largest value
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: a(n), n
+      INTEGER, INTENT(IN) :: a(n)
       INTEGER, INTENT(OUT) :: ind(n)
+      INTEGER, INTENT(IN) :: n
       INTEGER :: i, isort, hold
 
       DO i = 1, n
@@ -245,8 +251,8 @@ CONTAINS
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: a(n)
-      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(OUT) :: ind(n)
+      INTEGER, INTENT(IN) :: n    
       INTEGER :: i, j
       REAL :: b(n)
 
@@ -264,8 +270,9 @@ CONTAINS
    SUBROUTINE stupid_index_int(a, ind, n)
 
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: a(n), n
+      INTEGER, INTENT(IN) :: a(n)
       INTEGER, INTENT(OUT) :: ind(n)
+      INTEGER, INTENT(IN) :: n
       INTEGER :: i, j, b(n)
 
       b = a
