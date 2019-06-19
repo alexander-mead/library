@@ -401,57 +401,63 @@ CONTAINS
       ! Calcuate the two-dimensional correlation functions given a C(ell) array
       ! This uses the direct sum over discrete ell do the transformation
       ! TODO: Can I bunch together ell in the sum when ell is high?
-      USE special_functions
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: ibessel(m) ! Bessel function to use
-      INTEGER, INTENT(IN) :: m          ! Number of transforms
+      INTEGER, INTENT(IN) :: ibessel(m) ! Bessel functions to use
+      INTEGER, INTENT(IN) :: m          ! Number of Bessel function transforms
       REAL, INTENT(IN) :: th_tab(n)     ! Angles for correlation function [degrees]
-      REAL, INTENT(OUT) :: xi_tab(m,n)  ! Correlation function
+      REAL, INTENT(OUT) :: xi_tab(m, n)  ! Correlation function
       INTEGER, INTENT(IN) :: n          ! Number of angles to compute
       REAL, INTENT(IN) :: l_tab(nl)     ! Array of ell
       REAL, INTENT(IN) :: cl_tab(nl)    ! Array of C(ell)
       INTEGER, INTENT(IN) :: nl         ! Number of ell
       INTEGER, INTENT(IN) :: lmax       ! Maximum ell to go to in summation
-      INTEGER :: i, j, k
-      REAL :: logl(nl), logCl(nl)
-      REAL :: theta, Cl, l, xi(m)
-      INTEGER, PARAMETER :: iorder = 3 ! Order for interpolation to find C(l) (3 - cubic)
-      INTEGER, PARAMETER :: ifind = 3  ! Finding scheme for interpolation of C(l) (3 - mid-point)
-      INTEGER, PARAMETER :: imeth = 2  ! Interpolation polynomial (2 - Lagrange polynomial)
+      INTEGER :: i, j, l
+      REAL :: logl(nl), logCl(nl), Cl(lmax)
+      REAL :: theta, xi(m)
+
+      ! Method
+      ! 1 - Summation with accuracy parameter (converges very slowly, accuracy condition seems to not work)
+      ! 2 - Standard integration (does not converge well, crap)
+      ! 3 - Stanard summation
+      ! 4 - Summation assuming C(l) precomputed (fastest)
+      INTEGER, PARAMETER :: method = 4
 
       ! Speed up find routine by doing logarithms in advance
       logl = log(l_tab)
       logCl = log(cl_tab)
 
-      IF (verbose_xi) WRITE (*, *) 'CALCULATE_ANGULAR_XI: Computing correlation functions via sum'
+      IF (method == 4) THEN
+         ! Need to precompute C(l) at each integer l for this method
+         DO l = 1, lmax
+            Cl(l) = exp(find(log(real(l)), logl, logCl, nl, iorder=3, ifind=3, imeth=2))
+         END DO
+      END IF
+
+      IF (verbose_xi) WRITE (*, *) 'CALCULATE_ANGULAR_XI: Computing correlation functions'
 
       DO i = 1, n
 
          ! Get theta value and convert from degrees to radians
          theta = th_tab(i)/rad2deg
 
-         ! Set values to zero before summing
-         xi = 0.
+         ! Calculate the correlation function
+         DO j = 1, m
 
-         ! Do the conversion from Cl to xi as a summation over integer l
-         DO j = 1, lmax
-
-            ! Get the C(l) value associated with integer l
-            l = real(j)
-            Cl = exp(find(log(l), logl, logCl, nl, iorder, ifind, imeth))
-
-            ! Loop over Bessel functions to use for transform
-            DO k=1,m
-
-               ! Add to the running todays for the correlation functions
-               xi(k) = xi(k)+(2.*l+1.)*Cl*Bessel(ibessel(k), l*theta)
-
-            END DO
+            IF (method == 1) THEN
+               xi(j) = angular_xi_summation_adaptive(theta, ibessel(j), logl, logCl, nl, lmax, acc=acc_Limber)
+            ELSE IF (method == 2) THEN
+               xi(j) = integrate_angular_xi(theta, ibessel(j), logl, logCl, nl, acc_Limber)
+            ELSE IF (method == 3) THEN
+               IF (j == 2) EXIT
+               xi = angular_xi_summation(theta, ibessel(j), m, logl, logCl, nl, lmax)
+            ELSE IF (method == 4) THEN
+               IF (j == 2) EXIT
+               xi = angular_xi_summation_precompute(theta, ibessel, m, Cl, lmax)
+            ELSE
+               STOP 'CALCULATE_ANGULAR_XI: Error, method specified incorrectly'
+            END IF
 
          END DO
-
-         ! Divide by correct pre-factor
-         xi = xi/(4.*pi)
 
          ! Populate tables
          xi_tab(:, i) = xi
@@ -464,6 +470,263 @@ CONTAINS
       END IF
 
    END SUBROUTINE calculate_angular_xi
+
+   REAL FUNCTION angular_xi_summation_adaptive(theta, nbessel, logl, logCl, nl, lmax, acc)
+
+      ! This routine converges very slowly. The adaptive part seems to be terrible
+      ! TODO: Probably remove this, although I am not sure why it is so bad
+      USE special_functions
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: theta       ! Angle [rad]
+      INTEGER, INTENT(IN) :: nbessel  ! Order form Bessel functions to use
+      REAL, INTENT(IN) :: logl(nl)    ! Array of log l
+      REAL, INTENT(IN) :: logCl(nl)   ! Array of log Cl
+      INTEGER, INTENT(IN) :: nl       ! Number of entries in l-Cl arrays
+      INTEGER, INTENT(IN) :: lmax     ! Maximum number of l to sum
+      REAL, INTENT(IN) :: acc         ! Accuracy
+      INTEGER :: l, i
+      REAL :: Cl, xi
+      DOUBLE PRECISION :: sum
+      INTEGER, PARAMETER :: iorder = 3    ! Order for interpolation to find C(l) (3 - cubic)
+      INTEGER, PARAMETER :: ifind = 3     ! Finding scheme for interpolation of C(l) (3 - mid-point)
+      INTEGER, PARAMETER :: imeth = 2     ! Interpolation polynomial (2 - Lagrange polynomial)
+      INTEGER, PARAMETER :: lmin = 100    ! Minimum number of l to sum
+
+      ! Set values to zero before summing
+      sum = 0.
+
+      ! Do the conversion from Cl to xi as a summation over integer l
+      DO l = 1, lmax
+
+         ! Get the C(l) value associated with integer l
+         Cl = exp(find(log(real(l)), logl, logCl, nl, iorder, ifind, imeth))
+
+         ! Add to the running todays for the correlation functions
+         xi = (2.*real(l)+1.)*Cl*Bessel(nbessel, real(l)*theta)
+         sum = sum+xi
+
+         ! Exit loop if sufficiently accurate
+         IF (l > lmin .AND. ABS(xi/sum) < acc) THEN
+            EXIT
+         END IF
+
+      END DO
+
+      ! Divide by correct pre-factor
+      angular_xi_summation_adaptive = sum/(4.*pi)
+
+   END FUNCTION angular_xi_summation_adaptive
+
+   FUNCTION angular_xi_summation(theta, ibessel, n, logl, logCl, nl, lmax)
+
+      USE special_functions
+      USE logical_operations
+      IMPLICIT NONE
+      REAL :: angular_xi_summation(n)
+      REAL, INTENT(IN) :: theta         ! Angle [rad]
+      INTEGER, INTENT(IN) :: ibessel(n) ! Order form Bessel functions to use
+      INTEGER, INTENT(IN) :: n          ! Number of Bessel functions to use
+      REAL, INTENT(IN) :: logl(nl)      ! Array of log l
+      REAL, INTENT(IN) :: logCl(nl)     ! Array of log Cl
+      INTEGER, INTENT(IN) :: nl         ! Number of entries in l-Cl arrays
+      INTEGER, INTENT(IN) :: lmax       ! Maximum number of l to sum
+      INTEGER :: l, i
+      REAL :: Cl, xi(n)
+      INTEGER :: ifind
+      DOUBLE PRECISION :: sum(n)
+      INTEGER, PARAMETER :: iorder = 3  ! Order for interpolation to find C(l) (3 - cubic)
+      INTEGER, PARAMETER :: imeth = 2   ! Interpolation polynomial (2 - Lagrange polynomial)
+
+      IF (regular_spacing(logl, nl)) THEN
+         ifind = 1 ! Array is linearly spaced
+      ELSE
+         ifind = 3 ! Mid-point method
+      END IF
+
+      ! Set values to zero before summing
+      sum = 0.
+
+      ! Do the conversion from Cl to xi as a summation over integer l
+      DO l = 1, lmax
+
+         ! Get the C(l) value associated with integer l
+         Cl = exp(find(log(real(l)), logl, logCl, nl, iorder, ifind, imeth))
+
+         ! Add to the running totals for the correlation functions
+         DO i = 1, n
+            xi(i) = (2.*real(l)+1.)*Cl*Bessel(ibessel(i), real(l)*theta)
+            sum(i) = sum(i)+xi(i)
+         END DO
+
+      END DO
+
+      ! Divide by correct pre-factor
+      angular_xi_summation = sum/(4.*pi)
+
+   END FUNCTION angular_xi_summation
+
+   FUNCTION angular_xi_summation_precompute(theta, ibessel, n, Cl, nl)
+
+      USE special_functions
+      USE logical_operations
+      IMPLICIT NONE
+      REAL :: angular_xi_summation_precompute(n)
+      REAL, INTENT(IN) :: theta         ! Angle [rad]
+      INTEGER, INTENT(IN) :: ibessel(n) ! Order form Bessel functions to use
+      INTEGER, INTENT(IN) :: n          ! Number of Bessel functions to use
+      REAL, INTENT(IN) :: Cl(nl)     ! Array of log Cl
+      INTEGER, INTENT(IN) :: nl         ! Number of entries in l-Cl arrays
+      INTEGER :: l, i
+      REAL :: xi(n)
+      INTEGER :: ifind
+      DOUBLE PRECISION :: sum(n)
+
+      ! Set values to zero before summing
+      sum = 0.
+
+      ! Do the conversion from Cl to xi as a summation over integer l
+      DO l = 1, nl
+
+         ! Add to the running totals for the correlation functions
+         DO i = 1, n
+            xi(i) = (2.*real(l)+1.)*Cl(l)*Bessel(ibessel(i), real(l)*theta)
+            sum(i) = sum(i)+xi(i)
+         END DO
+
+      END DO
+
+      ! Divide by correct pre-factor
+      angular_xi_summation_precompute = sum/(4.*pi)
+
+   END FUNCTION angular_xi_summation_precompute
+
+   REAL FUNCTION integrate_angular_xi(theta, nbessel, logl, logCl, nl, acc)
+
+      ! Integrates between a and b until desired accuracy is reached
+      ! Stores information to reduce function calls
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: theta
+      INTEGER, INTENT(IN) :: nbessel
+      REAL, INTENT(IN) :: logl(nl)
+      REAL, INTENT(IN) :: logCl(nl)
+      INTEGER, INTENT(IN) :: nl
+      REAL, INTENT(IN) :: acc
+      INTEGER :: i, j
+      INTEGER :: n
+      REAL :: x, dx
+      REAL :: f1, f2, fx
+      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL, PARAMETER :: a = 0.
+      REAL, PARAMETER :: b = 1.
+      INTEGER, PARAMETER :: jmin = 5   ! Standard integration parameters
+      INTEGER, PARAMETER :: jmax = 30  ! Standard integration parameters
+      INTEGER, PARAMETER :: iorder = 3 ! Order for integration
+
+      IF (a == b) THEN
+
+         ! Fix the answer to zero if the integration limits are identical
+         integrate_angular_xi = 0.
+
+      ELSE
+
+         ! Set the sum variable for the integration
+         sum_2n = 0.
+         sum_n = 0.
+         sum_old = 0.
+         sum_new = 0.
+
+         DO j = 1, jmax
+
+            ! Note, you need this to be 1+2**n for some integer n
+            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+            n = 1+2**(j-1)
+
+            ! Calculate the dx interval for this value of 'n'
+            dx = (b-a)/real(n-1)
+
+            IF (j == 1) THEN
+
+               ! The first go is just the trapezium of the end points
+               f1 = angular_xi_integrand(a, theta, nbessel, logl, logCl, nl)
+               f2 = angular_xi_integrand(b, theta, nbessel, logl, logCl, nl)
+               sum_2n = 0.5*(f1+f2)*dx
+               sum_new = sum_2n
+
+            ELSE
+
+               ! Loop over only new even points to add these to the integral
+               DO i = 2, n, 2
+                  x = progression(a, b, i, n)
+                  fx = angular_xi_integrand(x, theta, nbessel, logl, logCl, nl)
+                  sum_2n = sum_2n+fx
+               END DO
+
+               ! Now create the total using the old and new parts
+               sum_2n = sum_n/2.+sum_2n*dx
+
+               ! Now calculate the new sum depending on the integration order
+               IF (iorder == 1) THEN
+                  sum_new = sum_2n
+               ELSE IF (iorder == 3) THEN
+                  sum_new = (4.*sum_2n-sum_n)/3. ! This is Simpson's rule and cancels error
+               ELSE
+                  STOP 'INTEGRATE_ANGULAR_XI: Error, iorder specified incorrectly'
+               END IF
+
+            END IF
+
+            IF ((j >= jmin) .AND. (abs(-1.+sum_new/sum_old) < acc)) THEN
+               ! jmin avoids spurious early convergence
+               integrate_angular_xi = real(sum_new)
+               EXIT
+            ELSE IF (j == jmax) THEN
+               integrate_angular_xi = 0.d0
+               STOP 'INTEGRATE_ANGULAR_XI: Integration timed out'
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               integrate_angular_xi = 0.d0
+               sum_old = sum_new
+               sum_n = sum_2n
+               sum_2n = 0.
+            END IF
+
+         END DO
+
+      END IF
+
+   END FUNCTION integrate_angular_xi
+
+   REAL FUNCTION angular_xi_integrand(t, theta, nbessel, logl, logCl, nl)
+
+      ! TODO: Write integration routine for this
+      USE special_functions
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: t           ! Integration variable: 1+l = 1/t
+      REAL, INTENT(IN) :: theta       ! Angle [rad]
+      INTEGER, INTENT(IN) :: nbessel  ! Order of Bessel functions to use
+      REAL, INTENT(IN) :: logl(nl)    ! Array of log l
+      REAL, INTENT(IN) :: logCl(nl)   ! Array of log Cl
+      INTEGER, INTENT(IN) :: nl       ! Number of entries in l-Cl arrays
+      REAL :: l, Cl
+      INTEGER, PARAMETER :: iorder = 3 ! Order for interpolation to find C(l) (3 - cubic)
+      INTEGER, PARAMETER :: ifind = 3  ! Finding scheme for interpolation of C(l) (3 - mid-point)
+      INTEGER, PARAMETER :: imeth = 2  ! Interpolation polynomial (2 - Lagrange polynomial)
+
+      IF (t == 0.) THEN
+         ! Corresponds to l=infinity, where Cl is zero (hopefully)
+         angular_xi_integrand = 0.
+      ELSE IF (t == 1.) THEN
+         ! Corresponds to l=0, where Cl is zero (hopefully)
+         angular_xi_integrand = 0.
+      ELSE IF (t < 0. .OR. t > 1.) THEN
+         STOP 'ANGULAR_XI_INTEGRAND: Error, t is out of bounds'
+      ELSE
+         l = -1.+1./t
+         Cl = exp(find(log(l), logl, logCl, nl, iorder, ifind, imeth))
+         angular_xi_integrand = l*Cl*Bessel(nbessel, l*theta)/t**2
+      END IF
+
+   END FUNCTION
 
    SUBROUTINE write_angular_xi(th_tab, xi_tab, nb, nth, outfile)
 
@@ -479,7 +742,7 @@ CONTAINS
 
       OPEN (7, file=outfile)
       DO i = 1, nth
-         WRITE (7, *) th_tab(i), (xi_tab(j, i), j=1,nb)
+         WRITE (7, *) th_tab(i), (xi_tab(j, i), j=1, nb)
       END DO
       CLOSE (7)
 
@@ -1063,13 +1326,15 @@ CONTAINS
 
    END FUNCTION nz
 
-   FUNCTION integrate_q(r, a, b, acc, iorder, proj, cosm)
+   REAL FUNCTION integrate_q(r, a, b, acc, iorder, proj, cosm)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
       IMPLICIT NONE
-      REAL :: integrate_q
-      REAL, INTENT(IN) :: a, b, r, acc
+      REAL, INTENT(IN) :: r
+      REAL, INTENT(IN) :: a
+      REAL, INTENT(IN) :: b
+      REAL, INTENT(IN) :: acc
       INTEGER, INTENT(IN) :: iorder
       TYPE(cosmology), INTENT(INOUT) :: cosm
       TYPE(projection), INTENT(IN) :: proj
