@@ -38,10 +38,10 @@ _OBJ = \
 	precision.o \
 	constants.o \
 	physics.o \
-	logical_operations.o \
-	random_numbers.o \
 	fix_polynomial.o \
 	array_operations.o \
+	logical_operations.o \
+	random_numbers.o \
 	calculus.o \
 	file_info.o \
 	camb_stuff.o \
