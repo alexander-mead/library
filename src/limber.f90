@@ -77,8 +77,6 @@ MODULE Limber
 
    ! xcorr - C(l) calculation
    LOGICAL, PARAMETER :: verbose_Limber = .FALSE.   ! Verbosity
-   LOGICAL, PARAMETER :: verbose_xi = .FALSE.       ! Verbosity
-   !LOGICAL, PARAMETER :: do_contributions=.FALSE. ! Contributions
 
    ! Maxdist
    REAL, PARAMETER :: dr_max = 0.01 ! Small subtraction from maxdist to prevent numerical issues
@@ -104,6 +102,16 @@ MODULE Limber
    ! Gravitational waves
    REAL, PARAMETER :: A_gwave = 1.
    REAL, PARAMETER :: rmin_gwave = 10.
+
+   ! Method for angular correlation function
+   ! 1 - Summation with accuracy parameter (converges very slowly, accuracy condition seems to not work)
+   ! 2 - Standard integration (does not converge well, crap)
+   ! 3 - Standard summation
+   ! 4 - Summation assuming C(l) precomputed (fastest)
+   INTEGER, PARAMETER :: method_angular_xi = 4
+
+   ! Angular xi verbosity
+   LOGICAL, PARAMETER :: verbose_xi = .FALSE. ! Verbosity
 
    ! Tracer types
    INTEGER, PARAMETER :: tracer_RCSLenS = 1
@@ -422,9 +430,9 @@ CONTAINS
       ! Method
       ! 1 - Summation with accuracy parameter (converges very slowly, accuracy condition seems to not work)
       ! 2 - Standard integration (does not converge well, crap)
-      ! 3 - Stanard summation
+      ! 3 - Standard summation
       ! 4 - Summation assuming C(l) precomputed (fastest)
-      INTEGER, PARAMETER :: method = 4
+      INTEGER, PARAMETER :: method = method_angular_xi
 
       ! Speed up find routine by doing logarithms in advance
       logl = log(l_tab)
