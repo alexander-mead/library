@@ -10,6 +10,8 @@ MODULE multidark_stuff
    PUBLIC :: read_multidark_halo_catalogue
    PUBLIC :: read_multidark_particles
    PUBLIC :: write_multidark_halo_catalogue
+   PUBLIC :: multidark_snapshot
+   PUBLIC :: multidark_scale_factor
 
 CONTAINS
 
@@ -135,6 +137,31 @@ CONTAINS
 
    END SUBROUTINE read_multidark_haloes
 
+   ! SUBROUTINE read_multidark_halo_catalogue(infile, x, m, n)
+
+   !    IMPLICIT NONE
+   !    CHARACTER(len=*), INTENT(IN) :: infile
+   !    REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
+   !    REAL, ALLOCATABLE, INTENT(OUT) :: m(:, :)
+   !    INTEGER, INTENT(OUT) :: n
+   !    INTEGER :: i, j
+   !    INTEGER, PARAMETER :: nmass=6 ! Sometimes 6, sometimes 2
+
+   !    n = file_length(infile, verbose=.FALSE.)
+   !    ALLOCATE (x(3, n), m(nmass, n))
+
+   !    WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: ', trim(infile)
+   !    WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Number of haloes:', n
+   !    OPEN (7, file=infile, status='old')
+   !    DO i = 1, n
+   !       READ (7, *) x(1, i), x(2, i), x(3, i), (m(j, i), j = 1,nmass)
+   !    END DO
+   !    CLOSE (7)
+   !    WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Done'
+   !    WRITE (*, *)
+
+   ! END SUBROUTINE read_multidark_halo_catalogue
+
    SUBROUTINE read_multidark_halo_catalogue(infile, x, m, n)
 
       IMPLICIT NONE
@@ -142,16 +169,19 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
       REAL, ALLOCATABLE, INTENT(OUT) :: m(:, :)
       INTEGER, INTENT(OUT) :: n
-      INTEGER :: i
+      INTEGER :: i, j, crap
+      INTEGER, PARAMETER :: nmass=2 ! Sometimes 6, sometimes 2
 
       n = file_length(infile, verbose=.FALSE.)
-      ALLOCATE (x(3, n), m(6, n))
+      n = n-1
+      ALLOCATE (x(3, n), m(nmass, n))
 
       WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: ', trim(infile)
       WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Number of haloes:', n
       OPEN (7, file=infile, status='old')
+      READ(7,*) ! Comment line
       DO i = 1, n
-         READ (7, *) x(1, i), x(2, i), x(3, i), m(1, i), m(2, i), m(3, i), m(4, i), m(5, i), m(6, i)
+         READ (7, *) crap, x(1, i), x(2, i), x(3, i), (m(j, i), j = 1,nmass)
       END DO
       CLOSE (7)
       WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Done'
@@ -208,5 +238,47 @@ CONTAINS
       WRITE (*, *)
 
    END SUBROUTINE read_multidark_particles
+
+   INTEGER FUNCTION multidark_snapshot(a)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: a
+
+      IF(a==1.001) THEN
+         multidark_snapshot=85
+      ELSE IF(a==0.652) THEN
+         multidark_snapshot=62
+      ELSE IF(a==0.591) THEN
+         multidark_snapshot=58
+      ELSE IF(a==0.500) THEN
+         multidark_snapshot=52
+      ELSE IF(a==0.257) THEN
+         multidark_snapshot=36
+      ELSE  
+         STOP 'MULTIDARK_SNAPSHOTS: Error, no snapshot corresponding to your scale factor'
+      END IF
+
+   END FUNCTION
+
+   REAL FUNCTION multidark_scale_factor(s)
+
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: s
+
+      IF(s==85) THEN
+         multidark_scale_factor=1.001
+      ELSE IF(s==62) THEN
+         multidark_scale_factor=0.652
+      ELSE IF(s==58) THEN
+         multidark_scale_factor=0.591
+      ELSE IF(s==52) THEN
+         multidark_scale_factor=0.500
+      ELSE IF(s==36) THEN
+         multidark_scale_factor=0.257
+      ELSE
+         STOP 'MULTIDARK_SCALE_FACTOR: Error, no scale factor correpsponding to snapshot'
+      END IF
+
+   END FUNCTION
 
 END MODULE multidark_stuff
