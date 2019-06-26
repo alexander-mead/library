@@ -164,6 +164,7 @@ CONTAINS
 
    SUBROUTINE read_multidark_halo_catalogue(infile, x, m, n)
 
+      ! New version for halo catalogues downloaded via https://www.cosmosim.org/query
       IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: infile
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
@@ -173,7 +174,7 @@ CONTAINS
       INTEGER, PARAMETER :: nmass=2 ! Sometimes 6, sometimes 2
 
       n = file_length(infile, verbose=.FALSE.)
-      n = n-1
+      n = n-1 ! Remove comment line
       ALLOCATE (x(3, n), m(nmass, n))
 
       WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: ', trim(infile)
