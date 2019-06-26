@@ -8,6 +8,7 @@ MODULE fitting
 
    ! TODO: Interface
 
+   PUBLIC :: fit_constant
    PUBLIC :: adapt_1
    PUBLIC :: adapt_3
    PUBLIC :: grid_fit_1
@@ -16,6 +17,23 @@ MODULE fitting
    PUBLIC :: quadratic_fit_1
 
 CONTAINS
+
+   REAL FUNCTION fit_constant(data, weight, n)
+
+      IMPLICIT NONE
+      REAL :: data(n)
+      REAL :: weight(n)
+      INTEGER :: n
+      REAL :: total_weight
+
+      total_weight = sum(weight)
+      IF(total_weight==0.) THEN
+         STOP 'FIT_CONSTANT: Error, weights sum to zero'
+      ELSE
+         fit_constant = sum(data*weight)/total_weight
+      END IF
+
+   END FUNCTION fit_constant
 
    SUBROUTINE adapt_1(xmin, func, min, max, ref, ngrid, nref)
 
