@@ -205,7 +205,7 @@ CONTAINS
       INTEGER, INTENT(INOUT) :: icosmo
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
-      REAL :: Xe, Xi
+      REAL :: Xe, Xi, om_c, om_b
 
       ! Names of pre-defined cosmologies
       INTEGER, PARAMETER :: ncosmo = 337
@@ -253,6 +253,7 @@ CONTAINS
       names(39) = 'Random cosmology'
       names(40) = 'Random CAMB cosmology'
       names(41) = 'SCDM with high neutrino mass'
+      names(42) = 'Planck 2018'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -692,6 +693,16 @@ CONTAINS
          cosm%Om_m = 1.
          cosm%Om_v = 0.
          cosm%m_nu = 4.
+      ELSE IF (icosmo == 42) THEN
+         ! Planck 2018
+         om_b = 0.0223828
+         om_c = 0.1201075
+         cosm%h = 0.6732
+         cosm%n = 0.9660499
+         cosm%Om_m = (om_b+om_c)/cosm%h**2
+         cosm%Om_b = om_b/cosm%h**2
+         cosm%Om_v = 1.-cosm%Om_m
+         cosm%sig8 = 0.8119
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
