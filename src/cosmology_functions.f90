@@ -694,7 +694,7 @@ CONTAINS
          cosm%Om_v = 0.
          cosm%m_nu = 4.
       ELSE IF (icosmo == 42) THEN
-         ! Planck 2018
+         ! Planck 2018 (missing neutrinos)
          om_b = 0.0223828
          om_c = 0.1201075
          cosm%h = 0.6732
