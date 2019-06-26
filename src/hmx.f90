@@ -236,7 +236,7 @@ MODULE HMx
       ! Mass function and bias parameters
       REAL :: Tinker_alpha, Tinker_beta, Tinker_gamma, Tinker_phi, Tinker_eta
       REAL :: alpha_numu
-      REAL :: ST_p, ST_q, ST_A
+      REAL :: ST_p, ST_q, ST_A, Amp_mf
       LOGICAL :: has_mass_function
 
       ! Non-linear halo bias parameters
@@ -791,10 +791,11 @@ CONTAINS
       ! Sheth & Tormen (1999) mass function parameters
       hmod%ST_p = 0.3
       hmod%ST_q = 0.707
+      hmod%Amp_mf = 0.5
 
       ! Index to make the mass function integration easier
       ! Should be related to how the mass function diverges at low nu
-      ! e.g., ST diverges like nu^-0.6, alpha=1/(1-0.6)=2.5
+      ! e.g., ST diverges like nu^-0.6, alpha = 1/(1-0.6) = 2.5
       hmod%alpha_numu = 2.5
 
       ! Set flags to false
@@ -1382,10 +1383,10 @@ CONTAINS
                WRITE (*, *) 'INIT_HALOMOD: Total g(nu) integration:', REAL(hmod%gnorm) ! Could do better and actually integrate to zero
             END IF
 
-            IF (hmod%gmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'
-            IF (hmod%gmax < glim) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
-            IF (hmod%gbmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
-            IF (hmod%gbmax < gblim) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at high end is less than zero'
+            !IF (hmod%gmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'
+            !IF (hmod%gmax < glim) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
+            !IF (hmod%gbmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
+            !IF (hmod%gbmax < gblim) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at high end is less than zero'
 
          END IF
 
@@ -2636,7 +2637,8 @@ CONTAINS
       REAL :: I_11, I_12(n), I_21(n), I_22(n, n)
       REAL :: I2h, I2hs(2)
       INTEGER :: i, j
-      LOGICAL, PARAMETER :: add_missing_bits = .TRUE.
+      LOGICAL, PARAMETER :: add_I_11 = .FALSE.
+      LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE.
 
       ! Necessary to prevent warning for some reason
       I_11 = 0.
@@ -2750,11 +2752,9 @@ CONTAINS
 
             !WRITE(*,*) 'B_NL:', k, Inl_11, Inl_12, Inl_21, Inl_22
 
-            IF (add_missing_bits) THEN
-               Inl = Inl_11+Inl_21+Inl_12+Inl_22
-            ELSE
-               Inl = Inl_22
-            END IF
+            Inl = Inl_22
+            IF (add_I_11)          Inl = Inl+Inl_11
+            IF (add_I_12_and_I_21) Inl = Inl+Inl_12+Inl_21
 
             p_2h = p_2h+plin*Inl
 
@@ -3070,104 +3070,6 @@ CONTAINS
 
    END FUNCTION p_1void
 
-!!$  REAL FUNCTION B_NL(nu1,nu2,k,z)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: nu1, nu2
-!!$    REAL, INTENT(IN) :: k, z
-!!$    REAL :: A, k0
-!!$    REAL :: A0, A1, k00, k01
-!!$
-!!$    ! Set the model
-!!$    INTEGER, PARAMETER :: model=3
-!!$
-!!$    ! Redshifts model was calibrated at
-!!$    REAL, PARAMETER :: zs(4)=[0.0,0.5,1.0,2.0]
-!!$
-!!$    ! Do we limit from below?
-!!$    LOGICAL, PARAMETER :: impose_limit=.TRUE.
-!!$    REAL, PARAMETER :: limit=-1.
-!!$
-!!$    ! Model 1 - ?
-!!$    REAL, PARAMETER :: As(4)=[3.14,2.60,2.40,1.93]
-!!$    REAL, PARAMETER :: k0s(4)=[1.79,1.61,1.66,1.66]
-!!$
-!!$    ! Model 2 - ?
-!!$    REAL, PARAMETER :: A0s(4)=[9.83,39.85,106.42,153.41]
-!!$    REAL, PARAMETER :: k00s(4)=[3.38,5.14,7.88,14.03]
-!!$
-!!$    IF(model==1) THEN
-!!$
-!!$       ! Model 1 - ?
-!!$
-!!$       A=Lagrange_Polynomial(z,3,zs,As)
-!!$       k0=Lagrange_Polynomial(z,3,zs,k0s)
-!!$
-!!$       !B_NL=A*(k/k0)*(exp(-(k/(2.*k0**2))
-!!$       B_NL=A*(k/k0)*(1.-k**2/(2.*k0**2))
-!!$
-!!$    ELSE IF(model==2) THEN
-!!$
-!!$       ! Model 2 - ?
-!!$
-!!$       A0=Lagrange_Polynomial(z,3,zs,A0s)
-!!$       A1=-3
-!!$
-!!$       k00=Lagrange_Polynomial(z,3,zs,k00s)
-!!$       k01=-1.5
-!!$
-!!$       A=A0*(nu1+nu2)**A1
-!!$       k0=k00*(nu1+nu2)**k01
-!!$
-!!$       B_NL=A*(k/k0)*(1.-(k**2/(2.*k0**2)))
-!!$
-!!$    ELSE IF(model==3) THEN
-!!$
-!!$       !WRITE(*,*) 'Model 3!'
-!!$       !STOP
-!!$
-!!$       A=4.5
-!!$       k0=5.
-!!$
-!!$       B_NL=A*(k/k0)*(1.-(k**2/(2.*k0**2)))
-!!$
-!!$    ELSE
-!!$
-!!$       STOP 'B_NL: Error, model not specified correctly'
-!!$
-!!$    END IF
-!!$
-!!$    IF(impose_limit .AND. B_NL<limit) B_NL=limit
-!!$
-!!$  END FUNCTION B_NL
-
-!!$  REAL FUNCTION B_NL(k,nu1,nu2,rv1,rv2)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: k
-!!$    REAL, INTENT(IN) :: nu1, nu2
-!!$    REAL, INTENT(IN) :: rv1, rv2
-!!$    REAL :: A0, A1, k1, k2, k3, b0
-!!$
-!!$    !A=1.+1./(nu1*nu2)
-!!$    !k0=1.
-!!$
-!!$    !B_NL=A*(k/k0)*(1.-rv1*rv2*k**2)
-!!$
-!!$    A0=0.63
-!!$    A1=1.91
-!!$    k1=1.23
-!!$    k2=4.02
-!!$    k3=99.99
-!!$    b0=0.0
-!!$
-!!$    B_NL=(A0+A1/(nu1*nu2))*((k/k1)**1+(k/k2)**2+(k/k3)**4)*(1.-rv1*rv2*k**2)+b0
-!!$
-!!$    IF(B_NL<-1.) B_NL=-1.
-!!$
-!!$  END FUNCTION B_NL
-
-   !REAL FUNCTION BNL(k,nu1,nu2,rv1,rv2,hmod)
    REAL FUNCTION BNL(k, nu1, nu2, hmod)
 
       IMPLICIT NONE
@@ -3230,22 +3132,22 @@ CONTAINS
       CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext
       !CHARACTER(len=256) :: base='/Users/Mead/Physics/data/Bolshoi/power/M512'
       !CHARACTER(len=256) :: base='/Users/Mead/Physics/data/Multidark/power/M512'
-      CHARACTER(len=256) :: base = '/Users/Mead/Physics/Multidark/data/M512'
+      CHARACTER(len=256) :: base = '/Users/Mead/Physics/Multidark/data/BNL/M512'
       REAL, PARAMETER :: eps = 1e-2
 
       WRITE (*, *) 'INIT_BNL: Running'
 
       ! Read in the nu values from the binstats file
       IF (requal(hmod%z, 0.00, eps)) THEN
-         inbase = trim(base)//'/BNL_1.00109'
-      ELSE IF (requal(hmod%z, 0.47, eps)) THEN
-         inbase = trim(base)//'/BNL_0.68215'
+         inbase = trim(base)//'/BNL_85'
+      ELSE IF (requal(hmod%z, 0.53, eps)) THEN
+         inbase = trim(base)//'/BNL_62'
       ELSE IF (requal(hmod%z, 0.69, eps)) THEN
-         inbase = trim(base)//'/BNL_0.59103'
+         inbase = trim(base)//'/BNL_58'
       ELSE IF (requal(hmod%z, 1.00, eps)) THEN
-         inbase = trim(base)//'/BNL_0.49990'
+         inbase = trim(base)//'/BNL_52'
       ELSE IF (requal(hmod%z, 2.89, eps)) THEN
-         inbase = trim(base)//'/BNL_0.25690'
+         inbase = trim(base)//'/BNL_36'
       ELSE
          STOP 'INIT_BNL: Error, your redshift is not supported'
       END IF
@@ -7797,6 +7699,8 @@ CONTAINS
       ELSE
          STOP 'G_NU: Error, imf specified incorrectly'
       END IF
+
+      g_nu=g_nu*hmod%Amp_mf
 
    END FUNCTION g_nu
 
