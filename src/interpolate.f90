@@ -275,8 +275,6 @@ CONTAINS
       ! Extrapolates if the value is off either end of the array
       ! If the value required is off the table edge the extrapolation is always linear
       ! TODO: Loops over coordinates to avoid repetition?
-      ! TOOD: Check linear method, there is a nice thing called bilinear interpolation that has a nice geometric interpretation
-      ! TODO: Implement linear extrapolation for points that are outside x AND y boundaries
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xin(nx)
@@ -321,80 +319,6 @@ CONTAINS
 
       IF (xtab(1) > xtab(nx)) STOP 'FIND_2D: x array in wrong order'
       IF (ytab(1) > ytab(ny)) STOP 'FIND_2D: y array in wrong order'
-
-      ! IF (iorder == 1) THEN
-
-      !    ! TODO: This might be wasteful or even wrong, 
-      !    ! TODO: There is a nice clear geometric way of doing this (https://en.wikipedia.org/wiki/Bilinear_interpolation)
-
-      !    IF (nx < 2) STOP 'FIND_2D: Not enough x points in your array for linear interpolation'
-      !    IF (ny < 2) STOP 'FIND_2D: Not enough y points in your array for linear interpolation'
-
-      !    IF (x <= xtab(2)) THEN
-      !       i = 1
-      !    ELSE IF (x >= xtab(nx-1)) THEN
-      !       i = nx-1
-      !    ELSE
-      !       i = select_table_integer(x, xtab, nx, ifind)
-      !    END IF
-
-      !    i1 = i
-      !    i2 = i+1
-
-      !    x1 = xtab(i1)
-      !    x2 = xtab(i2)
-
-      !    IF (y <= ytab(2)) THEN
-      !       j = 1
-      !    ELSE IF (y >= ytab(ny-1)) THEN
-      !       j = ny-1
-      !    ELSE
-      !       j = select_table_integer(y, ytab, ny, ifind)
-      !    END IF
-
-      !    j1 = j
-      !    j2 = j+1
-
-      !    y1 = ytab(j1)
-      !    y2 = ytab(j2)
-
-      !    !!
-
-      !    f11 = ftab(i1, j1)
-      !    f12 = ftab(i1, j2)
-
-      !    f21 = ftab(i2, j1)
-      !    f22 = ftab(i2, j2)
-
-      !    !! y direction interpolation
-
-      !    CALL fix_line(a, b, x1, f11, x2, f21)
-      !    f01 = a*x+b
-
-      !    CALL fix_line(a, b, x1, f12, x2, f22)
-      !    f02 = a*x+b
-
-      !    CALL fix_line(a, b, y1, f01, y2, f02)
-      !    findy = a*y+b
-
-      !    !!
-
-      !    !! x direction interpolation
-
-      !    CALL fix_line(a, b, y1, f11, y2, f12)
-      !    f10 = a*y+b
-
-      !    CALL fix_line(a, b, y1, f21, y2, f22)
-      !    f20 = a*y+b
-
-      !    CALL fix_line(a, b, x1, f10, x2, f20)
-      !    findx = a*x+b
-
-      !    !!
-
-      !    ! Final result is an average over each direction
-      !    ! TODO: Are findx and findy identical? Is this wasteful?
-      !    find_2D = (findx+findy)/2.
 
       IF(iorder == 1) THEN
 
