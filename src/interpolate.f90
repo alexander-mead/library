@@ -22,6 +22,9 @@ CONTAINS
    REAL FUNCTION find_1D(x, xin, yin, n, iorder, ifind, imeth)
 
       ! Given two arrays x and y this routine interpolates to find the y_i value at position x_i
+      ! Care should be chosen to insert x, xtab, ytab as log if this might give beter results
+      ! Extrapolates if the value is off either end of the array   
+      ! If the value required is off the table edge the extrapolation is always linear
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xin(n)
@@ -36,11 +39,6 @@ CONTAINS
       REAL :: y1, y2, y3, y4
       REAL :: L1, L2
       INTEGER :: i
-
-      ! This version interpolates if the value is off either end of the array
-      ! Care should be chosen to insert x, xtab, ytab as log if this might give beter results from the interpolation
-
-      ! If the value required is off the table edge the interpolation is always linear
 
       ! iorder = 1 => linear interpolation
       ! iorder = 2 => quadratic interpolation
@@ -64,7 +62,7 @@ CONTAINS
 
       IF (x < xtab(1)) THEN
 
-         ! Do a linear interpolation beyond the table boundary
+         ! Do a linear extrapolation beyond the table boundary
 
          x1 = xtab(1)
          x2 = xtab(2)
@@ -83,7 +81,7 @@ CONTAINS
 
       ELSE IF (x > xtab(n)) THEN
 
-         ! Do a linear interpolation beyond the table boundary
+         ! Do a linear extrapolation beyond the table boundary
 
          x1 = xtab(n-1)
          x2 = xtab(n)
@@ -202,7 +200,6 @@ CONTAINS
                ! In this case take the average of two quadratic Lagrange polynomials
                L1 = Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))
                L2 = Lagrange_polynomial(x, 2, (/x2, x3, x4/), (/y2, y3, y4/))
-               !find_1D = (Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))+Lagrange_polynomial(x, 2, (/x2, x3, x4/), (/y2, y3, y4/)))/2.
                find_1D = (L1+L2)/2.
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
@@ -274,8 +271,12 @@ CONTAINS
    REAL FUNCTION find_2D(x, xin, y, yin, fin, nx, ny, iorder, ifind, imeth)
 
       ! A 2D interpolation routine to find value f(x,y) at position x, y
+      ! Care should be chosen to insert x, xtab, ytab as log if this might give better results
+      ! Extrapolates if the value is off either end of the array
+      ! If the value required is off the table edge the extrapolation is always linear
       ! TODO: Loops over coordinates to avoid repetition?
-      ! TOOD: Check linear method, there is a nice thing called bilinear interpolation that has a nice geometric interpretation, see find_3D
+      ! TOOD: Check linear method, there is a nice thing called bilinear interpolation that has a nice geometric interpretation
+      ! TODO: Implement linear extrapolation for points that are outside x AND y boundaries
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xin(nx)
@@ -299,14 +300,8 @@ CONTAINS
       REAL :: f01, f02, f03, f04
       INTEGER :: i1, i2, i3, i4
       INTEGER :: j1, j2, j3, j4
-      REAL :: findx, findy
-      INTEGER :: i, j
-
-      ! This version interpolates if the value is off either end of the array!
-      ! Care should be chosen to insert x, xtab, ytab as log if this might give better!
-      ! Results from the interpolation!
-
-      ! If the value required is off the table edge the interpolation is always linear
+      REAL :: findx, findy, F(2,2), V(2,2)
+      INTEGER :: i, j, ix, iy, ix1, ix2, iy1, iy2
 
       ! iorder = 1 => linear interpolation
       ! iorder = 2 => quadratic interpolation
@@ -318,7 +313,6 @@ CONTAINS
 
       ! imeth = 1 => Uses cubic polynomials for interpolation
       ! imeth = 2 => Uses Lagrange polynomials for interpolation
-
       IF (imeth == 2) STOP 'FIND_2D: No Lagrange polynomials for you'
 
       xtab = xin
@@ -328,105 +322,147 @@ CONTAINS
       IF (xtab(1) > xtab(nx)) STOP 'FIND_2D: x array in wrong order'
       IF (ytab(1) > ytab(ny)) STOP 'FIND_2D: y array in wrong order'
 
-      IF ((x < xtab(1) .OR. x > xtab(nx)) .AND. (y > ytab(ny) .OR. y < ytab(1))) THEN
-         WRITE (*, *) 'FIND_2D: array xmin:', xtab(1)
-         WRITE (*, *) 'FIND_2D: array xmax:', xtab(nx)
-         WRITE (*, *) 'FIND_2D: requested x:', x
-         WRITE (*, *) 'FIND_2D: array ymin:', ytab(1)
-         WRITE (*, *) 'FIND_2D: array ymax:', ytab(ny)
-         WRITE (*, *) 'FIND_2D: requested y:', y
-         STOP 'FIND_2D: Desired point is outside x AND y array range'
-      END IF
+      ! IF (iorder == 1) THEN
 
-      IF (iorder == 1) THEN
+      !    ! TODO: This might be wasteful or even wrong, 
+      !    ! TODO: There is a nice clear geometric way of doing this (https://en.wikipedia.org/wiki/Bilinear_interpolation)
 
-         ! TODO: This might be wasteful or even wrong, there is a nice clear geometric way of doing this (https://en.wikipedia.org/wiki/Bilinear_interpolation)
+      !    IF (nx < 2) STOP 'FIND_2D: Not enough x points in your array for linear interpolation'
+      !    IF (ny < 2) STOP 'FIND_2D: Not enough y points in your array for linear interpolation'
+
+      !    IF (x <= xtab(2)) THEN
+      !       i = 1
+      !    ELSE IF (x >= xtab(nx-1)) THEN
+      !       i = nx-1
+      !    ELSE
+      !       i = select_table_integer(x, xtab, nx, ifind)
+      !    END IF
+
+      !    i1 = i
+      !    i2 = i+1
+
+      !    x1 = xtab(i1)
+      !    x2 = xtab(i2)
+
+      !    IF (y <= ytab(2)) THEN
+      !       j = 1
+      !    ELSE IF (y >= ytab(ny-1)) THEN
+      !       j = ny-1
+      !    ELSE
+      !       j = select_table_integer(y, ytab, ny, ifind)
+      !    END IF
+
+      !    j1 = j
+      !    j2 = j+1
+
+      !    y1 = ytab(j1)
+      !    y2 = ytab(j2)
+
+      !    !!
+
+      !    f11 = ftab(i1, j1)
+      !    f12 = ftab(i1, j2)
+
+      !    f21 = ftab(i2, j1)
+      !    f22 = ftab(i2, j2)
+
+      !    !! y direction interpolation
+
+      !    CALL fix_line(a, b, x1, f11, x2, f21)
+      !    f01 = a*x+b
+
+      !    CALL fix_line(a, b, x1, f12, x2, f22)
+      !    f02 = a*x+b
+
+      !    CALL fix_line(a, b, y1, f01, y2, f02)
+      !    findy = a*y+b
+
+      !    !!
+
+      !    !! x direction interpolation
+
+      !    CALL fix_line(a, b, y1, f11, y2, f12)
+      !    f10 = a*y+b
+
+      !    CALL fix_line(a, b, y1, f21, y2, f22)
+      !    f20 = a*y+b
+
+      !    CALL fix_line(a, b, x1, f10, x2, f20)
+      !    findx = a*x+b
+
+      !    !!
+
+      !    ! Final result is an average over each direction
+      !    ! TODO: Are findx and findy identical? Is this wasteful?
+      !    find_2D = (findx+findy)/2.
+
+      IF(iorder == 1) THEN
 
          IF (nx < 2) STOP 'FIND_2D: Not enough x points in your array for linear interpolation'
          IF (ny < 2) STOP 'FIND_2D: Not enough y points in your array for linear interpolation'
 
-         IF (x <= xtab(2)) THEN
+         !! Get the x,y values !!
 
-            i = 1
-
-         ELSE IF (x >= xtab(nx-1)) THEN
-
-            i = nx-1
-
-         ELSE
-
-            i = select_table_integer(x, xtab, nx, ifind)
-
+         ! Get the integer coordinates in the x direction
+         ix = select_table_integer(x, xin, nx, ifind)
+         IF(ix==0) THEN
+            ix=1
+         ELSE IF(ix==nx) THEN
+            ix=nx-1
          END IF
+         ix1 = ix
+         ix2 = ix+1
 
-         i1 = i
-         i2 = i+1
+         ! Get the x values
+         x1 = xin(ix1)
+         x2 = xin(ix2)
 
-         x1 = xtab(i1)
-         x2 = xtab(i2)
-
-         IF (y <= ytab(2)) THEN
-
-            j = 1
-
-         ELSE IF (y >= ytab(ny-1)) THEN
-
-            j = ny-1
-
-         ELSE
-
-            j = select_table_integer(y, ytab, ny, ifind)
-
+         ! Get the integer coordinates in the y direction
+         iy = select_table_integer(y, yin, ny, ifind)
+         IF(iy==0) THEN
+            iy=1
+         ELSE IF(iy==ny) THEN
+            iy=ny-1
          END IF
+         iy1 = iy
+         iy2 = iy+1
 
-         j1 = j
-         j2 = j+1
+         ! Get the y values
+         y1 = yin(iy1)
+         y2 = yin(iy2)
 
-         y1 = ytab(j1)
-         y2 = ytab(j2)
+         !! Function values !!
 
-         !!
+         F(1, 1) = fin(ix1, iy1)
+         F(1, 2) = fin(ix1, iy2)
+         F(2, 1) = fin(ix2, iy1)
+         F(2, 2) = fin(ix2, iy2)
 
-         f11 = ftab(i1, j1)
-         f12 = ftab(i1, j2)
+         !! !!
 
-         f21 = ftab(i2, j1)
-         f22 = ftab(i2, j2)
+         V(1, 1) = (x2-x)*(y2-y)*F(1, 1)
+         V(1, 2) = (x2-x)*(y-y1)*F(1, 2)
+         V(2, 1) = (x-x1)*(y2-y)*F(2, 1)
+         V(2, 2) = (x-x1)*(y-y1)*F(2, 2)
 
-         !! y direction interpolation
-
-         CALL fix_line(a, b, x1, f11, x2, f21)
-         f01 = a*x+b
-
-         CALL fix_line(a, b, x1, f12, x2, f22)
-         f02 = a*x+b
-
-         CALL fix_line(a, b, y1, f01, y2, f02)
-         findy = a*y+b
-
-         !!
-
-         !! x direction interpolation
-
-         CALL fix_line(a, b, y1, f11, y2, f12)
-         f10 = a*y+b
-
-         CALL fix_line(a, b, y1, f21, y2, f22)
-         f20 = a*y+b
-
-         CALL fix_line(a, b, x1, f10, x2, f20)
-         findx = a*x+b
-
-         !!
-
-         ! Final result is an average over each direction
-         find_2D = (findx+findy)/2.
+         find_2D = sum(V)/((x2-x1)*(y2-y1))
 
       ELSE IF (iorder == 2) THEN
 
          STOP 'FIND_2D: Quadratic 2D interpolation not implemented - also probably pointless'
 
       ELSE IF (iorder == 3) THEN
+
+         ! No cubic extrapolation implemented if the desired point is outside x AND y array boundary corners
+         IF ((x < xtab(1) .OR. x > xtab(nx)) .AND. (y > ytab(ny) .OR. y < ytab(1))) THEN
+            WRITE (*, *) 'FIND_2D: array xmin:', xtab(1)
+            WRITE (*, *) 'FIND_2D: array xmax:', xtab(nx)
+            WRITE (*, *) 'FIND_2D: requested x:', x
+            WRITE (*, *) 'FIND_2D: array ymin:', ytab(1)
+            WRITE (*, *) 'FIND_2D: array ymax:', ytab(ny)
+            WRITE (*, *) 'FIND_2D: requested y:', y
+            STOP 'FIND_2D: Desired point is outside x AND y array range'
+         END IF
 
          IF (x < xtab(1) .OR. x > xtab(nx)) THEN
 
@@ -436,32 +472,22 @@ CONTAINS
             ! x is off the table edge
 
             IF (x < xtab(1)) THEN
-
                i1 = 1
                i2 = 2
-
             ELSE
-
                i1 = nx-1
                i2 = nx
-
             END IF
 
             x1 = xtab(i1)
             x2 = xtab(i2)
 
             IF (y <= ytab(4)) THEN
-
                j = 2
-
             ELSE IF (y >= ytab(ny-3)) THEN
-
                j = ny-2
-
             ELSE
-
                j = select_table_integer(y, ytab, ny, ifind)
-
             END IF
 
             j1 = j-1
@@ -509,17 +535,11 @@ CONTAINS
             IF (ny < 2) STOP 'FIND_2D: Not enough y points in your array for linear interpolation'
 
             IF (x <= xtab(4)) THEN
-
                i = 2
-
             ELSE IF (x >= xtab(nx-3)) THEN
-
                i = nx-2
-
             ELSE
-
                i = select_table_integer(x, xtab, nx, ifind)
-
             END IF
 
             i1 = i-1
@@ -533,15 +553,11 @@ CONTAINS
             x4 = xtab(i4)
 
             IF (y < ytab(1)) THEN
-
                j1 = 1
                j2 = 2
-
             ELSE
-
                j1 = ny-1
                j2 = ny
-
             END IF
 
             y1 = ytab(j1)
@@ -578,17 +594,11 @@ CONTAINS
             IF (ny < 4) STOP 'FIND_2D: Not enough y points in your array for cubic interpolation'
 
             IF (x <= xtab(4)) THEN
-
                i = 2
-
             ELSE IF (x >= xtab(nx-3)) THEN
-
                i = nx-2
-
             ELSE
-
                i = select_table_integer(x, xtab, nx, ifind)
-
             END IF
 
             i1 = i-1
@@ -602,17 +612,11 @@ CONTAINS
             x4 = xtab(i4)
 
             IF (y <= ytab(4)) THEN
-
                j = 2
-
             ELSE IF (y >= ytab(ny-3)) THEN
-
                j = ny-2
-
             ELSE
-
                j = select_table_integer(y, ytab, ny, ifind)
-
             END IF
 
             j1 = j-1
@@ -699,6 +703,7 @@ CONTAINS
       ! A 3D interpolation routine to find value f(x,y,z) given a function evalated on arrays
       ! The linear version implemented here is also know as 'trilinear interpolation'
       ! TODO: Implement loops over coordinates to avoid repetition
+      ! TODO: Implement linear extrapolation
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xin(nx)
@@ -734,19 +739,19 @@ CONTAINS
       IF (yin(1) > yin(ny)) STOP 'FIND_3D: y array in wrong order'
       IF (zin(1) > zin(nz)) STOP 'FIND_3D: z array in wrong order'
 
-      ! No interpolation if the desired point is outside of the array range
-      IF ((x < xin(1) .OR. x > xin(nx)) .OR. (y > yin(ny) .OR. y < yin(1)) .OR. (z > zin(ny) .OR. z < zin(1))) THEN
-         WRITE (*, *) 'FIND_3D: array xmin:', xin(1)
-         WRITE (*, *) 'FIND_3D: array xmax:', xin(nx)
-         WRITE (*, *) 'FIND_3D: requested x:', x
-         WRITE (*, *) 'FIND_3D: array ymin:', yin(1)
-         WRITE (*, *) 'FIND_3D: array ymax:', yin(ny)
-         WRITE (*, *) 'FIND_3D: requested y:', y
-         WRITE (*, *) 'FIND_3D: array zmin:', zin(1)
-         WRITE (*, *) 'FIND_3D: array zmax:', zin(ny)
-         WRITE (*, *) 'FIND_3D: requested z:', z
-         STOP 'FIND_3D: Desired point is outside array range'
-      END IF
+      ! ! No extrapolation if the desired point is outside of the array range
+      ! IF ((x < xin(1) .OR. x > xin(nx)) .OR. (y > yin(ny) .OR. y < yin(1)) .OR. (z > zin(ny) .OR. z < zin(1))) THEN
+      !    WRITE (*, *) 'FIND_3D: array xmin:', xin(1)
+      !    WRITE (*, *) 'FIND_3D: array xmax:', xin(nx)
+      !    WRITE (*, *) 'FIND_3D: requested x:', x
+      !    WRITE (*, *) 'FIND_3D: array ymin:', yin(1)
+      !    WRITE (*, *) 'FIND_3D: array ymax:', yin(ny)
+      !    WRITE (*, *) 'FIND_3D: requested y:', y
+      !    WRITE (*, *) 'FIND_3D: array zmin:', zin(1)
+      !    WRITE (*, *) 'FIND_3D: array zmax:', zin(ny)
+      !    WRITE (*, *) 'FIND_3D: requested z:', z
+      !    STOP 'FIND_3D: Desired point is outside array range'
+      ! END IF
 
       IF (iorder == 1) THEN
 
@@ -757,6 +762,7 @@ CONTAINS
          !! Get the x,y,z values !!
 
          ! Get the integer coordinates in the x direction
+         ! TODO: Unnecesarry because similar check is in select_table_integer
          IF (x <= xin(2)) THEN
             ix = 1
          ELSE IF (x >= xin(nx-1)) THEN
@@ -772,6 +778,7 @@ CONTAINS
          x2 = xin(ix2)
 
          ! Get the integer coordinates in the y direction
+         ! TODO: Unnecesarry because similar check is in select_table_integer
          IF (y <= yin(2)) THEN
             iy = 1
          ELSE IF (y >= yin(ny-1)) THEN
@@ -787,6 +794,7 @@ CONTAINS
          y2 = yin(iy2)
 
          ! Get the integer coordinates in the z direction
+         ! TODO: Unnecesarry because similar check is in select_table_integer
          IF (z <= zin(2)) THEN
             iz = 1
          ELSE IF (z >= zin(nz-1)) THEN
@@ -803,23 +811,16 @@ CONTAINS
 
          !! Function values !!
 
-         f(1, 1, 1) = fin(ix1, iy1, iz1)
-         f(1, 1, 2) = fin(ix1, iy1, iz2)
-         f(1, 2, 1) = fin(ix1, iy2, iz1)
-         f(1, 2, 2) = fin(ix1, iy2, iz2)
-         f(2, 1, 1) = fin(ix2, iy1, iz1)
-         f(2, 1, 2) = fin(ix2, iy1, iz2)
-         f(2, 2, 1) = fin(ix2, iy2, iz1)
-         f(2, 2, 2) = fin(ix2, iy2, iz2)
+         F(1, 1, 1) = fin(ix1, iy1, iz1)
+         F(1, 1, 2) = fin(ix1, iy1, iz2)
+         F(1, 2, 1) = fin(ix1, iy2, iz1)
+         F(1, 2, 2) = fin(ix1, iy2, iz2)
+         F(2, 1, 1) = fin(ix2, iy1, iz1)
+         F(2, 1, 2) = fin(ix2, iy1, iz2)
+         F(2, 2, 1) = fin(ix2, iy2, iz1)
+         F(2, 2, 2) = fin(ix2, iy2, iz2)
 
          !! !!
-
-!!$       A11=(x2-x)*(y2-y)*F22
-!!$       A12=(x2-x)*(y-y1)*F12
-!!$       A21=(x-x1)*(y2-y)*F21
-!!$       A22=(x-x1)*(y-y1)*F22
-!!$
-!!$       find_3D=(A11+A12+A21+A22)/((x2-x1)(y2-y1))
 
          V(1, 1, 1) = (x2-x)*(y2-y)*(z2-z)*F(1, 1, 1)
          V(1, 2, 1) = (x2-x)*(y-y1)*(z2-z)*F(1, 2, 1)
@@ -831,35 +832,6 @@ CONTAINS
          V(2, 2, 2) = (x-x1)*(y-y1)*(z-z1)*F(2, 2, 2)
 
          find_3D = sum(V)/((x2-x1)*(y2-y1)*(z2-z1))
-
-!!$       !! y direction interpolation
-!!$
-!!$       CALL fix_line(a,b,x1,f11,x2,f21)
-!!$       f01=a*x+b
-!!$
-!!$       CALL fix_line(a,b,x1,f12,x2,f22)
-!!$       f02=a*x+b
-!!$
-!!$       CALL fix_line(a,b,y1,f01,y2,f02)
-!!$       findy=a*y+b
-!!$
-!!$       !!
-!!$
-!!$       !! x direction interpolation
-!!$
-!!$       CALL fix_line(a,b,y1,f11,y2,f12)
-!!$       f10=a*y+b
-!!$
-!!$       CALL fix_line(a,b,y1,f21,y2,f22)
-!!$       f20=a*y+b
-!!$
-!!$       CALL fix_line(a,b,x1,f10,x2,f20)
-!!$       findx=a*x+b
-!!$
-!!$       !!
-!!$
-!!$       ! Final result is an average over each direction
-!!$       find_3D=(findx+findy)/2.
 
       ELSE
 
