@@ -791,7 +791,7 @@ CONTAINS
       ! Sheth & Tormen (1999) mass function parameters
       hmod%ST_p = 0.3
       hmod%ST_q = 0.707
-      hmod%Amp_mf = 0.5
+      hmod%Amp_mf = 1.0
 
       ! Index to make the mass function integration easier
       ! Should be related to how the mass function diverges at low nu
@@ -1277,6 +1277,7 @@ CONTAINS
       REAL :: Dv, dc, m, nu, R, sig, z, Om_stars
       REAL, PARAMETER :: glim = -1e-4
       REAL, PARAMETER :: gblim = -1e-4
+      LOGICAL, PARAMETER :: check_negative_mf = .FALSE. ! Do we check that the missing g(nu)b(nu) and g(nu) are not negative?
 
       ! Set the redshift (this routine needs to be called anew for each z)
       hmod%a = a
@@ -1383,10 +1384,12 @@ CONTAINS
                WRITE (*, *) 'INIT_HALOMOD: Total g(nu) integration:', REAL(hmod%gnorm) ! Could do better and actually integrate to zero
             END IF
 
-            !IF (hmod%gmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'
-            !IF (hmod%gmax < glim) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
-            !IF (hmod%gbmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
-            !IF (hmod%gbmax < gblim) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at high end is less than zero'
+            IF(check_negative_mf) THEN
+               IF (hmod%gmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'
+               IF (hmod%gmax < glim) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
+               IF (hmod%gbmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
+               IF (hmod%gbmax < gblim) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at high end is less than zero'
+            END IF
 
          END IF
 
