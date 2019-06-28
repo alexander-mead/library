@@ -10,14 +10,14 @@ CONTAINS
 
    INTEGER FUNCTION select_table_integer(x, xtab, n, imeth)
 
-      ! Chooses between ways to find the integer location below some value in an array
+      ! Chooses between ways to find the integer location *below* some value in an array
       ! If x is within the table then the value returned will be between 1 and n-1
-      ! If x is below the lower value of the array then 0 is returned
-      ! If x is above the upper value of the array then n is returned
+      ! If x is below the lower value of the array then 0 is returned (IMPORTANT)
+      ! If x is above the upper value of the array then n is returned (IMPORTANT)
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xtab(n)
+      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: imeth
 
       ! Methods (imeth)
