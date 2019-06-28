@@ -6,6 +6,7 @@ old
 *.f90~
 *~
 meadlib
+meadlib_debug
 python/__pycache__
 *.pyc
 *.dat

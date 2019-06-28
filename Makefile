@@ -3,6 +3,12 @@
 # Set the Fortran compiler
 FC = gfortran
 
+# Library name
+LIB = meadlib
+
+# Debug library name
+LIB_DEBUG = $(LIB)_debug
+
 # Standard Fortran compile flags
 FFLAGS = \
 	-Warray-bounds \
@@ -74,18 +80,18 @@ OBJ = $(addprefix $(BUILD_DIR)/,$(_OBJ))
 
 # Default compile option
 #all: FFLAGS += -O3 
-all: meadlib
+all: $(LIB)
 
 # Debug mode
 debug: FFLAGS += $(DEBUG_FLAGS)
-debug: meadlib_debug
+debug: $(LIB_DEBUG)
 
 # Make the library
 meadlib: $(OBJ).o
 	@echo
 	@$(FC) --version
 	@echo 'compiling library'
-	@ar rc meadlib $(OBJ).o
+	@ar rc $(LIB) $(OBJ).o
 	@echo 'done'
 	@echo
 
@@ -93,8 +99,8 @@ meadlib: $(OBJ).o
 meadlib_debug: $(OBJ).o
 	@echo
 	@$(FC) --version
-	@echo 'compiling debuggin library'
-	@ar rc meadlib_debug $(OBJ).o
+	@echo 'compiling debugging library'
+	@ar rc $(BIN_DEBUG) $(OBJ).o
 	@echo 'done'
 	@echo
 
@@ -104,7 +110,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90
 
 # Clean up
 clean:
-	rm -f meadlib
-	rm -f meadlib_debug
+	rm -f $(LIB)
+	rm -f $(LIB_DEBUG)
 	rm -f $(BUILD_DIR)/*.mod
 	rm -f $(BUILD_DIR)/*.o
