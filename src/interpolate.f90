@@ -703,7 +703,6 @@ CONTAINS
       ! A 3D interpolation routine to find value f(x,y,z) given a function evalated on arrays
       ! The linear version implemented here is also know as 'trilinear interpolation'
       ! TODO: Implement loops over coordinates to avoid repetition
-      ! TODO: Implement linear extrapolation
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xin(nx)
@@ -739,20 +738,6 @@ CONTAINS
       IF (yin(1) > yin(ny)) STOP 'FIND_3D: y array in wrong order'
       IF (zin(1) > zin(nz)) STOP 'FIND_3D: z array in wrong order'
 
-      ! ! No extrapolation if the desired point is outside of the array range
-      ! IF ((x < xin(1) .OR. x > xin(nx)) .OR. (y > yin(ny) .OR. y < yin(1)) .OR. (z > zin(ny) .OR. z < zin(1))) THEN
-      !    WRITE (*, *) 'FIND_3D: array xmin:', xin(1)
-      !    WRITE (*, *) 'FIND_3D: array xmax:', xin(nx)
-      !    WRITE (*, *) 'FIND_3D: requested x:', x
-      !    WRITE (*, *) 'FIND_3D: array ymin:', yin(1)
-      !    WRITE (*, *) 'FIND_3D: array ymax:', yin(ny)
-      !    WRITE (*, *) 'FIND_3D: requested y:', y
-      !    WRITE (*, *) 'FIND_3D: array zmin:', zin(1)
-      !    WRITE (*, *) 'FIND_3D: array zmax:', zin(ny)
-      !    WRITE (*, *) 'FIND_3D: requested z:', z
-      !    STOP 'FIND_3D: Desired point is outside array range'
-      ! END IF
-
       IF (iorder == 1) THEN
 
          IF (nx < 2) STOP 'FIND_3D: Not enough x points in your array for linear interpolation'
@@ -762,13 +747,11 @@ CONTAINS
          !! Get the x,y,z values !!
 
          ! Get the integer coordinates in the x direction
-         ! TODO: Unnecesarry because similar check is in select_table_integer
-         IF (x <= xin(2)) THEN
-            ix = 1
-         ELSE IF (x >= xin(nx-1)) THEN
-            ix = nx-1
-         ELSE
-            ix = select_table_integer(x, xin, nx, ifind)
+         ix = select_table_integer(x, xin, nx, ifind)
+         IF(ix==0) THEN
+            ix=1
+         ELSE IF(ix==nx) THEN
+            ix=nx-1
          END IF
          ix1 = ix
          ix2 = ix+1
@@ -778,13 +761,11 @@ CONTAINS
          x2 = xin(ix2)
 
          ! Get the integer coordinates in the y direction
-         ! TODO: Unnecesarry because similar check is in select_table_integer
-         IF (y <= yin(2)) THEN
-            iy = 1
-         ELSE IF (y >= yin(ny-1)) THEN
-            iy = ny-1
-         ELSE
-            iy = select_table_integer(y, yin, ny, ifind)
+         iy = select_table_integer(y, yin, ny, ifind)
+         IF(iy==0) THEN
+            iy=1
+         ELSE IF(iy==ny) THEN
+            iy=ny-1
          END IF
          iy1 = iy
          iy2 = iy+1
@@ -794,13 +775,11 @@ CONTAINS
          y2 = yin(iy2)
 
          ! Get the integer coordinates in the z direction
-         ! TODO: Unnecesarry because similar check is in select_table_integer
-         IF (z <= zin(2)) THEN
-            iz = 1
-         ELSE IF (z >= zin(nz-1)) THEN
-            iz = nz-1
-         ELSE
-            iz = select_table_integer(z, zin, nz, ifind)
+         iz = select_table_integer(z, zin, nz, ifind)
+         IF(iz==0) THEN
+            iz=1
+         ELSE IF(iz==nz) THEN
+            iz=nz-1
          END IF
          iz1 = iz
          iz2 = iz+1
