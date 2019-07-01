@@ -669,7 +669,8 @@ CONTAINS
          cosm%Om_m = 0.27
          cosm%Om_v = 1.-cosm%Om_m
          cosm%n = 0.95
-         cosm%sig8 = 0.82
+         cosm%sig8 = 0.82 ! Seems wrong at z=0, data more like sigma_8 = 0.8
+         cosm%itk = 2
       ELSE IF (icosmo == 38) THEN
          ! Random cosmic emu model
          CALL random_Cosmic_Emu_cosmology(cosm)
@@ -1055,6 +1056,18 @@ CONTAINS
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a*:', cosm%a1
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Om_w(a*):', cosm%Om_ws
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w*:', cosm%ws
+         END IF
+         WRITE (*, *) '===================================='
+         IF(cosm%itk == 1) THEN
+            WRITE(*,*) 'COSMOLOGY: Linear power spectrum: Eisenstein & Hu (1999)'
+         ELSE IF(cosm%itk == 2) THEN
+            WRITE(*,*) 'COSMOLOGY: Linear power spectrum: CAMB'
+         ELSE IF(cosm%itk == 3) THEN
+            WRITE(*,*) 'COSMOLOGY: Linear power spectrum: DEFW'
+         ELSE IF(cosm%itk == 4) THEN
+            WRITE(*,*) 'COSMOLOGY: Linear power spectrum: External(?)'
+         ELSE
+            STOP 'COSMOLOGY: Error, itk not set properly'
          END IF
          WRITE (*, *) '===================================='
          WRITE (*, *)
@@ -4390,7 +4403,7 @@ CONTAINS
       CLOSE (7)
 
       ! Remove old files and run CAMB
-      IF (cosm%verbose) WRITE (*, *) 'GET_CAMB_POWER: Running CAMB (note weird problems with this function in library)'
+      IF (cosm%verbose) WRITE (*, *) 'GET_CAMB_POWER: Running CAMB'
       CALL SYSTEM('rm '//trim(transfer)//'*')
       CALL SYSTEM('rm '//trim(matterpower)//'*')
       IF (cosm%verbose) THEN
