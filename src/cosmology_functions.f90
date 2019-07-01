@@ -670,7 +670,7 @@ CONTAINS
          cosm%Om_v = 1.-cosm%Om_m
          cosm%n = 0.95
          cosm%sig8 = 0.82 ! Seems wrong at z=0, data more like sigma_8 = 0.8
-         cosm%itk = 2
+         cosm%itk = 1 ! Surely should be CAMB (itk = 2)
       ELSE IF (icosmo == 38) THEN
          ! Random cosmic emu model
          CALL random_Cosmic_Emu_cosmology(cosm)
