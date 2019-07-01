@@ -22,8 +22,11 @@ PROGRAM special_functions_demo
   WRITE(*,*) ' 9 - J2'
   WRITE(*,*) '10 - Log normal'
   WRITE(*,*) '11 - Gamma'
+  WRITE(*,*) '12 - Fibonacci'
   READ(*,*) test
   WRITE(*,*)
+
+  IF(test<=11) THEN
   
   xmin=0.
   xmax=1e1
@@ -78,5 +81,33 @@ PROGRAM special_functions_demo
      WRITE(7,*) x, f     
   END DO
   CLOSE(7)
+
+ELSE IF(test==12) THEN
+
+   CALL Fibonacci_demo()
+
+ELSE 
+
+   STOP 'SPECIAL_FUNCTION_TEST: Error, test not specified correctly'
+   
+END IF
+
+  CONTAINS
+
+SUBROUTINE Fibonacci_demo()
+
+   IMPLICIT NONE
+   INTEGER :: i
+   INTEGER, ALLOCATABLE :: F(:)
+   INTEGER, PARAMETER :: n=10
+
+   ALLOCATE(F(n))
+   CALL get_Fibonaccis(F,n)
+   DO i=1,n
+      WRITE(*,*) i, F(i), Fibonacci(i)
+   END DO
+   WRITE(*,*)
+
+END SUBROUTINE
   
 END PROGRAM special_functions_demo
