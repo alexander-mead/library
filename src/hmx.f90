@@ -282,12 +282,23 @@ MODULE HMx
 
    ! Minimum fraction before haloes are treated as delta functions (dangerous)
    ! TODO: Hydro tests passed if 1e-4, but I worry a bit, also it was a fairly minor speed up (25%)
-   ! TODO: Also, not obvious that a constant frac_min is correct because some species have low abundance but we ususally care about perturbations to this abundance
+   ! TODO: Also, not obvious that a constant frac_min is correct because some species have low abundance
+   ! but we ususally care about perturbations to this abundance
    REAL, PARAMETER :: frac_min = 0.
 
    ! Halo types
    LOGICAL, PARAMETER :: verbose_galaxies = .FALSE. ! Verbosity when doing the galaxies initialisation
-   LOGICAL, PARAMETER :: verbose_HI = .TRUE.       ! Verbosity when doing the HI initialisation
+   LOGICAL, PARAMETER :: verbose_HI = .TRUE.        ! Verbosity when doing the HI initialisation
+
+   ! Non-linear halo bias
+   LOGICAL, PARAMETER :: add_I_11 = .TRUE.          ! Add integral below numin, numin in halo model calculation
+   LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE. ! Add integral below numin in halo model calculation
+   REAL, PARAMETER :: kmin_bnl = 1e-1               ! Below this wavenumber set BNL to zero
+   REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass set  BNL to zero
+   REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass set  BNL to zero
+   REAL, PARAMETER :: BNL_min = -1.                 ! Minimum value that BNL is allowed to be (could be below -1)
+   LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
+   LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Fix a minimum value for B_NL
 
    ! Field types
    ! TODO: Have this run from 1->n, rather than -1->n
@@ -1783,8 +1794,8 @@ CONTAINS
 
          ! Free gas halo profile
          IF (hmod%halo_free_gas == 1) WRITE (*, *) 'HALOMODEL: Free gas profile: Isothermal model (out to 2rv)'
-         IF (hmod%halo_free_gas == 2) WRITE (*, *) 'HALOMODEL: Free gas profile: Ejected gas model from Schneider & Teyssier (2015)'
-       IF(hmod%halo_free_gas==3) WRITE(*,*) 'HALOMODEL: Free gas profile: Isothermal shell that connects electron pressure and density to bound gas at rv'
+         IF (hmod%halo_free_gas == 2) WRITE (*, *) 'HALOMODEL: Free gas profile: Ejected gas model (Schneider & Teyssier 2015)'
+         IF (hmod%halo_free_gas == 3) WRITE (*, *) 'HALOMODEL: Free gas profile: Isothermal shell that connects at rv'
          IF (hmod%halo_free_gas == 4) WRITE (*, *) 'HALOMODEL: Free gas profile: Komatsu-Seljak continuation'
          IF (hmod%halo_free_gas == 5) WRITE (*, *) 'HALOMODEL: Free gas profile: Power-law continuation'
          IF (hmod%halo_free_gas == 6) WRITE (*, *) 'HALOMODEL: Free gas profile: Cubic profile'
@@ -1795,7 +1806,7 @@ CONTAINS
          IF (hmod%halo_central_stars == 1) WRITE (*, *) 'HALOMODEL: Central star profile: Fedeli (2014)'
          IF (hmod%halo_central_stars == 2) WRITE (*, *) 'HALOMODEL: Central star profile: Schneider & Teyssier (2015)'
          IF (hmod%halo_central_stars == 3) WRITE (*, *) 'HALOMODEL: Central star profile: Delta function'
-   IF (hmod%halo_central_stars == 4) WRITE (*, *) 'HALOMODEL: Central star profile: Delta function at low mass and NFW at high mass'
+         IF (hmod%halo_central_stars == 4) WRITE (*, *) 'HALOMODEL: Central star profile: Delta at low mass and NFW at high mass'
 
          ! Satellite star halo profile
          IF (hmod%halo_satellite_stars == 1) WRITE (*, *) 'HALOMODEL: Satellite star profile: NFW'
@@ -1804,8 +1815,8 @@ CONTAINS
          ! HI halo profile
          IF (hmod%halo_HI == 1) WRITE (*, *) 'HALOMODEL: HI profile: NFW'
          IF (hmod%halo_HI == 2) WRITE (*, *) 'HALOMODEL: HI profile: Delta function'
-     IF (hmod%halo_HI == 3) WRITE (*, *) 'HALOMODEL: HI profile: Polynomial with exponential hole (Villaescusa-Navarro et al. 2018)'
-   IF (hmod%halo_HI == 4) WRITE (*, *) 'HALOMODEL: HI profile: Modified NFW with exponential hole (Villaescusa-Navarro et al. 2018)'
+         IF (hmod%halo_HI == 3) WRITE (*, *) 'HALOMODEL: HI profile: Polynomial with hole (Villaescusa-Navarro et al. 2018)'
+         IF (hmod%halo_HI == 4) WRITE (*, *) 'HALOMODEL: HI profile: Modified NFW with hole (Villaescusa-Navarro et al. 2018)'
          IF (hmod%halo_HI == 5) WRITE (*, *) 'HALOMODEL: HI profile: Modified NFW (Padmanabhan & Refregier 2017)'
 
          ! Electron pressure profile
@@ -2106,7 +2117,7 @@ CONTAINS
       IF (i == field_electron_pressure) halo_type = 'Electron pressure'
       IF (i == field_void) halo_type = 'Void'
       IF (i == field_compensated_void) halo_type = 'Compensated void'
-      IF (i == field_central_galaxies) halo_type = 'Central galaxies/haloes'
+      IF (i == field_central_galaxies) halo_type = 'Central galaxies or haloes'
       IF (i == field_satellite_galaxies) halo_type = 'Satellite galaxies'
       IF (i == field_galaxies) halo_type = 'Galaxies'
       IF (i == field_HI) halo_type = 'HI'
@@ -2352,12 +2363,13 @@ CONTAINS
             ELSE IF (hmod%response == 2) THEN
 
                ! Exclude pressure from the response
+               ! TODO: Slow array accessing here
                DO ii = 1, nf
                   DO jj = 1, nf
                      IF ((iifield(ii) .NE. field_electron_pressure) .AND. (iifield(jj) .NE. field_electron_pressure)) THEN
-                        upow_2h(ii, jj, i) = upow_2h(ii, jj, i)*hmcode_2h(i)/powg_2h(i) ! Two-halo response times HMcode (slow accessing)
-                        upow_1h(ii, jj, i) = upow_1h(ii, jj, i)*hmcode_1h(i)/powg_1h(i) ! One-halo response times HMcode (slow accessing)
-                        upow_hm(ii, jj, i) = upow_hm(ii, jj, i)*hmcode_hm(i)/powg_hm(i) ! Full model response times HMcode (slow accessing)
+                        upow_2h(ii, jj, i) = upow_2h(ii, jj, i)*hmcode_2h(i)/powg_2h(i) ! Two-halo response times HMcode
+                        upow_1h(ii, jj, i) = upow_1h(ii, jj, i)*hmcode_1h(i)/powg_1h(i) ! One-halo response times HMcode
+                        upow_hm(ii, jj, i) = upow_hm(ii, jj, i)*hmcode_hm(i)/powg_hm(i) ! Full model response times HMcode
                      END IF
                   END DO
                END DO
@@ -2640,8 +2652,6 @@ CONTAINS
       REAL :: I_11, I_12(n), I_21(n), I_22(n, n)
       REAL :: I2h, I2hs(2)
       INTEGER :: i, j
-      LOGICAL, PARAMETER :: add_I_11 = .FALSE.
-      LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE.
 
       ! Necessary to prevent warning for some reason
       I_11 = 0.
@@ -2694,7 +2704,7 @@ CONTAINS
          ! e.g., how much do low mass haloes matter
          IF (hmod%ibias == 2) THEN
 
-            ! ... otherwise we need to do an integral
+            ! ...otherwise we need to do an integral
             DO j = 1, 2
                CALL I_2h(ih(j), I2h, wk(:, j), n, hmod, cosm, ibias=2)
                I2hs(j) = I2h
@@ -2706,6 +2716,7 @@ CONTAINS
             ! Full non-linear bias correction
             DO j = 1, n
 
+               ! Halo 2 parameters
                m2 = hmod%m(j)
                nu2 = hmod%nu(j)
                rv2 = hmod%rv(j)
@@ -2715,6 +2726,7 @@ CONTAINS
 
                DO i = 1, n
 
+                  ! Halo 1 parameters
                   m1 = hmod%m(i)
                   nu1 = hmod%nu(i)
                   rv1 = hmod%rv(i)
@@ -2722,10 +2734,10 @@ CONTAINS
                   g1 = g_nu(nu1, hmod)
                   u1 = rhom*wk(i, 1)/m1
 
-                  !F(i,j)=B_NL(nu1,nu2,k,hmod%z)*b1*b2*g1*g2*u1*u2
-                  !F(i,j)=B_NL(k,nu1,nu2,rv1,rv2)*b1*b2*g1*g2*u1*u2
-                  B_NL = BNL(k, nu1, nu2, hmod)
+                  ! Get the non-linear bias
+                  B_NL = BNL(k, nu1, nu2, rv1, rv2, hmod)
 
+                  ! Bottom-right quadrant (later multiplied by missing part of integrand)
                   IF (i == 1 .AND. j == 1) THEN
                      I_11 = B_NL*u1*u2
                   END IF
@@ -2747,7 +2759,6 @@ CONTAINS
 
             END DO
 
-            !Inl_11=(wk(1,1)*rhom/hmod%m(1))*(wk(1,2)*rhom/hmod%m(1))*BNL(k,hmod%nu(1),hmod%nu(1),hmod%rv(1),hmod%rv(1),hmod)*hmod%gbmin**2
             Inl_11 = I_11*hmod%gbmin**2
             Inl_12 = integrate_table(hmod%nu, I_12, n, 1, n, iorder=1)*hmod%gbmin*(wk(1, 1)*rhom/hmod%m(1))
             Inl_21 = integrate_table(hmod%nu, I_21, n, 1, n, iorder=1)*hmod%gbmin*(wk(1, 2)*rhom/hmod%m(1))
@@ -3073,36 +3084,39 @@ CONTAINS
 
    END FUNCTION p_1void
 
-   REAL FUNCTION BNL(k, nu1, nu2, hmod)
+   REAL FUNCTION BNL(k, nu1, nu2, rv1, rv2, hmod)
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: nu1
       REAL, INTENT(IN) :: nu2
-      !REAL, INTENT(IN) :: rv1
-      !REAL, INTENT(IN) :: rv2
+      REAL, INTENT(IN) :: rv1
+      REAL, INTENT(IN) :: rv2
       TYPE(halomod), INTENT(INOUT) :: hmod
       INTEGER  :: nk, nnu
       REAL :: nuu1, nuu2, kk
       INTEGER, PARAMETER :: iorder = 1 ! 1 - Linear interpolation
       INTEGER, PARAMETER :: ifind = 3  ! 3 - Midpoint finding scheme
       INTEGER, PARAMETER :: imeth = 1  ! 1 - Polynomial method
-      REAL, PARAMETER :: kmin = 3e-2   ! Below this wavenumber set BNL to zero
-      REAL, PARAMETER :: numin = 0.    ! Below this halo mass set  BNL to zero
-      REAL, PARAMETER :: numax = 10.   ! Above this halo mass set  BNL to zero
-      REAL, PARAMETER :: BNL_min = -1. ! Minimum value that BNL is allowed to be (could be below -1)
+      REAL, PARAMETER :: kmin = kmin_bnl     ! Below this wavenumber set BNL to zero
+      REAL, PARAMETER :: numin = numin_bnl   ! Below this halo mass set  BNL to zero
+      REAL, PARAMETER :: numax = numax_bnl   ! Above this halo mass set  BNL to zero
+      REAL, PARAMETER :: min_value = -1.     ! Minimum value that BNL is allowed to be (could be below -1)
+      LOGICAL, PARAMETER :: halo_exclusion = exclusion_bnl
+      LOGICAL, PARAMETER :: fix_minimum = fix_minimum_bnl
+
 
       IF (.NOT. hmod%has_bnl) CALL init_BNL(hmod)
 
       ! Ensure that nu1 is not outside array boundary
       nuu1 = nu1
-      CALL fix_min(nuu1, hmod%nu_bnl(1))
-      CALL fix_max(nuu1, hmod%nu_bnl(hmod%nnu_bnl))
+      !CALL fix_min(nuu1, hmod%nu_bnl(1))
+      !CALL fix_max(nuu1, hmod%nu_bnl(hmod%nnu_bnl))
 
       ! Ensure that nu2 is not outside array boundary
       nuu2 = nu2
-      CALL fix_min(nuu2, hmod%nu_bnl(1))
-      CALL fix_max(nuu2, hmod%nu_bnl(hmod%nnu_bnl))
+      !CALL fix_min(nuu2, hmod%nu_bnl(1))
+      !CALL fix_max(nuu2, hmod%nu_bnl(hmod%nnu_bnl))
 
       ! Ensure that k is not outside array boundary at high end
       kk = k
@@ -3110,9 +3124,9 @@ CONTAINS
 
       IF (kk < kmin) THEN
          BNL = 0.
-      ELSE IF (nu1 < numin .OR. nu2 < numin) THEN
+      ELSE IF (nuu1 < numin .OR. nuu2 < numin) THEN
          BNL = 0.
-      ELSE IF (nu1 > numax .OR. nu2 > numax) THEN
+      ELSE IF (nuu1 > numax .OR. nuu2 > numax) THEN
          BNL = 0.
       ELSE
          nk = hmod%nk_bnl
@@ -3120,8 +3134,12 @@ CONTAINS
          BNL = find(log(kk), log(hmod%k_bnl), nuu1, hmod%nu_bnl, nuu2, hmod%nu_bnl, hmod%bnl, nk, nnu, nnu, iorder, ifind, imeth)
       END IF
 
-      !IF(BNL<BNL_min) BNL=BNL_min
-      CALL fix_min(BNL, BNL_min)
+      ! Halo exclusion
+      !IF(halo_exclusion) BNL=BNL*exp(-((kk*(rv1+rv2))**2)/4.)
+      IF(halo_exclusion) BNL=BNL-sigmoid_tanh(kk**2-1./(rv1+rv2)**2)*(BNL-BNL_min)
+
+      ! Fix a minimum value for BNL
+      IF(fix_minimum) CALL fix_min(BNL, BNL_min)
 
    END FUNCTION BNL
 
@@ -3133,24 +3151,24 @@ CONTAINS
       INTEGER :: nbin, nk
       REAL :: crap
       CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext
-      !CHARACTER(len=256) :: base='/Users/Mead/Physics/data/Bolshoi/power/M512'
-      !CHARACTER(len=256) :: base='/Users/Mead/Physics/data/Multidark/power/M512'
-      CHARACTER(len=256) :: base = '/Users/Mead/Physics/Multidark/data/BNL/M512'
+      !CHARACTER(len=256), PARAMETER :: base = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_BDMV'
+      CHARACTER(len=256), PARAMETER :: base = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
+      !CHARACTER(len=256), PARAMETER :: base = base_bnl
       REAL, PARAMETER :: eps = 1e-2
 
       WRITE (*, *) 'INIT_BNL: Running'
 
       ! Read in the nu values from the binstats file
       IF (requal(hmod%z, 0.00, eps)) THEN
-         inbase = trim(base)//'/BNL_85'
+         inbase = trim(base)//'_85'
       ELSE IF (requal(hmod%z, 0.53, eps)) THEN
-         inbase = trim(base)//'/BNL_62'
+         inbase = trim(base)//'_62'
       ELSE IF (requal(hmod%z, 0.69, eps)) THEN
-         inbase = trim(base)//'/BNL_58'
+         inbase = trim(base)//'_58'
       ELSE IF (requal(hmod%z, 1.00, eps)) THEN
-         inbase = trim(base)//'/BNL_52'
+         inbase = trim(base)//'_52'
       ELSE IF (requal(hmod%z, 2.89, eps)) THEN
-         inbase = trim(base)//'/BNL_36'
+         inbase = trim(base)//'_36'
       ELSE
          STOP 'INIT_BNL: Error, your redshift is not supported'
       END IF
@@ -3170,7 +3188,6 @@ CONTAINS
       WRITE (*, *) 'INIT_BNL: Done with nu'
 
       ! Read in k and Bnl(k,nu1,nu2)
-      !infile=trim(base)//'/BNL_1.00109_bin1_bin1_power.dat'
       infile = trim(inbase)//'_bin1_bin1_power.dat'
       nk = file_length(infile)
       hmod%nk_bnl = nk
@@ -3178,7 +3195,6 @@ CONTAINS
       ALLOCATE (hmod%k_bnl(nk), hmod%bnl(nk, nbin, nbin))
       DO ibin = 1, nbin
          DO jbin = 1, nbin
-            !fbase=trim(base)//'/BNL_1.00109_bin'
             fbase = trim(inbase)//'_bin'
             fmid = '_bin'
             fext = '_power.dat'
@@ -3468,7 +3484,7 @@ CONTAINS
       DO i = 1, n
          r = exp(progression(log(rmin), log(rmax), i, n))
          r = r*rv
-         WRITE (7, *) r/rv, (win_type(real_space, fields(j), r, m, rv, rs, hmod, cosm)*rv**3, j=1, nf) ! rv**3 here is from r^2 dr in integral
+         WRITE (7, *) r/rv, (win_type(real_space, fields(j), r, m, rv, rs, hmod, cosm)*rv**3, j=1, nf) ! rv**3 here is from r^2 dr
       END DO
       CLOSE (7)
 
@@ -4549,7 +4565,9 @@ CONTAINS
 
       END DO
 
-    IF(verbose_convert_mass) WRITE(*,*) '========================================================================================================'
+      IF(verbose_convert_mass) THEN
+         WRITE(*,*) '========================================================================================================'
+      END IF
 
       IF (verbose_convert_mass) THEN
          WRITE (*, *) 'CONVERT_MASS_DEFINITION: Done'
@@ -5312,7 +5330,7 @@ CONTAINS
             T0 = HMx_alpha(m, hmod)*virial_temperature(m, rv, hmod%a, cosm)
 
             ! Convert from Temp x density -> electron prsessure (Temp x n; n is all particle number density)
-            win_static_gas = win_static_gas*(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
+            win_static_gas = win_static_gas*(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply by *number density* times temperature k_B [J/m^3]
             win_static_gas = win_static_gas/(eV*(0.01)**(-3)) ! Change units to pressure in [eV/cm^3]
             win_static_gas = win_static_gas*cosm%mup/cosm%mue ! Convert from total thermal pressure to electron pressure
 
@@ -5477,7 +5495,7 @@ CONTAINS
             T0 = HMx_beta(m, hmod)*virial_temperature(m, rv, hmod%a, cosm)
 
             ! Convert from Temp x density -> electron pressure (Temp x n; n is all particle number density)
-            win_hot_gas = win_hot_gas*(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
+            win_hot_gas = win_hot_gas*(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply by number density times temperature k_B [J/m^3]
             win_hot_gas = win_hot_gas/(eV*(0.01)**(-3)) ! Change units to pressure in [eV/cm^3]
             win_hot_gas = win_hot_gas*cosm%mup/cosm%mue ! Convert from total thermal pressure to electron pressure
 
@@ -5559,7 +5577,7 @@ CONTAINS
             irho_electron_pressure = irho_density ! Okay because T is constant
 
             ! Isothermal model with continuous link to KS
-            rhov = win_static_gas(.TRUE., 2, rv, m, rv, rs, hmod, cosm) ! This is the value of the density at the halo boundary for the bound gas
+            rhov = win_static_gas(.TRUE., 2, rv, m, rv, rs, hmod, cosm) ! value of the density at the halo boundary for bound gas
             A = rhov/rho(rv, 0., rv, rv, rs, p1, p2, irho_density) ! This is A, as in A/r^2
 
             rmin = rv
@@ -5709,7 +5727,7 @@ CONTAINS
                T0 = HMx_Twhim(hmod) ! [K]
 
                ! Factors to convert from Temp x density -> electron pressure (Temp x n; n is all particle number density)
-               win_free_gas = win_free_gas*(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
+               win_free_gas = win_free_gas*(rho0/(mp*cosm%mup))*(kb*T0) ! Multiply by number density times temperature k_B [J/m^3]
                win_free_gas = win_free_gas/(eV*(0.01)**(-3)) ! Change units to pressure in [eV/cm^3]
                win_free_gas = win_free_gas*cosm%mup/cosm%mue ! Convert from total thermal pressure to electron pressure
 
@@ -5897,7 +5915,6 @@ CONTAINS
          win_electron_pressure = UPP(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (hmod%electron_pressure == 2) THEN
          ! Otherwise use...
-         !win_electron_pressure=win_bound_gas(real_space,itype_pressure,k,m,rv,rs,hmod,cosm)+win_free_gas(real_space,itype_pressure,k,m,rv,rs,hmod,cosm)
          win_electron_pressure = win_gas(real_space, field_electron_pressure, k, m, rv, rs, hmod, cosm)
       ELSE
          STOP 'WIN_ELECTRON_PRESSURE: Error, electron_pressure specified incorrectly'
