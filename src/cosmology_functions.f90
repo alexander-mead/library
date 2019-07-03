@@ -254,6 +254,7 @@ CONTAINS
       names(40) = 'Random CAMB cosmology'
       names(41) = 'SCDM with high neutrino mass'
       names(42) = 'Planck 2018'
+      names(43) = 'Multidark: WMAP 5 with lower sigma_8'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -662,15 +663,16 @@ CONTAINS
       ELSE IF (icosmo == 36) THEN
          ! Boring; EdS; z=1 normalisation for Mead 2017; LCDM
          cosm%sig8 = 0.65380
-      ELSE IF (icosmo == 37) THEN
+      ELSE IF (icosmo == 37 .OR. icosmo == 43) THEN
          ! Multidark: WMAP5
          cosm%h = 0.70
          cosm%Om_b = 0.0469
          cosm%Om_m = 0.27
          cosm%Om_v = 1.-cosm%Om_m
          cosm%n = 0.95
-         cosm%sig8 = 0.82 ! Seems wrong at z=0, data more like sigma_8 = 0.8
-         cosm%itk = 1 ! Surely should be CAMB (itk = 2)
+         cosm%sig8 = 0.82 ! Seems wrong at z=0, data more like sigma_8 = 0.80
+         cosm%itk = 2 ! Surely should be CAMB (itk = 2)
+         IF(icosmo == 43) cosm%sig8 = 0.80 ! Check to see if better matches with lower sigma_8
       ELSE IF (icosmo == 38) THEN
          ! Random cosmic emu model
          CALL random_Cosmic_Emu_cosmology(cosm)
@@ -5480,16 +5482,16 @@ CONTAINS
    SUBROUTINE calculate_halofit_a(k, a, Plin, Pq, Ph, Pnl, n, cosm, verbose, ihf)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: k(n)
-      REAL, INTENT(IN) :: a
-      REAL, INTENT(OUT) :: Plin(n)
-      REAL, INTENT(OUT) :: Pq(n)
-      REAL, INTENT(OUT) :: Ph(n)
-      REAL, INTENT(OUT) :: Pnl(n)
-      INTEGER, INTENT(IN) :: n
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      LOGICAL, INTENT(IN) :: verbose
-      INTEGER, INTENT(IN) :: ihf
+      REAL, INTENT(IN) :: k(n)       ! Array of wavenumbers
+      REAL, INTENT(IN) :: a          ! Scale factor
+      REAL, INTENT(OUT) :: Plin(n)   ! Output array of linear power
+      REAL, INTENT(OUT) :: Pq(n)     ! Output array of quasi-linear power
+      REAL, INTENT(OUT) :: Ph(n)     ! Output array of halo power
+      REAL, INTENT(OUT) :: Pnl(n)    ! Output array of halofit power
+      INTEGER, INTENT(IN) :: n       ! Size of input k array
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmological model
+      LOGICAL, INTENT(IN) :: verbose ! Verbosity
+      INTEGER, INTENT(IN) :: ihf     ! Interger for halofit version
       REAL :: rknl, rneff, rncur
       INTEGER :: i
 
@@ -5509,6 +5511,7 @@ CONTAINS
       ! ihf = 2 - Bird et al. 2011
       ! ihf = 3 - Takahashi et al. 2012
       ! ihf = 4 - Takahashi et al. but taken from CAMB with some neutrino stuff
+      ! ihf = 5 - Takahashi et al. but taken from CLASS with some neutrino stuff (https://github.com/cmbant/CAMB/issues/44)
       IMPLICIT NONE
       REAL, INTENT(IN) :: rk
       REAL, INTENT(IN) :: rn

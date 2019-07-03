@@ -2,6 +2,8 @@ MODULE constants
 
    IMPLICIT NONE
 
+   PUBLIC
+
    !!
 
    ! Mathematical constants

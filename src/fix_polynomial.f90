@@ -1,5 +1,6 @@
 MODULE fix_polynomial
 
+   ! TODO: Move all of this to special functions?
    IMPLICIT NONE
 
    PRIVATE
@@ -14,10 +15,13 @@ CONTAINS
    REAL FUNCTION Lagrange_polynomial(x, n, xv, yv)
 
       ! Computes the result of the nth order Lagrange polynomial at point x, L(x)
+      ! TODO: Move this to special functions?
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x, xv(n+1), yv(n+1)
-      REAL :: l(n+1)
+      REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: xv(n+1)
+      REAL, INTENT(IN) :: yv(n+1)
+      REAL :: l(n+1)     
       INTEGER :: i, j
 
       ! Initialise variables, one for sum and one for multiplication

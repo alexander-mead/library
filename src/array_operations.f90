@@ -761,50 +761,43 @@ CONTAINS
 
       USE fix_polynomial
 
-      ! From an array y(x) finds the x location of the first maximum
+      ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
       IMPLICIT NONE
       REAL, INTENT(IN) :: x(n), y(n)
       INTEGER, INTENT(IN) :: n
       REAL :: x1, x2, x3, y1, y2, y3, a, b, c
-      INTEGER :: i
+      INTEGER :: imax(1), i
 
       ! Need this to stop a compile-time warning
       maximum = 0.
 
-      DO i = 1, n-1
+      ! Integer maximum location
+      imax = maxloc(y)
+      i = imax(1)
 
-         IF (y(i+1) < y(i)) THEN
+      IF(i==1 .OR. i==n) THEN
 
-            ! Get the x positions
-            x1 = x(i-1)
-            x2 = x(i)
-            x3 = x(i+1)
+         STOP 'MAXIMUM: Error, maximum array value is at one end of the array'
 
-            ! Get the y values
-            y1 = y(i-1)
-            y2 = y(i)
-            y3 = y(i+1)
+      ELSE
 
-            ! Fix a quadratic around the maximum
-            CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
+         ! Get the x positions
+         x1 = x(i-1)
+         x2 = x(i)
+         x3 = x(i+1)
 
-            ! Read off the maximum x from the parabola
-            maximum = -b/(2.*a)
+         ! Get the y values
+         y1 = y(i-1)
+         y2 = y(i)
+         y3 = y(i+1)
 
-            ! Exit the loop
-            EXIT
+         ! Fix a parabola around the maximum
+         CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
 
-         ELSE IF (i < n-1) THEN
+         ! Read off the maximum from the parabola
+         maximum = -b/(2.*a)
 
-            CYCLE
-
-         ELSE
-
-            STOP 'MAXIMUM: Error, array does not have a maximum'
-
-         END IF
-
-      END DO
+      END IF
 
    END FUNCTION maximum
 
