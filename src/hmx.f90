@@ -293,12 +293,14 @@ MODULE HMx
    ! Non-linear halo bias
    LOGICAL, PARAMETER :: add_I_11 = .TRUE.          ! Add integral below numin, numin in halo model calculation
    LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE. ! Add integral below numin in halo model calculation
-   REAL, PARAMETER :: kmin_bnl = 1e-1               ! Below this wavenumber set BNL to zero
+   REAL, PARAMETER :: kmin_bnl = 3e-2               ! Below this wavenumber set BNL to zero
    REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass set  BNL to zero
    REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass set  BNL to zero
    REAL, PARAMETER :: BNL_min = -1.                 ! Minimum value that BNL is allowed to be (could be below -1)
    LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
    LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Fix a minimum value for B_NL
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_BDMV'
+   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
 
    ! Field types
    ! TODO: Have this run from 1->n, rather than -1->n
@@ -3151,9 +3153,7 @@ CONTAINS
       INTEGER :: nbin, nk
       REAL :: crap
       CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext
-      !CHARACTER(len=256), PARAMETER :: base = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_BDMV'
-      CHARACTER(len=256), PARAMETER :: base = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
-      !CHARACTER(len=256), PARAMETER :: base = base_bnl
+      CHARACTER(len=256), PARAMETER :: base = base_bnl
       REAL, PARAMETER :: eps = 1e-2
 
       WRITE (*, *) 'INIT_BNL: Running'
