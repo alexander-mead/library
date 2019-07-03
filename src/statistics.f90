@@ -106,7 +106,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: n
       REAL :: norm
       INTEGER :: i
-      INTEGER, PARAMETER :: iorder=1 ! Linear integration and plenty of points are best here
+      INTEGER, PARAMETER :: iorder=0 ! Zeroth-order (histogram) integration and plenty of points are best here
 
       norm=integrate_table(x, p, n, 1, n, iorder)
 
