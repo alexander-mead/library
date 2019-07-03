@@ -255,6 +255,7 @@ CONTAINS
       names(41) = 'SCDM with high neutrino mass'
       names(42) = 'Planck 2018'
       names(43) = 'Multidark: WMAP 5 with lower sigma_8'
+      names(44) = 'Multidark: WMAP 5 with Eisenstein & Hu'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -663,8 +664,10 @@ CONTAINS
       ELSE IF (icosmo == 36) THEN
          ! Boring; EdS; z=1 normalisation for Mead 2017; LCDM
          cosm%sig8 = 0.65380
-      ELSE IF (icosmo == 37 .OR. icosmo == 43) THEN
-         ! Multidark: WMAP5
+      ELSE IF (icosmo == 37 .OR. icosmo == 43 .OR. icosmo==44) THEN
+         ! 37 - Multidark: WMAP5
+         ! 43 - Multidark: WMAP5 with altered sigma_8
+         ! 44 - Multidark: WMAP5 with Eisenstein & Hu transfer function
          cosm%h = 0.70
          cosm%Om_b = 0.0469
          cosm%Om_m = 0.27
