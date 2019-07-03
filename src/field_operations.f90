@@ -1512,10 +1512,10 @@ CONTAINS
       ! Deallocate and reallocate arrays
       ! TODO: Do I need to bother deallocating these arrays?
       ! TODO: Should I pass in allocatable arrays or should they already be allocated?
-      IF (ALLOCATED(k)) DEALLOCATE (k)
-      IF (ALLOCATED(pow)) DEALLOCATE (pow)
+      IF (ALLOCATED(k))      DEALLOCATE (k)
+      IF (ALLOCATED(pow))    DEALLOCATE (pow)
       IF (ALLOCATED(nmodes)) DEALLOCATE (nmodes)
-      IF (ALLOCATED(sigma)) DEALLOCATE (sigma)
+      IF (ALLOCATED(sigma))  DEALLOCATE (sigma)
       ALLOCATE (k(nk), pow(nk), nmodes(nk), sigma(nk))
 
       ! Now create the power spectrum and k array
@@ -1530,14 +1530,15 @@ CONTAINS
             ELSE
                k(i) = real(k8(i))/real(nmodes8(i))
             END IF
-            pow8(i) = pow8(i)/real(nmodes8(i))
+            pow8(i) = pow8(i)/real(nmodes8(i)) ! Create <P(k)>
             IF (nmodes8(i) == 1) THEN
                sigma8(i) = 0
             ELSE
                sigma8(i) = sigma8(i)/real(nmodes8(i)) ! Create <P(k)^2>
-               sigma8(i) = sqrt(sigma8(i)-pow8(i)**2) ! Create biased estimate of sigma
+               sigma8(i) = sigma8(i)-pow8(i)**2 ! Create biased estimate of variance
                sigma8(i) = sigma8(i)*real(nmodes8(i))/real(nmodes8(i)-1) ! Correct for bias
-               sigma8(i) = sigma8(i)/sqrt(real(nmodes8(i))) ! Convert to error on the mean
+               sigma8(i) = sqrt(sigma8(i)) ! Create estimate of standard deviation
+               sigma8(i) = sigma8(i)/sqrt(real(nmodes8(i))) ! Convert to error-on-the-mean
             END IF
             Dk = 4.*pi*(k(i)*L/twopi)**3
             pow8(i) = pow8(i)*Dk
