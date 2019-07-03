@@ -11,6 +11,7 @@ MODULE statistics
    PUBLIC :: variance
    PUBLIC :: histogram
    PUBLIC :: calculate_confidence
+   PUBLIC :: parameter_probability
 
 CONTAINS
 
@@ -170,5 +171,35 @@ CONTAINS
       END DO
 
    END SUBROUTINE calculate_confidence
+
+   REAL FUNCTION parameter_probability(p, model, x_data, y_data, sigma_data, n)
+
+      ! Calculat the probability of parameter p in model fitting the data
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: p             ! Parameter value
+      REAL, EXTERNAL :: model           ! Model function
+      REAL, INTENT(IN) :: x_data(n)     ! x values for data
+      REAL, INTENT(IN) :: y_data(n)     ! y values for data
+      REAL, INTENT(IN) :: sigma_data(n) ! Error bar for data
+      INTEGER, INTENT(IN) :: n          ! Number of data points
+      REAL :: y, beta2
+      INTEGER :: i
+
+      INTERFACE
+         FUNCTION model(x, p)
+            REAL, INTENT(IN) :: x
+            REAL, INTENT(IN) :: p
+         END FUNCTION model
+      END INTERFACE
+
+      beta2=0.
+      DO i=1,n
+         y = model(x_data(i), p)
+         beta2 = beta2+(y-y_data(i))**2/sigma_data(i)**2
+      END DO
+
+      parameter_probability=exp(-beta2/2.)
+
+   END FUNCTION parameter_probability
 
 END MODULE statistics
