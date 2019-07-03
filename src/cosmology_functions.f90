@@ -664,7 +664,7 @@ CONTAINS
       ELSE IF (icosmo == 36) THEN
          ! Boring; EdS; z=1 normalisation for Mead 2017; LCDM
          cosm%sig8 = 0.65380
-      ELSE IF (icosmo == 37 .OR. icosmo == 43 .OR. icosmo==44) THEN
+      ELSE IF (icosmo == 37 .OR. icosmo == 43 .OR. icosmo == 44) THEN
          ! 37 - Multidark: WMAP5
          ! 43 - Multidark: WMAP5 with altered sigma_8
          ! 44 - Multidark: WMAP5 with Eisenstein & Hu transfer function
@@ -674,8 +674,9 @@ CONTAINS
          cosm%Om_v = 1.-cosm%Om_m
          cosm%n = 0.95
          cosm%sig8 = 0.82 ! Seems wrong at z=0, data more like sigma_8 = 0.80
-         cosm%itk = 2 ! Surely should be CAMB (itk = 2)
+         cosm%itk = 2 ! CAMB T(k)
          IF(icosmo == 43) cosm%sig8 = 0.80 ! Check to see if better matches with lower sigma_8
+         IF(icosmo == 44) cosm%itk = 1 ! Eisenstein & Hu T(k)
       ELSE IF (icosmo == 38) THEN
          ! Random cosmic emu model
          CALL random_Cosmic_Emu_cosmology(cosm)
