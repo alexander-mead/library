@@ -10,6 +10,7 @@ MODULE statistics
    PUBLIC :: mean
    PUBLIC :: variance
    PUBLIC :: histogram
+   PUBLIC :: calculate_confidence
 
 CONTAINS
 
@@ -32,6 +33,11 @@ CONTAINS
 
    REAL FUNCTION variance(x, n)
 
+      ! Note that depending on the application one might want to use n-1 here
+      ! Difference is between sample variance and population varaince
+      ! See https://en.wikipedia.org/wiki/Bessel%27s_correction
+      ! Sample is simply the variance of your sample 1/N
+      ! However, if you are estimating the population variance then you need 1/(N-1)
       IMPLICIT NONE
       REAL, INTENT(IN) :: x(n)
       INTEGER, INTENT(IN) :: n
@@ -89,5 +95,80 @@ CONTAINS
       WRITE (*, *)
 
    END SUBROUTINE histogram
+
+   SUBROUTINE cumulative_distribution(x, p, c, n)
+
+      USE calculus_table
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x(n)
+      REAL, INTENT(IN) :: p(n)
+      REAL, INTENT(OUT) :: c(n)
+      INTEGER, INTENT(IN) :: n
+      REAL :: norm
+      INTEGER :: i
+      INTEGER, PARAMETER :: iorder=1 ! Linear integration and plenty of points are best here
+
+      norm=integrate_table(x, p, n, 1, n, iorder)
+
+      DO i=1,n
+         c(i)=integrate_table(x, p, n, 1, i, iorder)
+      END DO
+
+      c=c/norm
+
+   END SUBROUTINE cumulative_distribution
+
+   SUBROUTINE calculate_confidence(x, p, n, one_sigma, two_sigma)
+
+      USE interpolate
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x(n)
+      REAL, INTENT(IN) :: p(n)
+      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(OUT) :: one_sigma(2)
+      REAL, INTENT(OUT) :: two_sigma(2)
+      REAL :: c(n), ans, ci
+      INTEGER :: i
+      INTEGER, PARAMETER :: iorder=3
+      INTEGER, PARAMETER :: ifind=3
+      INTEGER, PARAMETER :: imeth=2
+
+      CALL cumulative_distribution(x, p, c, n)
+      !DO i = 1,n
+      !   WRITE(*,*) x(i), c(i)
+      !END DO
+      !STOP
+
+      DO i=1,4
+
+         IF(i==1) THEN
+            ci = 0.5*(1.-erf(2./sqrt(2.))) ! ~0.025
+         ELSE IF(i==2) THEN
+            ci = 1.-ci ! ~0.975
+         ELSE IF(i==3) THEN
+            ci = 0.5*(1.-erf(1./sqrt(2.))) ! ~0.16
+         ELSE IF(i==4) THEN
+            ci = 1.-ci ! ~0.84
+         ELSE
+            STOP 'CALCULATE_CONFIDENCE: Error, something fucked up'
+         END IF
+
+         ans = find(ci, c, x, n, iorder, ifind, imeth)
+
+         IF(i==1) THEN
+            two_sigma(1)=ans
+         ELSE IF(i==2) THEN
+            two_sigma(2)=ans
+         ELSE IF(i==3) THEN
+            one_sigma(1) = ans
+         ELSE IF(i==4) THEN
+            one_sigma(2) = ans
+         ELSE
+            STOP 'CALCULATE_CONFIDENCE: Error, something fucked up'
+         END IF
+
+      END DO
+
+   END SUBROUTINE calculate_confidence
 
 END MODULE statistics
