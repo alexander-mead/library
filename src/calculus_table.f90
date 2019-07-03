@@ -219,9 +219,24 @@ CONTAINS
       sum = 0.d0
 
       ! I think if n1=n2 then the result will just be zero anyway
-      ! IF(n2<=n1) STOP 'INTEGRATE_TABLE: Error n2 must be greater than n1'
+      !IF(n2<=n1) STOP 'INTEGRATE_TABLE: Error n2 must be greater than n1'
 
-      IF (iorder == 1) THEN
+      IF(iorder==0) THEN
+
+         ! Data must be evenly spaced for zeroth order to work
+         ! x coordinates must represent bin centres
+         ! Note from the range x(1)->x(2) there are only n-1 bins
+         ! The nth bin spills out by h/2 below x(1) and above x(n)
+         ! This is useful for e.g., summing histograms
+         h=(x(n)-x(1))/real(n-1)
+
+         ! Each rectangle contributes y(i)*dx to the integral
+         DO i = n1, n2
+            sum=sum+y(i)
+         END DO
+         sum=sum*h
+
+      ELSE IF (iorder == 1) THEN
 
          ! Sums over all Trapezia (a+b)*h/2
          DO i = n1, n2-1
