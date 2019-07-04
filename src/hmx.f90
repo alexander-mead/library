@@ -1907,6 +1907,7 @@ CONTAINS
             WRITE (*, *) '======================================='
             WRITE (*, *) 'HALOMODEL: Mass function parameters'
             WRITE (*, *) '======================================='
+            WRITE (*, fmt='(A30,F10.5)') 'Amplitude:', hmod%Amp_mf
             IF (hmod%imf == 2) THEN
                WRITE (*, fmt='(A30,F10.5)') 'Sheth & Tormen p:', hmod%ST_p
                WRITE (*, fmt='(A30,F10.5)') 'Sheth & Tormen q:', hmod%ST_q
