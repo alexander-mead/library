@@ -96,7 +96,9 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: subtract_shot
       LOGICAL, OPTIONAL, INTENT(IN) :: response
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
-      REAL, ALLOCATABLE :: Pk_DM(:), Pk_HMcode(:)
+      REAL, ALLOCATABLE :: Pk_DM(:), Pk_HMcode(:,:)
+      REAL, PARAMETER :: a(1)=1.
+      INTEGER, PARAMETER :: na=1
       CHARACTER(len=256) :: infile, dmonly
 
       INTEGER, PARAMETER :: field_all_matter(2) = field_matter
@@ -115,9 +117,11 @@ CONTAINS
       IF (present_and_correct(response)) Pk = Pk/Pk_DM
 
       IF (present_and_correct(response)) THEN
-         ALLOCATE (Pk_HMcode(nk))
-         CALL calculate_HMcode_a(k, scale_factor_z(z), Pk_HMcode, nk, cosm)
-         Pk = Pk*Pk_HMcode
+         ALLOCATE (Pk_HMcode(nk,na))
+         !CALL calculate_HMcode_a(k, scale_factor_z(z), Pk_HMcode, nk, cosm)
+         !a(1)=scale_factor_z(z)
+         CALL calculate_HMcode(k, a, Pk_HMcode, nk, na, cosm)
+         Pk = Pk*Pk_HMcode(:,1)
       END IF
 
    END SUBROUTINE read_BAHAMAS_power
