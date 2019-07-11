@@ -135,10 +135,6 @@ CONTAINS
       INTEGER, PARAMETER :: imeth=2
 
       CALL cumulative_distribution(x, p, c, n)
-      !DO i = 1,n
-      !   WRITE(*,*) x(i), c(i)
-      !END DO
-      !STOP
 
       DO i=1,4
 
@@ -174,7 +170,7 @@ CONTAINS
 
    REAL FUNCTION parameter_probability(p, model, x_data, y_data, sigma_data, n)
 
-      ! Calculat the probability of parameter p in model fitting the data
+      ! Calculate the probability of parameter p in model fitting the data assuming data uncorrelated
       IMPLICIT NONE
       REAL, INTENT(IN) :: p             ! Parameter value
       REAL, EXTERNAL :: model           ! Model function
@@ -182,7 +178,7 @@ CONTAINS
       REAL, INTENT(IN) :: y_data(n)     ! y values for data
       REAL, INTENT(IN) :: sigma_data(n) ! Error bar for data
       INTEGER, INTENT(IN) :: n          ! Number of data points
-      REAL :: y, beta2
+      REAL :: y, chi2
       INTEGER :: i
 
       INTERFACE
@@ -192,13 +188,13 @@ CONTAINS
          END FUNCTION model
       END INTERFACE
 
-      beta2=0.
+      chi2=0.
       DO i=1,n
          y = model(x_data(i), p)
-         beta2 = beta2+(y-y_data(i))**2/sigma_data(i)**2
+         chi2 = chi2+((y-y_data(i))/sigma_data(i))**2
       END DO
 
-      parameter_probability=exp(-beta2/2.)
+      parameter_probability=exp(-chi2/2.)
 
    END FUNCTION parameter_probability
 
