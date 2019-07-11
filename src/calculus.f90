@@ -107,7 +107,6 @@ CONTAINS
    REAL FUNCTION derivative_y(f, x, y, acc)
 
       ! Calculates the derivative of a function 'f' at the point x to accuracy acc!
-
       IMPLICIT NONE
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: x
@@ -444,11 +443,10 @@ CONTAINS
 
    REAL FUNCTION integrate_cubic(a, b, f, acc)
 
-      USE fix_polynomial
-
       ! Integrates between a and b until desired accuracy is reached!
       ! Fits a cubic between successive 4 points
       ! Only useful if points are not eqaully spaced, thus this routine is probably redundant
+      USE fix_polynomial
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
