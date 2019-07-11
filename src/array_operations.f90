@@ -734,7 +734,7 @@ CONTAINS
       DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
       INTEGER, INTENT(IN) :: i, n
 
-      IF(n == 1) THEN
+      IF (n == 1) THEN
          progression_double = xmin
       ELSE
          progression_double = xmin+(xmax-xmin)*dble(i-1)/dble(n-1)
@@ -755,7 +755,7 @@ CONTAINS
 
    DOUBLE PRECISION FUNCTION progression_log_double(xmin, xmax, i, n)
 
-      ! TODO: Delete 
+      ! TODO: Delete
       IMPLICIT NONE
       DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
       INTEGER, INTENT(IN) :: i, n
@@ -764,7 +764,7 @@ CONTAINS
 
    END FUNCTION progression_log_double
 
-   REAL FUNCTION maximum(x, y, n)    
+   REAL FUNCTION maximum(x, y, n)
 
       ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
       USE fix_polynomial
@@ -781,7 +781,7 @@ CONTAINS
       imax = maxloc(y)
       i = imax(1)
 
-      IF(i==1 .OR. i==n) THEN
+      IF (i == 1 .OR. i == n) THEN
 
          STOP 'MAXIMUM: Error, maximum array value is at one end of the array'
 
