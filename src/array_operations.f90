@@ -729,16 +729,22 @@ CONTAINS
 
    DOUBLE PRECISION FUNCTION progression_double(xmin, xmax, i, n)
 
+      ! TODO: Delete
       IMPLICIT NONE
       DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
       INTEGER, INTENT(IN) :: i, n
 
-      progression_double = xmin+(xmax-xmin)*DBLE(i-1)/DBLE(n-1)
+      IF(n == 1) THEN
+         progression_double = xmin
+      ELSE
+         progression_double = xmin+(xmax-xmin)*dble(i-1)/dble(n-1)
+      END IF
 
    END FUNCTION progression_double
 
    REAL FUNCTION progression_log(xmin, xmax, i, n)
 
+      ! TODO: Delete
       IMPLICIT NONE
       REAL, INTENT(IN) :: xmin, xmax
       INTEGER, INTENT(IN) :: i, n
@@ -749,6 +755,7 @@ CONTAINS
 
    DOUBLE PRECISION FUNCTION progression_log_double(xmin, xmax, i, n)
 
+      ! TODO: Delete 
       IMPLICIT NONE
       DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
       INTEGER, INTENT(IN) :: i, n
@@ -757,11 +764,10 @@ CONTAINS
 
    END FUNCTION progression_log_double
 
-   REAL FUNCTION maximum(x, y, n)
-
-      USE fix_polynomial
+   REAL FUNCTION maximum(x, y, n)    
 
       ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
+      USE fix_polynomial
       IMPLICIT NONE
       REAL, INTENT(IN) :: x(n), y(n)
       INTEGER, INTENT(IN) :: n
