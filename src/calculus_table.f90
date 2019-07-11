@@ -14,23 +14,24 @@ MODULE calculus_table
 
 CONTAINS
 
-   FUNCTION derivative_table(x, xin, yin, n, iorder, imeth)
+   REAL FUNCTION derivative_table(x, xin, yin, n, iorder, imeth)
 
+      ! Given two arrays x and y such that y=y(x) this uses interpolation to calculate the derivative y'(x_i) at position x_i
       USE table_integer
       USE fix_polynomial
       USE array_operations
-
-      ! Given two arrays x and y such that y=y(x) this uses interpolation to calculate the derivative y'(x_i) at position x_i
       IMPLICIT NONE
-      REAL :: derivative_table
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: xin(n)
+      REAL, INTENT(IN) :: yin(n)
       INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: x, xin(n), yin(n)
+      INTEGER, INTENT(IN) :: iorder
+      INTEGER, INTENT(IN) :: imeth
       REAL ::  xtab(n), ytab(n)
       REAL :: a, b, c, d
       REAL :: x1, x2, x3, x4
       REAL :: y1, y2, y3, y4
-      INTEGER :: i
-      INTEGER, INTENT(IN) :: imeth, iorder
+      INTEGER :: i 
 
       ! This version interpolates if the value is off either end of the array!
       ! Care should be chosen to insert x, xtab, ytab as log if this might give better!
@@ -202,19 +203,21 @@ CONTAINS
    END FUNCTION derivative_table
 
    REAL FUNCTION integrate_table_1D(x, y, n, n1, n2, iorder)
-
-      USE fix_polynomial
-
+      
       ! Integrates tables y(x)dx
+      USE fix_polynomial
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n, n1, n2
-      REAL, INTENT(IN) :: x(n), y(n)
+      REAL, INTENT(IN) :: x(n)
+      REAL, INTENT(IN) :: y(n)
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: n1
+      INTEGER, INTENT(IN) :: n2
+      INTEGER, INTENT(IN) :: iorder
       REAL :: a, b, c, d, h
       REAL :: q1, q2, q3, qi, qf
       REAL :: x1, x2, x3, x4, y1, y2, y3, y4, xi, xf
       DOUBLE PRECISION :: sum
       INTEGER :: i, i1, i2, i3, i4
-      INTEGER, INTENT(IN) :: iorder
 
       sum = 0.d0
 
@@ -345,9 +348,11 @@ CONTAINS
 
       ! A crude integration scheme for tabulated 2D functions
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(nx), y(ny)
+      REAL, INTENT(IN) :: x(nx)
+      REAL, INTENT(IN) :: y(ny)
       REAL, INTENT(IN) :: F(nx, ny)
-      INTEGER, INTENT(IN) :: nx, ny
+      INTEGER, INTENT(IN) :: nx
+      INTEGER, INTENT(IN) :: ny
       INTEGER :: ix, iy
       DOUBLE PRECISION :: sum
       REAL :: dx, dy
