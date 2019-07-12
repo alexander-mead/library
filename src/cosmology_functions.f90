@@ -786,26 +786,26 @@ CONTAINS
          cosm%itk = 2
       ELSE IF(icosmo == 50) THEN
          ! CAMB big difference LCDM cosmology
-         cosm%Om_m = 0.14904
-         cosm%Om_b = 0.0347
+         cosm%Om_m = 0.27058
+         cosm%Om_b = 0.03140
          cosm%Om_v = 0.
          cosm%Om_w = 1.-cosm%Om_m
-         cosm%sig8 = 0.71162
-         cosm%n = 0.71687
-         cosm%h = 0.93796
+         cosm%sig8 = 0.68157
+         cosm%n = 0.73966
+         cosm%h = 0.44985
          cosm%w = -1.
          cosm%itk = 2
          cosm%iw = 4
       ELSE IF(icosmo == 51) THEN
          ! CAMB big difference nu-LCDM cosmology
-         cosm%Om_m = 0.3
-         cosm%Om_b = 0.05
+         cosm%Om_m = 0.38258
+         cosm%Om_b = 0.03480
          cosm%Om_v = 0.
          cosm%Om_w = 1.-cosm%Om_m
-         cosm%sig8 = 0.7
-         cosm%n = 0.96
-         cosm%h = 0.7
-         cosm%M_nu = 0.6
+         cosm%sig8 = 0.80921
+         cosm%n = 0.86
+         cosm%h = 0.49002
+         cosm%M_nu = 0.39481
          cosm%w = -1.
          cosm%itk = 2
          cosm%iw = 4
@@ -2477,7 +2477,7 @@ CONTAINS
 
       IF (cosm%f_nu == 0.) THEN
 
-         Tcold_ratio = 1.
+         Tcold_EH = 1.
 
       ELSE
 
