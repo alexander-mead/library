@@ -2260,7 +2260,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: pow_lin(nk), pow_2h(nk), pow_1h(nk), pow_hm(nk)
-      INTEGER :: i
+      !INTEGER :: i
       TYPE(halomod) :: hmod
       !LOGICAL, PARAMETER :: sigma = .FALSE. ! MEAD: Remove
       INTEGER, PARAMETER :: dmonly(1) = field_dmonly ! Fix to DMONLY
