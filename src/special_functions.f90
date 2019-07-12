@@ -18,6 +18,7 @@ MODULE special_functions
    PUBLIC :: Bessel
    PUBLIC :: sinc
    PUBLIC :: wk_tophat
+   PUBLIC :: wk_tophat_deriv
    PUBLIC :: Gaussian
    PUBLIC :: lognormal
    PUBLIC :: uniform
@@ -216,10 +217,27 @@ CONTAINS
       ELSE IF (abs(x) < dx) THEN
          wk_tophat = 1.-x**2/10.
       ELSE
-         wk_tophat = 3.*(sin(x)-x*cos(x))/x**3
+         wk_tophat = (3./x**3)*(sin(x)-x*cos(x))
       END IF
 
    END FUNCTION wk_tophat
+
+   REAL FUNCTION wk_tophat_deriv(x)
+
+      ! The derivative of a normlaised Fourier Transform of a spherical top-hat
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, PARAMETER :: dx = 1e-3 ! Taylor expansion for |x|<dx
+      !REAL, PARAMETER :: mx = 1e12 ! Set to zero to avoid problems for |x|>mx
+
+      ! Taylor expansion used for low x to avoid cancelation problems
+      IF (abs(x) < dx) THEN
+         wk_tophat_deriv = -x/5.+x**3/70.
+      ELSE
+         wk_tophat_deriv = (3./x**4)*((x**2-3.)*sin(x)+3.*x*cos(x))
+      END IF
+
+   END FUNCTION wk_tophat_deriv
 
    REAL FUNCTION apodise(x, x1, x2, n)
 
