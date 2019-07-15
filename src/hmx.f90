@@ -833,8 +833,7 @@ CONTAINS
          ! 28 - HMcode (Mead et al. 2016 w/ one parameter baryon model)
          ! 31 - HMcode (Mead et al. 2016 w/ additional BAO damping)
          ! 50 - HMcode (Mead et al. 2016 w/ pow=1 bug in Dolag)
-         ! 51 - HMcode in CAMB (supposed to be Mead et al. 2016)
-         ! Default here is Mead et al. 2016
+         ! 51 - HMcode in July 2019 CAMB (supposed to be Mead et al. 2016)
          hmod%ip2h = 1
          hmod%i1hdamp = 2
          hmod%iconc = 1
