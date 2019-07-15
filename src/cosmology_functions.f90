@@ -216,12 +216,10 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: tabulate_cold_sigma = .TRUE. ! Should the sigma tables be filled with cold sigma or all sigma
 
    ! neff
-   REAL, PARAMETER :: alpha_neff = 1.
-   LOGICAL, PARAMETER :: cold_neff = .TRUE. ! TODO: This should not be an option, need a flag for type
+   REAL, PARAMETER :: alpha_neff = 1. ! TODO: Optimize, so far no attempt made to do so
 
    ! sigma_v(R)
    REAL, PARAMETER :: alpha_sigmaV = 3.
-   LOGICAL, PARAMETER :: cold_sigmaV = .FALSE. ! TODO: This should not be an option, need a flag for type
 
    ! Halofit
    INTEGER, PARAMETER :: halofit_Smith = 1
@@ -289,7 +287,7 @@ CONTAINS
       names(39) = 'Random LCDM cosmology (EH linear)'
       names(40) = 'Random nu-w(a)CDM cosmology'
       names(41) = 'SCDM with high neutrino mass'
-      names(42) = 'Planck 2018'
+      names(42) = 'Planck 2018 (no neutrinos)'
       names(43) = 'Multidark: WMAP 5 with lower sigma_8'
       names(44) = 'Multidark: WMAP 5 with Eisenstein & Hu'
       names(45) = 'Random w(a)CDM cosmology'
@@ -297,8 +295,12 @@ CONTAINS
       names(47) = 'Random LCDM cosmology'
       names(48) = 'Random nu-LCDM cosmology'
       names(49) = 'CFHTLenS (Heymans et al. 2013)'
-      names(50) = 'CAMB difference LCDM cosmology'
-      names(51) = 'CAMB difference nu-LCDM cosmology'
+      names(50) = 'CFHTLenS (Kilbinger et al. 2013)'
+      names(51) = 'CAMB difference cosmology 1'
+      names(52) = 'CAMB difference cosmology 2'
+      names(53) = 'CAMB difference cosmology 3'
+      names(54) = 'CAMB difference cosmology 4'
+      names(55) = 'CAMB difference cosmology 5'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -766,6 +768,7 @@ CONTAINS
          cosm%m_nu = 4.
       ELSE IF (icosmo == 42) THEN
          ! Planck 2018 (missing neutrinos)
+         ! TODO: Does Planck provide constraints with no neutrinos? Here I have just forced the mass to be zero
          om_b = 0.0223828
          om_c = 0.1201075
          cosm%h = 0.6732
@@ -776,6 +779,8 @@ CONTAINS
          cosm%sig8 = 0.8119
       ELSE IF(icosmo == 49) THEN
          ! CFHTLenS best-fitting cosmology (Heymans 2013)
+         ! From first line of Table 3 of https://arxiv.org/pdf/1303.1808.pdf
+         ! CFHTLenS combined with WMAP7 and R11
          cosm%Om_m = 0.255
          cosm%Om_b = 0.0437
          cosm%Om_v = 1.-cosm%om_m
@@ -783,32 +788,80 @@ CONTAINS
          cosm%n = 0.967
          cosm%h = 0.717
          cosm%w = -1.
-         cosm%itk = 2
       ELSE IF(icosmo == 50) THEN
-         ! CAMB big difference LCDM cosmology
-         cosm%Om_m = 0.27058
-         cosm%Om_b = 0.03140
-         cosm%Om_v = 0.
-         cosm%Om_w = 1.-cosm%Om_m
-         cosm%sig8 = 0.68157
-         cosm%n = 0.73966
-         cosm%h = 0.44985
+         ! CFHTLenS best-fitting cosmology (Kilbinger 2013)
+         ! From first line in Table 3 of https://arxiv.org/pdf/1212.3338.pdf
+         ! CFHTLenS combined with WMAP7
+         cosm%Om_m = 0.274
+         cosm%Om_b = 0.0456
+         cosm%Om_v = 1.-cosm%om_m
+         cosm%sig8 = 0.815
+         cosm%n = 0.966
+         cosm%h = 0.702
          cosm%w = -1.
+      ELSE IF(icosmo == 51 .OR. icosmo == 52 .OR. icosmo == 53 .OR. icosmo == 54 .OR. icosmo == 55) THEN
+         ! CAMB test problem cosmologies
          cosm%itk = 2
-         cosm%iw = 4
-      ELSE IF(icosmo == 51) THEN
-         ! CAMB big difference nu-LCDM cosmology
-         cosm%Om_m = 0.38258
-         cosm%Om_b = 0.03480
+         cosm%iw = 3
          cosm%Om_v = 0.
-         cosm%Om_w = 1.-cosm%Om_m
-         cosm%sig8 = 0.80921
-         cosm%n = 0.86
-         cosm%h = 0.49002
-         cosm%M_nu = 0.39481
-         cosm%w = -1.
-         cosm%itk = 2
-         cosm%iw = 4
+         IF(icosmo == 51) THEN
+            ! CAMB difference cosmology 1 (probably neff problem; only high z)
+            cosm%Om_m = 0.27058
+            cosm%Om_b = 0.03140
+            cosm%Om_w = 1.-cosm%Om_m
+            cosm%sig8 = 0.68157
+            cosm%n = 0.73966
+            cosm%h = 0.44985
+            cosm%M_nu = 0.
+            cosm%w = -1.
+            cosm%wa = 0.
+         ELSE IF(icosmo == 52) THEN
+            ! CAMB difference cosmology 2 (HMx low by large amount at k=0.1)
+            cosm%Om_m = 0.38258
+            cosm%Om_b = 0.03480
+            cosm%Om_w = 1.-cosm%Om_m
+            cosm%sig8 = 0.80921
+            cosm%n = 0.86
+            cosm%h = 0.49002
+            cosm%M_nu = 0.39481
+            cosm%w = -1.
+            cosm%wa = 0.
+         ELSE IF(icosmo == 53) THEN
+            ! CAMB difference cosmology 3 (probably neff problem; intermediate z)
+            cosm%Om_m = 0.32146
+            cosm%Om_b = 0.06464
+            cosm%Om_w = 1.-cosm%Om_m
+            cosm%sig8 = 0.63851
+            cosm%n = 0.70476
+            cosm%h = 0.72577
+            cosm%M_nu = 0.39431
+            cosm%w = -1.
+            cosm%wa = 0.
+         ELSE IF(icosmo == 54) THEN
+            ! CAMB difference cosmology 4 (HMx low by large amount at k=0.1)
+            cosm%Om_m = 0.20800
+            cosm%Om_b = 0.05853
+            cosm%Om_w = 1.-cosm%Om_m
+            cosm%sig8 = 0.73207
+            cosm%n = 0.98124
+            cosm%h = 0.48154
+            cosm%M_nu = 0.07447
+            cosm%w = -1.27692
+            cosm%wa = 0.19336
+         ELSE IF(icosmo == 55) THEN
+            ! CAMB difference cosmology 5 (biggle wiggle residual)
+            cosm%Om_m = 0.18934
+            cosm%Om_b = 0.03264
+            cosm%Om_w = 1.-cosm%Om_m
+            cosm%sig8 = 0.85842
+            cosm%n = 0.85439
+            cosm%h = 0.56444
+            cosm%M_nu = 0.48578
+            cosm%w = -0.81262
+            cosm%wa = -0.28817
+         ELSE
+            STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with CAMB difference cosmologies'
+         END IF
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1099,35 +1152,10 @@ CONTAINS
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'z_CMB:', cosm%z_CMB
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_eff:', cosm%neff
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Y_H:', cosm%YH
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
          !WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 1 [eV]:', cosm%m_nu(1)
          !WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 2 [eV]:', cosm%m_nu(2)
          !WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 3 [eV]:', cosm%m_nu(3)
-         IF (cosm%box) WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
-         IF (cosm%inv_m_wdm .NE. 0.) THEN
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', 1./cosm%inv_m_wdm
-         END IF
-         WRITE (*, *) '===================================='
-         WRITE (*, *) 'COSMOLOGY: Derived parameters'
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_m:', cosm%omega_m
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_c:', cosm%omega_c
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_b:', cosm%omega_b
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_nu:', cosm%omega_nu
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_g:', cosm%Om_g
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_r:', cosm%Om_r
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega:', cosm%Om
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_c:', cosm%Om_c
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_nu:', cosm%Om_nu
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'f_nu:', cosm%f_nu
-!!$       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v'':', cosm%Om_v_mod
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_k:', cosm%Om_k
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [Mpc/h]^-2:', cosm%k
-         IF (abs(cosm%k) > small) THEN
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k_rad [Mpc/h]:', 1./sqrt(abs(cosm%k))
-         END IF
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_p:', cosm%mup
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_e:', cosm%mue
-         WRITE (*, *) '===================================='
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
          IF (cosm%iw == 1) THEN
             WRITE (*, *) 'COSMOLOGY: Vacuum energy'
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w:', -1.
@@ -1154,13 +1182,40 @@ CONTAINS
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a*:', cosm%astar
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Om_w(a*):', cosm%Om_ws
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n*:', cosm%nstar
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a1^n (derived):', cosm%a1n
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a2^n (derived):', cosm%a2n
          ELSE IF (cosm%iw == 7) THEN
             WRITE (*, *) 'COSMOLOGY: IDE III'
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a*:', cosm%a1
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Om_w(a*):', cosm%Om_ws
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w*:', cosm%ws
+         END IF
+         IF (cosm%box) WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
+         IF (cosm%inv_m_wdm .NE. 0.) THEN
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', 1./cosm%inv_m_wdm
+         END IF
+         WRITE (*, *) '===================================='
+         WRITE (*, *) 'COSMOLOGY: Derived parameters'
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_m:', cosm%omega_m
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_c:', cosm%omega_c
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_b:', cosm%omega_b
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_nu:', cosm%omega_nu
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_g:', cosm%Om_g
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_r:', cosm%Om_r
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega:', cosm%Om
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_c:', cosm%Om_c
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_nu:', cosm%Om_nu
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'f_nu:', cosm%f_nu
+!!$       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v'':', cosm%Om_v_mod
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_k:', cosm%Om_k
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [Mpc/h]^-2:', cosm%k
+         IF (abs(cosm%k) > small) THEN
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k_rad [Mpc/h]:', 1./sqrt(abs(cosm%k))
+         END IF
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_p:', cosm%mup
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_e:', cosm%mue
+         IF (cosm%iw == 6) THEN
+            WRITE (*, *) 'COSMOLOGY: IDE II'
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a1^n:', cosm%a1n
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a2^n:', cosm%a2n
          END IF
          WRITE (*, *) '===================================='
          IF(cosm%itk == 1) THEN
@@ -2980,6 +3035,8 @@ CONTAINS
 
    REAL FUNCTION neff_integral(r, a, cosm)
 
+      ! Integral for calculating the effective P(k) index
+      ! TODO: Add ability to calculate neff for cold and all matter
       IMPLICIT NONE
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
@@ -2995,6 +3052,8 @@ CONTAINS
 
    REAL FUNCTION neff_integrand_transformed(t, R, a, cosm)
 
+      ! Transformation is Rk = (1/t-1)**alpha
+      ! TODO: Add ability to calculate neff for cold and all matter
       IMPLICIT NONE
       REAL, INTENT(IN) :: t
       REAL, INTENT(IN) :: R
@@ -3013,8 +3072,21 @@ CONTAINS
 
    END FUNCTION neff_integrand_transformed
 
+   ! REAL FUNCTION Rdk_on_dt_sigma(t)
+
+   !    ! TODO: Use this?
+   !    IMPLICIT NONE
+   !    REAL, INTENT(IN) :: t
+   !    REAL, PARAMETER :: alpha = alpha_neff
+
+   !    Rdk_on_dt_sigma = alpha*(-1.+1./t)**(alpha-1.)/t**2
+
+   ! END FUNCTION Rdk_on_dt_sigma
+
    REAL FUNCTION neff_integrand(k, R, a, cosm)
 
+      ! Integrand for calculating effective spectral index
+      ! TODO: Add ability to calculate neff for cold and all matter
       USE special_functions
       IMPLICIT NONE
       REAL, INTENT(IN) :: k
@@ -3022,7 +3094,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: w_hat, w_hat_deriv
-      LOGICAL, PARAMETER :: cold = cold_neff
+      LOGICAL, PARAMETER :: cold = .TRUE. ! DO NOT CHANGE THIS
 
       IF (k <= 0.) THEN
          neff_integrand = 0.
@@ -3037,20 +3109,10 @@ CONTAINS
 
    END FUNCTION neff_integrand
 
-   ! REAL FUNCTION Rdk_on_dt_sigma(t)
-
-   !    ! TODO: Use this?
-   !    IMPLICIT NONE
-   !    REAL, INTENT(IN) :: t
-   !    REAL, PARAMETER :: alpha = alpha_neff
-
-   !    Rdk_on_dt_sigma = alpha*(-1.+1./t)**(alpha-1.)/t**2
-
-   ! END FUNCTION Rdk_on_dt_sigma
-
    REAL FUNCTION sigmaV(R, a, cosm)
 
       ! Standard deviation in the displacement field [Mpc/h]
+      ! Integrand changed from k [0,inf] to t[0,1] via kR = (1/t-1)**alpha
       ! TODO: Specify for cold or all matter
       IMPLICIT NONE
       REAL, INTENT(IN) :: R
@@ -3080,7 +3142,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: k, kR, w_hat, alpha
-      LOGICAL :: cold = cold_sigmaV
+      LOGICAL :: cold = .TRUE. ! DO NOT CHANGE THIS
 
       IF (t == 0. .OR. t == 1.) THEN
          ! t = 0 corresponds to k = infinity when W(kR) = 0
@@ -4724,8 +4786,8 @@ CONTAINS
       REAL, PARAMETER :: sig8_min = 0.6
       REAL, PARAMETER :: sig8_max = 0.9
 
-      REAL, PARAMETER :: mnu_min = 0.0
-      REAL, PARAMETER :: mnu_max = 0.6
+      REAL, PARAMETER :: mnu_min = 0.005
+      REAL, PARAMETER :: mnu_max = 0.600
 
       REAL, PARAMETER :: w_lim = 0.
 
