@@ -4,11 +4,11 @@ MODULE table_integer
 
    PRIVATE
 
-   PUBLIC :: select_table_integer
+   PUBLIC :: find_table_integer
 
 CONTAINS
 
-   INTEGER FUNCTION select_table_integer(x, xtab, n, imeth)
+   INTEGER FUNCTION find_table_integer(x, xtab, n, imeth)
 
       ! Chooses between ways to find the integer location *below* some value in an array
       ! If x is within the table then the value returned will be between 1 and n-1
@@ -26,20 +26,20 @@ CONTAINS
       ! 3 - Mid-point search method to find integer (efficient for 2^n)
 
       IF (x < xtab(1)) THEN
-         select_table_integer = 0
+         find_table_integer = 0
       ELSE IF (x > xtab(n)) THEN
-         select_table_integer = n
+         find_table_integer = n
       ELSE IF (imeth == 1) THEN
-         select_table_integer = linear_table_integer(x, xtab, n)
+         find_table_integer = linear_table_integer(x, xtab, n)
       ELSE IF (imeth == 2) THEN
-         select_table_integer = search_int(x, xtab, n)
+         find_table_integer = search_int(x, xtab, n)
       ELSE IF (imeth == 3) THEN
-         select_table_integer = int_split(x, xtab, n)
+         find_table_integer = int_split(x, xtab, n)
       ELSE
          STOP 'TABLE INTEGER: Method specified incorrectly'
       END IF
 
-   END FUNCTION select_table_integer
+   END FUNCTION find_table_integer
 
    INTEGER FUNCTION linear_table_integer(x, xtab, n)
 

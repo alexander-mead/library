@@ -76,7 +76,7 @@ CONTAINS
 
          ELSE
 
-            i = select_table_integer(x, xtab, n, imeth)
+            i = find_table_integer(x, xtab, n, imeth)
 
             x2 = xtab(i+1)
             x1 = xtab(i)
@@ -123,7 +123,7 @@ CONTAINS
 
          ELSE
 
-            i = select_table_integer(x, xtab, n, imeth)
+            i = find_table_integer(x, xtab, n, imeth)
 
             x1 = xtab(i-1)
             x2 = xtab(i)
@@ -177,7 +177,7 @@ CONTAINS
 
          ELSE
 
-            i = select_table_integer(x, xtab, n, imeth)
+            i = find_table_integer(x, xtab, n, imeth)
 
             x1 = xtab(i-1)
             x2 = xtab(i)

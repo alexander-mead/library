@@ -74,7 +74,7 @@ CONTAINS
             ! Outside upper boundary
             find_1D = 0.
          ELSE
-            i = select_table_integer(x, xtab, n, ifind)
+            i = find_table_integer(x, xtab, n, ifind)
             find_1D = ytab(i)
          END IF
 
@@ -140,7 +140,7 @@ CONTAINS
 
             ELSE
 
-               i = select_table_integer(x, xtab, n, ifind)
+               i = find_table_integer(x, xtab, n, ifind)
 
                x1 = xtab(i)
                x2 = xtab(i+1)
@@ -198,7 +198,7 @@ CONTAINS
 
             ELSE
 
-               i = select_table_integer(x, xtab, n, ifind)
+               i = find_table_integer(x, xtab, n, ifind)
 
                x1 = xtab(i-1)
                x2 = xtab(i)
@@ -257,7 +257,7 @@ CONTAINS
 
             ELSE
 
-               i = select_table_integer(x, xtab, n, ifind)
+               i = find_table_integer(x, xtab, n, ifind)
 
                x1 = xtab(i-1)
                x2 = xtab(i)
@@ -350,7 +350,7 @@ CONTAINS
          !! Get the x,y values !!
 
          ! Get the integer coordinates in the x direction
-         ix = select_table_integer(x, xin, nx, ifind)
+         ix = find_table_integer(x, xin, nx, ifind)
          IF(ix==0) THEN
             ix=1
          ELSE IF(ix==nx) THEN
@@ -364,7 +364,7 @@ CONTAINS
          x2 = xin(ix2)
 
          ! Get the integer coordinates in the y direction
-         iy = select_table_integer(y, yin, ny, ifind)
+         iy = find_table_integer(y, yin, ny, ifind)
          IF(iy==0) THEN
             iy=1
          ELSE IF(iy==ny) THEN
@@ -433,7 +433,7 @@ CONTAINS
             ELSE IF (y >= ytab(ny-3)) THEN
                j = ny-2
             ELSE
-               j = select_table_integer(y, ytab, ny, ifind)
+               j = find_table_integer(y, ytab, ny, ifind)
             END IF
 
             j1 = j-1
@@ -485,7 +485,7 @@ CONTAINS
             ELSE IF (x >= xtab(nx-3)) THEN
                i = nx-2
             ELSE
-               i = select_table_integer(x, xtab, nx, ifind)
+               i = find_table_integer(x, xtab, nx, ifind)
             END IF
 
             i1 = i-1
@@ -544,7 +544,7 @@ CONTAINS
             ELSE IF (x >= xtab(nx-3)) THEN
                i = nx-2
             ELSE
-               i = select_table_integer(x, xtab, nx, ifind)
+               i = find_table_integer(x, xtab, nx, ifind)
             END IF
 
             i1 = i-1
@@ -562,7 +562,7 @@ CONTAINS
             ELSE IF (y >= ytab(ny-3)) THEN
                j = ny-2
             ELSE
-               j = select_table_integer(y, ytab, ny, ifind)
+               j = find_table_integer(y, ytab, ny, ifind)
             END IF
 
             j1 = j-1
@@ -693,7 +693,7 @@ CONTAINS
          !! Get the x,y,z values !!
 
          ! Get the integer coordinates in the x direction
-         ix = select_table_integer(x, xin, nx, ifind)
+         ix = find_table_integer(x, xin, nx, ifind)
          IF(ix==0) THEN
             ix=1
          ELSE IF(ix==nx) THEN
@@ -707,7 +707,7 @@ CONTAINS
          x2 = xin(ix2)
 
          ! Get the integer coordinates in the y direction
-         iy = select_table_integer(y, yin, ny, ifind)
+         iy = find_table_integer(y, yin, ny, ifind)
          IF(iy==0) THEN
             iy=1
          ELSE IF(iy==ny) THEN
@@ -721,7 +721,7 @@ CONTAINS
          y2 = yin(iy2)
 
          ! Get the integer coordinates in the z direction
-         iz = select_table_integer(z, zin, nz, ifind)
+         iz = find_table_integer(z, zin, nz, ifind)
          IF(iz==0) THEN
             iz=1
          ELSE IF(iz==nz) THEN

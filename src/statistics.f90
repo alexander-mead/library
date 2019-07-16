@@ -86,7 +86,7 @@ CONTAINS
          IF (data(i) < xmin .OR. data(i) > xmax) THEN
             CYCLE
          ELSE
-            j = select_table_integer(data(i), x, n, 1)
+            j = find_table_integer(data(i), x, n, 1)
             hist(j) = hist(j)+1
          END IF
       END DO
