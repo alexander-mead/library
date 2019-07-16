@@ -34,7 +34,7 @@ MODULE Limber
    PUBLIC :: tracer_RCSLenS
    PUBLIC :: tracer_Compton_y
    PUBLIC :: tracer_CMB_lensing
-   PUBLIC :: tracer_CFHTLenS
+   PUBLIC :: tracer_CFHTLenS_vanWaerbeke2013
    PUBLIC :: tracer_KiDS
    PUBLIC :: tracer_KiDS_bin1
    PUBLIC :: tracer_KiDS_bin2
@@ -57,13 +57,14 @@ MODULE Limber
    PUBLIC :: tracer_KiDS_450_bin2
    PUBLIC :: tracer_KiDS_450_bin3
    PUBLIC :: tracer_KiDS_450_bin4
+   PUBLIC :: tracer_CFHTLenS_Kilbinger2013
 
    ! Projection quantities that need to be calculated only once; these relate to the Limber integrals
    TYPE projection
       REAL, ALLOCATABLE :: X(:), r_X(:)
       REAL, ALLOCATABLE :: q(:), r_q(:)
       REAL, ALLOCATABLE :: nz(:), z_nz(:)
-      INTEGER :: nX, nq, nnz
+      INTEGER :: nX, nq, nnz, order_nz
    END TYPE projection
 
    ! P(k,a) look-up table parameters
@@ -76,7 +77,7 @@ MODULE Limber
    REAL, PARAMETER :: k_ell_max = 1e3
 
    ! xcorr - C(l) calculation
-   LOGICAL, PARAMETER :: verbose_Limber = .FALSE.   ! Verbosity
+   LOGICAL, PARAMETER :: verbose_Limber = .FALSE. ! Verbosity
 
    ! Maxdist
    REAL, PARAMETER :: dr_max = 0.01 ! Small subtraction from maxdist to prevent numerical issues
@@ -90,6 +91,7 @@ MODULE Limber
    REAL, PARAMETER :: zmin_nz = 0.  ! Minimum redshift for the analytic n(z) tables
    REAL, PARAMETER :: zmax_nz = 2.5 ! Maximum redshift for the analytic n(z) tables
    INTEGER, PARAMETER :: n_nz = 128 ! Number of entries in the analytic n(z) tables
+   LOGICAL, PARAMETER :: norm_nz = .TRUE. ! Explicitly normalise the input n(z)
 
    ! Projection kernel options
    REAL, PARAMETER :: rmin_kernel = 0.         ! Minimum r for table
@@ -97,7 +99,7 @@ MODULE Limber
    REAL, PARAMETER :: rmin_lensing = 0.        ! Minimum distance in integral
    INTEGER, PARAMETER :: nX_lensing = 128      ! Number of entries in X(r) table
    INTEGER, PARAMETER :: nq_efficiency = 128   ! Number of entries in q(r) table
-   INTEGER, PARAMETER :: iorder_efficiency = 1 ! Order for lensing-efficiency integration over n(z)
+   !INTEGER, PARAMETER :: iorder_efficiency = 1 ! Order for lensing-efficiency integration over n(z)
 
    ! Gravitational waves
    REAL, PARAMETER :: A_gwave = 1.
@@ -117,7 +119,7 @@ MODULE Limber
    INTEGER, PARAMETER :: tracer_RCSLenS = 1
    INTEGER, PARAMETER :: tracer_Compton_y = 2
    INTEGER, PARAMETER :: tracer_CMB_lensing = 3
-   INTEGER, PARAMETER :: tracer_CFHTLenS = 4
+   INTEGER, PARAMETER :: tracer_CFHTLenS_vanWaerbeke2013 = 4
    INTEGER, PARAMETER :: tracer_KiDS = 5
    INTEGER, PARAMETER :: tracer_KiDS_bin1 = 6
    INTEGER, PARAMETER :: tracer_KiDS_bin2 = 7
@@ -140,22 +142,22 @@ MODULE Limber
    INTEGER, PARAMETER :: tracer_KiDS_450_bin2 = 24
    INTEGER, PARAMETER :: tracer_KiDS_450_bin3 = 25
    INTEGER, PARAMETER :: tracer_KiDS_450_bin4 = 26
-   INTEGER, PARAMETER :: n_tracers = 26
+   INTEGER, PARAMETER :: tracer_CFHTLenS_Kilbinger2013 = 27
+   INTEGER, PARAMETER :: n_tracers = 27
 
 CONTAINS
 
-   FUNCTION xcorr_type(ix)
+   CHARACTER(len=256) FUNCTION xcorr_type(ix)
 
       ! Names for cross-correlation field types
       IMPLICIT NONE
-      CHARACTER(len=256) :: xcorr_type
       INTEGER, INTENT(IN) :: ix
 
       xcorr_type = ''
       IF (ix == tracer_RCSLenS) xcorr_type = 'RCSLenS lensing'
       IF (ix == tracer_Compton_y) xcorr_type = 'Compton y'
       IF (ix == tracer_CMB_lensing) xcorr_type = 'CMB lensing'
-      IF (ix == tracer_CFHTLenS) xcorr_type = 'CFHTLenS lensing'
+      IF (ix == tracer_CFHTLenS_vanWaerbeke2013) xcorr_type = 'CFHTLenS lensing (van Waerbeke 2013)'
       IF (ix == tracer_KiDS) xcorr_type = 'KiDS lensing (z = 0.1 -> 0.9)'
       IF (ix == tracer_KiDS_bin1) xcorr_type = 'KiDS lensing (z = 0.1 -> 0.3)'
       IF (ix == tracer_KiDS_bin2) xcorr_type = 'KiDS lensing (z = 0.3 -> 0.5)'
@@ -178,6 +180,7 @@ CONTAINS
       IF (ix == tracer_KiDS_450_bin2) xcorr_type = 'KiDS 450 (z = 0.3 -> 0.5)'
       IF (ix == tracer_KiDS_450_bin3) xcorr_type = 'KiDS 450 (z = 0.5 -> 0.7)'
       IF (ix == tracer_KiDS_450_bin4) xcorr_type = 'KiDS 450 (z = 0.7 -> 0.9)'
+      IF (ix == tracer_CFHTLenS_Kilbinger2013) xcorr_type = 'CFHTLenS lensing (Kilbinger 2013)'
       IF (xcorr_type == '') STOP 'XCORR_TYPE: Error, ix not specified correctly'
 
    END FUNCTION xcorr_type
@@ -262,7 +265,7 @@ CONTAINS
           ix == tracer_galaxies) THEN
          CALL fill_kernel(ix, proj, cosm)
       ELSE IF (ix == tracer_RCSLenS .OR. &
-               ix == tracer_CFHTLenS .OR. &
+               ix == tracer_CFHTLenS_vanWaerbeke2013 .OR. &
                ix == tracer_CMB_lensing .OR. &
                ix == tracer_KiDS .OR. &
                ix == tracer_KiDS_bin1 .OR. &
@@ -280,7 +283,8 @@ CONTAINS
                ix == tracer_KiDS_450_bin1 .OR. &
                ix == tracer_KiDS_450_bin2 .OR. &
                ix == tracer_KiDS_450_bin3 .OR. &
-               ix == tracer_KiDS_450_bin4) THEN
+               ix == tracer_KiDS_450_bin4 .OR. &
+               ix == tracer_CFHTLenS_Kilbinger2013) THEN
          CALL fill_lensing_kernel(ix, proj, cosm)
       ELSE
          STOP 'FILL_PROJECTION_KERNEL: Error, tracer type specified incorrectly'
@@ -814,7 +818,7 @@ CONTAINS
       !TYPE(lensing) :: lens
       TYPE(cosmology), INTENT(INOUT) :: cosm
       TYPE(projection), INTENT(OUT) :: proj
-      REAL :: zmin, zmax, rmax, amax, r
+      REAL :: zmin, zmax, rmax, amax, r, dz
       INTEGER :: i, nX
 
       ! Choose either n(z) or fixed z_s
@@ -839,7 +843,7 @@ CONTAINS
          END IF
          IF (verbose_Limber) WRITE (*, *) 'FILL_LENSING_KERNEL: Source plane redshift:', real(zmax)
       ELSE IF (ix == tracer_RCSLenS .OR. &
-               ix == tracer_CFHTLenS .OR. &
+               ix == tracer_CFHTLenS_vanWaerbeke2013 .OR. &
                ix == tracer_KiDS .OR. &
                ix == tracer_KiDS_bin1 .OR. &
                ix == tracer_KiDS_bin2 .OR. &
@@ -852,10 +856,17 @@ CONTAINS
                ix == tracer_KiDS_450_bin1 .OR. &
                ix == tracer_KiDS_450_bin2 .OR. &
                ix == tracer_KiDS_450_bin3 .OR. &
-               ix == tracer_KiDS_450_bin4) THEN
+               ix == tracer_KiDS_450_bin4 .OR. &
+               ix == tracer_CFHTLenS_Kilbinger2013) THEN
          CALL read_nz(ix, proj)
-         zmin = proj%z_nz(1)
-         zmax = proj%z_nz(proj%nnz)
+         IF(proj%order_nz == 0) THEN
+            dz = proj%z_nz(2)-proj%z_nz(1)
+            zmin = proj%z_nz(1)-dz/2.
+            zmax = proj%z_nz(proj%nnz)+dz/2.
+         ELSE
+            zmin = proj%z_nz(1)
+            zmax = proj%z_nz(proj%nnz)
+         END IF
       ELSE
          STOP 'FILL_LENSING_KERNEL: Error, tracer is specified incorrectly'
       END IF
@@ -906,6 +917,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: r, z
       INTEGER :: i
+      INTEGER, PARAMETER :: iorder=3
 
       ! Fill the r vs. q(r) tables
       proj%nq = nq_efficiency
@@ -917,9 +929,12 @@ CONTAINS
       DO i = 1, proj%nq
          r = proj%r_q(i)
          z = redshift_r(r, cosm)
+         !WRITE(*,*) i, z, zmax
          IF (r == 0.) THEN
             ! To avoid division by zero
             proj%q(i) = 1.
+         ELSE IF(i == proj%nq) THEN
+            proj%q(i) = 0.
          ELSE
             IF (ix == tracer_CMB_lensing .OR. &
                 ix == tracer_lensing_z1p00 .OR. &
@@ -929,7 +944,7 @@ CONTAINS
                ! q(r) for a fixed source plane
                proj%q(i) = f_k(rmax-r, cosm)/f_k(rmax, cosm)
             ELSE IF (ix == tracer_RCSLenS .OR. &
-                     ix == tracer_CFHTLenS .OR. &
+                     ix == tracer_CFHTLenS_vanWaerbeke2013 .OR. &
                      ix == tracer_KiDS .OR. &
                      ix == tracer_KiDS_bin1 .OR. &
                      ix == tracer_KiDS_bin2 .OR. &
@@ -942,14 +957,16 @@ CONTAINS
                      ix == tracer_KiDS_450_bin1 .OR. &
                      ix == tracer_KiDS_450_bin2 .OR. &
                      ix == tracer_KiDS_450_bin3 .OR. &
-                     ix == tracer_KiDS_450_bin4) THEN
+                     ix == tracer_KiDS_450_bin4 .OR. &
+                     ix == tracer_CFHTLenS_Kilbinger2013) THEN
                ! q(r) for a n(z) distribution
-               proj%q(i) = integrate_q(r, z, zmax, acc_Limber, iorder_efficiency, proj, cosm)
+               proj%q(i) = integrate_q(r, z, zmax, acc_Limber, iorder, proj, cosm)
             ELSE
                STOP 'FILL_EFFICIENCY: Error, tracer specified incorrectly'
             END IF
          END IF
       END DO
+
       IF (verbose_Limber) THEN
          WRITE (*, *) 'FILL_EFFICIENCY: Done writing'
          WRITE (*, *)
@@ -1152,11 +1169,14 @@ CONTAINS
    SUBROUTINE read_nz(ix, proj)
 
       ! The the n(z) function for lensing
+      USE calculus_table
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix
       TYPE(projection), INTENT(INOUT) :: proj
+      REAL :: norm
+      LOGICAL, PARAMETER :: normalise = norm_nz
 
-      IF (ix == tracer_RCSLenS .OR. ix == tracer_CFHTLenS) THEN
+      IF (ix == tracer_RCSLenS .OR. ix == tracer_CFHTLenS_vanWaerbeke2013) THEN
          CALL fill_analytic_nz_table(ix, proj)
       ELSE IF (ix == tracer_KiDS .OR. &
                ix == tracer_KiDS_bin1 .OR. &
@@ -1170,13 +1190,41 @@ CONTAINS
                ix == tracer_KiDS_450_bin1 .OR. &
                ix == tracer_KiDS_450_bin2 .OR. &
                ix == tracer_KiDS_450_bin3 .OR. &
-               ix == tracer_KiDS_450_bin4) THEN
+               ix == tracer_KiDS_450_bin4 .OR. &
+               ix == tracer_CFHTLenS_Kilbinger2013) THEN
          CALL fill_nz_table(ix, proj)
       ELSE
          STOP 'READ_NZ: Error, tracer specified incorrectly'
       END IF
 
+      IF (ix == tracer_RCSLenS .OR. ix == tracer_CFHTLenS_vanWaerbeke2013) THEN
+         proj%order_nz = 3 ! Continuous functions - treat as cubics
+      ELSE IF (ix == tracer_KiDS .OR. &
+               ix == tracer_KiDS_bin1 .OR. &
+               ix == tracer_KiDS_bin2 .OR. &
+               ix == tracer_KiDS_bin3 .OR. &
+               ix == tracer_KiDS_bin4) THEN
+         proj%order_nz = 3 ! These seem to integrate more accurately to unity this way
+      ELSE IF (ix == tracer_KiDS_450 .OR. &
+               ix == tracer_KiDS_450_fat_bin1 .OR. &
+               ix == tracer_KiDS_450_fat_bin2 .OR. &
+               ix == tracer_KiDS_450_highz .OR. &
+               ix == tracer_KiDS_450_bin1 .OR. &
+               ix == tracer_KiDS_450_bin2 .OR. &
+               ix == tracer_KiDS_450_bin3 .OR. &
+               ix == tracer_KiDS_450_bin4 .OR. &
+               ix == tracer_CFHTLenS_Kilbinger2013) THEN
+         proj%order_nz = 0 ! These are supposed to be histograms
+      ELSE
+         STOP 'READ_NZ: Error, order for integration not specified correctly'
+      END IF
+
+      IF(normalise) CALL normalise_nz(proj)
+
       IF (verbose_Limber) THEN
+         norm = integrate_nz(proj)
+         WRITE (*, *) 'READ_NZ: Normalisation (should be unity):', norm
+         WRITE (*, *) 'READ_NZ: Order for integration:', proj%order_nz
          WRITE (*, *) 'READ_NZ: zmin:', proj%z_nz(1)
          WRITE (*, *) 'READ_NZ: zmax:', proj%z_nz(proj%nnz)
          WRITE (*, *) 'READ_NZ: nz:', proj%nnz
@@ -1184,6 +1232,30 @@ CONTAINS
       END IF
 
    END SUBROUTINE read_nz
+
+   SUBROUTINE normalise_nz(proj)
+
+      ! Explicitly normalise the input n(z)  
+      IMPLICIT NONE
+      TYPE(projection), INTENT(INOUT) :: proj
+      REAL :: norm
+
+      ! Explicitly normalise
+      norm = integrate_nz(proj)
+      proj%nz = proj%nz/norm
+
+   END SUBROUTINE normalise_nz
+
+   REAL FUNCTION integrate_nz(proj)
+
+      ! Integrate the n(z) function over z (which should give unity)
+      USE calculus_table
+      IMPLICIT NONE
+      TYPE(projection), INTENT(INOUT) :: proj
+
+      integrate_nz = integrate_table(proj%z_nz, proj%nz, proj%nnz, 1, proj%nnz, proj%order_nz)
+
+   END FUNCTION integrate_nz
 
    SUBROUTINE fill_analytic_nz_table(ix, proj)
 
@@ -1211,7 +1283,6 @@ CONTAINS
       USE file_info
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix
-      !TYPE(projection), INTENT(INOUT) :: lens
       TYPE(projection), INTENT(INOUT) :: proj
       INTEGER :: i
       REAL :: spam
@@ -1241,6 +1312,8 @@ CONTAINS
          input = '/Users/Mead/Physics/data/KiDS/nz/Nz_DIR_z0.5t0.7.asc'
       ELSE IF (ix == tracer_KiDS_450_bin4) THEN
          input = '/Users/Mead/Physics/data/KiDS/nz/Nz_DIR_z0.7t0.9.asc'
+      ELSE IF (ix == tracer_CFHTLenS_Kilbinger2013) THEN
+         input = '/Users/Mead/Physics/data/CFHTLenS/nz.txt'
       ELSE
          STOP 'FILL_NZ_TABLE: tracer not specified correctly'
       END IF
@@ -1249,7 +1322,7 @@ CONTAINS
       ! Allocate arrays
       proj%nnz = count_number_of_lines(input)
       IF (ALLOCATED(proj%z_nz)) DEALLOCATE (proj%z_nz)
-      IF (ALLOCATED(proj%nz)) DEALLOCATE (proj%nz)
+      IF (ALLOCATED(proj%nz))   DEALLOCATE (proj%nz)
       ALLOCATE (proj%z_nz(proj%nnz), proj%nz(proj%nnz))
 
       ! Read in n(z) table
@@ -1264,7 +1337,8 @@ CONTAINS
              ix == tracer_KiDS_450_bin1 .OR. &
              ix == tracer_KiDS_450_bin2 .OR. &
              ix == tracer_KiDS_450_bin3 .OR. &
-             ix == tracer_KiDS_450_bin4) THEN
+             ix == tracer_KiDS_450_bin4 .OR. &
+             ix == tracer_CFHTLenS_Kilbinger2013) THEN
             READ (7, *) proj%z_nz(i), proj%nz(i) ! Second column
          ELSE IF (ix == tracer_KiDS_450) THEN
             READ (7, *) proj%z_nz(i), proj%nz(i) ! Second column (z = 0.1 -> 0.9)
@@ -1282,6 +1356,7 @@ CONTAINS
 
       ! Do this because the KiDS-450 files contain the lower left edge of histograms
       ! The bin sizes are 0.05 in z, so need to add 0.05/2 = 0.025
+      ! This is also true for the CFHTLenS Kilbinger (2013) data
       IF (ix == tracer_KiDS_450 .OR. &
           ix == tracer_KiDS_450_fat_bin1 .OR. &
           ix == tracer_KiDS_450_fat_bin2 .OR. &
@@ -1289,7 +1364,8 @@ CONTAINS
           ix == tracer_KiDS_450_bin1 .OR. &
           ix == tracer_KiDS_450_bin2 .OR. &
           ix == tracer_KiDS_450_bin3 .OR. &
-          ix == tracer_KiDS_450_bin4) THEN
+          ix == tracer_KiDS_450_bin4 .OR. &
+          ix == tracer_CFHTLenS_Kilbinger2013) THEN
          proj%z_nz = proj%z_nz+0.025
       END IF
 
@@ -1326,7 +1402,7 @@ CONTAINS
          n2 = d*z*exp(-(z-e)**2/f**2)
          n3 = g*z*exp(-(z-h)**2/i**2)
          nz = n1+n2+n3
-      ELSE IF (ix == tracer_CFHTLenS) THEN
+      ELSE IF (ix == tracer_CFHTLenS_vanWaerbeke2013) THEN
          ! CFHTLenS
          z1 = 0.7 ! Not a free parameter in Van Waerbeke et al. fit (2013)
          z2 = 1.2 ! Not a free parameter in Van Waerbeke et al. fit (2013)
@@ -1346,6 +1422,7 @@ CONTAINS
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
+      ! TODO: This could be changed to a general integrate_proj_cosm routine
       IMPLICIT NONE
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
@@ -1354,17 +1431,13 @@ CONTAINS
       INTEGER, INTENT(IN) :: iorder
       TYPE(cosmology), INTENT(INOUT) :: cosm
       TYPE(projection), INTENT(IN) :: proj
-      INTEGER :: i, j
-      INTEGER :: n
+      INTEGER :: i, j, n
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
 
       INTEGER, PARAMETER :: jmin = 5  ! Standard integration parameters
       INTEGER, PARAMETER :: jmax = 30 ! Standard integration parameters
-
-      !WRITE(*,*) 'order =', iorder
-      ! STOP
 
       IF (a == b) THEN
 
@@ -1451,6 +1524,8 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       TYPE(projection), INTENT(IN) :: proj
       REAL :: rdash, nzz, a
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
 
       a = scale_factor_z(z)
 
@@ -1460,7 +1535,7 @@ CONTAINS
          ! Find the r'(z) variable that is integrated over
          rdash = comoving_distance(a, cosm)
          ! Find the n(z)
-         nzz = find(z, proj%z_nz, proj%nz, proj%nnz, 3, 3, 2)
+         nzz = find(z, proj%z_nz, proj%nz, proj%nnz, proj%order_nz, ifind, imeth)
          ! This is then the integrand
          q_integrand = nzz*f_k(rdash-r, cosm)/f_k(rdash, cosm)
       END IF
