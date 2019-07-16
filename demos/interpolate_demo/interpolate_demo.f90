@@ -119,6 +119,7 @@ PROGRAM interpolate_demo
 
          IF (x == -1.) EXIT
 
+         WRITE (*, *) 'Constant interpolation:', find(x, xtab, ytab, n, 0, 3, imeth)
          WRITE (*, *) 'Linear interpolation:', find(x, xtab, ytab, n, 1, 3, imeth)
          WRITE (*, *) 'Quadratic interpolation:', find(x, xtab, ytab, n, 2, 3, imeth)
          WRITE (*, *) 'Cubic interpolation:', find(x, xtab, ytab, n, 3, 3, imeth)
