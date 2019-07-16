@@ -38,8 +38,10 @@ CONTAINS
       REAL :: x1, x2, x3, x4
       REAL :: y1, y2, y3, y4
       REAL :: L1, L2
+      REAL :: dx
       INTEGER :: i
 
+      ! iorder = 0 => constant interpolation (histogram data)
       ! iorder = 1 => linear interpolation
       ! iorder = 2 => quadratic interpolation
       ! iorder = 3 => cubic interpolation
@@ -60,49 +62,27 @@ CONTAINS
          CALL reverse_array(ytab, n)
       END IF
 
-      IF (x < xtab(1)) THEN
+      IF(iorder == 0) THEN
 
-         ! Do a linear extrapolation beyond the table boundary
-
-         x1 = xtab(1)
-         x2 = xtab(2)
-
-         y1 = ytab(1)
-         y2 = ytab(2)
-
-         IF (imeth == 1) THEN
-            CALL fix_line(a, b, x1, y1, x2, y2)
-            find_1D = a*x+b
-         ELSE IF (imeth == 2) THEN
-            find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
+         dx = xtab(2)-xtab(1) ! Assumes bins are equally spaced
+         xtab = xtab - dx/2.  ! Assumes that x coordinates give left edge of histogram
+         
+         IF(x < xtab(1)) THEN
+            ! Outside lower boundary
+            find_1D = 0.
+         ELSE IF(x >= xtab(n)+dx) THEN
+            ! Outside upper boundary
+            find_1D = 0.
          ELSE
-            STOP 'FIND_1D: Error, method not specified correctly'
+            i = select_table_integer(x, xtab, n, ifind)
+            find_1D = ytab(i)
          END IF
 
-      ELSE IF (x > xtab(n)) THEN
+      ELSE
 
-         ! Do a linear extrapolation beyond the table boundary
+         IF (x < xtab(1)) THEN
 
-         x1 = xtab(n-1)
-         x2 = xtab(n)
-
-         y1 = ytab(n-1)
-         y2 = ytab(n)
-
-         IF (imeth == 1) THEN
-            CALL fix_line(a, b, x1, y1, x2, y2)
-            find_1D = a*x+b
-         ELSE IF (imeth == 2) THEN
-            find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
-         ELSE
-            STOP 'FIND_1D: Error, method not specified correctly'
-         END IF
-
-      ELSE IF (iorder == 1) THEN
-
-         IF (n < 2) STOP 'FIND_1D: Not enough points in your table for linear interpolation'
-
-         IF (x <= xtab(2)) THEN
+            ! Do a linear extrapolation beyond the table boundary
 
             x1 = xtab(1)
             x2 = xtab(2)
@@ -110,7 +90,18 @@ CONTAINS
             y1 = ytab(1)
             y2 = ytab(2)
 
-         ELSE IF (x >= xtab(n-1)) THEN
+            IF (imeth == 1) THEN
+               CALL fix_line(a, b, x1, y1, x2, y2)
+               find_1D = a*x+b
+            ELSE IF (imeth == 2) THEN
+               find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
+            ELSE
+               STOP 'FIND_1D: Error, method not specified correctly'
+            END IF
+
+         ELSE IF (x > xtab(n)) THEN
+
+            ! Do a linear extrapolation beyond the table boundary
 
             x1 = xtab(n-1)
             x2 = xtab(n)
@@ -118,151 +109,182 @@ CONTAINS
             y1 = ytab(n-1)
             y2 = ytab(n)
 
-         ELSE
+            IF (imeth == 1) THEN
+               CALL fix_line(a, b, x1, y1, x2, y2)
+               find_1D = a*x+b
+            ELSE IF (imeth == 2) THEN
+               find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
+            ELSE
+               STOP 'FIND_1D: Error, method not specified correctly'
+            END IF
 
-            i = select_table_integer(x, xtab, n, ifind)
+         ELSE IF (iorder == 1) THEN
 
-            x1 = xtab(i)
-            x2 = xtab(i+1)
-
-            y1 = ytab(i)
-            y2 = ytab(i+1)
-
-         END IF
-
-         IF (imeth == 1) THEN
-            CALL fix_line(a, b, x1, y1, x2, y2)
-            find_1D = a*x+b
-         ELSE IF (imeth == 2) THEN
-            find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
-         ELSE
-            STOP 'FIND_1D: Error, method not specified correctly'
-         END IF
-
-      ELSE IF (iorder == 2) THEN
-
-         IF (n < 3) STOP 'FIND_1D: Not enough points in your table'
-
-         IF (x <= xtab(2) .OR. x >= xtab(n-1)) THEN
+            IF (n < 2) STOP 'FIND_1D: Not enough points in your table for linear interpolation'
 
             IF (x <= xtab(2)) THEN
 
                x1 = xtab(1)
                x2 = xtab(2)
+
+               y1 = ytab(1)
+               y2 = ytab(2)
+
+            ELSE IF (x >= xtab(n-1)) THEN
+
+               x1 = xtab(n-1)
+               x2 = xtab(n)
+
+               y1 = ytab(n-1)
+               y2 = ytab(n)
+
+            ELSE
+
+               i = select_table_integer(x, xtab, n, ifind)
+
+               x1 = xtab(i)
+               x2 = xtab(i+1)
+
+               y1 = ytab(i)
+               y2 = ytab(i+1)
+
+            END IF
+
+            IF (imeth == 1) THEN
+               CALL fix_line(a, b, x1, y1, x2, y2)
+               find_1D = a*x+b
+            ELSE IF (imeth == 2) THEN
+               find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
+            ELSE
+               STOP 'FIND_1D: Error, method not specified correctly'
+            END IF
+
+         ELSE IF (iorder == 2) THEN
+
+            IF (n < 3) STOP 'FIND_1D: Not enough points in your table'
+
+            IF (x <= xtab(2) .OR. x >= xtab(n-1)) THEN
+
+               IF (x <= xtab(2)) THEN
+
+                  x1 = xtab(1)
+                  x2 = xtab(2)
+                  x3 = xtab(3)
+
+                  y1 = ytab(1)
+                  y2 = ytab(2)
+                  y3 = ytab(3)
+
+               ELSE IF (x >= xtab(n-1)) THEN
+
+                  x1 = xtab(n-2)
+                  x2 = xtab(n-1)
+                  x3 = xtab(n)
+
+                  y1 = ytab(n-2)
+                  y2 = ytab(n-1)
+                  y3 = ytab(n)
+
+               END IF
+
+               IF (imeth == 1) THEN
+                  CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
+                  find_1D = a*(x**2)+b*x+c
+               ELSE IF (imeth == 2) THEN
+                  find_1D = Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))
+               ELSE
+                  STOP 'FIND_1D: Error, method not specified correctly'
+               END IF
+
+            ELSE
+
+               i = select_table_integer(x, xtab, n, ifind)
+
+               x1 = xtab(i-1)
+               x2 = xtab(i)
+               x3 = xtab(i+1)
+               x4 = xtab(i+2)
+
+               y1 = ytab(i-1)
+               y2 = ytab(i)
+               y3 = ytab(i+1)
+               y4 = ytab(i+2)
+
+               IF (imeth == 1) THEN
+                  ! In this case take the average of two separate quadratic spline values
+                  CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
+                  find_1D = (a*x**2+b*x+c)/2.
+                  CALL fix_quadratic(a, b, c, x2, y2, x3, y3, x4, y4)
+                  find_1D = find_1D+(a*x**2+b*x+c)/2.
+               ELSE IF (imeth == 2) THEN
+                  ! In this case take the average of two quadratic Lagrange polynomials
+                  L1 = Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))
+                  L2 = Lagrange_polynomial(x, 2, (/x2, x3, x4/), (/y2, y3, y4/))
+                  find_1D = (L1+L2)/2.
+               ELSE
+                  STOP 'FIND_1D: Error, method not specified correctly'
+               END IF
+
+            END IF
+
+         ELSE IF (iorder == 3) THEN
+
+            IF (n < 4) STOP 'FIND_1D: Not enough points in your table'
+
+            IF (x <= xtab(3)) THEN
+
+               x1 = xtab(1)
+               x2 = xtab(2)
                x3 = xtab(3)
+               x4 = xtab(4)
 
                y1 = ytab(1)
                y2 = ytab(2)
                y3 = ytab(3)
+               y4 = ytab(4)
 
-            ELSE IF (x >= xtab(n-1)) THEN
+            ELSE IF (x >= xtab(n-2)) THEN
 
-               x1 = xtab(n-2)
-               x2 = xtab(n-1)
-               x3 = xtab(n)
+               x1 = xtab(n-3)
+               x2 = xtab(n-2)
+               x3 = xtab(n-1)
+               x4 = xtab(n)
 
-               y1 = ytab(n-2)
-               y2 = ytab(n-1)
-               y3 = ytab(n)
+               y1 = ytab(n-3)
+               y2 = ytab(n-2)
+               y3 = ytab(n-1)
+               y4 = ytab(n)
+
+            ELSE
+
+               i = select_table_integer(x, xtab, n, ifind)
+
+               x1 = xtab(i-1)
+               x2 = xtab(i)
+               x3 = xtab(i+1)
+               x4 = xtab(i+2)
+
+               y1 = ytab(i-1)
+               y2 = ytab(i)
+               y3 = ytab(i+1)
+               y4 = ytab(i+2)
 
             END IF
 
             IF (imeth == 1) THEN
-               CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
-               find_1D = a*(x**2)+b*x+c
+               CALL fix_cubic(a, b, c, d, x1, y1, x2, y2, x3, y3, x4, y4)
+               find_1D = a*x**3+b*x**2+c*x+d
             ELSE IF (imeth == 2) THEN
-               find_1D = Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))
+               find_1D = Lagrange_polynomial(x, 3, (/x1, x2, x3, x4/), (/y1, y2, y3, y4/))
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
             END IF
 
          ELSE
 
-            i = select_table_integer(x, xtab, n, ifind)
-
-            x1 = xtab(i-1)
-            x2 = xtab(i)
-            x3 = xtab(i+1)
-            x4 = xtab(i+2)
-
-            y1 = ytab(i-1)
-            y2 = ytab(i)
-            y3 = ytab(i+1)
-            y4 = ytab(i+2)
-
-            IF (imeth == 1) THEN
-               ! In this case take the average of two separate quadratic spline values
-               CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
-               find_1D = (a*x**2+b*x+c)/2.
-               CALL fix_quadratic(a, b, c, x2, y2, x3, y3, x4, y4)
-               find_1D = find_1D+(a*x**2+b*x+c)/2.
-            ELSE IF (imeth == 2) THEN
-               ! In this case take the average of two quadratic Lagrange polynomials
-               L1 = Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))
-               L2 = Lagrange_polynomial(x, 2, (/x2, x3, x4/), (/y2, y3, y4/))
-               find_1D = (L1+L2)/2.
-            ELSE
-               STOP 'FIND_1D: Error, method not specified correctly'
-            END IF
+            STOP 'FIND_1D: Error, interpolation order specified incorrectly'
 
          END IF
-
-      ELSE IF (iorder == 3) THEN
-
-         IF (n < 4) STOP 'FIND_1D: Not enough points in your table'
-
-         IF (x <= xtab(3)) THEN
-
-            x1 = xtab(1)
-            x2 = xtab(2)
-            x3 = xtab(3)
-            x4 = xtab(4)
-
-            y1 = ytab(1)
-            y2 = ytab(2)
-            y3 = ytab(3)
-            y4 = ytab(4)
-
-         ELSE IF (x >= xtab(n-2)) THEN
-
-            x1 = xtab(n-3)
-            x2 = xtab(n-2)
-            x3 = xtab(n-1)
-            x4 = xtab(n)
-
-            y1 = ytab(n-3)
-            y2 = ytab(n-2)
-            y3 = ytab(n-1)
-            y4 = ytab(n)
-
-         ELSE
-
-            i = select_table_integer(x, xtab, n, ifind)
-
-            x1 = xtab(i-1)
-            x2 = xtab(i)
-            x3 = xtab(i+1)
-            x4 = xtab(i+2)
-
-            y1 = ytab(i-1)
-            y2 = ytab(i)
-            y3 = ytab(i+1)
-            y4 = ytab(i+2)
-
-         END IF
-
-         IF (imeth == 1) THEN
-            CALL fix_cubic(a, b, c, d, x1, y1, x2, y2, x3, y3, x4, y4)
-            find_1D = a*x**3+b*x**2+c*x+d
-         ELSE IF (imeth == 2) THEN
-            find_1D = Lagrange_polynomial(x, 3, (/x1, x2, x3, x4/), (/y1, y2, y3, y4/))
-         ELSE
-            STOP 'FIND_1D: Error, method not specified correctly'
-         END IF
-
-      ELSE
-
-         STOP 'FIND_1D: Error, interpolation order specified incorrectly'
 
       END IF
 
