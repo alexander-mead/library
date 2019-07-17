@@ -210,9 +210,7 @@ CONTAINS
       REAL, PARAMETER :: mx = 1e12 ! Set to zero to avoid problems for |x|>mx
 
       ! Taylor expansion used for low x to avoid cancelation problems
-      IF (x == 0.) THEN
-         wk_tophat = 1.
-      ELSE IF (abs(x) > mx) THEN
+      IF (abs(x) > mx) THEN
          wk_tophat = 0. ! TODO: Is this necessary?
       ELSE IF (abs(x) < dx) THEN
          wk_tophat = 1.-x**2/10.
