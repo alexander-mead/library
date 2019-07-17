@@ -38,6 +38,7 @@ MODULE array_operations
    PUBLIC :: binning
    PUBLIC :: merge_arrays
    PUBLIC :: mask
+   PUBLIC :: apply_mask
 
    PUBLIC :: unique_entries
    PUBLIC :: number_of_appearances
@@ -66,6 +67,11 @@ MODULE array_operations
       PROCEDURE write_array_list_real
       PROCEDURE write_array_list_int
    END INTERFACE write_array_list
+
+   INTERFACE apply_mask
+      PROCEDURE apply_mask_1D
+      PROCEDURE apply_mask_2D
+   END INTERFACE apply_mask
 
 CONTAINS
 
@@ -810,11 +816,12 @@ CONTAINS
    SUBROUTINE mask(okay, m, n, min, max)
 
       ! Flags objects that make the cut as 'okay'
-      ! Can be applied to any scalar array, not just mass
       IMPLICIT NONE
-      REAL, INTENT(IN) :: m(n), min, max
-      INTEGER, INTENT(IN) :: n
       LOGICAL, INTENT(OUT) :: okay(n)
+      REAL, INTENT(IN) :: m(n)
+      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: min
+      REAL, INTENT(IN) :: max
       INTEGER :: i, o
 
       WRITE (*, *) 'MASK: Imposing property cut'
@@ -828,7 +835,7 @@ CONTAINS
          IF (m(i) >= min .AND. m(i) <= max) okay(i) = .TRUE.
       END DO
 
-      o = COUNT(okay)
+      o = count(okay)
 
       WRITE (*, *) 'MASK: Final number of objects:', o
       WRITE (*, *) 'MASK: Fraction remaining:', real(o)/real(n)
@@ -837,6 +844,112 @@ CONTAINS
       WRITE (*, *)
 
    END SUBROUTINE mask
+
+   SUBROUTINE apply_mask_1D(x, a, nx, xmask)
+
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
+      INTEGER, INTENT(INOUT) :: nx
+      LOGICAL, INTENT(IN) :: xmask(nx)
+      INTEGER :: i, ii, nx_new
+      REAL :: a_old(nx), x_old(nx) ! Not necessary, could use x, but makes easier to read
+      INTEGER :: nx_old ! Not necessary, could use n, but makes easier to read
+      REAL, ALLOCATABLE :: a_new(:), x_new(:)
+
+      IF(size(a) .NE. nx) STOP 'APPLY_MASK_1D: Error, you have specified array dimension incorrectly'
+
+      ! Save original arrays (unnecessary)
+      x_old = x
+      a_old = a
+      nx_old = nx
+
+      ! Make new arrays
+      nx_new = count(xmask)
+      ALLOCATE(x_new(nx_new), a_new(nx_new))
+      ii = 0
+      DO i = 1, nx
+         IF(xmask(i)) THEN
+            ii = ii+1
+            x_new(ii) = x_old(i)
+            a_new(ii) = a_old(i)
+         END IF
+      END DO
+
+      DEALLOCATE(x, a)
+      ALLOCATE(x(nx_new), a(nx_new))
+      x = x_new
+      a = a_new
+      nx = nx_new
+
+      DEALLOCATE(x_new, a_new)
+
+   END SUBROUTINE apply_mask_1D
+
+   SUBROUTINE apply_mask_2D(x, y, a, nx, ny, xmask, ymask)
+
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: y(:)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: a(:,:)
+      INTEGER, INTENT(INOUT) :: nx
+      INTEGER, INTENT(INOUT) :: ny
+      LOGICAL, INTENT(IN) :: xmask(nx)
+      LOGICAL, INTENT(IN) :: ymask(ny)
+      INTEGER :: i, ii, j, jj, nx_new, ny_new
+      REAL :: x_old(nx), y_old(ny), a_old(nx, ny) ! Not necessary, could use x, but makes easier to read
+      INTEGER :: nx_old, ny_old ! Not necessary, could use n, but makes easier to read
+      REAL, ALLOCATABLE :: x_new(:), y_new(:), a_new(:,:)
+
+      IF(size(a(:,1)) .NE. nx) THEN
+         WRITE(*, *) 'APPLY_MASK_2D: nx:', nx
+         WRITE(*, *) 'APPLY_MASK_2D: size of array first dimension:', size(a(:,1))
+         STOP 'APPLY_MASK_2D: Error, you have specified x array dimension incorrectly'
+      END IF
+      IF(size(a(1,:)) .NE. ny) THEN
+         WRITE(*, *) 'APPLY_MASK_2D: ny:', ny
+         WRITE(*, *) 'APPLY_MASK_2D: size of array second dimension:', size(a(1,:))
+         STOP 'APPLY_MASK_2D: Error, you have specified y array dimension incorrectly'
+      END IF
+
+      ! Save original array
+      x_old = x
+      y_old = y
+      a_old = a
+      nx_old = nx
+      ny_old = ny
+
+      ! Make new array
+      nx_new = count(xmask)
+      ny_new = count(ymask)
+      ALLOCATE(x_new(nx_new), y_new(ny_new), a_new(nx_new, ny_new))
+      jj=0
+      DO j = 1, ny
+         IF(ymask(j)) THEN
+            jj=jj+1
+            y_new(jj) = y_old(j)
+            ii = 0
+            DO i = 1, nx
+               IF(xmask(i)) THEN
+                  ii = ii+1
+                  x_new(ii) = x_old(i)
+                  a_new(ii, jj) = a_old(i, j)
+               END IF
+            END DO
+         END IF
+      END DO
+
+      DEALLOCATE(x, y, a)
+      ALLOCATE(x(nx_new), y(ny_new), a(nx_new, ny_new))
+      x = x_new
+      y = y_new
+      a = a_new
+      nx = nx_new
+      ny = ny_new
+
+      DEALLOCATE(x_new, y_new, a_new)
+
+   END SUBROUTINE apply_mask_2D
 
    INTEGER FUNCTION unique_entries(a, n)
 
