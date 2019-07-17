@@ -1428,9 +1428,6 @@ CONTAINS
          WRITE (*, *) 'INIT_HALOMOD: Non-linear wavenumber [h/Mpc]:', REAL(hmod%knl)
       END IF
 
-      !WRITE(*,*) 'INIT_HALOMOD: Cumulative halo number density above M* [(Mpc/h)^-3]:', REAL(cumulative_halo_density(hmod%mnl,hmod,cosm))
-      !STOP
-
       hmod%neff = effective_index(hmod, cosm)
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Collapse n_eff:', REAL(hmod%neff)
@@ -2194,8 +2191,6 @@ CONTAINS
       REAL :: Pkk(nk)
       INTEGER :: j
       INTEGER :: ihm = 1 ! 1 - HMcode 2016
-      !REAL, PARAMETER :: mmin = mmin_HMx ! MEAD: Remove
-      !REAL, PARAMETER :: mmax = mmax_HMx ! MEAD: Remove
 
       DO j = 1, na
          CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pkk, nk, cosm)
@@ -2217,13 +2212,10 @@ CONTAINS
       REAL :: Pkk(nk)
       INTEGER :: j
       INTEGER :: ihm=51 ! 51 - HMcode 2016 in CAMB
-      !REAL, PARAMETER :: mmin = mmin_HMcode_CAMB
-      !REAL, PARAMETER :: mmax = mmax_HMcode_CAMB
 
       DO j = 1, na
          CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pkk, nk, cosm)
          Pk(:, j) = Pkk
-         !STOP
       END DO
 
    END SUBROUTINE calculate_HMcode_CAMB
@@ -2259,9 +2251,9 @@ CONTAINS
       INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: pow_lin(nk), pow_2h(nk), pow_1h(nk), pow_hm(nk)
-      !INTEGER :: i
+      INTEGER :: i ! MEAD: Remove
       TYPE(halomod) :: hmod
-      !LOGICAL, PARAMETER :: sigma = .FALSE. ! MEAD: Remove
+      LOGICAL, PARAMETER :: sigma = .FALSE. ! MEAD: Remove
       INTEGER, PARAMETER :: dmonly(1) = field_dmonly ! Fix to DMONLY
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
@@ -2270,11 +2262,12 @@ CONTAINS
       CALL init_halomod(a, hmod, cosm, verbose)
       CALL calculate_HMx_a(dmonly, 1, k, nk, pow_lin, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose, response=.FALSE.)
       Pk = pow_hm
-      !IF(sigma) THEN ! MEAD: Remove
-      !   DO i=1,nk 
-      !      Pk(i) = sigma_cold(k(i), a, cosm)
-      !   END DO
-      !END IF
+      IF(sigma) THEN ! MEAD: Remove
+         DO i=1,nk 
+            Pk(i) = sigma_cold(k(i), a, cosm)
+            !Pk(i) = sigmaV(k(i), a, cosm)
+         END DO
+      END IF
       CALL print_halomod(hmod, cosm, verbose)
 
    END SUBROUTINE calculate_HMx_DMONLY_a
@@ -2719,7 +2712,7 @@ CONTAINS
       REAL, INTENT(IN) :: plin
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: sigv, frac, rhom
+      REAL :: sigv, fdamp, rhom
       REAL :: m0, b0, wk0(2), nu0
       REAL :: m1, m2, rv1, rv2, b1, b2, g1, g2, u1, u2, nu1, nu2
       REAL :: Inl, Inl_11, Inl_21, Inl_12, Inl_22, B_NL
@@ -2877,11 +2870,11 @@ CONTAINS
       IF (hmod%i2hdamp .NE. 1) THEN
          ! Two-halo damping parameters
          sigv = hmod%sigv
-         frac = fdamp_HMcode(hmod, cosm)
-         IF (frac == 0.) THEN
+         fdamp = fdamp_HMcode(hmod, cosm)
+         IF (fdamp == 0.) THEN
             p_2h = p_2h
          ELSE
-            p_2h = p_2h*(1.-frac*(tanh(k*sigv/sqrt(abs(frac))))**2)
+            p_2h = p_2h*(1.-fdamp*(tanh(k*sigv/sqrt(abs(fdamp))))**2)
          END IF
       END IF
 
@@ -4882,12 +4875,10 @@ CONTAINS
                sigma = sigma_all(rf, a, cosm)
             END IF
             hmod%sigf(i) = sigma
-            !WRITE(*,*) i, log10(hmod%m(i)), hmod%sig(i), hmod%sigf(i) ! MEAD: Remove
          END DO   
       ELSE
          STOP 'ZCOLL_BULLOCK: Error, something went wrong'
       END IF
-      !STOP ! MEAD: Remove
 
       ! I don't think this is really consistent with dc varying as a function of z
       ! but the change will *probably* be *very* small
