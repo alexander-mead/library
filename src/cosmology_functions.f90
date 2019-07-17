@@ -197,6 +197,7 @@ MODULE cosmology_functions
    ! CAMB interface
    REAL, PARAMETER :: kmin_CAMB = 1e-3 ! Minimum wavenumber to use if rebinning
    REAL, PARAMETER :: kmax_CAMB = 1e2  ! Maximum wavenumber to get (also for rebinning)
+   REAL, PARAMETER :: pk_min_CAMB = 1e-10 ! Minimum value of power at low k (remove k with less than this)
    INTEGER, PARAMETER :: nk_CAMB = 128 ! Number of k values to use if rebinning
    LOGICAL, PARAMETER :: rebin_CAMB_linear = .FALSE. ! Should we rebin CAMB or just use default k
    REAL, PARAMETER :: nmax_CAMB = 2. ! How many times more to go than kmax due to inaccuracy near k limit
@@ -209,7 +210,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: acc_sigma = 1e-4    ! Accuracy parameter for sigma(R) integration
    REAL, PARAMETER :: rmin_sigma = 1e-4   ! Minimum r value (NB. sigma(R) needs to be power-law below)
    REAL, PARAMETER :: rmax_sigma = 1e3    ! Maximum r value (NB. sigma(R) needs to be power-law above)
-   INTEGER, PARAMETER :: nr_sigma = 128   ! Number of r entries for sigma(R) tables MEAD: Revert to 128
+   INTEGER, PARAMETER :: nr_sigma = 128   ! Number of r entries for sigma(R) tables
    REAL, PARAMETER :: amin_sigma = 0.1    ! Minimum a value for sigma(R,a) tables when linear growth is scale dependent
    REAL, PARAMETER :: amax_sigma = 1.0    ! Maximum a value for sigma(R,a) tables when linear growth is scale dependent
    INTEGER, PARAMETER :: na_sigma = 16    ! Number of a values for sigma(R,a) tables
@@ -1404,7 +1405,7 @@ CONTAINS
          ! Run first time to get power
          cosm%A = 2.1e-9
          CALL init_CAMB_linear(cosm)
-         sigi = sigma_all_integral(R, a, cosm)
+         sigi = sigma_all_integral(R, a, cosm) ! Breaks here with massive neutrinos
 
          IF (cosm%verbose) THEN
             WRITE (*, *) 'NORMALISE_POWER: Normalising power to get correct sigma_8'
@@ -2858,7 +2859,7 @@ CONTAINS
       REAL, INTENT(IN) :: R
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: k!, kR, w_hat
+      REAL :: k
 
       ! Integrand to the sigma integral in terms of t. Defined by kR=(1/t-1)**alpha
       ! alpha_sigma can be any positive number, can even be a function of R
@@ -2868,10 +2869,6 @@ CONTAINS
          sigma2_all_integrand_transformed = 0.
       ELSE
          k = k_sigma_integrand(t, R)
-         !kR = k*R
-         !w_hat = wk_tophat(kR)
-         !sigma2_all_integrand_transformed = p_lin(k, a, cosm)*(w_hat**2)*alpha_sigma/(t*(1.-t))
-         !sigma2_all_integrand_transformed = sigma2_all_integrand(k, R, a, cosm)*k*alpha_sigma/(t*(1.-t))
          sigma2_all_integrand_transformed = sigma2_all_integrand(k, R, a, cosm)*k*dlnk_on_dt_sigma(t)
       END IF
 
@@ -3141,7 +3138,8 @@ CONTAINS
       REAL, INTENT(IN) :: R
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: k, kR, w_hat, alpha
+      REAL :: k, kR, w_hat
+      REAL, PARAMETER :: alpha = alpha_sigmaV
       LOGICAL :: cold = .TRUE. ! DO NOT CHANGE THIS
 
       IF (t == 0. .OR. t == 1.) THEN
@@ -3149,7 +3147,6 @@ CONTAINS
          ! t = 1 corresponds to k = 0 when P(k) = 0
          sigmaV2_integrand = 0.
       ELSE
-         alpha = alpha_sigmaV
          IF (R == 0.) THEN
             kR = 0.
             k = (-1.+1./t)**alpha
@@ -3721,7 +3718,7 @@ CONTAINS
 
             ! Need to assign new arrays for the collapse branch of r such that it is monotonic
             !k2=int_split(d_rmax,dnl,k)
-            k2 = select_table_integer(d_rmax, dnl, k, imeth=3)
+            k2 = find_table_integer(d_rmax, dnl, k, imeth=3)
 
             ! Allocate collapse branch arrays
             ALLOCATE (a_coll(k-k2+1), r_coll(k-k2+1))
@@ -4423,21 +4420,25 @@ CONTAINS
       LOGICAL, INTENT(IN) :: non_linear
       INTEGER, INTENT(IN) :: halofit_version
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER :: i, j, ichop
-      REAL, ALLOCATABLE :: Pk_CAMB(:), Pkk(:,:)
+      INTEGER :: i, j
+      REAL, ALLOCATABLE :: Pk_CAMB(:)!, Pkk(:,:)
       REAL :: Om_c, Om_b, Om_nu, h, ombh2, omch2, omnuh2
-      REAL, PARAMETER :: kmax = kmax_CAMB ! Maximum wavenumber to get the power to
-      REAL, PARAMETER :: nmax = nmax_CAMB
       CHARACTER(len=256) :: infile
+      REAL, PARAMETER :: kmax = kmax_CAMB ! Maximum wavenumber to get the power to
+      REAL, PARAMETER :: nmax = nmax_CAMB ! Multiplicative factor to go beyond kmax
       CHARACTER(len=256), PARAMETER :: camb = 'camb'
       CHARACTER(len=256), PARAMETER :: dir = '/Users/Mead/Physics/CAMB_files/tmp/'
       CHARACTER(len=256), PARAMETER :: root = trim(dir)//'temp'
       CHARACTER(len=256), PARAMETER :: matterpower = trim(root)//'_matterpower_'
       CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
       CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini'
+      
 
       IF(cosm%verbose) THEN
          WRITE(*,*) 'GET_CAMB_POWER: Running CAMB'
+         WRITE(*,*) 'GET_CAMB_POWER: Minimum a:', a(1)
+         WRITE(*,*) 'GET_CAMB_POWER: Maximum a:', a(na)
+         WRITE(*,*) 'GET_CAMB_POWER: Number of a:', na
       END IF
 
       ! Set the cosmological parameters for CAMB
@@ -4561,7 +4562,7 @@ CONTAINS
       WRITE (7, *) 'do_primordial_bispectrum = F'
 
       ! Verbosity
-      WRITE (7, *) 'feedback_level = 2' ! MEAD: Revert
+      WRITE (7, *) 'feedback_level = 2'
 
       ! Print out a comment describing file headers
       WRITE (7, *) 'output_file_headers = T'
@@ -4619,36 +4620,57 @@ CONTAINS
       END DO
       DEALLOCATE(Pk_CAMB)
 
-      ! Remove entries from the end of P(k) due to inaccuracy
-      !IF(ichop .NE. 0) THEN
-      IF(nmax .NE. 1) THEN
-         ichop=nk
-         DO i=1,nk
-            IF(k(i)<kmax .AND. k(i+1)>kmax) THEN
-               ichop = i
-               !WRITE(*,*) k(i), k(i+1), i, kmax, nk
-               EXIT
-            END IF
-         END DO
-         nk=ichop
-         ALLOCATE(Pkk(nk,na))
-         DO j=1, na
-            DO i=1, nk
-               Pkk(i,j) = Pk(i,j)
-            END DO
-         END DO
-         DEALLOCATE(Pk)
-         ALLOCATE(Pk(nk, na))
-         Pk=Pkk
-         DEALLOCATE(Pkk)
+      IF(cosm%verbose) THEN
+         WRITE (*, *) 'GET_CAMB_POWER: nk before pruning:', nk
       END IF
 
+      CALL prune_CAMB(k, a, Pk, nk, na)
+
       IF (cosm%verbose) THEN
+         WRITE (*, *) 'GET_CAMB_POWER: nk after pruning:', nk
          WRITE (*, *) 'GET_CAMB_POWER: Done'
          WRITE (*, *)
       END IF
 
    END SUBROUTINE get_CAMB_power
+
+   SUBROUTINE prune_CAMB(k, a, Pk, nk, na)
+
+      USE array_operations
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(INOUT) :: k(:)
+      REAL, INTENT(IN) :: a(na)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: Pk(:,:)
+      INTEGER, INTENT(INOUT) :: nk
+      INTEGER, INTENT(IN) :: na
+      INTEGER :: i, nkk, naa
+      LOGICAL :: kkeep(nk), akeep(na)
+      REAL, ALLOCATABLE :: aa(:)
+      REAL, PARAMETER :: kmax = kmax_CAMB ! Maximum wavenumber to get the power to
+      REAL, PARAMETER :: pk_min = pk_min_CAMB ! Minimum power to consider
+
+      ! Initially assume everything is being kept
+      kkeep = .TRUE.
+      akeep = .TRUE. 
+
+      ! Mask array elements that are either too high k or have too low power
+      DO i = 1, nk
+         IF(k(i) > kmax .OR. Pk(i,na) < pk_min) THEN
+            kkeep(i) = .FALSE.
+         END IF
+      END DO
+
+      ! Prune arrays
+      !nkk=nk ! Define because this will be overwritten and we do not want to change nk yet
+      !CALL apply_mask(k, nkk, kkeep)
+
+      ALLOCATE(aa(na)) ! Define because a is INTENT(IN)
+      aa=a   ! Define because a is INTENT(IN)
+      naa=na ! Define because na is INTENT(IN)
+      CALL apply_mask(k, aa, Pk, nk, naa, kkeep, akeep) ! This will change nk
+      IF((naa .NE. na) .OR. (size(aa) .NE. size(a))) STOP 'PRUNE_CAMB: Error, something went wrong'
+
+   END SUBROUTINE prune_CAMB
 
    SUBROUTINE init_CAMB_linear(cosm)
 
@@ -4786,8 +4808,8 @@ CONTAINS
       REAL, PARAMETER :: sig8_min = 0.6
       REAL, PARAMETER :: sig8_max = 0.9
 
-      REAL, PARAMETER :: mnu_min = 0.005
-      REAL, PARAMETER :: mnu_max = 0.600
+      REAL, PARAMETER :: mnu_min = 0.01
+      REAL, PARAMETER :: mnu_max = 0.60
 
       REAL, PARAMETER :: w_lim = 0.
 
@@ -5795,9 +5817,9 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: sum1, sum2, sum3, t, y, x, w1, w2, w3, rk
-      INTEGER :: i, nint
+      INTEGER :: i
+      INTEGER, PARAMETER :: nint = 3000
 
-      nint = 3000
       sum1 = 0.d0
       sum2 = 0.d0
       sum3 = 0.d0
