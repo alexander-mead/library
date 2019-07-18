@@ -160,13 +160,16 @@ PROGRAM cosmology_functions_demo
    ! Test sigma(R)
    IF (test_sigma) THEN
       IF (verbose) WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing sigma(R)'
+      CALL CPU_TIME(t1)
       OPEN (10, file='data/sigma.dat')
       DO i = 1, nr
          r = progression_log(rmin, rmax, i, nr)
          WRITE (10, *) r, sigma_all(r, 1., cosm), sigma_all(r, 0.5, cosm)
       END DO
       CLOSE (10)
+      CALL CPU_TIME(t2)
       IF (verbose) THEN
+         WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Time for sigma(R) [s]:', t2-t1
          WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Done'
          WRITE (*, *)
       END IF
