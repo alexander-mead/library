@@ -2961,7 +2961,7 @@ CONTAINS
 
    REAL FUNCTION neff_integrand_transformed(t, R, a, cosm)
 
-      ! Transformation is Rk = (1/t-1)**alpha
+      ! Transformation is kR = (1/t-1)**alpha
       ! TODO: Add ability to calculate neff for cold and all matter
       IMPLICIT NONE
       REAL, INTENT(IN) :: t
@@ -2976,21 +2976,10 @@ CONTAINS
       ELSE
          kR=(-1.+1./t)**alpha
          k=kR/R
-         neff_integrand_transformed = (neff_integrand(k, R, a, cosm)/R)*(alpha/t**2)*(-1.+1./t)**(alpha-1.)
+         neff_integrand_transformed = (neff_integrand(k, R, a, cosm)/R)*alpha*kR/(t*(1.-t))
       END IF
 
    END FUNCTION neff_integrand_transformed
-
-   ! REAL FUNCTION Rdk_on_dt_sigma(t)
-
-   !    ! TODO: Use this?
-   !    IMPLICIT NONE
-   !    REAL, INTENT(IN) :: t
-   !    REAL, PARAMETER :: alpha = alpha_neff
-
-   !    Rdk_on_dt_sigma = alpha*(-1.+1./t)**(alpha-1.)/t**2
-
-   ! END FUNCTION Rdk_on_dt_sigma
 
    REAL FUNCTION neff_integrand(k, R, a, cosm)
 
