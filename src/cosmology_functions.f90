@@ -205,8 +205,8 @@ MODULE cosmology_functions
    ! sigma(R)
    ! TODO: There should not be an option for cold vs. all need a flag for type
    REAL, PARAMETER :: alpha_sigma = 3.    ! I have made no attempt to optimise this number, nor tried alpha(R)
-   REAL, PARAMETER :: sigma_out = 10.     ! How far out to go in 1/R units for sigma^2 split integral
-   REAL, PARAMETER :: Rsplit_sigma = 1e-2 ! R value at which to split between the integration methods
+   REAL, PARAMETER :: out_sigma = 10.     ! How far out to go in 1/R units for sigma^2 split integral
+   REAL, PARAMETER :: Rsplit_sigma = 1e-5 ! R value at which to split between the integration methods REMOVE
    REAL, PARAMETER :: acc_sigma = 1e-4    ! Accuracy parameter for sigma(R) integration
    REAL, PARAMETER :: rmin_sigma = 1e-4   ! Minimum r value (NB. sigma(R) needs to be power-law below)
    REAL, PARAMETER :: rmax_sigma = 1e3    ! Maximum r value (NB. sigma(R) needs to be power-law above)
@@ -2829,24 +2829,24 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = 3
 
       ! Integration method changes depending on r to make this as fast as possible
-      IF (r >= Rsplit_sigma) THEN
+      IF (r >= Rsplit_sigma) THEN ! REMOVE
          ! Integration upper limit (c = 1 corresponds to k = 0)
          tmin = 0.
          tmax = 1.
          sigma_all_integral = integrate_cosm(tmin, tmax, sigma2_all_integrand_transformed, r, a, cosm, acc, iorder)
          sigma_all_integral = sqrt(sigma_all_integral)
-      ELSE IF (r < Rsplit_sigma) THEN
+      ELSE IF (r < Rsplit_sigma) THEN !REMOVE BELOW
          ! Integration limits, the split of the integral is done at k = 1/R
          tmin = t_sigma_integrand(ksplit_sigma(R), R)
          tmax = 1.  ! Integration limit corresponding to k=0
          kmin = ksplit_sigma(R) ! From the split wavenumber...
-         kmax = sigma_out/R     ! ...out to k = inf, but in practice just go out a finite distance in kR
+         kmax = out_sigma/R     ! ...out to k = inf, but in practice just go out a finite distance in kR
          part1 = integrate_cosm(tmin, tmax, sigma2_all_integrand_transformed, r, a, cosm, acc, iorder)
          part2 = integrate_cosm(kmin, kmax, sigma2_all_integrand, r, a, cosm, acc, iorder)
          sigma_all_integral = sqrt(part1+part2)
       ELSE
          STOP 'SIGMA_ALL_INTEGRAL: Error, something went wrong'
-      END IF
+      END IF !REMOVE ABOVE
 
    END FUNCTION sigma_all_integral
 
@@ -2923,24 +2923,24 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = 3
 
       ! Integration method changes depending on r to make this as fast as possible
-      IF (r >= Rsplit_sigma) THEN
+      IF (r >= Rsplit_sigma) THEN ! REMOVE
          ! Integration upper limit (c = 1 corresponds to k = 0)
          tmin = 0.
          tmax = 1.
          sigma_cold_integral = integrate_cosm(tmin, tmax, sigma2_cold_integrand_transformed, r, a, cosm, acc, iorder)
          sigma_cold_integral = sqrt(sigma_cold_integral)
-      ELSE IF (r < Rsplit_sigma) THEN
+      ELSE IF (r < Rsplit_sigma) THEN ! REMOVE BELOW
          ! Integration limits, the split of the integral is done at k = 1/R
          tmin = t_sigma_integrand(ksplit_sigma(R), R)
          tmax = 1.  ! Integration limit corresponding to k=0
          kmin = ksplit_sigma(R) ! From the split wavenumber...
-         kmax = sigma_out/R     ! ...out to k = inf, but in practice just go out a finite distance in kR
+         kmax = out_sigma/R     ! ...out to k = inf, but in practice just go out a finite distance in kR
          part1 = integrate_cosm(tmin, tmax, sigma2_cold_integrand_transformed, r, a, cosm, acc, iorder)
          part2 = integrate_cosm(kmin, kmax, sigma2_cold_integrand, r, a, cosm, acc, iorder)
          sigma_cold_integral = sqrt(part1+part2)
       ELSE
          STOP 'SIGMA_COLD_INTEGRAL: Error, something went wrong'
-      END IF
+      END IF ! REMOVE ABOVE
 
    END FUNCTION sigma_cold_integral
 
@@ -2975,7 +2975,7 @@ CONTAINS
 
    END FUNCTION sigma2_cold_integrand
 
-   REAL FUNCTION ksplit_sigma(R)
+   REAL FUNCTION ksplit_sigma(R) ! REMOVE
 
       ! Wavenumber at which to split the integral into two [h/Mpc]
       IMPLICIT NONE
@@ -2985,7 +2985,7 @@ CONTAINS
 
    END FUNCTION ksplit_sigma
 
-   REAL FUNCTION k_sigma_integrand(t, R)
+   REAL FUNCTION k_sigma_integrand(t, R) ! REMOVE
 
       ! How k relates to t and R in the transformed sigma^2(R) integrand
       ! kR=(-1+1/t)^alpha
@@ -3006,7 +3006,7 @@ CONTAINS
 
    END FUNCTION k_sigma_integrand
 
-   REAL FUNCTION t_sigma_integrand(k, R)
+   REAL FUNCTION t_sigma_integrand(k, R) ! REMOVE
 
       ! How t relates to k and R in the transformed sigma^2(R) integrand
       ! t = 1/[1+(kR)^(1/alpha)]
@@ -3020,7 +3020,7 @@ CONTAINS
 
    END FUNCTION t_sigma_integrand
 
-   REAL FUNCTION dlnk_on_dt_sigma(t)
+   REAL FUNCTION dlnk_on_dt_sigma(t) ! REMOVE
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: t
