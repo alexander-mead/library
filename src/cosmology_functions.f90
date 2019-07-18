@@ -2833,12 +2833,12 @@ CONTAINS
       REAL, PARAMETER :: tmin=0.
       REAL, PARAMETER :: tmax=1.
 
-      sigma_all_integral = integrate_cosm(tmin, tmax, sigma2_all_integrand_transformed, r, a, cosm, acc, iorder)
+      sigma_all_integral = integrate_cosm(tmin, tmax, sigma2_all_integrand, r, a, cosm, acc, iorder)
       sigma_all_integral = sqrt(sigma_all_integral)
 
    END FUNCTION sigma_all_integral
 
-   REAL FUNCTION sigma2_all_integrand_transformed(t, R, a, cosm)
+   REAL FUNCTION sigma2_all_integrand(t, R, a, cosm)
 
       ! The integrand for the sigma(R) integrals
       USE special_functions
@@ -2847,7 +2847,7 @@ CONTAINS
       REAL, INTENT(IN) :: R
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: k, kR
+      REAL :: k, kR, w_hat
       REAL, PARAMETER :: alpha = alpha_sigma
 
       ! Integrand to the sigma integral in terms of t. Defined by kR=(1/t-1)**alpha
@@ -2855,34 +2855,35 @@ CONTAINS
       IF (t <= 0. .OR. t >= 1.) THEN
          ! t=0 corresponds to k=infintiy when W(kR)=0
          ! t=1 corresponds to k=0 when P(k)=0
-         sigma2_all_integrand_transformed = 0.
+         sigma2_all_integrand = 0.
       ELSE
          kR = (-1.+1./t)**alpha
          k = kR/R
-         sigma2_all_integrand_transformed = sigma2_all_integrand(k, R, a, cosm)*k*alpha/(t*(1.-t))
-      END IF
-
-   END FUNCTION sigma2_all_integrand_transformed
-
-   REAL FUNCTION sigma2_all_integrand(k, R, a, cosm)
-
-      ! The integrand for the sigma(R) integrals
-      USE special_functions
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: R
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: w_hat
-
-      IF (k <= 0.) THEN
-         sigma2_all_integrand = 0.
-      ELSE
-         w_hat = wk_tophat(k*R)
-         sigma2_all_integrand = p_lin(k, a, cosm)*(w_hat**2)/k
+         w_hat = wk_tophat(kR)
+         sigma2_all_integrand = p_lin(k, a, cosm)*(w_hat**2)*alpha/(t*(1.-t))
       END IF
 
    END FUNCTION sigma2_all_integrand
+
+!    REAL FUNCTION sigma2_all_integrand(k, R, a, cosm)
+
+!       ! The integrand for the sigma(R) integrals
+!       USE special_functions
+!       IMPLICIT NONE
+!       REAL, INTENT(IN) :: k
+!       REAL, INTENT(IN) :: R
+!       REAL, INTENT(IN) :: a
+!       TYPE(cosmology), INTENT(INOUT) :: cosm
+!       REAL :: w_hat
+
+!       IF (k <= 0.) THEN
+!          sigma2_all_integrand = 0.
+!       ELSE
+!          w_hat = wk_tophat(k*R)
+!          sigma2_all_integrand = p_lin(k, a, cosm)*(w_hat**2)/k
+!       END IF
+
+!    END FUNCTION sigma2_all_integrand
 
    REAL FUNCTION sigma_cold(R, a, cosm)
 
@@ -2915,12 +2916,12 @@ CONTAINS
       REAL, PARAMETER :: tmax = 1.
 
       ! Integration upper limit (c = 1 corresponds to k = 0)
-      sigma_cold_integral = integrate_cosm(tmin, tmax, sigma2_cold_integrand_transformed, r, a, cosm, acc, iorder)
+      sigma_cold_integral = integrate_cosm(tmin, tmax, sigma2_cold_integrand, r, a, cosm, acc, iorder)
       sigma_cold_integral = sqrt(sigma_cold_integral)
 
    END FUNCTION sigma_cold_integral
 
-   REAL FUNCTION sigma2_cold_integrand_transformed(t, R, a, cosm)
+   REAL FUNCTION sigma2_cold_integrand(t, R, a, cosm)
 
       ! TODO: Remove when P(k) has flag
       IMPLICIT NONE
@@ -2933,14 +2934,14 @@ CONTAINS
 
       IF(t <= 0. .OR. t >= 1.) THEN
          ! Necessary because otherwise k_sigma_integrand tries to divide by zero
-         sigma2_cold_integrand_transformed = 0.
+         sigma2_cold_integrand = 0.
       ELSE
          kR = (-1.+1./t)**alpha
          k = kR/R
-         sigma2_cold_integrand_transformed = sigma2_all_integrand_transformed(t, R, a, cosm)*Tcold(k, a, cosm)**2
+         sigma2_cold_integrand = sigma2_all_integrand(t, R, a, cosm)*Tcold(k, a, cosm)**2
       END IF
 
-   END FUNCTION sigma2_cold_integrand_transformed
+   END FUNCTION sigma2_cold_integrand
 
    REAL FUNCTION neff_integral(r, a, cosm)
 
@@ -2955,54 +2956,35 @@ CONTAINS
       REAL, PARAMETER :: acc = 1e-4
       INTEGER, PARAMETER :: iorder = 3
 
-      neff_integral = integrate_cosm(tmin, tmax, neff_integrand_transformed, r, a, cosm, acc, iorder)
+      neff_integral = integrate_cosm(tmin, tmax, neff_integrand, r, a, cosm, acc, iorder)
 
    END FUNCTION neff_integral
 
-   REAL FUNCTION neff_integrand_transformed(t, R, a, cosm)
+   REAL FUNCTION neff_integrand(t, R, a, cosm)
 
       ! Transformation is kR = (1/t-1)**alpha
       ! TODO: Add ability to calculate neff for cold and all matter
+      USE special_functions
       IMPLICIT NONE
       REAL, INTENT(IN) :: t
       REAL, INTENT(IN) :: R
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: k, kR
+      REAL :: w_hat, w_hat_deriv, k, kR
       REAL, PARAMETER :: alpha = alpha_neff
-
-      IF(t == 0. .OR. t == 1.) THEN
-         neff_integrand_transformed=0.
-      ELSE
-         kR=(-1.+1./t)**alpha
-         k=kR/R
-         neff_integrand_transformed = (neff_integrand(k, R, a, cosm)/R)*alpha*kR/(t*(1.-t))
-      END IF
-
-   END FUNCTION neff_integrand_transformed
-
-   REAL FUNCTION neff_integrand(k, R, a, cosm)
-
-      ! Integrand for calculating effective spectral index
-      ! TODO: Add ability to calculate neff for cold and all matter
-      USE special_functions
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: R
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: w_hat, w_hat_deriv
       LOGICAL, PARAMETER :: cold = .TRUE. ! DO NOT CHANGE THIS
 
-      IF (k <= 0.) THEN
+      IF(t <= 0. .OR. t >= 1.) THEN
          neff_integrand = 0.
       ELSE
-         w_hat = wk_tophat(k*R)
-         w_hat_deriv = wk_tophat_deriv(k*R)
-         neff_integrand = p_lin(k, a, cosm)*w_hat*w_hat_deriv*R
+         kR = (-1.+1./t)**alpha
+         k = kR/R
+         w_hat = wk_tophat(kR)
+         w_hat_deriv = wk_tophat_deriv(kR)
+         neff_integrand = p_lin(k, a, cosm)*w_hat*w_hat_deriv*alpha*kR/(t*(1.-t))
          IF(cold) THEN
             neff_integrand = neff_integrand*Tcold(k, a, cosm)**2
-         END IF
+         END IF      
       END IF
 
    END FUNCTION neff_integrand
