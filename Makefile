@@ -16,6 +16,8 @@ FFLAGS = \
 	-ffpe-trap=invalid,zero,overflow \
 	-fimplicit-none \
 	-O3 \
+	-fdefault-real-8 \
+	-fdefault-double-8 \
 	-std=gnu \
 	-lgfortran \
 	-ffree-line-length-none \
