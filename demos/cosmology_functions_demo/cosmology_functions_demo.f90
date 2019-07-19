@@ -7,7 +7,8 @@ PROGRAM cosmology_functions_demo
    IMPLICIT NONE
    INTEGER :: icosmo
    TYPE(cosmology) :: cosm
-   REAL :: a, z, k, r, sigv, sigv100
+   REAL :: a, z, k, r!, sigv, sigv100
+   !REAL, ALLOCATABLE :: sig(:), sigV(:), neff(:)
    REAL :: t1, t2, t3, t4, xi
    REAL :: crap
    INTEGER :: i
@@ -18,13 +19,14 @@ PROGRAM cosmology_functions_demo
    LOGICAL, PARAMETER :: test_correlation = .FALSE.
    LOGICAL, PARAMETER :: test_sigma = .TRUE.
    LOGICAL, PARAMETER :: test_sigmaV = .TRUE.
+   LOGICAL, PARAMETER :: test_neff = .TRUE.
 
    REAL, PARAMETER :: amin = 1e-5
    REAL, PARAMETER :: amax = 1
    INTEGER, PARAMETER :: na = 256
 
    REAL, PARAMETER :: kmin = 1e-4
-   REAL, PARAMETER :: kmax = 1e2
+   REAL, PARAMETER :: kmax = 1e3
    INTEGER, PARAMETER :: nk = 256
 
    REAL, PARAMETER :: rmin = 1e-4
@@ -159,6 +161,7 @@ PROGRAM cosmology_functions_demo
 
    ! Test sigma(R)
    IF (test_sigma) THEN
+      !ALLOCATE(sig(nr))
       IF (verbose) WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing sigma(R)'
       CALL CPU_TIME(t1)
       OPEN (10, file='data/sigma.dat')
@@ -178,15 +181,15 @@ PROGRAM cosmology_functions_demo
    ! Test sigmaV(R)
    IF (test_sigmav) THEN
       WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing sigma_v(R)'
-      CALL CPU_TIME(t1)
-      sigv = sigmaV(0., 1.0, cosm)
-      CALL CPU_TIME(t2)
-      sigv100 = sigmaV(100., 1.0, cosm)
+      !CALL CPU_TIME(t1)
+      !sigv = sigmaV(0., 1.0, cosm)
+      !CALL CPU_TIME(t2)
+      !sigv100 = sigmaV(100., 1.0, cosm)
       CALL CPU_TIME(t3)
-      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=0 Mpc/h,   a=1.0):', sigv
-      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=0 Mpc/h,   a=1.0) time [s]:', t2-t1
-      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=100 Mpc/h, a=1.0):', sigv100
-      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=100 Mpc/h, a=1.0) time [s]:', t3-t2
+      !WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=0 Mpc/h,   a=1.0):', sigv
+      !WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=0 Mpc/h,   a=1.0) time [s]:', t2-t1
+      !WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=100 Mpc/h, a=1.0):', sigv100
+      !WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=100 Mpc/h, a=1.0) time [s]:', t3-t2
       OPEN (10, file='data/sigmaV.dat')
       DO i = 1, nr
          r = progression_log(rmin, rmax, i, nr)
@@ -195,8 +198,23 @@ PROGRAM cosmology_functions_demo
       END DO
       CLOSE (10)
       CALL CPU_TIME(t4)
-      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: SigmaV total time [s]:', t4-t1
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: SigmaV total time [s]:', t4-t3
       WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: SigmaV done'
+      WRITE (*, *)
+   END IF
+
+   IF(test_neff) THEN
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing neff(R)'
+      CALL CPU_TIME(t1)
+      OPEN (10, file='data/neff.dat')
+      DO i = 1, nr
+         r = progression_log(rmin, rmax, i, nr)
+         WRITE (10, *) r, neff(r, 1.0, cosm), neff(r, 0.5, cosm)
+      END DO
+      CLOSE (10)
+      CALL CPU_TIME(t2)
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Time for neff [s]:', t2-t1
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: neff done'
       WRITE (*, *)
    END IF
 

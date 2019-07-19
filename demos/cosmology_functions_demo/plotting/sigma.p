@@ -7,6 +7,9 @@ if(print==1){set term post enh col; set output 'power.eps'}
 sigma='data/sigma.dat'
 sigmaV='data/sigmaV.dat'
 
+sigmin=1e-3
+sigmax=1e2
+
 set log x
 set xlabel 'R / h^{-1} Mpc'
 set format x '10^{%T}'
@@ -14,6 +17,7 @@ set format x '10^{%T}'
 set log y
 set ylabel '{/Symbol s}(R) or {/Symbol s}_v(R) / h^{-1} Mpc'
 set format y '10^{%T}'
+set yrange [sigmin:sigmax]
 
 set key top right
 
