@@ -79,7 +79,7 @@ MODULE cosmology_functions
    PUBLIC :: sigma_all   ! TODO: Combine sigma_all and sigma_cold
    PUBLIC :: sigma_cold  ! TODO: Combine sigma_all and sigma_cold
    PUBLIC :: sigmaV
-   PUBLIC :: neff_integral
+   PUBLIC :: neff
    PUBLIC :: xi_lin
 
    ! CAMB interface
@@ -192,7 +192,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amin_plin = 0.1 ! Minimum a value for P(k,a) tables when linear growth is scale dependent
    REAL, PARAMETER :: amax_plin = 1.0 ! Maximum a value for P(k,a) tables when linear growth is scale dependent
    INTEGER, PARAMETER :: na_plin = 16 ! Number of a values for linear P(k,a) tables
-   LOGICAL, PARAMETER :: log_plin_extrap= .FALSE. ! Extrapolate high-k power assumning P(k) ~ ln(k)^2 k^(n-3)
+   LOGICAL, PARAMETER :: log_plin_extrap = .FALSE. ! Extrapolate high-k power assumning P(k) ~ ln(k)^2 k^(n-3)
 
    ! Correlation function
    REAL, PARAMETER :: rsplit_xi = 10.
@@ -205,23 +205,27 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: rebin_CAMB_linear = .FALSE. ! Should we rebin CAMB or just use default k
    REAL, PARAMETER :: nmax_CAMB = 2. ! How many times more to go than kmax due to inaccuracy near k limit
 
-   ! sigma(R)
+   ! sigma(R) integration
+   REAL, PARAMETER :: alpha_sigma = 3. ! Exponent to increase speed (1 is terrible, 2, 3, 4 all okay)
+   REAL, PARAMETER :: acc_sigma = 1e-4 ! Accuracy parameter for sigma(R) integration
+   
+   ! sigma(R) tabulation
    ! TODO: There should not be an option for cold vs. all need a flag for type
-   REAL, PARAMETER :: alpha_sigma = 3.    ! I have made no attempt to optimise this number, nor tried alpha(R)
-   REAL, PARAMETER :: acc_sigma = 1e-4    ! Accuracy parameter for sigma(R) integration
    REAL, PARAMETER :: rmin_sigma = 1e-4   ! Minimum r value (NB. sigma(R) needs to be power-law below)
    REAL, PARAMETER :: rmax_sigma = 1e3    ! Maximum r value (NB. sigma(R) needs to be power-law above)
    INTEGER, PARAMETER :: nr_sigma = 128   ! Number of r entries for sigma(R) tables
-   REAL, PARAMETER :: amin_sigma = 0.1    ! Minimum a value for sigma(R,a) tables when linear growth is scale dependent
-   REAL, PARAMETER :: amax_sigma = 1.0    ! Maximum a value for sigma(R,a) tables when linear growth is scale dependent
+   REAL, PARAMETER :: amin_sigma = 0.1    ! Minimum a value for sigma(R,a) tables when growth is scale dependent
+   REAL, PARAMETER :: amax_sigma = 1.0    ! Maximum a value for sigma(R,a) tables when growth is scale dependent
    INTEGER, PARAMETER :: na_sigma = 16    ! Number of a values for sigma(R,a) tables
    LOGICAL, PARAMETER :: tabulate_cold_sigma = .TRUE. ! Should the sigma tables be filled with cold sigma or all sigma
 
-   ! neff
-   REAL, PARAMETER :: alpha_neff = 1. ! TODO: Optimize, so far no attempt made to do so
+   ! sigma_v(R) integration
+   REAL, PARAMETER :: alpha_sigmaV = 3. ! Exponent to increase integration speed
+   REAL, PARAMETER :: acc_sigmaV = 1e-4 ! Accuracy parameter for sigma(R) integration
 
-   ! sigma_v(R)
-   REAL, PARAMETER :: alpha_sigmaV = 3.
+   ! neff integration
+   REAL, PARAMETER :: alpha_neff = 2. ! Exponent to increase integration speed (3 seemed to give inaccuracies; no idea why)
+   REAL, PARAMETER :: acc_neff = 1e-4 ! Accuracy parameter for sigma(R) integration
 
    ! Halofit
    INTEGER, PARAMETER :: halofit_Smith = 1
@@ -807,60 +811,40 @@ CONTAINS
          cosm%iw = 3
          cosm%Om_v = 0.
          IF(icosmo == 51) THEN
-            ! CAMB difference cosmology 1 (probably neff problem; only high z)
-            cosm%Om_m = 0.27058
-            cosm%Om_b = 0.03140
+            ! CAMB difference cosmology 1
+            cosm%Om_m = 0.16947
+            cosm%Om_b = 0.03972
             cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.68157
-            cosm%n = 0.73966
-            cosm%h = 0.44985
+            cosm%sig8 = 0.61272
+            cosm%n = 0.70918
+            cosm%h = 0.54980
             cosm%M_nu = 0.
             cosm%w = -1.
             cosm%wa = 0.
          ELSE IF(icosmo == 52) THEN
-            ! CAMB difference cosmology 2 (HMx low by large amount at k=0.1)
-            cosm%Om_m = 0.38258
-            cosm%Om_b = 0.03480
+            ! CAMB difference cosmology 2
+            cosm%Om_m = 0.13432
+            cosm%Om_b = 0.02780
             cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.80921
-            cosm%n = 0.86
-            cosm%h = 0.49002
-            cosm%M_nu = 0.39481
-            cosm%w = -1.
-            cosm%wa = 0.
+            cosm%sig8 = 0.65498
+            cosm%n = 0.72605
+            cosm%h = 0.44184
+            cosm%M_nu = 0.3333
+            cosm%w = -0.87128
+            cosm%wa = -0.72890
          ELSE IF(icosmo == 53) THEN
-            ! CAMB difference cosmology 3 (probably neff problem; intermediate z)
-            cosm%Om_m = 0.32146
-            cosm%Om_b = 0.06464
+            ! CAMB difference cosmology 3
+            cosm%Om_m = 0.20565
+            cosm%Om_b = 0.06888
             cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.63851
-            cosm%n = 0.70476
-            cosm%h = 0.72577
-            cosm%M_nu = 0.39431
-            cosm%w = -1.
-            cosm%wa = 0.
+            cosm%sig8 = 0.72322
+            cosm%n = 0.99928
+            cosm%h = 0.41428
+            cosm%M_nu = 0.25
+            cosm%w = -1.08609
+            cosm%wa = 0.73944
          ELSE IF(icosmo == 54) THEN
-            ! CAMB difference cosmology 4 (HMx low by large amount at k=0.1)
-            cosm%Om_m = 0.20800
-            cosm%Om_b = 0.05853
-            cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.73207
-            cosm%n = 0.98124
-            cosm%h = 0.48154
-            cosm%M_nu = 0.07447
-            cosm%w = -1.27692
-            cosm%wa = 0.19336
          ELSE IF(icosmo == 55) THEN
-            ! CAMB difference cosmology 5 (biggle wiggle residual)
-            cosm%Om_m = 0.18934
-            cosm%Om_b = 0.03264
-            cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.85842
-            cosm%n = 0.85439
-            cosm%h = 0.56444
-            cosm%M_nu = 0.48578
-            cosm%w = -0.81262
-            cosm%wa = -0.28817
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with CAMB difference cosmologies'
          END IF
@@ -2621,7 +2605,7 @@ CONTAINS
                IF(log_plin_extrap .AND. k > kmax) THEN
                   pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk,:), cosm%na_plin, &
                      iorder, ifind, imeth))
-                  p_lin = p_lin_extrapolation(k,kmax,pmax,cosm%n)
+                  p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%n)
                ELSE
                   p_lin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin,&
                      cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, imeth=1))
@@ -2630,7 +2614,7 @@ CONTAINS
                IF(log_plin_extrap .AND. k > kmax) THEN
                   ! Assumes power spectrum is ~ ln(k) * k^(n-3) at small scales
                   pmax = exp(cosm%log_plin(nk))
-                  p_lin = p_lin_extrapolation(k,kmax,pmax,cosm%n)
+                  p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%n)
                ELSE
                   p_lin = exp(find(log(k), cosm%log_k_plin, cosm%log_plin, cosm%nk_plin, iorder, ifind, imeth))
                END IF
@@ -2943,22 +2927,25 @@ CONTAINS
 
    END FUNCTION sigma2_cold_integrand
 
-   REAL FUNCTION neff_integral(r, a, cosm)
+   REAL FUNCTION neff(r, a, cosm)
 
       ! Integral for calculating the effective P(k) index
       ! TODO: Add ability to calculate neff for cold and all matter
       IMPLICIT NONE
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
+      !REAL, INTENT(IN) :: sig
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: sig
       REAL, PARAMETER :: tmin = 0.
       REAL, PARAMETER :: tmax = 1.
-      REAL, PARAMETER :: acc = 1e-4
+      REAL, PARAMETER :: acc = acc_neff
       INTEGER, PARAMETER :: iorder = 3
 
-      neff_integral = integrate_cosm(tmin, tmax, neff_integrand, r, a, cosm, acc, iorder)
+      sig = sigma_cold(r, a, cosm) ! Note that this is cold
+      neff = -3.-2.*integrate_cosm(tmin, tmax, neff_integrand, r, a, cosm, acc, iorder)/sig**2
 
-   END FUNCTION neff_integral
+   END FUNCTION neff
 
    REAL FUNCTION neff_integrand(t, R, a, cosm)
 
@@ -3000,7 +2987,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: tmin = 0.
       REAL, PARAMETER :: tmax = 1.
-      REAL, PARAMETER :: acc = acc_cosm
+      REAL, PARAMETER :: acc = acc_sigmaV
       INTEGER, PARAMETER :: iorder = 3
 
       sigmaV = integrate_cosm(tmin, tmax, sigmaV2_integrand, R, a, cosm, acc, iorder)
