@@ -2255,7 +2255,7 @@ CONTAINS
       TYPE(halomod) :: hmod
       LOGICAL, PARAMETER :: sigma = .FALSE. ! MEAD: Remove
       INTEGER, PARAMETER :: dmonly(1) = field_dmonly ! Fix to DMONLY
-      LOGICAL, PARAMETER :: verbose = .FALSE.
+      LOGICAL, PARAMETER :: verbose = .FALSE. ! MEAD: Revert to .TRUE.
 
       ! Do an HMcode run
       CALL assign_halomod(ihm, hmod, verbose)
@@ -4690,8 +4690,9 @@ CONTAINS
       IF(derivative) THEN
          effective_index = -3.-derivative_table(log(hmod%rnl), log(hmod%rr), log(hmod%sig**2), hmod%n, iorder, imeth)
       ELSE
-         sigma = hmod%dc ! At R_nl sigma(R_nl) = delta_c by definition
-         effective_index = -3.-2.*neff_integral(hmod%rnl, hmod%a, cosm)/sigma**2
+         !sigma = hmod%dc ! At R_nl sigma(R_nl) = delta_c by definition
+         !effective_index = -3.-2.*neff_integral(hmod%rnl, hmod%a, cosm)/sigma**2
+         effective_index = neff(hmod%rnl, hmod%a, cosm)
       END IF
 
       ! For some bizarre cosmologies r_nl is very small, so almost no collapse has occured
