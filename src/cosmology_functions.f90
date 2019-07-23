@@ -187,23 +187,23 @@ MODULE cosmology_functions
    REAL, PARAMETER :: dinf_spherical = 1e8    ! Value considered to be 'infinite' for the perturbation
 
    ! Power
-   REAL, PARAMETER :: kmin_plin = 0.  ! Power below this wavenumber is set to zero [h/Mpc]
-   REAL, PARAMETER :: kmax_plin = 1e8 ! Power above this wavenumber is set to zero [h/Mpc]
-   REAL, PARAMETER :: amin_plin = 0.1 ! Minimum a value for P(k,a) tables when linear growth is scale dependent
-   REAL, PARAMETER :: amax_plin = 1.0 ! Maximum a value for P(k,a) tables when linear growth is scale dependent
-   INTEGER, PARAMETER :: na_plin = 16 ! Number of a values for linear P(k,a) tables
-   LOGICAL, PARAMETER :: log_plin_extrap = .FALSE. ! Extrapolate high-k power assumning P(k) ~ ln(k)^2 k^(n-3)
+   REAL, PARAMETER :: kmin_plin = 0.           ! Power below this wavenumber is set to zero [h/Mpc]
+   REAL, PARAMETER :: kmax_plin = 1e8          ! Power above this wavenumber is set to zero [h/Mpc]
+   LOGICAL, PARAMETER :: plin_extrap = .FALSE. ! Extrapolate high-k power assumning P(k) ~ ln(k)^2 k^(n-3)
 
    ! Correlation function
    REAL, PARAMETER :: rsplit_xi = 10.
 
    ! CAMB interface
-   REAL, PARAMETER :: kmin_CAMB = 1e-3 ! Minimum wavenumber to use if rebinning
-   REAL, PARAMETER :: kmax_CAMB = 1e2  ! Maximum wavenumber to get (also for rebinning)
-   REAL, PARAMETER :: pk_min_CAMB = 1e-10 ! Minimum value of power at low k (remove k with less than this)
-   INTEGER, PARAMETER :: nk_CAMB = 128 ! Number of k values to use if rebinning
-   LOGICAL, PARAMETER :: rebin_CAMB_linear = .FALSE. ! Should we rebin CAMB or just use default k
-   REAL, PARAMETER :: nmax_CAMB = 2. ! How many times more to go than kmax due to inaccuracy near k limit
+   REAL, PARAMETER :: kmin_CAMB = 1e-3    ! Minimum wavenumber to use if rebinning
+   REAL, PARAMETER :: kmax_CAMB = 1e2     ! Maximum wavenumber to get (also to use for rebinning)
+   INTEGER, PARAMETER :: nk_CAMB = 128    ! Number of k values to use if rebinning
+   REAL, PARAMETER :: amin_CAMB = 0.1     ! Minimum a value for P(k,a) tables when linear growth is scale dependent
+   REAL, PARAMETER :: amax_CAMB = 1.0     ! Maximum a value for P(k,a) tables when linear growth is scale dependent
+   INTEGER, PARAMETER :: na_CAMB = 16     ! Number of a values for linear P(k,a) tables if growth is scale dependent
+   REAL, PARAMETER :: pk_min_CAMB = 1e-10 ! Minimum value of power at low k (remove k with less than this) 
+   REAL, PARAMETER :: nmax_CAMB = 2.      ! How many times more to go than kmax due to inaccuracy near k limit
+   LOGICAL, PARAMETER :: rebin_CAMB = .FALSE. ! Should we rebin CAMB or just use default k
 
    ! sigma(R) integration
    REAL, PARAMETER :: alpha_sigma = 3. ! Exponent to increase speed (1 is terrible, 2, 3, 4 all okay)
@@ -811,7 +811,7 @@ CONTAINS
          cosm%iw = 3
          cosm%Om_v = 0.
          IF(icosmo == 51) THEN
-            ! CAMB difference cosmology 1
+            ! CAMB difference cosmology 1 (low sig8; low ns; low h)
             cosm%Om_m = 0.16947
             cosm%Om_b = 0.03972
             cosm%Om_w = 1.-cosm%Om_m
@@ -823,28 +823,30 @@ CONTAINS
             cosm%wa = 0.
          ELSE IF(icosmo == 52) THEN
             ! CAMB difference cosmology 2
-            cosm%Om_m = 0.13432
-            cosm%Om_b = 0.02780
-            cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.65498
-            cosm%n = 0.72605
-            cosm%h = 0.44184
-            cosm%M_nu = 0.3333
-            cosm%w = -0.87128
-            cosm%wa = -0.72890
          ELSE IF(icosmo == 53) THEN
             ! CAMB difference cosmology 3
-            cosm%Om_m = 0.20565
-            cosm%Om_b = 0.06888
-            cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.72322
-            cosm%n = 0.99928
-            cosm%h = 0.41428
-            cosm%M_nu = 0.25
-            cosm%w = -1.08609
-            cosm%wa = 0.73944
          ELSE IF(icosmo == 54) THEN
+            ! CAMB difference cosmology 4 (low sig8; low h)
+            cosm%Om_m = 0.23742
+            cosm%Om_b = 0.06842
+            cosm%Om_w = 1.-cosm%Om_m
+            cosm%sig8 = 0.65672
+            cosm%n = 0.94351
+            cosm%h = 0.45648
+            cosm%M_nu = 0.
+            cosm%w = -1.
+            cosm%wa = 0.
          ELSE IF(icosmo == 55) THEN
+            ! CAMB difference cosmology 5 (low sig8; low ns; low h)
+            cosm%Om_m = 0.17575
+            cosm%Om_b = 0.03993
+            cosm%Om_w = 1.-cosm%Om_m
+            cosm%sig8 = 0.61299
+            cosm%n = 0.72517
+            cosm%h = 0.44980
+            cosm%M_nu = 0.
+            cosm%w = -1.
+            cosm%wa = 0.
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with CAMB difference cosmologies'
          END IF
@@ -2597,12 +2599,12 @@ CONTAINS
          p_lin = 0.
       ELSE
          IF (cosm%has_power) THEN
-            IF(log_plin_extrap) THEN
+            IF(plin_extrap) THEN
                nk = cosm%nk_plin
                kmax = exp(cosm%log_k_plin(nk))
             END IF
             IF (cosm%growk) THEN
-               IF(log_plin_extrap .AND. k > kmax) THEN
+               IF(plin_extrap .AND. k > kmax) THEN
                   pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk,:), cosm%na_plin, &
                      iorder, ifind, imeth))
                   p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%n)
@@ -2611,7 +2613,7 @@ CONTAINS
                      cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, imeth=1))
                END IF
             ELSE
-               IF(log_plin_extrap .AND. k > kmax) THEN
+               IF(plin_extrap .AND. k > kmax) THEN
                   ! Assumes power spectrum is ~ ln(k) * k^(n-3) at small scales
                   pmax = exp(cosm%log_plin(nk))
                   p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%n)
@@ -2632,6 +2634,7 @@ CONTAINS
    REAL FUNCTION p_lin_extrapolation(k,kmax,pmax,ns)
 
       ! Extrapolate linear power at small scales assuming Delta^2(k) goes like ln(k)^2 k^(n-1)
+      ! This works really badly if kmax is not high enough; maybe best just to use power-law
       IMPLICIT NONE
       REAL, INTENT(IN) :: k    ! Wavenumber [h/Mpc]
       REAL, INTENT(IN) :: kmax ! Maximum wavenumber [h/Mpc]
@@ -2640,7 +2643,7 @@ CONTAINS
 
       p_lin_extrapolation = pmax*((log(k)/log(kmax))**2)*(k/kmax)**(ns-1.)
 
-   END FUNCTION
+   END FUNCTION p_lin_extrapolation
 
 !!$  SUBROUTINE init_power(cosm)
 !!$
@@ -4558,6 +4561,8 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini'
       LOGICAL, PARAMETER :: non_linear = .FALSE. ! Should not use non-linear when trying to get linear theory
       INTEGER, PARAMETER :: halofit_version = 5  ! 5 - HMcode 2015
+      REAL, PARAMETER :: amin = amin_CAMB
+      REAL, PARAMETER :: amax = amax_CAMB
 
       IF (cosm%verbose) THEN
          WRITE(*,*) 'INIT_CAMB_LINEAR: Getting linear power from CAMB'
@@ -4565,16 +4570,19 @@ CONTAINS
 
       ! For scale-dependent growth fill the scale-factor array first
       IF (cosm%growk) THEN
-         CALL fill_array(log(amin_plin), log(amax_plin), cosm%log_a_plin, na_plin)
-         cosm%na_plin = na_plin
-         na = cosm%na_plin
-         ALLOCATE(a(na))
-         a = exp(cosm%log_a_plin)
+         na = na_CAMB
+         CALL fill_array(log(amin), log(amax), cosm%log_a_plin, na)          
       ELSE
          ! For non-scale-dependent growth need a size-one array of a(1)=1.
          na = 1
-         cosm%na_plin = na
-         ALLOCATE(a(na))
+      END IF
+
+      ! Fill arrays
+      cosm%na_plin = na
+      ALLOCATE(a(na))
+      IF (cosm%growk) THEN
+         a = exp(cosm%log_a_plin)
+      ELSE
          a = 1.
       END IF
 
@@ -4592,7 +4600,7 @@ CONTAINS
          WRITE(*,*) 'INIT_CAMB_LINEAR: Number of points in a:', na
       END IF
 
-      IF(rebin_CAMB_linear) THEN
+      IF(rebin_CAMB) THEN
 
          CALL fill_array(log(kmin_CAMB), log(kmax_CAMB), cosm%log_k_plin, nk_CAMB)
 
@@ -4628,7 +4636,7 @@ CONTAINS
 
          IF (cosm%growk) THEN      
             IF (ALLOCATED(cosm%log_plina))  DEALLOCATE (cosm%log_plina)
-            ALLOCATE (cosm%log_plina(nk, na_plin))
+            ALLOCATE (cosm%log_plina(nk, na))
             cosm%log_plina = log(Pk)
          ELSE
             IF (ALLOCATED(cosm%log_plin))   DEALLOCATE (cosm%log_plin)
