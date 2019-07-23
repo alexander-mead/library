@@ -166,6 +166,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_Xde = 3  ! Order for direct integration of dark energy density
 
    ! Distance
+   ! Changing to linear integer finding provides very little speed increase
    REAL, PARAMETER :: amin_distance = 1e-4                 ! Minimum scale factor in look-up table
    REAL, PARAMETER :: amax_distance = 1.                   ! Maximum scale factor in look-up table
    INTEGER, PARAMETER :: n_distance = 128                  ! Number of scale factor entries in look-up table
@@ -179,6 +180,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: imeth_inversion_distance = 2      ! Method for distance inversion
 
    ! Time
+   ! Changing to linear integer finding provides very little speed increase
    REAL, PARAMETER :: amin_time = 1e-4                 ! Minimum scale factor in look-up table
    REAL, PARAMETER :: amax_time = 1.                   ! Maximum scale factor in look-up table
    INTEGER, PARAMETER :: n_time = 128                  ! Number of scale factor entries in look-up table
@@ -213,12 +215,12 @@ MODULE cosmology_functions
    REAL, PARAMETER :: nmax_CAMB = 2.           ! How many times more to go than kmax due to inaccuracy near k limit
    LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.  ! Should we rebin CAMB or just use default k?
    INTEGER, PARAMETER :: iorder_rebin_CAMB = 3 ! Polynomial order for interpolation on CAMB rebinning
-   INTEGER, PARAMETER :: ifind_rebin_CAMB = 3  ! Finding scheme for interpolation on CAMB rebinning
+   INTEGER, PARAMETER :: ifind_rebin_CAMB = 3  ! Finding scheme for interpolation on CAMB rebinning (*definitely* not linear)
    INTEGER, PARAMETER :: imeth_rebin_CAMB = 2  ! Method for interpolation on CAMB rebinning
 
    ! Linear power interpolation
    INTEGER, PARAMETER :: iorder_interpolation_plin = 3 ! Order for interpolation
-   INTEGER, PARAMETER :: ifind_interpolation_plin = 3  ! Finding scheme in table
+   INTEGER, PARAMETER :: ifind_interpolation_plin = 3  ! Finding scheme in table (only linear if rebinning)
    INTEGER, PARAMETER :: imeth_interpolation_plin = 2  ! Method for polynomials
 
    ! Growth ODE
@@ -236,11 +238,13 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_integral_grow = 3  ! Polynomial order for growth integral solving (wCDM only)
 
    ! Growth interpolation
+   ! Changing to linear integer finding is wrong because tables not stored lin-log
    INTEGER, PARAMETER :: iorder_interpolation_grow = 3 ! Polynomial order for growth interpolation
    INTEGER, PARAMETER :: ifind_interpolation_grow = 3  ! Finding scheme for growth interpolation
    INTEGER, PARAMETER :: imeth_interpolation_grow = 2  ! Method for growth interpolation
 
    ! Growth rate interpolation
+   ! Changing to linear integer finding is wrong because tables not stored lin-log
    INTEGER, PARAMETER :: iorder_interpolation_rate = 3 ! Polynomial order for growth rate interpolation for ODE solution
    INTEGER, PARAMETER :: ifind_interpolation_rate = 3  ! Finding scheme for growth rate interpolation
    INTEGER, PARAMETER :: imeth_interpolation_rate = 2  ! Method for growth rate interpolation
@@ -249,6 +253,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_integration_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
 
    ! Accumualted growth interpolation
+   ! Changing to linear integer finding is wrong because tables not stored lin-log
    INTEGER, PARAMETER :: iorder_interpolation_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
    INTEGER, PARAMETER :: ifind_interpolation_agrow = 3  ! Finding scheme for accumulated growth rate interpolation
    INTEGER, PARAMETER :: imeth_interpolation_agrow = 2  ! Method for accumulated growth rate interpolation
@@ -258,8 +263,9 @@ MODULE cosmology_functions
    REAL, PARAMETER :: acc_sigma = acc_cosm ! Accuracy parameter for sigma(R) integration
    INTEGER, PARAMETER :: iorder_sigma = 3  ! Polynomial order for sigma(R) integration
    
-   ! sigma(R) tabulation
+   ! sigma(R) tabulation and interpolation
    ! TODO: There should not be an option for cold vs. all need a flag for type
+   ! Changing to linear integer finding provides very little speed increase
    REAL, PARAMETER :: rmin_sigma = 1e-4                 ! Minimum r value (NB. sigma(R) needs to be power-law below)
    REAL, PARAMETER :: rmax_sigma = 1e3                  ! Maximum r value (NB. sigma(R) needs to be power-law above)
    INTEGER, PARAMETER :: nr_sigma = 128                 ! Number of r entries for sigma(R) tables
@@ -268,7 +274,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: na_sigma = 16                  ! Number of a values for sigma(R,a) tables
    LOGICAL, PARAMETER :: tabulate_cold_sigma = .TRUE.   ! Should the sigma tables be filled with cold sigma or all sigma?
    INTEGER, PARAMETER :: iorder_interpolation_sigma = 3 ! Polynomial order for sigma(R) interpolation 
-   INTEGER, PARAMETER :: ifind_interpolation_sigma = 3  ! Finding scheme for sigma(R) interpolation
+   INTEGER, PARAMETER :: ifind_interpolation_sigma = 3  ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: imeth_interpolation_sigma = 2  ! Method for sigma(R) interpolation
 
    ! sigma_v(R) integration
@@ -3261,6 +3267,7 @@ CONTAINS
 
       ! Fills a table of the growth function vs. a
       ! TODO: Figure out why if I set amax=10, rather than amax=1, I start getting weird f(a) around a=0.001
+      ! TODO: Should look-up tables be stored log or lin? Currently stored log but not even log spacing in a
       USE calculus_table
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -3322,7 +3329,7 @@ CONTAINS
       ALLOCATE (cosm%log_growth(ng))
       ALLOCATE (cosm%growth_rate(ng))
       DO i = 1, ng
-         a = progression(ainit, amax, i, ng)
+         a = progression(ainit, amax, i, ng) ! TODO: Should this be log?
          cosm%log_a_growth(i) = a
          cosm%log_growth(i) = exp(find(log(a), log(a_tab), log(d_tab), na, iorder_int, ifind_int, imeth_int))
          cosm%growth_rate(i) = find(log(a), log(a_tab), v_tab, na, iorder_int, ifind_int, imeth_int)
@@ -3704,7 +3711,7 @@ CONTAINS
 
             ! Need to assign new arrays for the collapse branch of r such that it is monotonic
             !k2=int_split(d_rmax,dnl,k)
-            k2 = find_table_integer(d_rmax, dnl, k, imeth=3)
+            k2 = find_table_integer(d_rmax, dnl, k, ifind=3)
 
             ! Allocate collapse branch arrays
             ALLOCATE (a_coll(k-k2+1), r_coll(k-k2+1))
