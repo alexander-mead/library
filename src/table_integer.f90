@@ -8,7 +8,7 @@ MODULE table_integer
 
 CONTAINS
 
-   INTEGER FUNCTION find_table_integer(x, xtab, n, imeth)
+   INTEGER FUNCTION find_table_integer(x, xtab, n, ifind)
 
       ! Chooses between ways to find the integer location *below* some value in an array
       ! If x is within the table then the value returned will be between 1 and n-1
@@ -18,9 +18,9 @@ CONTAINS
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xtab(n)
       INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: imeth
+      INTEGER, INTENT(IN) :: ifind
 
-      ! Methods (imeth)
+      ! Methods (ifind)
       ! 1 - Get integer assuming the array has linear spacing
       ! 2 - Search array from first entry to last entry (often a silly thing to do)
       ! 3 - Mid-point search method to find integer (efficient for 2^n)
@@ -29,11 +29,11 @@ CONTAINS
          find_table_integer = 0
       ELSE IF (x > xtab(n)) THEN
          find_table_integer = n
-      ELSE IF (imeth == 1) THEN
+      ELSE IF (ifind == 1) THEN
          find_table_integer = linear_table_integer(x, xtab, n)
-      ELSE IF (imeth == 2) THEN
+      ELSE IF (ifind == 2) THEN
          find_table_integer = search_int(x, xtab, n)
-      ELSE IF (imeth == 3) THEN
+      ELSE IF (ifind == 3) THEN
          find_table_integer = int_split(x, xtab, n)
       ELSE
          STOP 'TABLE INTEGER: Method specified incorrectly'
