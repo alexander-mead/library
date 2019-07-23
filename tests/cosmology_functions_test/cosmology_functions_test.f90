@@ -43,6 +43,7 @@ CONTAINS
 
     CALL fill_array(log(amin),log(amax),as,na)
     as=exp(as)
+    as(na)=amax ! To stop going above 1.
 
     DO i=1,na
 
