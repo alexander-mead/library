@@ -10,8 +10,8 @@ set log x
 set xlabel 'k / h Mpc^{-1}'
 set format x '10^{%T}'
 
-pmin=1e-1
-pmax=1e0
+pmin=1e-10
+pmax=1e3
 set log y
 set ylabel '{/Symbol D}^2(k)'
 set format y '10^{%T}'
