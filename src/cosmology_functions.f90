@@ -384,8 +384,7 @@ CONTAINS
       names(51) = 'CAMB difference cosmology 1'
       names(52) = 'CAMB difference cosmology 2'
       names(53) = 'CAMB difference cosmology 3'
-      names(54) = 'CAMB difference cosmology 4'
-      names(55) = 'CAMB difference cosmology 5'
+      names(54) = 'Planck 2018'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -753,14 +752,10 @@ CONTAINS
          ! Random Mira Titan cosmology
          CALL random_Mira_Titan_cosmology(cosm)
          cosm%itk = 2 ! Set to CAMB linear power
-         cosm%iw = 3 ! Set to w(a) dark energy
-         cosm%Om_v = 0. ! Necessary for CAMB
       ELSE IF (icosmo == 25) THEN
          ! Random Franken Emu cosmology
          CALL random_Franken_Emu_cosmology(cosm)
          cosm%itk = 2 ! Set to CAMB linear power
-         cosm%iw = 4 ! Set to constant w dark energy
-         cosm%Om_v = 0. ! Necessary for CAMB
       ELSE IF (icosmo == 26) THEN
          ! Boring with CAMB linear spectrum
          cosm%itk = 2 ! Set to CAMB linear power
@@ -851,19 +846,28 @@ CONTAINS
          cosm%Om_m = 1.
          cosm%Om_v = 0.
          cosm%m_nu = 4.
-      ELSE IF (icosmo == 42) THEN
-         ! Planck 2018 (missing neutrinos)
-         ! TODO: Does Planck provide constraints with no neutrinos? Here I have just forced the mass to be zero
-         om_b = 0.0223828
-         om_c = 0.1201075
+      ELSE IF (icosmo == 42 .OR. icosmo == 54) THEN
+         ! Planck 2018 (Table 1 of https://arxiv.org/abs/1807.06209)
+         ! icosmo = 42 is missing neutrinos
+         ! icosmo = 54 includes fixed 0.06 eV neutrinos
+         om_b = 0.022383
          cosm%h = 0.6732
-         cosm%n = 0.9660499
-         cosm%Om_m = (om_b+om_c)/cosm%h**2
+         cosm%n = 0.96605
+         IF(icosmo == 42) THEN
+            cosm%m_nu = 0.
+            cosm%itk = 1 ! EH
+         ELSE IF(icosmo == 54) THEN
+            cosm%m_nu = 0.06
+            cosm%itk = 2 ! CAMB
+         ELSE  
+            STOP 'ASSIGN_COSMOLOGY: Error, cosmology specified incorrectly'
+         END IF
+         cosm%Om_m = 0.3158
          cosm%Om_b = om_b/cosm%h**2
          cosm%Om_v = 1.-cosm%Om_m
-         cosm%sig8 = 0.8119
+         cosm%sig8 = 0.8120
       ELSE IF(icosmo == 49) THEN
-         ! CFHTLenS best-fitting cosmology (Heymans 2013)
+         ! CFHTLenS best-fitting cosmology (Heymans 2013; combined with WMAP 7)
          ! From first line of Table 3 of https://arxiv.org/pdf/1303.1808.pdf
          ! CFHTLenS combined with WMAP7 and R11
          cosm%Om_m = 0.255
@@ -874,7 +878,7 @@ CONTAINS
          cosm%h = 0.717
          cosm%w = -1.
       ELSE IF(icosmo == 50) THEN
-         ! CFHTLenS best-fitting cosmology (Kilbinger 2013)
+         ! CFHTLenS best-fitting cosmology (Kilbinger 2013; combined with WMAP 7)
          ! From first line in Table 3 of https://arxiv.org/pdf/1212.3338.pdf
          ! CFHTLenS combined with WMAP7
          cosm%Om_m = 0.274
@@ -884,7 +888,7 @@ CONTAINS
          cosm%n = 0.966
          cosm%h = 0.702
          cosm%w = -1.
-      ELSE IF(icosmo == 51 .OR. icosmo == 52 .OR. icosmo == 53 .OR. icosmo == 54 .OR. icosmo == 55) THEN
+      ELSE IF(icosmo == 51 .OR. icosmo == 52 .OR. icosmo == 53) THEN
          ! CAMB test problem cosmologies
          cosm%itk = 2
          cosm%iw = 3
@@ -901,11 +905,7 @@ CONTAINS
             cosm%w = -1.
             cosm%wa = 0.
          ELSE IF(icosmo == 52) THEN
-            ! CAMB difference cosmology 2
-         ELSE IF(icosmo == 53) THEN
-            ! CAMB difference cosmology 3
-         ELSE IF(icosmo == 54) THEN
-            ! CAMB difference cosmology 4 (low sig8; low h)
+            ! CAMB difference cosmology 2 (low sig8; low h)
             cosm%Om_m = 0.23742
             cosm%Om_b = 0.06842
             cosm%Om_w = 1.-cosm%Om_m
@@ -915,8 +915,8 @@ CONTAINS
             cosm%M_nu = 0.
             cosm%w = -1.
             cosm%wa = 0.
-         ELSE IF(icosmo == 55) THEN
-            ! CAMB difference cosmology 5 (low sig8; low ns; low h)
+         ELSE IF(icosmo == 53) THEN
+            ! CAMB difference cosmology 3 (low sig8; low ns; low h)
             cosm%Om_m = 0.17575
             cosm%Om_b = 0.03993
             cosm%Om_w = 1.-cosm%Om_m
@@ -4937,6 +4937,7 @@ CONTAINS
 
       ! Enforce flatness
       ! Note - need to have Om_w for dark enegry
+      cosm%Om_v = 0.
       cosm%Om_w = 1.-cosm%Om_m
 
       cosm%n = random_uniform(n_min, n_max)
@@ -4990,11 +4991,10 @@ CONTAINS
       cosm%Om_b = om_b/cosm%h**2
 
       om_nu = random_uniform(om_nu_min, om_nu_max)
-      !cosm%m_nu=neutrino_constant*om_nu/3. ! Split equally over 3 neutrinos
       cosm%m_nu = neutrino_constant*om_nu
-      cosm%m_nu = 0.
 
       ! Enforce flatness, ensure Omega_w is used for dark energy, Omega_v = 0
+      cosm%Om_v = 0.
       cosm%Om_w = 1.-cosm%Om_m
 
       cosm%n = random_uniform(n_min, n_max)
@@ -5004,7 +5004,6 @@ CONTAINS
       ! Enforce 0.3 <= (-w0-wa)^(1/4)
       DO
          cosm%wa = random_uniform(wa_min, wa_max)
-         !IF(0.3<=(-cosm%w-cosm%wa)**(1./4.)) EXIT
          IF (0.0081 <= -cosm%w-cosm%wa .AND. 2.769 >= -cosm%w-cosm%wa) EXIT
       END DO
 
