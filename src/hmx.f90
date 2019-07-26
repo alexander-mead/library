@@ -264,12 +264,13 @@ MODULE HMx
    ! Halomodel
    LOGICAL, PARAMETER :: verbose_convert_mass = .FALSE. ! Verbosity when running the mass-definition-conversion routines
    REAL, PARAMETER :: eps_p2h = 1e-3                    ! Tolerance for requal for lower limit of two-halo power
-
+   
    ! HMcode
    REAL, PARAMETER :: fdamp_HMcode_min = 1e-3 ! Minimum value for f_damp parameter
    REAL, PARAMETER :: fdamp_HMcode_max = 0.99 ! Maximum value for f_damp parameter
    REAL, PARAMETER :: alpha_HMcode_min = 0.5  ! Minimum value for alpha transition parameter
    REAL, PARAMETER :: alpha_HMcode_max = 2.0  ! Maximum value for alpha transition parameter
+   REAL, PARAMETER :: ks_limit = 7.           ! Limit for (k/k*)^2 in one-halo term
 
    ! HMx
    REAL, PARAMETER :: HMx_alpha_min = 1e-2 ! Minimum alpha parameter; needs to be set at not zero
@@ -283,6 +284,11 @@ MODULE HMx
    ! TODO: Also, not obvious that a constant frac_min is correct because some species have low abundance
    ! but we ususally care about perturbations to this abundance
    REAL, PARAMETER :: frac_min = 0.
+
+   ! Integration when halo mass function is a delta function
+   INTEGER, PARAMETER :: iorder_delta = 3
+   INTEGER, PARAMETER :: ifind_delta = 3
+   INTEGER, PARAMETER :: imeth_delta = 2
 
    ! Halo types
    LOGICAL, PARAMETER :: verbose_galaxies = .FALSE. ! Verbosity when doing the galaxies initialisation
@@ -2039,6 +2045,9 @@ CONTAINS
       REAL :: kv(4), pv(4), sigv, a
       REAL, ALLOCATABLE :: Pk(:), Pkraw(:), k(:)
       INTEGER :: i, nk
+      INTEGER :: iorder = 3
+      INTEGER :: ifind = 3
+      INTEGER :: imeth = 2
 
       IF (.NOT. ALLOCATED(cosm%log_k_plin)) STOP 'DEWIGGLE_INIT: Error, P(k) needs to be tabulated for this to work'
       IF (cosm%growk) STOP 'DEWIGGLE_INIT: Error, this does not support scale-dependent growth yet'
@@ -2063,7 +2072,7 @@ CONTAINS
 
       ! Fix p values
       DO i = 1, 4
-         pv(i) = exp(find(log(kv(i)), log(k), log(Pk), nk, 3, 3, 2))
+         pv(i) = exp(find(log(kv(i)), log(k), log(Pk), nk, iorder, ifind, imeth))
       END DO
 
       ! Create new 'raw' spectrum which has no wiggles
@@ -2107,9 +2116,12 @@ CONTAINS
       REAL, INTENT(IN) :: k
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
 
       IF (hmod%has_dewiggle .EQV. .FALSE.) CALL init_dewiggle(hmod, cosm)
-      p_dewiggle = exp(find(log(k), hmod%log_k_pdamp, hmod%log_pdamp, hmod%n_pdamp, 3, 3, 2))
+      p_dewiggle = exp(find(log(k), hmod%log_k_pdamp, hmod%log_pdamp, hmod%n_pdamp, iorder, ifind, imeth))
 
    END FUNCTION p_dewiggle
 
@@ -2251,23 +2263,15 @@ CONTAINS
       INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: pow_lin(nk), pow_2h(nk), pow_1h(nk), pow_hm(nk)
-      INTEGER :: i ! MEAD: Remove
       TYPE(halomod) :: hmod
-      LOGICAL, PARAMETER :: sigma = .FALSE. ! MEAD: Remove
       INTEGER, PARAMETER :: dmonly(1) = field_dmonly ! Fix to DMONLY
-      LOGICAL, PARAMETER :: verbose = .FALSE. ! MEAD: Revert to .TRUE.
+      LOGICAL, PARAMETER :: verbose = .FALSE.
 
       ! Do an HMcode run
       CALL assign_halomod(ihm, hmod, verbose)
       CALL init_halomod(a, hmod, cosm, verbose)
       CALL calculate_HMx_a(dmonly, 1, k, nk, pow_lin, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose, response=.FALSE.)
       Pk = pow_hm
-      IF(sigma) THEN ! MEAD: Remove
-         DO i=1,nk 
-            Pk(i) = sigma_cold(k(i), a, cosm)
-            !Pk(i) = sigmaV(k(i), a, cosm)
-         END DO
-      END IF
       CALL print_halomod(hmod, cosm, verbose)
 
    END SUBROUTINE calculate_HMx_DMONLY_a
@@ -2719,6 +2723,9 @@ CONTAINS
       REAL :: I_11, I_12(n), I_21(n), I_22(n, n)
       REAL :: I2h, I2hs(2)
       INTEGER :: i, j
+      INTEGER, PARAMETER :: iorder = iorder_delta
+      INTEGER, PARAMETER :: ifind = ifind_delta
+      INTEGER, PARAMETER :: imeth = imeth_delta
 
       ! Necessary to prevent warning for some reason
       I_11 = 0.
@@ -2749,7 +2756,7 @@ CONTAINS
             nu0 = nu_M(m0, hmod, cosm)
             b0 = b_nu(nu0, hmod)
             DO j = 1, 2
-               wk0(j) = find(log(m0), hmod%log_m, wk(:, j), n, 3, 3, 2)
+               wk0(j) = find(log(m0), hmod%log_m, wk(:, j), n, iorder, ifind, imeth)
                I2hs(j) = b0*rhom*wk0(j)/m0
             END DO
 
@@ -2904,6 +2911,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: ibias
       REAL :: rhom, b, m0, m, nu, integrand(n)
       INTEGER :: i
+      INTEGER, PARAMETER :: iorder = 3
 
       rhom = comoving_matter_density(cosm)
 
@@ -2929,7 +2937,7 @@ CONTAINS
       END DO
 
       ! Evaluate these integrals from the tabulated values
-      int = integrate_table(hmod%nu, integrand, n, 1, n, 3)
+      int = integrate_table(hmod%nu, integrand, n, 1, n, iorder)
 
       IF (ibias == 1) THEN
 
@@ -2968,7 +2976,10 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: m, g, fac, ks, wk0_product, m0, rhom, integrand(n)
       INTEGER :: i
-      INTEGER, PARAMETER :: iorder = 1 ! Use basic trapezium rule because the integrand has rapid oscillations in W(k)
+      INTEGER, PARAMETER :: iorder_hm = 1 ! Use basic trapezium rule because the integrand has rapid oscillations in W(k)
+      INTEGER, PARAMETER :: iorder_df = iorder_delta
+      INTEGER, PARAMETER :: ifind_df = ifind_delta
+      INTEGER, PARAMETER :: imeth_df = imeth_delta
 
       ! Matter density
       rhom = comoving_matter_density(cosm)
@@ -2978,7 +2989,7 @@ CONTAINS
          ! In this case the mass function is a delta function...
 
          m0 = hmod%hmass
-         wk0_product = find(log(m0), hmod%log_m, wk_product, n, 3, 3, 2)
+         wk0_product = find(log(m0), hmod%log_m, wk_product, n, iorder_delta, ifind_delta, imeth_delta)
          p_1h = rhom*wk0_product/m0
 
       ELSE
@@ -2993,7 +3004,7 @@ CONTAINS
          END DO
 
          ! Carries out the integration
-         p_1h = rhom*integrate_table(hmod%nu, integrand, n, 1, n, iorder)
+         p_1h = rhom*integrate_table(hmod%nu, integrand, n, 1, n, iorder_hm)
 
       END IF
 
@@ -3008,7 +3019,7 @@ CONTAINS
          IF (hmod%i1hdamp == 1) THEN
             ! Do nothing in this case
          ELSE IF (hmod%i1hdamp == 2) THEN
-            IF ((k/ks)**2 > 7.) THEN
+            IF ((k/ks)**2 > ks_limit) THEN
                ! Prevents problems if k/ks is very large
                fac = 0.
             ELSE
@@ -3294,7 +3305,10 @@ CONTAINS
       REAL :: uk1(hmod%n, 2), uk2(hmod%n, 2), uk_quad(hmod%n), uk0_quad
       REAL :: rhom, g, m, m0, integrand(hmod%n)
       INTEGER :: i
-      INTEGER, PARAMETER :: iorder = 1 ! Use basic trapezium rule because the integrand has rapid oscillations in W(k)
+      INTEGER, PARAMETER :: iorder_hm = 1 ! Use basic trapezium rule because the integrand has rapid oscillations in W(k)
+      INTEGER, PARAMETER :: iorder_tr = 3 ! Trispectrum
+      INTEGER, PARAMETER :: ifind_tr = 3
+      INTEGER, PARAMETER :: imeth_tr = 2
 
       ! Matter density
       rhom = comoving_matter_density(cosm)
@@ -3319,7 +3333,7 @@ CONTAINS
 
          ! In this case the mass function is a delta function...
          m0 = hmod%hmass
-         uk0_quad = find(log(m0), hmod%log_m, uk_quad, hmod%n, 3, 3, 2)
+         uk0_quad = find(log(m0), hmod%log_m, uk_quad, hmod%n, iorder_tr, ifind_tr, imeth_tr)
          T_1h = rhom*uk0_quad/m0
 
       ELSE
@@ -3334,7 +3348,7 @@ CONTAINS
          END DO
 
          ! Carries out the integration
-         T_1h = integrate_table(hmod%nu, integrand, hmod%n, 1, hmod%n, iorder)
+         T_1h = integrate_table(hmod%nu, integrand, hmod%n, 1, hmod%n, iorder_hm)
 
       END IF
 
@@ -3522,15 +3536,17 @@ CONTAINS
       REAL :: r, rv, rs, c
       INTEGER :: i, j, nf
       INTEGER, ALLOCATABLE :: fields(:)
-
       REAL, PARAMETER :: rmin = 1e-3     ! Mininum r/rv
       REAL, PARAMETER :: rmax = 1.1e0    ! Maximum r/rv
       INTEGER, PARAMETER :: n = 512      ! Number of points
       LOGICAL, PARAMETER :: real_space = .TRUE. ! Real profiles
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
 
       ! Calculate halo attributes
-      rv = exp(find(log(m), hmod%log_m, log(hmod%rv), hmod%n, 3, 3, 2))
-      c = find(log(m), hmod%log_m, hmod%c, hmod%n, 3, 3, 2)
+      rv = exp(find(log(m), hmod%log_m, log(hmod%rv), hmod%n, iorder, ifind, imeth))
+      c = find(log(m), hmod%log_m, hmod%c, hmod%n, iorder, ifind, imeth)
       rs = rv/c
 
       ! Field types
@@ -3564,15 +3580,17 @@ CONTAINS
       REAL :: x, rv, c, rs, k, rhobar
       INTEGER :: i, j, nf
       INTEGER, ALLOCATABLE :: fields(:)
-
       REAL, PARAMETER :: xmin = 1e-1      ! Minimum r/rv
       REAL, PARAMETER :: xmax = 1e2       ! Maximum r/rv
       INTEGER, PARAMETER :: n = 512       ! Number of points
       LOGICAL, PARAMETER :: rsp = .FALSE. ! Fourier profiles
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
 
       ! Calculate halo attributes
-      rv = exp(find(log(m), hmod%log_m, log(hmod%rv), hmod%n, 3, 3, 2))
-      c = find(log(m), hmod%log_m, hmod%c, hmod%n, 3, 3, 2)
+      rv = exp(find(log(m), hmod%log_m, log(hmod%rv), hmod%n, iorder, ifind, imeth))
+      c = find(log(m), hmod%log_m, hmod%c, hmod%n, iorder, ifind, imeth)
       rs = rv/c
 
       ! Field types
@@ -4204,17 +4222,19 @@ CONTAINS
 
    END FUNCTION HMx_Mstar
 
-   FUNCTION r_nl(hmod)
+   REAL FUNCTION r_nl(hmod)
 
       ! Calculates R_nl where nu(R_nl)=1.
       TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: r_nl
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
 
       IF (hmod%nu(1) > 1.) THEN
          ! This catches some very strange values
          r_nl = hmod%rr(1)
       ELSE
-         r_nl = exp(find(log(1.), log(hmod%nu), log(hmod%rr), hmod%n, 3, 3, 2))
+         r_nl = exp(find(log(1.), log(hmod%nu), log(hmod%rr), hmod%n, iorder, ifind, imeth))
       END IF
 
    END FUNCTION r_nl
@@ -4381,8 +4401,11 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
 
-      M_nu = exp(find(nu, hmod%nu, hmod%log_m, hmod%n, 3, 3, 2))
+      M_nu = exp(find(nu, hmod%nu, hmod%log_m, hmod%n, iorder, ifind, imeth))
 
    END FUNCTION M_nu
 
@@ -4460,14 +4483,15 @@ CONTAINS
 
       INTERFACE
          FUNCTION integrand(M, hmod, cosm)
-            IMPORT :: halomod, cosmology
+            IMPORT :: halomod, cosmology   
             REAL, INTENT(IN) :: M
             TYPE(halomod), INTENT(INOUT) :: hmod
             TYPE(cosmology), INTENT(INOUT) :: cosm
          END FUNCTION integrand
       END INTERFACE
 
-    rhobar_tracer=comoving_matter_density(cosm)*integrate_hmod_cosm_exp(log(nu_min),log(nu_max),integrand,hmod,cosm,hmod%acc,3)
+      rhobar_tracer=integrate_hmod_cosm_exp(log(nu_min),log(nu_max),integrand,hmod,cosm,hmod%acc,3)
+      rhobar_tracer=rhobar_tracer*comoving_matter_density(cosm)
 
    END FUNCTION rhobar_tracer
 
@@ -4512,9 +4536,11 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: nu, dnu_dlnm
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: imeth = 3
 
       nu = nu_M(m, hmod, cosm)
-      dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, hmod%n, 3, 3)
+      dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, hmod%n, iorder, imeth)
       multiplicity_function = g_nu(nu, hmod)*dnu_dlnm
 
    END FUNCTION multiplicity_function
@@ -4681,7 +4707,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: sigma
+      !REAL :: sigma
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: imeth = 3
       LOGICAL, PARAMETER :: derivative = .FALSE.
@@ -6478,15 +6504,17 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: r500c, rmin, rmax, a, z, r, m500c, E
-
       REAL, PARAMETER :: alphap = 0.12 ! Exponent correction
       REAL, PARAMETER :: b = 0.        ! Hydrostatic mass bias
       INTEGER, PARAMETER :: irho = 14  ! Set UPP profile
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
 
       IF (hmod%has_mass_conversions .EQV. .FALSE.) CALL convert_mass_definitions(hmod, cosm)
 
       ! Get r500 for UPP
-      r500c = exp(find(log(m), hmod%log_m, log(hmod%r500c), hmod%n, 3, 3, 2)) ! [Mpc/h]
+      r500c = exp(find(log(m), hmod%log_m, log(hmod%r500c), hmod%n, iorder, ifind, imeth)) ! [Mpc/h]
 
       ! Set the radius range for the profile
       rmin = 0.
@@ -6500,7 +6528,7 @@ CONTAINS
       END IF
 
       ! UPP, P(x), equation 4.1 in Ma et al. (2015)
-      m500c = exp(find(log(m), hmod%log_m, log(hmod%m500c), hmod%n, 3, 3, 2)) ![Msun/h]
+      m500c = exp(find(log(m), hmod%log_m, log(hmod%m500c), hmod%n, iorder, ifind, imeth)) ![Msun/h]
       m500c = m500c*(1.-b) ![Msun/h]
 
       ! Dimensionless Hubble parameter

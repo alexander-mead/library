@@ -2727,6 +2727,7 @@ CONTAINS
 
       ! Extrapolate linear power at small scales assuming Delta^2(k) goes like ln(k)^2 k^(n-1)
       ! This works really badly if kmax is not high enough; maybe best just to use power-law
+      ! TODO: It is really weird that log(k) appears, rather than log(k/kmax), this must be wrong
       IMPLICIT NONE
       REAL, INTENT(IN) :: k    ! Wavenumber [h/Mpc]
       REAL, INTENT(IN) :: kmax ! Maximum wavenumber [h/Mpc]
