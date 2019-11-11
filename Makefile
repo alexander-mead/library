@@ -102,7 +102,7 @@ meadlib_debug: $(OBJ).o
 	@echo
 	@$(FC) --version
 	@echo 'compiling debugging library'
-	@ar rc $(BIN_DEBUG) $(OBJ).o
+	@ar rc $(LIB_DEBUG) $(OBJ).o
 	@echo 'done'
 	@echo
 
