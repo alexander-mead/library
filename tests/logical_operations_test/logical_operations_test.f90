@@ -110,6 +110,8 @@ CONTAINS
     INTEGER :: i
     INTEGER, PARAMETER :: n=5
 
+    fail=.FALSE.
+
     ALLOCATE(test(n),ans(n))
 
     test(1)=0.
@@ -134,7 +136,7 @@ CONTAINS
        IF(pos .NEQV. ans(i)) fail=.TRUE.
        IF(neg .EQV. ans(i))  fail=.TRUE.
        IF(fail) THEN
-          WRITE(*,*) 'TEST_POSITIVE_NEGATIVE: Fail:', test(i), ans(i), pos, neg
+          WRITE(*,*) 'TEST_POSITIVE_NEGATIVE: Fail:', i, test(i), ans(i), pos, neg
           STOP
        END IF
     END DO
@@ -155,6 +157,8 @@ CONTAINS
     LOGICAL :: even_test, odd_test
     INTEGER :: i
     INTEGER, PARAMETER :: n=5
+
+    fail=.FALSE.
 
     ALLOCATE(test(n),ans(n))
 
