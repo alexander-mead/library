@@ -307,11 +307,11 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: imeth_interpolation_Dv = 2  ! Method for Delta_v interpolation
 
    ! Halofit
-   INTEGER, PARAMETER :: halofit_Smith = 1
-   INTEGER, PARAMETER :: halofit_Bird = 2
-   INTEGER, PARAMETER :: halofit_Takahashi = 3
-   INTEGER, PARAMETER :: halofit_CAMB = 4
-   INTEGER, PARAMETER :: halofit_CLASS = 5
+   INTEGER, PARAMETER :: halofit_Smith = 1      ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664)
+   INTEGER, PARAMETER :: halofit_Bird = 2       ! Bird et al. (2011; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: halofit_Takahashi = 3  ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
+   INTEGER, PARAMETER :: halofit_CAMB = 4       ! Version as used in CAMB  (date; ???)
+   INTEGER, PARAMETER :: halofit_CLASS = 5      ! Version as used in CLASS (date; ???)
 
 CONTAINS
 
@@ -906,13 +906,13 @@ CONTAINS
             cosm%wa = 0.
          ELSE IF(icosmo == 52) THEN
             ! CAMB difference cosmology 2 (low sig8; low h)
-            cosm%Om_m = 0.23742
-            cosm%Om_b = 0.06842
+            cosm%Om_m = 0.16021
+            cosm%Om_b = 0.05953
             cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.65672
-            cosm%n = 0.94351
-            cosm%h = 0.45648
-            cosm%M_nu = 0.
+            cosm%sig8 = 0.69869
+            cosm%n = 0.70630
+            cosm%h = 0.52845
+            cosm%M_nu = 0.0
             cosm%w = -1.
             cosm%wa = 0.
          ELSE IF(icosmo == 53) THEN
