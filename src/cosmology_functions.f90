@@ -384,7 +384,9 @@ CONTAINS
       names(51) = 'CAMB difference cosmology 1'
       names(52) = 'CAMB difference cosmology 2'
       names(53) = 'CAMB difference cosmology 3'
-      names(54) = 'Planck 2018'
+      names(54) = 'CAMB difference cosmology 4'
+      names(55) = 'CAMB difference cosmology 5'
+      names(56) = 'Planck 2018'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -846,7 +848,7 @@ CONTAINS
          cosm%Om_m = 1.
          cosm%Om_v = 0.
          cosm%m_nu = 4.
-      ELSE IF (icosmo == 42 .OR. icosmo == 54) THEN
+      ELSE IF (icosmo == 42 .OR. icosmo == 56) THEN
          ! Planck 2018 (Table 1 of https://arxiv.org/abs/1807.06209)
          ! icosmo = 42 is missing neutrinos
          ! icosmo = 54 includes fixed 0.06 eV neutrinos
@@ -856,7 +858,7 @@ CONTAINS
          IF(icosmo == 42) THEN
             cosm%m_nu = 0.
             cosm%itk = 1 ! EH
-         ELSE IF(icosmo == 54) THEN
+         ELSE IF(icosmo == 56) THEN
             cosm%m_nu = 0.06
             cosm%itk = 2 ! CAMB
          ELSE  
@@ -888,7 +890,7 @@ CONTAINS
          cosm%n = 0.966
          cosm%h = 0.702
          cosm%w = -1.
-      ELSE IF(icosmo == 51 .OR. icosmo == 52 .OR. icosmo == 53) THEN
+      ELSE IF(icosmo == 51 .OR. icosmo == 52 .OR. icosmo == 53 .OR. icosmo == 54 .OR. icosmo == 55) THEN
          ! CAMB test problem cosmologies
          cosm%itk = 2
          cosm%iw = 3
@@ -905,7 +907,7 @@ CONTAINS
             cosm%w = -1.
             cosm%wa = 0.
          ELSE IF(icosmo == 52) THEN
-            ! CAMB difference cosmology 2 (low sig8; low h)
+            ! CAMB difference cosmology 2 (low sig8; low ns; low h)
             cosm%Om_m = 0.16021
             cosm%Om_b = 0.05953
             cosm%Om_w = 1.-cosm%Om_m
@@ -926,6 +928,28 @@ CONTAINS
             cosm%M_nu = 0.
             cosm%w = -1.
             cosm%wa = 0.
+         ELSE IF(icosmo == 54) THEN
+            ! CAMB difference cosmology 4 (low sig8; low ns; low h)
+            cosm%Om_m = 0.15586
+            cosm%Om_b = 0.05109
+            cosm%Om_w = 1.-cosm%Om_m
+            cosm%sig8 = 0.65709
+            cosm%n = 0.70027
+            cosm%h = 0.44819
+            cosm%M_nu = 0.20378
+            cosm%w = -1.01372
+            cosm%wa = -0.90823
+         ELSE IF(icosmo == 55) THEN
+            ! CAMB difference cosmology 5 (low h; high Om_b/Om_m)
+            cosm%Om_m = 0.18504
+            cosm%Om_b = 0.06696
+            cosm%Om_w = 1.-cosm%Om_m
+            cosm%sig8 = 0.77520
+            cosm%n = 0.98360
+            cosm%h = 0.42278
+            cosm%M_nu = 0.07639
+            cosm%w = -1.26075
+            cosm%wa = -0.07341
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with CAMB difference cosmologies'
          END IF
