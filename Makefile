@@ -11,7 +11,7 @@ LIB_DEBUG = $(LIB)_debug
 
 # Standard Fortran compile flags
 FFLAGS = \
-	-Warray-bounds \
+	-fcheck=all \
 	-fmax-errors=4 \
 	-ffpe-trap=invalid,zero,overflow \
 	-fimplicit-none \
@@ -22,10 +22,10 @@ FFLAGS = \
 	-lgfortran \
 	-ffree-line-length-none \
 	-I/usr/local/include \
-	-I/usr/include
-
-# -std=f2008
-# - pedantic
+	-I/usr/include# \ 
+	#-Warray-bounds \
+	#-std=f2008 \
+	#- pedantic 
 
 # Debug flags
 DEBUG_FLAGS = \
