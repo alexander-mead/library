@@ -2740,7 +2740,7 @@ CONTAINS
                   p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%n)
                ELSE
                   p_lin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin,&
-                     cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, imeth=1))
+                     cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, iinterp_polynomial))
                END IF
             ELSE
                IF(plin_extrap .AND. k > kmax) THEN
@@ -2915,7 +2915,8 @@ CONTAINS
 
       IF (cosm%growk) THEN
          find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaa,&
-            cosm%nr_sigma, cosm%na_sigma, iorder, ifind, imeth=1)) ! No Lagrange polynomials for 2D interpolation
+            cosm%nr_sigma, cosm%na_sigma, &
+            iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
       ELSE
          find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigma, cosm%nr_sigma, iorder, ifind, imeth))
          find_sigma = grow(a, cosm)*find_sigma
@@ -3152,7 +3153,7 @@ CONTAINS
 
    END FUNCTION sigmaV2_integrand
 
-   REAL FUNCTION grow(a, cosm)
+   REAL RECURSIVE FUNCTION grow(a, cosm)
 
       ! Scale-independent growth function | normalised g(z=0)=1
       IMPLICIT NONE
@@ -3722,10 +3723,12 @@ CONTAINS
             a_rmax = maximum(a, rnl, k)
 
             ! Find the over-density at this point
-            d_rmax = exp(find(log(a_rmax), log(a), log(dnl), SIZE(a), iorder=1, ifind=3, imeth=2))
+            d_rmax = exp(find(log(a_rmax), log(a), log(dnl), SIZE(a), &
+               iorder=1, ifind=ifind_split, iinterp=iinterp_Lagrange))
 
             ! Find the maximum radius
-            rmax = find(log(a_rmax), log(a), rnl, SIZE(a), iorder=1, ifind=3, imeth=2)
+            rmax = find(log(a_rmax), log(a), rnl, SIZE(a), &
+               iorder=1, ifind=ifind_split, iinterp=iinterp_Lagrange)
 
             ! The radius of the perturbation when it is virialised is half maximum
             ! This might not be appropriate for LCDM models (or anything with DE)
@@ -3733,7 +3736,7 @@ CONTAINS
 
             ! Need to assign new arrays for the collapse branch of r such that it is monotonic
             !k2=int_split(d_rmax,dnl,k)
-            k2 = find_table_integer(d_rmax, dnl, k, ifind=3)
+            k2 = find_table_integer(d_rmax, dnl, k, ifind_split)
 
             ! Allocate collapse branch arrays
             ALLOCATE (a_coll(k-k2+1), r_coll(k-k2+1))
@@ -3745,14 +3748,17 @@ CONTAINS
             END DO
 
             ! Find the scale factor when the perturbation has reached virial radius
-            av = exp(find(rv, r_coll, log(a_coll), SIZE(r_coll), iorder=3, ifind=3, imeth=2))
+            av = exp(find(rv, r_coll, log(a_coll), SIZE(r_coll), &
+               iorder=3, ifind=ifind_split, iinterp=iinterp_Lagrange))
 
             ! Deallocate collapse branch arrays
             DEALLOCATE (a_coll, r_coll)
 
             ! Spherical model approximation is that perturbation is at virial radius when
             ! 'collapse' is considered to have occured, which has already been calculated
-            Dv = exp(find(log(av), log(a), log(dnl), SIZE(a), iorder=1, ifind=3, imeth=2))*(ac/av)**3.
+            Dv = exp(find(log(av), log(a), log(dnl), SIZE(a), &
+               iorder=1, ifind=ifind_split, iinterp=iinterp_Lagrange))
+            Dv = Dv*(ac/av)**3
             Dv = Dv+1.
 
             !!
@@ -4106,7 +4112,7 @@ CONTAINS
 
    END SUBROUTINE ODE_advance_cosmology
 
-   REAL FUNCTION integrate1_cosm(a, b, f, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate1_cosm(a, b, f, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -4208,7 +4214,7 @@ CONTAINS
 
    END FUNCTION integrate1_cosm
 
-   REAL FUNCTION integrate2_cosm(a, b, f, y, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate2_cosm(a, b, f, y, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -4312,7 +4318,7 @@ CONTAINS
 
    END FUNCTION integrate2_cosm
 
-   REAL FUNCTION integrate3_cosm(a, b, f, y, z, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate3_cosm(a, b, f, y, z, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls

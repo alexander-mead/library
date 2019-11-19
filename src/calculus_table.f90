@@ -14,7 +14,7 @@ MODULE calculus_table
 
 CONTAINS
 
-   REAL FUNCTION derivative_table(x, xin, yin, n, iorder, imeth)
+   REAL FUNCTION derivative_table(x, xin, yin, n, iorder, ifind)
 
       ! Given two arrays x and y such that y=y(x) this uses interpolation to calculate the derivative y'(x_i) at position x_i
       USE table_integer
@@ -26,7 +26,7 @@ CONTAINS
       REAL, INTENT(IN) :: yin(n)
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: iorder
-      INTEGER, INTENT(IN) :: imeth
+      INTEGER, INTENT(IN) :: ifind
       REAL ::  xtab(n), ytab(n)
       REAL :: a, b, c, d
       REAL :: x1, x2, x3, x4
@@ -37,9 +37,9 @@ CONTAINS
       ! Care should be chosen to insert x, xtab, ytab as log if this might give better!
       ! Results from the interpolation!
 
-      ! imeth = 1 => find x in xtab by crudely searching
-      ! imeth = 2 => find x in xtab quickly assuming the table is linearly spaced
-      ! imeth = 3 => find x in xtab using midpoint splitting (iterations=ceiling(log2(n)))
+      ! ifind = 1 => find x in xtab by crudely searching
+      ! ifind = 2 => find x in xtab quickly assuming the table is linearly spaced
+      ! ifind = 3 => find x in xtab using midpoint splitting (iterations=ceiling(log2(n)))
 
       ! iorder = 1 => linear interpolation
       ! iorder = 2 => quadratic interpolation
@@ -76,7 +76,7 @@ CONTAINS
 
          ELSE
 
-            i = find_table_integer(x, xtab, n, imeth)
+            i = find_table_integer(x, xtab, n, ifind)
 
             x2 = xtab(i+1)
             x1 = xtab(i)
@@ -123,7 +123,7 @@ CONTAINS
 
          ELSE
 
-            i = find_table_integer(x, xtab, n, imeth)
+            i = find_table_integer(x, xtab, n, ifind)
 
             x1 = xtab(i-1)
             x2 = xtab(i)
@@ -177,7 +177,7 @@ CONTAINS
 
          ELSE
 
-            i = find_table_integer(x, xtab, n, imeth)
+            i = find_table_integer(x, xtab, n, ifind)
 
             x1 = xtab(i-1)
             x2 = xtab(i)
@@ -229,8 +229,8 @@ CONTAINS
          ! Data must be evenly spaced for zeroth order to work
          ! x coordinates must represent bin centres
          ! Note from the range x(1)->x(2) there are only n-1 bins
-         ! The nth bin spills out by h/2 below x(1) and above x(n)
-         ! This is useful for e.g., summing histograms
+         ! The 1st bin spills out by h/2 below x(1) and the nth by h/2 above x(n)
+         ! This is only useful for summing histograms etc.
          h=(x(n)-x(1))/real(n-1)
 
          ! Each rectangle contributes y(i)*dx to the integral

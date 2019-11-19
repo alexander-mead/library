@@ -86,7 +86,8 @@ CONTAINS
          IF (data(i) < xmin .OR. data(i) > xmax) THEN
             CYCLE
          ELSE
-            j = find_table_integer(data(i), x, n, 1)
+            ! TODO: Check ifind_linear is correct here
+            j = find_table_integer(data(i), x, n, ifind_linear)
             hist(j) = hist(j)+1
          END IF
       END DO

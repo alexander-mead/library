@@ -4305,8 +4305,13 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      Omega_stars = rhobar_tracer(hmod%nu(1), hmod%large_nu, rhobar_star_integrand, hmod, cosm)
-      Omega_stars = Omega_stars/comoving_critical_density(hmod%a, cosm)
+      IF (hmod%imf == 4) THEN
+         Omega_stars = halo_star_fraction(hmod%mstar, hmod, cosm)
+         Omega_stars = Omega_stars*comoving_matter_density(cosm)/comoving_critical_density(hmod%a, cosm)
+      ELSE
+         Omega_stars = rhobar_tracer(hmod%nu(1), hmod%large_nu, rhobar_star_integrand, hmod, cosm)
+         Omega_stars = Omega_stars/comoving_critical_density(hmod%a, cosm)
+      END IF
 
    END FUNCTION Omega_stars
 
@@ -4497,7 +4502,7 @@ CONTAINS
 
    FUNCTION one_halo_amplitude(hmod, cosm)
 
-      !Calculates the amplitude of the shot-noise plateau of the one-halo term
+      !Calculates the amplitude of the shot-noise plateau of the one-halo term [Mpc/h]^3
       IMPLICIT NONE
       REAL :: one_halo_amplitude
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -4505,14 +4510,20 @@ CONTAINS
       REAL :: integrand(hmod%n), g, m
       INTEGER :: i
 
-      !Calculates the value of the integrand at all nu values!
-      DO i = 1, hmod%n
-         g = g_nu(hmod%nu(i), hmod)
-         m = hmod%m(i)
-         integrand(i) = g*m
-      END DO
+      IF (hmod%imf == 4) THEN
+         ! Special case for delta-function mass function
+         one_halo_amplitude = hmod%mstar
+      ELSE
+         !Calculates the value of the integrand at all nu values!
+         DO i = 1, hmod%n
+            g = g_nu(hmod%nu(i), hmod)
+            m = hmod%m(i)
+            integrand(i) = g*m
+         END DO
+         one_halo_amplitude = integrate_table(hmod%nu, integrand, hmod%n, 1, hmod%n, 1)
+      END IF
 
-      one_halo_amplitude = integrate_table(hmod%nu, integrand, hmod%n, 1, hmod%n, 1)/comoving_matter_density(cosm)
+      one_halo_amplitude = one_halo_amplitude/comoving_matter_density(cosm)
 
    END FUNCTION one_halo_amplitude
 
@@ -7822,6 +7833,8 @@ CONTAINS
          g_nu = g_st(nu, hmod)
       ELSE IF (hmod%imf == 3) THEN
          g_nu = g_Tinker(nu, hmod)
+      ELSE IF (hmod%imf == 4) THEN
+         STOP 'G_NU: Error, this function should not be used for delta-mass-function'
       ELSE
          STOP 'G_NU: Error, imf specified incorrectly'
       END IF

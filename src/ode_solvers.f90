@@ -9,9 +9,13 @@ MODULE ODE_solvers
    PUBLIC :: ODE
    PUBLIC :: ODE_adaptive
 
+   INTEGER, PARAMETER :: iode_crude = 1
+   INTEGER, PARAMETER :: iode_mid = 2
+   INTEGER, PARAMETER :: iode_RK4 = 3
+
 CONTAINS
 
-   SUBROUTINE ODE(x, v, t, ti, tf, xi, vi, fx, fv, n, imeth, ilog)
+   SUBROUTINE ODE(x, v, t, ti, tf, xi, vi, fx, fv, n, iode, ilog)
 
       !Solves 2nd order ODE d2x/dt2 from ti to tf and creates arrays of x, v, t values
       !I have sometimes called this ODE_crass because it has a fixed number of time steps, n
@@ -25,7 +29,7 @@ CONTAINS
       REAL, INTENT(IN) :: vi
       REAL, EXTERNAL :: fx
       REAL, EXTERNAL :: fv
-      INTEGER, INTENT(IN) :: n, imeth
+      INTEGER, INTENT(IN) :: n, iode
       LOGICAL, INTENT(IN) :: ilog
       DOUBLE PRECISION :: x8(n), v8(n)
       DOUBLE PRECISION, ALLOCATABLE :: t8(:)
@@ -59,7 +63,7 @@ CONTAINS
 
       !Advance the system through all n-1 time steps
       DO i = 1, n-1
-         CALL ODE_advance(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, imeth)
+         CALL ODE_advance(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, iode)
       END DO
 
       !Allocate arrays for final solution and copy double-precision to single-precision
@@ -72,7 +76,7 @@ CONTAINS
 
    END SUBROUTINE ODE
 
-   SUBROUTINE ODE_adaptive(x, v, t, ti, tf, xi, vi, fx, fv, acc, imeth, ilog)
+   SUBROUTINE ODE_adaptive(x, v, t, ti, tf, xi, vi, fx, fv, acc, iode, ilog)
 
       !Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
       !acc is the desired accuracy across the entire solution
@@ -88,7 +92,7 @@ CONTAINS
       REAL, EXTERNAL :: fx
       REAL, EXTERNAL :: fv
       REAL, INTENT(IN) :: acc
-      INTEGER, INTENT(IN) :: imeth
+      INTEGER, INTENT(IN) :: iode
       LOGICAL, INTENT(IN) :: ilog
       DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)
       INTEGER :: i, j, n, k, np, ifail, kn
@@ -141,7 +145,7 @@ CONTAINS
 
          !Loop over all time steps
          DO i = 1, n-1
-            CALL ODE_advance(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, imeth)
+            CALL ODE_advance(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, iode)
          END DO
 
          !Automatically fail on the first go
@@ -200,7 +204,7 @@ CONTAINS
 
    END SUBROUTINE ODE_adaptive
 
-   SUBROUTINE ODE_advance(x1, x2, v1, v2, t1, t2, fx, fv, imeth)
+   SUBROUTINE ODE_advance(x1, x2, v1, v2, t1, t2, fx, fv, iode)
 
       !Advances the ODE system from t1 to t2, updating x1 to x2 and v1 to v2
       IMPLICIT NONE
@@ -212,15 +216,10 @@ CONTAINS
       DOUBLE PRECISION, INTENT(IN) :: t2
       REAL, EXTERNAL :: fx
       REAL, EXTERNAL :: fv
-      INTEGER, INTENT(IN) :: imeth
+      INTEGER, INTENT(IN) :: iode !ODE solving method
       REAL :: x, v, t, dt
       REAL :: kx1, kx2, kx3, kx4
       REAL :: kv1, kv2, kv3, kv4
-
-      !imeth sets ODE solving method
-      !imeth = 1: Crude method
-      !imeth = 2: Mid-point method
-      !imeth = 3: Runge-Kutta
 
       INTERFACE
 
@@ -245,7 +244,7 @@ CONTAINS
       dt = real(t2-t1)
 
       !Crude method
-      IF (imeth == 1) THEN
+      IF (iode == iode_crude) THEN
 
          kx1 = dt*fx(x, v, t)
          kv1 = dt*fv(x, v, t)
@@ -254,7 +253,7 @@ CONTAINS
          v2 = v1+kv1
 
          !Mid-point method
-      ELSE IF (imeth == 2) THEN
+      ELSE IF (iode == iode_mid) THEN
 
          kx1 = dt*fx(x, v, t)
          kv1 = dt*fv(x, v, t)
@@ -265,7 +264,7 @@ CONTAINS
          v2 = v1+kv2
 
          !4th order Rungge-Kutta
-      ELSE IF (imeth == 3) THEN
+      ELSE IF (iode == iode_RK4) THEN
 
          kx1 = dt*fx(x, v, t)
          kv1 = dt*fv(x, v, t)
@@ -281,7 +280,7 @@ CONTAINS
 
       ELSE
 
-         STOP 'ODE_ADVANCE: Error, imeth specified incorrectly'
+         STOP 'ODE_ADVANCE: Error, iode specified incorrectly'
 
       END IF
 

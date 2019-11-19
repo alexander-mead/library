@@ -86,7 +86,7 @@ CONTAINS
       REAL :: rpair, V, nbar1, nbar2, sum1, sum2
       DOUBLE PRECISION :: r8(nr), xi8(nr)
 
-      INTEGER, PARAMETER :: imeth_table_integer = 3
+      INTEGER, PARAMETER :: ifind = ifind_split
 
       ! Allocate arrays and fill the bin edges
       CALL fill_array(log(rmin), log(rmax), rbin, nr+1)
@@ -119,7 +119,7 @@ CONTAINS
             IF (rpair < rmin .OR. rpair > rmax) THEN
                CYCLE
             ELSE
-               i = find_table_integer(rpair, rbin, nr+1, imeth_table_integer)
+               i = find_table_integer(rpair, rbin, nr+1, ifind)
                r8(i) = r8(i)+rpair
                xi8(i) = xi8(i)+w1(i1)*w2(i2)
                n(i) = n(i)+1

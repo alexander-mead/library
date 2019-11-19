@@ -1351,7 +1351,7 @@ CONTAINS
 
             ! Find integer 'n' in bins from place in table
             IF (kmod >= kbin(1) .AND. kmod <= kbin(nk+1)) THEN
-               n = find_table_integer(kmod, kbin, nk+1, 3)
+               n = find_table_integer(kmod, kbin, nk+1, ifind_split)
                IF (n < 1 .OR. n > nk) THEN
                   CYCLE
                ELSE
@@ -1493,7 +1493,7 @@ CONTAINS
 
                ! Find integer 'n' in bins from place in table
                IF (kmod >= kbin(1) .AND. kmod <= kbin(nk+1)) THEN
-                  n = find_table_integer(kmod, kbin, nk+1, 3)
+                  n = find_table_integer(kmod, kbin, nk+1, ifind_split)
                   IF (n < 1 .OR. n > nk) THEN
                      CYCLE
                   ELSE
@@ -2329,7 +2329,7 @@ CONTAINS
                         IF (r < rmin .OR. r > rmax) THEN
                            CYCLE
                         ELSE
-                           k = find_table_integer(r, r_array, n, 3)
+                           k = find_table_integer(r, r_array, n, ifind_split)
                            IF (k < 1 .OR. k > n) STOP 'Integer finding has fucked up'
                            xi8_array(k) = xi8_array(k)+d(i(1), i(2), i(3))*d(j(1), j(2), j(3))
                            n_array(k) = n_array(k)+1

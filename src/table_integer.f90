@@ -5,6 +5,13 @@ MODULE table_integer
    PRIVATE
 
    PUBLIC :: find_table_integer
+   PUBLIC :: ifind_linear
+   PUBLIC :: ifind_crude
+   PUBLIC :: ifind_split
+
+   INTEGER, PARAMETER :: ifind_linear = 1
+   INTEGER, PARAMETER :: ifind_crude = 2
+   INTEGER, PARAMETER :: ifind_split = 3
 
 CONTAINS
 
@@ -29,11 +36,11 @@ CONTAINS
          find_table_integer = 0
       ELSE IF (x > xtab(n)) THEN
          find_table_integer = n
-      ELSE IF (ifind == 1) THEN
+      ELSE IF (ifind == ifind_linear) THEN
          find_table_integer = linear_table_integer(x, xtab, n)
-      ELSE IF (ifind == 2) THEN
+      ELSE IF (ifind == ifind_crude) THEN
          find_table_integer = search_int(x, xtab, n)
-      ELSE IF (ifind == 3) THEN
+      ELSE IF (ifind == ifind_split) THEN
          find_table_integer = int_split(x, xtab, n)
       ELSE
          STOP 'TABLE INTEGER: Method specified incorrectly'

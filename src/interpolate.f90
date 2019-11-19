@@ -10,6 +10,11 @@ MODULE interpolate
 
    PUBLIC :: find
    PUBLIC :: interpolate_array
+   PUBLIC :: iinterp_polynomial
+   PUBLIC :: iinterp_Lagrange
+
+   INTEGER, PARAMETER :: iinterp_polynomial = 1
+   INTEGER, PARAMETER :: iinterp_Lagrange = 2
 
    INTERFACE find
       MODULE PROCEDURE find_1D
@@ -19,7 +24,7 @@ MODULE interpolate
 
 CONTAINS
 
-   REAL FUNCTION find_1D(x, xin, yin, n, iorder, ifind, imeth)
+   REAL FUNCTION find_1D(x, xin, yin, n, iorder, ifind, iinterp)
 
       ! Given two arrays x and y this routine interpolates to find the y_i value at position x_i
       ! Care should be chosen to insert x, xtab, ytab as log if this might give beter results
@@ -32,7 +37,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
-      INTEGER, INTENT(IN) :: imeth
+      INTEGER, INTENT(IN) :: iinterp
       REAL ::  xtab(n), ytab(n)
       REAL :: a, b, c, d
       REAL :: x1, x2, x3, x4
@@ -50,8 +55,8 @@ CONTAINS
       ! ifind = 2 => find x in xtab by crudely searching from x(1) to x(n)
       ! ifind = 3 => find x in xtab using midpoint splitting (iterations=ceiling(log2(n)))
 
-      ! imeth = 1 => Uses standard polynomials for interpolation
-      ! imeth = 2 => Uses Lagrange polynomials for interpolation
+      ! iinterp = 1 => Uses standard polynomials for interpolation
+      ! iinterp = 2 => Uses Lagrange polynomials for interpolation
 
       xtab = xin
       ytab = yin
@@ -90,10 +95,10 @@ CONTAINS
             y1 = ytab(1)
             y2 = ytab(2)
 
-            IF (imeth == 1) THEN
+            IF (iinterp == iinterp_polynomial) THEN
                CALL fix_line(a, b, x1, y1, x2, y2)
                find_1D = a*x+b
-            ELSE IF (imeth == 2) THEN
+            ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
@@ -109,10 +114,10 @@ CONTAINS
             y1 = ytab(n-1)
             y2 = ytab(n)
 
-            IF (imeth == 1) THEN
+            IF (iinterp == iinterp_polynomial) THEN
                CALL fix_line(a, b, x1, y1, x2, y2)
                find_1D = a*x+b
-            ELSE IF (imeth == 2) THEN
+            ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
@@ -150,10 +155,10 @@ CONTAINS
 
             END IF
 
-            IF (imeth == 1) THEN
+            IF (iinterp == iinterp_polynomial) THEN
                CALL fix_line(a, b, x1, y1, x2, y2)
                find_1D = a*x+b
-            ELSE IF (imeth == 2) THEN
+            ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
@@ -187,10 +192,10 @@ CONTAINS
 
                END IF
 
-               IF (imeth == 1) THEN
+               IF (iinterp == iinterp_polynomial) THEN
                   CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
                   find_1D = a*(x**2)+b*x+c
-               ELSE IF (imeth == 2) THEN
+               ELSE IF (iinterp == iinterp_Lagrange) THEN
                   find_1D = Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))
                ELSE
                   STOP 'FIND_1D: Error, method not specified correctly'
@@ -210,13 +215,13 @@ CONTAINS
                y3 = ytab(i+1)
                y4 = ytab(i+2)
 
-               IF (imeth == 1) THEN
+               IF (iinterp == iinterp_polynomial) THEN
                   ! In this case take the average of two separate quadratic spline values
                   CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
                   find_1D = (a*x**2+b*x+c)/2.
                   CALL fix_quadratic(a, b, c, x2, y2, x3, y3, x4, y4)
                   find_1D = find_1D+(a*x**2+b*x+c)/2.
-               ELSE IF (imeth == 2) THEN
+               ELSE IF (iinterp == iinterp_Lagrange) THEN
                   ! In this case take the average of two quadratic Lagrange polynomials
                   L1 = Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))
                   L2 = Lagrange_polynomial(x, 2, (/x2, x3, x4/), (/y2, y3, y4/))
@@ -271,10 +276,10 @@ CONTAINS
 
             END IF
 
-            IF (imeth == 1) THEN
+            IF (iinterp == iinterp_polynomial) THEN
                CALL fix_cubic(a, b, c, d, x1, y1, x2, y2, x3, y3, x4, y4)
                find_1D = a*x**3+b*x**2+c*x+d
-            ELSE IF (imeth == 2) THEN
+            ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 3, (/x1, x2, x3, x4/), (/y1, y2, y3, y4/))
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
@@ -290,7 +295,7 @@ CONTAINS
 
    END FUNCTION find_1D
 
-   REAL FUNCTION find_2D(x, xin, y, yin, fin, nx, ny, iorder, ifind, imeth)
+   REAL FUNCTION find_2D(x, xin, y, yin, fin, nx, ny, iorder, ifind, iinterp)
 
       ! A 2D interpolation routine to find value f(x,y) at position x, y
       ! Care should be chosen to insert x, xtab, ytab as log if this might give better results
@@ -307,7 +312,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: ny
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
-      INTEGER, INTENT(IN) :: imeth
+      INTEGER, INTENT(IN) :: iinterp
       REAL ::  xtab(nx), ytab(ny), ftab(nx, ny)
       REAL :: a, b, c, d
       REAL :: x1, x2, x3, x4
@@ -331,9 +336,9 @@ CONTAINS
       ! ifind = 2 => find x in xtab quickly assuming the table is linearly spaced
       ! ifind = 3 => find x in xtab using midpoint splitting (iterations=ceiling(log2(n)))
 
-      ! imeth = 1 => Uses cubic polynomials for interpolation
-      ! imeth = 2 => Uses Lagrange polynomials for interpolation
-      IF (imeth == 2) STOP 'FIND_2D: No Lagrange polynomials for you'
+      ! iinterp = 1 => Uses cubic polynomials for interpolation
+      ! iinterp = 2 => Uses Lagrange polynomials for interpolation
+      IF (iinterp == iinterp_Lagrange) STOP 'FIND_2D: No Lagrange polynomials for you'
 
       xtab = xin
       ytab = yin
@@ -644,7 +649,7 @@ CONTAINS
 
    END FUNCTION find_2D
 
-   REAL FUNCTION find_3D(x, xin, y, yin, z, zin, fin, nx, ny, nz, iorder, ifind, imeth)
+   REAL FUNCTION find_3D(x, xin, y, yin, z, zin, fin, nx, ny, nz, iorder, ifind, iinterp)
 
       ! A 3D interpolation routine to find value f(x,y,z) given a function evalated on arrays
       ! The linear version implemented here is also know as 'trilinear interpolation'
@@ -662,7 +667,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: nz
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
-      INTEGER, INTENT(IN) :: imeth
+      INTEGER, INTENT(IN) :: iinterp
       REAL :: x1, x2, y1, y2, z1, z2
       REAL :: F(2, 2, 2)
       REAL :: V(2, 2, 2)
@@ -676,9 +681,9 @@ CONTAINS
       ! ifind = 2 => find x in xtab quickly assuming the table is linearly spaced
       ! ifind = 3 => find x in xtab using midpoint splitting (iterations=ceiling(log2(n)))
 
-      ! imeth = 1 => Uses cubic polynomials for interpolation
+      ! iinterp = 1 => Uses cubic polynomials for interpolation
 
-      IF (imeth .NE. 1) STOP 'FIND_3D: No Lagrange polynomials for you, only regular polynomails, imeth=1'
+      IF (iinterp .NE. 1) STOP 'FIND_3D: No Lagrange polynomials for you, only regular polynomails, iinterp=1'
 
       IF (xin(1) > xin(nx)) STOP 'FIND_3D: x array in wrong order'
       IF (yin(1) > yin(ny)) STOP 'FIND_3D: y array in wrong order'
@@ -766,20 +771,21 @@ CONTAINS
 
    END FUNCTION find_3D
 
-   SUBROUTINE interpolate_array(x1, y1, n1, x2, y2, n2, iorder, ifind, imeth)
+   SUBROUTINE interpolate_array(x1, y1, n1, x2, y2, n2, iorder, ifind, iinterp)
 
       ! Interpolates array 'x1-y1' onto new 'x' values x2 and output y2
       IMPLICIT NONE
       REAL, INTENT(IN) :: x1(n1), y1(n1), x2(n2)
       REAL, INTENT(OUT) :: y2(n2)
       INTEGER, INTENT(IN) :: n1, n2
-      INTEGER, INTENT(IN) :: iorder, ifind, imeth
+      INTEGER, INTENT(IN) :: iorder
+      INTEGER, INTENT(IN) :: ifind
+      INTEGER, INTENT(IN) :: iinterp
       INTEGER :: i
 
-      ! Could be more efficient, but probably not worth the hassle: it does 'find integer' every time
-
+      ! This could be more efficient because it currently does 'find integer' every time
       DO i = 1, n2
-         y2(i) = find(x2(i), x1, y1, n1, iorder, ifind, imeth)
+         y2(i) = find(x2(i), x1, y1, n1, iorder, ifind, iinterp)
       END DO
 
    END SUBROUTINE interpolate_array
