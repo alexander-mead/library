@@ -4187,18 +4187,16 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE: Error, iorder specified incorrectly'
+                  STOP 'INTEGRATE1_COSM: Error, iorder specified incorrectly'
                END IF
 
             END IF
 
             IF ((j >= jmin) .AND. (abs(-1.d0+sum_new/sum_old) < acc)) THEN
                ! jmin avoids spurious early convergence
-               !integrate=real(sum_new)
-               !WRITE(*,*) 'INTEGRATE: Nint:', n
                EXIT
             ELSE IF (j == jmax) THEN
-               STOP 'INTEGRATE: Integration timed out'
+               STOP 'INTEGRATE1_COSM: Integration timed out'
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
@@ -4291,20 +4289,18 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 !This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE: Error, iorder specified incorrectly'
+                  STOP 'INTEGRATE2_COSM: Error, iorder specified incorrectly'
                END IF
 
             END IF
 
             IF ((j >= jmin) .AND. (abs(-1.d0+sum_new/sum_old) < acc)) THEN
                ! jmin avoids spurious early convergence
-               !integrate=real(sum_new)
-               !WRITE(*,*) 'INTEGRATE: Nint:', n
                EXIT
             ELSE IF (j == jmax) THEN
-               STOP 'INTEGRATE: Integration timed out'
+               STOP 'INTEGRATE2_COSM: Integration timed out'
             ELSE
-               !Integral has not converged so store old sums and reset sum variables
+               ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
                sum_n = sum_2n
                sum_2n = 0.d0
@@ -4397,18 +4393,16 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE: Error, iorder specified incorrectly'
+                  STOP 'INTEGRATE3_COSM: Error, iorder specified incorrectly'
                END IF
 
             END IF
 
             IF ((j >= jmin) .AND. (abs(-1.d0+sum_new/sum_old) < acc)) THEN
                ! jmin avoids spurious early convergence
-               !integrate=real(sum_new)
-               !WRITE(*,*) 'INTEGRATE: Nint:', n
                EXIT
             ELSE IF (j == jmax) THEN
-               STOP 'INTEGRATE: Integration timed out'
+               STOP 'INTEGRATE3_COSM: Integration timed out'
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
