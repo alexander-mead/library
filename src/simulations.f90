@@ -44,6 +44,15 @@ MODULE simulations
    PUBLIC :: write_slice_ascii
    PUBLIC :: write_adaptive_field
 
+   PUBLIC :: random_spherical_halo_particle
+   PUBLIC :: irho_constant
+   PUBLIC :: irho_isothermal
+   PUBLIC :: irho_shell
+
+   INTEGER, PARAMETER :: irho_constant = 3
+   INTEGER, PARAMETER :: irho_isothermal = 6
+   INTEGER, PARAMETER :: irho_shell = 7
+
    INTERFACE particle_bin
       MODULE PROCEDURE particle_bin_2D
       MODULE PROCEDURE particle_bin_3D
@@ -795,66 +804,6 @@ CONTAINS
 
    END SUBROUTINE random_inversion
 
-!!$  SUBROUTINE random_rotation(x,n,verbose)
-!!$
-!!$    USE random_numbers
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(INOUT) :: x(3,n)
-!!$    INTEGER, INTENT(IN) :: n
-!!$    LOGICAL, OPTIONAL :: verbose
-!!$    REAL :: y(3,n)
-!!$    INTEGER :: type
-!!$
-!!$    IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Applying random rotation'
-!!$
-!!$    ! Save old coordinates
-!!$    y=x
-!!$
-!!$    ! Choose random rotation
-!!$    type=random_integer(1,6)
-!!$
-!!$    ! Apply random rotation
-!!$    IF(type==1) THEN
-!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 123'
-!!$       !x(1,:)=y(1,:)
-!!$       !x(2,:)=y(2,:)
-!!$       !x(3,:)=y(3,:)
-!!$    ELSE IF(type==2) THEN
-!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 132'
-!!$       !x(1,:)=y(1,:)
-!!$       x(2,:)=y(3,:)
-!!$       x(3,:)=y(2,:)
-!!$    ELSE IF(type==3) THEN
-!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 213'
-!!$       x(1,:)=y(2,:)
-!!$       x(2,:)=y(1,:)
-!!$       !x(3,:)=y(3,:)
-!!$    ELSE IF(type==4) THEN
-!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 231'
-!!$       x(1,:)=y(2,:)
-!!$       x(2,:)=y(3,:)
-!!$       x(3,:)=y(1,:)
-!!$    ELSE IF(type==5) THEN
-!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 312'
-!!$       x(1,:)=y(3,:)
-!!$       x(2,:)=y(1,:)
-!!$       x(3,:)=y(2,:)
-!!$    ELSE IF(type==6) THEN
-!!$       IF(present_and_correct(verbose)) WRITE(*,*) 'RANDOM_ROTATION: Doing 321'
-!!$       x(1,:)=y(3,:)
-!!$       !x(2,:)=y(2,:)
-!!$       x(3,:)=y(1,:)
-!!$    ELSE
-!!$       STOP 'RANDOM_ROTATION: Error, something went very wrong'
-!!$    END IF
-!!$
-!!$    IF(present_and_correct(verbose)) THEN
-!!$       WRITE(*,*) 'RANDOM_ROTATION: Done'
-!!$       WRITE(*,*)
-!!$    END IF
-!!$
-!!$  END SUBROUTINE random_rotation
-
    SUBROUTINE random_rotation(x, n, verbose)
 
       ! Do a random rotation of the box by 90 degrees, I think this also captures inversions
@@ -923,14 +872,6 @@ CONTAINS
 
       IF (periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_2D: Very strange to have periodic and not all particles contribute'
 
-!!$    IF(ibin==-1) THEN
-!!$       WRITE(*,*) 'PARTICLE_BIN_2D: Choose binning strategy'
-!!$       WRITE(*,*) 'PARTICLE_BIN_2D: 1 - NGP'
-!!$       WRITE(*,*) 'PARTICLE_BIN_2D: 2 - CIC'
-!!$       READ(*,*) ibin
-!!$       WRITE(*,*)
-!!$    END IF
-
       IF (ibin == 1) THEN
          CALL NGP_2D(x, n, L, w, d, m, all, verbose)
       ELSE IF (ibin == 2) THEN
@@ -957,14 +898,6 @@ CONTAINS
       LOGICAL, INTENT(IN) :: verbose  ! Verbose?
 
       IF (periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_3D: Very strange to have periodic and not all particles contribute'
-
-!!$    IF(ibin==-1) THEN
-!!$       WRITE(*,*) 'PARTICLE_BIN_3D: Choose binning strategy'
-!!$       WRITE(*,*) 'PARTICLE_BIN_3D: 1 - NGP'
-!!$       WRITE(*,*) 'PARTICLE_BIN_3D: 2 - CIC'
-!!$       READ(*,*) ibin
-!!$       WRITE(*,*)
-!!$    END IF
 
       IF (ibin == 1) THEN
          CALL NGP_3D(x, n, L, w, d, m, all, verbose)
@@ -1057,9 +990,6 @@ CONTAINS
          WRITE (*, *) 'NGP_2D: Cells:', m
       END IF
 
-!!$    ! Set array to zero explicitly
-!!$    !d=0.
-
       DO i = 1, n
 
          ! Get the integer coordinates of the cell
@@ -1103,7 +1033,6 @@ CONTAINS
 
       ! Nearest-grid-point binning routine
       ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
-      !USE statistics
       IMPLICIT NONE
       REAL, INTENT(IN) :: x(3, n)      ! particle positions
       INTEGER, INTENT(IN) :: n        ! Total number of particles in area
@@ -1122,9 +1051,6 @@ CONTAINS
          WRITE (*, *) 'NGP_3D: Binning region size:', L
          WRITE (*, *) 'NGP_3D: Cells:', m
       END IF
-
-!!$    ! Set array to zero explicitly
-!!$    !d=0.
 
       DO i = 1, n
 
@@ -1165,68 +1091,6 @@ CONTAINS
 
    END SUBROUTINE NGP_3D
 
-!!$  SUBROUTINE NGP_3D(x,n,L,w,d,m,all)
-!!$
-!!$    ! Nearest-grid-point binning routine
-!!$    USE statistics
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: x(3,n)
-!!$    INTEGER, INTENT(IN) :: n
-!!$    REAL, INTENT(IN) :: L
-!!$    REAL, INTENT(IN) :: w(n)
-!!$    REAL, INTENT(OUT) :: d(m,m,m)
-!!$    INTEGER, INTENT(IN) :: m
-!!$    LOGICAL, INTENT(IN) :: all
-!!$    INTEGER :: i, ix, iy, iz
-!!$    LOGICAL :: outside
-!!$
-!!$    WRITE(*,*) 'NGP_3D: Binning particles and creating field'
-!!$    WRITE(*,*) 'NGP_3D: Cells:', m
-!!$
-!!$    ! Set array to zero explicitly
-!!$    d=0.
-!!$
-!!$    DO i=1,n
-!!$
-!!$       ! Get integer coordiante of the cell
-!!$       ix=NGP_cell(x(1,i),L,m)
-!!$       iy=NGP_cell(x(2,i),L,m)
-!!$       iz=NGP_cell(x(3,i),L,m)
-!!$
-!!$       IF(ix<1 .OR. ix>m .OR. iy<1 .OR. iy>m .OR. iz<1 .OR. iz>m) THEN
-!!$          outside=.TRUE.
-!!$       ELSE
-!!$          outside=.FALSE.
-!!$       END IF
-!!$
-!!$       IF(outside) THEN
-!!$          IF(all) THEN
-!!$             WRITE(*,*) 'NGP_3D: x position [Mpc/h]:', x(1,i)
-!!$             WRITE(*,*) 'NGP_3D: y position [Mpc/h]:', x(2,i)
-!!$             WRITE(*,*) 'NGP_3D: z position [Mpc/h]:', x(3,i)
-!!$             WRITE(*,*) 'NGP_3D: x cell: ', ix
-!!$             WRITE(*,*) 'NGP_3D: y cell: ', iy
-!!$             WRITE(*,*) 'NGP_3D: z cell: ', iz
-!!$             STOP 'NGP_3D: Error, particle outside boundary'
-!!$          ELSE
-!!$             CYCLE
-!!$          END IF
-!!$       END IF
-!!$
-!!$       ! Bin
-!!$       d(ix,iy,iz)=d(ix,iy,iz)+w(i)
-!!$
-!!$    END DO
-!!$
-!!$    WRITE(*,*) 'NGP_3D: Average:', mean(d,m)
-!!$    WRITE(*,*) 'NGP_3D: RMS:', sqrt(variance(d,m))
-!!$    WRITE(*,*) 'NGP_3D: Minimum:', minval(real(d))
-!!$    WRITE(*,*) 'NGP_3D: Maximum:', maxval(real(d))
-!!$    WRITE(*,*) 'NGP_3D: Binning complete'
-!!$    WRITE(*,*)
-!!$
-!!$  END SUBROUTINE NGP_3D
-
    SUBROUTINE CIC_2D(x, n, L, w, d, m, all, periodic, verbose)
 
       ! Cloud-in-cell binning routine
@@ -1256,9 +1120,6 @@ CONTAINS
 
       ! Needs to be set to
       eps = 0.
-
-!!$    ! Set array to zero explicitly
-!!$    !d=0.
 
       DO i = 1, n
 
@@ -1377,9 +1238,6 @@ CONTAINS
          WRITE (*, *) 'CIC_3D: Binning region size:', L
          WRITE (*, *) 'CIC_3D: Cells:', m
       END IF
-
-      ! Set array to zero explicitly
-      !d=0.
 
       DO i = 1, n
 
@@ -1628,7 +1486,7 @@ CONTAINS
 
    END SUBROUTINE SOD
 
-   SUBROUTINE find_pairs(x, okay, n, rmin, rmax, L, outfile)!pairs,np)
+   SUBROUTINE find_pairs(x, okay, n, rmin, rmax, L, outfile)
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: x(3, n)
@@ -1636,18 +1494,8 @@ CONTAINS
       REAL, INTENT(IN) :: rmin, rmax, L
       INTEGER, INTENT(IN) :: n
       CHARACTER(len=*), INTENT(IN) :: outfile
-      !REAL, ALLOCATABLE, INTENT(OUT) :: pairs(:,:)
-      !INTEGER, INTENT(OUT) :: np
       INTEGER :: i, j, np
       REAL :: r
-
-      !Only scan haloes that fall within the mass range
-      !okay=.FALSE.
-      !DO i=1,n
-      !   IF(m(i)>=mmin .AND. m(i)<=mmax) THEN
-      !      okay(i)=.TRUE.
-      !   END IF
-      !END DO
 
       WRITE (*, *) 'FIND_PAIRS: Minimum separation [Mpc/h]:', rmin
       WRITE (*, *) 'FIND_PAIRS: Maximum separation [Mpc/h]:', rmax
@@ -1682,11 +1530,11 @@ CONTAINS
       ! Shift particles to redshift space
       IMPLICIT NONE
       REAL, INTENT(INOUT) :: x(3, n) ! Particle positions [Mpc/h]
-      REAL, INTENT(IN) :: v(3, n) ! Particle velocities [km/s]
-      INTEGER, INTENT(IN) :: n ! Total number of particles
+      REAL, INTENT(IN) :: v(3, n)    ! Particle velocities [km/s]
+      INTEGER, INTENT(IN) :: n       ! Total number of particles
       REAL, INTENT(IN) :: Om_m, Om_v ! Cosmological parameters
-      REAL, INTENT(IN) :: z ! Redshift
-      INTEGER, INTENT(IN) :: iz ! Dimension along which to shift (1,2,3 for x,y,z)
+      REAL, INTENT(IN) :: z          ! Redshift
+      INTEGER, INTENT(IN) :: iz      ! Dimension along which to shift (1,2,3 for x,y,z)
       INTEGER :: i
       REAL :: H, a
 
@@ -1710,6 +1558,8 @@ CONTAINS
       ! This calculates the dimensionless squared hubble parameter squared at redshift z!
       ! It ignores contributions from radiation (not accurate at very high z)!
       ! It also ignores anything other than vacuum and matter
+      ! TODO: Include dark energy?
+      ! TODO: Remove in favour of cosmology module?
       IMPLICIT NONE
       REAL, INTENT(IN) :: z ! Redshift
       REAL, INTENT(IN) :: Om_m, Om_v ! Cosmological parameters
@@ -2173,5 +2023,63 @@ CONTAINS
       WRITE (*, *)
 
    END SUBROUTINE write_adaptive_field
+
+   FUNCTION random_spherical_halo_particle(rv, irho)
+
+      ! Make x,y,z coordiantes for a random point in an artificial spherical halo
+      USE constants
+      USE random_numbers
+      IMPLICIT NONE
+      REAL :: random_spherical_halo_particle(3)
+      REAL, INTENT(IN) :: rv
+      INTEGER, INTENT(IN) :: irho
+      REAL :: r, theta, phi
+
+      ! Get radial coordinate
+      IF (irho == irho_constant) THEN
+         r = random_r_constant(rv)
+      ELSE IF (irho == irho_isothermal) THEN
+         r = random_r_isothermal(rv)
+      ELSE IF (irho == irho_shell) THEN
+         r = rv
+      ELSE
+         STOP 'RANDOM_SPHERE: Error, irho specified incorrectly'
+      END IF
+
+      ! Get the isotropic angles
+      theta = random_theta()
+      phi = random_uniform(0., twopi)
+
+      ! Create the x, y, z coordinates from r, theta, phi
+      random_spherical_halo_particle(1) = r*sin(theta)*cos(phi)
+      random_spherical_halo_particle(2) = r*sin(theta)*sin(phi)
+      random_spherical_halo_particle(3) = r*cos(theta)
+
+   END FUNCTION random_spherical_halo_particle
+
+   REAL FUNCTION random_r_constant(rv)
+
+      ! The radial random weighting for a constant-density halo profile
+      USE random_numbers
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
+      REAL :: rand
+
+      ! TODO: Use random polynomial here with n=2: random_uniform(0.,1.)**(1./3.) -> random_polynomial(n)
+      random_r_constant = rv*random_uniform(0.,1.)**(1./3.)
+
+   END FUNCTION random_r_constant
+
+   REAL FUNCTION random_r_isothermal(rv)
+
+      ! The radial random weighting for an isothermal halo profile
+      USE random_numbers
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
+      REAL :: rand
+
+      random_r_isothermal = random_uniform(0., rv)
+
+   END FUNCTION random_r_isothermal
 
 END MODULE simulations
