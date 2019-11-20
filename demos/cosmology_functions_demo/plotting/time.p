@@ -1,5 +1,8 @@
 reset
 
+#set term aqua
+set term qt
+
 time='data/time.dat'
 
 set xrange [0:1]

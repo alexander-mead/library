@@ -1,6 +1,7 @@
 reset
 
-set term aqua dashed
+#set term aqua dashed
+set term qt dashed
 
 dist='data/distance.dat'
 

@@ -1,5 +1,8 @@
 reset
 
+#set term aqua dashed
+set term qt dashed
+
 file = 'data/neff.dat'
 
 set log x

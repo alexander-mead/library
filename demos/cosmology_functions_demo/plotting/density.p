@@ -1,7 +1,8 @@
 reset
 
 if(!exists('print')){print=0}
-if(print==0){set term aqua dashed dl 1}
+#if(print==0){set term aqua dashed dl 1}
+if(print==0){set term qt dl 1}
 if(print==1){set term post enh col sol; set output 'Omegas.eps'}
 
 density='data/density.dat'

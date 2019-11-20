@@ -1,5 +1,8 @@
 reset
 
+#set term aqua dashed
+set term qt dashed
+
 growth='data/growth.dat'
 
 set xlabel 'a'
