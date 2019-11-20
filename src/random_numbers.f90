@@ -90,7 +90,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: ndice ! Number of dice to roll
       INTEGER :: i
 
-      IF (ndice < 0) STOP 'DICE: Error, number of rolls must be positive or zero'
+      IF (ndice < 0) STOP 'DICE: Error, number of rolls must be positive'
 
       ! Roll the dice and sum the score
       dice = 0
@@ -106,7 +106,6 @@ CONTAINS
       IMPLICIT NONE
 
       random_sign = random_integer(0, 1)
-
       IF (random_sign == 0) random_sign = -1
 
    END FUNCTION random_sign
@@ -133,7 +132,7 @@ CONTAINS
       ! Produces a Rayleigh-distributed random number
       USE constants
       IMPLICIT NONE
-      REAL, INTENT(IN) :: sigma      ! Sigma parameters (*not* root-variance for the distribution)
+      REAL, INTENT(IN) :: sigma        ! Sigma parameters (*not* root-variance for the distribution)
       REAL, PARAMETER :: small = 1e-10 ! To avoid ever getting a log(0) call
 
       ! Problems if small=0. because log(0.) gets called sometimes
@@ -203,8 +202,8 @@ CONTAINS
 
       ! Produces a exponentially-distributed random number
       IMPLICIT NONE
-      REAL, INTENT(IN) :: mean       ! Mean of the distribution
-      REAL, PARAMETER :: small = 1e-10 ! Introducted because there will be problems here if log(0) is ever called
+      REAL, INTENT(IN) :: mean         ! Mean of the distribution
+      REAL, PARAMETER :: small = 1e-10 ! Needed because problems here if log(0) is ever called
 
       random_exponential = -mean*log(random_uniform(small, 1.))
 
@@ -216,8 +215,8 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: n ! Order for the polynomial [-1:inf]
 
-      IF (n <= -1) STOP 'RANDOM_POLYNOMIAL: Error, n is less than -1'
-
+      IF (n <= -1) STOP 'RANDOM_POLYNOMIAL: Error, n is less than or equal to -1'
+      
       random_polynomial = (random_uniform(0., 1.))**(1./(n+1))
 
    END FUNCTION random_polynomial
@@ -237,7 +236,7 @@ CONTAINS
       ! TODO: Increase to n-dimensions
       ! TODO: Include more complicated bounding structure (at the moment it is just a box)
       IMPLICIT NONE
-      REAL, EXTERNAL :: func
+      REAL, EXTERNAL :: func   ! Function to sample from
       REAL, INTENT(IN) :: x1   ! Lower bound for function
       REAL, INTENT(IN) :: x2   ! Upper bound for function
       REAL, INTENT(IN) :: fmax ! Maximum value of the function in the interval x1 to x2
