@@ -15,6 +15,7 @@ PROGRAM cosmology_functions_demo
    CHARACTER(len=256) :: cosmo
 
    LOGICAL, PARAMETER :: test_background = .TRUE.
+   LOGICAL, PARAMETER :: test_spherical = .TRUE.
    LOGICAL, PARAMETER :: test_power = .TRUE.
    LOGICAL, PARAMETER :: test_correlation = .FALSE.
    LOGICAL, PARAMETER :: test_sigma = .TRUE.
@@ -65,10 +66,8 @@ PROGRAM cosmology_functions_demo
       OPEN (12, file='data/growth.dat')
       OPEN (13, file='data/wa.dat')
       OPEN (14, file='data/distance.dat')
-      OPEN (15, file='data/delta_c.dat')
-      OPEN (16, file='data/Delta_v.dat')
-      OPEN (17, file='data/time.dat')
-      OPEN (18, file='data/density.dat')
+      OPEN (15, file='data/time.dat')
+      OPEN (16, file='data/density.dat')
       DO i = 1, na
          a = progression_log(amin, amax, i, na)
          z = redshift_a(a)
@@ -97,10 +96,8 @@ PROGRAM cosmology_functions_demo
             comoving_angular_distance(a, cosm), &
             physical_angular_distance(a, cosm), &
             luminosity_distance(a, cosm)
-         WRITE (15, *) a, dc_NakamuraSuto(a, cosm), dc_Mead(a, cosm), dc_spherical(a, cosm)
-         WRITE (16, *) a, Dv_BryanNorman(a, cosm), Dv_Mead(a, cosm), Dv_spherical(a, cosm)
-         WRITE (17, *) a, cosmic_time(a, cosm), look_back_time(a, cosm)
-         WRITE (18, *) a, &
+         WRITE (15, *) a, cosmic_time(a, cosm), look_back_time(a, cosm)
+         WRITE (16, *) a, &
             Omega_m(a, cosm)*Hubble2(a, cosm), &
             Omega_c(a, cosm)*Hubble2(a, cosm), &
             Omega_b(a, cosm)*Hubble2(a, cosm), &
@@ -118,13 +115,25 @@ PROGRAM cosmology_functions_demo
       CLOSE (14)
       CLOSE (15)
       CLOSE (16)
-      CLOSE (17)
-      CLOSE (18)
       IF (verbose) THEN
          WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Done'
          WRITE (*, *)
       END IF
    END IF
+
+   ! Test spherical-collapse model
+   OPEN (11, file='data/delta_c.dat')
+   OPEN (12, file='data/Delta_v.dat')
+   IF (test_spherical) THEN
+      DO i = 1, na
+         a = progression_log(amin, amax, i, na)
+         z = redshift_a(a)
+         WRITE (11, *) a, dc_NakamuraSuto(a, cosm), dc_Mead(a, cosm), dc_spherical(a, cosm)
+         WRITE (12, *) a, Dv_BryanNorman(a, cosm), Dv_Mead(a, cosm), Dv_spherical(a, cosm)
+      END DO
+   END IF
+   CLOSE(11)
+   CLOSE(12)
 
    ! Test power spectrum
    IF (test_power) THEN
