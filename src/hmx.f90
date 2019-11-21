@@ -6,7 +6,7 @@ MODULE HMx
    USE solve_equations
    USE special_functions
    USE string_operations
-   USE calculus_table
+   USE calculus_table 
    USE cosmology_functions
    USE logical_operations
    USE interpolate
@@ -55,7 +55,7 @@ MODULE HMx
    PUBLIC :: halo_diagnostics
    PUBLIC :: halo_properties
    PUBLIC :: write_halo_profiles
-   PUBLIC :: write_mass_fractions
+   PUBLIC :: write_halo_fractions
 
    ! Winint functions
    PUBLIC :: winint_diagnostics
@@ -559,7 +559,7 @@ CONTAINS
       ! 5 - Tanh transition
       hmod%itrans = 1
 
-      ! Use the Dolag c(M) correction for dark energy?
+      ! Use the Dolag et al. (2004; astro-ph/0309771) c(M) correction for dark energy?
       ! 1 - No
       ! 2 - Exactly as in Dolag et al. (2004)
       ! 3 - As in Dolag et al. (2004) but with a ^1.5 power
@@ -573,23 +573,24 @@ CONTAINS
       hmod%frac_bound_gas = 2
 
       ! Halo cold gas fraction
-      ! 1 - Constant fraction of bound halo gas
+      ! 1 - Constant fraction of bound gas is cold gas
       hmod%frac_cold_bound_gas = 1
 
       ! Halo hot gas fraction
-      ! 1 - Constant fraction of bound halo gas
+      ! 1 - Constant fraction of bound gas is hot gas
       hmod%frac_hot_bound_gas = 1
 
-      ! Halo central star fraction
+      ! Halo star fraction
       ! 1 - Fedeli (2014)
       ! 2 - Constant stellar fraction
       ! 3 - Fedeli (2014) but saturates at high halo mass
       ! 4 - No stars
       hmod%frac_stars = 3
 
-      ! Halo central star fraction
-      ! 1 - All central
-      ! 2 - Schneider et al. (2018)
+      ! Halo central-galaxy star fraction
+      ! NOTE: If eta=0 then all stars are automatically in the central galaxies
+      ! 1 - All stars in central galaxy
+      ! 2 - Schneider et al. (2018) split between central galaxy and satellite galaxies
       hmod%frac_central_stars = 2
 
       ! Halo HI fraction
@@ -599,7 +600,7 @@ CONTAINS
 
       ! DMONLY halo profile
       ! 1 - Analyical NFW
-      ! 2 - Non-analytical NFW (good for testing W(k) functions)
+      ! 2 - Non-analytical NFW (for testing W(k) numerical integration)
       ! 3 - Tophat
       ! 4 - Delta function
       ! 5 - Cored NFW
@@ -708,20 +709,20 @@ CONTAINS
       hmod%simple_pivot = .FALSE.
 
       ! Fixed parameters
-      hmod%alpha = 1.0     ! Non-virial temperature correction for static gas
-      hmod%beta = 1.0      ! Non-virial temperature correction for hot gas
-      hmod%eps = 1.        ! Concentration modification
-      hmod%Gamma = 1.17    ! Polytropic gas index
-      hmod%M0 = 1e14       ! Halo mass that has lost half gas
-      hmod%Astar = 0.03    ! Maximum star-formation efficiency
-      hmod%Twhim = 10**6.5 ! WHIM temperature [K]
-      hmod%cstar = 10.     ! Stellar concentration r_* = rv/c
-      hmod%sstar = 1.2     ! sigma_* for f_* distribution
-      hmod%Mstar = 10**12.5! M* for most efficient halo mass for star formation
-      hmod%fcold = 0.0     ! Fraction of bound gas that is cold
-      hmod%fhot = 0.0      ! Fraction of bound gas that is hot
-      hmod%eta = 0.0       ! Power-law for central galaxy mass fraction
-      hmod%ibeta = 2./3.   ! Isothermal beta power index
+      hmod%alpha = 1.0      ! Non-virial temperature correction for static gas
+      hmod%beta = 1.0       ! Non-virial temperature correction for hot gas
+      hmod%eps = 1.         ! Concentration modification
+      hmod%Gamma = 1.17     ! Polytropic gas index
+      hmod%M0 = 1e14        ! Halo mass that has lost half gas
+      hmod%Astar = 0.03     ! Maximum star-formation efficiency
+      hmod%Twhim = 10**6.5  ! WHIM temperature [K]
+      hmod%cstar = 10.      ! Stellar concentration c_* = rv/r_*
+      hmod%sstar = 1.2      ! sigma_* for f_* distribution
+      hmod%Mstar = 10**12.5 ! M* for most efficient halo mass for star formation
+      hmod%fcold = 0.0      ! Fraction of bound gas that is cold
+      hmod%fhot = 0.0       ! Fraction of bound gas that is hot
+      hmod%eta = 0.0        ! Power-law for central galaxy mass fraction
+      hmod%ibeta = 2./3.    ! Isothermal beta power index
 
       ! Mass indices
       hmod%alphap = 0.0    ! Power-law index of alpha with halo mass
@@ -1776,7 +1777,7 @@ CONTAINS
          IF (hmod%frac_stars == 4) WRITE (*, *) 'HALOMODEL: Halo star fraction: No stars in haloes'
 
          ! Satellite star fraction
-         IF (hmod%frac_central_stars == 1) WRITE (*, *) 'HALOMODEL: Central star fraction: All central stars'
+         IF (hmod%frac_central_stars == 1) WRITE (*, *) 'HALOMODEL: Central star fraction: All stars are central stars'
          IF (hmod%frac_central_stars == 2) WRITE (*, *) 'HALOMODEL: Central star fraction: Schneider et al. (2018)'
 
          ! HI fraction
@@ -1785,7 +1786,7 @@ CONTAINS
 
          ! DMONLY halo model
          IF (hmod%halo_DMONLY == 1) WRITE (*, *) 'HALOMODEL: DMONLY halo profile: NFW'
-      IF (hmod%halo_DMONLY == 2) WRITE (*, *) 'HALOMODEL: DMONLY halo profile: Non-analytical NFW (good for testing W(k) functions)'
+         IF (hmod%halo_DMONLY == 2) WRITE (*, *) 'HALOMODEL: DMONLY halo profile: Non-analytical NFW (for testing W(k) functions)'
          IF (hmod%halo_DMONLY == 3) WRITE (*, *) 'HALOMODEL: DMONLY halo profile: Tophat'
          IF (hmod%halo_DMONLY == 4) WRITE (*, *) 'HALOMODEL: DMONLY halo profile: Delta function'
          IF (hmod%halo_DMONLY == 5) WRITE (*, *) 'HALOMODEL: DMONLY halo profile: Cored NFW'
@@ -2641,6 +2642,7 @@ CONTAINS
       ELSE
 
          ! Get eta
+         ! TODO: Remove this? I do not think it is used.
          et = eta_HMcode(hmod, cosm)
 
          ! Loop over mass and apply corrections
@@ -3375,7 +3377,7 @@ CONTAINS
 
       outfile = TRIM(dir)//'/mass_fractions.dat'
       WRITE (*, *) 'HALO_DIAGNOSTICS: ', TRIM(outfile)
-      CALL write_mass_fractions(hmod, cosm, outfile)
+      CALL write_halo_fractions(hmod, cosm, outfile)
 
       IF (hmod%z == 0.0) THEN
          ext = '_z0.0.dat'
@@ -3503,7 +3505,7 @@ CONTAINS
 
    END SUBROUTINE halo_properties
 
-   SUBROUTINE write_mass_fractions(hmod, cosm, outfile)
+   SUBROUTINE write_halo_fractions(hmod, cosm, outfile)
 
       ! Writes out the halo mass fractions
       IMPLICIT NONE
@@ -3519,11 +3521,19 @@ CONTAINS
       OPEN (7, file=outfile)
       DO i = 1, n
          m = exp(progression(log(mmin), log(mmax), i, n))
-         WRITE (7, *) m, (halo_fraction(j, m, hmod, cosm), j=1, 5)
+         !WRITE (7, *) m, (halo_fraction(j, m, hmod, cosm), j=1, 5)
+         WRITE (7, *) m, &
+            halo_fraction(field_cdm, m, hmod, cosm), &
+            halo_fraction(field_gas, m, hmod, cosm), &
+            halo_fraction(field_bound_gas, m, hmod, cosm), &
+            halo_fraction(field_free_gas, m, hmod, cosm), &
+            halo_fraction(field_star, m, hmod, cosm), &
+            halo_fraction(field_central_stars, m, hmod, cosm), &
+            halo_fraction(field_satellite_stars, m, hmod, cosm)
       END DO
       CLOSE (7)
 
-   END SUBROUTINE write_mass_fractions
+   END SUBROUTINE write_halo_fractions
 
    SUBROUTINE write_halo_profiles(m, hmod, cosm, outfile)
 
@@ -5915,7 +5925,7 @@ CONTAINS
             irho = 7
             rstar = rv/HMx_cstar(m, hmod)
             p1 = rstar
-            rmax = rv ! Set so that not too much bigger than rstar, otherwise bumps integration goes tits
+            rmax = rv ! Set so that not too much bigger than rstar, otherwise bumps integration goes mad
          ELSE IF (hmod%halo_central_stars == 2) THEN
             ! Schneider & Teyssier (2015), following Mohammed (2014)
             irho = 9
@@ -8205,7 +8215,7 @@ CONTAINS
          ! From Schneider & Teyssier (2015)
          M0 = HMx_M0(hmod)
          beta = 0.6
-         halo_bound_gas_fraction = (cosm%om_b/cosm%om_m)/(1.+(M0/m)**beta)
+         halo_bound_gas_fraction = (cosm%om_b/cosm%om_m)/(1.+(m/M0)**(-beta))
       ELSE IF (hmod%frac_bound_gas == 3) THEN
          ! Universal baryon fraction model (account for stellar contribution)
          halo_bound_gas_fraction = cosm%om_b/cosm%om_m-halo_star_fraction(m, hmod, cosm)
@@ -8239,13 +8249,19 @@ CONTAINS
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: r
 
       IF (hmod%frac_cold_bound_gas == 1) THEN
          ! Constant fraction of cold halo gas
-         halo_cold_gas_fraction = hmod%fcold*halo_bound_gas_fraction(m, hmod, cosm)
+         r = hmod%fcold
       ELSE
          STOP 'HALO_COLD_GAS_FRACTION: Error, frac_cold_bound_gas not specified correctly'
       END IF
+
+      IF(r < 0. .OR. r > 1.) THEN
+         STOP 'HALO_HOT_GAS_FRACTION: Error, fraction of bound gas that is hot must be between zero and one'
+      END IF
+      halo_cold_gas_fraction = r*halo_bound_gas_fraction(m, hmod, cosm)
 
    END FUNCTION halo_cold_gas_fraction
 
@@ -8256,13 +8272,19 @@ CONTAINS
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: r
 
       IF (hmod%frac_hot_bound_gas == 1) THEN
          ! Constant fraction of hot halo gas
-         halo_hot_gas_fraction = hmod%fhot*halo_bound_gas_fraction(m, hmod, cosm)
+         r = hmod%fhot
       ELSE
          STOP 'HALO_HOT_GAS_FRACTION: Error, frac_hot_bound_gas not specified correctly'
       END IF
+
+      IF(r < 0. .OR. r > 1.) THEN
+         STOP 'HALO_HOT_GAS_FRACTION: Error, fraction of bound gas that is hot must be between zero and one'
+      END IF
+      halo_hot_gas_fraction = r*halo_bound_gas_fraction(m, hmod, cosm)
 
    END FUNCTION halo_hot_gas_fraction
 
@@ -8276,7 +8298,7 @@ CONTAINS
 
       ! This is necessarily all the gas that is not bound or in stars
       halo_free_gas_fraction = cosm%om_b/cosm%om_m-halo_star_fraction(m, hmod, cosm)-halo_bound_gas_fraction(m, hmod, cosm)
-      IF (halo_free_gas_fraction < 0.) halo_free_gas_fraction = 0.
+      IF (halo_free_gas_fraction < 0.) halo_free_gas_fraction = 0. ! TODO: This should never happen!
 
    END FUNCTION halo_free_gas_fraction
 
@@ -8295,7 +8317,6 @@ CONTAINS
       IF (hmod%frac_stars == 1 .OR. hmod%frac_stars == 3) THEN
          ! Fedeli (2014)
          A = HMx_Astar(m, hmod)
-         !m0=hmod%Mstar
          m0 = HMx_Mstar(hmod)
          sig = hmod%sstar
          halo_star_fraction = A*exp(-((log10(m/m0))**2)/(2.*sig**2))
@@ -8315,6 +8336,10 @@ CONTAINS
          STOP 'HALO_STAR_FRACTION: Error, frac_stars specified incorrectly'
       END IF
 
+      IF(halo_star_fraction < 0. .OR. halo_star_fraction > 1.) THEN
+         STOP 'HALO_STAR_FRACTION: Error, star fraction must be between zero and one'
+      END IF
+
    END FUNCTION halo_star_fraction
 
    REAL FUNCTION halo_central_star_fraction(m, hmod, cosm)
@@ -8328,7 +8353,7 @@ CONTAINS
 
       IF (hmod%frac_central_stars == 1) THEN
          ! All stellar mass in centrals
-         halo_central_star_fraction = halo_star_fraction(m, hmod, cosm)
+         r = 1.
       ELSE IF (hmod%frac_central_stars == 2) THEN
          ! Schnedier et al. (2018)
          IF (M <= HMx_Mstar(hmod)) THEN
@@ -8336,15 +8361,16 @@ CONTAINS
             r = 1.
          ELSE
             ! Otherwise there is a power law, eta ~ -0.3, higher mass haloes have more mass in satellites
-            r = (M/HMx_Mstar(hmod))**hmod%eta
-         END IF
-!!$       IF(r>1.) THEN
-!!$          STOP 'HALO_CENTRAL_STAR_FRACTION: Error, r cannot be greater than one'
-!!$       END IF
-         halo_central_star_fraction = r*halo_star_fraction(m, hmod, cosm)
+            r = (m/HMx_Mstar(hmod))**hmod%eta
+         END IF       
       ELSE
          STOP 'HALO_CENTRAL_STAR_FRACTION: Error, frac_central_stars specified incorrectly'
       END IF
+
+      IF(r<0. .OR. r>1.) THEN
+         STOP 'HALO_CENTRAL_STAR_FRACTION: Error, fraction of total stars that are central must be between zero and one'
+      END IF
+      halo_central_star_fraction = r*halo_star_fraction(m, hmod, cosm)
 
    END FUNCTION halo_central_star_fraction
 
