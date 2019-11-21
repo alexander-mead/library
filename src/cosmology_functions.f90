@@ -109,6 +109,7 @@ MODULE cosmology_functions
       REAL :: a1, a2, nstar, ws, am, dm, wm     ! DE parameters
       REAL :: z_CMB, T_CMB, neff                ! Less primary parameters
       REAL :: Om_m_pow, Om_b_pow, h_pow         ! Cosmological parameters used for P(k) if different from background
+      REAL :: b0, b1, b2, b3, b4                ! BDE parameters
 
       ! Derived parameters
       REAL :: A, Gamma, k                ! Power spectrum amplitude and shape parameter for DEFW
@@ -119,7 +120,7 @@ MODULE cosmology_functions
       REAL :: Om_c_pow                   ! Cosmological parameters used for P(k) if different from background
       REAL :: age, horizon               ! Derived distance/time
       REAL :: mue, mup, YHe              ! Derived thermal parameters
-      REAL :: Om_ws, astar, a1n, a2n        ! Derived DE parameters
+      REAL :: Om_ws, astar, a1n, a2n     ! Derived DE parameters
       REAL :: gnorm                      ! Growth-factor normalisation
 
       ! Box size
@@ -131,14 +132,15 @@ MODULE cosmology_functions
       LOGICAL :: power_Omegas, derive_gas_numbers, growk
 
       ! Look-up tables
-      REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)         ! Arrays for input linear P(k)
-      REAL, ALLOCATABLE :: log_sigma(:), log_r_sigma(:), log_a_sigma(:), log_sigmaa(:, :)     ! Arrays for sigma(R)
+      REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)        ! Arrays for input linear P(k)
+      REAL, ALLOCATABLE :: log_sigma(:), log_r_sigma(:), log_a_sigma(:), log_sigmaa(:, :)    ! Arrays for sigma(R)
       REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
       REAL, ALLOCATABLE :: log_p(:), log_a_p(:)         ! Arrays for distance (particle horizon)
       REAL, ALLOCATABLE :: log_t(:), log_a_t(:)         ! Arrays for time
       REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:)  ! Arrays for spherical-collapse parameters
-      INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, na_plin ! Array entries
-      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time ! What has been calculated
+      REAL, ALLOCATABLE :: log_a_Xde(:), log_Xde(:)     ! Arrays for dark-energy density
+      INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, na_plin, n_Xde ! Array entries
+      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde ! What has been calculated
 
       ! Have normalisations and initialisations been done?
       LOGICAL :: is_init, is_normalised
@@ -165,8 +167,6 @@ MODULE cosmology_functions
    REAL, PARAMETER :: w_v = -1.   ! Vacuum energy
 
    ! Dark energy density
-   REAL, PARAMETER :: acc_Xde = acc_cosm ! Accuracy for direct integration of dark energy density
-   INTEGER, PARAMETER :: iorder_Xde = 3  ! Order for direct integration of dark energy density
    INTEGER, PARAMETER :: iw_LCDM = 1     ! Vacuum dark energy
    INTEGER, PARAMETER :: iw_QUICC = 2    ! QUICC dark energy
    INTEGER, PARAMETER :: iw_waCDM = 3    ! w(a) dark energy
@@ -174,6 +174,16 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iw_IDE1 = 5     ! Intermediate dark energy model 1
    INTEGER, PARAMETER :: iw_IDE2 = 6     ! Intermediate dark energy model 2
    INTEGER, PARAMETER :: iw_IDE3 = 7     ! Intermediate dark energy model 3
+   INTEGER, PARAMETER :: iw_BDE = 8      ! Bound dark energy (1812.01133)  
+   REAL, PARAMETER :: amin_Xde = 1e-4    ! Minimum scale factor for direction integration to get Xde
+   REAL, PARAMETER :: amax_Xde = 1.      ! Maximum scale factor for direction integration to get Xde
+   INTEGER, PARAMETER :: n_Xde = 128     ! Number of points for Xde interpolation
+   LOGICAL, PARAMETER :: tabulate_Xde = .TRUE.        ! Tabulate Xde for interpolation
+   REAL, PARAMETER :: acc_integration_Xde = acc_cosm  ! Accuracy for direct integration of dark energy density
+   INTEGER, PARAMETER :: iorder_integration_Xde = 3   ! Polynomial order for time integration
+   INTEGER, PARAMETER :: iorder_interpolation_Xde = 3 ! Polynomial order for time interpolation
+   INTEGER, PARAMETER :: ifind_interpolation_Xde = 3  ! Finding scheme for time interpolation
+   INTEGER, PARAMETER :: imeth_interpolation_Xde = 2  ! Method for time interpolation
 
    ! Distance
    ! Changing to linear integer finding provides very little speed increase
@@ -401,6 +411,8 @@ CONTAINS
       names(54) = 'CAMB difference cosmology 4'
       names(55) = 'CAMB difference cosmology 5'
       names(56) = 'Planck 2018'
+      names(57) = 'Bound dark energy'
+      names(58) = 'Extreme bound dark energy'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -571,6 +583,20 @@ CONTAINS
 
       ! Warm dark matter
       cosm%inv_m_wdm = 0. ! Default particle to have 'infinite' mass
+
+      ! Alternative dark energy
+      cosm%a1 = 0.
+      cosm%a2 = 0.
+      cosm%nstar = 0.
+      cosm%ws = 0.
+      cosm%am = 0.
+      cosm%dm = 0.
+      cosm%wm = 0.
+      cosm%b0 = 0.
+      cosm%b1 = 0.
+      cosm%b2 = 0.
+      cosm%b3 = 0.
+      cosm%b4 = 0.
 
       ! Consider box size
       cosm%box = .FALSE.
@@ -960,6 +986,28 @@ CONTAINS
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with CAMB difference cosmologies'
          END IF
+      ELSE IF(icosmo == 57 .OR. icosmo == 58) THEN
+         ! Bound dark energy (1812.01133)
+         cosm%iw = iw_BDE
+         cosm%Om_w = cosm%Om_v
+         cosm%Om_v = 0.
+         IF(icosmo == 57) THEN
+            ! Model from (1812.01133)
+            cosm%b0 = -0.9296
+            cosm%b1 = -3.752
+            cosm%b2 = -5.926
+            cosm%b3 = -4.022
+            cosm%b4 = -0.999
+         ELSE IF(icosmo == 58) THEN
+            ! Extreme model
+            cosm%b0 = 0.
+            cosm%b1 = 0.
+            cosm%b2 = 0.
+            cosm%b3 = 0.
+            cosm%b4 = -1.
+         ELSE
+            STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with BDE'
+         END IF
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -999,6 +1047,7 @@ CONTAINS
       cosm%has_sigma = .FALSE.
       cosm%has_spherical = .FALSE.
       cosm%has_power = .FALSE.
+      cosm%has_Xde = .FALSE.
       cosm%is_init = .FALSE.
       cosm%is_normalised = .FALSE.
 
@@ -1286,6 +1335,13 @@ CONTAINS
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a*:', cosm%a1
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Om_w(a*):', cosm%Om_ws
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w*:', cosm%ws
+         ELSE IF (cosm%iw == iw_BDE) THEN
+            WRITE(*, *) 'COSMOLOGY: Bound dark energy'
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b0:', cosm%b0
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b1:', cosm%b1
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b2:', cosm%b2
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b3:', cosm%b3
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b4:', cosm%b4
          END IF
          IF (cosm%box) WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
          IF (cosm%inv_m_wdm .NE. 0.) THEN
@@ -1827,6 +1883,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: p1, p2, p3, p4
       DOUBLE PRECISION :: f1, f2, f3, f4
+      REAL :: z
 
       IF (cosm%iw == iw_LCDM) THEN
          ! LCDM
@@ -1865,6 +1922,17 @@ CONTAINS
          ELSE
             STOP 'W_DE: Error, something went wrong'
          END IF
+      ELSE IF (cosm%iw == iw_BDE) THEN
+         ! Bound dark energy
+         z = redshift_a(a)
+         w_de = 0.
+         w_de = w_de + &
+            cosm%b0*z**0 + &
+            cosm%b1*z**1 + &
+            cosm%b2*z**2 + &
+            cosm%b3*z**3 + &
+            cosm%b4*z**4
+         w_de = w_de*a**4
       ELSE
          STOP 'W_DE: Error, value of iw set incorrectly'
       END IF
@@ -1992,8 +2060,8 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       DOUBLE PRECISION :: f1, f2, f3, f4
-      REAL, PARAMETER :: acc = acc_Xde          ! Accuracy for direct integration
-      INTEGER, PARAMETER :: iorder = iorder_Xde ! Order for direct integration
+      !REAL, PARAMETER :: acc = acc_Xde          ! Accuracy for direct integration
+      !INTEGER, PARAMETER :: iorder = iorder_Xde ! Order for direct integration
 
       IF (cosm%iw == iw_LCDM) THEN
          ! LCDM
@@ -2026,13 +2094,65 @@ CONTAINS
             STOP 'X_DE: Error, something went wrong'
          END IF
       ELSE
-         ! Generally true, but doing this integration can make calculations very slow
-         ! TODO: Probably this could be tabulated if it ever became necessary
-         STOP 'X_DE: Error, this integration routine has not been tested'
-         X_de = (a**(-3))*exp(3.*integrate_cosm(a, 1., integrand_de, cosm, acc, iorder))
+         ! Generally true, but this integration can make calculations very slow
+         IF(tabulate_Xde) THEN
+            IF(.NOT. cosm%has_Xde) CALL init_Xde(cosm)
+            X_de = exp(find(log(a), cosm%log_a_Xde, cosm%log_Xde, cosm%n_Xde, &
+               iorder_interpolation_Xde, &
+               ifind_interpolation_Xde, &
+               imeth_interpolation_Xde))
+         ELSE
+            X_de = Xde_integral(a, cosm)
+         END IF
       END IF
 
    END FUNCTION X_de
+
+   SUBROUTINE init_Xde(cosm)
+
+      IMPLICIT NONE
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, PARAMETER :: amin = amin_Xde
+      REAL, PARAMETER :: amax = amax_Xde
+      INTEGER, PARAMETER :: n = n_Xde
+      INTEGER :: i
+      REAL, ALLOCATABLE :: a(:), Xde(:)
+
+      CALL fill_array(amin, amax, a, n)
+      ALLOCATE(Xde(n))
+
+      WRITE(*, *) 'INIT_XDE: minimum a:', amin
+      WRITE(*, *) 'INIT_XDE: maximum a:', amax
+      WRITE(*, *) 'INIT_XDE: number of a:', n
+
+      DO i = 1, n
+         Xde(i) = Xde_integral(a(i), cosm)
+      END DO
+
+      WRITE(*, *) 'INIT_XDE: minimum X_de:', Xde(n)
+      WRITE(*, *) 'INIT_XDE: maximum X_de:', Xde(1)
+
+      cosm%log_a_Xde = log(a)
+      cosm%log_Xde = log(Xde)
+      cosm%n_Xde = n
+      cosm%has_Xde = .TRUE.
+
+      WRITE(*, *) 'INIT_XDE: Done'
+      WRITE(*, *)
+
+   END SUBROUTINE init_Xde
+
+   REAL FUNCTION Xde_integral(a, cosm)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, PARAMETER :: acc = acc_integration_Xde
+      INTEGER, PARAMETER :: iorder = iorder_integration_Xde
+
+      Xde_integral = (a**(-3))*exp(3.*integrate_cosm(a, 1., integrand_de, cosm, acc, iorder))
+
+   END FUNCTION
 
    REAL FUNCTION integrand_de(a, cosm)
 
@@ -2048,13 +2168,12 @@ CONTAINS
    REAL FUNCTION scale_factor_z(z)
 
       ! The scale factor corresponding to redshift 'z'
-      ! TODO: Allow this to be called for -1<z<0 ?
       IMPLICIT NONE
       REAL, INTENT(IN) :: z
 
-      IF (z < 0.) THEN
+      IF (z <= -1.) THEN
          WRITE (*, *) 'SCALE_FACTOR_Z: z:', z
-         STOP 'SCALE_FACTOR_Z: Error, routine called for z<0'
+         STOP 'SCALE_FACTOR_Z: Error, routine called for z<=-1'
       END IF
 
       scale_factor_z = 1./(1.+z)
@@ -2064,16 +2183,12 @@ CONTAINS
    REAL FUNCTION redshift_a(a)
 
       ! The redshift corresponding to scale-factor 'a'
-      ! TODO: Allow this to be called for a>1 ?
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
 
       IF (a == 0.) THEN
          WRITE (*, *) 'REDSHIFT_A: a:', a
          STOP 'REDSHIFT_A: Error, routine called with a=0'
-      ELSE IF (a > 1.) THEN
-         WRITE (*, *) 'REDSHIFT_A: a:', a
-         STOP 'REDSHIFT_A: Error, routine called with a>1'
       END IF
 
       redshift_a = -1.+1./a
@@ -4445,8 +4560,7 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: root = trim(dir)//'temp'
       CHARACTER(len=256), PARAMETER :: matterpower = trim(root)//'_matterpower_'
       CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
-      CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini'
-      
+      CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini' 
 
       IF(cosm%verbose) THEN
          WRITE(*,*) 'GET_CAMB_POWER: Running CAMB'
