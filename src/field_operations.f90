@@ -2330,7 +2330,7 @@ CONTAINS
                            CYCLE
                         ELSE
                            k = find_table_integer(r, r_array, n, ifind_split)
-                           IF (k < 1 .OR. k > n) STOP 'Integer finding has fucked up'
+                           IF (k < 1 .OR. k > n) STOP 'Integer finding has failed'
                            xi8_array(k) = xi8_array(k)+d(i(1), i(2), i(3))*d(j(1), j(2), j(3))
                            n_array(k) = n_array(k)+1
                         END IF

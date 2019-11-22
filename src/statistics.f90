@@ -148,7 +148,7 @@ CONTAINS
          ELSE IF(i==4) THEN
             ci = 1.-ci ! ~0.84
          ELSE
-            STOP 'CALCULATE_CONFIDENCE: Error, something fucked up'
+            STOP 'CALCULATE_CONFIDENCE: Error, something went wrong'
          END IF
 
          ans = find(ci, c, x, n, iorder, ifind, imeth)
@@ -162,7 +162,7 @@ CONTAINS
          ELSE IF(i==4) THEN
             one_sigma(2) = ans
          ELSE
-            STOP 'CALCULATE_CONFIDENCE: Error, something fucked up'
+            STOP 'CALCULATE_CONFIDENCE: Error, something went wrong'
          END IF
 
       END DO

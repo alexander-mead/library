@@ -56,7 +56,7 @@ CONTAINS
             f1 = field(2)
             f2 = field(1)
          ELSE
-            STOP 'BAHAMAS_POWER_FILE_NAME: Error, something fucked up'
+            STOP 'BAHAMAS_POWER_FILE_NAME: Error, something went wrong'
          END IF
 
          ! File name
