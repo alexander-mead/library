@@ -11,6 +11,7 @@ MODULE HMx
    USE logical_operations
    USE interpolate
    USE file_info
+   USE table_integer
 
    IMPLICIT NONE
 
@@ -183,15 +184,17 @@ MODULE HMx
 
       ! HMx baryon parameters
       REAL :: alpha, beta, eps, Gamma, M0, Astar, Twhim, ibeta ! HMx baryon parameters
-      REAL :: cstar, sstar, mstar, Theat, fcold, fhot, eta ! HMx baryon parameters
-      REAL :: alphap, betap, Gammap, cstarp, Astarp, ibetap ! HMx mass-power parameters
-      REAL :: alphaz, betaz, epsz, Gammaz, M0z, Astarz, Twhimz, cstarz, mstarz, ibetaz ! HMx z-power parameters
-      REAL :: A_alpha, B_alpha, C_alpha, D_alpha, E_alpha
-      REAL :: A_eps, B_eps, C_eps, D_eps
-      REAL :: A_Gamma, B_Gamma, C_Gamma, D_Gamma, E_gamma
-      REAL :: A_M0, B_M0, C_M0, D_M0, E_M0
-      REAL :: A_Astar, B_Astar, C_Astar, D_Astar
-      REAL :: A_Twhim, B_Twhim, C_Twhim, D_Twhim
+      REAL :: cstar, sstar, mstar, Theat, fcold, fhot, eta     ! HMx baryon parameters
+      REAL :: betagas                                          ! HMx baryon parameters
+      REAL :: alphap, betap, Gammap, cstarp, Astarp, ibetap    ! HMx mass-power parameters
+      REAL :: alphaz, betaz, epsz, Gammaz, M0z, Astarz, Twhimz ! HMx z-power parameters
+      REAL :: cstarz, mstarz, ibetaz                           ! HMx z-power parameters
+      REAL :: A_alpha, B_alpha, C_alpha, D_alpha, E_alpha      ! Tilman alpha parameters
+      REAL :: A_eps, B_eps, C_eps, D_eps                       ! Tilman eps parameters
+      REAL :: A_Gamma, B_Gamma, C_Gamma, D_Gamma, E_gamma      ! Tilman Gamma parameters
+      REAL :: A_M0, B_M0, C_M0, D_M0, E_M0                     ! Tilman M0 parameters
+      REAL :: A_Astar, B_Astar, C_Astar, D_Astar               ! Tilman Astar parameters
+      REAL :: A_Twhim, B_Twhim, C_Twhim, D_Twhim               ! Tilman Twhim parameters
 
       ! Look-up tables
       REAL :: mmin, mmax
@@ -260,6 +263,10 @@ MODULE HMx
    INTEGER, PARAMETER :: nmeth_win = 13        ! Number of different winint methods
    INTEGER, PARAMETER :: nlim_bumps = 2        ! Do the bumps approximation after this number of bumps
    LOGICAL, PARAMETER :: winint_exit = .FALSE. ! Exit when the contributions to the integral become small
+
+   ! Mass function
+   INTEGER, PARAMETER :: iorder_derivative_mass_function = 3
+   INTEGER, PARAMETER :: ifind_derivative_mass_function = ifind_split
 
    ! Halomodel
    LOGICAL, PARAMETER :: verbose_convert_mass = .FALSE. ! Verbosity when running the mass-definition-conversion routines
@@ -723,6 +730,7 @@ CONTAINS
       hmod%fhot = 0.0       ! Fraction of bound gas that is hot
       hmod%eta = 0.0        ! Power-law for central galaxy mass fraction
       hmod%ibeta = 2./3.    ! Isothermal beta power index
+      hmod%betagas = 0.6    ! Gas fraction power-law
 
       ! Mass indices
       hmod%alphap = 0.0    ! Power-law index of alpha with halo mass
@@ -1988,6 +1996,7 @@ CONTAINS
          WRITE (*, fmt='(A30,F10.5)') 'log10(M*) [Msun/h]:', log10(hmod%Mstar)
          WRITE (*, fmt='(A30,F10.5)') 'f_cold:', hmod%fcold
          WRITE (*, fmt='(A30,F10.5)') 'f_hot:', hmod%fhot
+         WRITE (*, fmt='(A30,F10.5)') 'beta gas:', hmod%betagas
          IF (hmod%HMx_mode == 2 .OR. hmod%HMx_mode == 3) THEN
             WRITE (*, fmt='(A30,F10.5)') 'alpha mass index:', hmod%alphap
             WRITE (*, fmt='(A30,F10.5)') 'beta mass index:', hmod%betap
@@ -2018,7 +2027,14 @@ CONTAINS
             WRITE (*, fmt='(A30,F10.5)') 'log10(M0) [Msun/h]:', log10(HMx_M0(hmod))
             WRITE (*, fmt='(A30,F10.5)') 'A*:', HMx_Astar(hmod%Mh, hmod)
             WRITE (*, fmt='(A30,F10.5)') 'log10(T_WHIM) [K]:', log10(HMx_Twhim(hmod))
+            WRITE (*, fmt='(A30,F10.5)') 'isothermal beta:', HMx_ibeta(hmod%Mh, hmod)
             WRITE (*, fmt='(A30,F10.5)') 'c*:', HMx_cstar(hmod%Mh, hmod)
+            WRITE (*, fmt='(A30,F10.5)') 'sigma*:', HMx_sstar(hmod)
+            WRITE (*, fmt='(A30,F10.5)') 'M*:', HMx_Mstar(hmod)
+            WRITE (*, fmt='(A30,F10.5)') 'frac cold:', HMx_fcold(hmod)
+            WRITE (*, fmt='(A30,F10.5)') 'frac hot:', HMx_fhot(hmod)
+            WRITE (*, fmt='(A30,F10.5)') 'eta:', HMx_eta(hmod)
+            WRITE (*, fmt='(A30,F10.5)') 'beta gas frac:', HMx_betagas(hmod)
          END IF
          WRITE (*, *) '======================================='
          WRITE (*, *) 'HALOMODEL: HOD parameters'
@@ -4022,7 +4038,7 @@ CONTAINS
 
    END FUNCTION HMx_Gamma
 
-   REAL FUNCTION HMx_iso_beta(m, hmod)
+   REAL FUNCTION HMx_ibeta(m, hmod)
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
@@ -4031,26 +4047,26 @@ CONTAINS
 
       IF (hmod%HMx_mode == 1) THEN
 
-         HMx_iso_beta = hmod%ibeta
+         HMx_ibeta = hmod%ibeta
 
       ELSE IF (hmod%HMx_mode == 2) THEN
 
          Mpiv = pivot_mass(hmod)
-         HMx_iso_beta = hmod%ibeta*((m/Mpiv)**hmod%ibetap)
+         HMx_ibeta = hmod%ibeta*((m/Mpiv)**hmod%ibetap)
 
       ELSE IF (hmod%HMx_mode == 3) THEN
 
          Mpiv = pivot_mass(hmod)
          z = hmod%z
-         HMx_iso_beta = hmod%ibeta*((m/Mpiv)**hmod%ibetap)*((1.+z)**hmod%ibetaz)
+         HMx_ibeta = hmod%ibeta*((m/Mpiv)**hmod%ibetap)*((1.+z)**hmod%ibetaz)
 
       ELSE
 
-         STOP 'HMx_ISO_BETA: Error, HMx_mode not specified correctly'
+         STOP 'HMx_IBETA: Error, HMx_mode not specified correctly'
 
       END IF
 
-   END FUNCTION HMx_iso_beta
+   END FUNCTION HMx_ibeta
 
    REAL FUNCTION HMx_M0(hmod)
 
@@ -4232,6 +4248,51 @@ CONTAINS
 
    END FUNCTION HMx_Mstar
 
+   REAL FUNCTION HMx_sstar(hmod)
+
+      IMPLICIT NONE
+      TYPE(halomod) :: hmod
+
+      HMx_sstar = hmod%sstar
+
+   END FUNCTION HMx_sstar
+
+   REAL FUNCTION HMx_fcold(hmod)
+
+      IMPLICIT NONE
+      TYPE(halomod) :: hmod
+
+      HMx_fcold = hmod%fcold
+
+   END FUNCTION HMx_fcold
+
+   REAL FUNCTION HMx_fhot(hmod)
+
+      IMPLICIT NONE
+      TYPE(halomod) :: hmod
+
+      HMx_fhot = hmod%fhot
+
+   END FUNCTION HMx_fhot
+
+   REAL FUNCTION HMx_eta(hmod)
+
+      IMPLICIT NONE
+      TYPE(halomod) :: hmod
+
+      HMx_eta = hmod%eta
+
+   END FUNCTION HMx_eta
+
+   REAL FUNCTION HMx_betagas(hmod)
+
+      IMPLICIT NONE
+      TYPE(halomod) :: hmod
+
+      HMx_betagas = hmod%betagas
+
+   END FUNCTION HMx_betagas
+
    REAL FUNCTION r_nl(hmod)
 
       ! Calculates R_nl where nu(R_nl)=1.
@@ -4316,7 +4377,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       IF (hmod%imf == 4) THEN
-         Omega_stars = halo_star_fraction(hmod%mstar, hmod, cosm)
+         Omega_stars = halo_star_fraction(hmod%hmass, hmod, cosm)
          Omega_stars = Omega_stars*comoving_matter_density(cosm)/comoving_critical_density(hmod%a, cosm)
       ELSE
          Omega_stars = rhobar_tracer(hmod%nu(1), hmod%large_nu, rhobar_star_integrand, hmod, cosm)
@@ -4522,7 +4583,7 @@ CONTAINS
 
       IF (hmod%imf == 4) THEN
          ! Special case for delta-function mass function
-         one_halo_amplitude = hmod%mstar
+         one_halo_amplitude = hmod%hmass
       ELSE
          !Calculates the value of the integrand at all nu values!
          DO i = 1, hmod%n
@@ -4552,16 +4613,17 @@ CONTAINS
    REAL FUNCTION multiplicity_function(m, hmod, cosm)
 
       ! Returns the dimensionless multiplicity function: M^2n(M)/rho; n(M) = dn/dM sometimes
+      ! TODO: Is there a way to avoid unstable numerical derivative here?
       IMPLICIT NONE
       REAL, INTENT(IN) :: m                  ! Halo mass [Msun/h]
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: nu, dnu_dlnm
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: imeth = 3
+      INTEGER, PARAMETER :: iorder = iorder_derivative_mass_function
+      INTEGER, PARAMETER :: ifind = ifind_derivative_mass_function
 
       nu = nu_M(m, hmod, cosm)
-      dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, hmod%n, iorder, imeth)
+      dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, hmod%n, iorder, ifind)
       multiplicity_function = g_nu(nu, hmod)*dnu_dlnm
 
    END FUNCTION multiplicity_function
@@ -5409,9 +5471,9 @@ CONTAINS
             p1 = HMx_Gamma(m, hmod)
          ELSE IF (hmod%halo_static_gas == 2) THEN
             ! Set cored isothermal profile
-            !irho_density=6 ! Isothermal beta model with beta=2/3
+            !irho_density=6   ! Isothermal beta model with beta=2/3
             irho_density = 15 ! Isothermal beta model with general beta
-            p1 = HMx_iso_beta(m, hmod)
+            p1 = HMx_ibeta(m, hmod)
             irho_electron_pressure = irho_density ! Okay to use density for pressure because temperature is constant (isothermal)
          ELSE
             STOP 'WIN_STATIC_GAS: Error, halo_static_gas not specified correctly'
@@ -6003,7 +6065,7 @@ CONTAINS
             irho = 7
             rstar = rv/HMx_cstar(m, hmod)
             p1 = rstar
-            rmax = rv ! Set so that not too much bigger than rstar, otherwise bumps integration goes tits
+            rmax = rv ! Set so that not too much bigger than rstar, otherwise bumps integration misbehaves
          ELSE
             STOP 'WIN_SATELLITE_STARS: Error, halo_satellite_stars specified incorrectly'
          END IF
@@ -6657,7 +6719,7 @@ CONTAINS
             ! Komatsu & Seljak (2001) profile with NFW transition radius
             ! VERY slow to calculate the W(k) for some reason
             ! Also creates a weird upturn in P(k) that I do not think can be correct
-            STOP 'RHO: This is fucked'
+            STOP 'RHO: This profile is very difficult for some reason'
             t = sqrt(5.)
             rt = rv/t
             y = r/rs
@@ -7828,7 +7890,7 @@ CONTAINS
 
    END FUNCTION b2_st
 
-   REAL FUNCTION g_nu(nu, hmod)
+   REAL RECURSIVE FUNCTION g_nu(nu, hmod)
 
       ! Mass function
       IMPLICIT NONE
@@ -8214,7 +8276,8 @@ CONTAINS
       ELSE IF (hmod%frac_bound_gas == 2) THEN
          ! From Schneider & Teyssier (2015)
          M0 = HMx_M0(hmod)
-         beta = 0.6
+         !beta = 0.6
+         beta = HMx_betagas(hmod)
          halo_bound_gas_fraction = (cosm%om_b/cosm%om_m)/(1.+(m/M0)**(-beta))
       ELSE IF (hmod%frac_bound_gas == 3) THEN
          ! Universal baryon fraction model (account for stellar contribution)
@@ -8253,7 +8316,8 @@ CONTAINS
 
       IF (hmod%frac_cold_bound_gas == 1) THEN
          ! Constant fraction of cold halo gas
-         r = hmod%fcold
+         !r = hmod%fcold
+         r = HMx_fcold(hmod)
       ELSE
          STOP 'HALO_COLD_GAS_FRACTION: Error, frac_cold_bound_gas not specified correctly'
       END IF
@@ -8276,7 +8340,8 @@ CONTAINS
 
       IF (hmod%frac_hot_bound_gas == 1) THEN
          ! Constant fraction of hot halo gas
-         r = hmod%fhot
+         !r = hmod%fhot
+         r = HMx_fhot(hmod)
       ELSE
          STOP 'HALO_HOT_GAS_FRACTION: Error, frac_hot_bound_gas not specified correctly'
       END IF
@@ -8318,7 +8383,8 @@ CONTAINS
          ! Fedeli (2014)
          A = HMx_Astar(m, hmod)
          m0 = HMx_Mstar(hmod)
-         sig = hmod%sstar
+         !sig = hmod%sstar
+         sig = HMx_sstar(hmod)
          halo_star_fraction = A*exp(-((log10(m/m0))**2)/(2.*sig**2))
          IF (hmod%frac_stars == 3) THEN
             ! Suggested by Ian, the relation I have is for the central stellar mass
@@ -8361,7 +8427,7 @@ CONTAINS
             r = 1.
          ELSE
             ! Otherwise there is a power law, eta ~ -0.3, higher mass haloes have more mass in satellites
-            r = (m/HMx_Mstar(hmod))**hmod%eta
+            r = (m/HMx_Mstar(hmod))**HMx_eta(hmod)
          END IF       
       ELSE
          STOP 'HALO_CENTRAL_STAR_FRACTION: Error, frac_central_stars specified incorrectly'
@@ -8475,7 +8541,7 @@ CONTAINS
 
    END FUNCTION halo_HI_fraction
 
-   REAL FUNCTION integrate_hmod(a, b, f, hmod, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_hmod(a, b, f, hmod, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -8575,7 +8641,7 @@ CONTAINS
 
    END FUNCTION integrate_hmod
 
-   REAL FUNCTION integrate_hmod_cosm(a, b, f, hmod, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_hmod_cosm(a, b, f, hmod, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -8678,7 +8744,7 @@ CONTAINS
 
    END FUNCTION integrate_hmod_cosm
 
-   REAL FUNCTION integrate_hmod_cosm_exp(a, b, f, hmod, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_hmod_cosm_exp(a, b, f, hmod, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
