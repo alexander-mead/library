@@ -219,7 +219,8 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: itk_CAMB = 2          ! CAMB linear spectrum
    INTEGER, PARAMETER :: itk_DEFW = 3          ! DEFW linear spectrum
 
-   ! Correlation function (this is mainly fucked)
+   ! Correlation function
+   ! TODO: This works very poorly
    INTEGER, PARAMETER :: method_xi = 1         ! Method for xi integration
    INTEGER, PARAMETER :: iorder_xi = 3         ! Polynomial order for xi(r) integration
    INTEGER, PARAMETER :: min_humps_xi = 5      ! Minimum number of humps fox xi(r) integration if using humps integration
@@ -5469,10 +5470,11 @@ CONTAINS
       END IF
 
       cosm%w = -cosm%w
-      cosm%iw = iw_wCDM ! 4 - wCDM
+      cosm%iw = iw_wCDM
       cosm%Om_m = om_m/cosm%h**2
       cosm%Om_b = om_b/cosm%h**2
       cosm%Om_w = 1.-cosm%Om_m
+      cosm%Om_v = 0.
 
    END SUBROUTINE Cosmic_Emu_node_cosmology
 
@@ -5494,6 +5496,8 @@ CONTAINS
          cosm%Om_m = om_m/cosm%h**2
          cosm%Om_b = om_b/cosm%h**2
          cosm%Om_w = 1.-cosm%Om_m
+         cosm%Om_v = 0.
+         cosm%iw = iw_wCDM
       ELSE
          CALL Cosmic_Emu_node_cosmology(node, cosm)
       END IF
@@ -5889,6 +5893,7 @@ CONTAINS
       !cosm%m_nu=neutrino_constant*om_nu/3. ! Split equally over three neutrinos
       cosm%m_nu = neutrino_constant*om_nu
       cosm%Om_w = 1.-cosm%Om_m
+      cosm%Om_v = 0.
 
    END SUBROUTINE Mira_Titan_node_cosmology
 
