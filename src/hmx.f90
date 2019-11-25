@@ -287,12 +287,14 @@ MODULE HMx
    REAL, PARAMETER :: HMx_Gamma_min = 1.10 ! Minimum polytropic index
    REAL, PARAMETER :: HMx_Gamma_max = 2.00 ! Maximum polytropic index
    REAL, PARAMETER :: HMx_Astar_min = 1e-4 ! Minimum halo star fraction; needs to be set at not zero
+   REAL, PARAMETER :: frac_min = -1e-5     ! Fractions cannot be less than frac min (slightly below zero for roundoff)
+   REAL, PARAMETER :: frac_max = 1.        ! Fractions cannot be greater than frac max (exactly unity)
 
    ! Minimum fraction before haloes are treated as delta functions (dangerous)
    ! TODO: Hydro tests passed if 1e-4, but I worry a bit, also it was a fairly minor speed up (25%)
    ! TODO: Also, not obvious that a constant frac_min is correct because some species have low abundance
    ! but we ususally care about perturbations to this abundance
-   REAL, PARAMETER :: frac_min = 0.
+   REAL, PARAMETER :: frac_min_delta = 0.
    INTEGER, PARAMETER :: iorder_delta = 3
    INTEGER, PARAMETER :: ifind_delta = 3
    INTEGER, PARAMETER :: imeth_delta = 2
@@ -5380,7 +5382,7 @@ CONTAINS
          rmin = 0.
          rmax = rv
 
-         IF (frac < frac_min) THEN
+         IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
             irho_density = 0
             irho_electron_pressure = 0
@@ -5489,7 +5491,7 @@ CONTAINS
          rmin = 0.
          rmax = rv
 
-         IF (frac < frac_min) THEN
+         IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
             irho = 0
          ELSE IF (hmod%halo_cold_gas == 1) THEN
@@ -5559,7 +5561,7 @@ CONTAINS
          rmin = 0.
          rmax = rv
 
-         IF (frac < frac_min) THEN
+         IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
             irho_density = 0
             irho_electron_pressure = 0
@@ -5659,7 +5661,7 @@ CONTAINS
          rmin = 0.
          rmax = rv
 
-         IF (frac < frac_min) THEN
+         IF (frac < frac_min_delta) THEN
 
             ! Treat as delta functions if there is not much abundance
             irho_density = 0
@@ -5905,7 +5907,7 @@ CONTAINS
          rmin = 0.
          rmax = rv
 
-         IF (frac < frac_min) THEN
+         IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
             irho = 0
          ELSE IF (hmod%halo_central_stars == 1) THEN
@@ -5980,7 +5982,7 @@ CONTAINS
          rmin = 0.
          rmax = rv
 
-         IF (frac < frac_min) THEN
+         IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
             irho = 0
          ELSE IF (hmod%halo_satellite_stars == 1) THEN
@@ -8179,7 +8181,7 @@ CONTAINS
 
       halo_gas_fraction = halo_bound_gas_fraction(m, hmod, cosm)+halo_free_gas_fraction(m, hmod, cosm)
 
-      IF(halo_gas_fraction < 0. .OR. halo_gas_fraction > 1.) THEN
+      IF(halo_gas_fraction < frac_min .OR. halo_gas_fraction > frac_max) THEN
          WRITE(*, *) 'HALO_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_GAS_FRACTION: Halo gas fraction:', halo_gas_fraction
          STOP 'HALO_GAS_FRACTION: Error, halo gas fraction is outside sensible range'
@@ -8218,7 +8220,7 @@ CONTAINS
          STOP 'HALO_BOUND_GAS_FRACTION: Error, frac_bound_gas not specified correctly'
       END IF
 
-      IF(halo_bound_gas_fraction < 0. .OR. halo_bound_gas_fraction > 1.) THEN
+      IF(halo_bound_gas_fraction < frac_min .OR. halo_bound_gas_fraction > frac_max) THEN
          WRITE(*, *) 'HALO_BOUND_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_BOUND_GAS_FRACTION:', halo_bound_gas_fraction
          STOP 'HALO_BOUND_GAS_FRACTION: Error, halo bound gas fraction is outside sensible range'
@@ -8241,7 +8243,7 @@ CONTAINS
 
       halo_static_gas_fraction = bound-cold-hot
 
-      IF(halo_static_gas_fraction < 0. .OR. halo_static_gas_fraction > 1.) THEN
+      IF(halo_static_gas_fraction < frac_min .OR. halo_static_gas_fraction > frac_max) THEN
          WRITE(*, *) 'HALO_STATIC_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_STATIC_GAS_FRACTION:', halo_static_gas_fraction
          STOP 'HALO_STATIC_GAS_FRACTION: Error, static gas fraction is outside sensible range'
@@ -8265,7 +8267,7 @@ CONTAINS
          STOP 'HALO_COLD_GAS_FRACTION: Error, frac_cold_bound_gas not specified correctly'
       END IF
 
-      IF(r < 0. .OR. r > 1.) THEN
+      IF(r < frac_min .OR. r > frac_max) THEN
          WRITE(*, *) 'HALO_COLD_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_COLD_GAS_FRACTION: r:', r
          STOP 'HALO_COLD_GAS_FRACTION: Error, fraction of bound gas that is cold is outside sensible range'
@@ -8290,7 +8292,7 @@ CONTAINS
          STOP 'HALO_HOT_GAS_FRACTION: Error, frac_hot_bound_gas not specified correctly'
       END IF
 
-      IF(r < 0. .OR. r > 1.) THEN
+      IF(r < frac_min .OR. r > frac_max) THEN
          WRITE(*, *) 'HALO_HOT_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_HOT_GAS_FRACTION: r:', r
          STOP 'HALO_HOT_GAS_FRACTION: Error, fraction of bound gas that is hot must be between zero and one'
@@ -8310,12 +8312,12 @@ CONTAINS
       ! This is necessarily all the gas that is not bound or in stars
       halo_free_gas_fraction = cosm%om_b/cosm%om_m-halo_star_fraction(m, hmod, cosm)-halo_bound_gas_fraction(m, hmod, cosm)
 
-      IF (halo_free_gas_fraction < 0. .OR. halo_free_gas_fraction > 1.) THEN
+      IF (halo_free_gas_fraction < frac_min .OR. halo_free_gas_fraction > frac_max) THEN
          !halo_free_gas_fraction = 0. ! TODO: This should never happen!
          WRITE(*, *) 'HALO_FREE_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_FREE_GAS_FRACTION: Baryon fraction:', cosm%om_b/cosm%om_m
          WRITE(*, *) 'HALO_FREE_GAS_FRACTION: Halo star fraction:', halo_star_fraction(m, hmod, cosm)
-         WRITE(*, *) 'HALO_FREE_GAS_FRACTION: Halo boung-gas fraction:', halo_bound_gas_fraction(m, hmod, cosm)        
+         WRITE(*, *) 'HALO_FREE_GAS_FRACTION: Halo bound-gas fraction:', halo_bound_gas_fraction(m, hmod, cosm)        
          WRITE(*, *) 'HALO_FREE_GAS_FRACTION: Halo free-gas fraction:', halo_free_gas_fraction
          STOP 'HALO_FREE_GAS_FRACTION: Error, free-gas fraction is outside sensible range'
       END IF
@@ -8364,7 +8366,7 @@ CONTAINS
          halo_star_fraction = halo_star_fraction-(fb-cosm%om_b/cosm%om_m)
       END IF
 
-      IF(halo_star_fraction < 0. .OR. halo_star_fraction > 1.) THEN
+      IF(halo_star_fraction < frac_min .OR. halo_star_fraction > frac_max) THEN
          WRITE(*, *) 'HALO_STAR_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_STAR_FRACTION: Halo star fraction', halo_star_fraction
          STOP 'HALO_STAR_FRACTION: Error, star fraction must be between zero and one'
@@ -8397,7 +8399,7 @@ CONTAINS
          STOP 'HALO_CENTRAL_STAR_FRACTION: Error, frac_central_stars specified incorrectly'
       END IF
 
-      IF(r<0. .OR. r>1.) THEN
+      IF(r < frac_min .OR. r > frac_max) THEN
          WRITE(*, *) 'HALO_CENTRAL_STAR_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_CENTRAL_STAR_FRACTION: r:', r
          STOP 'HALO_CENTRAL_STAR_FRACTION: Error, fraction of total stars that are central must be between zero and one'
