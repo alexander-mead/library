@@ -2063,7 +2063,6 @@ CONTAINS
       USE random_numbers
       IMPLICIT NONE
       REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
-      REAL :: rand
 
       ! TODO: Use random polynomial here with n=2: random_uniform(0.,1.)**(1./3.) -> random_polynomial(n)
       random_r_constant = rv*random_uniform(0.,1.)**(1./3.)
@@ -2076,7 +2075,6 @@ CONTAINS
       USE random_numbers
       IMPLICIT NONE
       REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
-      REAL :: rand
 
       random_r_isothermal = random_uniform(0., rv)
 
