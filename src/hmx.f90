@@ -3533,7 +3533,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       CHARACTER(len=*), INTENT(IN) :: outfile
       REAL :: m
-      INTEGER :: i, j
+      INTEGER :: i
       REAL, PARAMETER :: mmin = 1e10
       REAL, PARAMETER :: mmax = 1e16
       INTEGER, PARAMETER :: n = 101
@@ -4964,7 +4964,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: m, z
 
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass in Msun/h
+      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 5.71
       REAL, PARAMETER :: B = -0.084
       REAL, PARAMETER :: C = -0.47
@@ -4980,7 +4980,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: m, z
 
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass in Msun/h
+      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 6.71
       REAL, PARAMETER :: B = -0.091
       REAL, PARAMETER :: C = -0.44
@@ -4996,7 +4996,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: m, z
 
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass in Msun/h
+      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 7.85
       REAL, PARAMETER :: B = -0.081
       REAL, PARAMETER :: C = -0.71
@@ -5012,7 +5012,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: m, z
 
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass in Msun/h
+      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 9.23
       REAL, PARAMETER :: B = -0.090
       REAL, PARAMETER :: C = -0.69
@@ -5028,7 +5028,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: m, z
 
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass in Msun/h
+      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 10.14
       REAL, PARAMETER :: B = -0.081
       REAL, PARAMETER :: C = -1.01
@@ -5044,7 +5044,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: m, z
 
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass in Msun/h
+      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 11.93
       REAL, PARAMETER :: B = -0.090
       REAL, PARAMETER :: C = -0.99
