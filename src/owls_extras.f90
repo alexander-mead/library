@@ -60,7 +60,8 @@ CONTAINS
          END IF
 
          ! File name
-  BAHAMAS_power_file_name = trim(dir)//'/'//trim(model)//'_L400N1024_WMAP9_'//trim(snap)//'_'//trim(f1)//'_'//trim(f2)//'_power.dat'
+         BAHAMAS_power_file_name = &
+            trim(dir)//'/'//trim(model)//'_L400N1024_WMAP9_'//trim(snap)//'_'//trim(f1)//'_'//trim(f2)//'_power.dat'
 
          ! Check it exists
          INQUIRE (file=BAHAMAS_power_file_name, exist=lexist)
@@ -97,13 +98,10 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: response
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       REAL, ALLOCATABLE :: Pk_DM(:), Pk_HMcode(:,:)
-      REAL, PARAMETER :: a(1)=1.
+      REAL :: a(1)
       INTEGER, PARAMETER :: na=1
       CHARACTER(len=256) :: infile, dmonly
-
       INTEGER, PARAMETER :: field_all_matter(2) = field_matter
-      REAL, PARAMETER :: mmin = 1e7
-      REAL, PARAMETER :: mmax = 1e17
 
       IF (present_and_correct(response)) THEN
          dmonly = BAHAMAS_power_file_name('DMONLY_2fluid_nu0', mesh, z, field_all_matter)
@@ -117,6 +115,7 @@ CONTAINS
       IF (present_and_correct(response)) Pk = Pk/Pk_DM
 
       IF (present_and_correct(response)) THEN
+         a = scale_factor_z(z)
          ALLOCATE (Pk_HMcode(nk,na))
          !CALL calculate_HMcode_a(k, scale_factor_z(z), Pk_HMcode, nk, cosm)
          !a(1)=scale_factor_z(z)
