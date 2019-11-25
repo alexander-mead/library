@@ -4045,7 +4045,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z, Mpiv
 
-      IF (hmod%HMx_mode == 1) THEN
+      IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 4) THEN
 
          HMx_ibeta = hmod%ibeta
 
@@ -4193,7 +4193,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: Mpiv, z
 
-      IF (hmod%HMx_mode == 1) THEN
+      IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 4) THEN
 
          HMx_cstar = hmod%cstar
 
@@ -4207,10 +4207,6 @@ CONTAINS
          Mpiv = pivot_mass(hmod)
          z = hmod%z
          HMx_cstar = hmod%cstar*((m/Mpiv)**hmod%cstarp)*((1.+z)**hmod%cstarz)
-
-      ELSE IF (hmod%HMx_mode == 4) THEN
-
-         HMx_cstar = hmod%cstar
 
       ELSE
 
@@ -4226,7 +4222,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z
 
-      IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 2) THEN
+      IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 2 .OR. hmod%HMx_mode == 4) THEN
 
          HMx_Mstar = hmod%mstar
 
@@ -4235,10 +4231,6 @@ CONTAINS
          ! Note, exponential here for z dependence because scaling applies to exponent
          z = hmod%z
          HMx_Mstar = hmod%mstar**((1.+z)**hmod%mstarz)
-
-      ELSE IF (hmod%HMx_mode == 4) THEN
-
-         HMx_Mstar = hmod%mstar
 
       ELSE
 
