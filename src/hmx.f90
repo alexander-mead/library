@@ -128,6 +128,7 @@ MODULE HMx
    PUBLIC :: param_fhot
    PUBLIC :: param_eta
    PUBLIC :: param_ibeta
+   PUBLIC :: param_gbeta
 
    ! Fitting parameters - hydro mass indices
    PUBLIC :: param_alphap
@@ -148,6 +149,7 @@ MODULE HMx
    PUBLIC :: param_Mstarz
    PUBLIC :: param_epsz
    PUBLIC :: param_ibetaz
+   PUBLIC :: param_gbetaz
 
    ! Fitting parameters - HMcode
    PUBLIC :: param_HMcode_Dv0
@@ -185,7 +187,7 @@ MODULE HMx
       ! HMx baryon parameters
       REAL :: alpha, beta, eps, Gamma, M0, Astar, Twhim, ibeta ! HMx baryon parameters
       REAL :: cstar, sstar, mstar, Theat, fcold, fhot, eta     ! HMx baryon parameters
-      REAL :: betagas                                          ! HMx baryon parameters
+      REAL :: gbeta, gbetaz                                    ! HMx baryon parameters
       REAL :: alphap, betap, Gammap, cstarp, Astarp, ibetap    ! HMx mass-power parameters
       REAL :: alphaz, betaz, epsz, Gammaz, M0z, Astarz, Twhimz ! HMx z-power parameters
       REAL :: cstarz, mstarz, ibetaz                           ! HMx z-power parameters
@@ -389,7 +391,9 @@ MODULE HMx
    INTEGER, PARAMETER :: param_ibeta = 40
    INTEGER, PARAMETER :: param_ibetap = 41
    INTEGER, PARAMETER :: param_ibetaz = 42
-   INTEGER, PARAMETER :: param_n = 42
+   INTEGER, PARAMETER :: param_gbeta = 43
+   INTEGER, PARAMETER :: param_gbetaz = 44
+   INTEGER, PARAMETER :: param_n = 44
 
 CONTAINS
 
@@ -728,7 +732,7 @@ CONTAINS
       hmod%fhot = 0.0       ! Fraction of bound gas that is hot
       hmod%eta = 0.0        ! Power-law for central galaxy mass fraction
       hmod%ibeta = 2./3.    ! Isothermal beta power index
-      hmod%betagas = 0.6    ! Gas fraction power-law
+      hmod%gbeta = 0.6      ! Gas fraction power-law
 
       ! Mass indices
       hmod%alphap = 0.0    ! Power-law index of alpha with halo mass
@@ -749,6 +753,7 @@ CONTAINS
       hmod%cstarz = 0.0    ! Power-law index of c* with redshift
       hmod%mstarz = 0.0    ! Power-law index of log(M*) with redshift
       hmod%ibetaz = 0.0    ! Power-law index of isothermal beta index with redshift
+      hmod%gbetaz = 0.0    ! Gas fraction power-law index with redshift
 
       ! $\alpha$ z and Theat variation
       hmod%A_alpha = -0.005
@@ -1994,7 +1999,7 @@ CONTAINS
          WRITE (*, fmt='(A30,F10.5)') 'log10(M*) [Msun/h]:', log10(hmod%Mstar)
          WRITE (*, fmt='(A30,F10.5)') 'f_cold:', hmod%fcold
          WRITE (*, fmt='(A30,F10.5)') 'f_hot:', hmod%fhot
-         WRITE (*, fmt='(A30,F10.5)') 'beta gas:', hmod%betagas
+         WRITE (*, fmt='(A30,F10.5)') 'beta gas:', hmod%gbeta
          IF (hmod%HMx_mode == 2 .OR. hmod%HMx_mode == 3) THEN
             WRITE (*, fmt='(A30,F10.5)') 'alpha mass index:', hmod%alphap
             WRITE (*, fmt='(A30,F10.5)') 'beta mass index:', hmod%betap
@@ -2015,6 +2020,7 @@ CONTAINS
             WRITE (*, fmt='(A30,F10.5)') 'c* z index:', hmod%cstarz
             WRITE (*, fmt='(A30,F10.5)') 'M* z index:', hmod%Mstarz
             WRITE (*, fmt='(A30,F10.5)') 'iso beta z index:', hmod%ibetaz
+            WRITE (*, fmt='(A30,F10.5)') 'beta gas z index:', hmod%gbetaz
          END IF
          IF (hmod%HMx_mode == 4) THEN
             WRITE (*, fmt='(A30,F10.5)') 'log10(T_heat) [K]:', log10(hmod%Theat)
@@ -2032,7 +2038,7 @@ CONTAINS
             WRITE (*, fmt='(A30,F10.5)') 'frac cold:', HMx_fcold(hmod)
             WRITE (*, fmt='(A30,F10.5)') 'frac hot:', HMx_fhot(hmod)
             WRITE (*, fmt='(A30,F10.5)') 'eta:', HMx_eta(hmod)
-            WRITE (*, fmt='(A30,F10.5)') 'beta gas frac:', HMx_betagas(hmod)
+            WRITE (*, fmt='(A30,F10.5)') 'beta gas frac:', HMx_gbeta(hmod)
          END IF
          WRITE (*, *) '======================================='
          WRITE (*, *) 'HALOMODEL: HOD parameters'
@@ -3875,44 +3881,34 @@ CONTAINS
 
    REAL FUNCTION HMx_alpha(m, hmod)
 
+      ! Static gas temperature
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z, T, A, B, C, D, E, Mpiv
 
       IF (hmod%HMx_mode == 1) THEN
-
          HMx_alpha = hmod%alpha
-
       ELSE IF (hmod%HMx_mode == 2) THEN
-
          Mpiv = pivot_mass(hmod)
          HMx_alpha = hmod%alpha*((m/Mpiv)**hmod%alphap)
-
       ELSE IF (hmod%HMx_mode == 3) THEN
-
          Mpiv = pivot_mass(hmod)
          z = hmod%z
          HMx_alpha = hmod%alpha*((m/Mpiv)**hmod%alphap)*((1.+z)**hmod%alphaz)
-
       ELSE IF (hmod%HMx_mode == 4) THEN
-
          A = hmod%A_alpha
          B = hmod%B_alpha
          C = hmod%C_alpha
          D = hmod%D_alpha
          E = hmod%E_alpha
-
          z = hmod%z
          T = log10(hmod%Theat)
          !HMx_alpha=A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_alpha = (A*(1.+z)**2+B*(1.+z)+C)*T**2+D*T+E
          HMx_alpha = HMx_alpha/(1.+z) ! NEW: (1+z) accounts for previous wrong definition of temperature
-
       ELSE
-
          STOP 'HMx_ALPHA: Error, HMx_mode not specified correctly'
-
       END IF
 
       IF (HMx_alpha < HMx_alpha_min) HMx_alpha = HMx_alpha_min
@@ -3921,34 +3917,25 @@ CONTAINS
 
    REAL FUNCTION HMx_beta(m, hmod)
 
+      ! Hot gas temperature
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z, Mpiv
 
       IF (hmod%HMx_mode == 1) THEN
-
          HMx_beta = hmod%beta
-
       ELSE IF (hmod%HMx_mode == 2) THEN
-
          Mpiv = pivot_mass(hmod)
          HMx_beta = hmod%beta*((m/Mpiv)**hmod%betap)
-
       ELSE IF (hmod%HMx_mode == 3) THEN
-
          Mpiv = pivot_mass(hmod)
          z = hmod%z
          HMx_beta = hmod%beta*((m/Mpiv)**hmod%betap)*((1.+z)**hmod%betaz)
-
       ELSE IF (hmod%HMx_mode == 4) THEN
-
          HMx_beta = HMx_alpha(m, hmod)
-
       ELSE
-
          STOP 'HMx_BETA: Error, HMx_mode not specified correctly'
-
       END IF
 
       IF (HMx_beta < HMx_beta_min) HMx_beta = HMx_beta_min
@@ -3957,78 +3944,60 @@ CONTAINS
 
    REAL FUNCTION HMx_eps(hmod)
 
+      ! Halo concentration epsilon
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z, T, A, B, C, D
 
       IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 2) THEN
-
          HMx_eps = hmod%eps
-
       ELSE IF (hmod%HMx_mode == 3) THEN
-
          z = hmod%z
          HMx_eps = hmod%eps*((1.+z)**hmod%epsz)
-
       ELSE IF (hmod%HMx_mode == 4) THEN
-
          A = hmod%A_eps
          B = hmod%B_eps
          C = hmod%C_eps
          D = hmod%D_eps
-
          z = hmod%z
          T = log10(hmod%Theat)
          HMx_eps = A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_eps = 10**HMx_eps
-
       ELSE
-
          STOP 'HMx_EPS: Error, HMx_mode not specified correctly'
-
       END IF
 
    END FUNCTION HMx_eps
 
    REAL FUNCTION HMx_Gamma(m, hmod)
 
+      ! Komatsu-Seljak index
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z, T, A, B, C, D, E, Mpiv
 
       IF (hmod%HMx_mode == 1) THEN
-
          HMx_Gamma = hmod%Gamma
-
       ELSE IF (hmod%HMx_mode == 2) THEN
-
          Mpiv = pivot_mass(hmod)
          HMx_Gamma = hmod%Gamma*((m/Mpiv)**hmod%Gammap)
-
       ELSE IF (hmod%HMx_mode == 3) THEN
-
          Mpiv = pivot_mass(hmod)
          z = hmod%z
          HMx_Gamma = hmod%Gamma*((m/Mpiv)**hmod%Gammap)*((1.+z)**hmod%Gammaz)
-
       ELSE IF (hmod%HMx_mode == 4) THEN
-
          A = hmod%A_Gamma
          B = hmod%B_Gamma
          C = hmod%C_Gamma
          D = hmod%D_Gamma
          E = hmod%E_Gamma
-
          z = hmod%z
          T = log10(hmod%Theat)
          !HMx_Gamma=A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_Gamma = (A*(1.+z)**2+B*(1.+z)+C)*T**2+D*T+E
-
       ELSE
-
          STOP 'HMx_GAMMA: Error, HMx_mode not specified correctly'
-
       END IF
 
       IF (HMx_Gamma < HMx_Gamma_min) HMx_Gamma = HMx_Gamma_min
@@ -4038,105 +4007,82 @@ CONTAINS
 
    REAL FUNCTION HMx_ibeta(m, hmod)
 
+      ! Isothermal-beta profile
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z, Mpiv
 
       IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 4) THEN
-
          HMx_ibeta = hmod%ibeta
-
       ELSE IF (hmod%HMx_mode == 2) THEN
-
          Mpiv = pivot_mass(hmod)
          HMx_ibeta = hmod%ibeta*((m/Mpiv)**hmod%ibetap)
-
       ELSE IF (hmod%HMx_mode == 3) THEN
-
          Mpiv = pivot_mass(hmod)
          z = hmod%z
          HMx_ibeta = hmod%ibeta*((m/Mpiv)**hmod%ibetap)*((1.+z)**hmod%ibetaz)
-
       ELSE
-
          STOP 'HMx_IBETA: Error, HMx_mode not specified correctly'
-
       END IF
 
    END FUNCTION HMx_ibeta
 
    REAL FUNCTION HMx_M0(hmod)
 
+      ! Gas fraction turn-over mass
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z, T, A, B, C, D, E
 
       IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 2) THEN
-
          HMx_M0 = hmod%M0
-
       ELSE IF (hmod%HMx_mode == 3) THEN
-
          ! Note, exponential here for z dependence because scaling applies to exponent
          z = hmod%z
          HMx_M0 = hmod%M0**((1.+z)**hmod%M0z)
-
       ELSE IF (hmod%HMx_mode == 4) THEN
-
          A = hmod%A_M0
          B = hmod%B_M0
          C = hmod%C_M0
          D = hmod%D_M0
          E = hmod%E_M0
-
          z = hmod%z
          T = log10(hmod%Theat)
          !HMx_M0=A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_M0 = (A*(1.+z)**2+B*(1.+z)+C)*T**2+D*T+E
          HMx_M0 = 10**HMx_M0
-
       ELSE
-
          STOP 'HMx_M0: Error, HMx_mode not specified correctly'
-
       END IF
 
    END FUNCTION HMx_M0
 
    REAL FUNCTION HMx_Astar(m, hmod)
 
+      ! Star fraction ampltiude
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z, T, A, B, C, D, Mpiv
 
       IF (hmod%HMx_mode == 1) THEN
-
          HMx_Astar = hmod%Astar
-
       ELSE IF (hmod%HMx_mode == 2) THEN
-
          Mpiv = pivot_mass(hmod)
          HMx_Astar = hmod%Astar*((m/Mpiv)**hmod%Astarp)
-
       ELSE IF (hmod%HMx_mode == 3) THEN
-
          Mpiv = pivot_mass(hmod)
          z = hmod%z
          HMx_Astar = hmod%Astar*((m/Mpiv)**hmod%Astarp)*((1.+z)**hmod%Astarz)
-
       ELSE IF (hmod%HMx_mode == 4) THEN
-
          A = hmod%A_Astar
          B = hmod%B_Astar
          C = hmod%C_Astar
          D = hmod%D_Astar
-
          z = hmod%z
          T = log10(hmod%Theat)
          HMx_Astar = A*(1.+z)*T+B*(1.+z)+C*T+D
-
       ELSE
 
          STOP 'HMx_ASTAR: Error, HMx_mode not specified correctly'
@@ -4149,97 +4095,78 @@ CONTAINS
 
    REAL FUNCTION HMx_Twhim(hmod)
 
+      ! WHIM temperature
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z, T, A, B, C, D
 
       IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 2) THEN
-
          HMx_Twhim = hmod%Twhim
-
       ELSE IF (hmod%HMx_mode == 3) THEN
-
          ! Note, exponential here for z dependence because scaling applies to exponent
          z = hmod%z
          HMx_Twhim = hmod%Twhim**((1.+z)**hmod%Twhimz)
-
       ELSE IF (hmod%HMx_mode == 4) THEN
-
          A = hmod%A_Twhim
          B = hmod%B_Twhim
          C = hmod%C_Twhim
          D = hmod%D_Twhim
-
          z = hmod%z
          T = log10(hmod%Theat)
          !HMx_Twhim=A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_Twhim = (A*(1.+z)**2+B*(1.+z)+C)*T+D
          HMx_Twhim = 10**HMx_Twhim
-
       ELSE
-
          STOP 'HMx_TWHIM: Error, HMx_mode not specified correctly'
-
       END IF
 
    END FUNCTION HMx_Twhim
 
    REAL FUNCTION HMx_cstar(m, hmod)
 
+      ! Stellar-density concentration
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: Mpiv, z
 
       IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 4) THEN
-
          HMx_cstar = hmod%cstar
-
       ELSE IF (hmod%HMx_mode == 2) THEN
-
          Mpiv = pivot_mass(hmod)
          HMx_cstar = hmod%cstar*((m/Mpiv)**hmod%cstarp)
-
       ELSE IF (hmod%HMx_mode == 3) THEN
-
          Mpiv = pivot_mass(hmod)
          z = hmod%z
          HMx_cstar = hmod%cstar*((m/Mpiv)**hmod%cstarp)*((1.+z)**hmod%cstarz)
-
       ELSE
-
          STOP 'HMx_CSTAR: Error, HMx_mode not specified correctly'
-
       END IF
 
    END FUNCTION HMx_cstar
 
    REAL FUNCTION HMx_Mstar(hmod)
 
+      ! Peak halo mass for star-formation efficiency
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: z
 
       IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 2 .OR. hmod%HMx_mode == 4) THEN
-
          HMx_Mstar = hmod%mstar
-
       ELSE IF (hmod%HMx_mode == 3) THEN
-
          ! Note, exponential here for z dependence because scaling applies to exponent
          z = hmod%z
          HMx_Mstar = hmod%mstar**((1.+z)**hmod%mstarz)
-
       ELSE
-
          STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
-
       END IF
 
    END FUNCTION HMx_Mstar
 
    REAL FUNCTION HMx_sstar(hmod)
 
+      ! Star fraction width
       IMPLICIT NONE
       TYPE(halomod) :: hmod
 
@@ -4249,6 +4176,7 @@ CONTAINS
 
    REAL FUNCTION HMx_fcold(hmod)
 
+      ! Cold gas fraction
       IMPLICIT NONE
       TYPE(halomod) :: hmod
 
@@ -4258,6 +4186,7 @@ CONTAINS
 
    REAL FUNCTION HMx_fhot(hmod)
 
+      ! Hot gas fraction
       IMPLICIT NONE
       TYPE(halomod) :: hmod
 
@@ -4267,6 +4196,7 @@ CONTAINS
 
    REAL FUNCTION HMx_eta(hmod)
 
+      ! Satellite galaxy fraction
       IMPLICIT NONE
       TYPE(halomod) :: hmod
 
@@ -4274,14 +4204,21 @@ CONTAINS
 
    END FUNCTION HMx_eta
 
-   REAL FUNCTION HMx_betagas(hmod)
+   REAL FUNCTION HMx_gbeta(hmod)
 
+      ! Power-law decline for halo gas fractions
       IMPLICIT NONE
       TYPE(halomod) :: hmod
 
-      HMx_betagas = hmod%betagas
+      IF(hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 2 .OR. hmod%HMx_mode == 4) THEN
+         HMx_gbeta = hmod%gbeta
+      ELSE IF(hmod%HMx_mode == 3) THEN
+         HMx_gbeta = hmod%gbeta*((1.+hmod%z)**hmod%gbetaz)
+      ELSE
+         STOP 'HMx_GBETA: Error, HMx_mode not specified correctly'
+      END IF
 
-   END FUNCTION HMx_betagas
+   END FUNCTION HMx_gbeta
 
    REAL FUNCTION r_nl(hmod)
 
@@ -8272,7 +8209,7 @@ CONTAINS
          ! From Schneider & Teyssier (2015)
          M0 = HMx_M0(hmod)
          !beta = 0.6
-         beta = HMx_betagas(hmod)
+         beta = HMx_gbeta(hmod)
          halo_bound_gas_fraction = (cosm%om_b/cosm%om_m)/(1.+(m/M0)**(-beta))
       ELSE IF (hmod%frac_bound_gas == 3) THEN
          ! Universal baryon fraction model (account for stellar contribution)
