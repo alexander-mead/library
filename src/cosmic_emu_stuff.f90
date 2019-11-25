@@ -187,7 +187,8 @@ CONTAINS
 
       USE constants
       IMPLICIT NONE
-      REAL, ALLOCATABLE, INTENT(OUT) :: k(:), P(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: P(:)
       INTEGER, INTENT(OUT) :: n
       REAL, INTENT(IN) :: z
       TYPE(cosmology), INTENT(IN) :: cosm
