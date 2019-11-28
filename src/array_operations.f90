@@ -775,7 +775,8 @@ CONTAINS
       ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
       USE fix_polynomial
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(n), y(n)
+      REAL, INTENT(IN) :: x(n)
+      REAL, INTENT(IN) :: y(n)
       INTEGER, INTENT(IN) :: n
       REAL :: x1, x2, x3, y1, y2, y3, a, b, c
       INTEGER :: imax(1), i

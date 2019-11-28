@@ -1483,228 +1483,6 @@ CONTAINS
 
    END SUBROUTINE init_halomod
 
-   REAL FUNCTION integrate_g_mu(nu1, nu2, hmod)
-
-      ! Integrate g(nu) between nu1 and nu2; this is the fraction of mass in the Universe in haloes between nu1 and nu2
-      ! Integrating this over all nu should give unity
-      ! Could do better but need to explicity remove divergence by making functions where alpha*mu^(alpha-1) is multiplied by g(nu)
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-      REAL :: mu1, mu2
-      REAL :: alpha
-
-      ! Relation between nu and mu: nu=mu^alpha
-      alpha = hmod%alpha_numu
-      mu1 = nu1**(1./alpha)
-      mu2 = nu2**(1./alpha)
-
-      integrate_g_mu = integrate_hmod(mu1, mu2, g_mu, hmod, hmod%acc, iorder)
-
-   END FUNCTION integrate_g_mu
-
-   REAL FUNCTION integrate_g_nu(nu1, nu2, hmod)
-
-      ! Integrate g(nu) between nu1 and nu2; this is the fraction of mass in the Universe in haloes between nu1 and nu2
-      ! Previously called 'mass_interval'
-      ! Integrating this over all nu should give unity
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      integrate_g_nu = integrate_hmod(nu1, nu2, g_nu, hmod, hmod%acc, iorder)
-
-   END FUNCTION integrate_g_nu
-
-   REAL FUNCTION integrate_g_nu_on_M(nu1, nu2, hmod)
-
-      ! Integrate g(nu)/M between nu1 and nu2; this is the number density of haloes in the Universe between nu1 and nu2
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      integrate_g_nu_on_M = integrate_hmod(nu1, nu2, g_nu_on_M, hmod, hmod%acc, iorder)
-
-   END FUNCTION integrate_g_nu_on_M
-
-   REAL FUNCTION integrate_gb_nu(nu1, nu2, hmod)
-
-      ! Integrate b(nu)*g(nu) between nu1 and nu2
-      ! Previously called 'bias_interval'
-      ! This is the unnormalised mass-weighted mean bias in the range nu1 to nu2
-      ! Integrating this over all nu should give unity
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      integrate_gb_nu = integrate_hmod(nu1, nu2, gb_nu, hmod, hmod%acc, iorder)
-
-   END FUNCTION integrate_gb_nu
-
-   REAL FUNCTION integrate_gb_nu_on_M(nu1, nu2, hmod)
-
-      ! Integrate b(nu)*g(nu) between nu1 and nu2
-      ! Previously called 'bias_interval'
-      ! This is the unnormalised mass-weighted mean bias in the range nu1 to nu2
-      ! Integrating this over all nu should give unity
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      integrate_gb_nu_on_M = integrate_hmod(nu1, nu2, gb_nu_on_M, hmod, hmod%acc, iorder)
-
-   END FUNCTION integrate_gb_nu_on_M
-
-   REAL FUNCTION integrate_nug_nu(nu1, nu2, hmod)
-
-      ! Integrate nu*g(nu) between nu1 and nu2
-      ! Previously called 'nu interval'
-      ! This is the unnormalised mass-weighted nu in the range nu1 to nu2
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      integrate_nug_nu = integrate_hmod(nu1, nu2, nug_nu, hmod, hmod%acc, iorder)
-
-   END FUNCTION integrate_nug_nu
-
-   REAL FUNCTION integrate_Mg_nu(nu1, nu2, hmod)
-
-      ! Integrate nu*g(nu) between nu1 and nu2
-      ! Previously called 'nu interval'
-      ! This is the unnormalised mass-weighted nu in the range nu1 to nu2
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      integrate_Mg_nu = integrate_hmod(nu1, nu2, Mg_nu, hmod, hmod%acc, iorder)
-
-   END FUNCTION integrate_Mg_nu
-
-   REAL FUNCTION integrate_nug_nu_on_M(nu1, nu2, hmod)
-
-      ! Integrate nu*g(nu) between nu1 and nu2
-      ! Previously called 'nu interval'
-      ! This is the unnormalised mass-weighted nu in the range nu1 to nu2
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      integrate_nug_nu_on_M = integrate_hmod(nu1, nu2, nug_nu_on_M, hmod, hmod%acc, iorder)
-
-   END FUNCTION integrate_nug_nu_on_M
-
-   REAL FUNCTION mean_bias_number_weighted(nu1, nu2, hmod)
-
-      ! Calculate the mean number-weighted bias in the range nu1 to nu2
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      mean_bias_number_weighted = integrate_gb_nu_on_M(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
-
-   END FUNCTION mean_bias_number_weighted
-
-   REAL FUNCTION mean_nu_number_weighted(nu1, nu2, hmod)
-
-      ! Calculate the mean number-weighted nu in the range nu1 to nu2
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      mean_nu_number_weighted = integrate_nug_nu_on_M(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
-
-   END FUNCTION mean_nu_number_weighted
-
-   REAL FUNCTION mean_halo_mass_number_weighted(nu1, nu2, hmod)
-
-      ! Calculate the mean number-weighted halo mass in the range nu1 to nu2
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      mean_halo_mass_number_weighted = integrate_g_nu(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
-
-   END FUNCTION mean_halo_mass_number_weighted
-
-   REAL FUNCTION mean_bias_mass_weighted(nu1, nu2, hmod)
-
-      ! Calculate the mean mass-weighted bias in the range nu1 to nu2
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      mean_bias_mass_weighted = integrate_gb_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
-
-   END FUNCTION mean_bias_mass_weighted
-
-   REAL FUNCTION mean_nu_mass_weighted(nu1, nu2, hmod)
-
-      ! Calculate the mean mass-weighted nu in the range nu1 to nu2
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      mean_nu_mass_weighted = integrate_nug_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
-
-   END FUNCTION mean_nu_mass_weighted
-
-   REAL FUNCTION mean_halo_mass_mass_weighted(nu1, nu2, hmod)
-
-      ! Calculate the mean mass-weighted halo mass in the range nu1 to nu2
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
-
-      mean_halo_mass_mass_weighted = integrate_Mg_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
-
-   END FUNCTION mean_halo_mass_mass_weighted
-
-   REAL FUNCTION mean_halo_number_density(nu1, nu2, hmod, cosm)
-
-      ! Calculate N(m) where N is the number density of haloes above mass m
-      ! Obtained by integrating the mass function
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: nu1, nu2           ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER, PARAMETER :: iorder = 3         ! Order for integration
-
-      mean_halo_number_density = integrate_hmod(nu1, nu2, g_nu_on_M, hmod, hmod%acc, iorder)
-      mean_halo_number_density = mean_halo_number_density*comoving_matter_density(cosm)
-
-   END FUNCTION mean_halo_number_density
-
-!!$  REAL FUNCTION halo_number_density(m1,m2,hmod,cosm)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: m1
-!!$    REAL, INTENT(IN) :: m2
-!!$    TYPE(halomod), INTENT(INOUT) :: hmod
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    REAL :: nu1, nu2
-!!$
-!!$    nu1=nu_M(m1,hmod,cosm)
-!!$    nu2=nu_M(m2,hmod,cosm)
-!!$
-!!$    halo_number_density=comoving_matter_density(cosm)*integrate_g_nu_on_M(nu1,nu2,hmod)
-!!$
-!!$  END FUNCTION halo_number_density
-
    SUBROUTINE print_halomod(hmod, cosm, verbose)
 
       !This subroutine writes out the physical halo-model parameters at some redshift
@@ -2057,6 +1835,228 @@ CONTAINS
       END IF
 
    END SUBROUTINE print_halomod
+
+   REAL FUNCTION integrate_g_mu(nu1, nu2, hmod)
+
+      ! Integrate g(nu) between nu1 and nu2; this is the fraction of mass in the Universe in haloes between nu1 and nu2
+      ! Integrating this over all nu should give unity
+      ! Could do better but need to explicity remove divergence by making functions where alpha*mu^(alpha-1) is multiplied by g(nu)
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      REAL :: mu1, mu2
+      REAL :: alpha
+
+      ! Relation between nu and mu: nu=mu^alpha
+      alpha = hmod%alpha_numu
+      mu1 = nu1**(1./alpha)
+      mu2 = nu2**(1./alpha)
+
+      integrate_g_mu = integrate_hmod(mu1, mu2, g_mu, hmod, hmod%acc, iorder)
+
+   END FUNCTION integrate_g_mu
+
+   REAL FUNCTION integrate_g_nu(nu1, nu2, hmod)
+
+      ! Integrate g(nu) between nu1 and nu2; this is the fraction of mass in the Universe in haloes between nu1 and nu2
+      ! Previously called 'mass_interval'
+      ! Integrating this over all nu should give unity
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      integrate_g_nu = integrate_hmod(nu1, nu2, g_nu, hmod, hmod%acc, iorder)
+
+   END FUNCTION integrate_g_nu
+
+   REAL FUNCTION integrate_g_nu_on_M(nu1, nu2, hmod)
+
+      ! Integrate g(nu)/M between nu1 and nu2; this is the number density of haloes in the Universe between nu1 and nu2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      integrate_g_nu_on_M = integrate_hmod(nu1, nu2, g_nu_on_M, hmod, hmod%acc, iorder)
+
+   END FUNCTION integrate_g_nu_on_M
+
+   REAL FUNCTION integrate_gb_nu(nu1, nu2, hmod)
+
+      ! Integrate b(nu)*g(nu) between nu1 and nu2
+      ! Previously called 'bias_interval'
+      ! This is the unnormalised mass-weighted mean bias in the range nu1 to nu2
+      ! Integrating this over all nu should give unity
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      integrate_gb_nu = integrate_hmod(nu1, nu2, gb_nu, hmod, hmod%acc, iorder)
+
+   END FUNCTION integrate_gb_nu
+
+   REAL FUNCTION integrate_gb_nu_on_M(nu1, nu2, hmod)
+
+      ! Integrate b(nu)*g(nu) between nu1 and nu2
+      ! Previously called 'bias_interval'
+      ! This is the unnormalised mass-weighted mean bias in the range nu1 to nu2
+      ! Integrating this over all nu should give unity
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      integrate_gb_nu_on_M = integrate_hmod(nu1, nu2, gb_nu_on_M, hmod, hmod%acc, iorder)
+
+   END FUNCTION integrate_gb_nu_on_M
+
+   REAL FUNCTION integrate_nug_nu(nu1, nu2, hmod)
+
+      ! Integrate nu*g(nu) between nu1 and nu2
+      ! Previously called 'nu interval'
+      ! This is the unnormalised mass-weighted nu in the range nu1 to nu2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      integrate_nug_nu = integrate_hmod(nu1, nu2, nug_nu, hmod, hmod%acc, iorder)
+
+   END FUNCTION integrate_nug_nu
+
+   REAL FUNCTION integrate_Mg_nu(nu1, nu2, hmod)
+
+      ! Integrate nu*g(nu) between nu1 and nu2
+      ! Previously called 'nu interval'
+      ! This is the unnormalised mass-weighted nu in the range nu1 to nu2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      integrate_Mg_nu = integrate_hmod(nu1, nu2, Mg_nu, hmod, hmod%acc, iorder)
+
+   END FUNCTION integrate_Mg_nu
+
+   REAL FUNCTION integrate_nug_nu_on_M(nu1, nu2, hmod)
+
+      ! Integrate nu*g(nu) between nu1 and nu2
+      ! Previously called 'nu interval'
+      ! This is the unnormalised mass-weighted nu in the range nu1 to nu2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      integrate_nug_nu_on_M = integrate_hmod(nu1, nu2, nug_nu_on_M, hmod, hmod%acc, iorder)
+
+   END FUNCTION integrate_nug_nu_on_M
+
+   REAL FUNCTION mean_bias_number_weighted(nu1, nu2, hmod)
+
+      ! Calculate the mean number-weighted bias in the range nu1 to nu2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      mean_bias_number_weighted = integrate_gb_nu_on_M(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
+
+   END FUNCTION mean_bias_number_weighted
+
+   REAL FUNCTION mean_nu_number_weighted(nu1, nu2, hmod)
+
+      ! Calculate the mean number-weighted nu in the range nu1 to nu2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      mean_nu_number_weighted = integrate_nug_nu_on_M(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
+
+   END FUNCTION mean_nu_number_weighted
+
+   REAL FUNCTION mean_halo_mass_number_weighted(nu1, nu2, hmod)
+
+      ! Calculate the mean number-weighted halo mass in the range nu1 to nu2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      mean_halo_mass_number_weighted = integrate_g_nu(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
+
+   END FUNCTION mean_halo_mass_number_weighted
+
+   REAL FUNCTION mean_bias_mass_weighted(nu1, nu2, hmod)
+
+      ! Calculate the mean mass-weighted bias in the range nu1 to nu2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      mean_bias_mass_weighted = integrate_gb_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
+
+   END FUNCTION mean_bias_mass_weighted
+
+   REAL FUNCTION mean_nu_mass_weighted(nu1, nu2, hmod)
+
+      ! Calculate the mean mass-weighted nu in the range nu1 to nu2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      mean_nu_mass_weighted = integrate_nug_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
+
+   END FUNCTION mean_nu_mass_weighted
+
+   REAL FUNCTION mean_halo_mass_mass_weighted(nu1, nu2, hmod)
+
+      ! Calculate the mean mass-weighted halo mass in the range nu1 to nu2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+
+      mean_halo_mass_mass_weighted = integrate_Mg_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
+
+   END FUNCTION mean_halo_mass_mass_weighted
+
+   REAL FUNCTION mean_halo_number_density(nu1, nu2, hmod, cosm)
+
+      ! Calculate N(m) where N is the number density of haloes above mass m
+      ! Obtained by integrating the mass function
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu1, nu2           ! Range in nu
+      TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      INTEGER, PARAMETER :: iorder = 3         ! Order for integration
+
+      mean_halo_number_density = integrate_hmod(nu1, nu2, g_nu_on_M, hmod, hmod%acc, iorder)
+      mean_halo_number_density = mean_halo_number_density*comoving_matter_density(cosm)
+
+   END FUNCTION mean_halo_number_density
+
+!!$  REAL FUNCTION halo_number_density(m1,m2,hmod,cosm)
+!!$
+!!$    IMPLICIT NONE
+!!$    REAL, INTENT(IN) :: m1
+!!$    REAL, INTENT(IN) :: m2
+!!$    TYPE(halomod), INTENT(INOUT) :: hmod
+!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
+!!$    REAL :: nu1, nu2
+!!$
+!!$    nu1=nu_M(m1,hmod,cosm)
+!!$    nu2=nu_M(m2,hmod,cosm)
+!!$
+!!$    halo_number_density=comoving_matter_density(cosm)*integrate_g_nu_on_M(nu1,nu2,hmod)
+!!$
+!!$  END FUNCTION halo_number_density
 
    SUBROUTINE init_dewiggle(hmod, cosm)
 

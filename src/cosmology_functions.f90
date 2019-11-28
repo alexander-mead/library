@@ -2371,6 +2371,8 @@ CONTAINS
       INTEGER :: i
       INTEGER, PARAMETER :: iorder = iorder_integration_distance ! Order for integration
 
+      WRITE(*, *) 'Tits McGee'
+
       ! Get from PARAMETERS
       amin = amin_distance
       amax = amax_distance
