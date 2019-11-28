@@ -312,7 +312,6 @@ MODULE HMx
    REAL, PARAMETER :: BNL_min = -1.                 ! Minimum value that BNL is allowed to be (could be below -1)
    LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
    LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Fix a minimum value for B_NL
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_BDMV'
    CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
 
    ! Field types
@@ -1485,8 +1484,7 @@ CONTAINS
 
    SUBROUTINE print_halomod(hmod, cosm, verbose)
 
-      !This subroutine writes out the physical halo-model parameters at some redshift
-      !(e.g., Delta_v) rather than the model parameters
+      ! This subroutine writes out the physical halo-model parameters at some redshift
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1840,11 +1838,11 @@ CONTAINS
 
       ! Integrate g(nu) between nu1 and nu2; this is the fraction of mass in the Universe in haloes between nu1 and nu2
       ! Integrating this over all nu should give unity
-      ! Could do better but need to explicity remove divergence by making functions where alpha*mu^(alpha-1) is multiplied by g(nu)
+      ! TODO: Explicity remove divergence by making functions where alpha*mu^(alpha-1) is multiplied by g(nu)
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
       REAL :: mu1, mu2
       REAL :: alpha
 
@@ -1865,7 +1863,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       integrate_g_nu = integrate_hmod(nu1, nu2, g_nu, hmod, hmod%acc, iorder)
 
@@ -1877,7 +1875,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       integrate_g_nu_on_M = integrate_hmod(nu1, nu2, g_nu_on_M, hmod, hmod%acc, iorder)
 
@@ -1892,7 +1890,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       integrate_gb_nu = integrate_hmod(nu1, nu2, gb_nu, hmod, hmod%acc, iorder)
 
@@ -1907,7 +1905,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       integrate_gb_nu_on_M = integrate_hmod(nu1, nu2, gb_nu_on_M, hmod, hmod%acc, iorder)
 
@@ -1921,7 +1919,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       integrate_nug_nu = integrate_hmod(nu1, nu2, nug_nu, hmod, hmod%acc, iorder)
 
@@ -1935,7 +1933,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       integrate_Mg_nu = integrate_hmod(nu1, nu2, Mg_nu, hmod, hmod%acc, iorder)
 
@@ -1949,7 +1947,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       integrate_nug_nu_on_M = integrate_hmod(nu1, nu2, nug_nu_on_M, hmod, hmod%acc, iorder)
 
@@ -1961,7 +1959,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       mean_bias_number_weighted = integrate_gb_nu_on_M(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
 
@@ -1973,7 +1971,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       mean_nu_number_weighted = integrate_nug_nu_on_M(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
 
@@ -1985,7 +1983,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       mean_halo_mass_number_weighted = integrate_g_nu(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
 
@@ -1997,7 +1995,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       mean_bias_mass_weighted = integrate_gb_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
 
@@ -2009,7 +2007,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       mean_nu_mass_weighted = integrate_nug_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
 
@@ -2021,7 +2019,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
 
       mean_halo_mass_mass_weighted = integrate_Mg_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
 
@@ -2035,28 +2033,12 @@ CONTAINS
       REAL, INTENT(IN) :: nu1, nu2           ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER, PARAMETER :: iorder = 3         ! Order for integration
+      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
 
       mean_halo_number_density = integrate_hmod(nu1, nu2, g_nu_on_M, hmod, hmod%acc, iorder)
       mean_halo_number_density = mean_halo_number_density*comoving_matter_density(cosm)
 
    END FUNCTION mean_halo_number_density
-
-!!$  REAL FUNCTION halo_number_density(m1,m2,hmod,cosm)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: m1
-!!$    REAL, INTENT(IN) :: m2
-!!$    TYPE(halomod), INTENT(INOUT) :: hmod
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    REAL :: nu1, nu2
-!!$
-!!$    nu1=nu_M(m1,hmod,cosm)
-!!$    nu2=nu_M(m2,hmod,cosm)
-!!$
-!!$    halo_number_density=comoving_matter_density(cosm)*integrate_g_nu_on_M(nu1,nu2,hmod)
-!!$
-!!$  END FUNCTION halo_number_density
 
    SUBROUTINE init_dewiggle(hmod, cosm)
 
@@ -3246,6 +3228,7 @@ CONTAINS
 
    SUBROUTINE init_BNL(hmod)
 
+      ! TODO: Interpolate between redshifts
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       INTEGER :: i, ibin, jbin, ik
