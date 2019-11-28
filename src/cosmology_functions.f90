@@ -2371,8 +2371,6 @@ CONTAINS
       INTEGER :: i
       INTEGER, PARAMETER :: iorder = iorder_integration_distance ! Order for integration
 
-      WRITE(*, *) 'Tits McGee'
-
       ! Get from PARAMETERS
       amin = amin_distance
       amax = amax_distance
@@ -2396,10 +2394,15 @@ CONTAINS
 
       ! Now do the r(a) calculation
       DO i = 1, cosm%n_p
+         !WRITE(*,*) i
          a = exp(cosm%log_a_p(i))
+         !WRITE(*,*) i, a
          b = sqrt(a) ! Parameter to make the integrand not diverge for small values (a=b^2)
+         !WRITE(*,*) i, a, b
          r = integrate_cosm(0., b, distance_integrand, cosm, acc_cosm, iorder)
+         !WRITE(*,*) i, a, b, r
          cosm%log_p(i) = log(r)
+         !STOP
       END DO
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_DISTANCE: minimum r [Mpc/h]:', real(exp(cosm%log_p(1)))
