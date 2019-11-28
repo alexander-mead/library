@@ -202,27 +202,27 @@ PROGRAM interpolate_demo
          xmax = 1.
          nx = 11
 
-         ymin = 0.
-         ymax = 1.
+         ymin = -0.5
+         ymax = 0.5
          ny = 11
 
          zmin = 0.
-         zmax = 1.
-         nz = 11
+         zmax = 2.
+         nz = 21
 
       ELSE IF (itest == 4) THEN
 
          xmin = 0.
-         xmax = pi/2.
+         xmax = 0.5*pi
          nx = 11
 
          ymin = 0.
-         ymax = pi/2.
-         ny = 11
+         ymax = pi
+         ny = 21
 
          zmin = 0.
-         zmax = pi/2.
-         nz = 11
+         zmax = 1.5*pi
+         nz = 31
 
       ELSE
          STOP 'INTERPOLATE_DEMO: Error, itest not specified correctly'
@@ -256,7 +256,7 @@ PROGRAM interpolate_demo
       WRITE(*,*) 'x:', x
       WRITE(*,*) 'y:', y
       WRITE(*,*) 'z:', z
-      f_int1 = find(x, xtab, y, ytab, z, ztab, g, nx, ny, nz, iorder=1, ifind=3, imeth=1)
+      f_int1 = find(x, xtab, y, ytab, z, ztab, g, nx, ny, nz, iorder=1, ifind=3, iinterp=1)
       IF (itest == 3) THEN
          f_true = linear_func_3D(x, y, z)
       ELSE IF (itest == 4) THEN
