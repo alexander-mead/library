@@ -2,6 +2,7 @@ PROGRAM interpolate_demo
 
    USE interpolate
    USE constants
+   USE random_numbers
    USE array_operations
    USE field_operations
 
@@ -153,9 +154,10 @@ PROGRAM interpolate_demo
          END DO
       END DO
 
-      ! One-off point to test
-      x = 0.9
-      y = 0.3
+      ! Random point to test
+      CALL RNG_set(seed=0)
+      x = random_uniform(xmin, xmax)
+      y = random_uniform(ymin, ymax)
       WRITE (*, *) 'x:', x
       WRITE (*, *) 'y:', y
       WRITE (*, *) 'Constant interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 0, 3, 1)
