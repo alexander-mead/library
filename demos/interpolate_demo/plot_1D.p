@@ -1,7 +1,7 @@
 unset multiplot
 reset
 
-set term aqua dashed
+set term qt dashed
 
 set lmargin 10
 set rmargin 2

@@ -8,7 +8,7 @@ PROGRAM interpolate_demo
    IMPLICIT NONE
    REAL :: xmin, xmax, x, ymin, ymax, y, zmin, zmax, z
    REAL, ALLOCATABLE :: xtab(:), ytab(:), ztab(:), f(:, :), g(:, :, :)
-   REAL :: f_int1, f_int3, f_true
+   REAL :: f_int0, f_int1, f_int3, f_true
    REAL :: lin, quad, cube, tru
    REAL :: rlin, rquad, rcube
    INTEGER :: i, j, n, m, nxtab, nytab
@@ -133,13 +133,13 @@ PROGRAM interpolate_demo
    ELSE IF (itest == 2) THEN
 
       ! x range for tabulated function to interpolate
-      nxtab = 4
+      nxtab = 11
       xmin = 0.
       xmax = 1.
       CALL fill_array(xmin, xmax, xtab, nxtab)
 
       ! y range for tabulated function to interpolate
-      nytab = 4
+      nytab = 11
       ymin = 0.
       ymax = 1.
       CALL fill_array(ymin, ymax, ytab, nytab)
@@ -158,14 +158,15 @@ PROGRAM interpolate_demo
       y = 0.3
       WRITE (*, *) 'x:', x
       WRITE (*, *) 'y:', y
-      WRITE (*, *) 'Linear Interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 1, 3, 1)
-      WRITE (*, *) 'Cubic Interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 3, 3, 1)
+      WRITE (*, *) 'Constant interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 0, 3, 1)
+      WRITE (*, *) 'Linear interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 1, 3, 1)
+      WRITE (*, *) 'Cubic interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 3, 3, 1)
       WRITE (*, *) 'Truth:', func(x, y)
       WRITE (*, *)
 
       ! x range for test
       xmin = 0.
-      xmax = 1.2
+      xmax = 1.0
       nx = 100
 
       ! y range for test
@@ -174,8 +175,7 @@ PROGRAM interpolate_demo
       ny = 100
 
       ! Test
-      OPEN (7, file='results_linear.dat')
-      OPEN (8, file='results_cubic.dat')
+      OPEN (7, file='results_2D.dat')
       DO i = 1, nx
          DO j = 1, ny
 
@@ -183,16 +183,15 @@ PROGRAM interpolate_demo
             y = cell_position(j, ymax-ymin, ny)+ymin
 
             f_true = func(x, y)
+            f_int0 = find(x, xtab, y, ytab, f, nxtab, nytab, 0, 3, 1)
             f_int1 = find(x, xtab, y, ytab, f, nxtab, nytab, 1, 3, 1)
             f_int3 = find(x, xtab, y, ytab, f, nxtab, nytab, 3, 3, 1)
 
-            WRITE (7, *) x, y, f_true, f_int1, f_int1/f_true
-            WRITE (8, *) x, y, f_true, f_int3, f_int3/f_true
+            WRITE (7, *) x, y, f_true, f_int0, f_int1, f_int3
 
          END DO
       END DO
       CLOSE (7)
-      CLOSE (8)
 
    ELSE IF (itest == 3 .OR. itest == 4) THEN
 
@@ -306,7 +305,8 @@ CONTAINS
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: y
 
-      func = sin(x*y)+1.
+      !func = sin(x*y)+1.
+      func = 1.+sin(2.*pi*x)+1.+sin(2.*pi*y)
 
    END FUNCTION func
 

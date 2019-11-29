@@ -325,7 +325,7 @@ CONTAINS
       REAL :: f01, f02, f03, f04
       INTEGER :: i1, i2, i3, i4
       INTEGER :: j1, j2, j3, j4
-      REAL :: findx, findy, F(2,2), V(2,2)
+      REAL :: findx, findy, V(2,2)
       INTEGER :: i, j, ix, iy, ix1, ix2, iy1, iy2
 
       ! iorder = 1 => linear interpolation
@@ -347,7 +347,16 @@ CONTAINS
       IF (xtab(1) > xtab(nx)) STOP 'FIND_2D: x array in wrong order'
       IF (ytab(1) > ytab(ny)) STOP 'FIND_2D: y array in wrong order'
 
-      IF(iorder == 1) THEN
+      IF(iorder == 0) THEN
+
+         ix = find_table_integer(x, xin, nx, ifind)
+         IF(ix == 0) ix = 1
+         iy = find_table_integer(y, yin, ny, ifind)
+         IF(iy == 0) iy = 1
+
+         find_2D = fin(ix, iy)
+
+      ELSE IF(iorder == 1) THEN
 
          IF (nx < 2) STOP 'FIND_2D: Not enough x points in your array for linear interpolation'
          IF (ny < 2) STOP 'FIND_2D: Not enough y points in your array for linear interpolation'
@@ -364,7 +373,7 @@ CONTAINS
          ix1 = ix
          ix2 = ix+1
 
-         ! Get the x values
+         ! Get the x values at the corners
          x1 = xin(ix1)
          x2 = xin(ix2)
 
@@ -378,24 +387,18 @@ CONTAINS
          iy1 = iy
          iy2 = iy+1
 
-         ! Get the y values
+         ! Get the y values at the corners
          y1 = yin(iy1)
          y2 = yin(iy2)
 
-         !! Function values !!
+         ! Interpolation is function values at corners weighted by opposite area
+         ! TODO: Clever loop here? Maybe not, its nice and transparent without the loop
+         V(1, 1) = (x2-x)*(y2-y)*fin(ix1, iy1)
+         V(1, 2) = (x2-x)*(y-y1)*fin(ix1, iy2)
+         V(2, 1) = (x-x1)*(y2-y)*fin(ix2, iy1)
+         V(2, 2) = (x-x1)*(y-y1)*fin(ix2, iy2)
 
-         F(1, 1) = fin(ix1, iy1)
-         F(1, 2) = fin(ix1, iy2)
-         F(2, 1) = fin(ix2, iy1)
-         F(2, 2) = fin(ix2, iy2)
-
-         !! !!
-
-         V(1, 1) = (x2-x)*(y2-y)*F(1, 1)
-         V(1, 2) = (x2-x)*(y-y1)*F(1, 2)
-         V(2, 1) = (x-x1)*(y2-y)*F(2, 1)
-         V(2, 2) = (x-x1)*(y-y1)*F(2, 2)
-
+         ! Normalisation
          find_2D = sum(V)/((x2-x1)*(y2-y1))
 
       ELSE IF (iorder == 2) THEN
@@ -811,7 +814,21 @@ CONTAINS
       IF (yin(1) > yin(ny)) STOP 'FIND_3D: y array in wrong order'
       IF (zin(1) > zin(nz)) STOP 'FIND_3D: z array in wrong order'
 
-      IF (iorder == 1) THEN
+      IF(iorder == 0) THEN
+
+         DO d = 1, 3
+            IF(d==1) ix(d) = find_table_integer(x, xin, nx, ifind)
+            IF(d==2) ix(d) = find_table_integer(y, yin, ny, ifind)
+            IF(d==3) ix(d) = find_table_integer(z, zin, nz, ifind)
+         END DO
+
+         DO d = 1, 3
+            IF(ix(d)==0) ix(d)=1
+         END DO
+
+         find_3D = fin(ix(1), ix(2), ix(3))
+
+      ELSE IF (iorder == 1) THEN
 
          xx(1)=x
          xx(2)=y
@@ -877,7 +894,7 @@ CONTAINS
                      Dx(d) = (x12(d,di)-xx(d))*(2*di-3) ! Last part gets the sign right (x2-x) or (x-x1), not negatives (x-x2)!!
                   END DO
 
-                  ! Weight the corner function values by their corresponding weights
+                  ! Weight the corner function values by their corresponding weights (opposite cubeoid)
                   V(i, j, k) = F(i, j, k)
                   DO d = 1, 3
                      V(i, j, k)=V(i, j, k)*Dx(d)
@@ -904,6 +921,7 @@ CONTAINS
    SUBROUTINE interpolate_array(x1, y1, n1, x2, y2, n2, iorder, ifind, iinterp)
 
       ! Interpolates array 'x1-y1' onto new 'x' values x2 and output y2
+      ! TODO: This could be more efficient because it currently does 'find integer' every time
       IMPLICIT NONE
       REAL, INTENT(IN) :: x1(n1), y1(n1), x2(n2)
       REAL, INTENT(OUT) :: y2(n2)
@@ -912,8 +930,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: ifind
       INTEGER, INTENT(IN) :: iinterp
       INTEGER :: i
-
-      ! This could be more efficient because it currently does 'find integer' every time
+    
       DO i = 1, n2
          y2(i) = find(x2(i), x1, y1, n1, iorder, ifind, iinterp)
       END DO
