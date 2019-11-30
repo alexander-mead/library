@@ -9,6 +9,9 @@ MODULE sorting
    PUBLIC :: check_sorted
    PUBLIC :: check_sorted_index
    PUBLIC :: reindex
+   PUBLIC :: isort_bubble
+   PUBLIC :: isort_stupid
+   PUBLIC :: isort_QsortC
 
    INTERFACE index
       MODULE PROCEDURE index_real
@@ -25,23 +28,28 @@ MODULE sorting
       MODULE PROCEDURE stupid_index_int
    END INTERFACE stupid_index
 
+   INTEGER, PARAMETER :: isort_stupid = 1
+   INTEGER, PARAMETER :: isort_bubble = 2
+   INTEGER, PARAMETER :: isort_QsortC = 3
+
 CONTAINS
 
-   SUBROUTINE sort(a, n, imeth)
+   SUBROUTINE sort(a, n, isort)
 
+      ! Sort arrays in order from lowest to highest values
       IMPLICIT NONE
       REAL, INTENT(INOUT) :: a(n)
       INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: imeth
+      INTEGER, INTENT(IN) :: isort
 
-      IF (imeth == 1) THEN
+      IF (isort == isort_stupid) THEN
          CALL stupid_sort(a, n)
-      ELSE IF (imeth == 2) THEN
+      ELSE IF (isort == isort_bubble) THEN
          CALL bubble_sort(a, n)
-      ELSE IF (imeth == 3) THEN
+      ELSE IF (isort == isort_QsortC) THEN
          CALL QsortC(a)
       ELSE
-         STOP 'SORT: Error, imeth not specified correctly'
+         STOP 'SORT: Error, isort not specified correctly'
       END IF
 
    END SUBROUTINE sort
@@ -152,41 +160,40 @@ CONTAINS
 
    END SUBROUTINE Partition
 
-   SUBROUTINE index_real(a, ind, n, imeth)
+   SUBROUTINE index_real(a, ind, n, isort)
 
       ! Index the array 'a' from lowest to highest value
       IMPLICIT NONE
       REAL, INTENT(IN) :: a(n)
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(OUT) :: ind(n)
-      INTEGER, INTENT(IN) :: imeth
+      INTEGER, INTENT(IN) :: isort
 
-      IF (imeth == 1) THEN
+      IF (isort == isort_stupid) THEN
          CALL stupid_index_real(a, ind, n)
-      ELSE IF (imeth == 2) THEN
+      ELSE IF (isort == isort_bubble) THEN
          CALL bubble_index_real(a, ind, n)
       ELSE
-         STOP 'INDEX_REAL: Error, imeth specified incorrectly'
+         STOP 'INDEX_REAL: Error, isort specified incorrectly'
       END IF
 
    END SUBROUTINE index_real
 
-   SUBROUTINE index_int(a, ind, n, imeth)
+   SUBROUTINE index_int(a, ind, n, isort)
 
       ! Index the array 'a' from lowest to highest value
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: a(n)
       INTEGER, INTENT(OUT) :: ind(n)
       INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: imeth
+      INTEGER, INTENT(IN) :: isort
       
-
-      IF (imeth == 1) THEN
+      IF (isort == isort_stupid) THEN
          CALL stupid_index_int(a, ind, n)
-      ELSE IF (imeth == 2) THEN
+      ELSE IF (isort == isort_bubble) THEN
          CALL bubble_index_int(a, ind, n)
       ELSE
-         STOP 'INDEX_REAL: Error, imeth specified incorrectly'
+         STOP 'INDEX_REAL: Error, isort specified incorrectly'
       END IF
 
    END SUBROUTINE index_int

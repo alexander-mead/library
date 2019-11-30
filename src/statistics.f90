@@ -9,6 +9,7 @@ MODULE statistics
 
    PUBLIC :: mean
    PUBLIC :: variance
+   PUBLIC :: standard_deviation
    PUBLIC :: histogram
    PUBLIC :: calculate_confidence
    PUBLIC :: parameter_probability
@@ -56,6 +57,16 @@ CONTAINS
       variance = real(sum)/real(n)
 
    END FUNCTION variance
+
+   REAL FUNCTION standard_deviation(x, n)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x(n)
+      INTEGER, INTENT(IN) :: n
+
+      standard_deviation = sqrt(variance(x, n))
+
+   END FUNCTION standard_deviation
 
    SUBROUTINE histogram(xmin, xmax, x, hist, n, data, m)
 

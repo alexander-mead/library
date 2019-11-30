@@ -75,6 +75,7 @@ _OBJ = \
 	orbits.o \
 	solve_equations.o \
 	sorting.o \
+	minimization.o \
 	field_operations.o \
 	simulations.o \
 	cosmic_emu_stuff.o \
