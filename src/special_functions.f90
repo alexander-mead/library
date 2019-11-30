@@ -27,6 +27,8 @@ MODULE special_functions
    PUBLIC :: exponential
    PUBLIC :: Lorentzian
    PUBLIC :: polynomial
+   PUBLIC :: Rosenbrock
+   PUBLIC :: Himmelbau
 
    ! Silly functions
    PUBLIC :: apodise
@@ -580,5 +582,25 @@ CONTAINS
       END IF
 
    END FUNCTION polynomial
+
+   REAL FUNCTION Rosenbrock(x, y)
+
+      ! https://en.wikipedia.org/wiki/Rosenbrock_function
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: y
+
+      Rosenbrock = (1.-x)**2+100.*(y-x**2)**2
+
+   END FUNCTION Rosenbrock
+
+   REAL FUNCTION Himmelbau(x, y)
+   
+      ! https://en.wikipedia.org/wiki/Himmelblau%27s_function
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: y
+
+      Himmelbau = (x**2+y-11.)**2+(x+y**2-7.)**2
+
+   END FUNCTION Himmelbau
 
 END MODULE special_functions
