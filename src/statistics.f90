@@ -1,8 +1,5 @@
 MODULE statistics
 
-   USE table_integer
-   USE array_operations
-
    IMPLICIT NONE
 
    PRIVATE
@@ -70,6 +67,8 @@ CONTAINS
 
    SUBROUTINE histogram(xmin, xmax, x, hist, n, data, m)
 
+      USE table_integer
+      USE array_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: xmin     ! Minimum x value
       REAL, INTENT(IN) :: xmax     ! Maximum x value

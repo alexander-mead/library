@@ -888,9 +888,15 @@ CONTAINS
                   jj = 3-j ! Swaps 1 <--> 2
                   kk = 3-k ! Swaps 1 <--> 2
                   DO d = 1, 3
-                     IF(d==1) di=ii
-                     IF(d==2) di=jj
-                     IF(d==3) di=kk
+                     IF(d==1) THEN
+                        di=ii
+                     ELSE IF(d==2) THEN
+                        di=jj
+                     ELSE IF(d==3) THEN
+                        di=kk
+                     ELSE
+                        STOP 'FIND_3D: Error, something is very wrong'
+                     END IF
                      Dx(d) = (x12(d,di)-xx(d))*(2*di-3) ! Last part gets the sign right (x2-x) or (x-x1), not negatives (x-x2)!!
                   END DO
 

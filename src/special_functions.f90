@@ -28,7 +28,7 @@ MODULE special_functions
    PUBLIC :: Lorentzian
    PUBLIC :: polynomial
    PUBLIC :: Rosenbrock
-   PUBLIC :: Himmelbau
+   PUBLIC :: Himmelblau
 
    ! Silly functions
    PUBLIC :: apodise
@@ -593,14 +593,14 @@ CONTAINS
 
    END FUNCTION Rosenbrock
 
-   REAL FUNCTION Himmelbau(x, y)
+   REAL FUNCTION Himmelblau(x, y)
    
       ! https://en.wikipedia.org/wiki/Himmelblau%27s_function
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: y
 
-      Himmelbau = (x**2+y-11.)**2+(x+y**2-7.)**2
+      Himmelblau = (x**2+y-11.)**2+(x+y**2-7.)**2
 
-   END FUNCTION Himmelbau
+   END FUNCTION Himmelblau
 
 END MODULE special_functions
