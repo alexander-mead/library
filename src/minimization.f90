@@ -22,21 +22,22 @@ MODULE minimization
 
    CONTAINS
 
-   SUBROUTINE Nelder_Mead(x, dx, f, n, tol, verbose)
+   SUBROUTINE Nelder_Mead(x, dx, n, f, tol, verbose)
 
       ! Nelder-Mead simplex for fiding minima of a function
       ! Coded up using https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
       IMPLICIT NONE
       REAL, INTENT(INOUT) :: x(n)
       REAL, INTENT(IN) :: dx(n)
-      REAL, EXTERNAL :: f
       INTEGER, INTENT(IN) :: n
+      REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: tol
       LOGICAL, INTENT(IN) :: verbose
       REAL :: xx(n+1, n), ff(n+1)
       REAL :: xo(n), xr(n), xe(n), xc(n)
-      REAL :: fo, fr, fe, fc
+      REAL :: fr, fe, fc
       INTEGER :: i, j, ii
+      CHARACTER(len=256) :: operation, nstring
       REAL, PARAMETER :: alpha = alpha_Nelder_Mead  ! Reflection coefficient (alpha > 0; standard alpha = 1)
       REAL, PARAMETER :: gamma = gamma_Nelder_Mead  ! Expansion coefficient (gamma > 1; standard gamma = 2)
       REAL, PARAMETER :: rho = rho_Nelder_Mead      ! Contraction coefficient (0 < rho < 0.5; standard rho = 0.5)
@@ -63,14 +64,16 @@ MODULE minimization
       END DO
 
       ii = 0
+      operation = 'Starting'
+      WRITE(nstring,*) n+1
       DO
 
          ii = ii+1
 
          ! Sort the points from best to worst
          CALL Nelder_Mead_sort(xx, ff, n)
-
-         IF(verbose) WRITE(*, *) ii, ff(1), (xx(i, 1), i = 1, n)
+         
+         IF(verbose) WRITE(*, '(A16,I10,'//trim(nstring)//'F15.7)') TRIM(operation), ii, ff(1), (xx(1, i), i = 1, n)
 
          ! Decide on convergence
          IF(Nelder_Mead_termination(ff, n, tol)) THEN
@@ -80,45 +83,50 @@ MODULE minimization
             EXIT
          END IF
 
-         ! Calculate centroid of 1...n (not n+1; the worst point)
+         ! Calculate centroid of 1...n (not n+1; the worst point) through which to reflect the worst point
          xo = Nelder_Mead_centroid(xx, n)
 
          ! Calculate the reflected point of n+1 about the centroid
          xr = xo+alpha*(xo-xx(n+1, :))
          fr = f(xr, n)
 
-         IF (ff(1) <= fr .AND. fr < ff(n)) THEN
-            ! Keep the reflected point if it is not the best but better than the second worst
-            xx(n+1, :) = xr
-            ff(n+1) = fr
-            CYCLE
-         ELSE IF (fr < ff(1)) THEN
-            ! Calculate the expanded point if the reflected point is the best so far
+         IF (fr < ff(1)) THEN
+            ! if the reflected point is the best so far then calculate the expanded point 
             xe = xo+gamma*(xr-xo)
             fe = f(xe, n)
             IF(fe < fr) THEN
                ! Keep the expansed point if it is better than the reflected ...
+               operation = 'Expanding'
                xx(n+1, :) = xe
                ff(n+1) = fe
             ELSE
                ! ... otherwise keep the reflected.
+               operation = 'Reflecting'
                xx(n+1, :) = xr
                ff(n+1) = fr
             END IF
             CYCLE
+         ELSE IF (ff(1) <= fr .AND. fr < ff(n)) THEN
+            ! If the reflected point is not the best, but better than the second worst then keep the reflected point
+            operation = 'Reflecting'
+            xx(n+1, :) = xr
+            ff(n+1) = fr
+            CYCLE
          ELSE
-            ! Here it is certain that the reflected point is worse than the second worst point
+            ! Here it is certain that the reflected point is at least as worse than the second worst point
             ! Calculate the contracted point
             xc = xo+rho*(xx(n+1, :)-xo)
             fc = f(xc, n)
             IF(fc < ff(n+1)) THEN
                ! Keep the contracted point if it is better than the worst point
+               operation = 'Contracting'
                xx(n+1, :) = xc
                ff(n+1) = fc
                CYCLE
             ELSE
-               ! The contracted point is worst, and we must shrink
+               ! The contracted point is the worst, and we must shrink
                ! Calculate the shrinkage for all except the best point
+               operation = 'Shrinking'
                DO i = 2, n+1
                   xx(i, :) = xx(1, :)+sigma*(xx(i, :)-xx(1, :))
                   ff(i) = f(xx(i, :), n)

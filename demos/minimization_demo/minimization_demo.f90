@@ -61,7 +61,7 @@ PROGRAM minimization_demo
       WRITE(*, *) 'x:', x(1)
       WRITE(*, *)
 
-      CALL Nelder_Mead(x, dx, func_1D, n, tol, verbose)
+      CALL Nelder_Mead(x, dx, n, func_1D, tol, verbose)
       WRITE(*, *) 'Minimization found at'
       WRITE(*, *) 'x:', x(1)
       WRITE(*, *)
@@ -98,7 +98,7 @@ PROGRAM minimization_demo
       WRITE(*, *) 'y:', x(2)
       WRITE(*, *)
 
-      CALL Nelder_Mead(x, dx, func_2D, n, tol, verbose)
+      CALL Nelder_Mead(x, dx, n, func_2D, tol, verbose)
       WRITE(*, *) 'Minimization found at'
       WRITE(*, *) 'x:', x(1)
       WRITE(*, *) 'y:', x(2)
@@ -116,7 +116,7 @@ PROGRAM minimization_demo
 
       !func_2D = (x(1)-a)**2+(x(2)-b)**2 ! Quadratic
       !func_2D = Rosenbrock(x(1), x(2))
-      func_2D = Himmelbau(x(1), x(2))
+      func_2D = Himmelblau(x(1), x(2))
 
    END FUNCTION func_2D
 
