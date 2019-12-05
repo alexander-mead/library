@@ -287,6 +287,7 @@ MODULE HMx
    REAL, PARAMETER :: HMx_Gamma_min = 1.10 ! Minimum polytropic index
    REAL, PARAMETER :: HMx_Gamma_max = 2.00 ! Maximum polytropic index
    REAL, PARAMETER :: HMx_Astar_min = 1e-4 ! Minimum halo star fraction; needs to be set at not zero
+   REAL, PARAMETER :: HMx_eta_min = 0.     ! Minimum value for star index thing
    REAL, PARAMETER :: frac_min = -1e-5     ! Fractions cannot be less than frac min (slightly below zero for roundoff)
    REAL, PARAMETER :: frac_max = 1.        ! Fractions cannot be greater than frac max (exactly unity)
 
@@ -312,7 +313,9 @@ MODULE HMx
    REAL, PARAMETER :: BNL_min = -1.                 ! Minimum value that BNL is allowed to be (could be below -1)
    LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
    LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Fix a minimum value for B_NL
-   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_BDMV'
+   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar_lowsig8'
 
    ! Field types
    ! TODO: Have this run from 1->n, rather than -1->n
@@ -407,7 +410,7 @@ CONTAINS
       INTEGER :: i
 
       ! Names of pre-defined halo models
-      INTEGER, PARAMETER :: nhalomod = 51 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+      INTEGER, PARAMETER :: nhalomod = 52 ! Total number of pre-defined halo-model types (TODO: this is stupid)
       CHARACTER(len=256):: names(nhalomod)
       names(1) = 'HMcode (Mead et al. 2016)'
       names(2) = 'Basic halo-model (Two-halo term is linear)'
@@ -457,9 +460,10 @@ CONTAINS
       names(46) = 'Isothermal beta model for gas'
       names(47) = 'Isothermal beta model for gas in response'
       names(48) = 'Non-linear halo bias for standard model'
-      names(49) = 'Non-linear halo bias with Tinker but virial haloes'
+      names(49) = 'Non-linear halo bias with Tinker and virial haloes'
       names(50) = 'HMcode (Mead et al. 2016) with Dolag pow=1 bug'
       names(51) = 'HMcode in CAMB (July 2019)'
+      names(52) = 'Standard but with Mead (2017) spherical collapse'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -976,9 +980,8 @@ CONTAINS
          hmod%electron_pressure = 1
       ELSE IF (ihm == 12) THEN
          ! Spherical-collapse model to produce Mead (2017) results
-         hmod%iconc = 1
-         hmod%idc = 5
-         hmod%iDv = 5
+         hmod%idc = 5    ! Mead (2017) fitting function for delta_c
+         hmod%iDv = 5    ! Mead (2017) fitting function for Delta_v
          hmod%imf = 2    ! Sheth & Tormen mass function
          hmod%iconc = 1  ! Bullock et al. c(M) relation
          hmod%iDolag = 2 ! This is important for the accuracy of the z=0 results presented in Mead (2017)
@@ -1288,6 +1291,10 @@ CONTAINS
          hmod%ibias = 3   ! Non-linear halo bias
          !hmod%i1hdamp=3 ! One-halo damping like k^4
          !hmod%ikstar=2  ! One-halo damping via k* from Mead et al. (2015)
+      ELSE IF(ihm == 52) THEN
+         ! Standard halo model but with Mead (2017) spherical-collapse fitting function
+         hmod%idc = 4 ! Mead (2017) fitting function for delta_c
+         hmod%iDv = 4 ! Mead (2017) fitting function for Delta_v
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -1781,7 +1788,7 @@ CONTAINS
          IF (hmod%HMx_mode == 2 .OR. hmod%HMx_mode == 3) THEN
             WRITE (*, fmt='(A30,F10.5)') 'alpha mass index:', hmod%alphap
             WRITE (*, fmt='(A30,F10.5)') 'beta mass index:', hmod%betap
-            WRITE (*, fmt='(A30,F10.5)') 'Gammma mass index:', hmod%Gammap
+            WRITE (*, fmt='(A30,F10.5)') 'Gamma mass index:', hmod%Gammap
             WRITE (*, fmt='(A30,F10.5)') 'iso beta mass index:', hmod%ibetap
             WRITE (*, fmt='(A30,F10.5)') 'A* mass index:', hmod%Astarp
             WRITE (*, fmt='(A30,F10.5)') 'c* mass index:', hmod%cstarp
@@ -1791,7 +1798,7 @@ CONTAINS
             WRITE (*, fmt='(A30,F10.5)') 'alpha z index:', hmod%alphaz
             WRITE (*, fmt='(A30,F10.5)') 'beta z index:', hmod%betaz
             WRITE (*, fmt='(A30,F10.5)') 'epsilon z index:', hmod%epsz
-            WRITE (*, fmt='(A30,F10.5)') 'Gammma z index:', hmod%Gammaz
+            WRITE (*, fmt='(A30,F10.5)') 'Gamma z index:', hmod%Gammaz
             WRITE (*, fmt='(A30,F10.5)') 'log10(M0) z index:', hmod%M0z
             WRITE (*, fmt='(A30,F10.5)') 'A* z index:', hmod%Astarz
             WRITE (*, fmt='(A30,F10.5)') 'T_WHIM z index:', hmod%Twhimz
@@ -3259,6 +3266,7 @@ CONTAINS
       nbin = file_length(infile)
       WRITE (*, *) 'INIT_BNL: Number of nu bins: ', nbin
       hmod%nnu_bnl = nbin
+      IF(ALLOCATED(hmod%nu_bnl)) DEALLOCATE(hmod%nu_bnl)
       ALLOCATE (hmod%nu_bnl(nbin))
       WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
       OPEN (7, file=infile)
@@ -3274,6 +3282,8 @@ CONTAINS
       nk = file_length(infile)
       hmod%nk_bnl = nk
       WRITE (*, *) 'INIT_BNL: Number of k values: ', nk
+      IF(ALLOCATED(hmod%k_bnl)) DEALLOCATE(hmod%k_bnl)
+      IF(ALLOCATED(hmod%bnl)) DEALLOCATE(hmod%bnl)
       ALLOCATE (hmod%k_bnl(nk), hmod%bnl(nk, nbin, nbin))
       DO ibin = 1, nbin
          DO jbin = 1, nbin
@@ -4186,6 +4196,8 @@ CONTAINS
       TYPE(halomod) :: hmod
 
       HMx_eta = hmod%eta
+
+      IF (HMx_eta > HMx_eta_min) HMx_eta = HMx_eta_min
 
    END FUNCTION HMx_eta
 
@@ -8385,7 +8397,7 @@ CONTAINS
       IF(r < frac_min .OR. r > frac_max) THEN
          WRITE(*, *) 'HALO_CENTRAL_STAR_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_CENTRAL_STAR_FRACTION: r:', r
-         STOP 'HALO_CENTRAL_STAR_FRACTION: Error, fraction of total stars that are central must be between zero and one'
+         STOP 'HALO_CENTRAL_STAR_FRACTION: Error, fraction of stars that are central must be between zero and one'
       END IF
       halo_central_star_fraction = r*halo_star_fraction(m, hmod, cosm)
 
