@@ -18,8 +18,7 @@ FFLAGS = \
 	-fdefault-real-8 \
 	-fdefault-double-8 \
 	-ffree-line-length-none \
-	-I/usr/local/include \
-	-I/usr/include
+	-I/usr/local/include
 
 # Additional flags for standard compilation
 FLAGS_ALL = \
