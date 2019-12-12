@@ -7,8 +7,7 @@ PROGRAM cosmology_functions_demo
    IMPLICIT NONE
    INTEGER :: icosmo
    TYPE(cosmology) :: cosm
-   REAL :: a, z, k, r!, sigv, sigv100
-   !REAL, ALLOCATABLE :: sig(:), sigV(:), neff(:)
+   REAL :: a, z, k, r
    REAL :: t1, t2, t3, t4, xi
    REAL :: crap
    INTEGER :: i
