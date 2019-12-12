@@ -209,7 +209,12 @@ MODULE HMx
       REAL, ALLOCATABLE :: k(:), wk(:, :, :)
       INTEGER :: nk
 
+      ! HMcode parameters and experimental parameters
       REAL :: sigv, sigv100, c3, knl, rnl, mnl, neff, sig8_all, sig8_cold, Rh, Mh, Mp
+
+      ! Saturation parameters (e.g., WDM)
+      REAL :: nu_saturation
+      LOGICAL :: saturation
 
       ! HOD etc.
       REAL :: mhalo_min, mhalo_max, HImin, HImax, rcore, hmass
@@ -307,15 +312,15 @@ MODULE HMx
    ! Non-linear halo bias
    LOGICAL, PARAMETER :: add_I_11 = .TRUE.          ! Add integral below numin, numin in halo model calculation
    LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE. ! Add integral below numin in halo model calculation
-   REAL, PARAMETER :: kmin_bnl = 3e-2               ! Below this wavenumber set BNL to zero
-   REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass set  BNL to zero
-   REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass set  BNL to zero
-   REAL, PARAMETER :: BNL_min = -1.                 ! Minimum value that BNL is allowed to be (could be below -1)
+   REAL, PARAMETER :: kmin_bnl = 3e-2               ! Below this wavenumber force BNL to zero
+   REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass force  BNL to zero
+   REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass force  BNL to zero
    LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
    LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Fix a minimum value for B_NL
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
+   REAL, PARAMETER :: BNL_min = -1.                 ! Minimum value that BNL is allowed to be (could be below -1 ...)
+   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_BDMV'
-   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar_lowsig8'
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar_lowsig8'
 
    ! Field types
    ! TODO: Have this run from 1->n, rather than -1->n
@@ -839,6 +844,10 @@ CONTAINS
       hmod%has_dewiggle = .FALSE.
       hmod%has_mass_function = .FALSE.
       hmod%has_bnl = .FALSE.
+
+      ! Saturation (e.g., WDM)
+      hmod%saturation = .FALSE.
+      hmod%nu_saturation = 0.
 
       IF (ihm == -1) THEN
          WRITE (*, *) 'ASSIGN_HALOMOD: Choose your halo model'
@@ -1384,6 +1393,15 @@ CONTAINS
       dc = delta_c(hmod, cosm)
       hmod%dc = dc
 
+      ! For spectra with finite variance we have cut-off masses etc.
+      IF(cosm%warm) THEN
+         hmod%saturation = .TRUE.
+         hmod%nu_saturation = hmod%nu(1)
+         IF(verbose) THEN
+            WRITE(*, *) 'INIT_HALOMOD: Saturation nu:', hmod%nu_saturation
+         END IF
+      END IF
+
       ! Fill virial radius table using real radius table
       Dv = Delta_v(hmod, cosm)
       hmod%Dv = Dv
@@ -1476,11 +1494,11 @@ CONTAINS
       !END IF
 
       ! Calculate the total stellar mass fraction
-      IF (verbose) THEN
-         Om_stars = Omega_stars(hmod, cosm)
-         WRITE (*, *) 'INIT_HALOMOD: Omega_*:', Om_stars
-         WRITE (*, *) 'INIT_HALOMOD: Omega_* / Omega_m:', Om_stars/cosm%Om_m
-      END IF
+      !IF (verbose) THEN
+      !   Om_stars = Omega_stars(hmod, cosm)
+      !   WRITE (*, *) 'INIT_HALOMOD: Omega_*:', Om_stars
+      !   WRITE (*, *) 'INIT_HALOMOD: Omega_* / Omega_m:', Om_stars/cosm%Om_m
+      !END IF
 
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Done'
@@ -2760,7 +2778,7 @@ CONTAINS
          ! No two-halo term
          p_2h = 0.
 
-      ELSE
+      ELSE IF (hmod%ip2h == 2) THEN
 
          IF (hmod%imf == 4) THEN
 
@@ -2785,11 +2803,12 @@ CONTAINS
 
          p_2h = plin*I2hs(1)*I2hs(2)
 
-         ! Second-order bias correction
-         ! This needs to have the property that \int f(nu)b2(nu) du = 0
-         ! This means it is hard to check that the normalisation is correct
-         ! e.g., how much do low mass haloes matter
          IF (hmod%ibias == 2) THEN
+
+            ! Second-order bias correction
+            ! This needs to have the property that \int f(nu)b2(nu) du = 0
+            ! This means it is hard to check that the normalisation is correct
+            ! e.g., how much do low mass haloes matter
 
             ! ...otherwise we need to do an integral
             DO j = 1, 2
@@ -2851,8 +2870,6 @@ CONTAINS
             Inl_21 = integrate_table(hmod%nu, I_21, n, 1, n, iorder=1)*hmod%gbmin*(wk(1, 2)*rhom/hmod%m(1))
             Inl_22 = integrate_table(hmod%nu, hmod%nu, I_22, n, n)
 
-            !WRITE(*,*) 'B_NL:', k, Inl_11, Inl_12, Inl_21, Inl_22
-
             Inl = Inl_22
             IF (add_I_11)          Inl = Inl+Inl_11
             IF (add_I_12_and_I_21) Inl = Inl+Inl_12+Inl_21
@@ -2866,10 +2883,14 @@ CONTAINS
 
          ELSE IF (hmod%ibias == 5) THEN
 
-            ! My own experimental model
+            ! My own experimental non-linear halo bias model
             p_2h = p_2h*(1.+(k/hmod%knl))**0.5
 
          END IF
+
+      ELSE
+
+         STOP 'P_2H: Error, ip2h not specified correclty'
 
       END IF
 
@@ -2886,7 +2907,7 @@ CONTAINS
          p_2h = p_2h*I2hs(1)*I2hs(2)
       END IF
 
-      ! Apply the damping to the two-halo term
+      ! Apply damping to the two-halo term
       IF (hmod%i2hdamp .NE. 1) THEN
          ! Two-halo damping parameters
          sigv = hmod%sigv
@@ -2897,18 +2918,6 @@ CONTAINS
             p_2h = p_2h*(1.-fdamp*(tanh(k*sigv/sqrt(abs(fdamp))))**2)
          END IF
       END IF
-
-!!$    ! For some extreme cosmologies frac>1. so this must be added to prevent p_2h<0
-!!$    IF(p_2h<0.) THEN
-!!$       WRITE(*,*) 'P_2H: Halo type 1:', ih(1)
-!!$       WRITE(*,*) 'P_2H: Halo type 1:', ih(2)
-!!$       WRITE(*,*) 'P_2H: k [h/Mpc]:', k
-!!$       WRITE(*,*) 'P_2H: z:', hmod%z
-!!$       WRITE(*,*) 'P_2H: Delta^2_{2H}:', p_2h
-!!$       WRITE(*,*) 'P_2H: Caution! P_2h < 0, this was previously fixed by setting P_2h = 0 explicitly'
-!!$       !p_2h=0.
-!!$       STOP
-!!$    END IF
 
    END FUNCTION p_2h
 
@@ -2956,7 +2965,7 @@ CONTAINS
 
          IF (hmod%ip2h_corr == 1) THEN
             ! Do nothing in this case
-            ! There will be large errors if any signal is from low-mass haloes
+            ! There will be large errors if there should be any signal from low-mass haloes
             ! e.g., for the matter power spectrum
          ELSE IF (hmod%ip2h_corr == 2) THEN
             ! Add on the value of integral b(nu)*g(nu) assuming W(k)=1
@@ -2966,10 +2975,8 @@ CONTAINS
          ELSE IF (hmod%ip2h_corr == 3) THEN
             ! Put the missing part of the integrand as a delta function at the low-mass limit of the integral
             ! I think this is the best thing to do
-            !IF(requal(hmod%m(1),mmin_HMx,eps_p2h)) THEN
             m0 = hmod%m(1)
             int = int+hmod%gbmin*(rhom*wk(1)/m0)
-            !END IF
          ELSE
             STOP 'P_2h: Error, ip2h_corr not specified correctly'
          END IF
@@ -3184,7 +3191,7 @@ CONTAINS
       REAL, INTENT(IN) :: rv2
       TYPE(halomod), INTENT(INOUT) :: hmod
       INTEGER  :: nk, nnu
-      REAL :: nuu1, nuu2, kk
+      REAL :: kk
       INTEGER, PARAMETER :: iorder = 1 ! 1 - Linear interpolation
       INTEGER, PARAMETER :: ifind = 3  ! 3 - Midpoint finding scheme
       INTEGER, PARAMETER :: imeth = 1  ! 1 - Polynomial method
@@ -3198,30 +3205,20 @@ CONTAINS
 
       IF (.NOT. hmod%has_bnl) CALL init_BNL(hmod)
 
-      ! Ensure that nu1 is not outside array boundary
-      nuu1 = nu1
-      !CALL fix_min(nuu1, hmod%nu_bnl(1))
-      !CALL fix_max(nuu1, hmod%nu_bnl(hmod%nnu_bnl))
-
-      ! Ensure that nu2 is not outside array boundary
-      nuu2 = nu2
-      !CALL fix_min(nuu2, hmod%nu_bnl(1))
-      !CALL fix_max(nuu2, hmod%nu_bnl(hmod%nnu_bnl))
-
       ! Ensure that k is not outside array boundary at high end
       kk = k
       CALL fix_max(kk, hmod%k_bnl(hmod%nk_bnl))
 
       IF (kk < kmin) THEN
          BNL = 0.
-      ELSE IF (nuu1 < numin .OR. nuu2 < numin) THEN
+      ELSE IF (nu1 < numin .OR. nu2 < numin) THEN
          BNL = 0.
-      ELSE IF (nuu1 > numax .OR. nuu2 > numax) THEN
+      ELSE IF (nu1 > numax .OR. nu2 > numax) THEN
          BNL = 0.
       ELSE
          nk = hmod%nk_bnl
          nnu = hmod%nnu_bnl
-         BNL = find(log(kk), log(hmod%k_bnl), nuu1, hmod%nu_bnl, nuu2, hmod%nu_bnl, hmod%bnl, nk, nnu, nnu, iorder, ifind, imeth)
+         BNL = find(log(kk), log(hmod%k_bnl), nu1, hmod%nu_bnl, nu2, hmod%nu_bnl, hmod%bnl, nk, nnu, nnu, iorder, ifind, imeth)
       END IF
 
       ! Halo exclusion
@@ -4397,7 +4394,7 @@ CONTAINS
 
    REAL FUNCTION M_nu(nu, hmod)
 
-      !Calculates M(nu) where M is the halo mass and nu is the peak height
+      ! Calculates M(nu) where M is the halo mass and nu is the peak height
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -4405,13 +4402,17 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = 3
       INTEGER, PARAMETER :: imeth = 2
 
-      M_nu = exp(find(nu, hmod%nu, hmod%log_m, hmod%n, iorder, ifind, imeth))
+      IF(hmod%saturation .AND. nu<hmod%nu_saturation) THEN
+         M_nu = 0.
+      ELSE
+         M_nu = exp(find(nu, hmod%nu, hmod%log_m, hmod%n, iorder, ifind, imeth))
+      END IF
 
    END FUNCTION M_nu
 
    REAL FUNCTION rhobar_central_integrand(nu, hmod, cosm)
 
-      !Integrand for the number density of central galaxies
+      ! Integrand for the number density of central galaxies
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -4427,7 +4428,7 @@ CONTAINS
 
    REAL FUNCTION rhobar_satellite_integrand(nu, hmod, cosm)
 
-      !Integrand for the number density of satellite galaxies
+      ! Integrand for the number density of satellite galaxies
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -4443,7 +4444,7 @@ CONTAINS
 
    REAL FUNCTION rhobar_star_integrand(nu, hmod, cosm)
 
-      !Integrand for the matter density of stars
+      ! Integrand for the matter density of stars
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -4457,7 +4458,7 @@ CONTAINS
 
    REAL FUNCTION rhobar_HI_integrand(nu, hmod, cosm)
 
-      !Integrand for the HI mass density
+      ! Integrand for the HI mass density
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -4530,7 +4531,11 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
 
-      mass_function = multiplicity_function(m, hmod, cosm)*comoving_matter_density(cosm)/m**2
+      IF(m == 0.) THEN
+         mass_function = 0.
+      ELSE
+         mass_function = multiplicity_function(m, hmod, cosm)*comoving_matter_density(cosm)/m**2
+      END IF
 
    END FUNCTION mass_function
 
@@ -4546,9 +4551,13 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = iorder_derivative_mass_function
       INTEGER, PARAMETER :: ifind = ifind_derivative_mass_function
 
-      nu = nu_M(m, hmod, cosm)
-      dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, hmod%n, iorder, ifind)
-      multiplicity_function = g_nu(nu, hmod)*dnu_dlnm
+      IF(m == 0.) THEN
+         multiplicity_function = 0.
+      ELSE
+         nu = nu_M(m, hmod, cosm)
+         dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, hmod%n, iorder, ifind)
+         multiplicity_function = g_nu(nu, hmod)*dnu_dlnm
+      END IF
 
    END FUNCTION multiplicity_function
 
@@ -4885,7 +4894,7 @@ CONTAINS
    SUBROUTINE zcoll_Bullock(z, hmod, cosm)
 
       ! This fills up the halo collapse redshift table as per Bullock relations
-      ! TODO: Convert to using solve routines
+      ! TODO: Convert to using solve root-finding routines
       IMPLICIT NONE
       REAL, INTENT(IN) :: z
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -4933,8 +4942,6 @@ CONTAINS
          ELSE
             af = exp(find(log(RHS), cosm%log_growth, cosm%log_a_growth, cosm%n_growth, &
                iorder, ifind, imeth))
-            !af = find(RHS, exp(cosm%log_growth), exp(cosm%log_a_growth), cosm%n_growth, &
-            !   iorder, ifind, imeth)
             zf = redshift_a(af)
          END IF
 

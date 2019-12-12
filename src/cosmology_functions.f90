@@ -105,11 +105,13 @@ MODULE cosmology_functions
       ! Primary parameters
       CHARACTER(len=256) :: name ! Name for cosmological model
       REAL :: Om_m, Om_b, Om_v, Om_w, m_nu      ! Primary parameters
-      REAL :: h, n, sig8, w, wa, inv_m_wdm, YH  ! Primary parameters
+      REAL :: h, n, sig8, w, wa, m_wdm, YH      ! Primary parameters
       REAL :: a1, a2, nstar, ws, am, dm, wm     ! DE parameters
       REAL :: z_CMB, T_CMB, neff                ! Less primary parameters
       REAL :: Om_m_pow, Om_b_pow, h_pow         ! Cosmological parameters used for P(k) if different from background
       REAL :: b0, b1, b2, b3, b4                ! BDE parameters
+      REAL :: A_bump, k_bump, sigma_bump        ! Power-spectrum bump
+      LOGICAL :: bump, warm                     ! Logicals
 
       ! Derived parameters
       REAL :: A, Gamma, k                ! Power spectrum amplitude and shape parameter for DEFW
@@ -414,6 +416,7 @@ CONTAINS
       names(56) = 'Planck 2018'
       names(57) = 'Bound dark energy'
       names(58) = 'Extreme bound dark energy'
+      names(59) = 'Power bump'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -583,7 +586,14 @@ CONTAINS
       cosm%iw = iw_LCDM ! Default LCDM
 
       ! Warm dark matter
-      cosm%inv_m_wdm = 0. ! Default particle to have 'infinite' mass
+      cosm%warm = .FALSE.
+      cosm%m_wdm = 0. ! Particle mass [keV]
+
+      ! Power bump
+      cosm%bump = .FALSE.
+      cosm%A_bump = 0.
+      cosm%k_bump = 0.
+      cosm%sigma_bump = 0.
 
       ! Alternative dark energy
       cosm%a1 = 0.
@@ -728,7 +738,8 @@ CONTAINS
          READ (*, *) cosm%wa
       ELSE IF (icosmo == 14) THEN
          ! WDM
-         cosm%inv_m_wdm = 1.
+         cosm%warm = .TRUE.
+         cosm%m_wdm = 1.
       ELSE IF (icosmo == 16) THEN
          ! w = -0.7
          cosm%iw = iw_wCDM
@@ -1009,6 +1020,12 @@ CONTAINS
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with BDE'
          END IF
+      ELSE IF(icosmo == 59) THEN
+         ! Bump in power
+         cosm%bump = .TRUE.
+         cosm%A_bump = 0.08
+         cosm%k_bump = 5.
+         cosm%sigma_bump = 0.5
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1345,8 +1362,13 @@ CONTAINS
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b4:', cosm%b4
          END IF
          IF (cosm%box) WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
-         IF (cosm%inv_m_wdm .NE. 0.) THEN
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', 1./cosm%inv_m_wdm
+         IF (cosm%warm) THEN
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', cosm%m_wdm
+         END IF
+         IF (cosm%bump) THEN
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'A bu:', cosm%A_bump
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k_bu [Mpc/h]:', cosm%k_bump
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'sigma bu:', cosm%sigma_bump
          END IF
          WRITE (*, *) '===================================='
          WRITE (*, *) 'COSMOLOGY: Derived parameters'
@@ -2573,7 +2595,8 @@ CONTAINS
       END IF
 
       ! Damp transfer function if considering WDM
-      IF (cosm%inv_m_wdm .NE. 0.) Tk = Tk*Tk_wdm(k, cosm)
+      IF (cosm%warm) Tk = Tk*Tk_WDM(k, cosm)
+      IF (cosm%bump) Tk = Tk*Tk_bump(k, cosm)
 
    END FUNCTION Tk
 
@@ -2705,16 +2728,28 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: alpha, mu, m_wdm
+      REAL :: alpha, mu
 
-      m_wdm = 1./cosm%inv_m_wdm
-
-      alpha = 0.074*0.7*m_wdm**(-1.15) ! alpha from equation (5), units Mpc/h
-      mu = 1.12                        ! mu from equation (4), dimensionless
+      alpha = 0.074*0.7*cosm%m_wdm**(-1.15) ! alpha from equation (5), units Mpc/h
+      mu = 1.12                             ! mu from equation (4), dimensionless
 
       Tk_wdm = (1.+(alpha*k)**(2.*mu))**(-5./mu) ! Equation (2)
 
    END FUNCTION Tk_WDM
+
+   REAL FUNCTION Tk_bump(k, cosm)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, PARAMETER :: A = 0.1
+      REAL, PARAMETER :: kbump = 1.
+      REAL, PARAMETER :: sigma = 0.1
+
+      !Tk_bump = 1.+cosm%A_bump*exp(-(k-cosm%k_bump)**2/(2.*cosm%sigma_bump**2))
+      Tk_bump = 1.+cosm%A_bump*exp(-(log(k/cosm%k_bump)**2/(2.*cosm%sigma_bump**2)))
+
+   END FUNCTION Tk_bump
 
    REAL FUNCTION Tcold(k, a, cosm)
 
@@ -2945,8 +2980,6 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: r, a, sig
       INTEGER :: i, j
-
-      !IF(cosm%inv_m_wdm .NE. 0.) STOP 'INIT_SIGMA: This will crash with WDM'
 
       ! Deallocate tables if they are already allocated
       IF (ALLOCATED(cosm%log_r_sigma)) DEALLOCATE (cosm%log_r_sigma)
@@ -5914,9 +5947,8 @@ CONTAINS
       LOGICAL, INTENT(IN) :: verbose
       REAL :: xlogr1, xlogr2, rmid, sig, d1, d2, diff
 
-      ! calculate nonlinear wavenumber (rknl), effective spectral index (rneff) and
-      ! curvature (rncur) of the power spectrum at the desired redshift, using method
-      ! described in Smith et al (2003).
+      ! Calculate the non-linear wavenumber (rknl), effective spectral index (rneff) and curvature (rncur) 
+      ! of the power spectrum at the desired redshift, using the method described in Smith et al (2003).
 
       IF (verbose) WRITE (*, *) 'HALOFIT_INIT: computing effective spectral quantities:'
 
