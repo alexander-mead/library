@@ -1273,7 +1273,7 @@ CONTAINS
       ! Fill the look-up tables
       CALL fill_array(zmin_nz, zmax_nz, proj%z_nz, proj%nnz)
       DO i = 1, n_nz
-         proj%nz(i) = nz(proj%z_nz(i), ix)
+         proj%nz(i) = nz_distribution(proj%z_nz(i), ix)
       END DO
 
    END SUBROUTINE fill_analytic_nz_table
@@ -1376,7 +1376,7 @@ CONTAINS
 
    END SUBROUTINE fill_nz_table
 
-   REAL FUNCTION nz(z, ix)
+   REAL FUNCTION nz_distribution(z, ix)
 
       ! Analytical n(z) for different surveys
       IMPLICIT NONE
@@ -1401,7 +1401,7 @@ CONTAINS
          n1 = a*z*exp(-(z-b)**2/c**2)
          n2 = d*z*exp(-(z-e)**2/f**2)
          n3 = g*z*exp(-(z-h)**2/i**2)
-         nz = n1+n2+n3
+         nz_distribution = n1+n2+n3
       ELSE IF (ix == tracer_CFHTLenS_vanWaerbeke2013) THEN
          ! CFHTLenS
          z1 = 0.7 ! Not a free parameter in Van Waerbeke et al. fit (2013)
@@ -1411,12 +1411,12 @@ CONTAINS
          c = 0.20
          d = 0.46
          norm = 1.0129840620118542 ! This is to ensure normalisation; without this integrates to ~1.013 according to python
-         nz = (a*exp(-((z-z1)/b)**2)+c*exp(-((z-z2)/d)**2))/norm
+         nz_distribution = (a*exp(-((z-z1)/b)**2)+c*exp(-((z-z2)/d)**2))/norm
       ELSE
-         STOP 'NZ: Error, tracer specified incorrectly'
+         STOP 'NZ_DISTRIBUTION: Error, tracer specified incorrectly'
       END IF
 
-   END FUNCTION nz
+   END FUNCTION nz_distribution
 
    REAL FUNCTION integrate_q(r, a, b, acc, iorder, proj, cosm)
 
