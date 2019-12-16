@@ -7071,18 +7071,20 @@ CONTAINS
 
    END FUNCTION win_norm
 
-   SUBROUTINE winint_speed_tests(k, nk, rmin, rmax, rv, rs, p1, p2, irho)
+   SUBROUTINE winint_speed_tests(k, nk, rmin, rmax, rv, rs, p1, p2, irho, base, ext)
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: k(nk), rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: nk, irho
-      CHARACTER(len=256) :: base, ext, outfile
+      CHARACTER(len=*), INTENT(IN) :: base
+      CHARACTER(len=*), INTENT(IN) :: ext
+      CHARACTER(len=256) :: outfile
       INTEGER :: j, i, ii, imeth, n, ntime
       LOGICAL :: timing
       REAL :: t1, t2, w
 
-      base = 'winint/results_'
-      ext = '.dat'
+      !base = 'winint/results_'
+      !ext = '.dat'
 
       ! j = 1: Time calculation
       ! j = 2: Write calculation out
