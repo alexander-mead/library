@@ -79,8 +79,8 @@ _OBJ = \
 	simulations.o \
 	cosmic_emu_stuff.o \
 	multidark_stuff.o \
-	limber.o \
 	hmx.o \
+	limber.o \
 	owls.o \
 	owls_extras
 

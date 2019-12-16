@@ -28,6 +28,8 @@ MODULE Limber
    PUBLIC :: write_Cl
    PUBLIC :: k_ell
    PUBLIC :: xpow_pka
+   PUBLIC :: xpow_halomod
+   PUBLIC :: set_field_for_xpow
 
    ! Tracers
    PUBLIC :: n_tracers
@@ -1766,7 +1768,6 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       TYPE(projection) :: proj(2)
       REAL :: r1, r2
-!!$    CHARACTER(len=256) :: fbase, fext
 
       ! Fill out the projection kernel
       CALL fill_projection_kernels(ix, proj, cosm)
@@ -1778,13 +1779,6 @@ CONTAINS
       ! Actually calculate the C(ell), but only for the full halo model part
       ! TODO: Array temporary
       CALL calculate_Cl(r1, r2, ell, Cl, nl, k, a, pow, nk, na, proj, cosm)
-
-!!$    ! Do contributions if needed
-!!$    IF(do_contributions) THEN
-!!$       fbase='data/Cl_contribution_ell_'
-!!$       fext='.dat'
-!!$       CALL Cl_contribution_ell(r1,r2,k,a,pow,nk,na,proj,cosm,fbase,fext)
-!!$    END IF
 
    END SUBROUTINE xpow_pka
 
@@ -1815,5 +1809,175 @@ CONTAINS
       CALL Cl_contribution_ell(r1, r2, k, a, pow, nk, na, proj, cosm, fbase, fext)
 
    END SUBROUTINE Cl_contribution
+
+   SUBROUTINE xpow_halomod(ix, nx, ell, Cl, nl, hmod, cosm, verbose)
+
+      ! Calculates the C(l) for the cross correlation of fields ix(1) and ix(2)
+      ! TODO: Speed up if there are repeated fields in ix(n) (should this ever happen?)
+      ! TODO: Add bin theory option
+      ! TODO: Move this because it requires HMx?
+      USE HMx
+      IMPLICIT NONE
+      INTEGER, INTENT(INOUT) :: ix(nx)
+      INTEGER, INTENT(IN) :: nx
+      REAL, INTENT(IN) :: ell(nl)
+      REAL, INTENT(OUT) :: Cl(nl, nx, nx)
+      INTEGER, INTENT(IN) :: nl
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      LOGICAL, INTENT(IN) :: verbose
+      REAL, ALLOCATABLE :: a(:), k(:), pow_li(:, :), pow_2h(:, :, :, :), pow_1h(:, :, :, :), pow_hm(:, :, :, :)
+      REAL :: lmin, lmax
+      INTEGER :: ixx(2), ip(nx), nk, na, i, j, ii, jj, nnx, match(nx)
+      INTEGER, ALLOCATABLE :: iix(:)
+      REAL, ALLOCATABLE :: uCl(:, :, :)
+
+      REAL, PARAMETER :: kmin_xpow = 1e-3 ! Minimum k to calculate P(k); it will be extrapolated below this by Limber
+      REAL, PARAMETER :: kmax_xpow = 1e2  ! Maximum k to calculate P(k); it will be extrapolated above this by Limber
+      INTEGER, PARAMETER :: nk_xpow = 256 ! Number of log-spaced k values (used to be 32)
+      REAL, PARAMETER :: amin_xpow = 0.1  ! Minimum scale factor (problems with one-halo term if amin is less than 0.1)
+      REAL, PARAMETER :: amax_xpow = 1.0  ! Maximum scale factor
+      INTEGER, PARAMETER :: na_xpow = 16  ! Number of linearly-spaced scale factores
+
+      !IF(repeated_entries(ix,n)) STOP 'XPOW: Error, repeated tracers'
+      CALL unique_index(ix, nx, iix, nnx, match)
+      ALLOCATE (uCl(nl, nnx, nnx))
+
+      ! Set the k range
+      nk = nk_xpow
+      CALL fill_array(log(kmin_xpow), log(kmax_xpow), k, nk)
+      k = exp(k)
+
+      ! Set the a range
+      na = na_xpow
+      CALL fill_array(amin_xpow, amax_xpow, a, na)
+
+      ! Set the ell range
+      lmin = ell(1)
+      lmax = ell(nl)
+
+      ! Write to screen
+      IF (verbose) THEN
+         WRITE (*, *) 'XPOW: Cross-correlation information'
+         WRITE (*, *) 'XPOW: Number of tracers:', nx
+         WRITE (*, *) 'XPOW: P(k) minimum k [h/Mpc]:', REAL(kmin_xpow)
+         WRITE (*, *) 'XPOW: P(k) maximum k [h/Mpc]:', REAL(kmax_xpow)
+         WRITE (*, *) 'XPOW: Number of k:', nk
+         WRITE (*, *) 'XPOW: minimum a:', REAL(amin_xpow)
+         WRITE (*, *) 'XPOW: maximum a:', REAL(amax_xpow)
+         WRITE (*, *) 'XPOW: number of a:', na
+         WRITE (*, *) 'XPOW: minimum ell:', REAL(lmin)
+         WRITE (*, *) 'XPOW: maximum ell:', REAL(lmax)
+         WRITE (*, *) 'XPOW: number of ell:', nl
+         WRITE (*, *)
+      END IF
+
+      ! Use the xpowlation type to set the necessary halo profiles
+      DO i = 1, nnx
+         CALL set_field_for_xpow(ix(i), ip(i))
+      END DO
+
+      ! Do the halo model power spectrum calculation
+      CALL calculate_HMx(ip, nnx, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose, response=.FALSE.)
+
+      ! Set the Cl to zero initially
+      uCl = 0.
+
+      ! Loop over triangle combinations
+      DO i = 1, nnx
+         ixx(1) = ix(i)
+         DO j = i, nnx
+            ixx(2) = ix(j)
+            CALL xpow_pka(ixx, ell, uCl(:, i, j), nl, k, a, pow_hm(i, j, :, :), nk, na, cosm)
+         END DO
+      END DO
+
+      ! Fill the symmetric cross terms
+      DO i = 1, nnx
+         DO j = i+1, nnx
+            uCl(:, j, i) = uCl(:, i, j)
+         END DO
+      END DO
+
+      ! Now fill the full arrays from the unique arrays
+      DO i = 1, nx
+         DO j = 1, nx
+            ii = match(i)
+            jj = match(j)
+            Cl(:, i, j) = uCl(:, ii, jj)
+         END DO
+      END DO
+
+      ! Write to screen
+      IF (verbose) THEN
+         WRITE (*, *) 'XPOW: Done'
+         WRITE (*, *)
+      END IF
+
+   END SUBROUTINE xpow_halomod
+
+   SUBROUTINE set_field_for_xpow(ix, ip)
+
+      ! Set the cross-correlation type
+      ! TODO: Move this because it requires HMx?
+      USE HMx
+      IMPLICIT NONE
+      INTEGER, INTENT(INOUT) :: ix ! Tracer for cross correlation
+      INTEGER, INTENT(OUT) :: ip   ! Corresponding field for power spectrum
+      INTEGER :: j
+
+      IF (ix == -1) THEN
+         WRITE (*, *) 'SET_FIELDS_FOR_XPOW: Choose field'
+         WRITE (*, *) '================================='
+         DO j = 1, n_tracers
+            WRITE (*, fmt='(I3,A3,A30)') j, '- ', TRIM(xcorr_type(j))
+         END DO
+         READ (*, *) ix
+         WRITE (*, *) '==================================='
+         WRITE (*, *)
+      END IF
+
+      IF (ix == tracer_Compton_y) THEN
+         ! Compton y
+         ip = field_electron_pressure
+      ELSE IF (ix == tracer_gravity_wave) THEN
+         ! Gravitational waves
+         ip = field_dmonly
+      ELSE IF (ix == tracer_RCSLenS .OR. &
+               ix == tracer_CFHTLenS_vanWaerbeke2013 .OR. &
+               ix == tracer_CMB_lensing .OR. &
+               ix == tracer_KiDS .OR. &
+               ix == tracer_KiDS_bin1 .OR. &
+               ix == tracer_KiDS_bin2 .OR. &
+               ix == tracer_KiDS_bin3 .OR. &
+               ix == tracer_KiDS_bin4 .OR. &
+               ix == tracer_KiDS_450 .OR. &
+               ix == tracer_KiDS_450_fat_bin1 .OR. &
+               ix == tracer_KiDS_450_fat_bin2 .OR. &
+               ix == tracer_KiDS_450_highz .OR. &
+               ix == tracer_lensing_z1p00 .OR. &
+               ix == tracer_lensing_z0p75 .OR. &
+               ix == tracer_lensing_z0p50 .OR. &
+               ix == tracer_lensing_z0p25 .OR. &
+               ix == tracer_KiDS_450_bin1 .OR. &
+               ix == tracer_KiDS_450_bin2 .OR. &
+               ix == tracer_KiDS_450_bin3 .OR. &
+               ix == tracer_KiDS_450_bin4 .OR. &
+               ix == tracer_CFHTLenS_Kilbinger2013) THEN
+         ! Lensing
+         ip = field_matter
+      ELSE IF (ix == tracer_CIB_353) THEN
+         ip = field_CIB_353
+      ELSE IF (ix == tracer_CIB_545) THEN
+         ip = field_CIB_545
+      ELSE IF (ix == tracer_CIB_857) THEN
+         ip = field_CIB_857
+      ELSE IF (ix == tracer_galaxies) THEN
+         ip = field_central_galaxies
+      ELSE
+         STOP 'SET_FIELD_FOR_XPOW: Error, tracer specified incorrectly'
+      END IF
+
+   END SUBROUTINE set_field_for_xpow
 
 END MODULE Limber

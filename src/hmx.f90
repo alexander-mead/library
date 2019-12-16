@@ -20,10 +20,13 @@ MODULE HMx
    ! Type
    PUBLIC :: halomod
 
-   ! Main routine
+   ! Main routines
    PUBLIC :: assign_halomod
    PUBLIC :: init_halomod
    PUBLIC :: print_halomod
+   PUBLIC :: assign_init_halomod
+
+   ! Calculations
    PUBLIC :: calculate_P_lin
    PUBLIC :: calculate_HMx
    PUBLIC :: calculate_HMx_a
@@ -1858,6 +1861,22 @@ CONTAINS
       END IF
 
    END SUBROUTINE print_halomod
+
+   SUBROUTINE assign_init_halomod(ihm, a, hmod, cosm, verbose)
+
+      ! Both assigns and initialises the halo model
+      IMPLICIT NONE
+      INTEGER, INTENT(INOUT) :: ihm
+      REAL, INTENT(IN) :: a
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      LOGICAL, INTENT(IN) :: verbose
+
+      CALL assign_halomod(ihm, hmod, verbose)
+      CALL init_halomod(a, hmod, cosm, verbose)
+      CALL print_halomod(hmod, cosm, verbose)
+
+   END SUBROUTINE assign_init_halomod
 
    REAL FUNCTION integrate_g_mu(nu1, nu2, hmod)
 

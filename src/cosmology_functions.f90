@@ -16,6 +16,7 @@ MODULE cosmology_functions
    PUBLIC :: assign_cosmology
    PUBLIC :: init_cosmology
    PUBLIC :: print_cosmology
+   PUBLIC :: assign_init_cosmology
 
    ! Scale factor and z
    PUBLIC :: scale_factor_z
@@ -347,8 +348,8 @@ CONTAINS
       ! Assigns the 'primary' cosmological parameters (primary according to my definition)
       ! This routine *only* assigns parameters, it does and should not do *any* calculations
       IMPLICIT NONE
-      TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER, INTENT(INOUT) :: icosmo
+      TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
       REAL :: Xe, Xi, om_b
@@ -1415,6 +1416,20 @@ CONTAINS
 
    END SUBROUTINE print_cosmology
 
+   SUBROUTINE assign_init_cosmology(icosmo, cosm, verbose)
+
+      ! Both assigns and initialises the cosmological model
+      IMPLICIT NONE
+      INTEGER, INTENT(INOUT) :: icosmo
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      LOGICAL, INTENT(IN) :: verbose
+
+      CALL assign_cosmology(icosmo, cosm, verbose)
+      CALL init_cosmology(cosm)
+      CALL print_cosmology(cosm)
+
+   END SUBROUTINE assign_init_cosmology
+   
    REAL FUNCTION xi_lin(r, a, cosm)
 
       ! Computes the 3D linear matter correlation function by integrating over P(k)
