@@ -104,15 +104,19 @@ MODULE cosmology_functions
    TYPE cosmology
 
       ! Primary parameters
-      CHARACTER(len=256) :: name ! Name for cosmological model
+      CHARACTER(len=256) :: name                ! Name for cosmological model
       REAL :: Om_m, Om_b, Om_v, Om_w, m_nu      ! Primary parameters
-      REAL :: h, n, sig8, w, wa, m_wdm, YH      ! Primary parameters
+      REAL :: h, n, w, wa, m_wdm, YH            ! Primary parameters
       REAL :: a1, a2, nstar, ws, am, dm, wm     ! DE parameters
       REAL :: z_CMB, T_CMB, neff                ! Less primary parameters
       REAL :: Om_m_pow, Om_b_pow, h_pow         ! Cosmological parameters used for P(k) if different from background
       REAL :: b0, b1, b2, b3, b4                ! BDE parameters
-      REAL :: A_bump, k_bump, sigma_bump        ! Power-spectrum bump
+      REAL :: A_bump, k_bump, sigma_bump        ! Power-spectrum bump 
       LOGICAL :: bump, warm                     ! Logicals
+      
+      ! Variables that might be primary that are used in power normalisation
+      REAL :: kpiv, As, kval, pval, sig8 ! Normalisation
+      INTEGER :: norm_method             ! Power normalisation scheme
 
       ! Derived parameters
       REAL :: A, Gamma, k                ! Power spectrum amplitude and shape parameter for DEFW
@@ -221,6 +225,9 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: itk_EH = 1            ! Eisenstein and Hu linear spectrum
    INTEGER, PARAMETER :: itk_CAMB = 2          ! CAMB linear spectrum
    INTEGER, PARAMETER :: itk_DEFW = 3          ! DEFW linear spectrum
+   INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
+   INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
+   INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB
 
    ! Correlation function
    ! TODO: This works very poorly
@@ -574,7 +581,6 @@ CONTAINS
       cosm%Om_w = 0.
       cosm%m_nu = 0.
       cosm%h = 0.7
-      cosm%sig8 = 0.8
       cosm%n = 0.96
       cosm%w = -1.
       cosm%wa = 0.
@@ -589,6 +595,15 @@ CONTAINS
       ! Warm dark matter
       cosm%warm = .FALSE.
       cosm%m_wdm = 0. ! Particle mass [keV]
+
+      ! Normalisation
+      cosm%norm_method = norm_sigma8
+      cosm%sig8 = 0.8              ! Large-scale structure normalisation
+      cosm%kval = 0.001            ! Wavenumber at which to define the power amplitude
+      cosm%pval = 0.1973236854e-06 ! Power at the wavenumber
+      cosm%kpiv = 0.05             ! Wavenumber at which to define the power amplitude
+      cosm%As = 2.1e-9             ! This is a generally sensible value
+      cosm%A = 1.                  ! Overall power normalisaiton, should be set to 1
 
       ! Power bump
       cosm%bump = .FALSE.
@@ -1024,6 +1039,9 @@ CONTAINS
       ELSE IF(icosmo == 59) THEN
          ! Bump in power
          cosm%bump = .TRUE.
+         cosm%norm_method = norm_value ! Normalise like this to prevent bump annoying sigma8
+         !cosm%kval = 1e-3
+         !cosm%pval = 1.9044e-7
          cosm%A_bump = 0.08
          cosm%k_bump = 5.
          cosm%sigma_bump = 0.5
@@ -1069,6 +1087,7 @@ CONTAINS
       cosm%has_Xde = .FALSE.
       cosm%is_init = .FALSE.
       cosm%is_normalised = .FALSE.
+      cosm%A = 1. ! Overall power normalisaiton, should always b
 
       ! Things to do with finite box
       IF (cosm%box) cosm%kbox = twopi/cosm%Lbox
@@ -1307,14 +1326,12 @@ CONTAINS
          WRITE (*, *) '===================================='
          WRITE (*, *) 'COSMOLOGY: ', trim(cosm%name)
          WRITE (*, *) '===================================='
-         WRITE (*, *) 'COSMOLOGY: Standard parameters'
+         WRITE (*, *) 'COSMOLOGY: Background parameters'
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_m:', cosm%Om_m
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_b:', cosm%Om_b
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v:', cosm%Om_v
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_w:', cosm%Om_w
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'h:', cosm%h
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'sigma_8:', cosm%sig8
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_s:', cosm%n
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'T_CMB [K]:', cosm%T_CMB
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'z_CMB:', cosm%z_CMB
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_eff:', cosm%neff
@@ -1323,11 +1340,13 @@ CONTAINS
          !WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 2 [eV]:', cosm%m_nu(2)
          !WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 3 [eV]:', cosm%m_nu(3)
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
+         WRITE (*, *) '===================================='
+         !WRITE (*, *) 'COSMOLOGY: Dark energy'
          IF (cosm%iw == iw_LCDM) THEN
             WRITE (*, *) 'COSMOLOGY: Vacuum energy'
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w:', -1.
          ELSE IF (cosm%iw == iw_QUICC) THEN
-            WRITE (*, *) 'COSMOLOGY: QUICC dark energy prescription'
+            WRITE (*, *) 'COSMOLOGY: QUICC'
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w0:', cosm%w
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'wm:', cosm%wm
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'am:', cosm%am
@@ -1362,6 +1381,34 @@ CONTAINS
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b3:', cosm%b3
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b4:', cosm%b4
          END IF
+         WRITE (*, *) '===================================='
+         IF(cosm%itk == itk_EH) THEN
+            WRITE(*,*) 'COSMOLOGY: Linear: Eisenstein & Hu'
+         ELSE IF(cosm%itk == itk_CAMB) THEN
+            WRITE(*,*) 'COSMOLOGY: Linear: CAMB'
+         ELSE IF(cosm%itk == itk_DEFW) THEN
+            WRITE(*,*) 'COSMOLOGY: Linear: DEFW'
+         ELSE IF(cosm%itk == 4) THEN
+            ! TODO: Remove this
+            WRITE(*,*) 'COSMOLOGY: Linear power spectrum: External'
+            STOP 'COSMOLOGY: Error, I do not think this is supported any more'
+         ELSE
+            STOP 'COSMOLOGY: Error, itk not set properly'
+         END IF
+         !WRITE (*, *) 'COSMOLOGY: Perturbation parameters'
+         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_s:', cosm%n
+         IF(cosm%norm_method == norm_sigma8) THEN
+            WRITE (*, *) 'COSMOLOGY: Normalisation: sigma_8'
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'sigma_8:', cosm%sig8
+         ELSE IF(cosm%norm_method == norm_value) THEN
+            WRITE (*, *) 'COSMOLOGY: Normalisation: Power'
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [h/Mpc]:', cosm%kval
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'D^2 [h/Mpc]:', cosm%pval
+         ELSE IF(cosm%norm_method == norm_As) THEN
+            WRITE (*, *) 'COSMOLOGY: Normalisation: A_s'
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'ks [1/Mpc]:', cosm%kpiv
+            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'As:', cosm%As
+         END IF
          IF (cosm%box) WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
          IF (cosm%warm) THEN
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', cosm%m_wdm
@@ -1392,23 +1439,10 @@ CONTAINS
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_p:', cosm%mup
          WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_e:', cosm%mue
          IF (cosm%iw == iw_IDE2) THEN
+            WRITE (*, *) '===================================='
             WRITE (*, *) 'COSMOLOGY: IDE II'
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a1^n:', cosm%a1n
             WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a2^n:', cosm%a2n
-         END IF
-         WRITE (*, *) '===================================='
-         IF(cosm%itk == itk_EH) THEN
-            WRITE(*,*) 'COSMOLOGY: Linear power spectrum: Eisenstein & Hu (1999)'
-         ELSE IF(cosm%itk == itk_CAMB) THEN
-            WRITE(*,*) 'COSMOLOGY: Linear power spectrum: CAMB'
-         ELSE IF(cosm%itk == itk_DEFW) THEN
-            WRITE(*,*) 'COSMOLOGY: Linear power spectrum: DEFW'
-         ELSE IF(cosm%itk == 4) THEN
-            ! TODO: Remove this
-            WRITE(*,*) 'COSMOLOGY: Linear power spectrum: External'
-            STOP 'COSMOLOGY: Error, I do not think this is supported any more'
-         ELSE
-            STOP 'COSMOLOGY: Error, itk not set properly'
          END IF
          WRITE (*, *) '===================================='
          WRITE (*, *)
@@ -1544,106 +1578,132 @@ CONTAINS
 
    SUBROUTINE normalise_power(cosm)
 
-      ! Get the required sigma_8 by re-normalising the power spectrum
+      ! Normalise the power spectrum using whatever scheme you choose to do this with
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: sigi, sigf, kbox
-      REAL, PARAMETER :: R = 8. ! Because we are doing sigma(R = 8Mpc/h) normalisation
-      REAL, PARAMETER :: a = 1. ! Because we are doing simga(R = 8Mpc/h, a = 1) normalisation
-      LOGICAL, PARAMETER :: run_twice = .FALSE. ! This is almost always a stupid thing to do
-
-      ! Need to give this a value otherwise get a warning in debug mode
-      kbox = 0.
 
       ! Change the flag *before* doing this calculation because it calls power
       cosm%is_normalised = .TRUE.
 
-      IF (cosm%itk == itk_EH) THEN
-
-         ! Remove the k-cut for the normalisation
-         IF (cosm%box) THEN
-            kbox = cosm%kbox
-            cosm%kbox = 0.
-         END IF
-
-         ! This needs to be set here for the sigma routines below to work
-         cosm%A = 1.
-
-         IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER: Normalising power to get correct sigma_8'
-
-         ! Calculate the initial sigma_8 value (will not be correct)
-         sigi = sigma_all_integral(R, a, cosm)
-
-         IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER: Initial sigma_8:', real(sigi)
-
-         ! Reset the normalisation to give the correct sigma8
-         cosm%A = cosm%sig8/sigi
-         !cosm%A=391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
-
-         ! Recalculate sigma8, should be correct this time
-         sigf = sigma_all_integral(R, a, cosm)
-
-         ! Write to screen
-         IF (cosm%verbose) THEN
-            WRITE (*, *) 'NORMALISE_POWER: Normalisation factor:', real(cosm%A)
-            WRITE (*, *) 'NORMALISE_POWER: Target sigma_8:', real(cosm%sig8)
-            WRITE (*, *) 'NORMALISE_POWER: Final sigma_8 (calculated):', real(sigf)
-            WRITE (*, *) 'NORMALISE_POWER: Done'
-            WRITE (*, *)
-         END IF
-
-         ! Replace the k-cut
-         IF (cosm%box) THEN
-            cosm%kbox = kbox
-         END IF
-
-      ELSE IF (cosm%itk == itk_CAMB) THEN
-
-         ! Run first time to get power
-         cosm%A = 2.1e-9 ! This is a generally sensible value
+      ! Get the CAMB power if necessary
+      IF(cosm%itk == itk_CAMB) THEN
          CALL init_CAMB_linear(cosm)
-         sigi = sigma_all_integral(R, a, cosm) ! Breaks here with massive neutrinos
+      END IF
 
-         IF (cosm%verbose) THEN
-            WRITE (*, *) 'NORMALISE_POWER: Normalising power to get correct sigma_8'
-            WRITE (*, *) 'NORMALISE_POWER: Initial As:', real(cosm%A)
-            WRITE (*, *) 'NORMALISE_POWER: Initial sigma_8:', real(sigi)
-         END IF
+      IF(cosm%norm_method == norm_sigma8) THEN
+         CALL normalise_sigma8(cosm)
+      ELSE IF(cosm%norm_method == norm_value) THEN
+         CALL normalise_value(cosm)
+      ELSE IF(cosm%itk == itk_CAMB .AND. cosm%norm_method == norm_As) THEN
+         ! Do nothing
+      ELSE
+         STOP 'NORMALISE_POWER: Error, normalisation method not specified correctly'
+      END IF
 
-         ! This is required to get the correct sigma_8
-         cosm%A = cosm%A*(cosm%sig8/sigi)**2
+      IF(cosm%norm_method .NE. norm_sigma8) THEN
+         CALL reset_sigma8(cosm)
+      END IF
 
+   END SUBROUTINE normalise_power
+
+   SUBROUTINE normalise_sigma8(cosm)
+
+      ! Normalising the power spectrum using sigma8
+      IMPLICIT NONE
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: sigma8_initial, sigma8_final, kbox_save
+      LOGICAL, PARAMETER :: run_CAMB_twice = .FALSE. ! This is almost always a stupid thing to do
+
+      IF (cosm%verbose) WRITE (*, *) 'NORMALISE_SIGMA8: Normalising power to get correct sigma_8'
+
+      ! Remove the k-cut for the normalisation          
+      kbox_save = 0. ! Need to give this a value otherwise get a warning in debug mode
+      IF (cosm%box) THEN
+         kbox_save = cosm%kbox
+         cosm%kbox = 0.
+      END IF
+
+      ! Calculate the initial sigma_8 value (will not be correct)
+      sigma8_initial = sigma8(cosm)
+
+      IF (cosm%verbose) WRITE (*, *) 'NORMALISE_SIGMA8: Initial sigma_8:', real(sigma8_initial)
+
+      IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW) THEN
+         cosm%A = cosm%sig8/sigma8_initial
+         !cosm%A=391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
+      ELSE IF(cosm%itk == itk_CAMB) THEN
+         ! TODO: Resetting As is not really necesary and might not be logical to do here
+         ! TODO: Need to think about normalisation parameters as primary vs. seconary
+         cosm%As = cosm%As*(cosm%sig8/sigma8_initial)**2 
          ! Normalisation
-         IF (run_twice) THEN
+         IF (run_CAMB_twice) THEN
             ! Run again to normalise...
             CALL init_CAMB_linear(cosm)
          ELSE
             ! ... or normalise using sigma8 and rescaling linear power
             IF (cosm%growk) THEN
-               cosm%log_plina = cosm%log_plina+2.*log(cosm%sig8/sigi)
+               cosm%log_plina = cosm%log_plina+2.*log(cosm%sig8/sigma8_initial)
             ELSE
-               cosm%log_plin = cosm%log_plin+2.*log(cosm%sig8/sigi)
+               cosm%log_plin = cosm%log_plin+2.*log(cosm%sig8/sigma8_initial)
             END IF
          END IF
-
-         ! Check that the normalisation has been done correctly
-         sigf = sigma_all_integral(R, a, cosm)
-
-         ! Write to screen
-         IF (cosm%verbose) THEN
-            WRITE (*, *) 'NORMALISE_POWER: Target sigma_8:', real(cosm%sig8)
-            WRITE (*, *) 'NORMALISE_POWER: Final sigma_8 (calculated):', real(sigf)
-            WRITE (*, *) 'NORMALISE_POWER: Done'
-            WRITE (*, *)
-         END IF
-
       ELSE
-
-         STOP 'NORMALISE_POWER: Error, cannot normalise with this itk'
-
+         STOP 'NORMALISE_SIGMA8: Error, cannot normalise with this itk'
       END IF
 
-   END SUBROUTINE normalise_power
+      ! Replace the k-cut if necessary
+      IF (cosm%box) THEN
+         cosm%kbox = kbox_save
+      END IF
+
+      ! Check that the normalisation has been done correctly
+      sigma8_final = sigma8(cosm)
+
+      ! Write to screen
+      IF (cosm%verbose) THEN
+         WRITE (*, *) 'NORMALISE_SIGMA8: Target sigma_8:', real(cosm%sig8)
+         WRITE (*, *) 'NORMALISE_SIGMA8: Final sigma_8 (calculated):', real(sigma8_final)
+         WRITE (*, *) 'NORMALISE_SIGMA8: Done'
+         WRITE (*, *)
+      END IF
+
+   END SUBROUTINE normalise_sigma8
+
+   SUBROUTINE normalise_value(cosm)
+
+      ! Normalise the power spectrum by taking the dimensionless power at some wavenumber
+      IMPLICIT NONE
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, PARAMETER :: a = 1.
+
+      IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW) THEN
+         cosm%A = cosm%A*sqrt(cosm%pval/p_lin(cosm%kval, a, cosm))
+      ELSE
+         STOP 'NORMALISE_VALUE: Error, this is not possible for your transfer function'
+      END IF
+
+   END SUBROUTINE normalise_value
+
+   SUBROUTINE reset_sigma8(cosm)
+
+      ! Set the value of sigma8 to be correct in the cosmology if it is not used in normalisation
+      IMPLICIT NONE
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      cosm%sig8 = sigma8(cosm)
+
+   END SUBROUTINE reset_sigma8
+
+   REAL FUNCTION sigma8(cosm)
+
+      IMPLICIT NONE
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, PARAMETER :: R = 8. ! Because we are doing sigma(R = 8 Mpc/h) normalisation
+      REAL, PARAMETER :: a = 1. ! Because we are doing simga(R = 8 Mpc/h, a = 1) normalisation
+
+      sigma8 = sigma_all_integral(R, a, cosm)
+
+   END FUNCTION sigma8
 
    REAL FUNCTION comoving_critical_density(a, cosm)
 
@@ -2754,14 +2814,11 @@ CONTAINS
 
    REAL FUNCTION Tk_bump(k, cosm)
 
+      ! Put a Gaussian bump in a linear power spectrum
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, PARAMETER :: A = 0.1
-      REAL, PARAMETER :: kbump = 1.
-      REAL, PARAMETER :: sigma = 0.1
 
-      !Tk_bump = 1.+cosm%A_bump*exp(-(k-cosm%k_bump)**2/(2.*cosm%sigma_bump**2))
       Tk_bump = 1.+cosm%A_bump*exp(-(log(k/cosm%k_bump)**2/(2.*cosm%sigma_bump**2)))
 
    END FUNCTION Tk_bump
@@ -4618,6 +4675,8 @@ CONTAINS
 
       IF(cosm%verbose) THEN
          WRITE(*,*) 'GET_CAMB_POWER: Running CAMB'
+         WRITE(*,*) 'GET_CAMB_POWER: kpiv [1/Mpc]:', real(cosm%kpiv)
+         WRITE(*,*) 'GET_CAMB_POWER: As:', real(cosm%As)
          WRITE(*,*) 'GET_CAMB_POWER: Minimum a:', a(1)
          WRITE(*,*) 'GET_CAMB_POWER: Maximum a:', a(na)
          WRITE(*,*) 'GET_CAMB_POWER: Number of a:', na
@@ -4703,9 +4762,9 @@ CONTAINS
       WRITE (7, *) 'initial_power_num = 1'
       WRITE (7, *) 'scalar_spectral_index(1) =', cosm%n
       WRITE (7, *) 'scalar_nrun(1) = 0'
-      WRITE (7, *) 'scalar_amp(1) =', cosm%A
-      WRITE (7, *) 'pivot_scalar = 0.05'
-      WRITE (7, *) 'pivot_tensor = 0.05'
+      WRITE (7, *) 'scalar_amp(1) =', cosm%As
+      WRITE (7, *) 'pivot_scalar =', cosm%kpiv
+      WRITE (7, *) 'pivot_tensor =', cosm%kpiv
 
       ! Reionisation
       WRITE (7, *) 'reionization = F'
