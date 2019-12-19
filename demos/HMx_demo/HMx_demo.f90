@@ -1,9 +1,10 @@
 PROGRAM HMx_demo
 
+   USE array_operations
    USE cosmology_functions
    USE HMx
    IMPLICIT NONE
-   CHARACTER(len=256) :: cosmo, halomodel
+   !CHARACTER(len=256) :: cosmo, halomodel
    INTEGER :: icosmo, ihm, idemo
 
    WRITE(*, *) ''
@@ -11,6 +12,7 @@ PROGRAM HMx_demo
    WRITE(*, *) '1 - Basic demo'
    WRITE(*, *) '2 - Winint diagnostics'
    WRITE(*, *) '3 - Winint speed'
+   WRITE(*, *) '4 - Dewiggle test'
    READ(*, *) idemo
    WRITE(*, *)
 
@@ -20,6 +22,8 @@ PROGRAM HMx_demo
       CALL winint_diagnosis()
    ELSE IF (idemo == 3) THEN
       CALL winint_speed()
+   ELSE IF(idemo == 4) THEN
+      CALL dewiggle_test()
    ELSE
       STOP 'HMX_DEMO: Error, demo specified incorreclty'
    END IF
@@ -92,5 +96,40 @@ CONTAINS
       CALL winint_speed_tests(k, nk, rmin, rmax, rv, rs, p1, p2, irho, base, ext)
 
    END SUBROUTINE winint_speed
+
+   SUBROUTINE dewiggle_test()
+
+      IMPLICIT NONE
+      REAL, ALLOCATABLE :: k(:)
+      INTEGER :: i
+      TYPE(cosmology) :: cosm
+      TYPE(halomod) :: hmod
+
+      REAL, PARAMETER :: a = 1.
+      REAL, PARAMETER :: kmin = 1e-3
+      REAL, PARAMETER :: kmax = 1e1
+      INTEGER, PARAMETER :: nk = 1024
+      LOGICAL, PARAMETER :: verbose = .TRUE.
+      CHARACTER(len=256), PARAMETER :: outfile = 'data/dewiggle.dat'
+
+      ! Assigns the cosmological model
+      icosmo = 26 ! Boring with CAMB
+      CALL assign_init_cosmology(icosmo, cosm, verbose)
+
+      ! Initiliasation for the halomodel calcualtion
+      ihm = 31 ! Dewiggle
+      CALL assign_init_halomod(ihm, a, hmod, cosm, verbose)
+      hmod%sigv = 1000. ! [Mpc/h] Fix very high so as to completey damp wiggles away
+
+      ! Write results
+      CALL fill_array(log(kmin), log(kmax), k, nk)
+      k=exp(k)
+      OPEN(7, file = outfile)
+      DO i = 1, nk
+         WRITE(7, *) k(i), p_lin(k(i), a, cosm), p_dewiggle(k(i), hmod, cosm)
+      END DO
+      CLOSE(7)
+
+   END SUBROUTINE dewiggle_test
 
 END PROGRAM HMx_demo
