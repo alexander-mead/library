@@ -26,6 +26,9 @@ MODULE HMx
    PUBLIC :: print_halomod
    PUBLIC :: assign_init_halomod
 
+   ! Dewiggle
+   PUBLIC :: p_dewiggle 
+
    ! Calculations
    PUBLIC :: calculate_P_lin
    PUBLIC :: calculate_HMx
@@ -167,8 +170,8 @@ MODULE HMx
    PUBLIC :: param_HMcode_As
    PUBLIC :: param_HMcode_alpha0
    PUBLIC :: param_HMcode_alpha1
-   !PUBLIC :: param_HMcode_Dvnu
-   !PUBLIC :: param_HMcode_dcnu
+   PUBLIC :: param_HMcode_Dvnu
+   PUBLIC :: param_HMcode_dcnu
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -405,7 +408,9 @@ MODULE HMx
    INTEGER, PARAMETER :: param_ibetaz = 42
    INTEGER, PARAMETER :: param_gbeta = 43
    INTEGER, PARAMETER :: param_gbetaz = 44
-   INTEGER, PARAMETER :: param_n = 44
+   INTEGER, PARAMETER :: param_HMcode_Dvnu = 45
+   INTEGER, PARAMETER :: param_HMcode_dcnu = 46
+   INTEGER, PARAMETER :: param_n = 46
 
 CONTAINS
 
@@ -418,7 +423,7 @@ CONTAINS
       INTEGER :: i
 
       ! Names of pre-defined halo models
-      INTEGER, PARAMETER :: nhalomod = 52 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+      INTEGER, PARAMETER :: nhalomod = 54 ! Total number of pre-defined halo-model types (TODO: this is stupid)
       CHARACTER(len=256):: names(nhalomod)
       names(1) = 'HMcode (Mead et al. 2016)'
       names(2) = 'Basic halo-model (Two-halo term is linear)'
@@ -472,6 +477,8 @@ CONTAINS
       names(50) = 'HMcode (Mead et al. 2016) with Dolag pow=1 bug'
       names(51) = 'HMcode in CAMB (July 2019)'
       names(52) = 'Standard but with Mead (2017) spherical collapse'
+      names(53) = 'HMcode (2016) with Nelder-Mead parameters'
+      names(54) = 'HMcode (in prep) with Nelder-Mead parameters'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -698,7 +705,7 @@ CONTAINS
       ! Safeguard against negative terms in cross correlations
       hmod%safe_negative = .FALSE.
 
-      ! HMcode parameters
+      ! HMcode (2016) parameters
       hmod%Dv0 = 418.
       hmod%Dv1 = -0.352
       hmod%dc0 = 1.59
@@ -730,7 +737,7 @@ CONTAINS
       ! Pivot is 1e14 or M_h
       hmod%simple_pivot = .FALSE.
 
-      ! Fixed parameters
+      ! Fixed HMx parameters
       hmod%alpha = 1.0      ! Non-virial temperature correction for static gas
       hmod%beta = 1.0       ! Non-virial temperature correction for hot gas
       hmod%eps = 1.         ! Concentration modification
@@ -861,14 +868,17 @@ CONTAINS
          WRITE (*, *)
       END IF
 
-      IF (ihm == 1 .OR. ihm == 7 .OR. ihm == 15 .OR. ihm == 28 .OR. ihm == 31 .OR. ihm == 50 .OR. ihm==51) THEN
+      IF (ihm == 1 .OR. ihm == 7 .OR. ihm == 15 .OR. ihm == 28 .OR. &
+         ihm == 31 .OR. ihm == 50 .OR. ihm == 51 .OR. ihm == 53 .OR. ihm == 54) THEN
          !  1 - HMcode (Mead et al. 2016)
          !  7 - HMcode (Mead et al. 2015)
-         ! 15 - HMcode (Mead et al. 2018)
+         ! 15 - HMcode (Mead et al. in prep)
          ! 28 - HMcode (Mead et al. 2016 w/ one parameter baryon model)
          ! 31 - HMcode (Mead et al. 2016 w/ additional BAO damping)
          ! 50 - HMcode (Mead et al. 2016 w/ pow=1 bug in Dolag)
          ! 51 - HMcode in July 2019 CAMB (supposed to be Mead et al. 2016)
+         ! 53 - HMcode (2016) updated Nelder-Mead parameters
+         ! 54 - HMcode (in prep) Nelder-Mead parameters
          hmod%ip2h = 1
          hmod%i1hdamp = 2
          hmod%iconc = 1
@@ -893,24 +903,39 @@ CONTAINS
             hmod%iDolag = 2
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
-         ELSE IF (ihm == 15) THEN
+         ELSE IF (ihm == 15 .OR. ihm == 54) THEN
             ! Mead et al. (in prep)
-            hmod%i1hdamp = 3 ! k^4 at large scales for one-halo term
-            hmod%ip2h = 3    ! Linear theory with damped wiggles
-            hmod%i2hdamp = 2 ! Change back to Mead (2015) model for two-halo damping
-            hmod%Dv0 = 444.87
-            hmod%Dv1 = -0.3170
-            hmod%dc0 = 1.6077
-            hmod%dc1 = 0.01461
-            hmod%eta0 = 0.5739
-            hmod%eta1 = 0.2705
-            hmod%f0 = 0.08974
-            hmod%f1 = 3.698
-            hmod%ks = 0.6358
-            hmod%As = 3.0745
-            hmod%alp0 = 3.129
-            hmod%alp1 = 1.850
-            hmod%cold_sigma = .FALSE. ! This seemed to produce better neutrino results,
+            hmod%i1hdamp = 3   ! k^4 at large scales for one-halo term
+            hmod%ip2h = 3      ! Linear theory with damped wiggles
+            hmod%i2hdamp = 2   ! Change back to Mead (2015) model for two-halo damping
+            IF(ihm == 15) THEN
+               hmod%Dv0 = 444.87
+               hmod%Dv1 = -0.3170
+               hmod%dc0 = 1.6077
+               hmod%dc1 = 0.01461
+               hmod%eta0 = 0.5739
+               hmod%eta1 = 0.2705
+               hmod%f0 = 0.08974
+               hmod%f1 = 3.698
+               hmod%ks = 0.6358
+               hmod%As = 3.0745
+               hmod%alp0 = 3.129
+               hmod%alp1 = 1.850
+            ELSE IF(ihm == 54) THEN
+               hmod%Dv0 = 411.
+               hmod%Dv1 = -0.333
+               hmod%dc0 = 1.631
+               hmod%dc1 = 0.0187
+               hmod%eta0 = 0.523
+               hmod%eta1 = 0.259
+               hmod%f0 = 0.0615
+               hmod%f1 = 1.607
+               hmod%ks = 0.599
+               hmod%As = 3.23
+               hmod%alp0 = 3.17
+               hmod%alp1 = 1.88
+            END IF
+            hmod%cold_sigma = .FALSE. ! This seemed to produce better neutrino results
             hmod%zinf_Dolag = 100.
          ELSE IF (ihm == 28) THEN
             ! One-parameter baryon model
@@ -927,6 +952,20 @@ CONTAINS
             hmod%mmin = 1e0  ! Lower mass limit for integration [Msun/h]
             hmod%mmax = 1e18 ! Upper mass limit for integration [Msun/h]
             hmod%n = 256
+         ELSE IF (ihm == 53) THEN
+            ! HMcode (2016) with improved fitted parameters
+            hmod%Dv0 = 416.
+            hmod%Dv1 = -0.346
+            hmod%dc0 = 1.661
+            hmod%dc1 = 0.0131
+            hmod%eta0 = 0.501
+            hmod%eta1 = 0.273
+            hmod%f0 = 0.00612
+            hmod%f1 = 1.607
+            hmod%ks = 0.927
+            hmod%As = 3.09
+            hmod%alp0 = 3.11
+            hmod%alp1 = 1.91
          END IF
       ELSE IF (ihm == 2) THEN
          ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686))
@@ -1695,7 +1734,7 @@ CONTAINS
 
          ! eta for halo window function
          IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta = 0 fixed'
-         IF (hmod%ieta == 2) WRITE (*, *) 'HALOMODEL: eta from Mead et al. (2015,2016) power spectrum fit'
+         IF (hmod%ieta == 2) WRITE (*, *) 'HALOMODEL: eta from Mead et al. (2015, 2016) power spectrum fit'
 
          ! Small-scale two-halo term damping coefficient
          IF (hmod%i2hdamp == 1) WRITE (*, *) 'HALOMODEL: No two-halo term damping at small scales'
@@ -1715,7 +1754,7 @@ CONTAINS
 
          ! Concentration-mass scaling
          IF (hmod%iAs == 1) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
-         IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled mass independetly (Mead et al. 2015, 2016)'
+         IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled mass independently (Mead et al. 2015, 2016)'
 
          ! Two- to one-halo transition region
          IF (hmod%itrans == 1) WRITE (*, *) 'HALOMODEL: Standard sum of two- and one-halo terms'
@@ -2084,71 +2123,97 @@ CONTAINS
 
    END FUNCTION mean_halo_number_density
 
-   SUBROUTINE init_dewiggle(hmod, cosm)
+   SUBROUTINE init_dewiggle(sigv, hmod, cosm)
 
       ! Initialise the dewiggled power spectrum
       USE fix_polynomial
       IMPLICIT NONE
+      REAL, INTENT(IN) :: sigv
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: kv(4), pv(4), sigv, a
-      REAL, ALLOCATABLE :: Pk(:), Pkraw(:), k(:)
-      INTEGER :: i, nk
-      INTEGER :: iorder = 3
-      INTEGER :: ifind = 3
-      INTEGER :: imeth = 2
+      REAL :: logkv(4), logpv(4)
+      REAL :: a
+      REAL, ALLOCATABLE :: k(:), logk(:), Pk(:), logPk(:)
+      REAL, ALLOCATABLE :: Pk_smooth(:), logPk_smooth(:), Pk_wiggles(:)
+      INTEGER :: i, j, nk, nt, i_up, i_dn
+
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
+      INTEGER, PARAMETER :: dewiggle_Lagrange = 1
+      INTEGER, PARAMETER :: ns = 10
+      INTEGER, PARAMETER :: dewiggle_smooth = 2
+      INTEGER :: dewiggle_method = dewiggle_Lagrange
+      !INTEGER :: dewiggle_method = dewiggle_smooth
 
       IF (.NOT. ALLOCATED(cosm%log_k_plin)) STOP 'DEWIGGLE_INIT: Error, P(k) needs to be tabulated for this to work'
       IF (cosm%growk) STOP 'DEWIGGLE_INIT: Error, this does not support scale-dependent growth yet'
 
       nk = cosm%nk_plin
       hmod%n_pdamp = nk
-      sigv = hmod%sigv
       a = hmod%a
 
-      ! Allocate a raw array so as to plot the processed and unprocessed results
-      ALLOCATE (Pkraw(nk), Pk(nk), k(nk))
+      ! Allocate arrays
+      ALLOCATE (logk(nk), Pk(nk), logPk(nk))
+      ALLOCATE (Pk_wiggles(nk), Pk_smooth(nk))
+      ALLOCATE (logPk_smooth(nk))
 
       ! Allocate the internal arrays from the cosmology arrays
-      k = exp(cosm%log_k_plin)
+      k = exp(cosm%log_k_plin) ! Needed for exp(-(k*sigv)**2)
       Pk = exp(cosm%log_plin)
+      logk = cosm%log_k_plin    
+      logPk = cosm%log_plin
 
-      ! Fixed k values - CAMB!
-      kv(1) = 0.008
-      kv(2) = 0.01
-      kv(3) = 0.8
-      kv(4) = 1.0
+      IF(dewiggle_method == dewiggle_Lagrange) THEN
 
-      ! Fix p values
-      DO i = 1, 4
-         pv(i) = exp(find(log(kv(i)), log(k), log(Pk), nk, iorder, ifind, imeth))
-      END DO
+         ! Fixed k values - CAMB
+         logkv(1) = log(0.008)
+         logkv(2) = log(0.01)
+         logkv(3) = log(0.8)
+         logkv(4) = log(1.0)
 
-      ! Create new 'raw' spectrum which has no wiggles
-      DO i = 1, nk
-         IF (k(i) <= kv(1) .OR. k(i) >= kv(4)) THEN
-            Pkraw(i) = Pk(i)
-         ELSE
-            Pkraw(i) = exp(Lagrange_polynomial(log(k(i)), 3, log(kv), log(pv)))
-         END IF
-      END DO
+         ! Fix p values
+         DO i = 1, 4
+            logpv(i) = find(logkv(i), logk, logPk, nk, iorder, ifind, imeth)
+         END DO
+
+         ! Create new smooth spectrum that has no wiggles
+         DO i = 1, nk
+            IF (logk(i) <= logkv(1) .OR. logk(i) >= logkv(4)) THEN
+               Pk_smooth(i) = Pk(i)
+            ELSE
+               Pk_smooth(i) = exp(Lagrange_polynomial(logk(i), 3, logkv, logpv))
+            END IF
+         END DO
+
+      ELSE IF (dewiggle_method == dewiggle_smooth) THEN
+
+         logPk_smooth = logPk
+         CALL smooth_array(logPk_smooth, nk, ns)
+         Pk_smooth = exp(logPk_smooth)
+
+      ELSE
+         STOP 'INIT_DEWIGGLE: Error, dewiggle method is not specified correctly'
+      END IF
 
       ! Isolate just the wiggles
-      Pk = Pk-Pkraw
+      ! It is difficult to make this operation (subtraction) fast given log arrays
+      Pk_wiggles = Pk-Pk_smooth
 
       ! Damp the wiggles
-      Pk = Pk*exp(-(sigv*k)**2)
+      Pk_wiggles = Pk_wiggles*exp(-(sigv*k)**2)
 
       ! Add the damped wiggles back in
-      Pk = Pk+Pkraw
+      ! It is difficult to make this operation (addition) fast given log arrays
+      Pk = Pk_smooth+Pk_wiggles
 
       ! Create the damped power array
       IF (ALLOCATED(hmod%log_k_pdamp)) DEALLOCATE (hmod%log_k_pdamp)
-      IF (ALLOCATED(hmod%log_pdamp)) DEALLOCATE (hmod%log_pdamp)
+      IF (ALLOCATED(hmod%log_pdamp))   DEALLOCATE (hmod%log_pdamp)
       ALLOCATE (hmod%log_k_pdamp(nk), hmod%log_pdamp(nk))
 
       ! Fill the k array
-      hmod%log_k_pdamp = log(k)
+      hmod%log_k_pdamp = logk
 
       ! Grow damped power to the correct redshift and fill array
       hmod%log_pdamp = log(Pk*grow(a, cosm)**2)
@@ -2169,7 +2234,7 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = 3
       INTEGER, PARAMETER :: imeth = 2
 
-      IF (hmod%has_dewiggle .EQV. .FALSE.) CALL init_dewiggle(hmod, cosm)
+      IF (hmod%has_dewiggle .EQV. .FALSE.) CALL init_dewiggle(hmod%sigv, hmod, cosm)
       p_dewiggle = exp(find(log(k), hmod%log_k_pdamp, hmod%log_pdamp, hmod%n_pdamp, iorder, ifind, imeth))
 
    END FUNCTION p_dewiggle
@@ -5228,6 +5293,7 @@ CONTAINS
          ! Cored NFW
          irho = 24
          p1 = hmod%rcore
+         !p1 = hmod%ccore
       ELSE IF (hmod%halo_DMONLY == 6) THEN
          ! Isothermal
          irho = 1
