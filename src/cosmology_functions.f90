@@ -5274,7 +5274,7 @@ CONTAINS
 
       ! M000 -> M037 of Cosmic_Emu (Table 1 in 1304.7849)
       IF (node == 0) THEN
-         ! M000
+         ! M000 (not included in emulator construction)
          om_m = 0.1296
          om_b = 0.0224
          cosm%n = 0.9700
@@ -5625,7 +5625,7 @@ CONTAINS
 
       ! M000 -> M036 of Mira Titan (m_nu = 0 eV for M000 -> M010; Table 3 in 1705.03388)
       IF (node == 0) THEN
-         ! M000
+         ! M000 (WMAP7 - not included in emulator construction)
          om_m = 0.1335
          om_b = 0.02258
          cosm%sig8 = 0.8
@@ -5726,7 +5726,7 @@ CONTAINS
          cosm%wa = -0.76110
          om_nu = 0.
       ELSE IF (node == 10) THEN
-         ! M010
+         ! M010 (last cosmology with massless neutrinos)
          om_m = 0.1278
          om_b = 0.02239
          cosm%sig8 = 0.7222
@@ -5736,7 +5736,7 @@ CONTAINS
          cosm%wa = -0.52220
          om_nu = 0.
       ELSE IF (node == 11) THEN
-         ! M011
+         ! M011 (first cosmology with massive neutrinos)
          om_m = 0.1227
          om_b = 0.0220
          cosm%sig8 = 0.7151
