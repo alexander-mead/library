@@ -39,6 +39,7 @@ MODULE array_operations
    PUBLIC :: merge_arrays
    PUBLIC :: mask
    PUBLIC :: apply_mask
+   PUBLIC :: smooth_array
 
    PUBLIC :: unique_entries
    PUBLIC :: number_of_appearances
@@ -74,6 +75,45 @@ MODULE array_operations
    END INTERFACE apply_mask
 
 CONTAINS
+
+   SUBROUTINE smooth_array(x, n, m)
+
+      ! Take an array and smooth it by taking the over a fixed number of values in each direction
+      ! For example, if m = 2 then poisition i in the smoothed array is the average over i-2, i-1, i, i+1, i+2 in the old array
+      ! It probably only makes sense to do this if x(t) is a function and the t are uniformally distributed
+      IMPLICIT NONE
+      REAL, INTENT(INOUT) :: x(n) ! Array to smooth
+      INTEGER, INTENT(IN) :: n    ! Size of array
+      INTEGER, INTENT(IN) :: m    ! Number of entries to smooth over in one direction
+      INTEGER :: i, iup, idn, j, mm
+      REAL :: x_save(n)
+
+      ! Save the original input array
+      x_save = x
+
+      ! Delete the original array
+      x = 0.
+
+      ! Make a running average over the function
+      DO i = 1, n
+         mm = 1
+         x(i) = x_save(i)
+         DO j = 1, m
+            iup = i+j
+            IF(iup <= n) THEN
+               x(i) = x(i) + x_save(iup)
+               mm = mm + 1
+            END IF
+            idn = i-j
+            IF(idn >= 1) THEN
+               x(i) = x(i) + x_save(idn)
+               mm = mm + 1
+            END IF
+         END DO
+         x(i) = x(i)/real(mm)
+      END DO
+
+   END SUBROUTINE smooth_array
 
    LOGICAL FUNCTION within_array(x, a, n)
 
@@ -655,7 +695,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: min ! Minimum value for array
       REAL, INTENT(IN) :: max ! Maximum value for array
-      REAL, ALLOCATABLE, INTENT(OUT) :: arr(:) ! Output array
+      REAL, ALLOCATABLE, INTENT(INOUT) :: arr(:) ! Output array
       INTEGER, INTENT(IN) :: n ! Number of entries in array
       INTEGER :: i
 
