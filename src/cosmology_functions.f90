@@ -2827,7 +2827,6 @@ CONTAINS
 
       ! Ratio of transfer function for cold matter relative to all matter
       ! TODO: Add exact result from CAMB
-      ! TODO: Move imethod into the cosmology class
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       REAL, INTENT(IN) :: a ! Scale factor
