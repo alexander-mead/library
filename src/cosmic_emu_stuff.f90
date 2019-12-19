@@ -29,7 +29,7 @@ CONTAINS
       CHARACTER(len=256) :: crap
       REAL :: h
       REAL, PARAMETER :: kmin = 1e-2 ! Minimum k if rebinnning
-      REAL, PARAMETER :: kmax = 7.   ! Minimum k if rebinnning
+      REAL, PARAMETER :: kmax = 1e0   ! Minimum k if rebinnning
       INTEGER, PARAMETER :: nk = 128 ! Number of k values if rebinning
       INTEGER, PARAMETER :: nh = 10  ! Length of header
       INTEGER, PARAMETER :: h_li = 8 ! Line that h in on
@@ -114,7 +114,7 @@ CONTAINS
       INTEGER :: i
       REAL, ALLOCATABLE :: k2(:), P2(:)
       REAL, PARAMETER :: kmin = 1e-2 ! Minimum k if rebinnning
-      REAL, PARAMETER :: kmax = 7.   ! Minimum k if rebinnning
+      REAL, PARAMETER :: kmax = 1e1   ! Minimum k if rebinnning
       INTEGER, PARAMETER :: nk = 128 ! Number of k values if rebinning
       INTEGER, PARAMETER :: nh = 5   ! Length of header
       CHARACTER(len=256), PARAMETER :: params = 'emu_params.txt'
