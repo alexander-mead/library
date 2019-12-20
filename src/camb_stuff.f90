@@ -33,7 +33,7 @@ CONTAINS
       ! Note that this assumes there is one comment line
       USE file_info
       USE constants
-      USE logical_operations
+      USE basic_operations
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
@@ -77,7 +77,7 @@ CONTAINS
       ! Read in CAMB format T(k) file
       ! Note that this assumes there is one comment line
       USE file_info
-      USE logical_operations
+      USE basic_operations
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Tk(:,:)

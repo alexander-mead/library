@@ -31,7 +31,7 @@ CONTAINS
    REAL FUNCTION bisect_solve(xtab, ytab, n, acc)
 
       ! Solves y(x)=0 for x, f(x) should be monotonic and cross f=0. once only
-      USE logical_operations
+      USE basic_operations
       USE interpolate
       IMPLICIT NONE
       REAL, INTENT(IN) :: xtab(n)

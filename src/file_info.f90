@@ -12,7 +12,7 @@ CONTAINS
    INTEGER FUNCTION file_length(file_name, verbose)
 
       ! Get the number of lines in the file
-      USE logical_operations
+      USE basic_operations
       IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: file_name
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose

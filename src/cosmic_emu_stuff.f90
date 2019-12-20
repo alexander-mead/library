@@ -4,7 +4,7 @@ MODULE cosmic_emu_stuff
    USE array_operations
    USE cosmology_functions
    USE interpolate
-   USE logical_operations
+   USE basic_operations
 
    IMPLICIT NONE
 

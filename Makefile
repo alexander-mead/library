@@ -53,8 +53,8 @@ _OBJ = \
 	constants.o \
 	physics.o \
 	fix_polynomial.o \
+	basic_operations.o \
 	array_operations.o \
-	logical_operations.o \
 	random_numbers.o \
 	calculus.o \
 	file_info.o \

@@ -1279,7 +1279,7 @@ CONTAINS
       USE constants
       USE array_operations
       USE fft
-      USE logical_operations
+      USE basic_operations
 
       ! Takes in a dk(m,m) array and computes the power spectrum
       ! NOTE: Leave the double complex as it allows the running to determine complex vs real
@@ -1420,7 +1420,7 @@ CONTAINS
       USE constants
       USE array_operations
       USE fft
-      USE logical_operations
+      USE basic_operations
 
       ! Takes in a dk(m,m) array and computes the power spectrum
       ! NOTE: Leave the double complex as it allows the running to determine complex vs real

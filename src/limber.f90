@@ -415,7 +415,7 @@ CONTAINS
       ! Calcuate the two-dimensional correlation functions given a C(ell) array
       ! This uses the direct sum over discrete ell do the transformation
       ! TODO: Can I bunch together ell in the sum when ell is high?
-      USE logical_operations
+      USE basic_operations
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: ibessel(m) ! Bessel functions to use
       INTEGER, INTENT(IN) :: m          ! Number of Bessel function transforms
@@ -543,7 +543,7 @@ CONTAINS
    FUNCTION angular_xi_summation(theta, ibessel, n, logl, logCl, nl, lmax)
 
       USE special_functions
-      USE logical_operations
+      USE basic_operations
       IMPLICIT NONE
       REAL :: angular_xi_summation(n)
       REAL, INTENT(IN) :: theta         ! Angle [rad]
@@ -591,7 +591,7 @@ CONTAINS
    FUNCTION angular_xi_summation_precompute(theta, ibessel, n, Cl, nl)
 
       USE special_functions
-      USE logical_operations
+      USE basic_operations
       IMPLICIT NONE
       REAL :: angular_xi_summation_precompute(n)
       REAL, INTENT(IN) :: theta         ! Angle [rad]

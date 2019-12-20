@@ -41,6 +41,7 @@ MODULE array_operations
    PUBLIC :: apply_mask
    PUBLIC :: smooth_array
    PUBLIC :: if_allocated_deallocate
+   PUBLIC :: regular_spacing
 
    PUBLIC :: unique_entries
    PUBLIC :: number_of_appearances

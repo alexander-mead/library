@@ -8,7 +8,7 @@ MODULE HMx
    USE string_operations
    USE calculus_table 
    USE cosmology_functions
-   USE logical_operations
+   USE basic_operations
    USE interpolate
    USE file_info
    USE table_integer

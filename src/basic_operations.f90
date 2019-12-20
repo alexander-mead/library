@@ -1,6 +1,6 @@
 MODULE basic_operations
 
-   ! TODO: Rename logical_operations -> basic_operations
+   ! TODO: Rename basic_operations -> basic_operations
 
    IMPLICIT NONE
 
@@ -17,7 +17,6 @@ MODULE basic_operations
    PUBLIC :: present_and_correct
    PUBLIC :: first_digit
    PUBLIC :: swap
-   PUBLIC :: regular_spacing
    PUBLIC :: increment
 
    INTERFACE swap

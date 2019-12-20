@@ -1,7 +1,7 @@
 MODULE random_numbers
 
    !TODO: Think about using intrinsic 'random_number' instead of 'rand()'
-   USE logical_operations
+   USE basic_operations
 
    IMPLICIT NONE
 

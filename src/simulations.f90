@@ -4,7 +4,7 @@ MODULE simulations
    ! Anything that involves only the fields should go in field_operations.f90
    ! Each routine should take particle properties (e.g., positions) as an argument
 
-   USE logical_operations
+   USE basic_operations
    USE field_operations
 
    IMPLICIT NONE

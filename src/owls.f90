@@ -308,7 +308,7 @@ CONTAINS
 
    CHARACTER(len=32) FUNCTION BAHAMAS_snapshot(z)
 
-      USE logical_operations
+      USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: z
       REAL, PARAMETER :: eps = 1e-3

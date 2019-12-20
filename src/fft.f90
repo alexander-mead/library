@@ -1,7 +1,7 @@
 MODULE fft
 
    !USE iso_c_binding ! This use statement seems not to be necessary any more, not sure why
-   USE logical_operations
+   USE basic_operations
 
    IMPLICIT NONE
 

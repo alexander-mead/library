@@ -79,7 +79,7 @@ CONTAINS
 
    SUBROUTINE read_BAHAMAS_power(k, Pk, nk, z, name, mesh, field, cosm, kmin, kmax, cut_nyquist, subtract_shot, response, verbose)
 
-      USE logical_operations
+      USE basic_operations
       USE cosmology_functions
       USE HMx
 
@@ -129,7 +129,7 @@ CONTAINS
 
       USE file_info
       USE array_operations
-      USE logical_operations
+      USE basic_operations
 
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:), Pk(:) ! Output simulation k and power
