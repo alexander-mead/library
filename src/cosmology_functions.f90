@@ -2856,7 +2856,7 @@ CONTAINS
          ! This is only true on scales greater than the neutrino free-streaming scale
          Tcold = (cosm%Om_c+cosm%Om_b)/cosm%Om_m 
       ELSE IF (method_cold == 3) THEN
-         ! Use the incorrect Eisenstein and Hu approximation
+         ! Use the incorrect Eisenstein and Hu approximation (as in HMcode 2016)
          Tcold = Tcold_EH_incorrect(k, a, cosm)
       ELSE IF (method_cold == 4) THEN
          ! Use the Eisenstein and Hu approximation
@@ -6508,6 +6508,7 @@ CONTAINS
       ! Isolate the power spectrum wiggle
       ! TODO: Smoothing should be over one wiggle period, not just fixed ns
       ! TODO: Convert this to some-sort of wiggle T(k), rather than an addition thing?
+      ! TODO: This does not work very well
       USE fix_polynomial
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
