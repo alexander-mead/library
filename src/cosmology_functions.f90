@@ -77,6 +77,7 @@ MODULE cosmology_functions
 
    ! Power and correlation
    PUBLIC :: p_lin
+   PUBLIC :: p_dewiggle
    PUBLIC :: sigma
    PUBLIC :: sigmaV
    PUBLIC :: neff
@@ -142,7 +143,7 @@ MODULE cosmology_functions
 
       ! Look-up tables
       REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)        ! Arrays for input linear P(k)
-      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:)
+      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)
       REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:)                                    ! Arrays for sigma(R)
       REAL, ALLOCATABLE :: log_sigma(:), log_sigmaa(:, :), log_sigmac(:), log_sigmaca(:,:)
       REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
@@ -154,7 +155,7 @@ MODULE cosmology_functions
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde ! What has been calculated
 
       ! Have normalisations and initialisations been done?
-      LOGICAL :: is_init, is_normalised
+      LOGICAL :: is_init, is_normalised, has_wiggle
 
       ! For random cosmologies
       !LOGICAL :: seeded
@@ -925,12 +926,11 @@ CONTAINS
          om_b = 0.022383
          cosm%h = 0.6732
          cosm%n = 0.96605
+         cosm%itk = itk_CAMB
          IF(icosmo == 42) THEN
             cosm%m_nu = 0.
-            cosm%itk = itk_EH
          ELSE IF(icosmo == 56) THEN
             cosm%m_nu = 0.06
-            cosm%itk = itk_CAMB
          ELSE  
             STOP 'ASSIGN_COSMOLOGY: Error, cosmology specified incorrectly'
          END IF
@@ -1098,6 +1098,7 @@ CONTAINS
       cosm%has_Xde = .FALSE.
       cosm%is_init = .FALSE.
       cosm%is_normalised = .FALSE.
+      cosm%has_wiggle = .FALSE.
       cosm%A = 1. ! Overall power normalisaiton, should always b
 
       ! Things to do with finite box
@@ -2845,7 +2846,7 @@ CONTAINS
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       REAL, INTENT(IN) :: a ! Scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER, PARAMETER :: method_cold = 3
+      INTEGER, PARAMETER :: method_cold = 4
 
       IF (cosm%trivial_cold .OR. method_cold == 1) THEN
          ! Assuming the cold spectrum is exactly the matter spectrum
@@ -6500,6 +6501,115 @@ CONTAINS
       r_sound = 0.
       STOP 'R_SOUND: Code this up!!!'
 
-   END FUNCTION
+   END FUNCTION r_sound
+
+   SUBROUTINE init_wiggle(cosm)
+
+      ! Isolate the power spectrum wiggle
+      ! TODO: Smoothing should be over one wiggle period, not just fixed ns
+      ! TODO: Convert this to some-sort of wiggle T(k), rather than an addition thing?
+      USE fix_polynomial
+      IMPLICIT NONE
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: logkv(4), logpv(4)
+      REAL, ALLOCATABLE :: logk(:), Pk(:), logPk(:)
+      REAL, ALLOCATABLE :: Pk_smooth(:), logPk_smooth(:), Pk_wiggles(:)
+      INTEGER :: i, nk
+
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
+      INTEGER, PARAMETER :: wiggle_Lagrange = 1
+      INTEGER, PARAMETER :: ns = 10
+      INTEGER, PARAMETER :: wiggle_smooth = 2
+      INTEGER :: wiggle_method = wiggle_Lagrange
+      !INTEGER :: wiggle_method = wiggle_smooth
+
+      IF (.NOT. ALLOCATED(cosm%log_k_plin)) STOP 'WIGGLE_INIT: Error, P(k) needs to be tabulated for this to work'
+
+      nk = cosm%nk_plin
+
+      ! Allocate arrays
+      ALLOCATE (logk(nk), Pk(nk), logPk(nk))
+      ALLOCATE (Pk_wiggles(nk), Pk_smooth(nk))
+
+      ! Allocate the internal arrays from the cosmology arrays
+      !k = exp(cosm%log_k_plin)
+      IF(cosm%scale_dependent_growth) THEN
+         logPk = cosm%log_plina(:,cosm%na_plin)
+      ELSE
+         logPk = cosm%log_plin
+      END IF
+      logk = cosm%log_k_plin
+      Pk = exp(logPk)
+
+      IF(wiggle_method == wiggle_Lagrange) THEN
+
+         ! Fixed k values - CAMB
+         logkv(1) = log(0.008)
+         logkv(2) = log(0.01)
+         logkv(3) = log(0.8)
+         logkv(4) = log(1.0)
+
+         ! Fix p values
+         DO i = 1, 4
+            logpv(i) = find(logkv(i), logk, logPk, nk, iorder, ifind, imeth)
+         END DO
+
+         ! Create new smooth spectrum that has no wiggles
+         DO i = 1, nk
+            IF (logk(i) <= logkv(1) .OR. logk(i) >= logkv(4)) THEN
+               Pk_smooth(i) = Pk(i)
+            ELSE
+               Pk_smooth(i) = exp(Lagrange_polynomial(logk(i), 3, logkv, logpv))
+            END IF
+         END DO
+
+      ELSE IF (wiggle_method == wiggle_smooth) THEN
+
+         ALLOCATE (logPk_smooth(nk))
+         logPk_smooth = logPk
+         CALL smooth_array(logPk_smooth, nk, ns)
+         Pk_smooth = exp(logPk_smooth)
+
+      ELSE
+         STOP 'INIT_WIGGLE: Error, wiggle method is not specified correctly'
+      END IF
+
+      ! Isolate just the wiggles
+      ! It is difficult to make this operation (subtraction) fast given log arrays
+      Pk_wiggles = Pk-Pk_smooth
+
+      CALL if_allocated_deallocate(cosm%p_wiggle)
+      ALLOCATE(cosm%p_wiggle(nk))
+      cosm%p_wiggle = Pk_wiggles
+
+      ! Set the flag
+      cosm%has_wiggle = .TRUE.
+
+   END SUBROUTINE init_wiggle
+
+   REAL FUNCTION p_dewiggle(k, a, flag, sigv, cosm)
+
+      ! Call the dewiggled power spectrum
+      ! TODO: Convert this to a wiggle T(k)?
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      REAL, INTENT(IN) :: sigv
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: p_wiggle, f, p_linear
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
+
+      p_linear = p_lin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle
+      IF (.NOT. cosm%has_wiggle) CALL init_wiggle(cosm)
+      p_wiggle = find(log(k), cosm%log_k_plin, cosm%p_wiggle, cosm%nk_plin, iorder, ifind, imeth)
+      f = exp(-(k*sigv)**2)
+      p_dewiggle = p_linear+(f-1.)*p_wiggle*grow(a, cosm)**2
+
+   END FUNCTION p_dewiggle
 
 END MODULE cosmology_functions

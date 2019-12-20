@@ -46,3 +46,5 @@ plot 1 w l lt -1 noti,\
    power u 1:($3/$2) w l lw 2 lc 2 noti
 
 unset multiplot
+
+show output

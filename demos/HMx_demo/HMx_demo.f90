@@ -97,39 +97,39 @@ CONTAINS
 
    END SUBROUTINE winint_speed
 
-   SUBROUTINE dewiggle_test()
+   ! SUBROUTINE dewiggle_test()
 
-      IMPLICIT NONE
-      REAL, ALLOCATABLE :: k(:)
-      INTEGER :: i
-      TYPE(cosmology) :: cosm
-      TYPE(halomod) :: hmod
+   !    IMPLICIT NONE
+   !    REAL, ALLOCATABLE :: k(:)
+   !    INTEGER :: i
+   !    TYPE(cosmology) :: cosm
+   !    TYPE(halomod) :: hmod
 
-      REAL, PARAMETER :: a = 1.
-      REAL, PARAMETER :: kmin = 1e-3
-      REAL, PARAMETER :: kmax = 1e1
-      INTEGER, PARAMETER :: nk = 1024
-      LOGICAL, PARAMETER :: verbose = .TRUE.
-      CHARACTER(len=256), PARAMETER :: outfile = 'data/dewiggle.dat'
+   !    REAL, PARAMETER :: a = 1.
+   !    REAL, PARAMETER :: kmin = 1e-3
+   !    REAL, PARAMETER :: kmax = 1e1
+   !    INTEGER, PARAMETER :: nk = 1024
+   !    LOGICAL, PARAMETER :: verbose = .TRUE.
+   !    CHARACTER(len=256), PARAMETER :: outfile = 'data/dewiggle.dat'
 
-      ! Assigns the cosmological model
-      icosmo = 26 ! Boring with CAMB
-      CALL assign_init_cosmology(icosmo, cosm, verbose)
+   !    ! Assigns the cosmological model
+   !    icosmo = 26 ! Boring with CAMB
+   !    CALL assign_init_cosmology(icosmo, cosm, verbose)
 
-      ! Initiliasation for the halomodel calcualtion
-      ihm = 31 ! Dewiggle
-      CALL assign_init_halomod(ihm, a, hmod, cosm, verbose)
-      hmod%sigv = 1000. ! [Mpc/h] Fix very high so as to completey damp wiggles away
+   !    ! Initiliasation for the halomodel calcualtion
+   !    ihm = 31 ! Dewiggle
+   !    CALL assign_init_halomod(ihm, a, hmod, cosm, verbose)
+   !    hmod%sigv = 1000. ! [Mpc/h] Fix very high so as to completey damp wiggles away
 
-      ! Write results
-      CALL fill_array(log(kmin), log(kmax), k, nk)
-      k=exp(k)
-      OPEN(7, file = outfile)
-      DO i = 1, nk
-         WRITE(7, *) k(i), p_lin(k(i), a, flag_power_matter, cosm), p_dewiggle(k(i), hmod, cosm)
-      END DO
-      CLOSE(7)
+   !    ! Write results
+   !    CALL fill_array(log(kmin), log(kmax), k, nk)
+   !    k=exp(k)
+   !    OPEN(7, file = outfile)
+   !    DO i = 1, nk
+   !       WRITE(7, *) k(i), p_lin(k(i), a, flag_power_matter, cosm), p_dewiggle(k(i), hmod, cosm)
+   !    END DO
+   !    CLOSE(7)
 
-   END SUBROUTINE dewiggle_test
+   ! END SUBROUTINE dewiggle_test
 
 END PROGRAM HMx_demo

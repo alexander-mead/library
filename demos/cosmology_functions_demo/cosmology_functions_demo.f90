@@ -10,12 +10,14 @@ PROGRAM cosmology_functions_demo
    REAL :: a, z, k, r
    REAL :: t1, t2, t3, t4, xi
    REAL :: crap
+   REAL :: sigv
    INTEGER :: i
    CHARACTER(len=256) :: cosmo
 
    LOGICAL, PARAMETER :: test_background = .TRUE.
    LOGICAL, PARAMETER :: test_spherical = .TRUE.
    LOGICAL, PARAMETER :: test_power = .TRUE.
+   LOGICAL, PARAMETER :: test_dewiggle = .TRUE.
    LOGICAL, PARAMETER :: test_correlation = .FALSE.
    LOGICAL, PARAMETER :: test_sigma = .TRUE.
    LOGICAL, PARAMETER :: test_sigmaV = .TRUE.
@@ -148,6 +150,18 @@ PROGRAM cosmology_functions_demo
          WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Done'
          WRITE (*, *)
       END IF
+   END IF
+
+   ! Test dewiggle linear spectrum
+   IF(test_dewiggle) THEN   
+      sigv = 1000. ! Set to a high value  
+      crap = p_dewiggle(0.1, 1., flag_power_matter, sigv, cosm) ! Necessary to prevent function write
+      OPEN(10, file = 'data/dewiggle.dat')
+      DO i = 1, nk
+         k = progression_log(kmin, kmax, i, nk)
+         WRITE(10, *) k, p_lin(k, a, flag_power_matter, cosm), p_dewiggle(k, a, flag_power_matter, sigv, cosm)
+      END DO
+      CLOSE(10)
    END IF
 
    ! Test correlation function

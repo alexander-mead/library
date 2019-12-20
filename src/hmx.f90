@@ -27,7 +27,7 @@ MODULE HMx
    PUBLIC :: assign_init_halomod
 
    ! Dewiggle
-   PUBLIC :: p_dewiggle 
+   !PUBLIC :: p_dewiggle 
 
    ! Calculations
    PUBLIC :: calculate_P_lin
@@ -249,8 +249,9 @@ MODULE HMx
       INTEGER :: response
       REAL :: acc, small_nu, large_nu
       CHARACTER(len=256) :: name
-      REAL, ALLOCATABLE :: log_k_pdamp(:), log_pdamp(:)
-      INTEGER :: n_pdamp, HMx_mode
+      INTEGER :: HMx_mode
+      !REAL, ALLOCATABLE :: log_k_pdamp(:), log_pdamp(:)
+      !INTEGER :: n_pdamp
 
       ! Mass function and bias parameters
       REAL :: Tinker_alpha, Tinker_beta, Tinker_gamma, Tinker_phi, Tinker_eta
@@ -2133,121 +2134,121 @@ CONTAINS
 
    END FUNCTION mean_halo_number_density
 
-   SUBROUTINE init_dewiggle(sigv, hmod, cosm)
+   ! SUBROUTINE init_dewiggle(sigv, hmod, cosm)
 
-      ! Initialise the dewiggled power spectrum
-      USE fix_polynomial
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: sigv
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: logkv(4), logpv(4)
-      REAL :: a
-      REAL, ALLOCATABLE :: k(:), logk(:), Pk(:), logPk(:)
-      REAL, ALLOCATABLE :: Pk_smooth(:), logPk_smooth(:), Pk_wiggles(:)
-      INTEGER :: i, j, nk, nt, i_up, i_dn
+   !    ! Initialise the dewiggled power spectrum
+   !    USE fix_polynomial
+   !    IMPLICIT NONE
+   !    REAL, INTENT(IN) :: sigv
+   !    TYPE(halomod), INTENT(INOUT) :: hmod
+   !    TYPE(cosmology), INTENT(INOUT) :: cosm
+   !    REAL :: logkv(4), logpv(4)
+   !    REAL :: a
+   !    REAL, ALLOCATABLE :: k(:), logk(:), Pk(:), logPk(:)
+   !    REAL, ALLOCATABLE :: Pk_smooth(:), logPk_smooth(:), Pk_wiggles(:)
+   !    INTEGER :: i, j, nk, nt, i_up, i_dn
 
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: ifind = 3
-      INTEGER, PARAMETER :: imeth = 2
-      INTEGER, PARAMETER :: dewiggle_Lagrange = 1
-      INTEGER, PARAMETER :: ns = 10
-      INTEGER, PARAMETER :: dewiggle_smooth = 2
-      INTEGER :: dewiggle_method = dewiggle_Lagrange
-      !INTEGER :: dewiggle_method = dewiggle_smooth
+   !    INTEGER, PARAMETER :: iorder = 3
+   !    INTEGER, PARAMETER :: ifind = 3
+   !    INTEGER, PARAMETER :: imeth = 2
+   !    INTEGER, PARAMETER :: dewiggle_Lagrange = 1
+   !    INTEGER, PARAMETER :: ns = 10
+   !    INTEGER, PARAMETER :: dewiggle_smooth = 2
+   !    INTEGER :: dewiggle_method = dewiggle_Lagrange
+   !    !INTEGER :: dewiggle_method = dewiggle_smooth
 
-      IF (.NOT. ALLOCATED(cosm%log_k_plin)) STOP 'DEWIGGLE_INIT: Error, P(k) needs to be tabulated for this to work'
-      IF (cosm%scale_dependent_growth) STOP 'DEWIGGLE_INIT: Error, this does not support scale-dependent growth yet'
+   !    IF (.NOT. ALLOCATED(cosm%log_k_plin)) STOP 'DEWIGGLE_INIT: Error, P(k) needs to be tabulated for this to work'
+   !    IF (cosm%scale_dependent_growth) STOP 'DEWIGGLE_INIT: Error, this does not support scale-dependent growth yet'
 
-      nk = cosm%nk_plin
-      hmod%n_pdamp = nk
-      a = hmod%a
+   !    nk = cosm%nk_plin
+   !    hmod%n_pdamp = nk
+   !    a = hmod%a
 
-      ! Allocate arrays
-      ALLOCATE (logk(nk), Pk(nk), logPk(nk))
-      ALLOCATE (Pk_wiggles(nk), Pk_smooth(nk))
-      ALLOCATE (logPk_smooth(nk))
+   !    ! Allocate arrays
+   !    ALLOCATE (logk(nk), Pk(nk), logPk(nk))
+   !    ALLOCATE (Pk_wiggles(nk), Pk_smooth(nk))
+   !    ALLOCATE (logPk_smooth(nk))
 
-      ! Allocate the internal arrays from the cosmology arrays
-      k = exp(cosm%log_k_plin) ! Needed for exp(-(k*sigv)**2)
-      Pk = exp(cosm%log_plin)
-      logk = cosm%log_k_plin    
-      logPk = cosm%log_plin
+   !    ! Allocate the internal arrays from the cosmology arrays
+   !    k = exp(cosm%log_k_plin) ! Needed for exp(-(k*sigv)**2)
+   !    Pk = exp(cosm%log_plin)
+   !    logk = cosm%log_k_plin    
+   !    logPk = cosm%log_plin
 
-      IF(dewiggle_method == dewiggle_Lagrange) THEN
+   !    IF(dewiggle_method == dewiggle_Lagrange) THEN
 
-         ! Fixed k values - CAMB
-         logkv(1) = log(0.008)
-         logkv(2) = log(0.01)
-         logkv(3) = log(0.8)
-         logkv(4) = log(1.0)
+   !       ! Fixed k values - CAMB
+   !       logkv(1) = log(0.008)
+   !       logkv(2) = log(0.01)
+   !       logkv(3) = log(0.8)
+   !       logkv(4) = log(1.0)
 
-         ! Fix p values
-         DO i = 1, 4
-            logpv(i) = find(logkv(i), logk, logPk, nk, iorder, ifind, imeth)
-         END DO
+   !       ! Fix p values
+   !       DO i = 1, 4
+   !          logpv(i) = find(logkv(i), logk, logPk, nk, iorder, ifind, imeth)
+   !       END DO
 
-         ! Create new smooth spectrum that has no wiggles
-         DO i = 1, nk
-            IF (logk(i) <= logkv(1) .OR. logk(i) >= logkv(4)) THEN
-               Pk_smooth(i) = Pk(i)
-            ELSE
-               Pk_smooth(i) = exp(Lagrange_polynomial(logk(i), 3, logkv, logpv))
-            END IF
-         END DO
+   !       ! Create new smooth spectrum that has no wiggles
+   !       DO i = 1, nk
+   !          IF (logk(i) <= logkv(1) .OR. logk(i) >= logkv(4)) THEN
+   !             Pk_smooth(i) = Pk(i)
+   !          ELSE
+   !             Pk_smooth(i) = exp(Lagrange_polynomial(logk(i), 3, logkv, logpv))
+   !          END IF
+   !       END DO
 
-      ELSE IF (dewiggle_method == dewiggle_smooth) THEN
+   !    ELSE IF (dewiggle_method == dewiggle_smooth) THEN
 
-         logPk_smooth = logPk
-         CALL smooth_array(logPk_smooth, nk, ns)
-         Pk_smooth = exp(logPk_smooth)
+   !       logPk_smooth = logPk
+   !       CALL smooth_array(logPk_smooth, nk, ns)
+   !       Pk_smooth = exp(logPk_smooth)
 
-      ELSE
-         STOP 'INIT_DEWIGGLE: Error, dewiggle method is not specified correctly'
-      END IF
+   !    ELSE
+   !       STOP 'INIT_DEWIGGLE: Error, dewiggle method is not specified correctly'
+   !    END IF
 
-      ! Isolate just the wiggles
-      ! It is difficult to make this operation (subtraction) fast given log arrays
-      Pk_wiggles = Pk-Pk_smooth
+   !    ! Isolate just the wiggles
+   !    ! It is difficult to make this operation (subtraction) fast given log arrays
+   !    Pk_wiggles = Pk-Pk_smooth
 
-      ! Damp the wiggles
-      Pk_wiggles = Pk_wiggles*exp(-(sigv*k)**2)
+   !    ! Damp the wiggles
+   !    Pk_wiggles = Pk_wiggles*exp(-(sigv*k)**2)
 
-      ! Add the damped wiggles back in
-      ! It is difficult to make this operation (addition) fast given log arrays
-      Pk = Pk_smooth+Pk_wiggles
+   !    ! Add the damped wiggles back in
+   !    ! It is difficult to make this operation (addition) fast given log arrays
+   !    Pk = Pk_smooth+Pk_wiggles
 
-      ! Create the damped power array
-      IF (ALLOCATED(hmod%log_k_pdamp)) DEALLOCATE (hmod%log_k_pdamp)
-      IF (ALLOCATED(hmod%log_pdamp))   DEALLOCATE (hmod%log_pdamp)
-      ALLOCATE (hmod%log_k_pdamp(nk), hmod%log_pdamp(nk))
+   !    ! Create the damped power array
+   !    IF (ALLOCATED(hmod%log_k_pdamp)) DEALLOCATE (hmod%log_k_pdamp)
+   !    IF (ALLOCATED(hmod%log_pdamp))   DEALLOCATE (hmod%log_pdamp)
+   !    ALLOCATE (hmod%log_k_pdamp(nk), hmod%log_pdamp(nk))
 
-      ! Fill the k array
-      hmod%log_k_pdamp = logk
+   !    ! Fill the k array
+   !    hmod%log_k_pdamp = logk
 
-      ! Grow damped power to the correct redshift and fill array
-      hmod%log_pdamp = log(Pk*grow(a, cosm)**2)
+   !    ! Grow damped power to the correct redshift and fill array
+   !    hmod%log_pdamp = log(Pk*grow(a, cosm)**2)
 
-      ! Set the flag
-      hmod%has_dewiggle = .TRUE.
+   !    ! Set the flag
+   !    hmod%has_dewiggle = .TRUE.
 
-   END SUBROUTINE init_dewiggle
+   ! END SUBROUTINE init_dewiggle
 
-   REAL FUNCTION p_dewiggle(k, hmod, cosm)
+   ! REAL FUNCTION p_dewiggle(k, hmod, cosm)
 
-      ! Call the dewiggled power spectrum
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: ifind = 3
-      INTEGER, PARAMETER :: imeth = 2
+   !    ! Call the dewiggled power spectrum
+   !    IMPLICIT NONE
+   !    REAL, INTENT(IN) :: k
+   !    TYPE(halomod), INTENT(INOUT) :: hmod
+   !    TYPE(cosmology), INTENT(INOUT) :: cosm
+   !    INTEGER, PARAMETER :: iorder = 3
+   !    INTEGER, PARAMETER :: ifind = 3
+   !    INTEGER, PARAMETER :: imeth = 2
 
-      IF (hmod%has_dewiggle .EQV. .FALSE.) CALL init_dewiggle(hmod%sigv, hmod, cosm)
-      p_dewiggle = exp(find(log(k), hmod%log_k_pdamp, hmod%log_pdamp, hmod%n_pdamp, iorder, ifind, imeth))
+   !    IF (hmod%has_dewiggle .EQV. .FALSE.) CALL init_dewiggle(hmod%sigv, hmod, cosm)
+   !    p_dewiggle = exp(find(log(k), hmod%log_k_pdamp, hmod%log_pdamp, hmod%n_pdamp, iorder, ifind, imeth))
 
-   END FUNCTION p_dewiggle
+   ! END FUNCTION p_dewiggle
 
    FUNCTION halo_type(i)
 
@@ -2865,7 +2866,7 @@ CONTAINS
       ELSE IF (hmod%ip2h == 3) THEN
 
          ! Damped BAO linear theory
-         p_2h = p_dewiggle(k, hmod, cosm)
+         p_2h = p_dewiggle(k, hmod%a, flag_power_matter, hmod%sigv, cosm)
 
       ELSE IF (hmod%ip2h == 4) THEN
 
