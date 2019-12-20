@@ -908,7 +908,10 @@ CONTAINS
             hmod%i1hdamp = 3   ! k^4 at large scales for one-halo term
             hmod%ip2h = 3      ! Linear theory with damped wiggles
             hmod%i2hdamp = 2   ! Change back to Mead (2015) model for two-halo damping
+            !hmod%cold_sigma = .FALSE. ! This seemed to produce better neutrino results
+            hmod%zinf_Dolag = 100.
             IF(ihm == 15) THEN
+               ! Original (UBC?) parameters
                hmod%Dv0 = 444.87
                hmod%Dv1 = -0.3170
                hmod%dc0 = 1.6077
@@ -921,7 +924,10 @@ CONTAINS
                hmod%As = 3.0745
                hmod%alp0 = 3.129
                hmod%alp1 = 1.850
+               hmod%Dvnu = 0.
+               hmod%dcnu = 0.
             ELSE IF(ihm == 54) THEN
+               ! Nelder-Mead parameters
                hmod%Dv0 = 411.
                hmod%Dv1 = -0.333
                hmod%dc0 = 1.631
@@ -934,13 +940,13 @@ CONTAINS
                hmod%As = 3.23
                hmod%alp0 = 3.17
                hmod%alp1 = 1.88
+               hmod%Dvnu = 0.
+               hmod%dcnu = 0.
             END IF
-            hmod%cold_sigma = .FALSE. ! This seemed to produce better neutrino results
-            hmod%zinf_Dolag = 100.
          ELSE IF (ihm == 28) THEN
             ! One-parameter baryon model
             hmod%one_parameter_baryons = .TRUE.
-            hmod%As = 3.13!*4.
+            hmod%As = 3.13
          ELSE IF (ihm == 31) THEN
             ! Damped BAO
             hmod%ip2h = 3
@@ -966,6 +972,8 @@ CONTAINS
             hmod%As = 3.09
             hmod%alp0 = 3.11
             hmod%alp1 = 1.91
+            hmod%Dvnu = 0.
+            hmod%dcnu = 0.
          END IF
       ELSE IF (ihm == 2) THEN
          ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686))
