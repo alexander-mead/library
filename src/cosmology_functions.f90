@@ -138,7 +138,7 @@ MODULE cosmology_functions
 
       ! Switches
       INTEGER :: iw, itk
-      LOGICAL :: power_Omegas, derive_gas_numbers, scale_dependent_growth, non_trivial_cold
+      LOGICAL :: power_Omegas, derive_gas_numbers, scale_dependent_growth, trivial_cold
 
       ! Look-up tables
       REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)        ! Arrays for input linear P(k)
@@ -1158,14 +1158,14 @@ CONTAINS
 
       ! Decide on scale-dependent growth and cold spectrum
       cosm%scale_dependent_growth = .FALSE.
-      cosm%non_trivial_cold = .FALSE.
+      cosm%trivial_cold = .TRUE.
       IF (cosm%m_nu .NE. 0.) THEN
          cosm%scale_dependent_growth = .TRUE.
-         cosm%non_trivial_cold = .TRUE.
+         cosm%trivial_cold = .FALSE.
       END IF
 
       IF (cosm%verbose .AND. cosm%scale_dependent_growth) WRITE (*, *) 'INIT_COSMOLOGY: Scale-dependent growth'
-      IF (cosm%verbose .AND. cosm%non_trivial_cold)       WRITE (*, *) 'INIT_COSMOLOGY: Non-trivial cold spectrum'
+      IF (cosm%verbose .AND. (.NOT. cosm%trivial_cold))   WRITE (*, *) 'INIT_COSMOLOGY: Non-trivial cold spectrum'
 
       ! Check that we are able to cope with scale-dependent growth
       ! IF(cosm%growk .AND. (cosm%itk .NE. 2)) THEN
@@ -2847,7 +2847,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       INTEGER, PARAMETER :: method_cold = 3
 
-      IF (method_cold == 1) THEN
+      IF (cosm%trivial_cold .OR. method_cold == 1) THEN
          ! Assuming the cold spectrum is exactly the matter spectrum
          Tcold = 1. 
       ELSE IF (method_cold == 2) THEN
@@ -2855,10 +2855,12 @@ CONTAINS
          ! This is only true on scales greater than the neutrino free-streaming scale
          Tcold = (cosm%Om_c+cosm%Om_b)/cosm%Om_m 
       ELSE IF (method_cold == 3) THEN
-         ! Use the Eisenstein and Hu approximation
-         STOP 'TCOLD: You should worry very much about this!'
-         Tcold = Tcold_EH(k, a, cosm)
+         ! Use the incorrect Eisenstein and Hu approximation
+         Tcold = Tcold_EH_incorrect(k, a, cosm)
       ELSE IF (method_cold == 4) THEN
+         ! Use the Eisenstein and Hu approximation
+         Tcold = Tcold_EH(k, a, cosm)
+      ELSE IF (method_cold == 5) THEN
          ! Use look-up tables from CAMB transfer functions
          Tcold = find(log(k), cosm%log_k_Tcold, log(a), cosm%log_a_plin, cosm%Tcold, cosm%nk_Tcold, cosm%na_plin,&
             iorder = iorder_interpolation_plin,&
@@ -2923,6 +2925,67 @@ CONTAINS
          ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
          ! For my purpose (just the ratio) seems to work better using the EdS growth function result, \propto a .
          ! In any case, can't use grow at the moment because that is normalised by default.
+         !D = (1.+zeq)/(1.+z) ! TODO: Could update this
+         D = (1.+zeq)*ungrow(a, cosm)
+
+         ! Wave number relative to the horizon scale at equality (equation 5)
+         ! Extra factor of h becauase all my k are in units of h/Mpc
+         q = k*cosm%h*BigT**2./(cosm%om_m*cosm%h**2.)
+
+         ! Free streaming scale (equation 14)
+         ! Note that Eisenstein & Hu (1999) only consider the case of 3 neutrinos
+         ! with Nnu of these being massive with the mass split evenly between Nnu species.
+         yfs = 17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(real(N_massive_nu)*q/cosm%f_nu)**2.
+
+         ! These are (almost) the scale-dependent growth functions for each component in Eisenstein & Hu (1999)
+         ! Some part is missing, but this cancels when they are divided by each other, which is all I need them for.
+         ! Equations (12) and (13)
+         Dcb = (1.+(D/(1.+yfs))**0.7)**(pcb/0.7)
+         Dcbnu = ((1.-cosm%f_nu)**(0.7/pcb)+(D/(1.+yfs))**0.7)**(pcb/0.7)
+
+         ! Finally, the ratio
+         Tcold_EH = Dcb*(1.-cosm%f_nu)/Dcbnu
+
+      END IF
+
+   END FUNCTION Tcold_EH
+
+   REAL FUNCTION Tcold_EH_incorrect(k, a, cosm)
+
+      ! Calculates the ratio of T(k) for cold vs. all matter
+      ! Uses approximations in Eisenstein & Hu (1999; arXiv 9710252)
+      ! Note that this assumes that there are exactly 3 species of neutrinos
+      ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
+      REAL, INTENT(IN) :: a ! Scale factor
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
+      REAL :: BigT
+      INTEGER, PARAMETER :: N_massive_nu = 3
+
+      IF (cosm%f_nu == 0.) THEN
+
+         ! Fix to unity if there are no neutrinos
+         Tcold_EH_incorrect = 1.
+
+      ELSE
+
+         ! Get the redshift
+         z = redshift_a(a)
+
+         ! Growth exponent under the assumption that neutrinos are completely unclustered (equation 11)
+         pcb = (5.-sqrt(1.+24.*(1.-cosm%f_nu)))/4.
+
+         ! Theta for temperature (BigT=T/2.7 K)
+         BigT = cosm%T_CMB/2.7
+
+         ! The matter-radiation equality redshift
+         zeq = (2.5e4)*cosm%om_m*(cosm%h**2.)*(BigT**(-4.))
+
+         ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
+         ! For my purpose (just the ratio) seems to work better using the EdS growth function result, \propto a .
+         ! In any case, can't use grow at the moment because that is normalised by default.
          D = (1.+zeq)/(1.+z) ! TODO: Could update this
 
          ! Wave number relative to the horizon scale at equality (equation 5)
@@ -2941,11 +3004,11 @@ CONTAINS
          Dcbnu = ((1.-cosm%f_nu)**(0.7/pcb)+(D/(1.+yfs))**0.7)**(pcb/0.7)
 
          ! Finally, the ratio
-         Tcold_EH = Dcb/Dcbnu
+         Tcold_EH_incorrect = Dcb/Dcbnu
 
       END IF
 
-   END FUNCTION Tcold_EH
+   END FUNCTION Tcold_EH_incorrect
 
    REAL RECURSIVE FUNCTION p_lin(k, a, flag, cosm)
 
@@ -3115,10 +3178,10 @@ CONTAINS
       END IF
 
       ! Do we need to loop over both matter and cold or not?
-      IF(cosm%non_trivial_cold) THEN
-         ntype = 2
-      ELSE
+      IF(cosm%trivial_cold) THEN
          ntype = 1
+      ELSE
+         ntype = 2
       END IF
 
       DO iflag = 1, ntype
@@ -3163,7 +3226,7 @@ CONTAINS
       END DO
 
       ! If the cold spectrum is trivial then the cold sigma is equal to the matter sigma
-      IF(.NOT. cosm%non_trivial_cold) THEN
+      IF(cosm%trivial_cold) THEN
          IF (cosm%scale_dependent_growth) THEN
             cosm%log_sigmaca = cosm%log_sigmaa
          ELSE
@@ -3384,7 +3447,7 @@ CONTAINS
 
    REAL RECURSIVE FUNCTION grow(a, cosm)
 
-      ! Scale-independent growth function | normalised g(z=0)=1
+      ! Scale-independent growth function | normalised g(a=1)=1
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -3403,7 +3466,7 @@ CONTAINS
 
    REAL FUNCTION ungrow(a, cosm)
 
-      ! Unnormalised growth function
+      ! Growth function normalised such that g(a)~a at early (matter-dominated) times
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
