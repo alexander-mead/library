@@ -7,18 +7,42 @@ if(print==1){set term post enh col; set output 'power.eps'}
 
 power='data/power.dat'
 
-set log x
-set xlabel 'k / h Mpc^{-1}'
-set format x '10^{%T}'
+klab='k / h Mpc^{-1}'
 
 pmin=1e-10
 pmax=1e3
-set log y
-set ylabel '{/Symbol D}^2(k)'
-set format y '10^{%T}'
-set yrange [pmin:pmax]
+plab='{/Symbol D}^2(k)'
+
+rmin=0.95
+rmax=1.05
+rlab='P_{cold}(k) / P_{total}(k)'
+
+set log x
 
 set key top left
 
-plot power u 1:2 w l lw 2 ti 'z = 0',\
-     power u 1:3 w l lw 2 ti 'z = 1'
+set multiplot layout 2, 1 margins 0.06,0.98,0.06,0.98
+
+set xlabel ''
+set format x ''
+
+set log y
+set ylabel 
+set format y '10^{%T}'
+set yrange [pmin:pmax]
+
+plot power u 1:2 w l lw 3 ti 'All matter',\
+     power u 1:3 w l lw 2 ti 'Cold matter'
+
+set xlabel klab
+set format x
+
+unset log y
+set yrange [rmin:rmax]
+set format y
+set ylabel rlab
+
+plot 1 w l lt -1 noti,\
+   power u 1:($3/$2) w l lw 2 lc 2 noti
+
+unset multiplot

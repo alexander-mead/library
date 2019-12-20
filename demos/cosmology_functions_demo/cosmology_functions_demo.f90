@@ -137,11 +137,11 @@ PROGRAM cosmology_functions_demo
    ! Test power spectrum
    IF (test_power) THEN
       IF (verbose) WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing power spectrum'
-      crap = p_lin(0.1, 1., cosm) ! Necessary to prevent function write
+      crap = p_lin(0.1, 1., flag_power_matter, cosm) ! Necessary to prevent function write
       OPEN (10, file='data/power.dat')
       DO i = 1, nk
          k = progression_log(kmin, kmax, i, nk)
-         WRITE (10, *) k, p_lin(k, 1., cosm), p_lin(k, 0.5, cosm)
+         WRITE (10, *) k, p_lin(k, 1., flag_power_matter, cosm), p_lin(k, 1., flag_power_cold, cosm)
       END DO
       CLOSE (10)
       IF (verbose) THEN
@@ -156,7 +156,7 @@ PROGRAM cosmology_functions_demo
       OPEN (10, file='data/correlation.dat')
       DO i = 1, nk
          r = progression_log(rmin, rmax, i, nr)
-         xi = xi_lin(r, 1., cosm)
+         xi = xi_lin(r, 1., flag_power_matter, cosm)
          WRITE (*, *) r, xi, 4.*pi*r**2*xi
          WRITE (10, *) r, xi, 4.*pi*r**2*xi
       END DO
@@ -169,13 +169,12 @@ PROGRAM cosmology_functions_demo
 
    ! Test sigma(R)
    IF (test_sigma) THEN
-      !ALLOCATE(sig(nr))
       IF (verbose) WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing sigma(R)'
       CALL CPU_TIME(t1)
       OPEN (10, file='data/sigma.dat')
       DO i = 1, nr
          r = progression_log(rmin, rmax, i, nr)
-         WRITE (10, *) r, sigma_all(r, 1., cosm), sigma_all(r, 0.5, cosm)
+         WRITE (10, *) r, sigma(r, 1., flag_power_matter, cosm), sigma(r, 1., flag_power_cold, cosm)
       END DO
       CLOSE (10)
       CALL CPU_TIME(t2)
@@ -201,8 +200,7 @@ PROGRAM cosmology_functions_demo
       OPEN (10, file='data/sigmaV.dat')
       DO i = 1, nr
          r = progression_log(rmin, rmax, i, nr)
-         !WRITE(*,*)  r, sigmaV(r,1.0,cosm), sigmaV(r,0.5,cosm)
-         WRITE (10, *) r, sigmaV(r, 1.0, cosm), sigmaV(r, 0.5, cosm)
+         WRITE (10, *) r, sigmaV(r, 1., flag_power_matter, cosm), sigmaV(r, 1., flag_power_cold, cosm)
       END DO
       CLOSE (10)
       CALL CPU_TIME(t4)
@@ -217,7 +215,7 @@ PROGRAM cosmology_functions_demo
       OPEN (10, file='data/neff.dat')
       DO i = 1, nr
          r = progression_log(rmin, rmax, i, nr)
-         WRITE (10, *) r, neff(r, 1.0, cosm), neff(r, 0.5, cosm)
+         WRITE (10, *) r, neff(r, 1., flag_power_matter, cosm), neff(r, 1., flag_power_cold, cosm)
       END DO
       CLOSE (10)
       CALL CPU_TIME(t2)

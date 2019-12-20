@@ -126,7 +126,7 @@ CONTAINS
       k=exp(k)
       OPEN(7, file = outfile)
       DO i = 1, nk
-         WRITE(7, *) k(i), p_lin(k(i), a, cosm), p_dewiggle(k(i), hmod, cosm)
+         WRITE(7, *) k(i), p_lin(k(i), a, flag_power_matter, cosm), p_dewiggle(k(i), hmod, cosm)
       END DO
       CLOSE(7)
 

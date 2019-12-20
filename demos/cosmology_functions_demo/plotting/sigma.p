@@ -11,18 +11,37 @@ sigmaV='data/sigmaV.dat'
 sigmin=1e-3
 sigmax=1e2
 
+rmin=0.97
+rmax=1.03
+
 set log x
-set xlabel 'R / h^{-1} Mpc'
-set format x '10^{%T}'
+
+set multiplot layout 2, 1 margins 0.06,0.98,0.06,0.98
+
+set key top right
+
+set xlabel ''
+set format x ''
 
 set log y
 set ylabel '{/Symbol s}(R) or {/Symbol s}_v(R) / h^{-1} Mpc'
 set format y '10^{%T}'
 set yrange [sigmin:sigmax]
 
-set key top right
+plot sigma  u 1:2 w l lw 3 lc 1 dt 1 ti 'sigma: all matter',\
+     sigma  u 1:3 w l lw 2 lc 2 dt 1 ti 'sigma: cold matter',\
+     sigmaV u 1:2 w l lw 3 lc 1 dt 2 ti 'sigmaV: all matter',\
+     sigmaV u 1:3 w l lw 2 lc 2 dt 2 ti 'sigmaV: cold matter'
 
-plot sigma u 1:2 w l lw 2 ti 'sigma: z = 0',\
-     sigma u 1:3 w l lw 2 ti 'sigma: z = 1',\
-     sigmaV u 1:2 w l lw 2 ti 'sigmaV: z = 0',\
-     sigmaV u 1:3 w l lw 2 ti 'sigmaV: z = 1'
+set xlabel 'R / h^{-1} Mpc'
+set format x '10^{%T}'
+
+unset log y
+set yrange [rmin:rmax]
+set format y
+
+plot 1 w l lt -1 noti,\
+      sigma  u 1:($3/$2) w l lw 2 lc 2 dt 1 noti,\
+      sigmaV u 1:($3/$2) w l lw 2 lc 2 dt 2 noti
+
+unset multiplot

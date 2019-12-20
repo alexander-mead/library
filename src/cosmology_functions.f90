@@ -77,11 +77,12 @@ MODULE cosmology_functions
 
    ! Power and correlation
    PUBLIC :: p_lin
-   PUBLIC :: sigma_all   ! TODO: Combine sigma_all and sigma_cold
-   PUBLIC :: sigma_cold  ! TODO: Combine sigma_all and sigma_cold
+   PUBLIC :: sigma
    PUBLIC :: sigmaV
    PUBLIC :: neff
    PUBLIC :: xi_lin
+   PUBLIC :: flag_power_matter
+   PUBLIC :: flag_power_cold
 
    ! CAMB interface
    PUBLIC :: get_CAMB_power
@@ -98,21 +99,22 @@ MODULE cosmology_functions
       MODULE PROCEDURE integrate1_cosm
       MODULE PROCEDURE integrate2_cosm
       MODULE PROCEDURE integrate3_cosm
+      MODULE PROCEDURE integrate4_cosm
    END INTERFACE integrate_cosm
 
    ! Contains cosmological parameters that only need to be calculated once
    TYPE cosmology
 
       ! Primary parameters
-      CHARACTER(len=256) :: name                ! Name for cosmological model
-      REAL :: Om_m, Om_b, Om_v, Om_w, m_nu      ! Primary parameters
-      REAL :: h, n, w, wa, m_wdm, YH            ! Primary parameters
-      REAL :: a1, a2, nstar, ws, am, dm, wm     ! DE parameters
-      REAL :: z_CMB, T_CMB, neff                ! Less primary parameters
-      REAL :: Om_m_pow, Om_b_pow, h_pow         ! Cosmological parameters used for P(k) if different from background
-      REAL :: b0, b1, b2, b3, b4                ! BDE parameters
-      REAL :: A_bump, k_bump, sigma_bump        ! Power-spectrum bump 
-      LOGICAL :: bump, warm                     ! Logicals
+      CHARACTER(len=256) :: name            ! Name for cosmological model
+      REAL :: Om_m, Om_b, Om_v, Om_w, m_nu  ! Primary parameters
+      REAL :: h, n, w, wa, m_wdm, YH        ! Primary parameters
+      REAL :: a1, a2, nstar, ws, am, dm, wm ! DE parameters
+      REAL :: z_CMB, T_CMB, neff            ! Less primary parameters
+      REAL :: Om_m_pow, Om_b_pow, h_pow     ! Cosmological parameters used for P(k) if different from background
+      REAL :: b0, b1, b2, b3, b4            ! BDE parameters
+      REAL :: A_bump, k_bump, sigma_bump    ! Power-spectrum bump 
+      LOGICAL :: bump, warm                 ! Logicals
       
       ! Variables that might be primary that are used in power normalisation
       REAL :: kpiv, As, kval, pval, sig8 ! Normalisation
@@ -136,17 +138,19 @@ MODULE cosmology_functions
 
       ! Switches
       INTEGER :: iw, itk
-      LOGICAL :: power_Omegas, derive_gas_numbers, growk
+      LOGICAL :: power_Omegas, derive_gas_numbers, scale_dependent_growth, non_trivial_cold
 
       ! Look-up tables
       REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)        ! Arrays for input linear P(k)
-      REAL, ALLOCATABLE :: log_sigma(:), log_r_sigma(:), log_a_sigma(:), log_sigmaa(:, :)    ! Arrays for sigma(R)
+      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:)
+      REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:)                                    ! Arrays for sigma(R)
+      REAL, ALLOCATABLE :: log_sigma(:), log_sigmaa(:, :), log_sigmac(:), log_sigmaca(:,:)
       REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
       REAL, ALLOCATABLE :: log_p(:), log_a_p(:)         ! Arrays for distance (particle horizon)
       REAL, ALLOCATABLE :: log_t(:), log_a_t(:)         ! Arrays for time
       REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:)  ! Arrays for spherical-collapse parameters
       REAL, ALLOCATABLE :: log_a_Xde(:), log_Xde(:)     ! Arrays for dark-energy density
-      INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, na_plin, n_Xde ! Array entries
+      INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin, n_Xde ! Array entries
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde ! What has been calculated
 
       ! Have normalisations and initialisations been done?
@@ -221,13 +225,14 @@ MODULE cosmology_functions
    REAL, PARAMETER :: kmin_plin = 0.           ! Power below this wavenumber is set to zero [h/Mpc]
    REAL, PARAMETER :: kmax_plin = 1e8          ! Power above this wavenumber is set to zero [h/Mpc]
    LOGICAL, PARAMETER :: plin_extrap = .FALSE. ! Extrapolate high-k power assumning P(k) ~ ln(k)^2 k^(n-3) (otherwise power law)?
-   INTEGER, PARAMETER :: method_cold = 3       ! Method for computing the 'cold' power spectrum from the 'matter' power spectrum
    INTEGER, PARAMETER :: itk_EH = 1            ! Eisenstein and Hu linear spectrum
    INTEGER, PARAMETER :: itk_CAMB = 2          ! CAMB linear spectrum
    INTEGER, PARAMETER :: itk_DEFW = 3          ! DEFW linear spectrum
    INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
    INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
    INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB
+   INTEGER, PARAMETER :: flag_power_matter = 1 ! Flag to get the total matter power spectrum
+   INTEGER, PARAMETER :: flag_power_cold = 2   ! Flag to get the cold matter power spectrum
 
    ! Correlation function
    ! TODO: This works very poorly
@@ -299,7 +304,6 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_sigma = 3  ! Polynomial order for sigma(R) integration
    
    ! sigma(R) tabulation and interpolation
-   ! TODO: There should not be an option for cold vs. all need a flag for type
    ! Changing to linear integer finding provides very little speed increase
    REAL, PARAMETER :: rmin_sigma = 1e-4                 ! Minimum r value (NB. sigma(R) needs to be power-law below)
    REAL, PARAMETER :: rmax_sigma = 1e3                  ! Maximum r value (NB. sigma(R) needs to be power-law above)
@@ -307,7 +311,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amin_sigma = 0.1                  ! Minimum a value for sigma(R,a) tables when growth is scale dependent
    REAL, PARAMETER :: amax_sigma = 1.0                  ! Maximum a value for sigma(R,a) tables when growth is scale dependent
    INTEGER, PARAMETER :: na_sigma = 16                  ! Number of a values for sigma(R,a) tables
-   LOGICAL, PARAMETER :: tabulate_cold_sigma = .TRUE.   ! Should the sigma tables be filled with cold sigma or all sigma?
+   !LOGICAL, PARAMETER :: tabulate_cold_sigma = .TRUE.   ! Should the sigma tables be filled with cold sigma or all sigma?
    INTEGER, PARAMETER :: iorder_interpolation_sigma = 3 ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interpolation_sigma = 3  ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: imeth_interpolation_sigma = 2  ! Method for sigma(R) interpolation
@@ -347,6 +351,10 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: halofit_Takahashi = 3  ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
    INTEGER, PARAMETER :: halofit_CAMB = 4       ! Version as used in CAMB  (date; ???)
    INTEGER, PARAMETER :: halofit_CLASS = 5      ! Version as used in CLASS (date; ???)
+
+   ! General integrations
+   INTEGER, PARAMETER :: jmin_integration = 5
+   INTEGER, PARAMETER :: jmax_integration = 30
 
 CONTAINS
 
@@ -425,6 +433,7 @@ CONTAINS
       names(57) = 'Bound dark energy'
       names(58) = 'Extreme bound dark energy'
       names(59) = 'Power bump'
+      names(60) = 'Boring but with exciting neutrino mass'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1040,11 +1049,13 @@ CONTAINS
          ! Bump in power
          cosm%bump = .TRUE.
          cosm%norm_method = norm_value ! Normalise like this to prevent bump annoying sigma8
-         !cosm%kval = 1e-3
-         !cosm%pval = 1.9044e-7
          cosm%A_bump = 0.08
          cosm%k_bump = 5.
          cosm%sigma_bump = 0.5
+      ELSE IF(icosmo == 60) THEN
+         ! Exciting neutrino mass
+         cosm%m_nu = 0.3
+         cosm%itk = itk_CAMB
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1096,7 +1107,7 @@ CONTAINS
 
       ! Calculate radiation density (includes photons and neutrinos at recombination)
       rho_g = (4.*SBconst*cosm%T_CMB**4/c_light**3) ! Photon physical density at z=0 from CMB temperature [kg/m^3]
-      rho_crit = 3.*H0**2/(8.*pi*bigG) ! Critical density [h^2 kg/m^3] TODO: Constants?
+      rho_crit = 3.*H0**2/(8.*pi*bigG) ! Critical density [h^2 kg/m^3]
       Om_g_h2 = rho_g/rho_crit ! Photon cosmological density [h^2]
       cosm%Om_g = Om_g_h2/cosm%h**2 ! Photon density parameter
       cosm%Om_nu_rad = cosm%Om_g*neff_constant*cosm%neff ! Relativisitic neutrino density
@@ -1145,13 +1156,16 @@ CONTAINS
       IF (cosm%f_nu > 0.5) STOP 'INIT_COSMOLOGY: Error, neutrino mass fraction is too high'
       IF ((cosm%m_nu .NE. 0.) .AND. cosm%a_nu > 0.2) STOP 'INIT_COSMOLOGY: Error, neutrinos are too light'
 
-      ! Decide on scale-dependent growth
+      ! Decide on scale-dependent growth and cold spectrum
+      cosm%scale_dependent_growth = .FALSE.
+      cosm%non_trivial_cold = .FALSE.
       IF (cosm%m_nu .NE. 0.) THEN
-         cosm%growk = .TRUE.
-         IF (cosm%verbose) WRITE (*, *) 'INIT_COSMOLOGY: Scale-dependent growth'
-      ELSE
-         cosm%growk = .FALSE.
+         cosm%scale_dependent_growth = .TRUE.
+         cosm%non_trivial_cold = .TRUE.
       END IF
+
+      IF (cosm%verbose .AND. cosm%scale_dependent_growth) WRITE (*, *) 'INIT_COSMOLOGY: Scale-dependent growth'
+      IF (cosm%verbose .AND. cosm%non_trivial_cold)       WRITE (*, *) 'INIT_COSMOLOGY: Non-trivial cold spectrum'
 
       ! Check that we are able to cope with scale-dependent growth
       ! IF(cosm%growk .AND. (cosm%itk .NE. 2)) THEN
@@ -1260,30 +1274,32 @@ CONTAINS
 
       ! Ensure deallocate distances
       cosm%has_distance = .FALSE.
-      IF (ALLOCATED(cosm%log_p)) DEALLOCATE (cosm%log_p)
-      IF (ALLOCATED(cosm%log_a_p)) DEALLOCATE (cosm%log_a_p)
+      CALL if_allocated_deallocate(cosm%log_p)
+      CALL if_allocated_deallocate(cosm%log_a_p)
       cosm%horizon = 0.
 
       ! Ensure deallocate time
       cosm%has_time = .FALSE.
-      IF (ALLOCATED(cosm%log_t)) DEALLOCATE (cosm%log_t)
-      IF (ALLOCATED(cosm%log_a_t)) DEALLOCATE (cosm%log_a_t)
+      CALL if_allocated_deallocate(cosm%log_t)
+      CALL if_allocated_deallocate(cosm%log_a_t)
       cosm%age = 0.
 
       ! Ensure deallocate growth
       cosm%has_growth = .FALSE.
-      IF (ALLOCATED(cosm%log_a_growth)) DEALLOCATE (cosm%log_a_growth)
-      IF (ALLOCATED(cosm%log_growth)) DEALLOCATE (cosm%log_growth)
-      IF (ALLOCATED(cosm%growth_rate)) DEALLOCATE (cosm%growth_rate)
-      IF (ALLOCATED(cosm%log_acc_growth)) DEALLOCATE (cosm%log_acc_growth)
+      CALL if_allocated_deallocate(cosm%log_a_growth)
+      CALL if_allocated_deallocate(cosm%log_growth)
+      CALL if_allocated_deallocate(cosm%growth_rate)
+      CALL if_allocated_deallocate(cosm%log_acc_growth)
       cosm%gnorm = 0.
 
       ! Ensure deallocate sigma
       cosm%has_sigma = .FALSE.
-      IF (ALLOCATED(cosm%log_r_sigma)) DEALLOCATE (cosm%log_r_sigma)
-      IF (ALLOCATED(cosm%log_a_sigma)) DEALLOCATE (cosm%log_a_sigma)
-      IF (ALLOCATED(cosm%log_sigma)) DEALLOCATE (cosm%log_sigma)
-      IF (ALLOCATED(cosm%log_sigmaa)) DEALLOCATE (cosm%log_sigmaa)
+      CALL if_allocated_deallocate(cosm%log_r_sigma)
+      CALL if_allocated_deallocate(cosm%log_a_sigma)
+      CALL if_allocated_deallocate(cosm%log_sigma)
+      CALL if_allocated_deallocate(cosm%log_sigmaa)
+      CALL if_allocated_deallocate(cosm%log_sigmac)
+      CALL if_allocated_deallocate(cosm%log_sigmaca)
 
       ! Switch for power?
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW) THEN
@@ -1294,18 +1310,16 @@ CONTAINS
       END IF
 
       ! Ensure deallocate linear-power tables
-      !IF(cosm%has_power .EQV. .FALSE.) THEN
-      IF (ALLOCATED(cosm%log_k_plin)) DEALLOCATE (cosm%log_k_plin)
-      IF (ALLOCATED(cosm%log_a_plin)) DEALLOCATE (cosm%log_a_plin)
-      IF (ALLOCATED(cosm%log_plin))   DEALLOCATE (cosm%log_plin)
-      IF (ALLOCATED(cosm%log_plina))  DEALLOCATE (cosm%log_plina)
-      !END IF
+      CALL if_allocated_deallocate(cosm%log_k_plin)
+      CALL if_allocated_deallocate(cosm%log_a_plin)
+      CALL if_allocated_deallocate(cosm%log_plin)
+      CALL if_allocated_deallocate(cosm%log_plina)
 
       ! Ensure delloacte spherical-collapse arrays
       cosm%has_spherical = .FALSE.
-      IF (ALLOCATED(cosm%log_a_dcDv)) DEALLOCATE (cosm%log_a_dcDv)
-      IF (ALLOCATED(cosm%dc)) DEALLOCATE (cosm%dc)
-      IF (ALLOCATED(cosm%Dv)) DEALLOCATE (cosm%Dv)
+      CALL if_allocated_deallocate(cosm%log_a_dcDv)
+      CALL if_allocated_deallocate(cosm%dc)
+      CALL if_allocated_deallocate(cosm%Dv)
 
       ! Write finishing message to screen
       IF (cosm%verbose) THEN
@@ -1464,13 +1478,13 @@ CONTAINS
 
    END SUBROUTINE assign_init_cosmology
    
-   REAL FUNCTION xi_lin(r, a, cosm)
+   REAL FUNCTION xi_lin(r, a, flag, cosm)
 
       ! Computes the 3D linear matter correlation function by integrating over P(k)
-      ! TODO: Parameters into header
       IMPLICIT NONE
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: i
       REAL :: k1, k2, xi_bit
@@ -1484,7 +1498,7 @@ CONTAINS
 
       IF (method == 1) THEN
 
-         xi_lin = integrate_cosm(0., 1., xi_integrand_transformed, r, a, cosm, acc_cosm, iorder)
+         xi_lin = integrate_cosm(0., 1., xi_integrand_transformed, r, a, flag, cosm, acc_cosm, iorder)
 
       ELSE IF (method == 2) THEN
 
@@ -1497,7 +1511,7 @@ CONTAINS
             k1 = i*pi/r
             k2 = (i+1)*pi/r
 
-            xi_bit = integrate_cosm(k1, k2, xi_integrand, r, a, cosm, acc_cosm, iorder)
+            xi_bit = integrate_cosm(k1, k2, xi_integrand, r, a, flag, cosm, acc_cosm, iorder)
 
             xi8 = xi8+xi_bit
 
@@ -1527,7 +1541,7 @@ CONTAINS
 
    END FUNCTION xi_lin
 
-   REAL FUNCTION xi_integrand(k, r, a, cosm)
+   REAL FUNCTION xi_integrand(k, r, a, flag, cosm)
 
       ! Integrand for the 3D linear matter correlation function
       USE special_functions
@@ -1535,17 +1549,18 @@ CONTAINS
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc] (integrated over)
       REAL, INTENT(IN) :: r ! Separation [Mpc/h]
       REAL, INTENT(IN) :: a ! Scale factor
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
 
       IF (k == 0.) THEN
          xi_integrand = 0.
       ELSE
-         xi_integrand = sinc(k*r)*p_lin(k, a, cosm)/k
+         xi_integrand = sinc(k*r)*p_lin(k, a, flag, cosm)/k
       END IF
 
    END FUNCTION xi_integrand
 
-   REAL FUNCTION xi_integrand_transformed(t, r, a, cosm)
+   REAL FUNCTION xi_integrand_transformed(t, r, a, flag, cosm)
 
       ! Integrand for the 3D linear matter correlation function
       ! TODO: Optimise alpha(r)
@@ -1554,6 +1569,7 @@ CONTAINS
       REAL, INTENT(IN) :: t ! kr=(-1+1/t)^alpha (integrated over 0:1)
       REAL, INTENT(IN) :: r ! Separation [Mpc/h]
       REAL, INTENT(IN) :: a ! Scale factor
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: kr, k, alpha
       REAL, PARAMETER :: alpha_lo = alpha_lo_xi
@@ -1571,7 +1587,7 @@ CONTAINS
       ELSE
          kr = (-1.+1./t)**alpha
          k = kr/r
-         xi_integrand_transformed = sinc(kr)*p_lin(k, a, cosm)*alpha/(t*(1.-t))
+         xi_integrand_transformed = sinc(kr)*p_lin(k, a, flag, cosm)*alpha/(t*(1.-t))
       END IF
 
    END FUNCTION xi_integrand_transformed
@@ -1591,9 +1607,9 @@ CONTAINS
       END IF
 
       IF(cosm%norm_method == norm_sigma8) THEN
-         CALL normalise_sigma8(cosm)
+         CALL normalise_power_sigma8(cosm)
       ELSE IF(cosm%norm_method == norm_value) THEN
-         CALL normalise_value(cosm)
+         CALL normalise_power_value(cosm)
       ELSE IF(cosm%itk == itk_CAMB .AND. cosm%norm_method == norm_As) THEN
          ! Do nothing
       ELSE
@@ -1606,7 +1622,7 @@ CONTAINS
 
    END SUBROUTINE normalise_power
 
-   SUBROUTINE normalise_sigma8(cosm)
+   SUBROUTINE normalise_power_sigma8(cosm)
 
       ! Normalising the power spectrum using sigma8
       IMPLICIT NONE
@@ -1641,7 +1657,7 @@ CONTAINS
             CALL init_CAMB_linear(cosm)
          ELSE
             ! ... or normalise using sigma8 and rescaling linear power
-            IF (cosm%growk) THEN
+            IF (cosm%scale_dependent_growth) THEN
                cosm%log_plina = cosm%log_plina+2.*log(cosm%sig8/sigma8_initial)
             ELSE
                cosm%log_plin = cosm%log_plin+2.*log(cosm%sig8/sigma8_initial)
@@ -1667,9 +1683,9 @@ CONTAINS
          WRITE (*, *)
       END IF
 
-   END SUBROUTINE normalise_sigma8
+   END SUBROUTINE normalise_power_sigma8
 
-   SUBROUTINE normalise_value(cosm)
+   SUBROUTINE normalise_power_value(cosm)
 
       ! Normalise the power spectrum by taking the dimensionless power at some wavenumber
       IMPLICIT NONE
@@ -1677,12 +1693,12 @@ CONTAINS
       REAL, PARAMETER :: a = 1.
 
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW) THEN
-         cosm%A = cosm%A*sqrt(cosm%pval/p_lin(cosm%kval, a, cosm))
+         cosm%A = cosm%A*sqrt(cosm%pval/p_lin(cosm%kval, a, flag_power_matter, cosm))
       ELSE
          STOP 'NORMALISE_VALUE: Error, this is not possible for your transfer function'
       END IF
 
-   END SUBROUTINE normalise_value
+   END SUBROUTINE normalise_power_value
 
    SUBROUTINE reset_sigma8(cosm)
 
@@ -1701,7 +1717,7 @@ CONTAINS
       REAL, PARAMETER :: R = 8. ! Because we are doing sigma(R = 8 Mpc/h) normalisation
       REAL, PARAMETER :: a = 1. ! Because we are doing simga(R = 8 Mpc/h, a = 1) normalisation
 
-      sigma8 = sigma_all_integral(R, a, cosm)
+      sigma8 = sigma_integral(R, a, flag_power_matter, cosm)
 
    END FUNCTION sigma8
 
@@ -2547,7 +2563,6 @@ CONTAINS
    REAL FUNCTION cosmic_time(a, cosm)
 
       ! The age of the universe [Gyr/h]
-      ! TODO: Look-up table for t(a)?
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -2653,7 +2668,7 @@ CONTAINS
 
    END FUNCTION time_integrand
 
-   REAL FUNCTION Tk(k, cosm)
+   REAL FUNCTION Tk_matter(k, cosm)
 
       ! Transfer function selection
       IMPLICIT NONE
@@ -2661,19 +2676,19 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       IF (cosm%itk == itk_EH) THEN
-         Tk = Tk_EH(k, cosm)
+         Tk_matter = Tk_EH(k, cosm)
       ELSE IF (cosm%itk == itk_DEFW) THEN
-         Tk = Tk_DEFW(k, cosm)
+         Tk_matter = Tk_DEFW(k, cosm)
       ELSE
          WRITE (*, *) 'TK: itk:', cosm%itk
          STOP 'TK: Error, itk specified incorrectly'
       END IF
 
       ! Damp transfer function if considering WDM
-      IF (cosm%warm) Tk = Tk*Tk_WDM(k, cosm)
-      IF (cosm%bump) Tk = Tk*Tk_bump(k, cosm)
+      IF (cosm%warm) Tk_matter = Tk_matter*Tk_WDM(k, cosm)
+      IF (cosm%bump) Tk_matter = Tk_matter*Tk_bump(k, cosm)
 
-   END FUNCTION Tk
+   END FUNCTION Tk_matter
 
    REAL FUNCTION Tk_DEFW(k, cosm)
 
@@ -2826,22 +2841,29 @@ CONTAINS
    REAL FUNCTION Tcold(k, a, cosm)
 
       ! Ratio of transfer function for cold matter relative to all matter
-      ! TODO: Add exact result from CAMB
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       REAL, INTENT(IN) :: a ! Scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER, PARAMETER :: method = method_cold
+      INTEGER, PARAMETER :: method_cold = 3
 
-      IF (method == 1) THEN
-         Tcold = 1. ! Assuming the cold spectrum is exactly the matter spectrum
-      ELSE IF (method == 2) THEN
-         Tcold = Tcold_approx(cosm)
-      ELSE IF (method == 3) THEN
+      IF (method_cold == 1) THEN
+         ! Assuming the cold spectrum is exactly the matter spectrum
+         Tcold = 1. 
+      ELSE IF (method_cold == 2) THEN
+         ! This approximation assumes that the neutrinos are as clustered as the rest of the mass
+         ! This is only true on scales greater than the neutrino free-streaming scale
+         Tcold = (cosm%Om_c+cosm%Om_b)/cosm%Om_m 
+      ELSE IF (method_cold == 3) THEN
+         ! Use the Eisenstein and Hu approximation
+         STOP 'TCOLD: You should worry very much about this!'
          Tcold = Tcold_EH(k, a, cosm)
-      ELSE IF (method == 4) THEN
-         !Tcold = Tcold_CAMB
-         STOP 'TCOLD: Need to add exact results from CAMB'
+      ELSE IF (method_cold == 4) THEN
+         ! Use look-up tables from CAMB transfer functions
+         Tcold = find(log(k), cosm%log_k_Tcold, log(a), cosm%log_a_plin, cosm%Tcold, cosm%nk_Tcold, cosm%na_plin,&
+            iorder = iorder_interpolation_plin,&
+            ifind = ifind_interpolation_plin,&
+            iinterp = iinterp_polynomial) ! No Lagrange polynomials 
       ELSE
          STOP 'TCOLD: Error, method not specified correctly'
       END IF
@@ -2850,9 +2872,14 @@ CONTAINS
 
    REAL FUNCTION Tcold_approx(cosm)
 
+      ! How the matter power spectrum would be changed if some fraction of the mass is converted to massive neutrinos
       ! Approximation for how power is suppressed by massive nu at small scales
       ! Calculated assuming perturbation grow from z~1000 and that neutrinos are hot and therefore completely smooth
       ! Related to the growth-function approximation: g(a) = a^(1-3f_nu/5)
+      ! TODO: This is NEVER used and is potentially VERY confusing
+      ! TODO: This is NOT the transfer function relating the matter spectrum to the cold spectrum
+      ! TODO: This IS the transfer function relation matter power spectra in different models
+      ! TODO: Take EXTREME caution here
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
 
@@ -2920,13 +2947,14 @@ CONTAINS
 
    END FUNCTION Tcold_EH
 
-   REAL RECURSIVE FUNCTION p_lin(k, a, cosm)
+   REAL RECURSIVE FUNCTION p_lin(k, a, flag, cosm)
 
       ! Linear matter power spectrum
       ! Must be a recursive function because normalise_power calls this function again
-      ! TODO: Check ln(k)^2 k^(3+n) at small scales (massive neutrinos; also k has dimensions?)
       IMPLICIT NONE
-      REAL, INTENT(IN) :: k, a
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: kmax, pmax
       INTEGER :: nk
@@ -2960,7 +2988,7 @@ CONTAINS
                nk = cosm%nk_plin
                kmax = exp(cosm%log_k_plin(nk))
             END IF
-            IF (cosm%growk) THEN
+            IF (cosm%scale_dependent_growth) THEN
                IF(plin_extrap .AND. k > kmax) THEN
                   pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk,:), cosm%na_plin, &
                      iorder, ifind, imeth))
@@ -2971,7 +2999,6 @@ CONTAINS
                END IF
             ELSE
                IF(plin_extrap .AND. k > kmax) THEN
-                  ! Assumes power spectrum is ~ ln(k) * k^(n-3) at small scales
                   pmax = exp(cosm%log_plin(nk))
                   p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%n)
                ELSE
@@ -2979,11 +3006,14 @@ CONTAINS
                END IF
                p_lin = (grow(a, cosm)**2)*p_lin
             END IF
-            !p_lin=exp(find(log(k),cosm%log_k_plin,cosm%log_plin,cosm%n_plin,iorder,ifind,imeth))
          ELSE
             ! In this case get the power from the transfer function
-            p_lin = (cosm%A**2)*(grow(a, cosm)**2)*(Tk(k, cosm)**2)*(k**(cosm%n+3.))
+            p_lin = (cosm%A**2)*(grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%n+3.))
          END IF
+      END IF
+
+      IF (flag == flag_power_cold) THEN
+         p_lin = p_lin*Tcold(k, a, cosm)**2
       END IF
 
    END FUNCTION p_lin
@@ -2993,6 +3023,7 @@ CONTAINS
       ! Extrapolate linear power at small scales assuming Delta^2(k) goes like ln(k)^2 k^(n-1)
       ! This works really badly if kmax is not high enough; maybe best just to use power-law
       ! TODO: It is really weird that log(k) appears, rather than log(k/kmax), this must be wrong!
+      ! TODO: Check ln(k)^2 k^(3+n) at small scales (massive neutrinos; also k has dimensions?)
       IMPLICIT NONE
       REAL, INTENT(IN) :: k    ! Wavenumber [h/Mpc]
       REAL, INTENT(IN) :: kmax ! Maximum wavenumber [h/Mpc]
@@ -3049,23 +3080,20 @@ CONTAINS
       ! This prevents a large number of calls to the sigma integration functions in HMx
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: r, a, sig
-      INTEGER :: i, j
+      REAL :: R, a, sig
+      INTEGER :: i, j, iflag, ntype, flag
 
       ! Deallocate tables if they are already allocated
-      IF (ALLOCATED(cosm%log_r_sigma)) DEALLOCATE (cosm%log_r_sigma)
-      IF (ALLOCATED(cosm%log_sigma))   DEALLOCATE (cosm%log_sigma)
-      IF (ALLOCATED(cosm%log_a_sigma)) DEALLOCATE (cosm%log_a_sigma)
-      IF (ALLOCATED(cosm%log_sigmaa))  DEALLOCATE (cosM%log_sigmaa)
+      CALL if_allocated_deallocate(cosm%log_r_sigma)
+      CALL if_allocated_deallocate(cosm%log_a_sigma)
+      CALL if_allocated_deallocate(cosm%log_sigma)
+      CALL if_allocated_deallocate(cosm%log_sigmac)
+      CALL if_allocated_deallocate(cosm%log_sigmaa)
+      CALL if_allocated_deallocate(cosm%log_sigmaca)
 
       ! Write to screen
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_SIGMA: Filling sigma(R) interpolation table'
-         IF(tabulate_cold_sigma) THEN
-            WRITE (*, *) 'INIT_SIGMA: Cold matter only being considered'
-         ELSE
-            WRITE (*, *) 'INIT_SIGMA: All matter being considered'
-         END IF
+         WRITE (*, *) 'INIT_SIGMA: Filling sigma(R) interpolation tables'
          WRITE (*, *) 'INIT_SIGMA: R minimum [Mpc/h]:', real(rmin_sigma)
          WRITE (*, *) 'INIT_SIGMA: R maximum [Mpc/h]:', real(rmax_sigma)
          WRITE (*, *) 'INIT_SIGMA: Number of points:', nr_sigma
@@ -3075,42 +3103,77 @@ CONTAINS
       CALL fill_array(log(rmin_sigma), log(rmax_sigma), cosm%log_r_sigma, nr_sigma)
       cosm%nr_sigma = nr_sigma
 
-      ! Do the calculations to fill the look-up tables
-      ! Deal with scale-dependent/independent growth separately
-      IF (cosm%growk) THEN
+      ! Allocate carrays
+      IF(cosm%scale_dependent_growth) THEN
          cosm%na_sigma = na_sigma
          CALL fill_array(log(amin_sigma), log(amax_sigma), cosm%log_a_sigma, na_sigma)
          ALLOCATE (cosm%log_sigmaa(nr_sigma, na_sigma))
-         DO j = 1, na_sigma
-            a = exp(cosm%log_a_sigma(j))
-            DO i = 1, nr_sigma
-               r = exp(cosm%log_r_sigma(i))
-               IF(tabulate_cold_sigma) THEN
-                  sig = sigma_cold_integral(r, a, cosm)
-               ELSE
-                  sig = sigma_all_integral(r,a,cosm)
-               END IF
-               cosm%log_sigmaa(i, j) = log(sig)
-            END DO
-         END DO
+         ALLOCATE (cosm%log_sigmaca(nr_sigma, na_sigma))   
       ELSE
-         ! Loop over R values and calculate sigma(R)
          ALLOCATE (cosm%log_sigma(nr_sigma))
-         a = 1. ! Fill this table at a=1
-         DO i = 1, nr_sigma
-            r = exp(cosm%log_r_sigma(i))
-            IF(tabulate_cold_sigma) THEN
-               sig = sigma_cold_integral(r, a, cosm)
-            ELSE
-               sig = sigma_all_integral(r, a, cosm)
-            END IF
-            cosm%log_sigma(i) = log(sig)
-         END DO
+         ALLOCATE (cosm%log_sigmac(nr_sigma))
+      END IF
+
+      ! Do we need to loop over both matter and cold or not?
+      IF(cosm%non_trivial_cold) THEN
+         ntype = 2
+      ELSE
+         ntype = 1
+      END IF
+
+      DO iflag = 1, ntype
+
+         IF (iflag == 1) flag = flag_power_matter
+         IF (iflag == 2) flag = flag_power_cold
+
+         ! Do the calculations to fill the look-up tables
+         ! Deal with scale-dependent/independent growth separately
+         IF (cosm%scale_dependent_growth) THEN
+
+            ! Loop over R and a and calculate sigma(R,a)
+            DO j = 1, na_sigma
+               a = exp(cosm%log_a_sigma(j))
+               DO i = 1, nr_sigma
+                  R = exp(cosm%log_r_sigma(i))
+                  sig = sigma_integral(R, a, flag, cosm)
+                  IF (flag == flag_power_matter) THEN
+                     cosm%log_sigmaa(i, j) = log(sig)
+                  ELSE IF (flag == flag_power_cold) THEN
+                     cosm%log_sigmaca(i, j) = log(sig)
+                  END IF
+               END DO
+            END DO
+
+         ELSE
+
+            ! Loop over R values and calculate sigma(R)
+            a = 1. ! Fill this table at a=1
+            DO i = 1, nr_sigma
+               R = exp(cosm%log_r_sigma(i))
+               sig = sigma_integral(R, a, flag, cosm)
+               IF (flag == flag_power_matter) THEN
+                  cosm%log_sigma(i) = log(sig)
+               ELSE IF (flag == flag_power_cold) THEN
+                  cosm%log_sigmac(i) = log(sig)
+               END IF
+            END DO
+
+         END IF
+
+      END DO
+
+      ! If the cold spectrum is trivial then the cold sigma is equal to the matter sigma
+      IF(.NOT. cosm%non_trivial_cold) THEN
+         IF (cosm%scale_dependent_growth) THEN
+            cosm%log_sigmaca = cosm%log_sigmaa
+         ELSE
+            cosm%log_sigmac = cosm%log_sigma
+         END IF
       END IF
 
       ! Write useful information to screen
       IF (cosm%verbose) THEN
-         IF(cosm%growk) THEN
+         IF(cosm%scale_dependent_growth) THEN
             WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigmaa(nr_sigma,na_sigma))
             WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigmaa(1,na_sigma))
          ELSE
@@ -3126,74 +3189,84 @@ CONTAINS
 
    END SUBROUTINE init_sigma
 
-   REAL FUNCTION find_sigma(R, a, cosm)
+   REAL FUNCTION find_sigma(R, a, flag, cosm)
 
       ! Search look-up tables for sigma(R)
-      ! TODO: Add flag to look up all/cold sigma(R)
       IMPLICIT NONE
       REAL, INTENT(IN) :: R ! Smoothing scale to calculate sigma [Mpc/h]
       REAL, INTENT(IN) :: a ! Scale factor
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       INTEGER, PARAMETER :: iorder = iorder_interpolation_sigma ! Order for interpolation 
       INTEGER, PARAMETER :: ifind = ifind_interpolation_sigma   ! Finding scheme in table
       INTEGER, PARAMETER :: imeth = imeth_interpolation_sigma   ! Method for polynomials
 
-      IF (cosm%growk) THEN
-         find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaa,&
-            cosm%nr_sigma, cosm%na_sigma, &
-            iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
+      IF (cosm%scale_dependent_growth) THEN
+         IF (flag == flag_power_matter) THEN
+            find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaa,&
+               cosm%nr_sigma, cosm%na_sigma, &
+               iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
+         ELSE IF (flag == flag_power_cold) THEN
+            find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaca,&
+               cosm%nr_sigma, cosm%na_sigma, &
+               iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
+         ELSE
+            STOP 'FIND_SIGMA: Error, flag not specified correctly'
+         END IF
       ELSE
-         find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigma, cosm%nr_sigma, iorder, ifind, imeth))
+         IF (flag == flag_power_matter) THEN
+            find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigma, cosm%nr_sigma, iorder, ifind, imeth))
+         ELSE IF (flag == flag_power_cold) THEN
+            find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigmac, cosm%nr_sigma, iorder, ifind, imeth))
+         ELSE
+            STOP 'FIND_SIGMA: Error, flag not specified correctly'
+         END IF
          find_sigma = grow(a, cosm)*find_sigma
       END IF
 
    END FUNCTION find_sigma
 
-   REAL FUNCTION sigma_all(R, a, cosm)
+   REAL FUNCTION sigma(R, a, flag, cosm)
 
       ! Finds sigma_all from look-up tables
-      ! TODO: Add flag to look up all/cold sigma(R)
       IMPLICIT NONE
       REAL, INTENT(IN) :: R ! Smoothing scale to calculate sigma [Mpc/h]
       REAL, INTENT(IN) :: a ! Scale factor
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
 
       IF (.NOT. cosm%has_sigma) CALL init_sigma(cosm)
-      IF((.NOT. tabulate_cold_sigma) .AND. cosm%has_sigma) THEN
-         sigma_all = find_sigma(R, a, cosm)
-      ELSE  
-         sigma_all = sigma_all_integral(R, a, cosm)
-      END IF
+      sigma = find_sigma(R, a, flag, cosm)
 
-   END FUNCTION sigma_all
+   END FUNCTION sigma
 
-   REAL FUNCTION sigma_all_integral(r, a, cosm)
+   REAL FUNCTION sigma_integral(r, a, flag, cosm)
 
       ! Calculates sigma(R) by intergration
-      ! TODO: Add flag to look up all/cold sigma(R)
       IMPLICIT NONE
       REAL, INTENT(IN) :: r ! Smoothing scale to calculate sigma [Mpc/h]
       REAL, INTENT(IN) :: a ! Scale factor
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: acc = acc_sigma ! Because this calculates sigma^2(R), but we only care about sigma(R)
       INTEGER, PARAMETER :: iorder = iorder_sigma
       REAL, PARAMETER :: tmin=0.
       REAL, PARAMETER :: tmax=1.
 
-      sigma_all_integral = integrate_cosm(tmin, tmax, sigma2_all_integrand, r, a, cosm, acc, iorder)
-      sigma_all_integral = sqrt(sigma_all_integral)
+      sigma_integral = integrate_cosm(tmin, tmax, sigma2_integrand, r, a, flag, cosm, acc, iorder)
+      sigma_integral = sqrt(sigma_integral)
 
-   END FUNCTION sigma_all_integral
+   END FUNCTION sigma_integral
 
-   REAL FUNCTION sigma2_all_integrand(t, R, a, cosm)
+   REAL FUNCTION sigma2_integrand(t, R, a, flag, cosm)
 
       ! The integrand for the sigma(R) integrals
-      ! TODO: Add flag to look up all/cold sigma(R)
       USE special_functions
       IMPLICIT NONE
       REAL, INTENT(IN) :: t
       REAL, INTENT(IN) :: R
       REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: k, kR, w_hat
       REAL, PARAMETER :: alpha = alpha_sigma
@@ -3203,159 +3276,49 @@ CONTAINS
       IF (t <= 0. .OR. t >= 1.) THEN
          ! t=0 corresponds to k=infintiy when W(kR)=0
          ! t=1 corresponds to k=0 when P(k)=0
-         sigma2_all_integrand = 0.
+         sigma2_integrand = 0.
       ELSE
          kR = (-1.+1./t)**alpha
          k = kR/R
          w_hat = wk_tophat(kR)
-         sigma2_all_integrand = p_lin(k, a, cosm)*(w_hat**2)*alpha/(t*(1.-t))
+         sigma2_integrand = p_lin(k, a, flag, cosm)*(w_hat**2)*alpha/(t*(1.-t))
       END IF
 
-   END FUNCTION sigma2_all_integrand
+   END FUNCTION sigma2_integrand
 
-   REAL FUNCTION sigma_cold(R, a, cosm)
-
-      ! Finds sigma_cold from look-up tables
-      ! TODO: Remove this function when P(k) has flag for type all/cold
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: R ! Smoothing scale to calculate sigma [Mpc/h]
-      REAL, INTENT(IN) :: a ! Scale factor
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-
-      IF (.NOT. cosm%has_sigma) CALL init_sigma(cosm)
-      IF(tabulate_cold_sigma .AND. cosm%has_sigma) THEN
-         sigma_cold = find_sigma(R, a, cosm)
-      ELSE  
-         sigma_cold = sigma_cold_integral(r, a, cosm)
-      END IF
-
-   END FUNCTION sigma_cold
-
-   REAL FUNCTION sigma_cold_integral(r, a, cosm)
-
-      ! Calculates sigma_cold(R) by intergration
-      ! TODO: Remove this function when P(k) has flag for type all/cold
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: r ! Smoothing scale to calculate sigma [Mpc/h]
-      REAL, INTENT(IN) :: a ! Scale factor
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, PARAMETER :: acc = acc_sigma
-      INTEGER, PARAMETER :: iorder = iorder_sigma
-      REAL, PARAMETER :: tmin = 0.
-      REAL, PARAMETER :: tmax = 1.
-
-      ! Integration upper limit (c = 1 corresponds to k = 0)
-      sigma_cold_integral = integrate_cosm(tmin, tmax, sigma2_cold_integrand, r, a, cosm, acc, iorder)
-      sigma_cold_integral = sqrt(sigma_cold_integral)
-
-   END FUNCTION sigma_cold_integral
-
-   REAL FUNCTION sigma2_cold_integrand(t, R, a, cosm)
-
-      ! TODO: Remove this function when P(k) has flag for type all/cold
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: t
-      REAL, INTENT(IN) :: R
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: k, kR
-      REAL, PARAMETER :: alpha = alpha_sigma
-
-      IF(t <= 0. .OR. t >= 1.) THEN
-         ! Necessary because otherwise k_sigma_integrand tries to divide by zero
-         sigma2_cold_integrand = 0.
-      ELSE
-         kR = (-1.+1./t)**alpha
-         k = kR/R
-         sigma2_cold_integrand = sigma2_all_integrand(t, R, a, cosm)*Tcold(k, a, cosm)**2
-      END IF
-
-   END FUNCTION sigma2_cold_integrand
-
-   REAL FUNCTION neff(r, a, cosm)
-
-      ! Integral for calculating the effective P(k) index
-      ! TODO: Add ability to calculate neff for cold and all matter
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: r
-      REAL, INTENT(IN) :: a
-      !REAL, INTENT(IN) :: sig
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: sig
-      REAL, PARAMETER :: tmin = 0.
-      REAL, PARAMETER :: tmax = 1.
-      REAL, PARAMETER :: acc = acc_neff
-      INTEGER, PARAMETER :: iorder = iorder_neff
-
-      sig = sigma_cold(r, a, cosm) ! Note that this is cold for the moment
-      neff = -3.-2.*integrate_cosm(tmin, tmax, neff_integrand, r, a, cosm, acc, iorder)/sig**2
-
-   END FUNCTION neff
-
-   REAL FUNCTION neff_integrand(t, R, a, cosm)
-
-      ! Transformation is kR = (1/t-1)**alpha
-      ! TODO: Add ability to calculate neff for cold and all matter
-      USE special_functions
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: t
-      REAL, INTENT(IN) :: R
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: w_hat, w_hat_deriv, k, kR
-      REAL, PARAMETER :: alpha = alpha_neff
-      LOGICAL, PARAMETER :: cold = .TRUE. ! DO NOT CHANGE THIS
-
-      IF(t <= 0. .OR. t >= 1.) THEN
-         neff_integrand = 0.
-      ELSE
-         kR = (-1.+1./t)**alpha
-         k = kR/R
-         w_hat = wk_tophat(kR)
-         w_hat_deriv = wk_tophat_deriv(kR)
-         neff_integrand = p_lin(k, a, cosm)*w_hat*w_hat_deriv*alpha*kR/(t*(1.-t))
-         IF(cold) THEN
-            neff_integrand = neff_integrand*Tcold(k, a, cosm)**2
-         END IF      
-      END IF
-
-   END FUNCTION neff_integrand
-
-   REAL FUNCTION sigmaV(R, a, cosm)
+   REAL FUNCTION sigmaV(R, a, flag, cosm)
 
       ! Standard deviation in the displacement field [Mpc/h]
       ! Integrand changed from k [0,inf] to t[0,1] via kR = (1/t-1)**alpha
-      ! TODO: Specify for cold or all matter
       IMPLICIT NONE
       REAL, INTENT(IN) :: R
       REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: tmin = 0.
       REAL, PARAMETER :: tmax = 1.
       REAL, PARAMETER :: acc = acc_sigmaV
       INTEGER, PARAMETER :: iorder = iorder_sigmaV
 
-      sigmaV = integrate_cosm(tmin, tmax, sigmaV2_integrand, R, a, cosm, acc, iorder)
+      sigmaV = integrate_cosm(tmin, tmax, sigmaV2_integrand, R, a, flag, cosm, acc, iorder)
 
       ! Convert 3D sigmaV^2 to 1D sigmaV
       sigmaV = sqrt(sigmaV/3.)
 
    END FUNCTION sigmaV
 
-   REAL FUNCTION sigmaV2_integrand(t, R, a, cosm)
+   REAL FUNCTION sigmaV2_integrand(t, R, a, flag, cosm)
 
       ! This is the integrand for the velocity dispersion integral
-      ! TODO: Optimize alpha(R); not really a problem when only called for R = 0, 100 Mpc/h
-      ! TODO: Specify for cold or all matter
       USE special_functions
       IMPLICIT NONE
       REAL, INTENT(IN) :: t
       REAL, INTENT(IN) :: R
       REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: k, kR, w_hat
       REAL, PARAMETER :: alpha = alpha_sigmaV
-      LOGICAL :: cold = .TRUE. ! DO NOT CHANGE THIS
 
       IF (t == 0. .OR. t == 1.) THEN
          ! t = 0 corresponds to k = infinity when W(kR) = 0
@@ -3370,13 +3333,54 @@ CONTAINS
             k = kR/R
          END IF
          w_hat = wk_tophat(kR)
-         sigmaV2_integrand = (p_lin(k, a, cosm)/k**2)*(w_hat**2)*alpha/(t*(1.-t))
-         IF(cold) THEN
-            sigmaV2_integrand = sigmaV2_integrand*Tcold(k,a,cosm)**2
-         END IF
+         sigmaV2_integrand = (p_lin(k, a, flag, cosm)/k**2)*(w_hat**2)*alpha/(t*(1.-t))
       END IF
 
    END FUNCTION sigmaV2_integrand
+
+   REAL FUNCTION neff(r, a, flag, cosm)
+
+      ! Integral for calculating the effective P(k) index
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: r
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: sig
+      REAL, PARAMETER :: tmin = 0.
+      REAL, PARAMETER :: tmax = 1.
+      REAL, PARAMETER :: acc = acc_neff
+      INTEGER, PARAMETER :: iorder = iorder_neff
+
+      sig = sigma(r, a, flag, cosm) ! Note that this is cold for the moment
+      neff = -3.-2.*integrate_cosm(tmin, tmax, neff_integrand, r, a, flag, cosm, acc, iorder)/sig**2
+
+   END FUNCTION neff
+
+   REAL FUNCTION neff_integrand(t, R, a, flag, cosm)
+
+      ! Transformation is kR = (1/t-1)**alpha
+      USE special_functions
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: t
+      REAL, INTENT(IN) :: R
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: w_hat, w_hat_deriv, k, kR
+      REAL, PARAMETER :: alpha = alpha_neff
+
+      IF(t <= 0. .OR. t >= 1.) THEN
+         neff_integrand = 0.
+      ELSE
+         kR = (-1.+1./t)**alpha
+         k = kR/R
+         w_hat = wk_tophat(kR)
+         w_hat_deriv = wk_tophat_deriv(kR)
+         neff_integrand = p_lin(k, a, flag, cosm)*w_hat*w_hat_deriv*alpha*kR/(t*(1.-t))     
+      END IF
+
+   END FUNCTION neff_integrand
 
    REAL RECURSIVE FUNCTION grow(a, cosm)
 
@@ -4353,8 +4357,8 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 30
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
 
       INTERFACE
          FUNCTION f(x, cosm)
@@ -4454,8 +4458,8 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 30
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
 
       INTERFACE
          FUNCTION f(x, y, cosm)
@@ -4557,8 +4561,8 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 30
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
 
       INTERFACE
          FUNCTION f(x, y, z, cosm)
@@ -4643,24 +4647,135 @@ CONTAINS
 
    END FUNCTION integrate3_cosm
 
-   SUBROUTINE get_CAMB_power(k, a, Pk, nk, na, non_linear, halofit_version, cosm)
+   REAL RECURSIVE FUNCTION integrate4_cosm(a, b, f, y, z, flag, cosm, acc, iorder)
+
+      ! Integrates between a and b until desired accuracy is reached
+      ! Stores information to reduce function calls
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
+      REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
+      REAL, EXTERNAL :: f
+      REAL, INTENT(IN) :: y ! Second argument in 'f'
+      REAL, INTENT(IN) :: z ! Third argument in 'f'
+      INTEGER, INTENT(IN) :: flag ! Flag argument in 'f'
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      REAL, INTENT(IN) :: acc ! Accuracy
+      INTEGER, INTENT(IN) :: iorder ! Order for integration
+      INTEGER :: i, j
+      INTEGER :: n
+      REAL :: x, dx
+      REAL :: f1, f2, fx
+      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
+
+      INTERFACE
+         FUNCTION f(x, y, z, flag, cosm)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x
+            REAL, INTENT(IN) :: y
+            REAL, INTENT(IN) :: z
+            INTEGER, INTENT(IN) :: flag
+            TYPE(cosmology), INTENT(INOUT) :: cosm
+         END FUNCTION f
+      END INTERFACE
+
+      IF (a == b) THEN
+
+         ! Fix the answer to zero if the integration limits are identical
+         integrate4_cosm = 0.
+
+      ELSE
+
+         ! Set the sum variable for the integration
+         sum_2n = 0.d0
+         sum_n = 0.d0
+         sum_old = 0.d0
+         sum_new = 0.d0
+
+         DO j = 1, jmax
+
+            ! Note, you need this to be 1+2**n for some integer n
+            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+            n = 1+2**(j-1)
+
+            ! Calculate the dx interval for this value of 'n'
+            dx = (b-a)/real(n-1)
+
+            IF (j == 1) THEN
+
+               ! The first go is just the trapezium of the end points
+               f1 = f(a, y, z, flag, cosm)
+               f2 = f(b, y, z, flag, cosm)
+               sum_2n = 0.5d0*(f1+f2)*dx
+               sum_new = sum_2n
+
+            ELSE
+
+               ! Loop over only new even points to add these to the integral
+               DO i = 2, n, 2
+                  x = a+(b-a)*real(i-1)/real(n-1)
+                  fx = f(x, y, z, flag, cosm)
+                  sum_2n = sum_2n+fx
+               END DO
+
+               ! Now create the total using the old and new parts
+               sum_2n = sum_n/2.d0+sum_2n*dx
+
+               ! Now calculate the new sum depending on the integration order
+               IF (iorder == 1) THEN
+                  sum_new = sum_2n
+               ELSE IF (iorder == 3) THEN
+                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
+               ELSE
+                  STOP 'INTEGRATE4_COSM: Error, iorder specified incorrectly'
+               END IF
+
+            END IF
+
+            IF ((j >= jmin) .AND. (abs(-1.d0+sum_new/sum_old) < acc)) THEN
+               ! jmin avoids spurious early convergence
+               EXIT
+            ELSE IF (j == jmax) THEN
+               STOP 'INTEGRATE4_COSM: Integration timed out'
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_n = sum_2n
+               sum_2n = 0.d0
+            END IF
+
+         END DO
+
+         integrate4_cosm = real(sum_new)
+
+      END IF
+
+   END FUNCTION integrate4_cosm
+
+   SUBROUTINE get_CAMB_power(a, na, k_Pk, Pk, nkPk, k_Tc, Tc, nkTc, non_linear, halofit_version, cosm)
 
       ! Runs CAMB to get a power spectrum
       ! TODO: Could this be moved to CAMB stuff? Not easily, because it requires cosmology type
       ! TODO: New CAMB cosmology class?
+      ! TODO: Could split this up into run_CAMB etc. etc.
       USE CAMB_stuff
       USE string_operations
       IMPLICIT NONE
-      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, INTENT(IN) :: a(na)
-      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
-      INTEGER, INTENT(OUT) :: nk
       INTEGER, INTENT(IN) :: na
+      REAL, ALLOCATABLE, INTENT(OUT) :: k_Pk(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      INTEGER, INTENT(OUT) :: nkPk
+      REAL, ALLOCATABLE, INTENT(OUT) :: k_Tc(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Tc(:, :)
+      INTEGER, INTENT(OUT) :: nkTc
       LOGICAL, INTENT(IN) :: non_linear
       INTEGER, INTENT(IN) :: halofit_version
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: i, j
-      REAL, ALLOCATABLE :: Pk_CAMB(:)!, Pkk(:,:)
+      INTEGER :: nTk
+      REAL, ALLOCATABLE :: Pk_CAMB(:), Tk_CAMB(:,:)
       REAL :: Om_c, Om_b, Om_nu, h, ombh2, omch2, omnuh2
       CHARACTER(len=256) :: infile
       REAL, PARAMETER :: kmax = kmax_CAMB ! Maximum wavenumber to get the power to
@@ -4850,24 +4965,39 @@ CONTAINS
       ! Loop over redshifts and read CAMB power into arrays
       DO j = 1, na
          infile = number_file(matterpower, j, trim('.dat'))
+         CALL read_CAMB_Pk(k_Pk, Pk_CAMB, nkPk, infile)
          IF (j == 1) THEN
-            nk = file_length(infile)
-            nk = nk-1
-            ALLOCATE(Pk(nk,na))
+            ALLOCATE(Pk(nkPk, na))
          END IF
-         CALL read_CAMB_Pk(k, Pk_CAMB, nk, infile)
          Pk(:,j) = Pk_CAMB
       END DO
       DEALLOCATE(Pk_CAMB)
 
-      IF(cosm%verbose) THEN
-         WRITE (*, *) 'GET_CAMB_POWER: nk before pruning:', nk
+      ! Do pruning
+      IF(cosm%verbose) WRITE (*, *) 'GET_CAMB_POWER: nk before pruning:', nkPk
+      CALL prune_CAMB(k_Pk, a, Pk, nkPk, na)
+      IF (cosm%verbose) THEN
+         WRITE (*, *) 'GET_CAMB_POWER: nk after pruning:', nkPk
+         WRITE (*, *) 'GET_CAMB_POWER: Getting transfer functions'
       END IF
 
-      CALL prune_CAMB(k, a, Pk, nk, na)
+      ! Loop over redshifts and read CAMB transfer functions into arrays
+      DO j = 1, na
+         infile = number_file(transfer, j, trim('.dat'))
+         CALL read_CAMB_Tk(k_Tc, Tk_CAMB, nkTc, nTk, infile)
+         IF (j == 1) THEN
+            ALLOCATE(Tc(nkTc, na))
+         END IF
+         Tk_CAMB(CAMB_column_Tk_CDM,:) = cosm%Om_c*Tk_CAMB(CAMB_column_Tk_CDM,:)
+         Tk_CAMB(CAMB_column_Tk_baryon,:) = cosm%Om_b*Tk_CAMB(CAMB_column_Tk_baryon,:)
+         Tk_CAMB(CAMB_column_Tk_total,:) = cosm%Om_m*Tk_CAMB(CAMB_column_Tk_total,:)  
+         Tc(:,j) = (Tk_CAMB(CAMB_column_Tk_CDM,:)+Tk_CAMB(CAMB_column_Tk_baryon,:))/Tk_CAMB(CAMB_column_Tk_total,:)
+      END DO
 
-      IF (cosm%verbose) THEN
-         WRITE (*, *) 'GET_CAMB_POWER: nk after pruning:', nk
+      IF(cosm%verbose) THEN
+         WRITE (*, *) 'GET_CAMB_POWER: Transfer function kmin [h/Mpc]:', k_Tc(1)
+         WRITE (*, *) 'GET_CAMB_POWER: Transfer function kmax [h/Mpc]:', k_Tc(nkTc)
+         WRITE (*, *) 'GET_CAMB_POWER: Transfer function T(kmin):', Tc(1,1)
          WRITE (*, *) 'GET_CAMB_POWER: Done'
          WRITE (*, *)
       END IF
@@ -4918,10 +5048,11 @@ CONTAINS
       ! Initialise the CAMB linear power spectrum calculation
       USE CAMB_stuff
       USE string_operations
+      USE array_operations
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, ALLOCATABLE :: k(:), a(:), Pk(:,:)
-      INTEGER :: i, j, nk, na
+      REAL, ALLOCATABLE :: a(:), kPk(:), Pk(:,:), kTc(:), Tc(:,:)
+      INTEGER :: i, j, na, nPk, nTc
       CHARACTER(len=256), PARAMETER :: camb = 'camb'
       CHARACTER(len=256), PARAMETER :: dir = '/Users/Mead/Physics/CAMB_files/tmp/'
       CHARACTER(len=256), PARAMETER :: root = trim(dir)//'temp'
@@ -4942,7 +5073,7 @@ CONTAINS
       END IF
 
       ! For scale-dependent growth fill the scale-factor array first
-      IF (cosm%growk) THEN
+      IF (cosm%scale_dependent_growth) THEN
          na = na_CAMB
          CALL fill_array(log(amin), log(amax), cosm%log_a_plin, na)          
       ELSE
@@ -4953,19 +5084,27 @@ CONTAINS
       ! Fill arrays
       cosm%na_plin = na
       ALLOCATE(a(na))
-      IF (cosm%growk) THEN
+      IF (cosm%scale_dependent_growth) THEN
          a = exp(cosm%log_a_plin)
       ELSE
          a = 1.
       END IF
 
       ! Get the CAMB P(k) at a series of 'a' values
-      CALL get_CAMB_power(k, a, Pk, nk, na, non_linear, halofit_version, cosm)
+      CALL get_CAMB_power(a, na, kPk, Pk, nPk, kTc, Tc, nTc, non_linear, halofit_version, cosm)
+
+      CALL if_allocated_deallocate(cosm%log_k_Tcold)
+      CALL if_allocated_deallocate(cosm%Tcold)
+      ALLOCATE(cosm%log_k_Tcold(nTc), cosm%Tcold(nTc, na))
+      cosm%log_k_Tcold = log(kTc)
+      cosm%Tcold = Tc
+      cosm%nk_Tcold = nTc
+      DEALLOCATE(kTc, Tc)
 
       IF (cosm%verbose) THEN
-         WRITE(*,*) 'INIT_CAMB_LINEAR: kmin [h/Mpc]:', k(1)
-         WRITE(*,*) 'INIT_CAMB_LINEAR: kmax [h/Mpc]:', k(nk)
-         WRITE(*,*) 'INIT_CAMB_LINEAR: Number of points in k:', nk
+         WRITE(*,*) 'INIT_CAMB_LINEAR: kmin [h/Mpc]:', kPk(1)
+         WRITE(*,*) 'INIT_CAMB_LINEAR: kmax [h/Mpc]:', kPk(nPk)
+         WRITE(*,*) 'INIT_CAMB_LINEAR: Number of points in k:', nPk
          IF(na .NE. 1) THEN
             WRITE(*,*) 'INIT_CAMB_LINEAR: amin:', a(1)
             WRITE(*,*) 'INIT_CAMB_LINEAR: amax:', a(na)
@@ -4977,19 +5116,19 @@ CONTAINS
 
          CALL fill_array(log(kmin_CAMB), log(kmax_CAMB), cosm%log_k_plin, nk_CAMB)
 
-         IF(cosm%growk) THEN         
+         IF(cosm%scale_dependent_growth) THEN         
             IF(ALLOCATED(cosm%log_plina)) DEALLOCATE(cosm%log_plina)
             ALLOCATE(cosm%log_plina(nk_CAMB, na))
             DO j = 1, na
                DO i= 1, nk_CAMB
-                  cosm%log_plina(i, j) = find(cosm%log_k_plin(i), log(k), log(Pk(:,j)), nk, iorder, ifind, imeth)
+                  cosm%log_plina(i, j) = find(cosm%log_k_plin(i), log(kPk), log(Pk(:,j)), nPk, iorder, ifind, imeth)
                END DO
             END DO
          ELSE
             IF(ALLOCATED(cosm%log_plin)) DEALLOCATE(cosm%log_plin)
             ALLOCATE(cosm%log_plin(nk_CAMB))
             DO i = 1, nk_CAMB
-               cosm%log_plin(i) = find(cosm%log_k_plin(i), log(k), log(Pk(:,1)), nk, iorder, ifind, imeth)
+               cosm%log_plin(i) = find(cosm%log_k_plin(i), log(kPk), log(Pk(:,1)), nPk, iorder, ifind, imeth)
             END DO
          END IF
          cosm%nk_plin = nk_CAMB
@@ -5003,23 +5142,23 @@ CONTAINS
       ELSE  
 
          IF (ALLOCATED(cosm%log_k_plin)) DEALLOCATE (cosm%log_k_plin)
-         ALLOCATE (cosm%log_k_plin(nk))
-         cosm%nk_plin = nk
-         cosm%log_k_plin = log(k)
+         ALLOCATE (cosm%log_k_plin(nPk))
+         cosm%nk_plin = nPk
+         cosm%log_k_plin = log(kPk)
 
-         IF (cosm%growk) THEN      
+         IF (cosm%scale_dependent_growth) THEN      
             IF (ALLOCATED(cosm%log_plina))  DEALLOCATE (cosm%log_plina)
-            ALLOCATE (cosm%log_plina(nk, na))
+            ALLOCATE (cosm%log_plina(nPk, na))
             cosm%log_plina = log(Pk)
          ELSE
             IF (ALLOCATED(cosm%log_plin))   DEALLOCATE (cosm%log_plin)
-            ALLOCATE (cosm%log_plin(nk))
+            ALLOCATE (cosm%log_plin(nPk))
             cosm%log_plin = log(Pk(:,1))
          END IF
 
       END IF
 
-      DEALLOCATE(k, Pk)
+      DEALLOCATE(kPk, Pk)
 
       ! Now the linear power arrays are filled
       cosm%has_power = .TRUE.
@@ -6080,7 +6219,7 @@ CONTAINS
          t = (float(i)-0.5)/float(nint)
          y = -1.+1./t
          rk = y
-         d2 = p_lin(rk, a, cosm)
+         d2 = p_lin(rk, a, flag_power_matter, cosm)
          x = y*r
          w1 = exp(-x*x)
          w2 = 2*x*x*w1
@@ -6118,7 +6257,7 @@ CONTAINS
       CALL halofit_init(rknl, rneff, rncur, a, cosm, verbose)
 
       DO i = 1, n
-         Plin(i) = p_lin(k(i), a, cosm)
+         Plin(i) = p_lin(k(i), a, flag_power_matter, cosm)
          CALL halofit(k(i), rneff, rncur, rknl, Plin(i), Pnl(i), Pq(i), Ph(i), a, cosm, ihf)
       END DO
 
@@ -6149,7 +6288,7 @@ CONTAINS
       real :: f1a, f2a, f3a, f1b, f2b, f3b, frac
 
       ! Necessary cosmological parameters
-      Om_m = cosm%Om_m        ! TODO: Should neutrinos be included?
+      Om_m = cosm%Om_m         ! TODO: Should neutrinos be included?
       Om_mz = Omega_m(a, cosm) ! TODO: Should neutrinos be included?
       Om_vz = Omega_v(a, cosm)+Omega_w(a, cosm) ! Note this well
       wz = w_de(a, cosm) ! Choice here; do you use w or w(z)? w(z) is better I think

@@ -1390,11 +1390,13 @@ CONTAINS
       hmod%has_mass_function = .FALSE.
       hmod%has_bnl = .FALSE.
 
-      ! Find value of sigma_V
-      hmod%sigv = sigmaV(0., a, cosm)
-      IF (hmod%i2hdamp == 3) hmod%sigv100 = sigmaV(100., a, cosm)
-      hmod%sig8_all = sigma_all(8., a, cosm)
-      hmod%sig8_cold = sigma_cold(8., a, cosm)
+      ! Find and save values of sigmaV
+      hmod%sigv = sigmaV(0., a, flag_power_cold, cosm)
+      IF (hmod%i2hdamp == 3) hmod%sigv100 = sigmaV(100., a, flag_power_cold, cosm)
+
+      ! Find and save values of sigmaR
+      hmod%sig8_all = sigma(8., a, flag_power_matter, cosm)
+      hmod%sig8_cold = sigma(8., a, flag_power_cold, cosm)
 
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Filling look-up tables'
@@ -1413,9 +1415,9 @@ CONTAINS
          m = exp(progression(log(hmod%mmin), log(hmod%mmax), i, hmod%n))
          R = radius_m(m, cosm)
          IF (hmod%cold_sigma) THEN
-            sig = sigma_cold(R, a, cosm)
+            sig = sigma(R, a, flag_power_cold, cosm)
          ELSE
-            sig = sigma_all(R, a, cosm)
+            sig = sigma(R, a, flag_power_matter, cosm)
          END IF
          nu = nu_R(R, hmod, cosm)
 
@@ -2147,7 +2149,7 @@ CONTAINS
       !INTEGER :: dewiggle_method = dewiggle_smooth
 
       IF (.NOT. ALLOCATED(cosm%log_k_plin)) STOP 'DEWIGGLE_INIT: Error, P(k) needs to be tabulated for this to work'
-      IF (cosm%growk) STOP 'DEWIGGLE_INIT: Error, this does not support scale-dependent growth yet'
+      IF (cosm%scale_dependent_growth) STOP 'DEWIGGLE_INIT: Error, this does not support scale-dependent growth yet'
 
       nk = cosm%nk_plin
       hmod%n_pdamp = nk
@@ -2360,7 +2362,7 @@ CONTAINS
 
       DO j = 1, na
          DO i = 1, nk
-            Pk(i, j) = P_lin(k(i), a(j), cosm)
+            Pk(i, j) = P_lin(k(i), a(j), flag_power_matter, cosm)
          END DO
       END DO
 
@@ -2516,7 +2518,7 @@ CONTAINS
       DO i = 1, nk
 
          ! Get the linear power
-         plin = p_lin(k(i), hmod%a, cosm)
+         plin = p_lin(k(i), hmod%a, flag_power_matter, cosm)
          pow_li(i) = plin
 
          ! Do the halo model calculation
@@ -4453,9 +4455,9 @@ CONTAINS
 
       ! Choose sigma type
       IF (hmod%cold_sigma) THEN
-         sig = sigma_cold(R, a, cosm)
+         sig = sigma(R, a, flag_power_cold, cosm)
       ELSE
-         sig = sigma_all(R, a, cosm)
+         sig = sigma(R, a, flag_power_matter, cosm)
       END IF
 
       nu_R = delta_c(hmod, cosm)/sig
@@ -4807,18 +4809,16 @@ CONTAINS
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      !REAL :: sigma
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: imeth = 3
       LOGICAL, PARAMETER :: derivative = .FALSE.
+      INTEGER, PARAMETER :: flag = flag_power_cold
       
       ! Numerical differentiation to find effective index at collapse
       IF(derivative) THEN
          effective_index = -3.-derivative_table(log(hmod%rnl), log(hmod%rr), log(hmod%sig**2), hmod%n, iorder, imeth)
       ELSE
-         !sigma = hmod%dc ! At R_nl sigma(R_nl) = delta_c by definition
-         !effective_index = -3.-2.*neff_integral(hmod%rnl, hmod%a, cosm)/sigma**2
-         effective_index = neff(hmod%rnl, hmod%a, cosm)
+         effective_index = neff(hmod%rnl, hmod%a, flag, cosm)
       END IF
 
       ! For some bizarre cosmologies r_nl is very small, so almost no collapse has occured
@@ -4983,7 +4983,7 @@ CONTAINS
       REAL, INTENT(IN) :: z
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: dc, af, zf, RHS, a, rf, sigma, growz
+      REAL :: dc, af, zf, RHS, a, rf, sig, growz
       INTEGER :: i
       REAL, PARAMETER :: f = 0.01**(1./3.) ! This is the f=0.01 parameter in the Bullock realtion sigma(fM,z)
       INTEGER, PARAMETER :: iorder = 3
@@ -4997,11 +4997,11 @@ CONTAINS
          DO i = 1, hmod%n
             rf = hmod%rr(i)*f
             IF (hmod%cold_sigma) THEN
-               sigma = sigma_cold(rf, a, cosm)
+               sig = sigma(rf, a, flag_power_cold, cosm)
             ELSE
-               sigma = sigma_all(rf, a, cosm)
+               sig = sigma(rf, a, flag_power_matter, cosm)
             END IF
-            hmod%sigf(i) = sigma
+            hmod%sigf(i) = sig
          END DO   
       ELSE
          STOP 'ZCOLL_BULLOCK: Error, something went wrong'
