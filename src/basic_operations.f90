@@ -1,4 +1,4 @@
-MODULE logical_operations
+MODULE basic_operations
 
    ! TODO: Rename logical_operations -> basic_operations
 
@@ -18,6 +18,7 @@ MODULE logical_operations
    PUBLIC :: first_digit
    PUBLIC :: swap
    PUBLIC :: regular_spacing
+   PUBLIC :: increment
 
    INTERFACE swap
       MODULE PROCEDURE swap_real
@@ -30,7 +31,32 @@ MODULE logical_operations
       MODULE PROCEDURE read_command_argument_character
    END INTERFACE read_command_argument
 
+   INTERFACE increment
+      MODULE PROCEDURE increment_real
+      MODULE PROCEDURE increment_integer
+   END INTERFACE increment
+
 CONTAINS
+
+   SUBROUTINE increment_real(x, y)
+
+      IMPLICIT NONE
+      REAL, INTENT(INOUT) :: x
+      REAL, INTENT(IN) :: y
+
+      x = x+y
+
+   END SUBROUTINE increment_real
+
+   SUBROUTINE increment_integer(x, y)
+
+      IMPLICIT NONE
+      INTEGER, INTENT(INOUT) :: x
+      INTEGER, INTENT(IN) :: y
+
+      x = x+y
+
+   END SUBROUTINE increment_integer
 
    SUBROUTINE fix_min(x, xmin)
 
@@ -280,29 +306,4 @@ CONTAINS
 
    END SUBROUTINE swap_int
 
-   LOGICAL FUNCTION regular_spacing(a, n)
-
-      ! Returns true if array a is regularly spaced
-      USE array_operations
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: a(n)
-      INTEGER, INTENT(IN) :: n
-      REAL :: amin, amax, b
-      INTEGER :: i
-      REAL, PARAMETER :: eps = 1e-5
-
-      amin = a(1)
-      amax = a(n)
-
-      regular_spacing = .TRUE.
-      DO i = 1, n
-         b = progression(amin, amax, i, n)
-         IF (.NOT. requal(b, a(i), eps)) THEN
-            regular_spacing = .FALSE.
-            EXIT
-         END IF
-      END DO
-
-   END FUNCTION
-
-END MODULE logical_operations
+END MODULE basic_operations
