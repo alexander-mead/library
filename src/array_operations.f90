@@ -40,6 +40,7 @@ MODULE array_operations
    PUBLIC :: mask
    PUBLIC :: apply_mask
    PUBLIC :: smooth_array
+   PUBLIC :: if_allocated_deallocate
 
    PUBLIC :: unique_entries
    PUBLIC :: number_of_appearances
@@ -74,7 +75,40 @@ MODULE array_operations
       PROCEDURE apply_mask_2D
    END INTERFACE apply_mask
 
+   INTERFACE if_allocated_deallocate
+      PROCEDURE if_allocated_deallocate_1D
+      PROCEDURE if_allocated_deallocate_2D
+      PROCEDURE if_allocated_deallocate_3D
+   END INTERFACE if_allocated_deallocate
+
 CONTAINS
+
+   SUBROUTINE if_allocated_deallocate_1D(x)
+
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
+
+      IF(ALLOCATED(x)) DEALLOCATE(x)
+
+   END SUBROUTINE if_allocated_deallocate_1D
+
+   SUBROUTINE if_allocated_deallocate_2D(x)
+
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:)
+
+      IF(ALLOCATED(x)) DEALLOCATE(x)
+
+   END SUBROUTINE if_allocated_deallocate_2D
+
+   SUBROUTINE if_allocated_deallocate_3D(x)
+
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:,:)
+
+      IF(ALLOCATED(x)) DEALLOCATE(x)
+
+   END SUBROUTINE if_allocated_deallocate_3D
 
    SUBROUTINE smooth_array(x, n, m)
 
@@ -1097,5 +1131,30 @@ CONTAINS
       END DO
 
    END FUNCTION repeated_entries
+
+   LOGICAL FUNCTION regular_spacing(a, n)
+
+      ! Returns true if array a is regularly spaced
+      USE basic_operations
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: a(n)
+      INTEGER, INTENT(IN) :: n
+      REAL :: amin, amax, b
+      INTEGER :: i
+      REAL, PARAMETER :: eps = 1e-5
+
+      amin = a(1)
+      amax = a(n)
+
+      regular_spacing = .TRUE.
+      DO i = 1, n
+         b = progression(amin, amax, i, n)
+         IF (.NOT. requal(b, a(i), eps)) THEN
+            regular_spacing = .FALSE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION regular_spacing
 
 END MODULE array_operations
