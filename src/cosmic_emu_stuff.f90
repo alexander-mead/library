@@ -4,6 +4,7 @@ MODULE cosmic_emu_stuff
    USE array_operations
    USE cosmology_functions
    USE interpolate
+   USE logical_operations
 
    IMPLICIT NONE
 
@@ -16,8 +17,7 @@ MODULE cosmic_emu_stuff
 CONTAINS
 
    SUBROUTINE get_Cosmic_Emu_power(k, P, n, z, cosm, rebin)
-
-      USE logical_operations
+    
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:), P(:)
       INTEGER, INTENT(OUT) :: n
