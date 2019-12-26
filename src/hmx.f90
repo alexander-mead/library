@@ -182,7 +182,7 @@ MODULE HMx
       ! Switches
       INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, ip2h_corr
       INTEGER :: idc, iDv, ieta, ikstar, i2hdamp, i1hdamp, itrans
-      LOGICAL :: cold_sigma
+      INTEGER :: flag_sigma
 
       ! Void stuff
       LOGICAL :: voids
@@ -540,7 +540,7 @@ CONTAINS
       hmod%iconc = 4
 
       ! How to calculate sigma(R); either cold matter or all matter
-      hmod%cold_sigma = .TRUE.
+      hmod%flag_sigma = flag_power_cold
 
       ! Linear collapse threshold delta_c
       ! 1 - Fixed 1.686
@@ -909,7 +909,7 @@ CONTAINS
             hmod%i1hdamp = 3   ! k^4 at large scales for one-halo term
             hmod%ip2h = 3      ! Linear theory with damped wiggles
             hmod%i2hdamp = 2   ! Change back to Mead (2015) model for two-halo damping
-            !hmod%cold_sigma = .FALSE. ! This seemed to produce better neutrino results
+            !hmod%flag_sigma = flag_power_all ! This seemed to produce better neutrino results
             hmod%zinf_Dolag = 100.
             IF(ihm == 15) THEN
                ! Original (UBC?) parameters
@@ -1400,8 +1400,8 @@ CONTAINS
       hmod%has_bnl = .FALSE.
 
       ! Find and save values of sigmaV
-      hmod%sigv = sigmaV(0., a, flag_power_cold, cosm)
-      IF (hmod%i2hdamp == 3) hmod%sigv100 = sigmaV(100., a, flag_power_cold, cosm)
+      hmod%sigv = sigmaV(0., a, hmod%flag_sigma, cosm)
+      IF (hmod%i2hdamp == 3) hmod%sigv100 = sigmaV(100., a, hmod%flag_sigma, cosm)
 
       ! Find and save values of sigmaR
       hmod%sig8_all = sigma(8., a, flag_power_matter, cosm)
@@ -1423,11 +1423,7 @@ CONTAINS
 
          m = exp(progression(log(hmod%mmin), log(hmod%mmax), i, hmod%n))
          R = radius_m(m, cosm)
-         IF (hmod%cold_sigma) THEN
-            sig = sigma(R, a, flag_power_cold, cosm)
-         ELSE
-            sig = sigma(R, a, flag_power_matter, cosm)
-         END IF
+         sig = sigma(R, a, hmod%flag_sigma, cosm)
          nu = nu_R(R, hmod, cosm)
 
          hmod%m(i) = m
@@ -1719,10 +1715,12 @@ CONTAINS
          END IF
 
          ! sigma(R) type
-         IF (hmod%cold_sigma) THEN
+         IF (hmod%flag_sigma == flag_power_cold) THEN
             WRITE (*, *) 'HALOMODEL: Sigma being calculated using cold matter'
-         ELSE
+         ELSE IF (hmod%flag_sigma == flag_power_matter) THEN
             WRITE (*, *) 'HALOMODEL: Sigma being calculated using all matter'
+         ELSE
+            STOP 'HALOMODEL: Error, flag for cold/matter specified incorreclty'
          END IF
 
          ! delta_c
@@ -4343,17 +4341,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: a, sig
 
-      ! Scale factor
-      a = hmod%a
-
-      ! Choose sigma type
-      IF (hmod%cold_sigma) THEN
-         sig = sigma(R, a, flag_power_cold, cosm)
-      ELSE
-         sig = sigma(R, a, flag_power_matter, cosm)
-      END IF
-
-      nu_R = delta_c(hmod, cosm)/sig
+      nu_R = delta_c(hmod, cosm)/sigma(R, hmod%a, hmod%flag_sigma, cosm)
 
    END FUNCTION nu_R
 
@@ -4889,11 +4877,7 @@ CONTAINS
       IF (hmod%iconc == 1) THEN
          DO i = 1, hmod%n
             rf = hmod%rr(i)*f
-            IF (hmod%cold_sigma) THEN
-               sig = sigma(rf, a, flag_power_cold, cosm)
-            ELSE
-               sig = sigma(rf, a, flag_power_matter, cosm)
-            END IF
+            sig = sigma(rf, a, hmod%flag_sigma, cosm)
             hmod%sigf(i) = sig
          END DO   
       ELSE
