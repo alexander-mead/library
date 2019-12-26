@@ -2846,7 +2846,7 @@ CONTAINS
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       REAL, INTENT(IN) :: a ! Scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER, PARAMETER :: method_cold = 4
+      INTEGER, PARAMETER :: method_cold = 3
 
       IF (cosm%trivial_cold .OR. method_cold == 1) THEN
          ! Assuming the cold spectrum is exactly the matter spectrum

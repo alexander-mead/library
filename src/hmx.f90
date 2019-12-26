@@ -1418,9 +1418,6 @@ CONTAINS
 
       ! Find and save values of sigma
       hmod%sigV_all = sigmaV(0., a, flag_power_total, cosm)
-      !IF (hmod%i2hdamp == 3) hmod%sigV100_all = sigmaV(100., a, flag_power_total, cosm)
-      !hmod%sig8_all = sigma(8., a, flag_power_total, cosm)
-      !hmod%sig8_cold = sigma(8., a, flag_power_cold, cosm)
       IF (hmod%idc == 3 .OR. hmod%idc == 6) hmod%sig_deltac = sigma(8., a, hmod%flag_sigma_deltac, cosm)
       IF (hmod%ieta == 2)    hmod%sig_eta = sigma(8., a, hmod%flag_sigma_eta, cosm)
       IF (hmod%ikstar == 2)  hmod%sigV_kstar = sigmaV(0., a, hmod%flag_sigmaV_kstar, cosm)
@@ -3653,8 +3650,6 @@ CONTAINS
          delta_c = dc_NakamuraSuto(a, cosm)
       ELSE IF (hmod%idc == 3 .OR. hmod%idc == 6) THEN
          ! From Mead et al. (2015)
-         !delta_c = hmod%dc0+hmod%dc1*log(hmod%sig8_all)
-         !delta_c = hmod%dc0+hmod%dc1*log(sigma(8., a, hmod%flag_sigma_deltac, cosm))
          delta_c = hmod%dc0+hmod%dc1*log(hmod%sig_deltac)
          IF (hmod%idc == 3) THEN
             ! Mead et al. (2016) addition of small cosmology and explicit neutrino dependence
@@ -3693,7 +3688,7 @@ CONTAINS
       ELSE IF (hmod%iDv == 3 .OR. hmod%iDv == 8) THEN
          ! From Mead et al. (2015, 2016)
          ! This has Omega_m(a) dependence in Mead et al. (2016)
-         ! It may have been more logical to have Omega_cold(a) dependence
+         ! TODO: It may be more logical to have an Omega_cold(a) dependence
          Delta_v = hmod%Dv0*Omega_m(a, cosm)**hmod%Dv1
          IF (hmod%iDv == 3) THEN
             ! Mead et al. (2016) neutrino addition
@@ -3738,8 +3733,6 @@ CONTAINS
          ELSE
             eta0 = hmod%eta0
          END IF
-         !eta_HMcode = eta0-hmod%eta1*hmod%sig8_all
-         !eta_HMcode = eta0-hmod%eta1*sigma(8., hmod%a, hmod%flag_sigma_eta, cosm)
          eta_HMcode = eta0-hmod%eta1*hmod%sig_eta
       ELSE
          STOP 'ETA_HMcode: Error, ieta defined incorrectly'
@@ -3763,8 +3756,6 @@ CONTAINS
          kstar_HMcode = 0.
       ELSE IF (hmod%ikstar == 2) THEN
          ! One-halo cut-off wavenumber from Mead et al. (2015, 2016)
-         !kstar_HMcode = hmod%ks/hmod%sigv_all
-         !kstar_HMcode = hmod%ks/sigmaV(0., hmod%a, hmod%flag_sigmaV_kstar, cosm)
          kstar_HMcode = hmod%ks/hmod%sigV_kstar
       ELSE
          STOP 'KSTAR_HMcode: Error, ikstar defined incorrectly'
@@ -3814,15 +3805,9 @@ CONTAINS
          fdamp_HMcode = 0.
       ELSE IF (hmod%i2hdamp == 2) THEN
          ! Mead et al. (2015)
-         ! Note that sig8 is for all matter here because Mead (2015) did not consider massive nu
-         !fdamp_HMcode = hmod%f0*hmod%sig8_all**hmod%f1
-         !fdamp_HMcode = hmod%f0*sigma(8., hmod%a, hmod%flag_sigma_fdamp, cosm)**hmod%f1
          fdamp_HMcode = hmod%f0*hmod%sig_fdamp**hmod%f1
       ELSE IF (hmod%i2hdamp == 3) THEN
          ! Mead et al. (2016)
-         ! TODO: Should this be sigma_v for all matter or only cold matter? Does this matter for R=100 Mpc/h?
-         !fdamp_HMcode = hmod%f0*hmod%sigv100_all**hmod%f1
-         !fdamp_HMcode = hmod%f0*sigmaV(100., hmod%a, hmod%flag_sigmaV_fdamp, cosm)**hmod%f1
          fdamp_HMcode = hmod%f0*hmod%sigv_fdamp**hmod%f1
       ELSE
          STOP 'FDAMP_HMcode: Error, i2hdamp defined incorrectly'
