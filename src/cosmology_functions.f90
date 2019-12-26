@@ -82,7 +82,7 @@ MODULE cosmology_functions
    PUBLIC :: sigmaV
    PUBLIC :: neff
    PUBLIC :: xi_lin
-   PUBLIC :: flag_power_matter
+   PUBLIC :: flag_power_total
    PUBLIC :: flag_power_cold
 
    ! CAMB interface
@@ -232,7 +232,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
    INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
    INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB
-   INTEGER, PARAMETER :: flag_power_matter = 1 ! Flag to get the total matter power spectrum
+   INTEGER, PARAMETER :: flag_power_total = 1  ! Flag to get the total matter power spectrum
    INTEGER, PARAMETER :: flag_power_cold = 2   ! Flag to get the cold matter power spectrum
 
    ! Correlation function
@@ -1694,7 +1694,7 @@ CONTAINS
       REAL, PARAMETER :: a = 1.
 
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW) THEN
-         cosm%A = cosm%A*sqrt(cosm%pval/p_lin(cosm%kval, a, flag_power_matter, cosm))
+         cosm%A = cosm%A*sqrt(cosm%pval/p_lin(cosm%kval, a, flag_power_total, cosm))
       ELSE
          STOP 'NORMALISE_VALUE: Error, this is not possible for your transfer function'
       END IF
@@ -1718,7 +1718,7 @@ CONTAINS
       REAL, PARAMETER :: R = 8. ! Because we are doing sigma(R = 8 Mpc/h) normalisation
       REAL, PARAMETER :: a = 1. ! Because we are doing simga(R = 8 Mpc/h, a = 1) normalisation
 
-      sigma8 = sigma_integral(R, a, flag_power_matter, cosm)
+      sigma8 = sigma_integral(R, a, flag_power_total, cosm)
 
    END FUNCTION sigma8
 
@@ -3187,7 +3187,7 @@ CONTAINS
 
       DO iflag = 1, ntype
 
-         IF (iflag == 1) flag = flag_power_matter
+         IF (iflag == 1) flag = flag_power_total
          IF (iflag == 2) flag = flag_power_cold
 
          ! Do the calculations to fill the look-up tables
@@ -3200,7 +3200,7 @@ CONTAINS
                DO i = 1, nr_sigma
                   R = exp(cosm%log_r_sigma(i))
                   sig = sigma_integral(R, a, flag, cosm)
-                  IF (flag == flag_power_matter) THEN
+                  IF (flag == flag_power_total) THEN
                      cosm%log_sigmaa(i, j) = log(sig)
                   ELSE IF (flag == flag_power_cold) THEN
                      cosm%log_sigmaca(i, j) = log(sig)
@@ -3215,7 +3215,7 @@ CONTAINS
             DO i = 1, nr_sigma
                R = exp(cosm%log_r_sigma(i))
                sig = sigma_integral(R, a, flag, cosm)
-               IF (flag == flag_power_matter) THEN
+               IF (flag == flag_power_total) THEN
                   cosm%log_sigma(i) = log(sig)
                ELSE IF (flag == flag_power_cold) THEN
                   cosm%log_sigmac(i) = log(sig)
@@ -3266,7 +3266,7 @@ CONTAINS
       INTEGER, PARAMETER :: imeth = imeth_interpolation_sigma   ! Method for polynomials
 
       IF (cosm%scale_dependent_growth) THEN
-         IF (flag == flag_power_matter) THEN
+         IF (flag == flag_power_total) THEN
             find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaa,&
                cosm%nr_sigma, cosm%na_sigma, &
                iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
@@ -3278,7 +3278,7 @@ CONTAINS
             STOP 'FIND_SIGMA: Error, flag not specified correctly'
          END IF
       ELSE
-         IF (flag == flag_power_matter) THEN
+         IF (flag == flag_power_total) THEN
             find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigma, cosm%nr_sigma, iorder, ifind, imeth))
          ELSE IF (flag == flag_power_cold) THEN
             find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigmac, cosm%nr_sigma, iorder, ifind, imeth))
@@ -6283,7 +6283,7 @@ CONTAINS
          t = (float(i)-0.5)/float(nint)
          y = -1.+1./t
          rk = y
-         d2 = p_lin(rk, a, flag_power_matter, cosm)
+         d2 = p_lin(rk, a, flag_power_total, cosm)
          x = y*r
          w1 = exp(-x*x)
          w2 = 2*x*x*w1
@@ -6321,7 +6321,7 @@ CONTAINS
       CALL halofit_init(rknl, rneff, rncur, a, cosm, verbose)
 
       DO i = 1, n
-         Plin(i) = p_lin(k(i), a, flag_power_matter, cosm)
+         Plin(i) = p_lin(k(i), a, flag_power_total, cosm)
          CALL halofit(k(i), rneff, rncur, rknl, Plin(i), Pnl(i), Pq(i), Ph(i), a, cosm, ihf)
       END DO
 

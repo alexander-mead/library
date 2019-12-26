@@ -182,7 +182,10 @@ MODULE HMx
       ! Switches
       INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, ip2h_corr
       INTEGER :: idc, iDv, ieta, ikstar, i2hdamp, i1hdamp, itrans
-      INTEGER :: flag_sigma
+      
+      ! Flags for sigma 
+      INTEGER :: flag_sigma, flag_sigmaV_kstar, flag_sigma_fdamp
+      INTEGER :: flag_sigma_eta, flag_sigma_deltac, flag_sigmaV_fdamp
 
       ! Void stuff
       LOGICAL :: voids
@@ -216,7 +219,9 @@ MODULE HMx
       INTEGER :: nk
 
       ! HMcode parameters and experimental parameters
-      REAL :: sigv, sigv100, c3, knl, rnl, mnl, neff, sig8_all, sig8_cold, Rh, Mh, Mp
+      REAL :: c3, knl, rnl, mnl, neff, Rh, Mh, Mp, sigv_all
+      !REAL :: sigV_all, sigV100_all, sig8_all, sig8_cold
+      REAL :: sig_eta, sig_deltac, sig_fdamp, sigV_kstar, sigV_fdamp
 
       ! Saturation parameters (e.g., WDM)
       REAL :: nu_saturation
@@ -540,7 +545,13 @@ CONTAINS
       hmod%iconc = 4
 
       ! How to calculate sigma(R); either cold matter or all matter
+      ! Defaults are from Mead et al. (2016)
       hmod%flag_sigma = flag_power_cold
+      hmod%flag_sigma_deltac = flag_power_total
+      hmod%flag_sigma_eta = flag_power_total
+      hmod%flag_sigma_fdamp = flag_power_total   ! Used in Mead et al. (2015) only
+      hmod%flag_sigmaV_fdamp = flag_power_total
+      hmod%flag_sigmaV_kstar = flag_power_total
 
       ! Linear collapse threshold delta_c
       ! 1 - Fixed 1.686
@@ -892,6 +903,11 @@ CONTAINS
          hmod%itrans = 2
          hmod%iDolag = 3
          hmod%zinf_Dolag = 10.
+         hmod%flag_sigma = flag_power_cold
+         hmod%flag_sigma_deltac = flag_power_total
+         hmod%flag_sigma_eta = flag_power_total
+         hmod%flag_sigmaV_fdamp = flag_power_total
+         hmod%flag_sigmaV_kstar = flag_power_total
          IF (ihm == 7) THEN
             ! Mead et al. (2015)
             hmod%idc = 6
@@ -904,6 +920,7 @@ CONTAINS
             hmod%iDolag = 2
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
+            hmod%flag_sigma_fdamp = flag_power_total ! Used in Mead et al. (2015) only
          ELSE IF (ihm == 15 .OR. ihm == 54) THEN
             ! Mead et al. (in prep)
             hmod%i1hdamp = 3   ! k^4 at large scales for one-halo term
@@ -1399,23 +1416,26 @@ CONTAINS
       hmod%has_mass_function = .FALSE.
       hmod%has_bnl = .FALSE.
 
-      ! Find and save values of sigmaV
-      hmod%sigv = sigmaV(0., a, hmod%flag_sigma, cosm)
-      IF (hmod%i2hdamp == 3) hmod%sigv100 = sigmaV(100., a, hmod%flag_sigma, cosm)
-
-      ! Find and save values of sigmaR
-      hmod%sig8_all = sigma(8., a, flag_power_matter, cosm)
-      hmod%sig8_cold = sigma(8., a, flag_power_cold, cosm)
+      ! Find and save values of sigma
+      hmod%sigV_all = sigmaV(0., a, flag_power_total, cosm)
+      !IF (hmod%i2hdamp == 3) hmod%sigV100_all = sigmaV(100., a, flag_power_total, cosm)
+      !hmod%sig8_all = sigma(8., a, flag_power_total, cosm)
+      !hmod%sig8_cold = sigma(8., a, flag_power_cold, cosm)
+      IF (hmod%idc == 3 .OR. hmod%idc == 6) hmod%sig_deltac = sigma(8., a, hmod%flag_sigma_deltac, cosm)
+      IF (hmod%ieta == 2)    hmod%sig_eta = sigma(8., a, hmod%flag_sigma_eta, cosm)
+      IF (hmod%ikstar == 2)  hmod%sigV_kstar = sigmaV(0., a, hmod%flag_sigmaV_kstar, cosm)
+      IF (hmod%i2hdamp == 2) hmod%sig_fdamp = sigma(8., a, hmod%flag_sigma_fdamp, cosm)
+      IF (hmod%i2hdamp == 3) hmod%sigV_fdamp = sigmaV(100., a, hmod%flag_sigmaV_fdamp, cosm)
 
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Filling look-up tables'
          WRITE (*, *) 'INIT_HALOMOD: Number of entries:', hmod%n
          WRITE (*, *) 'INIT_HALOMOD: Tables being filled at redshift:', REAL(z)
          WRITE (*, *) 'INIT_HALOMOD: Tables being filled at scale-factor:', REAL(a)
-         WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigv)
-         IF (hmod%i2hdamp == 3) WRITE (*, *) 'INIT_HALOMOD: sigmaV_100 [Mpc/h]:', REAL(hmod%sigv100)
-         WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (all):', REAL(hmod%sig8_all)
-         WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (cold):', REAL(hmod%sig8_cold)
+         !WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigV_all)
+         !IF (hmod%i2hdamp == 3) WRITE (*, *) 'INIT_HALOMOD: sigmaV_100 [Mpc/h]:', REAL(hmod%sigV100_all)
+         !WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (all):', REAL(hmod%sig8_all)
+         !WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (cold):', REAL(hmod%sig8_cold)
       END IF
 
       ! Loop over halo masses and fill arrays
@@ -1717,8 +1737,8 @@ CONTAINS
          ! sigma(R) type
          IF (hmod%flag_sigma == flag_power_cold) THEN
             WRITE (*, *) 'HALOMODEL: Sigma being calculated using cold matter'
-         ELSE IF (hmod%flag_sigma == flag_power_matter) THEN
-            WRITE (*, *) 'HALOMODEL: Sigma being calculated using all matter'
+         ELSE IF (hmod%flag_sigma == flag_power_total) THEN
+            WRITE (*, *) 'HALOMODEL: Sigma being calculated using total matter'
          ELSE
             STOP 'HALOMODEL: Error, flag for cold/matter specified incorreclty'
          END IF
@@ -2253,7 +2273,7 @@ CONTAINS
 
       DO j = 1, na
          DO i = 1, nk
-            Pk(i, j) = P_lin(k(i), a(j), flag_power_matter, cosm)
+            Pk(i, j) = P_lin(k(i), a(j), flag_power_total, cosm)
          END DO
       END DO
 
@@ -2409,7 +2429,7 @@ CONTAINS
       DO i = 1, nk
 
          ! Get the linear power
-         plin = p_lin(k(i), hmod%a, flag_power_matter, cosm)
+         plin = p_lin(k(i), hmod%a, flag_power_total, cosm)
          pow_li(i) = plin
 
          ! Do the halo model calculation
@@ -2748,7 +2768,7 @@ CONTAINS
       ELSE IF (hmod%ip2h == 3) THEN
 
          ! Damped BAO linear theory
-         p_2h = p_dewiggle(k, hmod%a, flag_power_matter, hmod%sigv, cosm)
+         p_2h = p_dewiggle(k, hmod%a, flag_power_total, hmod%sigV_all, cosm)
 
       ELSE IF (hmod%ip2h == 4) THEN
 
@@ -2887,7 +2907,7 @@ CONTAINS
       ! Apply damping to the two-halo term
       IF (hmod%i2hdamp .NE. 1) THEN
          ! Two-halo damping parameters
-         sigv = hmod%sigv
+         sigv = hmod%sigV_all
          fdamp = fdamp_HMcode(hmod, cosm)
          IF (fdamp == 0.) THEN
             p_2h = p_2h
@@ -3632,10 +3652,12 @@ CONTAINS
          ! From Nakamura & Suto (1997) LCDM fitting function
          delta_c = dc_NakamuraSuto(a, cosm)
       ELSE IF (hmod%idc == 3 .OR. hmod%idc == 6) THEN
-         ! From Mead et al. (2015)     
-         delta_c = hmod%dc0+hmod%dc1*log(hmod%sig8_all)
+         ! From Mead et al. (2015)
+         !delta_c = hmod%dc0+hmod%dc1*log(hmod%sig8_all)
+         !delta_c = hmod%dc0+hmod%dc1*log(sigma(8., a, hmod%flag_sigma_deltac, cosm))
+         delta_c = hmod%dc0+hmod%dc1*log(hmod%sig_deltac)
          IF (hmod%idc == 3) THEN
-            ! Mead et al. (2016) addition of small cosmology and neutrino dependence
+            ! Mead et al. (2016) addition of small cosmology and explicit neutrino dependence
             delta_c = delta_c*(1.+hmod%dcnu*cosm%f_nu)
             delta_c = delta_c*(dc_NakamuraSuto(a, cosm)/dc0)
          END IF
@@ -3716,7 +3738,9 @@ CONTAINS
          ELSE
             eta0 = hmod%eta0
          END IF
-         eta_HMcode = eta0-hmod%eta1*hmod%sig8_all
+         !eta_HMcode = eta0-hmod%eta1*hmod%sig8_all
+         !eta_HMcode = eta0-hmod%eta1*sigma(8., hmod%a, hmod%flag_sigma_eta, cosm)
+         eta_HMcode = eta0-hmod%eta1*hmod%sig_eta
       ELSE
          STOP 'ETA_HMcode: Error, ieta defined incorrectly'
       END IF
@@ -3739,7 +3763,9 @@ CONTAINS
          kstar_HMcode = 0.
       ELSE IF (hmod%ikstar == 2) THEN
          ! One-halo cut-off wavenumber from Mead et al. (2015, 2016)
-         kstar_HMcode = hmod%ks/hmod%sigv
+         !kstar_HMcode = hmod%ks/hmod%sigv_all
+         !kstar_HMcode = hmod%ks/sigmaV(0., hmod%a, hmod%flag_sigmaV_kstar, cosm)
+         kstar_HMcode = hmod%ks/hmod%sigV_kstar
       ELSE
          STOP 'KSTAR_HMcode: Error, ikstar defined incorrectly'
       END IF
@@ -3789,11 +3815,15 @@ CONTAINS
       ELSE IF (hmod%i2hdamp == 2) THEN
          ! Mead et al. (2015)
          ! Note that sig8 is for all matter here because Mead (2015) did not consider massive nu
-         fdamp_HMcode = hmod%f0*hmod%sig8_all**hmod%f1
+         !fdamp_HMcode = hmod%f0*hmod%sig8_all**hmod%f1
+         !fdamp_HMcode = hmod%f0*sigma(8., hmod%a, hmod%flag_sigma_fdamp, cosm)**hmod%f1
+         fdamp_HMcode = hmod%f0*hmod%sig_fdamp**hmod%f1
       ELSE IF (hmod%i2hdamp == 3) THEN
          ! Mead et al. (2016)
          ! TODO: Should this be sigma_v for all matter or only cold matter? Does this matter for R=100 Mpc/h?
-         fdamp_HMcode = hmod%f0*hmod%sigv100**hmod%f1
+         !fdamp_HMcode = hmod%f0*hmod%sigv100_all**hmod%f1
+         !fdamp_HMcode = hmod%f0*sigmaV(100., hmod%a, hmod%flag_sigmaV_fdamp, cosm)**hmod%f1
+         fdamp_HMcode = hmod%f0*hmod%sigv_fdamp**hmod%f1
       ELSE
          STOP 'FDAMP_HMcode: Error, i2hdamp defined incorrectly'
       END IF
@@ -4339,7 +4369,6 @@ CONTAINS
       REAL, INTENT(IN) :: R
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: a, sig
 
       nu_R = delta_c(hmod, cosm)/sigma(R, hmod%a, hmod%flag_sigma, cosm)
 
@@ -4686,20 +4715,18 @@ CONTAINS
    REAL FUNCTION effective_index(hmod, cosm)
 
       ! Power spectrum slope a the non-linear scale
-      ! TODO: Move to cosmology?
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: imeth = 3
       LOGICAL, PARAMETER :: derivative = .FALSE.
-      INTEGER, PARAMETER :: flag = flag_power_cold
       
       ! Numerical differentiation to find effective index at collapse
       IF(derivative) THEN
          effective_index = -3.-derivative_table(log(hmod%rnl), log(hmod%rr), log(hmod%sig**2), hmod%n, iorder, imeth)
       ELSE
-         effective_index = neff(hmod%rnl, hmod%a, flag, cosm)
+         effective_index = neff(hmod%rnl, hmod%a, hmod%flag_sigma, cosm)
       END IF
 
       ! For some bizarre cosmologies r_nl is very small, so almost no collapse has occured
