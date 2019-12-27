@@ -287,10 +287,28 @@ MODULE HMx
    INTEGER, PARAMETER :: iorder_derivative_mass_function = 3
    INTEGER, PARAMETER :: ifind_derivative_mass_function = ifind_split
 
+   ! Diagnostics
+   REAL, PARAMETER :: mmin_diag = 1e10 ! Minimum halo mass for diagnostic tests [Msun/h]
+   REAL, PARAMETER :: mmax_diag = 1e16 ! Maximum halo mass for diagnostic tests [Msun/h]
+   INTEGER, PARAMETER :: n_diag = 101  ! Number of masses to output during diagnostics
+
    ! Halomodel
    LOGICAL, PARAMETER :: verbose_convert_mass = .FALSE. ! Verbosity when running the mass-definition-conversion routines
    REAL, PARAMETER :: eps_p2h = 1e-3                    ! Tolerance for requal for lower limit of two-halo power
-   
+   REAL, PARAMETER :: g_integral_limit = -1e-4          ! Mininum allowed value for g(nu) integral
+   REAL, PARAMETER :: gb_integral_limit = -1e-4         ! Mininum allowed value for g(nu)b(nu) integral
+   LOGICAL, PARAMETER :: check_mass_function = .FALSE.  ! Check that the missing g(nu)b(nu) and g(nu) are not negative?
+   INTEGER, PARAMETER :: iorder_integration = 3         ! Order for standard integration
+   INTEGER, PARAMETER :: iorder_2halo_integration = 3   ! Order for 2-halo integration
+   INTEGER, PARAMETER :: iorder_1halo_integration = 1   ! Order for 1-halo integration (basic because of wiggles)
+
+   ! Voids
+   REAL, PARAMETER :: void_underdensity = -1.      ! Void underdensity
+   REAL, PARAMETER :: void_compensation = 1.1      ! How much larger than the void is the compensation region?
+   REAL, PARAMETER :: simple_void_radius = 10.     ! Void radius [Mpc/h]
+   LOGICAL, PARAMETER :: compensate_voids = .TRUE. ! Do we compenate voids with ridges?
+   LOGICAL, PARAMETER :: simple_voids = .FALSE.    ! Use simple voids or not
+
    ! HMcode
    REAL, PARAMETER :: fdamp_HMcode_min = 1e-3 ! Minimum value for f_damp parameter
    REAL, PARAMETER :: fdamp_HMcode_max = 0.99 ! Maximum value for f_damp parameter
@@ -329,7 +347,11 @@ MODULE HMx
    REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass force  BNL to zero
    LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
    LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Fix a minimum value for B_NL
-   REAL, PARAMETER :: BNL_min = -1.                 ! Minimum value that BNL is allowed to be (could be below -1 ...)
+   REAL, PARAMETER :: min_bnl = -1.                 ! Minimum value that BNL is allowed to be (could be below -1 ...)
+   INTEGER, PARAMETER :: iorder_bnl = 1             ! 1 - Linear interpolation
+   INTEGER, PARAMETER :: ifind_bnl = 3              ! 3 - Midpoint finding scheme
+   INTEGER, PARAMETER :: imeth_bnl = 1              ! 1 - Polynomial method
+   REAL, PARAMETER :: eps_ztol_bnl = 1e-2           ! How far off can the redshift be?
    CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_BDMV'
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar_lowsig8'
@@ -1396,9 +1418,9 @@ CONTAINS
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
       REAL :: Dv, dc, m, nu, R, sig, z, Om_stars
-      REAL, PARAMETER :: glim = -1e-4
-      REAL, PARAMETER :: gblim = -1e-4
-      LOGICAL, PARAMETER :: check_negative_mf = .FALSE. ! Do we check that the missing g(nu)b(nu) and g(nu) are not negative?
+      REAL, PARAMETER :: glim = g_integral_limit
+      REAL, PARAMETER :: gblim = gb_integral_limit
+      LOGICAL, PARAMETER :: check_mf = check_mass_function
 
       ! Set the redshift (this routine needs to be called anew for each z)
       hmod%a = a
@@ -1440,7 +1462,7 @@ CONTAINS
 
          m = exp(progression(log(hmod%mmin), log(hmod%mmax), i, hmod%n))
          R = radius_m(m, cosm)
-         sig = sigma(R, a, hmod%flag_sigma, cosm)
+         sig = sigma(R, a, hmod%flag_sigma, cosm) ! TODO: Add correction here for HMcode (2016)?
          nu = nu_R(R, hmod, cosm)
 
          hmod%m(i) = m
@@ -1514,7 +1536,7 @@ CONTAINS
                WRITE (*, *) 'INIT_HALOMOD: Total g(nu) integration:', REAL(hmod%gnorm) ! Could do better and actually integrate to zero
             END IF
 
-            IF(check_negative_mf) THEN
+            IF(check_mf) THEN
                IF (hmod%gmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'
                IF (hmod%gmax < glim) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
                IF (hmod%gbmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
@@ -1950,10 +1972,10 @@ CONTAINS
       ! TODO: Explicity remove divergence by making functions where alpha*mu^(alpha-1) is multiplied by g(nu)
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
-      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model    
       REAL :: mu1, mu2
       REAL :: alpha
+      INTEGER, PARAMETER :: iorder = iorder_integration
 
       ! Relation between nu and mu: nu=mu^alpha
       alpha = hmod%alpha_numu
@@ -1972,7 +1994,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       integrate_g_nu = integrate_hmod(nu1, nu2, g_nu, hmod, hmod%acc, iorder)
 
@@ -1984,7 +2006,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       integrate_g_nu_on_M = integrate_hmod(nu1, nu2, g_nu_on_M, hmod, hmod%acc, iorder)
 
@@ -1999,7 +2021,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       integrate_gb_nu = integrate_hmod(nu1, nu2, gb_nu, hmod, hmod%acc, iorder)
 
@@ -2014,7 +2036,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       integrate_gb_nu_on_M = integrate_hmod(nu1, nu2, gb_nu_on_M, hmod, hmod%acc, iorder)
 
@@ -2028,7 +2050,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       integrate_nug_nu = integrate_hmod(nu1, nu2, nug_nu, hmod, hmod%acc, iorder)
 
@@ -2042,7 +2064,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       integrate_Mg_nu = integrate_hmod(nu1, nu2, Mg_nu, hmod, hmod%acc, iorder)
 
@@ -2056,7 +2078,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       integrate_nug_nu_on_M = integrate_hmod(nu1, nu2, nug_nu_on_M, hmod, hmod%acc, iorder)
 
@@ -2068,7 +2090,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       mean_bias_number_weighted = integrate_gb_nu_on_M(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
 
@@ -2080,7 +2102,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       mean_nu_number_weighted = integrate_nug_nu_on_M(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
 
@@ -2092,7 +2114,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       mean_halo_mass_number_weighted = integrate_g_nu(nu1, nu2, hmod)/integrate_g_nu_on_M(nu1, nu2, hmod)
 
@@ -2104,7 +2126,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       mean_bias_mass_weighted = integrate_gb_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
 
@@ -2116,7 +2138,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       mean_nu_mass_weighted = integrate_nug_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
 
@@ -2128,7 +2150,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
-      INTEGER, PARAMETER :: iorder = 3     ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       mean_halo_mass_mass_weighted = integrate_Mg_nu(nu1, nu2, hmod)/integrate_g_nu(nu1, nu2, hmod)
 
@@ -2142,7 +2164,7 @@ CONTAINS
       REAL, INTENT(IN) :: nu1, nu2           ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER, PARAMETER :: iorder = 3       ! Order for integration
+      INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
 
       mean_halo_number_density = integrate_hmod(nu1, nu2, g_nu_on_M, hmod, hmod%acc, iorder)
       mean_halo_number_density = mean_halo_number_density*comoving_matter_density(cosm)
@@ -2927,7 +2949,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: ibias
       REAL :: rhom, b, m0, m, nu, integrand(n)
       INTEGER :: i
-      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: iorder = iorder_2halo_integration
 
       rhom = comoving_matter_density(cosm)
 
@@ -2990,7 +3012,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: m, g, fac, ks, wk0_product, m0, rhom, integrand(n)
       INTEGER :: i
-      INTEGER, PARAMETER :: iorder_hm = 1 ! Use basic trapezium rule because the integrand has rapid oscillations in W(k)
+      INTEGER, PARAMETER :: iorder_hm = iorder_1halo_integration
       INTEGER, PARAMETER :: iorder_df = iorder_delta
       INTEGER, PARAMETER :: ifind_df = ifind_delta
       INTEGER, PARAMETER :: imeth_df = imeth_delta
@@ -3118,11 +3140,11 @@ CONTAINS
       REAL :: integrand(hmod%n)
       INTEGER :: i, n
 
-      REAL, PARAMETER :: dv = -1.
-      REAL, PARAMETER :: fvoid = 1.1
-      REAL, PARAMETER :: rvoid_simple = 10.
-      LOGICAL, PARAMETER :: compensate = .TRUE.
-      LOGICAL, PARAMETER :: simple = .FALSE.
+      REAL, PARAMETER :: dv = void_underdensity
+      REAL, PARAMETER :: fvoid = void_compensation
+      REAL, PARAMETER :: rvoid_simple = simple_void_radius
+      LOGICAL, PARAMETER :: compensate = compensate_voids
+      LOGICAL, PARAMETER :: simple = simple_voids
 
       IF (simple) THEN
          n = 1
@@ -3186,13 +3208,13 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       INTEGER  :: nk, nnu
       REAL :: kk
-      INTEGER, PARAMETER :: iorder = 1 ! 1 - Linear interpolation
-      INTEGER, PARAMETER :: ifind = 3  ! 3 - Midpoint finding scheme
-      INTEGER, PARAMETER :: imeth = 1  ! 1 - Polynomial method
-      REAL, PARAMETER :: kmin = kmin_bnl     ! Below this wavenumber set BNL to zero
-      REAL, PARAMETER :: numin = numin_bnl   ! Below this halo mass set  BNL to zero
-      REAL, PARAMETER :: numax = numax_bnl   ! Above this halo mass set  BNL to zero
-      REAL, PARAMETER :: min_value = -1.     ! Minimum value that BNL is allowed to be (could be below -1)
+      INTEGER, PARAMETER :: iorder = iorder_bnl ! 1 - Linear interpolation
+      INTEGER, PARAMETER :: ifind = ifind_bnl   ! 3 - Midpoint finding scheme
+      INTEGER, PARAMETER :: imeth = imeth_bnl   ! 1 - Polynomial method
+      REAL, PARAMETER :: kmin = kmin_bnl        ! Below this wavenumber set BNL to zero
+      REAL, PARAMETER :: numin = numin_bnl      ! Below this halo mass set  BNL to zero
+      REAL, PARAMETER :: numax = numax_bnl      ! Above this halo mass set  BNL to zero
+      REAL, PARAMETER :: min_value = min_bnl    ! Minimum value that BNL is allowed to be (could be below -1)
       LOGICAL, PARAMETER :: halo_exclusion = exclusion_bnl
       LOGICAL, PARAMETER :: fix_minimum = fix_minimum_bnl
 
@@ -3217,10 +3239,10 @@ CONTAINS
 
       ! Halo exclusion
       !IF(halo_exclusion) BNL=BNL*exp(-((kk*(rv1+rv2))**2)/4.)
-      IF(halo_exclusion) BNL=BNL-sigmoid_tanh(kk**2-1./(rv1+rv2)**2)*(BNL-BNL_min)
+      IF(halo_exclusion) BNL=BNL-sigmoid_tanh(kk**2-1./(rv1+rv2)**2)*(BNL-min_value)
 
       ! Fix a minimum value for BNL
-      IF(fix_minimum) CALL fix_min(BNL, BNL_min)
+      IF(fix_minimum) CALL fix_min(BNL, min_value)
 
    END FUNCTION BNL
 
@@ -3234,7 +3256,7 @@ CONTAINS
       REAL :: crap
       CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext
       CHARACTER(len=256), PARAMETER :: base = base_bnl
-      REAL, PARAMETER :: eps = 1e-2
+      REAL, PARAMETER :: eps = eps_ztol_bnl
 
       WRITE (*, *) 'INIT_BNL: Running'
 
@@ -3313,10 +3335,10 @@ CONTAINS
       REAL :: uk1(hmod%n, 2), uk2(hmod%n, 2), uk_quad(hmod%n), uk0_quad
       REAL :: rhom, g, m, m0, integrand(hmod%n)
       INTEGER :: i
-      INTEGER, PARAMETER :: iorder_hm = 1 ! Use basic trapezium rule because the integrand has rapid oscillations in W(k)
-      INTEGER, PARAMETER :: iorder_tr = 3 ! Trispectrum
-      INTEGER, PARAMETER :: ifind_tr = 3
-      INTEGER, PARAMETER :: imeth_tr = 2
+      INTEGER, PARAMETER :: iorder_hm = iorder_1halo_integration
+      INTEGER, PARAMETER :: iorder_tr = iorder_delta
+      INTEGER, PARAMETER :: ifind_tr = ifind_delta
+      INTEGER, PARAMETER :: imeth_tr = imeth_delta
 
       ! Matter density
       rhom = comoving_matter_density(cosm)
@@ -3376,8 +3398,8 @@ CONTAINS
       INTEGER :: m, mi1, mi2
 
       ! Integer 10^m to produce haloes between
-      REAL, PARAMETER :: m1 = 1e10
-      REAL, PARAMETER :: m2 = 1e16
+      REAL, PARAMETER :: m1 = mmin_diag
+      REAL, PARAMETER :: m2 = mmax_diag
 
       WRITE (*, *) 'HALO_DIAGNOSTICS: Outputting diagnostics'
 
@@ -3520,9 +3542,9 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN) :: outfile
       REAL :: m
       INTEGER :: i
-      REAL, PARAMETER :: mmin = 1e10
-      REAL, PARAMETER :: mmax = 1e16
-      INTEGER, PARAMETER :: n = 101
+      REAL, PARAMETER :: mmin = mmin_diag
+      REAL, PARAMETER :: mmax = mmax_diag
+      INTEGER, PARAMETER :: n = n_diag
 
       OPEN (7, file=outfile)
       DO i = 1, n
@@ -3854,9 +3876,10 @@ CONTAINS
       ! Returns the 'pivot mass' [Msun/h]
       IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
+      REAL, PARAMETER :: simple_pivot_mass = 1e14
 
       IF (hmod%simple_pivot) THEN
-         pivot_mass = 1e14
+         pivot_mass = simple_pivot_mass
       ELSE
          pivot_mass = hmod%Mh
       END IF
@@ -4862,7 +4885,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: z
       REAL, INTENT(IN) :: zc
-      REAL, PARAMETER :: A = 4. !Pre-factor for Bullock relation
+      REAL, PARAMETER :: A = 4. ! Pre-factor for Bullock relation
 
       conc_Bullock = A*(1.+zc)/(1.+z)
 
@@ -4889,7 +4912,7 @@ CONTAINS
       IF (hmod%iconc == 1) THEN
          DO i = 1, hmod%n
             rf = hmod%rr(i)*f
-            sig = sigma(rf, a, hmod%flag_sigma, cosm)
+            sig = sigma(rf, a, hmod%flag_sigma, cosm) ! TODO: Add correction here for HMcode (2016)?
             hmod%sigf(i) = sig
          END DO   
       ELSE
@@ -6327,10 +6350,10 @@ CONTAINS
       ! Grey body irradiance [W m^-2 Hz^-1 Sr^-1]
       USE physics
       IMPLICIT NONE
-      REAL, INTENT(IN) :: nu ! Observing frequency [Hz]
-      REAL, INTENT(IN) :: T !  Grey body temperature [K]
-      REAL, INTENT(IN) :: beta ! Power-law index
-      REAL, PARAMETER :: tau = 1. ! Emissivity (degenerate with R in CIB work)
+      REAL, INTENT(IN) :: nu          ! Observing frequency [Hz]
+      REAL, INTENT(IN) :: T           ! Grey body temperature [K]
+      REAL, INTENT(IN) :: beta        ! Power-law index
+      REAL, PARAMETER :: tau = 1.     ! Emissivity (degenerate with R in CIB work)
       REAL, PARAMETER :: nu0 = 545.e9 ! Reference frequency [Hz]
 
       grey_body_nu = tau*((nu/nu0)**beta)*black_body_nu(nu, T)
@@ -6464,9 +6487,9 @@ CONTAINS
       ! Calculates the temperature as if pristine gas falls into the halo
       ! Energy is equally distributed between the particles
       IMPLICIT NONE
-      REAL :: M ! virial mass
+      REAL :: M              ! virial mass
       REAL, INTENT(IN) :: rv ! virial radius
-      REAL, INTENT(IN) :: a ! scale factor
+      REAL, INTENT(IN) :: a  ! scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! cosmology
 
       REAL, PARAMETER :: modes = 3. ! 1/2 k_BT per mode, 3 modes for 3 dimensions
@@ -6752,7 +6775,6 @@ CONTAINS
       ! This is the value of rho(r)*r^2 at r=0
       ! For most profiles this is zero, BUT not if rho(r->0) -> r^-2
       ! Note if rho(r->0) -> r^n with n<-2 then the profile mass would diverge!
-
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: irho
 
@@ -7037,9 +7059,6 @@ CONTAINS
       INTEGER :: j, i, ii, imeth, n, ntime
       LOGICAL :: timing
       REAL :: t1, t2, w
-
-      !base = 'winint/results_'
-      !ext = '.dat'
 
       ! j = 1: Time calculation
       ! j = 2: Write calculation out
@@ -7677,11 +7696,8 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: dc
 
-      dc = hmod%dc
-
-      b_ps = 1.+(nu**2-1.)/dc
+      b_ps = 1.+(nu**2-1.)/hmod%dc
 
    END FUNCTION b_ps
 
