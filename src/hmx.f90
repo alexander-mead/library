@@ -6,7 +6,7 @@ MODULE HMx
    USE solve_equations
    USE special_functions
    USE string_operations
-   USE calculus_table 
+   USE calculus_table
    USE cosmology_functions
    USE basic_operations
    USE interpolate
@@ -26,8 +26,11 @@ MODULE HMx
    PUBLIC :: print_halomod
    PUBLIC :: assign_init_halomod
 
-   ! Dewiggle
-   !PUBLIC :: p_dewiggle 
+   ! Write routines
+   PUBLIC :: write_power
+   PUBLIC :: write_power_a
+   PUBLIC :: write_power_a_multiple
+   PUBLIC :: write_power_fields
 
    ! Calculations
    PUBLIC :: calculate_P_lin
@@ -113,8 +116,7 @@ MODULE HMx
    PUBLIC :: field_halo_13p5_14p0
    PUBLIC :: field_halo_14p0_14p5
    PUBLIC :: field_halo_14p5_15p0
-   PUBLIC :: i1_fields
-   PUBLIC :: i2_fields
+   PUBLIC :: field_n ! Total number of fields
 
    ! Total number of fitting parameters
    PUBLIC :: param_n
@@ -357,39 +359,37 @@ MODULE HMx
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar_lowsig8'
 
    ! Field types
-   ! TODO: Have this run from 1->n, rather than -1->n
-   INTEGER, PARAMETER :: field_dmonly = -1
-   INTEGER, PARAMETER :: field_matter = 0
-   INTEGER, PARAMETER :: field_cdm = 1
-   INTEGER, PARAMETER :: field_gas = 2
-   INTEGER, PARAMETER :: field_star = 3
-   INTEGER, PARAMETER :: field_bound_gas = 4
-   INTEGER, PARAMETER :: field_free_gas = 5
-   INTEGER, PARAMETER :: field_electron_pressure = 6
-   INTEGER, PARAMETER :: field_void = 7
-   INTEGER, PARAMETER :: field_compensated_void = 8
-   INTEGER, PARAMETER :: field_central_galaxies = 9
-   INTEGER, PARAMETER :: field_satellite_galaxies = 10
-   INTEGER, PARAMETER :: field_galaxies = 11
-   INTEGER, PARAMETER :: field_HI = 12
-   INTEGER, PARAMETER :: field_cold_gas = 13
-   INTEGER, PARAMETER :: field_hot_gas = 14
-   INTEGER, PARAMETER :: field_static_gas = 15
-   INTEGER, PARAMETER :: field_central_stars = 16
-   INTEGER, PARAMETER :: field_satellite_stars = 17
-   INTEGER, PARAMETER :: field_CIB_353 = 18
-   INTEGER, PARAMETER :: field_CIB_545 = 19
-   INTEGER, PARAMETER :: field_CIB_857 = 20
-   INTEGER, PARAMETER :: field_halo_11p0_11p5 = 21
-   INTEGER, PARAMETER :: field_halo_11p5_12p0 = 22
-   INTEGER, PARAMETER :: field_halo_12p0_12p5 = 23
-   INTEGER, PARAMETER :: field_halo_12p5_13p0 = 24
-   INTEGER, PARAMETER :: field_halo_13p0_13p5 = 25
-   INTEGER, PARAMETER :: field_halo_13p5_14p0 = 26
-   INTEGER, PARAMETER :: field_halo_14p0_14p5 = 27
-   INTEGER, PARAMETER :: field_halo_14p5_15p0 = 28
-   INTEGER, PARAMETER :: i1_fields = -1
-   INTEGER, PARAMETER :: i2_fields = 28
+   INTEGER, PARAMETER :: field_dmonly = 1
+   INTEGER, PARAMETER :: field_matter = 2
+   INTEGER, PARAMETER :: field_cdm = 3
+   INTEGER, PARAMETER :: field_gas = 4
+   INTEGER, PARAMETER :: field_star = 5
+   INTEGER, PARAMETER :: field_bound_gas = 6
+   INTEGER, PARAMETER :: field_free_gas = 7
+   INTEGER, PARAMETER :: field_electron_pressure = 8
+   INTEGER, PARAMETER :: field_void = 9
+   INTEGER, PARAMETER :: field_compensated_void = 10
+   INTEGER, PARAMETER :: field_central_galaxies = 11
+   INTEGER, PARAMETER :: field_satellite_galaxies = 12
+   INTEGER, PARAMETER :: field_galaxies = 13
+   INTEGER, PARAMETER :: field_HI = 14
+   INTEGER, PARAMETER :: field_cold_gas = 15
+   INTEGER, PARAMETER :: field_hot_gas = 16
+   INTEGER, PARAMETER :: field_static_gas = 17
+   INTEGER, PARAMETER :: field_central_stars = 18
+   INTEGER, PARAMETER :: field_satellite_stars = 19
+   INTEGER, PARAMETER :: field_CIB_353 = 20
+   INTEGER, PARAMETER :: field_CIB_545 = 21
+   INTEGER, PARAMETER :: field_CIB_857 = 22
+   INTEGER, PARAMETER :: field_halo_11p0_11p5 = 23
+   INTEGER, PARAMETER :: field_halo_11p5_12p0 = 24
+   INTEGER, PARAMETER :: field_halo_12p0_12p5 = 25
+   INTEGER, PARAMETER :: field_halo_12p5_13p0 = 26
+   INTEGER, PARAMETER :: field_halo_13p0_13p5 = 27
+   INTEGER, PARAMETER :: field_halo_13p5_14p0 = 28
+   INTEGER, PARAMETER :: field_halo_14p0_14p5 = 29
+   INTEGER, PARAMETER :: field_halo_14p5_15p0 = 30
+   INTEGER, PARAMETER :: field_n = 30
 
    ! Fitting parameters
    INTEGER, PARAMETER :: param_alpha = 1
@@ -2225,14 +2225,14 @@ CONTAINS
 
       WRITE (*, *) 'SET_HALO_TYPE: Choose halo type'
       WRITE (*, *) '==============================='
-      DO i = i1_fields, i2_fields
+      DO i = 1, field_n
          WRITE (*, fmt='(I3,A3,A26)') i, '- ', TRIM(halo_type(i))
       END DO
       READ (*, *) ip
       WRITE (*, *) '==============================='
       WRITE (*, *)
 
-      IF (ip < i1_fields .OR. ip > i2_fields) STOP 'SET_HALO_TYPE: Error, you have chosen a bad halo'
+      IF (ip < 1 .OR. ip > field_n) STOP 'SET_HALO_TYPE: Error, you have chosen a bad halo'
 
    END SUBROUTINE set_halo_type
 
@@ -2304,7 +2304,7 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(INOUT) :: ihm
       REAL, INTENT(IN) :: k(nk)              ! Array of wavenumbers [h/Mpc]
-      REAL, INTENT(IN) :: a                  ! Array of scale factors
+      REAL, INTENT(IN) :: a                  ! Scale factor
       REAL, INTENT(OUT) :: Pk(nk)            ! Output power array, note that this is Delta^2(k), not P(k)
       INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
@@ -8939,5 +8939,154 @@ CONTAINS
       scatter_integrand = wk(1)*wk(2)*pc
 
    END FUNCTION scatter_integrand
+
+   SUBROUTINE write_power(k, pow_li, pow_2h, pow_1h, pow_hm, nk, output, verbose)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k(nk)
+      REAL, INTENT(IN) :: pow_li(nk)
+      REAL, INTENT(IN) :: pow_2h(nk)
+      REAL, INTENT(IN) :: pow_1h(nk)
+      REAL, INTENT(IN) :: pow_hm(nk)
+      INTEGER, INTENT(IN) :: nk
+      CHARACTER(len=*), INTENT(IN) :: output   
+      LOGICAL, INTENT(IN) :: verbose
+      INTEGER :: i
+
+      IF (verbose) THEN
+         WRITE (*, *) 'WRITE_POWER: Writing power to ', TRIM(output)
+      END IF
+
+      ! Loop over k values
+      OPEN (7, file=output)
+      DO i = 1, nk
+         WRITE (7, fmt='(5ES20.10)') k(i), pow_li(i), pow_2h(i), pow_1h(i), pow_hm(i)
+      END DO
+      CLOSE (7)
+
+      IF (verbose) THEN
+         WRITE (*, *) 'WRITE_POWER: Done'
+         WRITE (*, *)
+      END IF
+
+   END SUBROUTINE write_power
+
+   SUBROUTINE write_power_fields(k, pow_li, pow_2h, pow_1h, pow_hm, nk, fields, nf, base, verbose)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k(nk)
+      REAL, INTENT(IN) :: pow_li(nk)
+      REAL, INTENT(IN) :: pow_2h(nf, nf, nk)
+      REAL, INTENT(IN) :: pow_1h(nf, nf, nk)
+      REAL, INTENT(IN) :: pow_hm(nf, nf, nk)
+      INTEGER, INTENT(IN) :: nk
+      INTEGER, INTENT(IN) :: fields(nf)
+      INTEGER, INTENT(IN) :: nf
+      CHARACTER(len=*), INTENT(IN) :: base   
+      LOGICAL, INTENT(IN) :: verbose
+      INTEGER :: j1, j2
+      CHARACTER(len=256) :: outfile
+      CHARACTER(len=256) :: ext='.dat'
+
+      IF(verbose) WRITE(*, *) 'WRITE_POWER_FIELDS: Writing all field power'
+
+      DO j1 = 1, nf
+         DO j2 = 1, nf
+            outfile = number_file2(base, fields(j1), '', fields(j2), ext)
+            IF(verbose) WRITE(*,*) 'WRITE_POWER_FIELDS: Output file: ', trim(outfile)
+            CALL write_power(k, pow_li, pow_2h(j1, j2, :), pow_1h(j1, j2, :), pow_hm(j1, j2, :), nk, outfile, verbose=.FALSE.)
+         END DO
+      END DO
+
+      IF(verbose) THEN
+         WRITE(*, *) 'WRITE_POWER_FIELDS: Done'
+         WRITE(*, *)
+      END IF
+   
+   END SUBROUTINE write_power_fields
+
+   SUBROUTINE write_power_a_multiple(k, a, pow_li, pow_2h, pow_1h, pow_hm, nk, na, base, verbose)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k(nk)
+      REAL, INTENT(IN) :: a(nk)
+      REAL, INTENT(IN) :: pow_li(nk, na)
+      REAL, INTENT(IN) :: pow_2h(nk, na)
+      REAL, INTENT(IN) :: pow_1h(nk, na)
+      REAL, INTENT(IN) :: pow_hm(nk, na)
+      INTEGER, INTENT(IN) :: nk
+      INTEGER, INTENT(IN) :: na
+      CHARACTER(len=*), INTENT(IN) :: base
+      LOGICAL, INTENT(IN) :: verbose
+      REAL :: pow(nk, na)
+      INTEGER :: i
+      CHARACTER(len=512) :: output
+      LOGICAL :: verbose2
+
+      DO i = 1, 4
+         IF (i == 1) THEN
+            output = TRIM(base)//'_linear.dat'
+            pow = pow_li
+         ELSE IF (i == 2) THEN
+            output = TRIM(base)//'_2h.dat'
+            pow = pow_2h
+         ELSE IF (i == 3) THEN
+            output = TRIM(base)//'_1h.dat'
+            pow = pow_1h
+         ELSE IF (i == 4) THEN
+            output = TRIM(base)//'_hm.dat'
+            pow = pow_hm
+         ELSE
+            STOP 'WRITE_POWER_A_MULTIPLE: Error, something went wrong'
+         END IF
+         IF (i == 1) THEN
+            verbose2 = verbose
+         ELSE
+            verbose2 = .FALSE.
+         END IF
+         CALL write_power_a(k, a, pow, nk, na, output, verbose2)
+      END DO
+
+   END SUBROUTINE write_power_a_multiple
+
+   SUBROUTINE write_power_a(k, a, pow, nk, na, output, verbose)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k(nk)
+      REAL, INTENT(IN) :: a(na)     
+      REAL, INTENT(IN) :: pow(nk, na)
+      INTEGER, INTENT(IN) :: nk
+      INTEGER, INTENT(IN) :: na
+      CHARACTER(len=*), INTENT(IN) :: output     
+      LOGICAL, INTENT(IN) :: verbose
+      INTEGER :: i, j
+
+      ! Print to screen
+      IF (verbose) THEN
+         WRITE (*, *) 'WRITE_POWER_A: The first entry of the file is hashes - #####'
+         WRITE (*, *) 'WRITE_POWER_A: The remainder of the first row are the scale factors - a'
+         WRITE (*, *) 'WRITE_POWER_A: The remainder of the first column are the wave numbers - k'
+         WRITE (*, *) 'WRITE_POWER_A: Each row then gives the power at that k and a'
+         WRITE (*, *) 'WRITE_POWER_A: Output:', TRIM(output)
+      END IF
+
+      ! Write out data to files
+      OPEN (7, file=output)
+      DO i = 0, nk
+         IF (i == 0) THEN
+            WRITE (7, fmt='(A20,40F20.10)') '#####', (a(j), j=1, na)
+         ELSE
+            WRITE (7, fmt='(F20.10,40E20.10)') k(i), (pow(i, j), j=1, na)
+         END IF
+      END DO
+      CLOSE (7)
+
+      ! Print to screen
+      IF (verbose) THEN
+         WRITE (*, *) 'WRITE_POWER_A: Done'
+         WRITE (*, *)
+      END IF
+
+   END SUBROUTINE write_power_a
 
 END MODULE HMx
