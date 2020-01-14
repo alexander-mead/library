@@ -440,6 +440,9 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_dcnu = 46
    INTEGER, PARAMETER :: param_n = 46
 
+   INTEGER, PARAMETER :: ihm_hmcode = 1
+   INTEGER, PARAMETER :: ihm_hmcode_CAMB = 51
+
 CONTAINS
 
    SUBROUTINE assign_halomod(ihm, hmod, verbose)
@@ -2248,7 +2251,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: Pkk(nk)
       INTEGER :: j
-      INTEGER :: ihm = 1 ! 1 - HMcode 2016
+      INTEGER :: ihm = ihm_hmcode_CAMB ! Would like to be a parameter
 
       DO j = 1, na
          CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pkk, nk, cosm)
@@ -2269,7 +2272,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: Pkk(nk)
       INTEGER :: j
-      INTEGER :: ihm = 51 ! 51 - HMcode 2016 in CAMB
+      INTEGER :: ihm = ihm_hmcode_CAMB ! Would like to be a parameter
 
       DO j = 1, na
          CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pkk, nk, cosm)
@@ -2407,10 +2410,11 @@ CONTAINS
       REAL :: powg_2h(nk), powg_1h(nk), powg_hm(nk)
       REAL, ALLOCATABLE :: upow_2h(:, :, :), upow_1h(:, :, :), upow_hm(:, :, :)
       REAL :: hmcode_2h(nk), hmcode_1h(nk), hmcode_hm(nk)
-      INTEGER :: i, j, ii, jj, ihmcode, match(nf), nnf
+      INTEGER :: i, j, ii, jj, match(nf), nnf
       INTEGER, ALLOCATABLE :: iifield(:)
       TYPE(halomod) :: hmcode
       INTEGER, PARAMETER :: dmonly(1) = field_dmonly ! Needed because it needs to be an array(1)
+      INTEGER :: ihmcode = ihm_hmcode ! Would like to be a parameter
 
       ! Make a new indexing scheme for only the unique arrays
       CALL unique_index(ifield, nf, iifield, nnf, match)
@@ -2432,7 +2436,6 @@ CONTAINS
 
       ! Do an HMcode calculation for multiplying the response
       IF (hmod%response == 1 .OR. hmod%response == 2) THEN
-         ihmcode = 1
          CALL assign_halomod(ihmcode, hmcode, verbose=.FALSE.)
          CALL init_halomod(hmod%a, hmcode, cosm, verbose=.FALSE.)
       END IF
