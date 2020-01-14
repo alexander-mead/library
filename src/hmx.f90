@@ -850,8 +850,8 @@ CONTAINS
 
       ! Do we treat the halomodel as a response model (multiply by HMcode) or not
       ! 0 - No
-      ! 1 - Yes, to all spectra
-      ! 2 - Yes, only to matter spectra
+      ! 1 - Yes to all spectra
+      ! 2 - Yes only to matter spectra
       hmod%response = 0
 
       ! Halo mass if the mass function is a delta function
@@ -1812,8 +1812,8 @@ CONTAINS
          IF (hmod%itrans == 5) WRITE (*, *) 'HALOMODEL: Tanh transition with k_nl'
 
          ! Response
-         IF (hmod%response == 1) WRITE (*, *) 'HALOMODEL: Power computed as response with HMcode multiplication'
-         IF (hmod%response == 2) WRITE (*, *) 'HALOMODEL: Matter power computed as response with HMcode multiplication'
+         IF (hmod%response == 1) WRITE (*, *) 'HALOMODEL: All power computed as matter-matter response with HMcode'
+         IF (hmod%response == 2) WRITE (*, *) 'HALOMODEL: Matter, CDM, gas, star power computed as matter-matter response with HMcode'
 
          ! Numerical parameters
          WRITE (*, *) '======================================='
@@ -2316,13 +2316,13 @@ CONTAINS
       ! Do an HMcode run
       CALL assign_halomod(ihm, hmod, verbose)
       CALL init_halomod(a, hmod, cosm, verbose)
-      CALL calculate_HMx_a(dmonly, 1, k, nk, pow_lin, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose, response=.FALSE.)
+      CALL calculate_HMx_a(dmonly, 1, k, nk, pow_lin, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
       Pk = pow_hm
       CALL print_halomod(hmod, cosm, verbose)
 
    END SUBROUTINE calculate_HMx_DMONLY_a
 
-   SUBROUTINE calculate_HMx(ifield, nf, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose, response)
+   SUBROUTINE calculate_HMx(ifield, nf, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
 
       ! Public facing function, calculates the halo model power for k and a range
       ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed or (a,k,:,:)?
@@ -2340,7 +2340,6 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       LOGICAL, INTENT(IN) :: verbose
-      LOGICAL, INTENT(IN) :: response
       REAL :: z
       INTEGER :: i, j
       LOGICAL :: verbose2
@@ -2364,7 +2363,7 @@ CONTAINS
          CALL init_halomod(a(i), hmod, cosm, verbose2)
          CALL print_halomod(hmod, cosm, verbose2)
          CALL calculate_HMx_a(ifield, nf, k, nk, pow_li(:,i), pow_2h(:,:,:,i), pow_1h(:,:,:,i), pow_hm(:,:,:,i),&
-            hmod, cosm, verbose2, response)
+            hmod, cosm, verbose2)
 
          IF (i == na .and. verbose) THEN
             WRITE (*, *) 'CALCULATE_HMx: Doing calculation'
@@ -2389,7 +2388,7 @@ CONTAINS
 
    END SUBROUTINE calculate_HMx
 
-   SUBROUTINE calculate_HMx_a(ifield, nf, k, nk, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose, response)
+   SUBROUTINE calculate_HMx_a(ifield, nf, k, nk, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
 
       ! Calculate halo model Pk(a) for a k range
       IMPLICIT NONE
@@ -2404,7 +2403,6 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
-      LOGICAL, INTENT(IN) :: response
       REAL :: plin
       REAL :: powg_2h(nk), powg_1h(nk), powg_hm(nk)
       REAL, ALLOCATABLE :: upow_2h(:, :, :), upow_1h(:, :, :), upow_hm(:, :, :)
@@ -2455,16 +2453,16 @@ CONTAINS
          ! TODO: slow array accessing
          CALL calculate_HMx_ka(iifield, nnf, k(i), plin, upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
 
-         IF (response) THEN
+         !IF (response) THEN
 
             ! If doing a response then calculate a DMONLY prediction too
-            CALL calculate_HMx_ka(dmonly, 1, k(i), plin, powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
-            pow_li(i) = 1.                             ! This is just linear-over-linear, which is one
-            upow_2h(:, :, i) = upow_2h(:, :, i)/powg_2h(i) ! Two-halo response (slow array accessing)
-            upow_1h(:, :, i) = upow_1h(:, :, i)/powg_1h(i) ! One-halo response (slow array accessing)
-            upow_hm(:, :, i) = upow_hm(:, :, i)/powg_hm(i) ! Full model response (slow array accessing)
+            !CALL calculate_HMx_ka(dmonly, 1, k(i), plin, powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
+            !pow_li(i) = 1.                             ! This is just linear-over-linear, which is one
+            !upow_2h(:, :, i) = upow_2h(:, :, i)/powg_2h(i) ! Two-halo response (slow array accessing)
+            !upow_1h(:, :, i) = upow_1h(:, :, i)/powg_1h(i) ! One-halo response (slow array accessing)
+            !upow_hm(:, :, i) = upow_hm(:, :, i)/powg_hm(i) ! Full model response (slow array accessing)
 
-         ELSE IF (hmod%response == 1 .OR. hmod%response == 2) THEN
+         IF (hmod%response == 1 .OR. hmod%response == 2) THEN
 
             ! If doing a response then calculate a DMONLY prediction too
             CALL calculate_HMx_ka(dmonly, 1, k(i), plin, powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
@@ -2483,11 +2481,13 @@ CONTAINS
                ! TODO: Slow array accessing here
                DO ii = 1, nf
                   DO jj = 1, nf
-                     IF ((iifield(ii) .NE. field_electron_pressure) .AND. (iifield(jj) .NE. field_electron_pressure)) THEN
+                     !IF ((iifield(ii) .NE. field_electron_pressure) .AND. (iifield(jj) .NE. field_electron_pressure)) THEN
+                     IF(is_matter_field(iifield(ii)) .AND. is_matter_field(iifield(jj))) THEN
                         upow_2h(ii, jj, i) = upow_2h(ii, jj, i)*hmcode_2h(i)/powg_2h(i) ! Two-halo response times HMcode
                         upow_1h(ii, jj, i) = upow_1h(ii, jj, i)*hmcode_1h(i)/powg_1h(i) ! One-halo response times HMcode
                         upow_hm(ii, jj, i) = upow_hm(ii, jj, i)*hmcode_hm(i)/powg_hm(i) ! Full model response times HMcode
                      END IF
+                     !END IF
                   END DO
                END DO
 
@@ -2510,6 +2510,20 @@ CONTAINS
       END DO
 
    END SUBROUTINE calculate_HMx_a
+
+   LOGICAL FUNCTION is_matter_field(i)
+
+      ! Returns TRUE if the input field integer corresponds to dmonly, matter, CDM, gas or star
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: i
+
+      IF ((i == field_dmonly) .OR. (i == field_matter) .OR. (i == field_cdm) .OR. (i == field_gas) .OR. (i == field_star)) THEN
+         is_matter_field = .TRUE.
+      ELSE
+         is_matter_field = .FALSE.
+      END IF
+
+   END FUNCTION
 
    SUBROUTINE calculate_HMx_ka(ifield, nf, k, plin, pow_2h, pow_1h, pow_hm, hmod, cosm)
 
