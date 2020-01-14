@@ -84,6 +84,7 @@ MODULE cosmology_functions
    PUBLIC :: xi_lin
    PUBLIC :: flag_power_total
    PUBLIC :: flag_power_cold
+   PUBLIC :: flag_power_cold_unorm
 
    ! CAMB interface
    PUBLIC :: get_CAMB_power
@@ -232,8 +233,9 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
    INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
    INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB
-   INTEGER, PARAMETER :: flag_power_total = 1  ! Flag to get the total matter power spectrum
-   INTEGER, PARAMETER :: flag_power_cold = 2   ! Flag to get the cold matter power spectrum
+   INTEGER, PARAMETER :: flag_power_total = 1      ! Flag to get the total matter power spectrum
+   INTEGER, PARAMETER :: flag_power_cold = 2       ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
+   INTEGER, PARAMETER :: flag_power_cold_unorm = 3 ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
 
    ! Correlation function
    ! TODO: This works very poorly
@@ -415,7 +417,7 @@ CONTAINS
       names(38) = 'Random Cosmic Emu cosmology'
       names(39) = 'Random LCDM cosmology (EH linear)'
       names(40) = 'Random nu-w(a)CDM cosmology'
-      names(41) = 'SCDM with high neutrino mass'
+      names(41) = 'SCDM with some CDM replaced by 4eV neutrinos'
       names(42) = 'Planck 2018 (no neutrinos)'
       names(43) = 'Multidark: WMAP 5 with lower sigma_8'
       names(44) = 'Multidark: WMAP 5 with Eisenstein & Hu'
@@ -434,7 +436,7 @@ CONTAINS
       names(57) = 'Bound dark energy'
       names(58) = 'Extreme bound dark energy'
       names(59) = 'Power bump'
-      names(60) = 'Boring but with exciting neutrino mass'
+      names(60) = 'Boring but with some CDM replaced with 0.3eV neutrinos'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -2848,7 +2850,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       INTEGER, PARAMETER :: method_cold = 3
 
-      IF (cosm%trivial_cold .OR. method_cold == 1) THEN
+      IF (cosm%trivial_cold .OR. method_cold == 1 .OR. cosm%f_nu == 0.) THEN
          ! Assuming the cold spectrum is exactly the matter spectrum
          Tcold = 1. 
       ELSE IF (method_cold == 2) THEN
@@ -2856,16 +2858,13 @@ CONTAINS
          ! This is only true on scales greater than the neutrino free-streaming scale
          Tcold = (cosm%Om_c+cosm%Om_b)/cosm%Om_m 
       ELSE IF (method_cold == 3) THEN
-         ! Use the incorrect Eisenstein and Hu approximation (as in HMcode 2016)
-         Tcold = Tcold_EH_incorrect(k, a, cosm)
-      ELSE IF (method_cold == 4) THEN
          ! Use the Eisenstein and Hu approximation
-         Tcold = Tcold_EH(k, a, cosm)
-      ELSE IF (method_cold == 5) THEN
+         Tcold = Tcold_EH(k, a, cosm)/(1.-cosm%f_nu)
+      ELSE IF (method_cold == 4) THEN
          ! Use look-up tables from CAMB transfer functions
-         Tcold = find(log(k), cosm%log_k_Tcold, log(a), cosm%log_a_plin, cosm%Tcold, cosm%nk_Tcold, cosm%na_plin,&
-            iorder = iorder_interpolation_plin,&
-            ifind = ifind_interpolation_plin,&
+         Tcold = find(log(k), cosm%log_k_Tcold, log(a), cosm%log_a_plin, cosm%Tcold, cosm%nk_Tcold, cosm%na_plin, &
+            iorder = iorder_interpolation_plin, &
+            ifind = ifind_interpolation_plin, &
             iinterp = iinterp_polynomial) ! No Lagrange polynomials 
       ELSE
          STOP 'TCOLD: Error, method not specified correctly'
@@ -2873,26 +2872,27 @@ CONTAINS
 
    END FUNCTION Tcold
 
-   REAL FUNCTION Tcold_approx(cosm)
+   ! REAL FUNCTION Tcold_approx(cosm)
 
-      ! How the matter power spectrum would be changed if some fraction of the mass is converted to massive neutrinos
-      ! Approximation for how power is suppressed by massive nu at small scales
-      ! Calculated assuming perturbation grow from z~1000 and that neutrinos are hot and therefore completely smooth
-      ! Related to the growth-function approximation: g(a) = a^(1-3f_nu/5)
-      ! TODO: This is NEVER used and is potentially VERY confusing
-      ! TODO: This is NOT the transfer function relating the matter spectrum to the cold spectrum
-      ! TODO: This IS the transfer function relation matter power spectra in different models
-      ! TODO: Take EXTREME caution here
-      IMPLICIT NONE
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+   !    ! How the matter power spectrum would be changed if some fraction of the mass is converted to massive neutrinos
+   !    ! Approximation for how power is suppressed by massive nu at small scales
+   !    ! Calculated assuming perturbation grow from z~1000 and that neutrinos are hot and therefore completely smooth
+   !    ! Related to the growth-function approximation: g(a) = a^(1-3f_nu/5)
+   !    ! TODO: This is NEVER used and is potentially VERY confusing
+   !    ! TODO: This is NOT the transfer function relating the matter spectrum to the cold spectrum
+   !    ! TODO: This IS the transfer function relation matter power spectra in different models
+   !    ! TODO: Take EXTREME caution here
+   !    IMPLICIT NONE
+   !    TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
 
-      Tcold_approx = sqrt(1.-8.*cosm%f_nu)
+   !    Tcold_approx = sqrt(1.-8.*cosm%f_nu)
 
-   END FUNCTION Tcold_approx
+   ! END FUNCTION Tcold_approx
 
    REAL FUNCTION Tcold_EH(k, a, cosm)
 
       ! Calculates the ratio of T(k) for cold vs. all matter
+      ! Cold perturbation defined such that 1+delta = rho_cold/rho_matter
       ! Uses approximations in Eisenstein & Hu (1999; arXiv 9710252)
       ! Note that this assumes that there are exactly 3 species of neutrinos
       ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
@@ -2951,65 +2951,65 @@ CONTAINS
 
    END FUNCTION Tcold_EH
 
-   REAL FUNCTION Tcold_EH_incorrect(k, a, cosm)
+   ! REAL FUNCTION Tcold_EH_incorrect(k, a, cosm)
 
-      ! Calculates the ratio of T(k) for cold vs. all matter
-      ! Uses approximations in Eisenstein & Hu (1999; arXiv 9710252)
-      ! Note that this assumes that there are exactly 3 species of neutrinos
-      ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-      REAL, INTENT(IN) :: a ! Scale factor
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
-      REAL :: BigT
-      INTEGER, PARAMETER :: N_massive_nu = 3
+   !    ! Calculates the ratio of T(k) for cold vs. all matter
+   !    ! Uses approximations in Eisenstein & Hu (1999; arXiv 9710252)
+   !    ! Note that this assumes that there are exactly 3 species of neutrinos
+   !    ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
+   !    IMPLICIT NONE
+   !    REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
+   !    REAL, INTENT(IN) :: a ! Scale factor
+   !    TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+   !    REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
+   !    REAL :: BigT
+   !    INTEGER, PARAMETER :: N_massive_nu = 3
 
-      IF (cosm%f_nu == 0.) THEN
+   !    IF (cosm%f_nu == 0.) THEN
 
-         ! Fix to unity if there are no neutrinos
-         Tcold_EH_incorrect = 1.
+   !       ! Fix to unity if there are no neutrinos
+   !       Tcold_EH_incorrect = 1.
 
-      ELSE
+   !    ELSE
 
-         ! Get the redshift
-         z = redshift_a(a)
+   !       ! Get the redshift
+   !       z = redshift_a(a)
 
-         ! Growth exponent under the assumption that neutrinos are completely unclustered (equation 11)
-         pcb = (5.-sqrt(1.+24.*(1.-cosm%f_nu)))/4.
+   !       ! Growth exponent under the assumption that neutrinos are completely unclustered (equation 11)
+   !       pcb = (5.-sqrt(1.+24.*(1.-cosm%f_nu)))/4.
 
-         ! Theta for temperature (BigT=T/2.7 K)
-         BigT = cosm%T_CMB/2.7
+   !       ! Theta for temperature (BigT=T/2.7 K)
+   !       BigT = cosm%T_CMB/2.7
 
-         ! The matter-radiation equality redshift
-         zeq = (2.5e4)*cosm%om_m*(cosm%h**2.)*(BigT**(-4.))
+   !       ! The matter-radiation equality redshift
+   !       zeq = (2.5e4)*cosm%om_m*(cosm%h**2.)*(BigT**(-4.))
 
-         ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
-         ! For my purpose (just the ratio) seems to work better using the EdS growth function result, \propto a .
-         ! In any case, can't use grow at the moment because that is normalised by default.
-         D = (1.+zeq)/(1.+z) ! TODO: Could update this
+   !       ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
+   !       ! For my purpose (just the ratio) seems to work better using the EdS growth function result, \propto a .
+   !       ! In any case, can't use grow at the moment because that is normalised by default.
+   !       D = (1.+zeq)/(1.+z) ! TODO: Could update this
 
-         ! Wave number relative to the horizon scale at equality (equation 5)
-         ! Extra factor of h becauase all my k are in units of h/Mpc
-         q = k*cosm%h*BigT**2./(cosm%om_m*cosm%h**2.)
+   !       ! Wave number relative to the horizon scale at equality (equation 5)
+   !       ! Extra factor of h becauase all my k are in units of h/Mpc
+   !       q = k*cosm%h*BigT**2./(cosm%om_m*cosm%h**2.)
 
-         ! Free streaming scale (equation 14)
-         ! Note that Eisenstein & Hu (1999) only consider the case of 3 neutrinos
-         ! with Nnu of these being massive with the mass split evenly between Nnu species.
-         yfs = 17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(real(N_massive_nu)*q/cosm%f_nu)**2.
+   !       ! Free streaming scale (equation 14)
+   !       ! Note that Eisenstein & Hu (1999) only consider the case of 3 neutrinos
+   !       ! with Nnu of these being massive with the mass split evenly between Nnu species.
+   !       yfs = 17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(real(N_massive_nu)*q/cosm%f_nu)**2.
 
-         ! These are (almost) the scale-dependent growth functions for each component in Eisenstein & Hu (1999)
-         ! Some part is missing, but this cancels when they are divided by each other, which is all I need them for.
-         ! Equations (12) and (13)
-         Dcb = (1.+(D/(1.+yfs))**0.7)**(pcb/0.7)
-         Dcbnu = ((1.-cosm%f_nu)**(0.7/pcb)+(D/(1.+yfs))**0.7)**(pcb/0.7)
+   !       ! These are (almost) the scale-dependent growth functions for each component in Eisenstein & Hu (1999)
+   !       ! Some part is missing, but this cancels when they are divided by each other, which is all I need them for.
+   !       ! Equations (12) and (13)
+   !       Dcb = (1.+(D/(1.+yfs))**0.7)**(pcb/0.7)
+   !       Dcbnu = ((1.-cosm%f_nu)**(0.7/pcb)+(D/(1.+yfs))**0.7)**(pcb/0.7)
 
-         ! Finally, the ratio
-         Tcold_EH_incorrect = Dcb/Dcbnu
+   !       ! Finally, the ratio
+   !       Tcold_EH_incorrect = Dcb/Dcbnu
 
-      END IF
+   !    END IF
 
-   END FUNCTION Tcold_EH_incorrect
+   ! END FUNCTION Tcold_EH_incorrect
 
    REAL RECURSIVE FUNCTION p_lin(k, a, flag, cosm)
 
@@ -3076,8 +3076,11 @@ CONTAINS
          END IF
       END IF
 
-      IF (flag == flag_power_cold) THEN
+      IF (flag == flag_power_cold .OR. flag == flag_power_cold_unorm) THEN
          p_lin = p_lin*Tcold(k, a, cosm)**2
+         IF (flag == flag_power_cold_unorm) THEN
+            p_lin = p_lin/(1.-cosm%f_nu)**2
+         END IF
       END IF
 
    END FUNCTION p_lin
