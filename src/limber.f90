@@ -1878,7 +1878,7 @@ CONTAINS
       END DO
 
       ! Do the halo model power spectrum calculation
-      CALL calculate_HMx(ip, nnx, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose, response=.FALSE.)
+      CALL calculate_HMx(ip, nnx, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
 
       ! Set the Cl to zero initially
       uCl = 0.

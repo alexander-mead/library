@@ -102,23 +102,17 @@ CONTAINS
       INTEGER, PARAMETER :: na=1
       CHARACTER(len=256) :: infile, dmonly
       INTEGER, PARAMETER :: field_all_matter(2) = field_matter
-
-      IF (present_and_correct(response)) THEN
-         dmonly = BAHAMAS_power_file_name('DMONLY_2fluid_nu0', mesh, z, field_all_matter)
-      END IF
+      CHARACTER(len=256) :: response_infile = 'DMONLY_2fluid_nu0'
+      
       infile = BAHAMAS_power_file_name(name, mesh, z, field)
-
-      IF (present_and_correct(response)) THEN
-         CALL read_simulation_power_spectrum(k, Pk_DM, nk, dmonly, kmin, kmax, cut_nyquist, subtract_shot, verbose)
-      END IF
       CALL read_simulation_power_spectrum(k, Pk, nk, infile, kmin, kmax, cut_nyquist, subtract_shot, verbose)
-      IF (present_and_correct(response)) Pk = Pk/Pk_DM
 
       IF (present_and_correct(response)) THEN
+         dmonly = BAHAMAS_power_file_name(response_infile, mesh, z, field_all_matter)
+         CALL read_simulation_power_spectrum(k, Pk_DM, nk, dmonly, kmin, kmax, cut_nyquist, subtract_shot, verbose)
+         Pk = Pk/Pk_DM
          a = scale_factor_z(z)
          ALLOCATE (Pk_HMcode(nk,na))
-         !CALL calculate_HMcode_a(k, scale_factor_z(z), Pk_HMcode, nk, cosm)
-         !a(1)=scale_factor_z(z)
          CALL calculate_HMcode(k, a, Pk_HMcode, nk, na, cosm)
          Pk = Pk*Pk_HMcode(:,1)
       END IF
