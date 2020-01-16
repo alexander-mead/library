@@ -143,7 +143,7 @@ PROGRAM cosmology_functions_demo
       OPEN (10, file='data/power.dat')
       DO i = 1, nk
          k = progression_log(kmin, kmax, i, nk)
-         WRITE (10, *) k, p_lin(k, 1., flag_power_total, cosm), p_lin(k, 1., flag_power_cold, cosm)
+         WRITE (10, *) k, p_lin(k, 1., flag_power_total, cosm), p_lin(k, 1., flag_power_cold, cosm), p_lin(k, 1., flag_power_cold_unorm, cosm)
       END DO
       CLOSE (10)
       IF (verbose) THEN
@@ -188,7 +188,7 @@ PROGRAM cosmology_functions_demo
       OPEN (10, file='data/sigma.dat')
       DO i = 1, nr
          r = progression_log(rmin, rmax, i, nr)
-         WRITE (10, *) r, sigma(r, 1., flag_power_total, cosm), sigma(r, 1., flag_power_cold, cosm)
+         WRITE (10, *) r, sigma(r, 1., flag_power_total, cosm), sigma(r, 1., flag_power_cold, cosm), sigma(r, 1., flag_power_cold_unorm, cosm)
       END DO
       CLOSE (10)
       CALL CPU_TIME(t2)
@@ -214,7 +214,7 @@ PROGRAM cosmology_functions_demo
       OPEN (10, file='data/sigmaV.dat')
       DO i = 1, nr
          r = progression_log(rmin, rmax, i, nr)
-         WRITE (10, *) r, sigmaV(r, 1., flag_power_total, cosm), sigmaV(r, 1., flag_power_cold, cosm)
+         WRITE (10, *) r, sigmaV(r, 1., flag_power_total, cosm), sigmaV(r, 1., flag_power_cold, cosm), sigmaV(r, 1., flag_power_cold_unorm, cosm)
       END DO
       CLOSE (10)
       CALL CPU_TIME(t4)

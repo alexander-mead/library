@@ -31,8 +31,9 @@ set ylabel
 set format y '10^{%T}'
 set yrange [pmin:pmax]
 
-plot power u 1:2 w l lw 3 ti 'All matter',\
-     power u 1:3 w l lw 2 ti 'Cold matter'
+plot power u 1:2 w l lw 3 lc 1 ti 'All matter',\
+     power u 1:3 w l lw 2 lc 2 ti 'Cold matter',\
+     power u 1:4 w l lw 2 lc 3 ti 'Cold matter (un-normalised)'
 
 set xlabel klab
 set format x
@@ -43,7 +44,8 @@ set format y
 set ylabel rlab
 
 plot 1 w l lt -1 noti,\
-   power u 1:($3/$2) w l lw 2 lc 2 noti
+   power u 1:($3/$2) w l lw 2 lc 2 noti,\
+   power u 1:($4/$2) w l lw 2 lc 3 noti
 
 unset multiplot
 

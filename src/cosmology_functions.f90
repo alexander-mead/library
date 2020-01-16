@@ -318,6 +318,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interpolation_sigma = 3 ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interpolation_sigma = 3  ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: imeth_interpolation_sigma = 2  ! Method for sigma(R) interpolation
+   INTEGER, PARAMETER :: sigma_cold_store = flag_power_cold ! Which version of the cold spectrum should be tabulated
 
    ! sigma_v(R) integration
    REAL, PARAMETER :: alpha_sigmaV = 3.     ! Exponent to increase integration speed
@@ -2859,7 +2860,7 @@ CONTAINS
          Tcold = (cosm%Om_c+cosm%Om_b)/cosm%Om_m 
       ELSE IF (method_cold == 3) THEN
          ! Use the Eisenstein and Hu approximation
-         Tcold = Tcold_EH(k, a, cosm)/(1.-cosm%f_nu)
+         Tcold = Tcold_EH(k, a, cosm)
       ELSE IF (method_cold == 4) THEN
          ! Use look-up tables from CAMB transfer functions
          Tcold = find(log(k), cosm%log_k_Tcold, log(a), cosm%log_a_plin, cosm%Tcold, cosm%nk_Tcold, cosm%na_plin, &
@@ -3191,7 +3192,7 @@ CONTAINS
       DO iflag = 1, ntype
 
          IF (iflag == 1) flag = flag_power_total
-         IF (iflag == 2) flag = flag_power_cold
+         IF (iflag == 2) flag = sigma_cold_store
 
          ! Do the calculations to fill the look-up tables
          ! Deal with scale-dependent/independent growth separately
@@ -3205,7 +3206,7 @@ CONTAINS
                   sig = sigma_integral(R, a, flag, cosm)
                   IF (flag == flag_power_total) THEN
                      cosm%log_sigmaa(i, j) = log(sig)
-                  ELSE IF (flag == flag_power_cold) THEN
+                  ELSE IF (flag == sigma_cold_store) THEN
                      cosm%log_sigmaca(i, j) = log(sig)
                   END IF
                END DO
@@ -3220,7 +3221,7 @@ CONTAINS
                sig = sigma_integral(R, a, flag, cosm)
                IF (flag == flag_power_total) THEN
                   cosm%log_sigma(i) = log(sig)
-               ELSE IF (flag == flag_power_cold) THEN
+               ELSE IF (flag == sigma_cold_store) THEN
                   cosm%log_sigmac(i) = log(sig)
                END IF
             END DO
@@ -3273,7 +3274,7 @@ CONTAINS
             find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaa,&
                cosm%nr_sigma, cosm%na_sigma, &
                iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
-         ELSE IF (flag == flag_power_cold) THEN
+         ELSE IF (flag == sigma_cold_store) THEN
             find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaca,&
                cosm%nr_sigma, cosm%na_sigma, &
                iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
@@ -3303,7 +3304,11 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
 
       IF (.NOT. cosm%has_sigma) CALL init_sigma(cosm)
-      sigma = find_sigma(R, a, flag, cosm)
+      IF(flag == flag_power_total .OR. flag == sigma_cold_store) THEN
+         sigma = find_sigma(R, a, flag, cosm)
+      ELSE
+         sigma = sigma_integral(R, a, flag, cosm)
+      END IF
 
    END FUNCTION sigma
 

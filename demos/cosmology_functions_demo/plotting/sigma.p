@@ -30,8 +30,10 @@ set yrange [sigmin:sigmax]
 
 plot sigma  u 1:2 w l lw 3 lc 1 dt 1 ti 'sigma: all matter',\
      sigma  u 1:3 w l lw 2 lc 2 dt 1 ti 'sigma: cold matter',\
+     sigma  u 1:4 w l lw 2 lc 3 dt 1 ti 'sigma: cold matter (un-normalised)',\
      sigmaV u 1:2 w l lw 3 lc 1 dt 2 ti 'sigmaV: all matter',\
-     sigmaV u 1:3 w l lw 2 lc 2 dt 2 ti 'sigmaV: cold matter'
+     sigmaV u 1:3 w l lw 2 lc 2 dt 2 ti 'sigmaV: cold matter',\
+     sigmaV u 1:4 w l lw 2 lc 3 dt 2 ti 'sigmaV: cold matter (un-normalised)'
 
 set xlabel 'R / h^{-1} Mpc'
 set format x '10^{%T}'
@@ -42,6 +44,8 @@ set format y
 
 plot 1 w l lt -1 noti,\
       sigma  u 1:($3/$2) w l lw 2 lc 2 dt 1 noti,\
-      sigmaV u 1:($3/$2) w l lw 2 lc 2 dt 2 noti
+      sigma  u 1:($4/$2) w l lw 2 lc 3 dt 1 noti,\
+      sigmaV u 1:($3/$2) w l lw 2 lc 2 dt 2 noti,\
+      sigmaV u 1:($4/$2) w l lw 2 lc 3 dt 2 noti
 
 unset multiplot
