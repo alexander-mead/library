@@ -18,7 +18,7 @@ set log x
 
 set multiplot layout 2, 1 margins 0.06,0.98,0.06,0.98
 
-set key top right
+set key bottom left
 
 set xlabel ''
 set format x ''
