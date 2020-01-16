@@ -137,6 +137,7 @@ MODULE HMx
    PUBLIC :: param_eta
    PUBLIC :: param_ibeta
    PUBLIC :: param_gbeta
+   PUBLIC :: param_cmod
 
    ! Fitting parameters - hydro mass indices
    PUBLIC :: param_alphap
@@ -198,7 +199,7 @@ MODULE HMx
       ! HMx baryon parameters
       REAL :: alpha, beta, eps, Gamma, M0, Astar, Twhim, ibeta ! HMx baryon parameters
       REAL :: cstar, sstar, mstar, Theat, fcold, fhot, eta     ! HMx baryon parameters
-      REAL :: gbeta, gbetaz                                    ! HMx baryon parameters
+      REAL :: gbeta, gbetaz, cmod                              ! HMx baryon parameters
       REAL :: alphap, betap, Gammap, cstarp, Astarp, ibetap    ! HMx mass-power parameters
       REAL :: alphaz, betaz, epsz, Gammaz, M0z, Astarz, Twhimz ! HMx z-power parameters
       REAL :: cstarz, mstarz, ibetaz                           ! HMx z-power parameters
@@ -438,7 +439,8 @@ MODULE HMx
    INTEGER, PARAMETER :: param_gbetaz = 44
    INTEGER, PARAMETER :: param_HMcode_Dvnu = 45
    INTEGER, PARAMETER :: param_HMcode_dcnu = 46
-   INTEGER, PARAMETER :: param_n = 46
+   INTEGER, PARAMETER :: param_cmod = 47
+   INTEGER, PARAMETER :: param_n = 47
 
    INTEGER, PARAMETER :: ihm_hmcode = 1
    INTEGER, PARAMETER :: ihm_hmcode_CAMB = 51
@@ -790,6 +792,7 @@ CONTAINS
       hmod%eta = 0.0        ! Power-law for central galaxy mass fraction
       hmod%ibeta = 2./3.    ! Isothermal beta power index
       hmod%gbeta = 0.6      ! Gas fraction power-law
+      hmod%cmod = 1.        ! Global concentration scaling
 
       ! Mass indices
       hmod%alphap = 0.0    ! Power-law index of alpha with halo mass
@@ -1465,7 +1468,7 @@ CONTAINS
 
          m = exp(progression(log(hmod%mmin), log(hmod%mmax), i, hmod%n))
          R = radius_m(m, cosm)
-         sig = sigma(R, a, hmod%flag_sigma, cosm) ! TODO: Add correction here for HMcode (2016)?
+         sig = sigma(R, a, hmod%flag_sigma, cosm) ! TODO: Add correction here for cold matter in HMcode (2016)?
          nu = nu_R(R, hmod, cosm)
 
          hmod%m(i) = m
@@ -1890,6 +1893,7 @@ CONTAINS
             WRITE (*, fmt='(A30,F10.5)') 'c*:', hmod%cstar
             WRITE (*, fmt='(A30,F10.5)') 'eta:', hmod%eta
             WRITE (*, fmt='(A30,F10.5)') 'iso beta:', hmod%ibeta
+            WRITE (*, fmt='(A30,F10.5)') 'cmod:', hmod%cmod
          END IF
          WRITE (*, fmt='(A30,F10.5)') 'sigma*:', hmod%sstar
          WRITE (*, fmt='(A30,F10.5)') 'log10(M*) [Msun/h]:', log10(hmod%Mstar)
@@ -2414,7 +2418,7 @@ CONTAINS
       INTEGER, ALLOCATABLE :: iifield(:)
       TYPE(halomod) :: hmcode
       INTEGER, PARAMETER :: dmonly(1) = field_dmonly ! Needed because it needs to be an array(1)
-      INTEGER :: ihmcode = ihm_hmcode ! Would like to be a parameter
+      INTEGER :: ihmcode = ihm_hmcode                ! Would like to be a parameter
 
       ! Make a new indexing scheme for only the unique arrays
       CALL unique_index(ifield, nf, iifield, nnf, match)
@@ -2473,7 +2477,7 @@ CONTAINS
 
             IF (hmod%response == 1) THEN
 
-               ! Do the response for everything
+               ! Calculate the response for everything
                upow_2h(:, :, i) = upow_2h(:, :, i)*hmcode_2h(i)/powg_2h(i) ! Two-halo response times HMcode (slow array accessing)
                upow_1h(:, :, i) = upow_1h(:, :, i)*hmcode_1h(i)/powg_1h(i) ! One-halo response times HMcode (slow array accessing)
                upow_hm(:, :, i) = upow_hm(:, :, i)*hmcode_hm(i)/powg_hm(i) ! Full model response times HMcode (slow array accessing)
@@ -2625,6 +2629,7 @@ CONTAINS
       REAL :: m, rv, c, rs, nu, et
       INTEGER :: i_all, i_cdm, i_gas, i_sta
       LOGICAL :: quick_matter
+      LOGICAL, PARAMETER :: real_space = .FALSE. ! Fourier profiles
 
       IF (repeated_entries(fields, nf)) STOP 'INIT_WINDOWS: Error, repeated fields'
 
@@ -2659,7 +2664,7 @@ CONTAINS
             rs = rv/c
             nu = hmod%nu(i)
 
-            wk(i, j) = win_type(.FALSE., fields(j), k*nu**et, m, rv, rs, hmod, cosm)
+            wk(i, j) = win_type(real_space, fields(j), k*nu**et, m, rv, rs, hmod, cosm)
 
          END DO
 
@@ -4827,24 +4832,27 @@ CONTAINS
       ! TODO: I feel this should be removed. It has the possibility to go very wrong, also unnecessary for non-hydro
       DO i = 1, hmod%n
          m = hmod%m(i)
-         hmod%c(i) = hmod%c(i)*gas_correction(m, hmod, cosm)
+         hmod%c(i) = hmod%c(i)*hydro_concentration_modification(m, hmod, cosm)
       END DO
 
    END SUBROUTINE fill_halo_concentration
 
-   REAL FUNCTION gas_correction(m, hmod, cosm)
+   REAL FUNCTION hydro_concentration_modification(m, hmod, cosm)
 
-      ! BUG: Fixed so that concentration modification applies to low-mass haloes
+      ! Fixed so that concentration modification applies to low-mass haloes
+      ! Note very carefully that all modifications to the halo concentration must go in here
+      ! This is very important because they need to be undone for DMONLY haloes
+      ! Please be extremely careful
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: gas_supply ! Fraction of universal baryon ratio remaining in halo
+      REAL :: gas_fraction ! Fraction of original gas content remaining in halo
 
-      gas_supply = halo_bound_gas_fraction(m, hmod, cosm)/(cosm%Om_b/cosm%Om_m)
-      gas_correction = 1.+(HMx_eps(hmod)-1.)*(1.-gas_supply)
+      gas_fraction = halo_bound_gas_fraction(m, hmod, cosm)/(cosm%Om_b/cosm%Om_m)
+      hydro_concentration_modification = (1.+(HMx_eps(hmod)-1.)*(1.-gas_fraction))*hmod%cmod
 
-   END FUNCTION gas_correction
+   END FUNCTION hydro_concentration_modification
 
    SUBROUTINE Dolag_correction(hmod, cosm)
 
@@ -5234,10 +5242,11 @@ CONTAINS
       END IF
 
       ! Force it to use the gravity-only concentration relation (unapply gas correction)
-      ! TODO: This is super ugly and should be improved somehow; also is unncessary calculations
+      ! TODO: This is super ugly and should be improved somehow; also is unncessary calculations so slow
       ! TODO: Somehow should store modified and unmodified halo concentrations
+      ! TODO: Or maybe the DMONLY option should be removed? This would probably be the more sensible thing to do.
       c = rv/rs
-      c = c/gas_correction(m, hmod, cosm)
+      c = c/hydro_concentration_modification(m, hmod, cosm) ! This is *very* important
       rss = rv/c
 
       IF (real_space) THEN
@@ -8942,11 +8951,12 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: wk(2), pc, rs
       INTEGER :: j
+      LOGICAL, PARAMETER :: real_space = .FALSE. ! Fourier profiles
 
       !Halo profiles
       DO j = 1, 2
          rs = rv/c
-         wk(j) = win_type(.FALSE., ih(j), k, m, rv, rs, hmod, cosm)
+         wk(j) = win_type(real_space, ih(j), k, m, rv, rs, hmod, cosm)
       END DO
 
       !Probability distribution
