@@ -130,8 +130,6 @@ CONTAINS
 
          dnew = (f(x, y+dy)-f(x, y))/dy
 
-         !WRITE(*,*) i, dx, dnew, dold
-
          IF (i > 1 .AND. abs(dnew/dold-1.) < acc) THEN
             !derivative_y=dnew
             EXIT
@@ -174,7 +172,7 @@ CONTAINS
       ELSE
 
          ! Set the sum variable
-         sum = 0.
+         sum = 0.d0
 
          DO i = 1, n
 
@@ -240,6 +238,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
+      LOGICAL :: pass
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
 
       INTEGER, PARAMETER :: jmin = 5
@@ -259,10 +258,10 @@ CONTAINS
       ELSE
 
          ! Set the sum variable for the integration
-         sum_2n = 0.
-         sum_n = 0.
-         sum_old = 0.
-         sum_new = 0.
+         sum_2n = 0.d0
+         sum_n = 0.d0
+         sum_old = 0.d0
+         sum_new = 0.d0
 
          DO j = 1, jmax
 
@@ -304,16 +303,24 @@ CONTAINS
 
             END IF
 
-            IF ((j >= jmin) .AND. (abs(-1.+sum_new/sum_old) < acc)) THEN
-               ! Converged
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF(abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
+               pass = .FALSE.
                STOP 'INTEGRATE: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
                sum_n = sum_2n
-               sum_2n = 0.
+               sum_2n = 0.d0
             END IF
 
          END DO
@@ -336,8 +343,10 @@ CONTAINS
       INTEGER, INTENT(IN) :: ilog
       INTEGER :: i, j, n
       REAL :: x, weight, dx, lima, limb
-      DOUBLE PRECISION :: sum1, sum2
+      LOGICAL :: pass
+      DOUBLE PRECISION :: sum_old, sum_new
 
+      INTEGER, PARAMETER :: jmin = 5
       INTEGER, PARAMETER :: jmax = 20
       INTEGER, PARAMETER :: ninit = 8
 
@@ -349,13 +358,13 @@ CONTAINS
 
       IF (a == b) THEN
 
-         integrate_log = 0.
+         integrate_log = 0.d0
 
       ELSE
 
          ! Set the sum variables
-         sum1 = 0.
-         sum2 = 0.
+         sum_old = 0.d0
+         sum_new = 0.d0
 
          IF (ilog == 1) THEN
             lima = log(a)
@@ -409,9 +418,9 @@ CONTAINS
                END IF
 
                IF (ilog == 0) THEN
-                  sum2 = sum2+weight*f(x)
+                  sum_new = sum_new+weight*f(x)
                ELSE IF (ilog == 1) THEN
-                  sum2 = sum2+weight*f(x)*x
+                  sum_new = sum_new+weight*f(x)*x
                ELSE
                   STOP 'INTEGRATE_LOG: Error, ilog specified incorrectly'
                END IF
@@ -419,23 +428,30 @@ CONTAINS
             END DO
 
             dx = (limb-lima)/real(n-1)
-            sum2 = sum2*dx
+            sum_new = sum_new*dx
 
-            IF (j .NE. 1 .AND. abs(-1.+sum2/sum1) < acc) THEN
-               !integrate_log=real(sum2)
-               !WRITE(*,*) 'INTEGRATE_LOG: Order:', iorder
-               !WRITE(*,*) 'INTEGRATE_LOG: Nint:', n
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF(abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
-               STOP 'INTEGRATE_LOG: Integration timed out'
+               pass = .FALSE.
+               STOP 'INTEGRATE_LOG: Integration timed out'       
             ELSE
-               sum1 = sum2
-               sum2 = 0.
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_new = 0.
             END IF
 
          END DO
-
-         integrate_log = real(sum2)
+         
+         integrate_log = real(sum_new)
 
       END IF
 
@@ -456,8 +472,10 @@ CONTAINS
       REAL :: a3, a2, a1, a0
       REAL :: x1, x2, x3, x4
       REAL :: y1, y2, y3, y4
-      DOUBLE PRECISION :: sum1, sum2
+      DOUBLE PRECISION :: sum_old, sum_new
+      LOGICAL :: pass
 
+      INTEGER, PARAMETER :: jmin = 5
       INTEGER, PARAMETER :: jmax = 20
       INTEGER, PARAMETER :: ni = 1
 
@@ -474,8 +492,8 @@ CONTAINS
       ELSE
 
          ! Set the sum variables
-         sum1 = 0.
-         sum2 = 0.
+         sum_old = 0.d0
+         sum_new = 0.d0
 
          DO j = 1, jmax
 
@@ -510,24 +528,32 @@ CONTAINS
                CALL fix_cubic(a3, a2, a1, a0, x1, y1, x2, y2, x3, y3, x4, y4)
 
                ! Add the (analytical) intergal of a cubic between points x1 and x4 to the total
-               sum2 = sum2+(a3/4.)*(x4**4.-x1**4.)+(a2/3.)*(x4**3.-x1**3.)+(a1/2.)*(x4**2.-x1**2.)+a0*(x4-x1)
+               sum_new = sum_new+(a3/4.)*(x4**4.-x1**4.)+(a2/3.)*(x4**3.-x1**3.)+(a1/2.)*(x4**2.-x1**2.)+a0*(x4-x1)
 
             END DO
 
-            IF (j .NE. 1 .AND. abs(-1.+sum2/sum1) < acc) THEN
-               !WRITE(*,*) 'INTEGRATE_CUBIC: Number of sections', nsec
-               !WRITE(*,*) 'INTEGRATE_CUBIC: Number of function points', nint
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF(abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
+               pass = .FALSE.
                STOP 'INTEGRATE_CUBIC: Integration timed out'
             ELSE
-               sum1 = sum2
-               sum2 = 0.
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_new = 0.
             END IF
 
          END DO
 
-         integrate_cubic = real(sum2)
+         integrate_cubic = real(sum_new)
 
       END IF
 
@@ -549,8 +575,10 @@ CONTAINS
       INTEGER :: i, j, n
       REAL :: dy, alim, blim
       REAL :: x, y, weight
-      DOUBLE PRECISION :: sum1, sum2
+      DOUBLE PRECISION :: sum_old, sum_new
+      LOGICAL :: pass     
 
+      INTEGER, PARAMETER :: jmin = 5
       INTEGER, PARAMETER :: jmax = 20
       INTEGER, PARAMETER :: ninit = 8
 
@@ -576,8 +604,8 @@ CONTAINS
       ELSE
 
          ! Set the sum variables
-         sum1 = 0.
-         sum2 = 0.
+         sum_old = 0.d0
+         sum_new = 0.d0
 
          alim = g(a)
          blim = g(b)
@@ -623,28 +651,35 @@ CONTAINS
 
                x = gi(y)
 
-               sum2 = sum2+weight*f(x)/dg(x)
+               sum_new = sum_new+weight*f(x)/dg(x)
 
             END DO
 
             dy = (blim-alim)/real(n-1)
-            sum2 = sum2*dy
+            sum_new = sum_new*dy
 
-            IF (j .NE. 1 .AND. abs(-1.+sum2/sum1) < acc) THEN
-               !integrate_jac=real(sum2)
-               !WRITE(*,*) 'INTEGRATE_JAC: Order:', iorder
-               !WRITE(*,*) 'INTEGRATE_JAC: Nint:', n
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF(abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
+               pass = .FALSE.
                STOP 'INTEGRATE_JAC: Integration timed out'
             ELSE
-               sum1 = sum2
-               sum2 = 0.
+               pass = .FALSE.
+            END IF
+
+            IF(pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_new = 0.
             END IF
 
          END DO
-
-         integrate_jac = real(sum2)
+         
+         integrate_jac = real(sum_new)
 
       END IF
 
