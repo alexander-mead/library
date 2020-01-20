@@ -3287,7 +3287,7 @@ CONTAINS
 
       ! Ensure that k is not outside array boundary at high end
       kk = k
-      CALL fix_max(kk, hmod%k_bnl(hmod%nk_bnl))
+      CALL fix_maximum(kk, hmod%k_bnl(hmod%nk_bnl))
 
       IF (kk < kmin) THEN
          BNL = 0.
