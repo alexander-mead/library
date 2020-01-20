@@ -638,6 +638,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
       REAL, PARAMETER :: a = 0.
       REAL, PARAMETER :: b = 1.
       INTEGER, PARAMETER :: jmin = 5   ! Standard integration parameters
@@ -697,22 +698,28 @@ CONTAINS
 
             END IF
 
-            IF ((j >= jmin) .AND. (abs(-1.+sum_new/sum_old) < acc)) THEN
-               ! jmin avoids spurious early convergence
-               integrate_angular_xi = real(sum_new)
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
             ELSE IF (j == jmax) THEN
-               integrate_angular_xi = 0.d0
-               STOP 'INTEGRATE_ANGULAR_XI: Integration timed out'
+               STOP 'INTEGRATE_COSM_1: Integration timed out'
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
-               integrate_angular_xi = 0.d0
                sum_old = sum_new
                sum_n = sum_2n
-               sum_2n = 0.
+               sum_2n = 0.d0
             END IF
 
          END DO
+
+         integrate_angular_xi = sum_new
 
       END IF
 
@@ -861,7 +868,7 @@ CONTAINS
                ix == tracer_KiDS_450_bin4 .OR. &
                ix == tracer_CFHTLenS_Kilbinger2013) THEN
          CALL read_nz(ix, proj)
-         IF(proj%order_nz == 0) THEN
+         IF (proj%order_nz == 0) THEN
             dz = proj%z_nz(2)-proj%z_nz(1)
             zmin = proj%z_nz(1)-dz/2.
             zmax = proj%z_nz(proj%nnz)+dz/2.
@@ -935,7 +942,7 @@ CONTAINS
          IF (r == 0.) THEN
             ! To avoid division by zero
             proj%q(i) = 1.
-         ELSE IF(i == proj%nq) THEN
+         ELSE IF (i == proj%nq) THEN
             proj%q(i) = 0.
          ELSE
             IF (ix == tracer_CMB_lensing .OR. &
@@ -1221,7 +1228,7 @@ CONTAINS
          STOP 'READ_NZ: Error, order for integration not specified correctly'
       END IF
 
-      IF(normalise) CALL normalise_nz(proj)
+      IF (normalise) CALL normalise_nz(proj)
 
       IF (verbose_Limber) THEN
          norm = integrate_nz(proj)
@@ -1437,6 +1444,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5  ! Standard integration parameters
       INTEGER, PARAMETER :: jmax = 30 ! Standard integration parameters
@@ -1494,22 +1502,28 @@ CONTAINS
 
             END IF
 
-            IF ((j >= jmin) .AND. (abs(-1.+sum_new/sum_old) < acc)) THEN
-               ! jmin avoids spurious early convergence
-               integrate_q = real(sum_new)
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
             ELSE IF (j == jmax) THEN
-               integrate_q = 0.d0
-               STOP 'INTEGRATE_Q: Integration timed out'
+               STOP 'INTEGRATE_COSM_1: Integration timed out'
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
-               integrate_q = 0.d0
                sum_old = sum_new
                sum_n = sum_2n
-               sum_2n = 0.
+               sum_2n = 0.d0
             END IF
 
          END DO
+
+         integrate_q = sum_new
 
       END IF
 
@@ -1561,6 +1575,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5  ! Standard integration parameters
       INTEGER, PARAMETER :: jmax = 25 ! Standard integration parameters
@@ -1618,22 +1633,28 @@ CONTAINS
 
             END IF
 
-            IF ((j >= jmin) .AND. (abs(-1.+sum_new/sum_old) < acc)) THEN
-               ! jmin avoids spurious early convergence
-               integrate_Limber = real(sum_new)
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
             ELSE IF (j == jmax) THEN
-               integrate_Limber = 0.d0
-               STOP 'INTEGRATE_LIMBER: Integration timed out'
+               STOP 'INTEGRATE_COSM_1: Integration timed out'
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
-               integrate_Limber = 0.d0
                sum_old = sum_new
                sum_n = sum_2n
-               sum_2n = 0.
+               sum_2n = 0.d0
             END IF
 
          END DO
+
+         integrate_Limber = sum_new
 
       END IF
 
