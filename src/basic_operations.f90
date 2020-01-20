@@ -6,8 +6,8 @@ MODULE basic_operations
 
    PRIVATE
 
-   PUBLIC :: fix_min
-   PUBLIC :: fix_max
+   PUBLIC :: fix_minimum
+   PUBLIC :: fix_maximum
    PUBLIC :: read_command_argument
    PUBLIC :: positive
    PUBLIC :: negative
@@ -57,7 +57,7 @@ CONTAINS
 
    END SUBROUTINE increment_integer
 
-   SUBROUTINE fix_min(x, xmin)
+   SUBROUTINE fix_minimum(x, xmin)
 
       ! If x is below xmin then set to xmin
       IMPLICIT NONE
@@ -66,9 +66,9 @@ CONTAINS
 
       IF (x < xmin) x = xmin
 
-   END SUBROUTINE fix_min
+   END SUBROUTINE fix_minimum
 
-   SUBROUTINE fix_max(x, xmax)
+   SUBROUTINE fix_maximum(x, xmax)
 
       ! If x is above xmax then set to xmax
       IMPLICIT NONE
@@ -77,7 +77,7 @@ CONTAINS
 
       IF (x > xmax) x = xmax
 
-   END SUBROUTINE fix_max
+   END SUBROUTINE fix_maximum
 
    SUBROUTINE read_command_argument_real(i, x, desc)
 
