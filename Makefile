@@ -22,7 +22,7 @@ FFLAGS = \
 
 # Additional flags for standard compilation
 FLAGS_ALL = \
-	-fcheck=all \
+	-fcheck=all,no-array-temps \
 	-ffpe-trap=invalid,zero,overflow \
 	-O3
 
@@ -65,7 +65,6 @@ _OBJ = \
 	calculus_table.o \
 	string_operations.o \
 	cosmology_functions.o \
-	fft.o \
 	statistics.o \
 	fitting.o \
 	gadget.o \
@@ -75,6 +74,7 @@ _OBJ = \
 	solve_equations.o \
 	sorting.o \
 	minimization.o \
+	fft.o \
 	field_operations.o \
 	simulations.o \
 	cosmic_emu_stuff.o \
