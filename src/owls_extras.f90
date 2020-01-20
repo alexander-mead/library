@@ -36,7 +36,7 @@ CONTAINS
             field(j) = 'dm'
          ELSE IF (ip(j) == field_gas) THEN
             field(j) = 'gas'
-         ELSE IF (ip(j) == field_star) THEN
+         ELSE IF (ip(j) == field_stars) THEN
             field(j) = 'stars'
          ELSE IF (ip(j) == field_electron_pressure) THEN
             field(j) = 'epressure'
