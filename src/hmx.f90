@@ -90,7 +90,7 @@ MODULE HMx
    PUBLIC :: field_matter
    PUBLIC :: field_cdm
    PUBLIC :: field_gas
-   PUBLIC :: field_star
+   PUBLIC :: field_stars
    PUBLIC :: field_bound_gas
    PUBLIC :: field_free_gas
    PUBLIC :: field_electron_pressure
@@ -116,6 +116,7 @@ MODULE HMx
    PUBLIC :: field_halo_13p5_14p0
    PUBLIC :: field_halo_14p0_14p5
    PUBLIC :: field_halo_14p5_15p0
+   PUBLIC :: field_neutrino
    PUBLIC :: field_n ! Total number of fields
 
    ! Total number of fitting parameters
@@ -230,6 +231,9 @@ MODULE HMx
       REAL :: nu_saturation
       LOGICAL :: saturation
 
+      ! Neutrino parameters
+      LOGICAL :: DMONLY_neutrino_correction
+
       ! HOD etc.
       REAL :: mhalo_min, mhalo_max, HImin, HImax, rcore, hmass
       REAL :: n_c, n_s, n_g, rho_HI, dlnc
@@ -242,7 +246,7 @@ MODULE HMx
 
       ! Halo types
       INTEGER :: halo_DMONLY, halo_CDM, halo_static_gas, halo_cold_gas, halo_hot_gas, halo_free_gas
-      INTEGER :: halo_central_stars, halo_satellite_stars, halo_HI
+      INTEGER :: halo_central_stars, halo_satellite_stars, halo_HI, halo_neutrino
       INTEGER :: halo_void, halo_compensated_void, electron_pressure
 
       ! Halo components
@@ -364,7 +368,7 @@ MODULE HMx
    INTEGER, PARAMETER :: field_matter = 2
    INTEGER, PARAMETER :: field_cdm = 3
    INTEGER, PARAMETER :: field_gas = 4
-   INTEGER, PARAMETER :: field_star = 5
+   INTEGER, PARAMETER :: field_stars = 5
    INTEGER, PARAMETER :: field_bound_gas = 6
    INTEGER, PARAMETER :: field_free_gas = 7
    INTEGER, PARAMETER :: field_electron_pressure = 8
@@ -390,7 +394,8 @@ MODULE HMx
    INTEGER, PARAMETER :: field_halo_13p5_14p0 = 28
    INTEGER, PARAMETER :: field_halo_14p0_14p5 = 29
    INTEGER, PARAMETER :: field_halo_14p5_15p0 = 30
-   INTEGER, PARAMETER :: field_n = 30
+   INTEGER, PARAMETER :: field_neutrino = 31
+   INTEGER, PARAMETER :: field_n = 31
 
    ! Fitting parameters
    INTEGER, PARAMETER :: param_alpha = 1
@@ -573,7 +578,7 @@ CONTAINS
 
       ! How to calculate sigma(R); either cold matter or all matter
       ! Defaults are from Mead et al. (2016)
-      hmod%flag_sigma = flag_power_cold
+      hmod%flag_sigma = flag_power_cold_unorm
       hmod%flag_sigma_deltac = flag_power_total
       hmod%flag_sigma_eta = flag_power_total
       hmod%flag_sigma_fdamp = flag_power_total   ! Used in Mead et al. (2015) only
@@ -684,6 +689,7 @@ CONTAINS
       ! 1 - Simplified Komatsu & Seljak (2001) gas model
       ! 2 - Isothermal beta model
       ! 3 - Full Komatsu & Seljak (2001) gas model
+      ! 4 - NFW
       hmod%halo_static_gas = 1
 
       ! Bound cold gas halo profile
@@ -716,6 +722,11 @@ CONTAINS
       ! 1 - NFW
       ! 2 - Fedeli (2014) stellar distribution
       hmod%halo_satellite_stars = 1
+
+      ! Neutrino halo profile
+      ! 1 - Smooth neutrino distribution
+      ! 2 - NFW
+      hmod%halo_neutrino = 1
 
       ! HI halo profile
       ! 1 - NFW
@@ -899,6 +910,9 @@ CONTAINS
       hmod%saturation = .FALSE.
       hmod%nu_saturation = 0.
 
+      ! Neutrinos
+      hmod%DMONLY_neutrino_correction = .FALSE.
+
       IF (ihm == -1) THEN
          WRITE (*, *) 'ASSIGN_HALOMOD: Choose your halo model'
          DO i = 1, nhalomod
@@ -931,7 +945,7 @@ CONTAINS
          hmod%itrans = 2
          hmod%iDolag = 3
          hmod%zinf_Dolag = 10.
-         hmod%flag_sigma = flag_power_cold
+         hmod%flag_sigma = flag_power_cold_unorm
          hmod%flag_sigma_deltac = flag_power_total
          hmod%flag_sigma_eta = flag_power_total
          hmod%flag_sigmaV_fdamp = flag_power_total
@@ -1059,7 +1073,7 @@ CONTAINS
          hmod%dlnc = 0.25
       ELSE IF (ihm == 9) THEN
          ! For CCL comparison and benchmark generation
-         hmod%n = 2048 ! Increase accuracy for the CCL benchmarks
+         hmod%n = 2048   ! Increase accuracy for the CCL benchmarks
          hmod%acc = 1e-5 ! Increase accuracy for the CCL benchmarks
          hmod%ip2h = 2
          hmod%ip2h_corr = 3
@@ -1708,6 +1722,7 @@ CONTAINS
          IF (hmod%halo_static_gas == 1) WRITE (*, *) 'HALOMODEL: Static gas profile: Simplified Komatsu & Seljak (2001)'
          IF (hmod%halo_static_gas == 2) WRITE (*, *) 'HALOMODEL: Static gas profile: Isothermal beta profile'
          IF (hmod%halo_static_gas == 3) WRITE (*, *) 'HALOMODEL: Static gas profile: Full Komatsu & Seljak (2001)'
+         IF (hmod%halo_static_gas == 4) WRITE (*, *) 'HALOMODEL: Static gas profile: NFW'
 
          ! Cold gas profile
          IF (hmod%halo_cold_gas == 1) WRITE (*, *) 'HALOMODEL: Cold gas profile: Delta function'
@@ -1734,6 +1749,10 @@ CONTAINS
          ! Satellite star halo profile
          IF (hmod%halo_satellite_stars == 1) WRITE (*, *) 'HALOMODEL: Satellite star profile: NFW'
          IF (hmod%halo_satellite_stars == 2) WRITE (*, *) 'HALOMODEL: Satellite star profile: Schneider & Teyssier (2015)'
+
+         ! Neurtino halo profile
+         IF (hmod%halo_neutrino == 1) WRITE (*, *) 'HALOMODEL: Neutrino profile: Smoothly distributed'
+         IF (hmod%halo_neutrino == 2) WRITE (*, *) 'HALOMODEL: Neutrino profile: NFW'
 
          ! HI halo profile
          IF (hmod%halo_HI == 1) WRITE (*, *) 'HALOMODEL: HI profile: NFW'
@@ -1762,6 +1781,8 @@ CONTAINS
          ! sigma(R) type
          IF (hmod%flag_sigma == flag_power_cold) THEN
             WRITE (*, *) 'HALOMODEL: Sigma being calculated using cold matter'
+         ELSE IF (hmod%flag_sigma == flag_power_cold_unorm) THEN
+            WRITE (*, *) 'HALOMODEL: Sigma being calculated using un-normalised cold matter'
          ELSE IF (hmod%flag_sigma == flag_power_total) THEN
             WRITE (*, *) 'HALOMODEL: Sigma being calculated using total matter'
          ELSE
@@ -2192,7 +2213,7 @@ CONTAINS
       IF (i == field_matter) halo_type = 'Matter'
       IF (i == field_cdm) halo_type = 'CDM'
       IF (i == field_gas) halo_type = 'Gas'
-      IF (i == field_star) halo_type = 'Star'
+      IF (i == field_stars) halo_type = 'Stars'
       IF (i == field_bound_gas) halo_type = 'Bound gas'
       IF (i == field_free_gas) halo_type = 'Free gas'
       IF (i == field_electron_pressure) halo_type = 'Electron pressure'
@@ -2210,14 +2231,15 @@ CONTAINS
       IF (i == field_CIB_353) halo_type = 'CIB 353 GHz'
       IF (i == field_CIB_545) halo_type = 'CIB 545 GHz'
       IF (i == field_CIB_857) halo_type = 'CIB 857 GHz'
-      IF (i == field_halo_11p0_11p5) halo_type = 'Haloes (10^11.0 -> 10^11.5)'
-      IF (i == field_halo_11p5_12p0) halo_type = 'Haloes (10^11.5 -> 10^12.0)'
-      IF (i == field_halo_12p0_12p5) halo_type = 'Haloes (10^12.0 -> 10^12.5)'
-      IF (i == field_halo_12p5_13p0) halo_type = 'Haloes (10^12.5 -> 10^13.0)'
-      IF (i == field_halo_13p0_13p5) halo_type = 'Haloes (10^13.0 -> 10^13.5)'
-      IF (i == field_halo_13p5_14p0) halo_type = 'Haloes (10^13.5 -> 10^14.0)'
-      IF (i == field_halo_14p0_14p5) halo_type = 'Haloes (10^14.0 -> 10^14.5)'
-      IF (i == field_halo_14p5_15p0) halo_type = 'Haloes (10^14.5 -> 10^15.0)'
+      IF (i == field_halo_11p0_11p5) halo_type = 'Haloes 10^11.0 -> 10^11.5'
+      IF (i == field_halo_11p5_12p0) halo_type = 'Haloes 10^11.5 -> 10^12.0'
+      IF (i == field_halo_12p0_12p5) halo_type = 'Haloes 10^12.0 -> 10^12.5'
+      IF (i == field_halo_12p5_13p0) halo_type = 'Haloes 10^12.5 -> 10^13.0'
+      IF (i == field_halo_13p0_13p5) halo_type = 'Haloes 10^13.0 -> 10^13.5'
+      IF (i == field_halo_13p5_14p0) halo_type = 'Haloes 10^13.5 -> 10^14.0'
+      IF (i == field_halo_14p0_14p5) halo_type = 'Haloes 10^14.0 -> 10^14.5'
+      IF (i == field_halo_14p5_15p0) halo_type = 'Haloes 10^14.5 -> 10^15.0'
+      IF (i == field_neutrino) halo_type = 'Neutrino'
       IF (halo_type == '') STOP 'HALO_TYPE: Error, i not specified correctly'
 
    END FUNCTION halo_type
@@ -2524,7 +2546,7 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i
 
-      IF ((i == field_dmonly) .OR. (i == field_matter) .OR. (i == field_cdm) .OR. (i == field_gas) .OR. (i == field_star)) THEN
+      IF ((i == field_dmonly) .OR. (i == field_matter) .OR. (i == field_cdm) .OR. (i == field_gas) .OR. (i == field_stars)) THEN
          is_matter_field = .TRUE.
       ELSE
          is_matter_field = .FALSE.
@@ -2578,10 +2600,10 @@ CONTAINS
          ! If linear theory is used for two-halo term we recalculate the window functions for the two-halo term with k=0 fixed
          IF (hmod%ip2h == 1 .OR. hmod%ip2h == 3) THEN
             CALL init_windows(0., ifield, nf, wk, hmod%n, hmod, cosm)
-         ELSE IF (hmod%halo_free_gas == 7) THEN
-            ! If we are worrying about unbound gas then we need this
-            CALL add_smooth_component_to_windows(ifield, nf, wk, hmod%n, hmod, cosm)
          END IF
+
+         ! If we are worrying about unbound gas then we need this
+         CALL add_smooth_component_to_windows(ifield, nf, wk, hmod%n, hmod, cosm)
 
          ! Get the two-halo term
          DO i = 1, nf
@@ -2640,7 +2662,7 @@ CONTAINS
       i_all = array_position(field_matter, fields, nf)
       i_cdm = array_position(field_cdm, fields, nf)
       i_gas = array_position(field_gas, fields, nf)
-      i_sta = array_position(field_star, fields, nf)
+      i_sta = array_position(field_stars, fields, nf)
 
       ! If all, cdm, gas and stars exist then activate the quick-matter mode
       IF ((i_all .NE. 0) .AND. (i_cdm .NE. 0) .AND. (i_gas .NE. 0) .AND. (i_sta .NE. 0)) THEN
@@ -2682,7 +2704,6 @@ CONTAINS
       ! Refills the window functions for the two-halo term if this is necessary
       ! This is for contributions due to unbound gas, and the effect of this on electron pressure
       ! TODO: Have I inculded the halo bias corresponding to the free component correctly?
-      ! BUG: Fixed conversion of thermal to electron pressure
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: fields(nf)
       REAL, INTENT(INOUT) :: wk(nm, nf)
@@ -2690,64 +2711,85 @@ CONTAINS
       INTEGER, INTENT(IN) :: nm
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: m, rv, c, rs, nu, et, fc, pc
+      REAL :: m, rv, c, rs, nu, fc, pc
       REAL :: rho0, T0
-      INTEGER :: i, i_all, i_gas, i_pre
+      INTEGER :: i, i_matter, i_gas, i_freegas, i_pressure, i_dmonly, i_neutrino
 
       ! Check for repeated fields
       IF (repeated_entries(fields, nf)) STOP 'ADD_SMOOTH_COMPONENT_TO_WINDOWS: Error, repeated fields'
 
-      ! Get the array positions corresponding to all, cdm, gas, stars if they existza
-      i_all = array_position(field_matter, fields, nf)
-      i_gas = array_position(field_gas, fields, nf)
-      i_pre = array_position(field_electron_pressure, fields, nf)
+      ! Add in neutrinos
+      ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
+      IF (cosm%f_nu .NE. 0. .AND. hmod%halo_neutrino == 1) THEN
+         i_dmonly = array_position(field_dmonly, fields, nf)
+         i_matter = array_position(field_matter, fields, nf)
+         i_neutrino = array_position(field_neutrino, fields, nf)
+         IF (i_matter == 0 .AND. i_dmonly == 0 .AND. i_neutrino == 0) THEN
+            ! Do nothing
+         ELSE
+            ! Loop over mass and apply corrections
+            DO i = 1, hmod%n
+               m = hmod%m(i)
+               fc = halo_neutrino_fraction(m, hmod, cosm)*m/comoving_matter_density(cosm)
+               IF(i_dmonly .NE. 0) wk(i, i_dmonly) = wk(i, i_dmonly)+fc
+               IF(i_matter .NE. 0) wk(i, i_matter) = wk(i, i_matter)+fc
+               IF(i_neutrino .NE. 0) wk(i, i_neutrino) = wk(i, i_neutrino)+fc
+            END DO
+         END IF
+      END IF
 
-      IF (i_all == 0 .AND. i_gas == 0 .AND. i_pre == 0) THEN
+      IF (hmod%halo_free_gas == 7) THEN
 
-         ! Do nothing
+         ! Get the array positions corresponding to all, gas, pressure if they exist
+         i_matter = array_position(field_matter, fields, nf)
+         i_gas = array_position(field_gas, fields, nf)
+         i_freegas = array_position(field_free_gas, fields, nf)
+         i_pressure = array_position(field_electron_pressure, fields, nf)
 
-      ELSE
+         IF (i_matter == 0 .AND. i_gas == 0 .AND. i_pressure == 0 .AND. i_freegas == 0) THEN
 
-         ! Get eta
-         ! TODO: Remove this? I do not think it is used.
-         et = eta_HMcode(hmod, cosm)
+            ! Do nothing
 
-         ! Loop over mass and apply corrections
-         DO i = 1, hmod%n
+         ELSE
 
-            ! Halo variables
-            m = hmod%m(i)
-            rv = hmod%rv(i)
-            c = hmod%c(i)
-            rs = rv/c
-            nu = hmod%nu(i)
+            ! Loop over mass and apply corrections
+            DO i = 1, hmod%n
 
-            ! Correction factor for the gas density profiles
-            fc = halo_free_gas_fraction(m, hmod, cosm)*m/comoving_matter_density(cosm)
-            IF (i_all .NE. 0) wk(i, i_all) = wk(i, i_all)+fc
-            IF (i_gas .NE. 0) wk(i, i_gas) = wk(i, i_gas)+fc
+               ! Halo variables
+               m = hmod%m(i)
+               rv = hmod%rv(i)
+               c = hmod%c(i)
+               rs = rv/c
+               nu = hmod%nu(i)
 
-            IF (i_pre .NE. 0) THEN
+               ! Correction factor for the gas density profiles
+               fc = halo_free_gas_fraction(m, hmod, cosm)*m/comoving_matter_density(cosm)
+               IF (i_matter .NE. 0)  wk(i, i_matter) =  wk(i, i_matter)+fc
+               IF (i_gas .NE. 0)     wk(i, i_gas) = wk(i, i_gas)+fc
+               IF (i_freegas .NE. 0) wk(i, i_freegas) = wk(i, i_freegas)+fc
+               IF (i_pressure .NE. 0) THEN
 
-               ! Calculate the value of the density profile prefactor [(Msun/h)/(Mpc/h)^3] and change units from cosmological to SI
-               rho0 = m*halo_free_gas_fraction(m, hmod, cosm) ! rho0 in [(Msun/h)/(Mpc/h)^3]
-               rho0 = rho0*msun/Mpc/Mpc/Mpc                 ! Overflow with REAL(4) if you use Mpc**3, this converts to SI units [h^2 kg/m^3]
-               rho0 = rho0*cosm%h**2                        ! Absorb factors of h, so now [kg/m^3]
+                  ! Calculate the value of the density profile prefactor [(Msun/h)/(Mpc/h)^3] and change units from cosmological to SI
+                  rho0 = m*halo_free_gas_fraction(m, hmod, cosm) ! rho0 in [(Msun/h)/(Mpc/h)^3]
+                  rho0 = rho0*msun/Mpc/Mpc/Mpc                   ! Overflow with REAL(4) if you use Mpc**3, this converts to SI units [h^2 kg/m^3]
+                  rho0 = rho0*cosm%h**2                          ! Absorb factors of h, so now [kg/m^3]
 
-               ! This is the total thermal pressure of the WHIM
-               T0 = HMx_Twhim(hmod) ! [K]
+                  ! This is the total thermal pressure of the WHIM
+                  T0 = HMx_Twhim(hmod) ! [K]
 
-               ! Factors to convert from Temp x density -> electron pressure (Temp x n; n is all particle number density)
-               pc = (rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
-               pc = pc/(eV*(0.01)**(-3)) ! Change units to pressure in [eV/cm^3]
-               pc = pc*cosm%mup/cosm%mue ! Convert from total thermal pressure to electron pressure
+                  ! Factors to convert from Temp x density -> electron pressure (Temp x n; n is all particle number density)
+                  pc = (rho0/(mp*cosm%mup))*(kb*T0) ! Multiply window by *number density* (all particles) times temperature time k_B [J/m^3]
+                  pc = pc/(eV*(0.01)**(-3))         ! Change units to pressure in [eV/cm^3]
+                  pc = pc*cosm%mup/cosm%mue         ! Convert from total thermal pressure to electron pressure
 
-               ! Add correction to 'electron pressure' haloes
-               wk(i, i_pre) = wk(i, i_pre)+pc
+                  ! Add correction to 'electron pressure' haloes
+                  wk(i, i_pressure) = wk(i, i_pressure)+pc
 
-            END IF
+               END IF
 
-         END DO
+            END DO
+
+         END IF
 
       END IF
 
@@ -2992,7 +3034,7 @@ CONTAINS
             STOP 'I_2H: Error, ibias specified incorrectly'
          END IF
 
-         integrand(i) = g_nu(nu, hmod)*b*(rhom*wk(i)/m)
+         integrand(i) = g_nu(nu, hmod)*b*rhom*wk(i)/m
 
       END DO
 
@@ -3577,7 +3619,7 @@ CONTAINS
             halo_fraction(field_gas, m, hmod, cosm), &
             halo_fraction(field_bound_gas, m, hmod, cosm), &
             halo_fraction(field_free_gas, m, hmod, cosm), &
-            halo_fraction(field_star, m, hmod, cosm), &
+            halo_fraction(field_stars, m, hmod, cosm), &
             halo_fraction(field_central_stars, m, hmod, cosm), &
             halo_fraction(field_satellite_stars, m, hmod, cosm)
       END DO
@@ -3596,9 +3638,9 @@ CONTAINS
       REAL :: r, rv, rs, c
       INTEGER :: i, j, nf
       INTEGER, ALLOCATABLE :: fields(:)
-      REAL, PARAMETER :: rmin = 1e-3     ! Mininum r/rv
-      REAL, PARAMETER :: rmax = 1.1e0    ! Maximum r/rv
-      INTEGER, PARAMETER :: n = 512      ! Number of points
+      REAL, PARAMETER :: rmin = 1e-3  ! Mininum r/rv
+      REAL, PARAMETER :: rmax = 1.1e0 ! Maximum r/rv
+      INTEGER, PARAMETER :: n = 512   ! Number of points
       LOGICAL, PARAMETER :: real_space = .TRUE. ! Real profiles
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: ifind = 3
@@ -3615,7 +3657,7 @@ CONTAINS
       fields(1) = field_matter
       fields(2) = field_cdm
       fields(3) = field_gas
-      fields(4) = field_star
+      fields(4) = field_stars
       fields(5) = field_electron_pressure
 
       ! Write file
@@ -3659,7 +3701,7 @@ CONTAINS
       fields(1) = field_matter
       fields(2) = field_cdm
       fields(3) = field_gas
-      fields(4) = field_star
+      fields(4) = field_stars
       fields(5) = field_electron_pressure
 
       ! Need mean density
@@ -5107,13 +5149,15 @@ CONTAINS
 
       IF (ifield == field_dmonly) THEN
          win_type = win_DMONLY(real_space, k, m, rv, rs, hmod, cosm)
+      ELSE IF (ifield == field_neutrino) THEN
+         win_type = win_neutrino(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_matter) THEN
-         win_type = win_total(real_space, k, m, rv, rs, hmod, cosm)
+         win_type = win_matter(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_cdm) THEN
          win_type = win_CDM(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_gas) THEN
          win_type = win_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
-      ELSE IF (ifield == field_star) THEN
+      ELSE IF (ifield == field_stars) THEN
          win_type = win_stars(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_bound_gas) THEN
          win_type = win_bound_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
@@ -5196,6 +5240,7 @@ CONTAINS
    REAL FUNCTION win_DMONLY(real_space, k, m, rv, rs, hmod, cosm)
 
       ! Halo profile for all matter under the assumption that it is all CDM
+      ! TODO: Possibly remove this since DMONLY should really be set by the halo_model ihm
       IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
@@ -5258,9 +5303,14 @@ CONTAINS
          win_DMONLY = m*win_norm(k, rmin, rmax, rv, rss, p1, p2, irho)/comoving_matter_density(cosm)
       END IF
 
+      ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
+      IF (hmod%DMONLY_neutrino_correction) THEN
+         win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
+      END IF
+
    END FUNCTION win_DMONLY
 
-   REAL FUNCTION win_total(real_space, k, m, rv, rs, hmod, cosm)
+   REAL FUNCTION win_matter(real_space, k, m, rv, rs, hmod, cosm)
 
       ! The halo profile of all the matter
       IMPLICIT NONE
@@ -5271,15 +5321,16 @@ CONTAINS
       REAL, INTENT(IN) :: rs
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: CDM, gas, stars
+      REAL :: CDM, gas, stars, neutrino
 
       CDM = win_CDM(real_space, k, m, rv, rs, hmod, cosm)
       gas = win_gas(real_space, field_gas, k, m, rv, rs, hmod, cosm)
       stars = win_stars(real_space, k, m, rv, rs, hmod, cosm)
+      neutrino = win_neutrino(real_space, k, m, rv, rs, hmod, cosm)
 
-      win_total = CDM+gas+stars
+      win_matter = CDM+gas+stars+neutrino
 
-   END FUNCTION win_total
+   END FUNCTION win_matter
 
    REAL FUNCTION win_CDM(real_space, k, m, rv, rs, hmod, cosm)
 
@@ -5348,7 +5399,6 @@ CONTAINS
 
       win_bound = win_bound_gas(real_space, itype, k, m, rv, rs, hmod, cosm)
       win_free = win_free_gas(real_space, itype, k, m, rv, rs, hmod, cosm)
-
       win_gas = win_bound+win_free
 
    END FUNCTION win_gas
@@ -5429,6 +5479,10 @@ CONTAINS
             irho_density = 15 ! Isothermal beta model with general beta
             p1 = HMx_ibeta(m, hmod)
             irho_electron_pressure = irho_density ! Okay to use density for pressure because temperature is constant (isothermal)
+         ELSE IF (hmod%halo_static_gas == 4) THEN
+            ! NFW
+            irho_density = 5 ! Analytical NFW
+            irho_electron_pressure = 0
          ELSE
             STOP 'WIN_STATIC_GAS: Error, halo_static_gas not specified correctly'
          END IF
@@ -6037,6 +6091,58 @@ CONTAINS
       END IF
 
    END FUNCTION win_satellite_stars
+
+   REAL FUNCTION win_neutrino(real_space, k, m, rv, rs, hmod, cosm)
+
+      ! Halo profile for the free gas component
+      IMPLICIT NONE
+      LOGICAL, INTENT(IN) :: real_space
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: rs
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: r, frac, rmin, rmax, p1, p2
+      INTEGER :: irho
+
+      frac = halo_neutrino_fraction(m, hmod, cosm)
+
+      IF (frac == 0.) THEN
+
+         win_neutrino = 0.
+
+      ELSE
+
+         ! Set some default values
+         p1 = 0
+         p2 = 0
+         rmin = 0.
+         rmax = rv
+
+         ! Smooth profile (rho=0)
+         IF (hmod%halo_neutrino == 1) THEN
+            irho = 19 ! Smooth
+         ELSE IF (hmod%halo_neutrino == 2) THEN
+            irho = 5 ! NFW 
+         ELSE  
+            STOP 'WIN_NEUTRINO: Error, neutrino profile not specified correctly'
+         END IF
+
+         IF (real_space) THEN
+            r = k
+            win_neutrino = rho(r, rmin, rmax, rv, rs, p1, p2, irho)
+            win_neutrino = win_neutrino/normalisation(rmin, rmax, rv, rs, p1, p2, irho)
+         ELSE
+            ! Properly normalise and convert to overdensity
+            win_neutrino = m*win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)/comoving_matter_density(cosm)
+         END IF
+
+         win_neutrino = frac*win_neutrino
+
+      END IF
+
+   END FUNCTION win_neutrino
 
    REAL FUNCTION win_electron_pressure(real_space, k, m, rv, rs, hmod, cosm)
 
@@ -6931,7 +7037,8 @@ CONTAINS
          ! Cubic profile
          normalisation = 4.*pi*log(rmax/rmin)
       ELSE IF (irho == 19) THEN
-         ! Smooth profile, needs a normalisation I think
+         ! Smooth profile, needs a normalisation because divided by
+         ! THIS CANNOT BE SET TO ZERO
          normalisation = 1.
       ELSE IF (irho == 24) THEN
          ! Cored NFW profile
@@ -7202,11 +7309,10 @@ CONTAINS
 
    END SUBROUTINE winint_diagnostics
 
-   FUNCTION winint(k, rmin, rmax, rv, rs, p1, p2, irho, imeth)
+   REAL FUNCTION winint(k, rmin, rmax, rv, rs, p1, p2, irho, imeth)
 
       ! Calculates W(k,M)
       IMPLICIT NONE
-      REAL :: winint
       REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: irho, imeth
 
@@ -7228,20 +7334,19 @@ CONTAINS
       ! You need to make sure that the rmax for the integration does not extend too far out
 
       IF (imeth == 1) THEN
-         winint = winint_normal(rmin, rmax, k, rmin, rmax, rv, rs, p1, p2, irho, winint_order, acc_win)
+         winint = integrate_window_normal(rmin, rmax, k, rmin, rmax, rv, rs, p1, p2, irho, winint_order, acc_win)
       ELSE IF (imeth == 3) THEN
-         winint = winint_store(rmin, rmax, k, rmin, rmax, rv, rs, p1, p2, irho, winint_order, acc_win)
+         winint = integrate_window_store(rmin, rmax, k, rmin, rmax, rv, rs, p1, p2, irho, winint_order, acc_win)
       ELSE
          winint = winint_bumps(k, rmin, rmax, rv, rs, p1, p2, irho, winint_order, acc_win, imeth)
       END IF
 
    END FUNCTION winint
 
-   FUNCTION winint_normal(a, b, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
+   REAL FUNCTION integrate_window_normal(a, b, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
 
       ! Integration routine using 'normal' method to calculate the normalised halo FT
       IMPLICIT NONE
-      REAL :: winint_normal
       REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: irho
       INTEGER, INTENT(IN) :: iorder
@@ -7259,7 +7364,7 @@ CONTAINS
 
       IF (a == b) THEN
 
-         winint_normal = 0.
+         integrate_window_normal = 0.
 
       ELSE
 
@@ -7303,7 +7408,7 @@ CONTAINS
                      weight = 1.
                   END IF
                ELSE
-                  STOP 'WININT_NORMAL: Error, order specified incorrectly'
+                  STOP 'INTEGRATE_WINDOW_NORMAL: Error, order specified incorrectly'
                END IF
 
                !Now get r and do the function evaluations
@@ -7315,28 +7420,27 @@ CONTAINS
             !The dr are all equally spaced
             dr = (b-a)/REAL(n-1)
 
-            winint_normal = REAL(sum)*dr
+            integrate_window_normal = REAL(sum)*dr
 
-            IF ((j > jmin) .AND. winint_normal == 0.) THEN
+            IF ((j > jmin) .AND. integrate_window_normal == 0.) THEN
                EXIT
-            ELSE IF ((j > jmin) .AND. (ABS(-1.+winint_normal/winold) < acc)) THEN
+            ELSE IF ((j > jmin) .AND. (ABS(-1.+integrate_window_normal/winold) < acc)) THEN
                EXIT
             ELSE
-               winold = winint_normal
+               winold = integrate_window_normal
             END IF
 
          END DO
 
       END IF
 
-   END FUNCTION winint_normal
+   END FUNCTION integrate_window_normal
 
-   FUNCTION winint_store(a, b, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
+   REAL FUNCTION integrate_window_store(a, b, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
 
       !Integrates between a and b until desired accuracy is reached
       !Stores information to reduce function calls
       IMPLICIT NONE
-      REAL :: winint_store
       REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
       REAL, INTENT(IN) :: acc
       INTEGER, INTENT(IN) :: iorder, irho
@@ -7345,6 +7449,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5
       INTEGER, PARAMETER :: jmax = 30
@@ -7352,7 +7457,7 @@ CONTAINS
       IF (a == b) THEN
 
          !Fix the answer to zero if the integration limits are identical
-         winint_store = 0.
+         integrate_window_store = 0.
 
       ELSE
 
@@ -7397,37 +7502,43 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.*sum_2n-sum_n)/3. !This is Simpson's rule and cancels error
                ELSE
-                  STOP 'WININT_STORE: Error, iorder specified incorrectly'
+                  STOP 'INTEGRATE_WINDOW_STORE: Error, iorder specified incorrectly'
                END IF
 
             END IF
 
-            IF ((j >= jmin) .AND. (ABS(-1.+sum_new/sum_old) < acc)) THEN
-               !jmin avoids spurious early convergence
-               winint_store = REAL(sum_new)
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
-               winint_store = 0.d0
-               STOP 'WININT_STORE: Integration timed out'
+               pass = .FALSE.
+               STOP 'INTEGRATE_WINDOW_STORE: Integration timed out'
             ELSE
-               !Integral has not converged so store old sums and reset sum variables
-               winint_store = 0.d0
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
                sum_n = sum_2n
-               sum_2n = 0.
+               sum_2n = 0.d0
             END IF
 
          END DO
 
+         integrate_window_store = sum_new
+
       END IF
 
-   END FUNCTION winint_store
+   END FUNCTION integrate_window_store
 
-   FUNCTION winint_bumps(k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc, imeth)
+   REAL FUNCTION winint_bumps(k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc, imeth)
 
       ! Integration routine to calculate the normalised halo FT
       IMPLICIT NONE
-      REAL :: winint_bumps
       REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: irho
       INTEGER, INTENT(IN) :: iorder, imeth
@@ -7466,9 +7577,9 @@ CONTAINS
 
          ! Now do the integration along a section
          IF (imeth == 2) THEN
-            w = winint_normal(r1, r2, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
+            w = integrate_window_normal(r1, r2, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
          ELSE IF (i == 0 .OR. i == n .OR. k == 0. .OR. imeth == 4) THEN
-            w = winint_store(r1, r2, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
+            w = integrate_window_store(r1, r2, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
          ELSE IF (imeth == 13) THEN
             w = winint_hybrid(r1, r2, i, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
          ELSE
@@ -7481,7 +7592,7 @@ CONTAINS
             ELSE IF (imeth == 8 .OR. (imeth == 12 .AND. n > nlim_bumps)) THEN
                w = winint_approx(r1, r2, i, k, rmin, rmax, rv, rs, p1, p2, irho, iorder=3)
             ELSE
-               w = winint_store(r1, r2, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
+               w = integrate_window_store(r1, r2, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
             END IF
          END IF
 
@@ -7599,7 +7710,7 @@ CONTAINS
          w = (rm**3+rn**3-6.*(rm+rn)/k**2)*a3+(rm**2+rn**2-4./k**2)*a2+(rm+rn)*a1+2.*a0
          w = w*(-1)**i
       ELSE
-         w = winint_store(rn, rm, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
+         w = integrate_window_store(rn, rm, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
       END IF
 
       winint_hybrid = w
@@ -8146,12 +8257,13 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       If (itype == field_dmonly .OR. itype == field_matter) THEN
+         ! TODO: Is this necessary? Is this ever called?
          halo_fraction = 1.
       ELSE IF (itype == field_cdm) THEN
          halo_fraction = halo_CDM_fraction(m, hmod, cosm)
       ELSE IF (itype == field_gas) THEN
          halo_fraction = halo_gas_fraction(m, hmod, cosm)
-      ELSE IF (itype == field_star) THEN
+      ELSE IF (itype == field_stars) THEN
          halo_fraction = halo_star_fraction(m, hmod, cosm)
       ELSE IF (itype == field_bound_gas) THEN
          halo_fraction = halo_bound_gas_fraction(m, hmod, cosm)
@@ -8167,6 +8279,8 @@ CONTAINS
          halo_fraction = halo_central_star_fraction(m, hmod, cosm)
       ELSE IF (itype == field_satellite_stars) THEN
          halo_fraction = halo_satellite_star_fraction(m, hmod, cosm)
+      ELSE IF (itype == field_neutrino) THEN
+         halo_fraction = halo_neutrino_fraction(m, hmod, cosm)
       ELSE
          STOP 'HALO_FRACTION: Error, itype not specified correcntly'
       END IF
@@ -8190,6 +8304,24 @@ CONTAINS
       halo_CDM_fraction = cosm%om_c/cosm%om_m
 
    END FUNCTION halo_CDM_fraction
+
+   REAL FUNCTION halo_neutrino_fraction(m, hmod, cosm)
+
+      ! Mass fraction of a halo in neutrinos
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: m
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: crap
+
+      ! To prevent compile-time warning
+      crap = m
+      crap = hmod%a
+
+      ! Always the universal value
+      halo_neutrino_fraction = cosm%f_nu
+
+   END FUNCTION halo_neutrino_fraction
 
    REAL FUNCTION halo_gas_fraction(m, hmod, cosm)
 
@@ -8545,6 +8677,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5
       INTEGER, PARAMETER :: jmax = 30
@@ -8610,10 +8743,19 @@ CONTAINS
 
             END IF
 
-            IF ((j >= jmin) .AND. (ABS(-1.d0+sum_new/sum_old) < acc)) THEN
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
+               pass = .FALSE.
                STOP 'INTEGRATE_HMOD: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
@@ -8622,8 +8764,8 @@ CONTAINS
             END IF
 
          END DO
-
-         integrate_hmod = REAL(sum_new)
+         
+         integrate_hmod = real(sum_new)
 
       END IF
 
@@ -8646,6 +8788,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5
       INTEGER, PARAMETER :: jmax = 30
@@ -8708,15 +8851,24 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE_HMOD: Error, iorder specified incorrectly'
+                  STOP 'INTEGRATE_HMOD_COSM: Error, iorder specified incorrectly'
                END IF
 
             END IF
 
-            IF ((j >= jmin) .AND. (ABS(-1.d0+sum_new/sum_old) < acc)) THEN
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
-               STOP 'INTEGRATE_HMOD: Integration timed out'
+               pass = .FALSE.
+               STOP 'INTEGRATE_HMOD_COSM: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
@@ -8725,7 +8877,7 @@ CONTAINS
             END IF
 
          END DO
-
+         
          integrate_hmod_cosm = REAL(sum_new)
 
       END IF
@@ -8749,6 +8901,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5
       INTEGER, PARAMETER :: jmax = 30
@@ -8773,7 +8926,7 @@ CONTAINS
          ! Set the sum variable for the integration
          sum_2n = 0.d0
          sum_n = 0.d0
-         sum_old = 0.d0
+         sum_old = 1.d0 ! Should not be zero
          sum_new = 0.d0
 
          DO j = 1, jmax
@@ -8811,15 +8964,24 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE_HMOD: Error, iorder specified incorrectly'
+                  STOP 'INTEGRATE_HMOD_COSM_EXP: Error, iorder specified incorrectly'
                END IF
 
             END IF
 
-            IF ((j >= jmin) .AND. (ABS(-1.d0+sum_new/sum_old) < acc)) THEN
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
-               STOP 'INTEGRATE_HMOD: Integration timed out'
+               pass = .FALSE.
+               STOP 'INTEGRATE_HMOD_COSM_EXP: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
@@ -8856,6 +9018,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5
       INTEGER, PARAMETER :: jmax = 30
@@ -8874,7 +9037,7 @@ CONTAINS
          ! Set the sum variable for the integration
          sum_2n = 0.d0
          sum_n = 0.d0
-         sum_old = 0.d0
+         sum_old = 1.d0 ! Should not be zero
          sum_new = 0.d0
 
          DO j = 1, jmax
@@ -8917,10 +9080,19 @@ CONTAINS
 
             END IF
 
-            IF ((j >= jmin) .AND. (ABS(-1.d0+sum_new/sum_old) < acc)) THEN
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
+               pass = .FALSE.
                STOP 'INTEGRATE_SCATTER: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
@@ -9094,7 +9266,7 @@ CONTAINS
          WRITE (*, *) 'WRITE_POWER_A: The remainder of the first row are the scale factors - a'
          WRITE (*, *) 'WRITE_POWER_A: The remainder of the first column are the wave numbers - k'
          WRITE (*, *) 'WRITE_POWER_A: Each row then gives the power at that k and a'
-         WRITE (*, *) 'WRITE_POWER_A: Output:', TRIM(output)
+         WRITE (*, *) 'WRITE_POWER_A: Output: ', TRIM(output)
       END IF
 
       ! Write out data to files
