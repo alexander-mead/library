@@ -98,10 +98,10 @@ MODULE cosmology_functions
    PUBLIC :: calculate_halofit_a
 
    INTERFACE integrate_cosm
-      MODULE PROCEDURE integrate1_cosm
-      MODULE PROCEDURE integrate2_cosm
-      MODULE PROCEDURE integrate3_cosm
-      MODULE PROCEDURE integrate4_cosm
+      MODULE PROCEDURE integrate_cosm_1
+      MODULE PROCEDURE integrate_cosm_2
+      MODULE PROCEDURE integrate_cosm_3
+      MODULE PROCEDURE integrate_cosm_4
    END INTERFACE integrate_cosm
 
    ! Contains cosmological parameters that only need to be calculated once
@@ -318,7 +318,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interpolation_sigma = 3 ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interpolation_sigma = 3  ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: imeth_interpolation_sigma = 2  ! Method for sigma(R) interpolation
-   INTEGER, PARAMETER :: sigma_cold_store = flag_power_cold ! Which version of the cold spectrum should be tabulated
+   INTEGER, PARAMETER :: sigma_cold_store = flag_power_cold_unorm ! Which version of the cold spectrum should be tabulated
 
    ! sigma_v(R) integration
    REAL, PARAMETER :: alpha_sigmaV = 3.     ! Exponent to increase integration speed
@@ -3284,7 +3284,7 @@ CONTAINS
       ELSE
          IF (flag == flag_power_total) THEN
             find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigma, cosm%nr_sigma, iorder, ifind, imeth))
-         ELSE IF (flag == flag_power_cold) THEN
+         ELSE IF (flag == sigma_cold_store) THEN
             find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigmac, cosm%nr_sigma, iorder, ifind, imeth))
          ELSE
             STOP 'FIND_SIGMA: Error, flag not specified correctly'
@@ -3442,7 +3442,7 @@ CONTAINS
       REAL :: w_hat, w_hat_deriv, k, kR
       REAL, PARAMETER :: alpha = alpha_neff
 
-      IF(t <= 0. .OR. t >= 1.) THEN
+      IF (t <= 0. .OR. t >= 1.) THEN
          neff_integrand = 0.
       ELSE
          kR = (-1.+1./t)**alpha
@@ -3473,7 +3473,7 @@ CONTAINS
 
    END FUNCTION grow
 
-   REAL FUNCTION ungrow(a, cosm)
+   REAL RECURSIVE FUNCTION ungrow(a, cosm)
 
       ! Growth function normalised such that g(a)~a at early (matter-dominated) times
       IMPLICIT NONE
@@ -3484,7 +3484,7 @@ CONTAINS
 
    END FUNCTION ungrow
 
-   REAL FUNCTION growth_rate(a, cosm)
+   REAL RECURSIVE FUNCTION growth_rate(a, cosm)
 
       ! Growth rate: dln(g) / dln(a)
       IMPLICIT NONE
@@ -3499,7 +3499,7 @@ CONTAINS
 
    END FUNCTION growth_rate
 
-   REAL FUNCTION acc_growth(a, cosm)
+   REAL RECURSIVE FUNCTION acc_growth(a, cosm)
 
       ! Accumulated growth function: int_0^a g(a)/a da
       IMPLICIT NONE
@@ -4413,7 +4413,7 @@ CONTAINS
 
    END SUBROUTINE ODE_advance_cosmology
 
-   REAL RECURSIVE FUNCTION integrate1_cosm(a, b, f, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_cosm_1(a, b, f, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -4429,6 +4429,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
       INTEGER, PARAMETER :: jmin = jmin_integration
       INTEGER, PARAMETER :: jmax = jmax_integration
 
@@ -4443,7 +4444,7 @@ CONTAINS
       IF (a == b) THEN
 
          ! Fix the answer to zero if the integration limits are identical
-         integrate1_cosm = 0.
+         integrate_cosm_1 = 0.
 
       ELSE
 
@@ -4488,16 +4489,24 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE1_COSM: Error, iorder specified incorrectly'
+                  STOP 'INTEGRATE_COSM_1: Error, iorder specified incorrectly'
                END IF
 
             END IF
 
-            IF ((j >= jmin) .AND. (abs(-1.d0+sum_new/sum_old) < acc)) THEN
-               ! jmin avoids spurious early convergence
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
-               STOP 'INTEGRATE1_COSM: Integration timed out'
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_1: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
@@ -4507,13 +4516,13 @@ CONTAINS
 
          END DO
 
-         integrate1_cosm = real(sum_new)
+         integrate_cosm_1 = real(sum_new)
 
       END IF
 
-   END FUNCTION integrate1_cosm
+   END FUNCTION integrate_cosm_1
 
-   REAL RECURSIVE FUNCTION integrate2_cosm(a, b, f, y, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_cosm_2(a, b, f, y, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -4530,6 +4539,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
       INTEGER, PARAMETER :: jmin = jmin_integration
       INTEGER, PARAMETER :: jmax = jmax_integration
 
@@ -4545,7 +4555,7 @@ CONTAINS
       IF (a == b) THEN
 
          ! Fix the answer to zero if the integration limits are identical
-         integrate2_cosm = 0.
+         integrate_cosm_2 = 0.
 
       ELSE
 
@@ -4588,18 +4598,26 @@ CONTAINS
                IF (iorder == 1) THEN
                   sum_new = sum_2n
                ELSE IF (iorder == 3) THEN
-                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 !This is Simpson's rule and cancels error
+                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE2_COSM: Error, iorder specified incorrectly'
+                  STOP 'INTEGRATE_COSM_2: Error, iorder specified incorrectly'
                END IF
 
             END IF
 
-            IF ((j >= jmin) .AND. (abs(-1.d0+sum_new/sum_old) < acc)) THEN
-               ! jmin avoids spurious early convergence
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
-               STOP 'INTEGRATE2_COSM: Integration timed out'
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_2: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
@@ -4608,14 +4626,14 @@ CONTAINS
             END IF
 
          END DO
-
-         integrate2_cosm = real(sum_new)
+         
+         integrate_cosm_2 = real(sum_new)
 
       END IF
 
-   END FUNCTION integrate2_cosm
+   END FUNCTION integrate_cosm_2
 
-   REAL RECURSIVE FUNCTION integrate3_cosm(a, b, f, y, z, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_cosm_3(a, b, f, y, z, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -4633,6 +4651,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
       INTEGER, PARAMETER :: jmin = jmin_integration
       INTEGER, PARAMETER :: jmax = jmax_integration
 
@@ -4649,7 +4668,7 @@ CONTAINS
       IF (a == b) THEN
 
          ! Fix the answer to zero if the integration limits are identical
-         integrate3_cosm = 0.
+         integrate_cosm_3 = 0.
 
       ELSE
 
@@ -4694,16 +4713,24 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE3_COSM: Error, iorder specified incorrectly'
+                  STOP 'INTEGRATE_COSM_3: Error, iorder specified incorrectly'
                END IF
 
             END IF
 
-            IF ((j >= jmin) .AND. (abs(-1.d0+sum_new/sum_old) < acc)) THEN
-               ! jmin avoids spurious early convergence
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.     
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
-               STOP 'INTEGRATE3_COSM: Integration timed out'
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_3: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
@@ -4713,13 +4740,13 @@ CONTAINS
 
          END DO
 
-         integrate3_cosm = real(sum_new)
+         integrate_cosm_3 = real(sum_new)
 
       END IF
 
-   END FUNCTION integrate3_cosm
+   END FUNCTION integrate_cosm_3
 
-   REAL RECURSIVE FUNCTION integrate4_cosm(a, b, f, y, z, flag, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_cosm_4(a, b, f, y, z, flag, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -4738,6 +4765,7 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
       INTEGER, PARAMETER :: jmin = jmin_integration
       INTEGER, PARAMETER :: jmax = jmax_integration
 
@@ -4755,7 +4783,7 @@ CONTAINS
       IF (a == b) THEN
 
          ! Fix the answer to zero if the integration limits are identical
-         integrate4_cosm = 0.
+         integrate_cosm_4 = 0.
 
       ELSE
 
@@ -4800,16 +4828,24 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE4_COSM: Error, iorder specified incorrectly'
+                  STOP 'INTEGRATE_COSM_4: Error, iorder specified incorrectly'
                END IF
 
             END IF
 
-            IF ((j >= jmin) .AND. (abs(-1.d0+sum_new/sum_old) < acc)) THEN
-               ! jmin avoids spurious early convergence
-               EXIT
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
             ELSE IF (j == jmax) THEN
-               STOP 'INTEGRATE4_COSM: Integration timed out'
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_4: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
             ELSE
                ! Integral has not converged so store old sums and reset sum variables
                sum_old = sum_new
@@ -4819,11 +4855,11 @@ CONTAINS
 
          END DO
 
-         integrate4_cosm = real(sum_new)
+         integrate_cosm_4 = real(sum_new)
 
       END IF
 
-   END FUNCTION integrate4_cosm
+   END FUNCTION integrate_cosm_4
 
    SUBROUTINE get_CAMB_power(a, na, k_Pk, Pk, nkPk, k_Tc, Tc, nkTc, non_linear, halofit_version, cosm)
 
@@ -4859,7 +4895,7 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
       CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini' 
 
-      IF(cosm%verbose) THEN
+      IF (cosm%verbose) THEN
          WRITE(*,*) 'GET_CAMB_POWER: Running CAMB'
          WRITE(*,*) 'GET_CAMB_POWER: kpiv [1/Mpc]:', real(cosm%kpiv)
          WRITE(*,*) 'GET_CAMB_POWER: As:', real(cosm%As)
@@ -5046,7 +5082,7 @@ CONTAINS
       DEALLOCATE(Pk_CAMB)
 
       ! Do pruning
-      IF(cosm%verbose) WRITE (*, *) 'GET_CAMB_POWER: nk before pruning:', nkPk
+      IF (cosm%verbose) WRITE (*, *) 'GET_CAMB_POWER: nk before pruning:', nkPk
       CALL prune_CAMB(k_Pk, a, Pk, nkPk, na)
       IF (cosm%verbose) THEN
          WRITE (*, *) 'GET_CAMB_POWER: nk after pruning:', nkPk
