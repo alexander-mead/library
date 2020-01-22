@@ -337,7 +337,7 @@ MODULE HMx
    ! TODO: Hydro tests passed if 1e-4, but I worry a bit, also it was a fairly minor speed up (25%)
    ! TODO: Also, not obvious that a constant frac_min is correct because some species have low abundance
    ! but we ususally care about perturbations to this abundance
-   REAL, PARAMETER :: frac_min_delta = 0.
+   REAL, PARAMETER :: frac_min_delta = 0.  ! Be very careful with this
    INTEGER, PARAMETER :: iorder_delta = 3
    INTEGER, PARAMETER :: ifind_delta = 3
    INTEGER, PARAMETER :: imeth_delta = 2
@@ -461,7 +461,7 @@ CONTAINS
       INTEGER :: i
 
       ! Names of pre-defined halo models
-      INTEGER, PARAMETER :: nhalomod = 54 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+      INTEGER, PARAMETER :: nhalomod = 57 ! Total number of pre-defined halo-model types (TODO: this is stupid)
       CHARACTER(len=256):: names(nhalomod)
       names(1) = 'HMcode (Mead et al. 2016)'
       names(2) = 'Basic halo-model (Two-halo term is linear)'
@@ -517,6 +517,10 @@ CONTAINS
       names(52) = 'Standard but with Mead (2017) spherical collapse'
       names(53) = 'HMcode (2016) with Nelder-Mead parameters'
       names(54) = 'HMcode (in prep) with Nelder-Mead parameters'
+      names(55) = 'HMx 2020: AGN 7.6'
+      names(56) = 'HMx 2020: AGN 7.8'
+      names(57) = 'HMx 2020: AGN 8.0'
+
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -1414,6 +1418,36 @@ CONTAINS
          ! Standard halo model but with Mead (2017) spherical-collapse fitting function
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
          hmod%iDv = 4 ! Mead (2017) fitting function for Delta_v
+      ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57) THEN
+         ! HMx 2020
+         hmod%response = 1
+         IF(ihm == 55) THEN
+            ! AGN 7.6
+            !hmod%Astar = 
+            !hmod%cstar = 
+            !hmod%mstar = 
+            !hmod%Astarz = 
+            !hmod%eta = 
+            !hmod%mstarz = 
+         ELSE IF (ihm == 56) THEN
+            ! AGN 7.8
+            !hmod%Astar = 
+            !hmod%cstar = 
+            !hmod%mstar = 
+            !hmod%Astarz = 
+            !hmod%eta = 
+            !hmod%mstarz = 
+         ELSE IF (ihm == 57) THEN
+            ! AGN 8.0
+            !hmod%Astar = 
+            !hmod%cstar = 
+            !hmod%mstar = 
+            !hmod%Astarz = 
+            !hmod%eta = 
+            !hmod%mstarz = 
+         ELSE
+            STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly for HMx 2020'
+         END IF
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -4145,7 +4179,8 @@ CONTAINS
       ELSE IF (hmod%HMx_mode == 3) THEN
          Mpiv = pivot_mass(hmod)
          z = hmod%z
-         HMx_Astar = hmod%Astar*((m/Mpiv)**hmod%Astarp)*((1.+z)**hmod%Astarz)
+         !HMx_Astar = hmod%Astar*((m/Mpiv)**hmod%Astarp)*((1.+z)**hmod%Astarz)
+         HMx_Astar = (hmod%Astar+hmod%Astarz*hmod%z)**(m/Mpiv)**hmod%Astarp
       ELSE IF (hmod%HMx_mode == 4) THEN
          A = hmod%A_Astar
          B = hmod%B_Astar
@@ -4154,10 +4189,10 @@ CONTAINS
          z = hmod%z
          T = log10(hmod%Theat)
          HMx_Astar = A*(1.+z)*T+B*(1.+z)+C*T+D
+      !ELSE IF (hmod%HMx_mode == 5) THEN
+      !   HMx_Astar = hmod%Astar+hmod%Astarz*hmod%z
       ELSE
-
          STOP 'HMx_ASTAR: Error, HMx_mode not specified correctly'
-
       END IF
 
       IF (HMx_Astar < HMx_Astar_min) HMx_Astar = HMx_Astar_min
@@ -4228,7 +4263,8 @@ CONTAINS
       ELSE IF (hmod%HMx_mode == 3) THEN
          ! Note, exponential here for z dependence because scaling applies to exponent
          z = hmod%z
-         HMx_Mstar = hmod%mstar**((1.+z)**hmod%mstarz)
+         !HMx_Mstar = hmod%mstar**((1.+z)**hmod%mstarz)
+         HMx_Mstar = hmod%mstar+hmod%mstarz*hmod%z
       ELSE
          STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
       END IF
