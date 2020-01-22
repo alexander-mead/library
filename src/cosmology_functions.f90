@@ -116,6 +116,7 @@ MODULE cosmology_functions
       REAL :: Om_m_pow, Om_b_pow, h_pow     ! Cosmological parameters used for P(k) if different from background
       REAL :: b0, b1, b2, b3, b4            ! BDE parameters
       REAL :: A_bump, k_bump, sigma_bump    ! Power-spectrum bump 
+      REAL :: TAGN                          ! AGN temperature
       LOGICAL :: bump, warm                 ! Logicals
       
       ! Variables that might be primary that are used in power normalisation
@@ -438,6 +439,8 @@ CONTAINS
       names(58) = 'Extreme bound dark energy'
       names(59) = 'Power bump'
       names(60) = 'Boring but with some CDM replaced with 0.3eV neutrinos'
+      names(61) = 'AGN-lo WMAP9 (BAHAMAS version: 1712.02411)'
+      names(62) = 'AGN-hi WMAP9 (BAHAMAS version: 1712.02411)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -609,6 +612,9 @@ CONTAINS
       cosm%warm = .FALSE.
       cosm%m_wdm = 0. ! Particle mass [keV]
 
+      ! AGN
+      cosm%TAGN = 10**7.8 ! AGN temperature
+
       ! Normalisation
       cosm%norm_method = norm_sigma8
       cosm%sig8 = 0.8              ! Large-scale structure normalisation
@@ -680,7 +686,7 @@ CONTAINS
          cosm%h = 0.6711
          cosm%n = 0.9624
          cosm%sig8 = 0.834
-      ELSE IF (icosmo == 4) THEN
+      ELSE IF (icosmo == 4 .OR. icosmo == 61 .OR. icosmo == 62) THEN
          ! BAHAMAS - WMAP9 (1712.02411)
          cosm%h = 0.7000
          cosm%Om_b = 0.0463
@@ -693,6 +699,15 @@ CONTAINS
          Xi = 1.08
          Xe = 1.17
          cosm%mue = cosm%mup*(Xe+Xi)/Xe
+         IF(icosmo == 4) THEN
+            cosm%TAGN = 10**7.8
+         ELSE IF(icosmo == 61) THEN
+            cosm%TAGN = 10**7.6
+         ELSE IF(icosmo == 62) THEN
+            cosm%TAGN = 10**8.0
+         ELSE
+            STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly for AGN temperature'
+         END IF
       ELSE IF (icosmo == 5) THEN
          !  5 - Open model
          ! 29 - Open model; normalised for Mead 2017 z=1 response
@@ -1339,67 +1354,70 @@ CONTAINS
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: small = small_print
+      CHARACTER(len=16), PARAMETER :: format = '(A11,A16,F11.5)'
+      CHARACTER(len=37), PARAMETER :: dashes = '====================================='
 
       IF (cosm%verbose) THEN
-         WRITE (*, *) '===================================='
+         WRITE (*, *) dashes
          WRITE (*, *) 'COSMOLOGY: ', trim(cosm%name)
-         WRITE (*, *) '===================================='
+         WRITE (*, *) dashes
          WRITE (*, *) 'COSMOLOGY: Background parameters'
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_m:', cosm%Om_m
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_b:', cosm%Om_b
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v:', cosm%Om_v
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_w:', cosm%Om_w
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'h:', cosm%h
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'T_CMB [K]:', cosm%T_CMB
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'z_CMB:', cosm%z_CMB
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_eff:', cosm%neff
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Y_H:', cosm%YH
-         !WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 1 [eV]:', cosm%m_nu(1)
-         !WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 2 [eV]:', cosm%m_nu(2)
-         !WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_nu 3 [eV]:', cosm%m_nu(3)
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
-         WRITE (*, *) '===================================='
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_m:', cosm%Om_m
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_b:', cosm%Om_b
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_v:', cosm%Om_v
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_w:', cosm%Om_w
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'h:', cosm%h
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'T_CMB [K]:', cosm%T_CMB
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'z_CMB:', cosm%z_CMB
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'n_eff:', cosm%neff
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Y_H:', cosm%YH
+         !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 1 [eV]:', cosm%m_nu(1)
+         !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 2 [eV]:', cosm%m_nu(2)
+         !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 3 [eV]:', cosm%m_nu(3)
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'log10(T_AGN/K):', log10(cosm%TAGN)
+         WRITE (*, *) dashes
          !WRITE (*, *) 'COSMOLOGY: Dark energy'
          IF (cosm%iw == iw_LCDM) THEN
-            WRITE (*, *) 'COSMOLOGY: Vacuum energy'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w:', -1.
+            WRITE (*, *) 'COSMOLOGY: Dark energy: Vacuum'
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'w:', -1.
          ELSE IF (cosm%iw == iw_QUICC) THEN
-            WRITE (*, *) 'COSMOLOGY: QUICC'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w0:', cosm%w
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'wm:', cosm%wm
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'am:', cosm%am
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'dm:', cosm%dm
+            WRITE (*, *) 'COSMOLOGY: Dark energy: QUICC'
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'w0:', cosm%w
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'wm:', cosm%wm
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'am:', cosm%am
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'dm:', cosm%dm
          ELSE IF (cosm%iw == iw_waCDM) THEN
-            WRITE (*, *) 'COSMOLOGY: w(a) = w0+wa(1.-a)'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w0:', cosm%w
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'wa:', cosm%wa
+            WRITE (*, *) 'COSMOLOGY: Dark energy: CPL'
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'w0:', cosm%w
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'wa:', cosm%wa
          ELSE IF (cosm%iw == iw_wCDM) THEN
-            WRITE (*, *) 'COSMOLOGY: Constant w'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w:', cosm%w
+            WRITE (*, *) 'COSMOLOGY: Dark energy: Constant w'
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'w:', cosm%w
          ELSE IF (cosm%iw == iw_IDE1) THEN
-            WRITE (*, *) 'COSMOLOGY: IDE I'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a*:', cosm%astar
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Om_w(a*):', cosm%Om_ws
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n*:', cosm%nstar
+            WRITE (*, *) 'COSMOLOGY: Dark energy: IDE I'
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'a*:', cosm%astar
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'Om_w(a*):', cosm%Om_ws
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'n*:', cosm%nstar
          ELSE IF (cosm%iw == iw_IDE2) THEN
-            WRITE (*, *) 'COSMOLOGY: IDE II'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a*:', cosm%astar
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Om_w(a*):', cosm%Om_ws
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n*:', cosm%nstar
+            WRITE (*, *) 'COSMOLOGY: Dark energy: IDE II'
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'a*:', cosm%astar
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'Om_w(a*):', cosm%Om_ws
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'n*:', cosm%nstar
          ELSE IF (cosm%iw == iw_IDE3) THEN
-            WRITE (*, *) 'COSMOLOGY: IDE III'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a*:', cosm%a1
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Om_w(a*):', cosm%Om_ws
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'w*:', cosm%ws
+            WRITE (*, *) 'COSMOLOGY: Dark energy: IDE III'
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'a*:', cosm%a1
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'Om_w(a*):', cosm%Om_ws
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'w*:', cosm%ws
          ELSE IF (cosm%iw == iw_BDE) THEN
-            WRITE(*, *) 'COSMOLOGY: Bound dark energy'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b0:', cosm%b0
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b1:', cosm%b1
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b2:', cosm%b2
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b3:', cosm%b3
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'b4:', cosm%b4
+            WRITE(*, *) 'COSMOLOGY: Dark energy: Bound'
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'b0:', cosm%b0
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'b1:', cosm%b1
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'b2:', cosm%b2
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'b3:', cosm%b3
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'b4:', cosm%b4
          END IF
-         WRITE (*, *) '===================================='
+         WRITE (*, *) dashes
          IF(cosm%itk == itk_EH) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: Eisenstein & Hu'
          ELSE IF(cosm%itk == itk_CAMB) THEN
@@ -1414,55 +1432,55 @@ CONTAINS
             STOP 'COSMOLOGY: Error, itk not set properly'
          END IF
          !WRITE (*, *) 'COSMOLOGY: Perturbation parameters'
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'n_s:', cosm%n
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'n_s:', cosm%n
          IF(cosm%norm_method == norm_sigma8) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: sigma_8'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'sigma_8:', cosm%sig8
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'sigma_8:', cosm%sig8
          ELSE IF(cosm%norm_method == norm_value) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: Power'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [h/Mpc]:', cosm%kval
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'D^2 [h/Mpc]:', cosm%pval
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'k [h/Mpc]:', cosm%kval
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'D^2 [h/Mpc]:', cosm%pval
          ELSE IF(cosm%norm_method == norm_As) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: A_s'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'ks [1/Mpc]:', cosm%kpiv
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'As:', cosm%As
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'ks [1/Mpc]:', cosm%kpiv
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'As:', cosm%As
          END IF
-         IF (cosm%box) WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
+         IF (cosm%box) WRITE (*, fmt=format) 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
          IF (cosm%warm) THEN
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'm_wdm [keV]:', cosm%m_wdm
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'm_wdm [keV]:', cosm%m_wdm
          END IF
          IF (cosm%bump) THEN
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'A bu:', cosm%A_bump
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k_bu [Mpc/h]:', cosm%k_bump
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'sigma bu:', cosm%sigma_bump
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'A bu:', cosm%A_bump
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'k_bu [Mpc/h]:', cosm%k_bump
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'sigma bu:', cosm%sigma_bump
          END IF
-         WRITE (*, *) '===================================='
+         WRITE (*, *) dashes
          WRITE (*, *) 'COSMOLOGY: Derived parameters'
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_m:', cosm%omega_m
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_c:', cosm%omega_c
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_b:', cosm%omega_b
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'omega_nu:', cosm%omega_nu
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_g:', cosm%Om_g
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_r:', cosm%Om_r
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega:', cosm%Om
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_c:', cosm%Om_c
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_nu:', cosm%Om_nu
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'f_nu:', cosm%f_nu
-!!$       WRITE(*,fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_v'':', cosm%Om_v_mod
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'Omega_k:', cosm%Om_k
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k [Mpc/h]^-2:', cosm%k
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'omega_m:', cosm%omega_m
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'omega_c:', cosm%omega_c
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'omega_b:', cosm%omega_b
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'omega_nu:', cosm%omega_nu
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_g:', cosm%Om_g
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_r:', cosm%Om_r
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega:', cosm%Om
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_c:', cosm%Om_c
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_nu:', cosm%Om_nu
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'f_nu:', cosm%f_nu
+!!$       WRITE(*,fmt=format) 'COSMOLOGY:', 'Omega_v'':', cosm%Om_v_mod
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_k:', cosm%Om_k
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'k [Mpc/h]^-2:', cosm%k
          IF (abs(cosm%k) > small) THEN
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'k_rad [Mpc/h]:', 1./sqrt(abs(cosm%k))
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'k_rad [Mpc/h]:', 1./sqrt(abs(cosm%k))
          END IF
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_p:', cosm%mup
-         WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'mu_e:', cosm%mue
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'mu_p:', cosm%mup
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'mu_e:', cosm%mue
          IF (cosm%iw == iw_IDE2) THEN
-            WRITE (*, *) '===================================='
+            WRITE (*, *) dashes
             WRITE (*, *) 'COSMOLOGY: IDE II'
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a1^n:', cosm%a1n
-            WRITE (*, fmt='(A11,A15,F11.5)') 'COSMOLOGY:', 'a2^n:', cosm%a2n
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'a1^n:', cosm%a1n
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'a2^n:', cosm%a2n
          END IF
-         WRITE (*, *) '===================================='
+         WRITE (*, *) dashes
          WRITE (*, *)
       END IF
 
