@@ -1,25 +1,31 @@
 # File names for the halo-model power spectra that are fitted to the BAHAMAS data
-def fitted_power_file_name(mode, model, z, field_pair):
+def fitted_power_file_name(mode, model, z, chain, field_pair, label):
    _, f1 = field_name_to_letter_and_integer(field_pair[0])
    _, f2 = field_name_to_letter_and_integer(field_pair[1])
    dir = '/Users/Mead/Physics/HMx/fitting'
-   file = dir+'/m'+str(mode)+'/'+model+'/z%1.3f_n3000_c1_power_%d%d.dat' % (z, f1, f2)
+   #if (orig_or_best == 'orig' or orig_or_best == 'best'):
+   #   file = dir+'/m'+str(mode)+'/'+model+'/z%1.3f_n%d_c%d_power_%s_%d%d.dat' % (z, num, chain, orig_or_best, f1, f2)
+   #elif (orig_or_best == None):
+   #   file = dir+'/m'+str(mode)+'/'+model+'/z%1.3f_n%d_c%d_power_%d%d.dat' % (z, num, chain, f1, f2)
+   #else:
+   #   raise ValueError('orig_or_best should be set to orig, best or None')
+   file = dir+'/m'+str(mode)+'/'+model+'/c%d_z%1.3f_cos1_%s_power_%d%d.dat' % (chain, z, label, f1, f2)
    return file
 
 # Read the halo-model power spectra and output the wavenumber and power spectrum
-def get_fitted_power(mode, model, z, field_pair):
+def get_fitted_power(mode, model, z, chain, field_pair, label):
    from numpy import loadtxt
-   infile = fitted_power_file_name(mode, model, z, field_pair)
+   infile = fitted_power_file_name(mode, model, z, chain, field_pair, label)
    data = loadtxt(infile)
    k = data[:,0]
    power = data[:,4]
    return k, power
 
 # Read the halo-model power spectra and output the wavenumber and power spectrum
-def get_fitted_response(mode, model, z, field_pair):
+def get_fitted_response(mode, model, z, chain, field_pair, label):
    from numpy import loadtxt
-   k, power = get_fitted_power(mode, model, z, field_pair)
-   _, dmonly = get_fitted_power(mode, model, z, field_pair=('dmonly','dmonly'))
+   k, power = get_fitted_power(mode, model, z, chain, field_pair, label)
+   _, dmonly = get_fitted_power(mode, model, z, chain, ('dmonly','dmonly'), label)
    response = power/dmonly
    return k, response
 
@@ -48,11 +54,14 @@ def field_name_to_letter_and_integer(name):
       raise ValueError('Field name not recognised')
    return symbol, integer
 
-    # Parameter file name
-def parameter_file_name(fit, model, z):
+# Parameter file name
+def parameter_file_name(fit, model, chain, z=None):
    from os.path import isfile
    directory = '/Users/Mead/Physics/HMx/'
-   file = directory+'fitting/m%d/%s/z%1.3f_n3000_c1_params.dat' % (fit, model, z)
+   if (z == None):
+      file = directory+'fitting/m%d/%s/c%d_params.dat' % (fit, model, chain)
+   else:
+      file = directory+'fitting/m%d/%s/c%d_z%1.3f_params.dat' % (fit, model, chain, z)
    if not isfile(file):
       print(file)
       raise NameError('File does not exist')
@@ -60,31 +69,103 @@ def parameter_file_name(fit, model, z):
 
 # Read best-fitting parameters from file
 def read_parameter_file(file):
-   # Parameters governing *_params.dat files
+
+   # Import statements
+   from sys import path 
    from numpy import genfromtxt, float
-   parameter_file_header_length = 4
+
+   path.append('/Users/Mead/Physics/library/python')
+   from mead_strings import read_first_number_from_line_in_file
+
+   # Read the file
+   parameter_file_figure_of_merit_line = 1
+   parameter_file_header_length = 5
    parameter_file_footer_length = 1
    parameter_file_names_column = 1
    parameter_file_best_fit_column = 3
+
+   # Import the table from the text file
    data = genfromtxt(file, dtype = 'str', 
                      skip_header = parameter_file_header_length, 
                      skip_footer = parameter_file_footer_length
                      )
    
+   # Make arrays of parameter names and best-fitting values
    parameter_names = data[:, parameter_file_names_column]
    best_fitting_values = data[:, parameter_file_best_fit_column].astype(float)
-   return parameter_names, best_fitting_values
+
+   # Get the figure of merit
+   figure_of_merit = read_first_number_from_line_in_file(file, parameter_file_figure_of_merit_line)
+
+   # Fin 
+   return parameter_names, best_fitting_values, figure_of_merit
 
 # Read the best-fitting parameters for a range of models and redshifts
-def read_parameter_file_models_zs(fit, models, zs):
-   from numpy import asarray
+def read_parameter_file_models_zs(fit, models, chain, zs):
+
+   from numpy import asarray 
+
+   # Initialise empty lists for output
    best_fitting_values_models = []
+   figures_of_merit = []
+
    for model in models:
+
+      # Initialise empty lists 
       best_fitting_values_z = []
+      figures_of_merit_z = []
+
       for z in zs:
-         infile = parameter_file_name(fit, model, z)
-         parameter_names, parameter_values = read_parameter_file(infile)
+
+         # Get the input file name
+         infile = parameter_file_name(fit, model, chain, z)
+
+         # Read the data
+         parameter_names, parameter_values, figure_of_merit = read_parameter_file(infile)
+
+         # Append information to lists
          best_fitting_values_z.append(parameter_values)
+         figures_of_merit_z.append(figure_of_merit)
+
+      # Append lists to lists
       best_fitting_values_models.append(best_fitting_values_z)
+      figures_of_merit.append(figures_of_merit_z)
+
+   # Convert lists to arrays
    best_fitting_values_models = asarray(best_fitting_values_models)
-   return parameter_names, best_fitting_values_models
+   figures_of_merit = asarray(figures_of_merit)
+
+   # Return with the good stuff
+   return parameter_names, best_fitting_values_models, figures_of_merit
+
+   # Read the best-fitting parameters for a range of models and redshifts
+def read_parameter_file_models(fit, models, chain):
+
+   from numpy import asarray 
+
+   # Initialise empty lists for output
+   best_fitting_values_models = []
+   figures_of_merit = []
+
+   for model in models:
+
+      # Get the input file name
+      infile = parameter_file_name(fit, model, chain)
+
+      # Read the data
+      parameter_names, parameter_values, figure_of_merit = read_parameter_file(infile)
+
+      # Append information to lists
+      best_fitting_values_models.append(parameter_values)
+      figures_of_merit.append(figure_of_merit)
+
+      # Append lists to lists
+      #best_fitting_values_models.append(best_fitting_values)
+      #figures_of_merit.append(figures_of_merit)
+
+   # Convert lists to arrays
+   best_fitting_values_models = asarray(best_fitting_values_models)
+   figures_of_merit = asarray(figures_of_merit)
+
+   # Return with the good stuff
+   return parameter_names, best_fitting_values_models, figures_of_merit

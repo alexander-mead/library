@@ -12,7 +12,7 @@ def error_file_name(mesh, snap, field_pair):
     field2 = field_pair[1]
     return dir+'/M'+str(mesh)+'/L400N1024_WMAP9_snap'+str(snap)+'_'+field1+'_'+field2+'_error.dat'
 
-   # Get the snapshot number corresponding to different BAHAMAS redshifts
+# Get the snapshot number corresponding to different BAHAMAS redshifts
 def z_to_snap(z):
     if(z == 0.000):
         snap = 32
@@ -42,27 +42,41 @@ def z_to_snap(z):
     return snap
 
 # Read a BAHAMAS power/error file and output k, power, error
-def get_measured_power(mesh, model, z, field_pair, errors=1):
+def get_measured_power(mesh, model, z, field_pair, realisation_errors=False, correct_shot_noise=True):
+
    from numpy import loadtxt
+
+   column_k = 0
+   column_power = 1
+   column_shot = 2
+   column_error = 4
+
+   column_realisation_error = 2
+
    snap = z_to_snap(z)
    infile = power_file_name(mesh, model, snap, field_pair)
    data = loadtxt(infile)
-   k = data[:,0]
-   power = data[:,1]
-   if (errors == 1):
-      error = data[:,4]
-   elif(errors == 2):
+   k = data[:, column_k]
+   power = data[:, column_power]
+   shot = data[:, column_shot]
+
+   if(realisation_errors):
       infile = error_file_name(mesh, snap, field_pair)
       data = loadtxt(infile)
-      error = data[:,1]
+      error = data[:, column_realisation_error]
    else:
-      raise ValueError('Something went wrong trying to get the BAHAMAS error bars')
+      error = data[:, column_error]
+
+   # Subtract shot noise
+   if (correct_shot_noise):
+      power = power - shot
+
    return k, power, error
 
 def get_measured_response(mesh, model, z, field_pair):
-   k, power, _ = get_measured_power(mesh, model, z, field_pair, errors=1)
+   k, power, _ = get_measured_power(mesh, model, z, field_pair)
    dmonly_name = 'DMONLY_2fluid_nu0'
-   _, dmonly, _ = get_measured_power(mesh, dmonly_name, z, field_pair=('all', 'all'), errors=1)
+   _, dmonly, _ = get_measured_power(mesh, dmonly_name, z, field_pair=('all', 'all'))
    response = power/dmonly
    return k, response
 
