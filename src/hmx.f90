@@ -461,7 +461,7 @@ CONTAINS
       INTEGER :: i
 
       ! Names of pre-defined halo models
-      INTEGER, PARAMETER :: nhalomod = 57 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+      INTEGER, PARAMETER :: nhalomod = 58 ! Total number of pre-defined halo-model types (TODO: this is stupid)
       CHARACTER(len=256):: names(nhalomod)
       names(1) = 'HMcode (Mead et al. 2016)'
       names(2) = 'Basic halo-model (Two-halo term is linear)'
@@ -517,9 +517,10 @@ CONTAINS
       names(52) = 'Standard but with Mead (2017) spherical collapse'
       names(53) = 'HMcode (2016) with Nelder-Mead parameters'
       names(54) = 'HMcode (in prep) with Nelder-Mead parameters'
-      names(55) = 'HMx 2020: AGN 7.6'
-      names(56) = 'HMx 2020: AGN 7.8'
-      names(57) = 'HMx 2020: AGN 8.0'
+      names(55) = 'HMx 2020'
+      names(56) = 'HMx 2020: AGN 7.6'
+      names(57) = 'HMx 2020: AGN 7.8'
+      names(58) = 'HMx 2020: AGN 8.0'
 
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
@@ -1418,9 +1419,11 @@ CONTAINS
          ! Standard halo model but with Mead (2017) spherical-collapse fitting function
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
          hmod%iDv = 4 ! Mead (2017) fitting function for Delta_v
-      ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57) THEN
+      ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58) THEN
          ! HMx 2020
          hmod%response = 1
+         hmod%halo_central_stars = 3 ! Delta function
+         hmod%eta = -0.3
          IF(ihm == 55) THEN
             ! AGN 7.6
             !hmod%Astar = 
