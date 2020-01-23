@@ -6,6 +6,7 @@ MODULE file_info
 
    PUBLIC :: file_length
    PUBLIC :: count_number_of_lines
+   PUBLIC :: check_file_exists
 
 CONTAINS
 
@@ -86,6 +87,21 @@ CONTAINS
       CLOSE (file_unit)
 
    END FUNCTION count_number_of_lines
+
+   SUBROUTINE check_file_exists(file)
+
+      IMPLICIT NONE
+      CHARACTER(len=*), INTENT(IN) :: file
+      LOGICAL :: lexist
+
+      ! Check file exists
+      INQUIRE (file=file, exist=lexist)
+      IF (.NOT. lexist) THEN
+         WRITE (*, *) 'CHECK_FILE_EXISTS: File: ', trim(file)
+         STOP 'CHECK_FILE_EXISTS: File does not exist'
+      END IF
+
+   END SUBROUTINE check_file_exists
 
 END MODULE file_info
 
