@@ -4149,7 +4149,8 @@ CONTAINS
       ELSE IF (hmod%HMx_mode == 3) THEN
          ! Note, exponential here for z dependence because scaling applies to exponent
          z = hmod%z
-         HMx_M0 = hmod%M0**((1.+z)**hmod%M0z)
+         !HMx_M0 = hmod%M0**((1.+z)**hmod%M0z)
+         HMx_M0 = hmod%M0*exp(hmod%M0z)**z ! HMx2020
       ELSE IF (hmod%HMx_mode == 4) THEN
          A = hmod%A_M0
          B = hmod%B_M0
