@@ -42,13 +42,14 @@ def z_to_snap(z):
     return snap
 
 # Read a BAHAMAS power/error file and output k, power, error
-def get_measured_power(mesh, model, z, field_pair, realisation_errors=False, correct_shot_noise=True):
+def get_measured_power(mesh, model, z, field_pair, realisation_errors=False, correct_shot_noise=False):
 
    from numpy import loadtxt
 
    column_k = 0
    column_power = 1
    column_shot = 2
+   column_modes = 3
    column_error = 4
 
    column_realisation_error = 2
@@ -58,6 +59,7 @@ def get_measured_power(mesh, model, z, field_pair, realisation_errors=False, cor
    data = loadtxt(infile)
    k = data[:, column_k]
    power = data[:, column_power]
+   modes = data[:, column_modes]
    shot = data[:, column_shot]
 
    if(realisation_errors):
@@ -71,12 +73,25 @@ def get_measured_power(mesh, model, z, field_pair, realisation_errors=False, cor
    if (correct_shot_noise):
       power = power - shot
 
-   return k, power, error
+   return k, power, shot, modes, error
 
 def get_measured_response(mesh, model, z, field_pair):
-   k, power, _ = get_measured_power(mesh, model, z, field_pair)
+
+   # Get the power from the hydro model
+   k, power, _, _, _ = get_measured_power(mesh, model, z, field_pair,
+      realisation_errors=False,
+      correct_shot_noise=True
+      )
+
+   # Get the power from the DMONLY model
    dmonly_name = 'DMONLY_2fluid_nu0'
-   _, dmonly, _ = get_measured_power(mesh, dmonly_name, z, field_pair=('all', 'all'))
+   _, dmonly, _, _, _ = get_measured_power(mesh, dmonly_name, z, field_pair=('all', 'all'),
+      realisation_errors=False,
+      correct_shot_noise=True
+      )
+
+   # Make the response
    response = power/dmonly
+
    return k, response
 
