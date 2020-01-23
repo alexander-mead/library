@@ -138,13 +138,12 @@ MODULE HMx
    PUBLIC :: param_eta
    PUBLIC :: param_ibeta
    PUBLIC :: param_gbeta
-   PUBLIC :: param_cmod
+   PUBLIC :: param_eps2
 
    ! Fitting parameters - hydro mass indices
    PUBLIC :: param_alphap
    PUBLIC :: param_betap
    PUBLIC :: param_Gammap
-   PUBLIC :: param_Astarp
    PUBLIC :: param_cstarp
    PUBLIC :: param_ibetap
 
@@ -160,6 +159,7 @@ MODULE HMx
    PUBLIC :: param_epsz
    PUBLIC :: param_ibetaz
    PUBLIC :: param_gbetaz
+   PUBLIC :: param_etaz
 
    ! Fitting parameters - HMcode
    PUBLIC :: param_HMcode_Dv0
@@ -192,7 +192,7 @@ MODULE HMx
       INTEGER :: flag_sigma_eta, flag_sigma_deltac, flag_sigmaV_fdamp
 
       ! Void stuff
-      LOGICAL :: voids
+      LOGICAL :: voids, fix_star_concentration
 
       ! Spherical collapse parameters
       REAL :: dc, Dv
@@ -200,8 +200,8 @@ MODULE HMx
       ! HMx baryon parameters
       REAL :: alpha, beta, eps, Gamma, M0, Astar, Twhim, ibeta ! HMx baryon parameters
       REAL :: cstar, sstar, mstar, Theat, fcold, fhot, eta     ! HMx baryon parameters
-      REAL :: gbeta, gbetaz, cmod                              ! HMx baryon parameters
-      REAL :: alphap, betap, Gammap, cstarp, Astarp, ibetap    ! HMx mass-power parameters
+      REAL :: gbeta, gbetaz, etaz, eps2                        ! HMx baryon parameters
+      REAL :: alphap, betap, Gammap, cstarp, ibetap            ! HMx mass-power parameters
       REAL :: alphaz, betaz, epsz, Gammaz, M0z, Astarz, Twhimz ! HMx z-power parameters
       REAL :: cstarz, mstarz, ibetaz                           ! HMx z-power parameters
       REAL :: A_alpha, B_alpha, C_alpha, D_alpha, E_alpha      ! Tilman alpha parameters
@@ -434,7 +434,7 @@ MODULE HMx
    INTEGER, PARAMETER :: param_beta = 34
    INTEGER, PARAMETER :: param_betap = 35
    INTEGER, PARAMETER :: param_betaz = 36
-   INTEGER, PARAMETER :: param_Astarp = 37
+   INTEGER, PARAMETER :: param_etaz = 37
    INTEGER, PARAMETER :: param_cstarz = 38
    INTEGER, PARAMETER :: param_mstarz = 39
    INTEGER, PARAMETER :: param_ibeta = 40
@@ -444,7 +444,7 @@ MODULE HMx
    INTEGER, PARAMETER :: param_gbetaz = 44
    INTEGER, PARAMETER :: param_HMcode_Dvnu = 45
    INTEGER, PARAMETER :: param_HMcode_dcnu = 46
-   INTEGER, PARAMETER :: param_cmod = 47
+   INTEGER, PARAMETER :: param_eps2 = 47
    INTEGER, PARAMETER :: param_n = 47
 
    INTEGER, PARAMETER :: ihm_hmcode = 1
@@ -728,6 +728,9 @@ CONTAINS
       ! 2 - Fedeli (2014) stellar distribution
       hmod%halo_satellite_stars = 1
 
+      ! Do stars see the original halo concentration?
+      hmod%fix_star_concentration = .FALSE.
+
       ! Neutrino halo profile
       ! 1 - Smooth neutrino distribution
       ! 2 - NFW
@@ -795,7 +798,7 @@ CONTAINS
       ! Fixed HMx parameters
       hmod%alpha = 1.0      ! Non-virial temperature correction for static gas
       hmod%beta = 1.0       ! Non-virial temperature correction for hot gas
-      hmod%eps = 1.         ! Concentration modification
+      hmod%eps = 0.         ! Low-gas-content concentration modification
       hmod%Gamma = 1.17     ! Polytropic gas index
       hmod%M0 = 1e14        ! Halo mass that has lost half gas
       hmod%Astar = 0.03     ! Maximum star-formation efficiency
@@ -808,14 +811,13 @@ CONTAINS
       hmod%eta = 0.0        ! Power-law for central galaxy mass fraction
       hmod%ibeta = 2./3.    ! Isothermal beta power index
       hmod%gbeta = 0.6      ! Gas fraction power-law
-      hmod%cmod = 1.        ! Global concentration scaling
+      hmod%eps2 = 0.        ! High-gas-content concentration modification
 
       ! Mass indices
       hmod%alphap = 0.0    ! Power-law index of alpha with halo mass
       hmod%betap = 0.0     ! Power-law index of beta with halo mass
       hmod%Gammap = 0.0    ! Power-law index of Gamma with halo mass
       hmod%cstarp = 0.0    ! Power-law index of c* with halo mass
-      hmod%Astarp = 0.0    ! Power-law index of A* with halo mass
       hmod%ibetap = 0.0    ! Power-law index of isothermal beta index with halo mass
 
       ! Redshift indices
@@ -828,8 +830,10 @@ CONTAINS
       hmod%Twhimz = 0.0    ! Power-law index of log(Twhim) with redshift
       hmod%cstarz = 0.0    ! Power-law index of c* with redshift
       hmod%mstarz = 0.0    ! Power-law index of log(M*) with redshift
+      !hmod%mstarz = 1.0    ! Power-law index of log(M*) with redshift
       hmod%ibetaz = 0.0    ! Power-law index of isothermal beta index with redshift
       hmod%gbetaz = 0.0    ! Gas fraction power-law index with redshift
+      hmod%etaz = 0.0      ! Power-law for central galaxy mass fraction with redshift
 
       ! $\alpha$ z and Theat variation
       hmod%A_alpha = -0.005
@@ -1197,7 +1201,7 @@ CONTAINS
             ! Mpiv = 1e14; z = 0.0
             hmod%simple_pivot = .TRUE.
             hmod%alpha = 0.709
-            hmod%eps = 1.12
+            hmod%eps = 0.12
             hmod%Gamma = 1.236
             hmod%M0 = 10.**13.6
             hmod%Astar = 0.045
@@ -1214,7 +1218,7 @@ CONTAINS
             ! Mpiv = 1e14; z = 0.0
             hmod%simple_pivot = .TRUE.
             hmod%alpha = 0.802
-            hmod%eps = 1.06
+            hmod%eps = 0.06
             hmod%Gamma = 1.268
             hmod%M0 = 10.**13.9
             hmod%Astar = 0.043
@@ -1231,7 +1235,7 @@ CONTAINS
             ! Mpiv = 1e14; z = 0.0
             hmod%simple_pivot = .TRUE.
             hmod%alpha = 0.769
-            hmod%eps = 0.91
+            hmod%eps = -0.09
             hmod%Gamma = 1.274
             hmod%M0 = 10.**14.3
             hmod%Astar = 0.039
@@ -1247,7 +1251,7 @@ CONTAINS
             ! AGN 7.6
             ! Mpiv = Mh; z = 0.0; f_hot
             hmod%alpha = 1.247
-            hmod%eps = 1.087
+            hmod%eps = 0.087
             hmod%Gamma = 1.253
             hmod%M0 = 10.**13.63
             hmod%Astar = 0.042
@@ -1264,7 +1268,7 @@ CONTAINS
             ! AGN tuned
             ! Mpiv = Mh; z = 0.0; f_hot
             hmod%alpha = 1.251
-            hmod%eps = 0.866
+            hmod%eps = -0.291
             hmod%Gamma = 1.257
             hmod%M0 = 10.**13.856
             hmod%Astar = 0.0413
@@ -1281,7 +1285,7 @@ CONTAINS
             ! AGN 8.0
             ! Mpiv = Mh; z = 0.0; f_hot
             hmod%alpha = 1.024
-            hmod%eps = 0.821
+            hmod%eps = -0.179
             hmod%Gamma = 1.264
             hmod%M0 = 10.**14.33
             hmod%Astar = 0.0383
@@ -1307,7 +1311,7 @@ CONTAINS
          IF (ihm == 38) THEN
             ! AGN 7p6
             hmod%alpha = 1.52016437
-            hmod%eps = 1.06684244
+            hmod%eps = 0.06684244
             hmod%Gamma = 1.24494147
             hmod%M0 = 2.84777660E+13
             hmod%Astar = 3.79242003E-02
@@ -1329,7 +1333,7 @@ CONTAINS
          ELSE IF (ihm == 39) THEN
             ! AGN tuned
             hmod%alpha = 1.54074240
-            hmod%eps = 1.01597583
+            hmod%eps = 0.01597583
             hmod%Gamma = 1.24264216
             hmod%M0 = 6.51173707E+13
             hmod%Astar = 3.45238000E-02
@@ -1351,7 +1355,7 @@ CONTAINS
          ELSE IF (ihm == 40) THEN
             ! AGN 8p0
             hmod%alpha = 1.45703220
-            hmod%eps = 0.872408926
+            hmod%eps = -0.128
             hmod%Gamma = 1.24960959
             hmod%M0 = 1.15050950E+14
             hmod%Astar = 3.86818014E-02
@@ -1422,34 +1426,31 @@ CONTAINS
       ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58) THEN
          ! HMx 2020
          hmod%response = 1
-         hmod%halo_central_stars = 3 ! Delta function
+         hmod%halo_central_stars = 3 ! 3 - Delta function
          hmod%eta = -0.3
-         IF(ihm == 55) THEN
+         hmod%fix_star_concentration = .TRUE.
+         hmod%HMx_mode = 3 ! Possible M and z dependent of parameters
+         IF(ihm == 56) THEN
             ! AGN 7.6
-            !hmod%Astar = 
-            !hmod%cstar = 
-            !hmod%mstar = 
-            !hmod%Astarz = 
-            !hmod%eta = 
-            !hmod%mstarz = 
-         ELSE IF (ihm == 56) THEN
-            ! AGN 7.8
-            !hmod%Astar = 
-            !hmod%cstar = 
-            !hmod%mstar = 
-            !hmod%Astarz = 
-            !hmod%eta = 
-            !hmod%mstarz = 
+            hmod%Astar = 0.03538
+            hmod%mstar = 10**12.39794
+            hmod%Astarz = -0.01020
+            hmod%eta = -0.32187
+            hmod%mstarz = -0.15334
          ELSE IF (ihm == 57) THEN
+            ! AGN 7.8
+            hmod%Astar = 0.03392
+            hmod%mstar = 10**12.34581
+            hmod%Astarz = -0.01013
+            hmod%eta = -0.31955
+            hmod%mstarz = -0.02782
+         ELSE IF (ihm == 58) THEN
             ! AGN 8.0
-            !hmod%Astar = 
-            !hmod%cstar = 
-            !hmod%mstar = 
-            !hmod%Astarz = 
-            !hmod%eta = 
-            !hmod%mstarz = 
-         ELSE
-            STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly for HMx 2020'
+            hmod%Astar = 0.03183
+            hmod%mstar = 10**12.27733
+            hmod%Astarz = -0.00936
+            hmod%eta = -0.30451
+            hmod%mstarz = -0.00126
          END IF
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
@@ -1951,7 +1952,7 @@ CONTAINS
             WRITE (*, fmt='(A30,F10.5)') 'c*:', hmod%cstar
             WRITE (*, fmt='(A30,F10.5)') 'eta:', hmod%eta
             WRITE (*, fmt='(A30,F10.5)') 'iso beta:', hmod%ibeta
-            WRITE (*, fmt='(A30,F10.5)') 'cmod:', hmod%cmod
+            WRITE (*, fmt='(A30,F10.5)') 'epsilon2:', hmod%eps2
          END IF
          WRITE (*, fmt='(A30,F10.5)') 'sigma*:', hmod%sstar
          WRITE (*, fmt='(A30,F10.5)') 'log10(M*) [Msun/h]:', log10(hmod%Mstar)
@@ -1963,7 +1964,6 @@ CONTAINS
             WRITE (*, fmt='(A30,F10.5)') 'beta mass index:', hmod%betap
             WRITE (*, fmt='(A30,F10.5)') 'Gamma mass index:', hmod%Gammap
             WRITE (*, fmt='(A30,F10.5)') 'iso beta mass index:', hmod%ibetap
-            WRITE (*, fmt='(A30,F10.5)') 'A* mass index:', hmod%Astarp
             WRITE (*, fmt='(A30,F10.5)') 'c* mass index:', hmod%cstarp
             WRITE (*, fmt='(A30,F10.5)') 'iso beta mass index:', hmod%ibetap
          END IF
@@ -1979,6 +1979,7 @@ CONTAINS
             WRITE (*, fmt='(A30,F10.5)') 'M* z index:', hmod%Mstarz
             WRITE (*, fmt='(A30,F10.5)') 'iso beta z index:', hmod%ibetaz
             WRITE (*, fmt='(A30,F10.5)') 'beta gas z index:', hmod%gbetaz
+            WRITE (*, fmt='(A30,F10.5)') 'eta z index:', hmod%etaz
          END IF
          IF (hmod%HMx_mode == 4) THEN
             WRITE (*, fmt='(A30,F10.5)') 'log10(T_heat) [K]:', log10(hmod%Theat)
@@ -1987,7 +1988,7 @@ CONTAINS
             WRITE (*, fmt='(A30,F10.5)') 'epsilon:', HMx_eps(hmod)
             WRITE (*, fmt='(A30,F10.5)') 'Gamma:', HMx_Gamma(hmod%Mh, hmod)
             WRITE (*, fmt='(A30,F10.5)') 'log10(M0) [Msun/h]:', log10(HMx_M0(hmod))
-            WRITE (*, fmt='(A30,F10.5)') 'A*:', HMx_Astar(hmod%Mh, hmod)
+            WRITE (*, fmt='(A30,F10.5)') 'A*:', HMx_Astar(hmod)
             WRITE (*, fmt='(A30,F10.5)') 'log10(T_WHIM) [K]:', log10(HMx_Twhim(hmod))
             WRITE (*, fmt='(A30,F10.5)') 'isothermal beta:', HMx_ibeta(hmod%Mh, hmod)
             WRITE (*, fmt='(A30,F10.5)') 'c*:', HMx_cstar(hmod%Mh, hmod)
@@ -3317,7 +3318,7 @@ CONTAINS
       REAL, PARAMETER :: numax = numax_bnl      ! Above this halo mass set  BNL to zero
       REAL, PARAMETER :: min_value = min_bnl    ! Minimum value that BNL is allowed to be (could be below -1)
       LOGICAL, PARAMETER :: halo_exclusion = exclusion_bnl
-      LOGICAL, PARAMETER :: fix_minimum = fix_minimum_bnl
+      LOGICAL, PARAMETER :: fix_min = fix_minimum_bnl
 
 
       IF (.NOT. hmod%has_bnl) CALL init_BNL(hmod)
@@ -3343,7 +3344,7 @@ CONTAINS
       IF(halo_exclusion) BNL=BNL-sigmoid_tanh(kk**2-1./(rv1+rv2)**2)*(BNL-min_value)
 
       ! Fix a minimum value for BNL
-      IF(fix_minimum) CALL fix_min(BNL, min_value)
+      IF(fix_min) CALL fix_minimum(BNL, min_value)
 
    END FUNCTION BNL
 
@@ -4070,7 +4071,7 @@ CONTAINS
          z = hmod%z
          T = log10(hmod%Theat)
          HMx_eps = A*(1.+z)*T+B*(1.+z)+C*T+D
-         HMx_eps = 10**HMx_eps
+         HMx_eps = 10**HMx_eps-1.
       ELSE
          STOP 'HMx_EPS: Error, HMx_mode not specified correctly'
       END IF
@@ -4166,24 +4167,19 @@ CONTAINS
 
    END FUNCTION HMx_M0
 
-   REAL FUNCTION HMx_Astar(m, hmod)
+   REAL FUNCTION HMx_Astar(hmod)
 
       ! Star fraction ampltiude
       IMPLICIT NONE
-      REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: z, T, A, B, C, D, Mpiv
+      REAL :: z, T, A, B, C, D
 
-      IF (hmod%HMx_mode == 1) THEN
+      IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 2) THEN
          HMx_Astar = hmod%Astar
-      ELSE IF (hmod%HMx_mode == 2) THEN
-         Mpiv = pivot_mass(hmod)
-         HMx_Astar = hmod%Astar*((m/Mpiv)**hmod%Astarp)
       ELSE IF (hmod%HMx_mode == 3) THEN
-         Mpiv = pivot_mass(hmod)
          z = hmod%z
          !HMx_Astar = hmod%Astar*((m/Mpiv)**hmod%Astarp)*((1.+z)**hmod%Astarz)
-         HMx_Astar = (hmod%Astar+hmod%Astarz*hmod%z)**(m/Mpiv)**hmod%Astarp
+         HMx_Astar = (hmod%Astar+z*hmod%Astarz) ! HMx2020 linear relation
       ELSE IF (hmod%HMx_mode == 4) THEN
          A = hmod%A_Astar
          B = hmod%B_Astar
@@ -4265,9 +4261,11 @@ CONTAINS
          HMx_Mstar = hmod%mstar
       ELSE IF (hmod%HMx_mode == 3) THEN
          ! Note, exponential here for z dependence because scaling applies to exponent
+         ! HMx2020: Changed to a linear relation for log(M*)
          z = hmod%z
-         !HMx_Mstar = hmod%mstar**((1.+z)**hmod%mstarz)
-         HMx_Mstar = hmod%mstar+hmod%mstarz*hmod%z
+         !HMx_Mstar = hmod%mstar*(1.+z*hmod%mstarz)
+         !HMx_Mstar = hmod%mstar*hmod%mstarz**z ! Equivalent to linear relation in log space
+         HMx_Mstar = hmod%mstar*exp(hmod%mstarz)**z
       ELSE
          STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
       END IF
@@ -4311,6 +4309,16 @@ CONTAINS
       TYPE(halomod) :: hmod
 
       HMx_eta = hmod%eta
+
+      IF (hmod%HMx_mode == 1 .OR. hmod%HMx_mode == 2 .OR. hmod%HMx_mode == 4) THEN
+         HMx_eta = hmod%eta
+      ELSE IF (hmod%HMx_mode == 3) THEN
+         ! Note, exponential here for z dependence because scaling applies to exponent
+         ! HMx2020 linear relation with z
+         HMx_eta = hmod%eta+hmod%etaz*hmod%z
+      ELSE
+         STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
+      END IF
 
       IF (HMx_eta > HMx_eta_min) HMx_eta = HMx_eta_min
 
@@ -4928,10 +4936,16 @@ CONTAINS
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: gas_fraction ! Fraction of original gas content remaining in halo
+      REAL :: eps, gas_fraction, a, b
 
+      ! Fraction of original gas content remaining in halo
       gas_fraction = halo_bound_gas_fraction(m, hmod, cosm)/(cosm%Om_b/cosm%Om_m)
-      hydro_concentration_modification = (1.+(HMx_eps(hmod)-1.)*(1.-gas_fraction))*hmod%cmod
+      eps = HMx_eps(hmod)
+      !hydro_concentration_modification = (1.+(HMx_eps(hmod)-1.)*(1.-gas_fraction))*hmod%eps2
+      !hydro_concentration_modification = hmod%eps2*(eps+(1.-eps)*gas_fraction)
+      a = eps
+      b = hmod%eps2
+      hydro_concentration_modification = 1.+a+gas_fraction*(b-a)
 
    END FUNCTION hydro_concentration_modification
 
@@ -5289,7 +5303,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: irho
-      REAL :: r, rmin, rmax, c, rss, p1, p2
+      REAL :: r, rmin, rmax, rss, p1, p2
 
       ! Set additional halo parameters to zero
       p1 = 0.
@@ -5329,9 +5343,10 @@ CONTAINS
       ! TODO: This is super ugly and should be improved somehow; also is unncessary calculations so slow
       ! TODO: Somehow should store modified and unmodified halo concentrations
       ! TODO: Or maybe the DMONLY option should be removed? This would probably be the more sensible thing to do.
-      c = rv/rs
-      c = c/hydro_concentration_modification(m, hmod, cosm) ! This is *very* important
-      rss = rv/c
+      !c = rv/rs
+      !c = c/hydro_concentration_modification(m, hmod, cosm) ! This is *very* important
+      !rss = rv/c
+      rss = rs*hydro_concentration_modification(m, hmod, cosm) ! This is *very* important
 
       IF (real_space) THEN
          r = k
@@ -6007,7 +6022,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: irho
-      REAL :: rstar, r, rmin, rmax, p1, p2, frac
+      REAL :: rstar, r, rmin, rmax, p1, p2, frac, rss
 
       frac = halo_central_star_fraction(m, hmod, cosm)
 
@@ -6055,13 +6070,20 @@ CONTAINS
             STOP 'WIN_CENTRAL_STARS: Error, halo_central_stars specified incorrectly'
          END IF
 
+         ! So that the stars see the original halo
+         IF (hmod%fix_star_concentration) THEN
+            rss = rs*hydro_concentration_modification(m, hmod, cosm)
+         ELSE
+            rss = rs
+         END IF
+
          IF (real_space) THEN
             r = k
-            win_central_stars = rho(r, rmin, rmax, rv, rs, p1, p2, irho)
-            win_central_stars = win_central_stars/normalisation(rmin, rmax, rv, rs, p1, p2, irho)
+            win_central_stars = rho(r, rmin, rmax, rv, rss, p1, p2, irho)
+            win_central_stars = win_central_stars/normalisation(rmin, rmax, rv, rss, p1, p2, irho)
          ELSE
             ! Properly normalise and convert to overdensity
-            win_central_stars = m*win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)/comoving_matter_density(cosm)
+            win_central_stars = m*win_norm(k, rmin, rmax, rv, rss, p1, p2, irho)/comoving_matter_density(cosm)
          END IF
 
          win_central_stars = frac*win_central_stars
@@ -6082,7 +6104,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: irho
-      REAL :: rstar, r, rmin, rmax, p1, p2, frac
+      REAL :: rstar, r, rmin, rmax, p1, p2, frac, rss
 
       frac = halo_satellite_star_fraction(m, hmod, cosm)
 
@@ -6116,13 +6138,20 @@ CONTAINS
             STOP 'WIN_SATELLITE_STARS: Error, halo_satellite_stars specified incorrectly'
          END IF
 
+         ! So that the stars see the original halo
+         IF (hmod%fix_star_concentration) THEN
+            rss = rs*hydro_concentration_modification(m, hmod, cosm)
+         ELSE
+            rss = rs
+         END IF
+
          IF (real_space) THEN
             r = k
-            win_satellite_stars = rho(r, rmin, rmax, rv, rs, p1, p2, irho)
-            win_satellite_stars = win_satellite_stars/normalisation(rmin, rmax, rv, rs, p1, p2, irho)
+            win_satellite_stars = rho(r, rmin, rmax, rv, rss, p1, p2, irho)
+            win_satellite_stars = win_satellite_stars/normalisation(rmin, rmax, rv, rss, p1, p2, irho)
          ELSE
             ! Properly normalise and convert to overdensity
-            win_satellite_stars = m*win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)/comoving_matter_density(cosm)
+            win_satellite_stars = m*win_norm(k, rmin, rmax, rv, rss, p1, p2, irho)/comoving_matter_density(cosm)
          END IF
 
          win_satellite_stars = frac*win_satellite_stars
@@ -8529,7 +8558,7 @@ CONTAINS
 
       IF (hmod%frac_stars == 1 .OR. hmod%frac_stars == 3) THEN
          ! Fedeli (2014)
-         A = HMx_Astar(m, hmod)
+         A = HMx_Astar(hmod)
          m0 = HMx_Mstar(hmod)
          !sig = hmod%sstar
          sig = HMx_sstar(hmod)
