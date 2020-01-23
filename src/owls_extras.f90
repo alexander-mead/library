@@ -193,7 +193,7 @@ CONTAINS
          CALL read_simulation_power_spectrum(k, Pk_DM, crap, nk, dmonly, kmin, kmax, cut_nyquist, subtract_shot, verbose)
          Pk = Pk/Pk_DM
          a = scale_factor_z(z)
-         ALLOCATE (Pk_HMcode(nk,na))
+         ALLOCATE (Pk_HMcode(nk, na))
          CALL calculate_HMcode(k, a, Pk_HMcode, nk, na, cosm)
          Pk = Pk*Pk_HMcode(:,1)
       END IF
