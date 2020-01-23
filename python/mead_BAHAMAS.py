@@ -52,8 +52,6 @@ def get_measured_power(mesh, model, z, field_pair, realisation_errors=False, cor
    column_modes = 3
    column_error = 4
 
-   column_realisation_error = 2
-
    snap = z_to_snap(z)
    infile = power_file_name(mesh, model, snap, field_pair)
    data = loadtxt(infile)
@@ -65,9 +63,7 @@ def get_measured_power(mesh, model, z, field_pair, realisation_errors=False, cor
    if(realisation_errors):
       infile = error_file_name(mesh, snap, field_pair)
       data = loadtxt(infile)
-      error = data[:, column_realisation_error]
-   else:
-      error = data[:, column_error]
+   error = data[:, column_error]
 
    # Subtract shot noise
    if (correct_shot_noise):
