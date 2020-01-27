@@ -1454,11 +1454,11 @@ CONTAINS
          END IF
       ELSE IF (ihm == 59) THEN
          ! Such that hydro model masquerades as DMONLY
-         hmod%frac_bound_gas = 3  ! Universal baryon fraction as bound gas
-         hmod%halo_static_gas = 1 ! NFW profile for bound gas
-         hmod%Astar = 0.          ! No stars
-         hmod%frac_central_stars = 1
-         hmod%frac_stars = 2
+         hmod%frac_bound_gas = 3     ! Universal baryon fraction as bound gas
+         hmod%halo_static_gas = 1    ! NFW profile for bound gas
+         hmod%Astar = 0.             ! No stars
+         hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
+         hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
