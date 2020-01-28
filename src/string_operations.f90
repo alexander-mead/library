@@ -52,11 +52,11 @@ CONTAINS
       INTEGER, INTENT(IN) :: post_decimal
       CHARACTER(len=8) :: fmt
 
-      IF(pre_decimal < 0 .OR. post_decimal < 0) THEN
+      IF (pre_decimal < 0 .OR. post_decimal < 0) THEN
          STOP 'REAL_TO_STRING: Error, neither pre or post decimal should be negative'
       END IF
 
-      IF(post_decimal == 0) THEN
+      IF (post_decimal == 0) THEN
          real_to_string = integer_to_string(int(x))
       ELSE
          fmt = '(F'//trim(integer_to_string(pre_decimal+post_decimal+1))//'.'//trim(integer_to_string(pre_decimal))//')'
