@@ -8,6 +8,7 @@ MODULE string_operations
    PUBLIC :: number_file2
    PUBLIC :: number_file_zeroes
    PUBLIC :: integer_to_string
+   PUBLIC :: real_to_string
 
 CONTAINS
 
@@ -42,6 +43,27 @@ CONTAINS
       WRITE (integer_to_string, fmt=fmt) i
 
    END FUNCTION integer_to_string
+
+   CHARACTER(len=8) FUNCTION real_to_string(x, pre_decimal, post_decimal)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      INTEGER, INTENT(IN) :: pre_decimal
+      INTEGER, INTENT(IN) :: post_decimal
+      CHARACTER(len=8) :: fmt
+
+      IF(pre_decimal < 0 .OR. post_decimal < 0) THEN
+         STOP 'REAL_TO_STRING: Error, neither pre or post decimal should be negative'
+      END IF
+
+      IF(post_decimal == 0) THEN
+         real_to_string = integer_to_string(int(x))
+      ELSE
+         fmt = '(F'//trim(integer_to_string(pre_decimal+post_decimal+1))//'.'//trim(integer_to_string(pre_decimal))//')'
+         WRITE (real_to_string, fmt=fmt) x
+      END IF
+
+   END FUNCTION real_to_string
 
    FUNCTION number_file(fbase, i, fext)
 
