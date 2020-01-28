@@ -3,12 +3,6 @@ def fitted_power_file_name(mode, model, z, chain, field_pair, label):
    _, f1 = field_name_to_letter_and_integer(field_pair[0])
    _, f2 = field_name_to_letter_and_integer(field_pair[1])
    dir = '/Users/Mead/Physics/HMx/fitting'
-   #if (orig_or_best == 'orig' or orig_or_best == 'best'):
-   #   file = dir+'/m'+str(mode)+'/'+model+'/z%1.3f_n%d_c%d_power_%s_%d%d.dat' % (z, num, chain, orig_or_best, f1, f2)
-   #elif (orig_or_best == None):
-   #   file = dir+'/m'+str(mode)+'/'+model+'/z%1.3f_n%d_c%d_power_%d%d.dat' % (z, num, chain, f1, f2)
-   #else:
-   #   raise ValueError('orig_or_best should be set to orig, best or None')
    file = dir+'/m'+str(mode)+'/'+model+'/c%d_z%1.3f_cos1_%s_power_%d%d.dat' % (chain, z, label, f1, f2)
    return file
 
@@ -16,9 +10,17 @@ def fitted_power_file_name(mode, model, z, chain, field_pair, label):
 def get_fitted_power(mode, model, z, chain, field_pair, label):
    from numpy import loadtxt
    infile = fitted_power_file_name(mode, model, z, chain, field_pair, label)
+   k, power = get_power(infile)
+   return k, power
+
+# Read the halo-model power spectra and output the wavenumber and power spectrum
+def get_power(infile):
+   from numpy import loadtxt
+   column_k = 0
+   column_power = 4
    data = loadtxt(infile)
-   k = data[:,0]
-   power = data[:,4]
+   k = data[:, column_k]
+   power = data[:, column_power]
    return k, power
 
 # Read the halo-model power spectra and output the wavenumber and power spectrum
