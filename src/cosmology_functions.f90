@@ -116,7 +116,7 @@ MODULE cosmology_functions
       REAL :: Om_m_pow, Om_b_pow, h_pow     ! Cosmological parameters used for P(k) if different from background
       REAL :: b0, b1, b2, b3, b4            ! BDE parameters
       REAL :: A_bump, k_bump, sigma_bump    ! Power-spectrum bump 
-      REAL :: TAGN                          ! AGN temperature
+      REAL :: Theat                         ! AGN temperature
       LOGICAL :: bump, warm                 ! Logicals
       
       ! Variables that might be primary that are used in power normalisation
@@ -439,8 +439,8 @@ CONTAINS
       names(58) = 'Extreme bound dark energy'
       names(59) = 'Power bump'
       names(60) = 'Boring but with some CDM replaced with 0.3eV neutrinos'
-      names(61) = 'AGN-lo WMAP9 (BAHAMAS version: 1712.02411)'
-      names(62) = 'AGN-hi WMAP9 (BAHAMAS version: 1712.02411)'
+      names(61) = 'WMAP9 (BAHAMAS AGN 7.6: 1712.02411)'
+      names(62) = 'WMAP9 (BAHAMAS AGN 8.0: 1712.02411)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -613,7 +613,7 @@ CONTAINS
       cosm%m_wdm = 0. ! Particle mass [keV]
 
       ! AGN
-      cosm%TAGN = 10**7.8 ! AGN temperature
+      cosm%Theat = 10**7.8 ! AGN temperature
 
       ! Normalisation
       cosm%norm_method = norm_sigma8
@@ -700,11 +700,14 @@ CONTAINS
          Xe = 1.17
          cosm%mue = cosm%mup*(Xe+Xi)/Xe
          IF(icosmo == 4) THEN
-            cosm%TAGN = 10**7.8
+            ! AGN tuned
+            cosm%Theat = 10**7.8
          ELSE IF(icosmo == 61) THEN
-            cosm%TAGN = 10**7.6
+            ! AGN low
+            cosm%Theat = 10**7.6
          ELSE IF(icosmo == 62) THEN
-            cosm%TAGN = 10**8.0
+            ! AGN high
+            cosm%Theat = 10**8.0
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly for AGN temperature'
          END IF
@@ -1375,7 +1378,7 @@ CONTAINS
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 2 [eV]:', cosm%m_nu(2)
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 3 [eV]:', cosm%m_nu(3)
          WRITE (*, fmt=format) 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
-         WRITE (*, fmt=format) 'COSMOLOGY:', 'log10(T_AGN/K):', log10(cosm%TAGN)
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'log10(T_AGN/K):', log10(cosm%Theat)
          WRITE (*, *) dashes
          !WRITE (*, *) 'COSMOLOGY: Dark energy'
          IF (cosm%iw == iw_LCDM) THEN
