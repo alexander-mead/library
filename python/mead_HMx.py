@@ -1,3 +1,13 @@
+# Read the halo-model power spectra and output the wavenumber and power spectrum
+def get_power(infile):
+   from numpy import loadtxt
+   column_k = 0
+   column_power = 4
+   data = loadtxt(infile)
+   k = data[:, column_k]
+   power = data[:, column_power]
+   return k, power
+
 # File names for the halo-model power spectra that are fitted to the BAHAMAS data
 def fitted_power_file_name(mode, model, z, chain, field_pair, label):
    _, f1 = field_name_to_letter_and_integer(field_pair[0])
@@ -11,16 +21,6 @@ def get_fitted_power(mode, model, z, chain, field_pair, label):
    from numpy import loadtxt
    infile = fitted_power_file_name(mode, model, z, chain, field_pair, label)
    k, power = get_power(infile)
-   return k, power
-
-# Read the halo-model power spectra and output the wavenumber and power spectrum
-def get_power(infile):
-   from numpy import loadtxt
-   column_k = 0
-   column_power = 4
-   data = loadtxt(infile)
-   k = data[:, column_k]
-   power = data[:, column_power]
    return k, power
 
 # Read the halo-model power spectra and output the wavenumber and power spectrum
