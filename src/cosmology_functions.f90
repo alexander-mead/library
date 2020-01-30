@@ -441,6 +441,8 @@ CONTAINS
       names(60) = 'Boring but with some CDM replaced with 0.3eV neutrinos'
       names(61) = 'WMAP9 (BAHAMAS AGN 7.6: 1712.02411)'
       names(62) = 'WMAP9 (BAHAMAS AGN 8.0: 1712.02411)'
+      names(63) = 'Planck (AGN 7.6)'
+      names(64) = 'Planck (AGN 8.0)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -940,25 +942,24 @@ CONTAINS
          cosm%Om_m = 1.
          cosm%Om_v = 0.
          cosm%m_nu = 4.
-      ELSE IF (icosmo == 42 .OR. icosmo == 56) THEN
+      ELSE IF (icosmo == 42 .OR. icosmo == 56 .OR. icosmo == 63 .OR. icosmo == 64) THEN
          ! Planck 2018 (Table 1 of https://arxiv.org/abs/1807.06209)
-         ! icosmo = 42 is missing neutrinos
-         ! icosmo = 54 includes fixed 0.06 eV neutrinos
+         ! 42 - no neutrinos
+         ! 54 - fixed 0.06 eV neutrinos
+         ! 63 - AGN 7.6
+         ! 64 - AGN 8.0
          om_b = 0.022383
          cosm%h = 0.6732
          cosm%n = 0.96605
          cosm%itk = itk_CAMB
-         IF(icosmo == 42) THEN
-            cosm%m_nu = 0.
-         ELSE IF(icosmo == 56) THEN
-            cosm%m_nu = 0.06
-         ELSE  
-            STOP 'ASSIGN_COSMOLOGY: Error, cosmology specified incorrectly'
-         END IF
+         cosm%M_nu = 0.
+         IF(icosmo == 56) cosm%m_nu = 0.06
          cosm%Om_m = 0.3158
          cosm%Om_b = om_b/cosm%h**2
          cosm%Om_v = 1.-cosm%Om_m
          cosm%sig8 = 0.8120
+         IF (icosmo == 63) cosm%Theat = 10**7.6
+         IF (icosmo == 64) cosm%Theat = 10**8.0
       ELSE IF(icosmo == 49) THEN
          ! CFHTLenS best-fitting cosmology (Heymans 2013; combined with WMAP 7)
          ! From first line of Table 3 of https://arxiv.org/pdf/1303.1808.pdf
