@@ -156,7 +156,7 @@ CONTAINS
       INTEGER :: i
       LOGICAL :: lexist
 
-      STOP 'NEED TO CHANGE THIS FOR SINGLE/DOUBLE PRECISION'
+      STOP 'READ_CATALOGUE: need to change this for single/double precision'
 
       WRITE (*, *) 'READ_CATALOGUE: Reading in catalogue: ', trim(infile)
       INQUIRE (file=infile, exist=lexist)
@@ -194,6 +194,8 @@ CONTAINS
       INTEGER, INTENT(IN) :: npart(n)
       INTEGER :: i
 
+      STOP 'WRITE_CATALOGUE: need to change this for single/double precision'
+
       WRITE (*, *) 'WRITE_CATALOGUE: Outputting catalogue'
 
       OPEN (7, file=outfile)
@@ -207,29 +209,5 @@ CONTAINS
       WRITE (*, *)
 
    END SUBROUTINE write_catalogue
-
-!!$  SUBROUTINE write_power(k,D2,nbin,nk,np,L,outfile)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: k(nk), D2(nk), L
-!!$    INTEGER, INTENT(IN) :: nbin(nk), nk, np
-!!$    CHARACTER(len=256), INTENT(IN) :: outfile
-!!$    INTEGER :: i
-!!$
-!!$    WRITE(*,*) 'WRITE_POWER: Output file: ', trim(outfile)
-!!$    OPEN(7,file=outfile)
-!!$    DO i=1,nk
-!!$       !WRITE(*,*) i
-!!$       IF(nbin(i)==0) THEN
-!!$          CYCLE
-!!$       ELSE
-!!$          WRITE(7,*) k(i), D2(i), shot_noise(k(i),L,np), nbin(i)
-!!$       END IF
-!!$    END DO
-!!$    CLOSE(7)
-!!$    WRITE(*,*) 'WRITE_POWER: Done'
-!!$    WRITE(*,*)
-!!$
-!!$  END SUBROUTINE write_power
 
 END MODULE gadget
