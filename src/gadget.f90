@@ -1,5 +1,6 @@
 MODULE gadget
 
+   USE precision
    USE array_operations
 
    IMPLICIT NONE
@@ -11,13 +12,16 @@ MODULE gadget
    PUBLIC :: read_catalogue
    PUBLIC :: write_catalogue
 
+   REAL, PARAMETER :: Lunit = 1000. ! Convert from Gadget2 kpc/h to Mpc/h
+   REAL, PARAMETER :: Munit = 1e10  ! Convert from Gadget2 10^10 Msun/h to Msun/h
+
 CONTAINS
 
    SUBROUTINE read_gadget(x, v, id, L, om_m, om_v, h, m, a, z, n, infile)
 
       IMPLICIT NONE
-      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
-      REAL, ALLOCATABLE, INTENT(OUT) :: v(:, :)
+      REAL*4, ALLOCATABLE, INTENT(OUT) :: x(:, :)
+      REAL*4, ALLOCATABLE, INTENT(OUT) :: v(:, :)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: id(:)
       REAL, INTENT(OUT) :: L
       REAL, INTENT(OUT) :: om_m
@@ -32,10 +36,6 @@ CONTAINS
       INTEGER :: np(6), np2(6), crap
       LOGICAL :: lexist
 
-      !Parameters
-      REAL, PARAMETER :: Lunit = 1000. !Convert from Gadget2 kpc to Mpc
-      REAL, PARAMETER :: Munit = 1e10 !Convert from Gadget2 10^10 Msun to Msun
-
       WRITE (*, *) 'READ_GADGET: Reading in Gadget-2 file: ', trim(infile)
       INQUIRE (file=infile, exist=lexist)
       IF (.NOT. lexist) STOP 'READ_GADGET: Error, input file does not exist'
@@ -44,7 +44,7 @@ CONTAINS
       READ (7) np, massarr, a8, z8, crap, crap, np2, crap, crap, L8, om_m8, om_v8, h8
       CLOSE (7)
 
-      !Convert Gadget doubles to my reals
+      ! Convert Gadget doubles to my reals
       a = real(a8)
       z = real(z8)
       om_m = real(om_m8)
@@ -52,35 +52,37 @@ CONTAINS
       h = real(h8)
       L = real(L8)/Lunit
 
-      !Multiply the masses by 1e10 to get in units of M_sun/h
+      ! Multiply the masses by 1e10 to get in units of M_sun/h
       m = real(massarr(2))*Munit
       WRITE (*, *) 'READ_GADGET: Particle number:', np(2)
       WRITE (*, *) 'READ_GADGET: Which is:', nint(np(2)**(1./3.)), 'cubed.'
-      WRITE (*, *) 'READ_GADGET: Particle mass [M_sun/h]:', m
+      WRITE (*, *) 'READ_GADGET: Particle mass log10([M_sun/h]):', log10(m)
       WRITE (*, *) 'READ_GADGET: Box size [Mpc/h]:', L
       WRITE (*, *) 'READ_GADGET: a:', a
       WRITE (*, *) 'READ_GADGET: z:', z
       WRITE (*, *) 'READ_GADGET: Om_m:', om_m
       WRITE (*, *) 'READ_GADGET: Om_v:', om_v
 
-      !Fix the total number of simulation particles
+      ! Fix the total number of simulation particles
       n = np(2)
 
-      !Allocate arrays for position, velocity and particle ID number
+      ! Allocate arrays for position, velocity and particle ID number
       ALLOCATE (x(3, n), v(3, n), id(n))
 
-      !Read in the binary data, skip the header line
-      OPEN (7, file=infile, form='unformatted', status='old') !CAREFUL - I added status='old' without checking
+      ! Read in the binary data, skip the header line
+      ! TODO: Check: I added status='old' without checking
+      OPEN (7, file=infile, form='unformatted', status='old') 
+      !OPEN (7, file=infile, form='unformatted')
       READ (7)
       READ (7) x
       READ (7) v
       READ (7) id
       CLOSE (7)
 
-      !kpc -> Mpc conversion!
+      ! kpc -> Mpc conversion!
       x = x/Lunit
 
-      !Change from weird Gadget units to peculiar velocities
+      ! Change from weird Gadget units to peculiar velocities
       v = v*sqrt(real(a8))
 
       WRITE (*, *) 'READ_GADGET: Finished reading in file'
@@ -91,8 +93,8 @@ CONTAINS
    SUBROUTINE write_gadget(x, v, id, L, om_m, om_v, h, m, a, z, n, outfile)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n)
-      REAL, INTENT(IN) :: v(3, n)
+      REAL*4, INTENT(IN) :: x(3, n)
+      REAL*4, INTENT(IN) :: v(3, n)
       INTEGER, INTENT(IN) :: id(n)
       REAL, INTENT(IN) :: L
       REAL, INTENT(IN) :: om_m
@@ -105,10 +107,6 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN) :: outfile
       DOUBLE PRECISION :: massarr(6), z8, a8, L8, om_m8, om_v8, h8, crap8(12)
       INTEGER :: np(6), crapi
-
-      !Parameters
-      REAL, PARAMETER :: Lunit = 1000. !Convert from Gadget2 kpc to Mpc
-      REAL, PARAMETER :: Munit = 1e10 !Convert from Gadget2 10^10 Msun to Msun
 
       WRITE (*, *) 'WRITE_GADGET: Outputting particle data in Gadget2 format: ', trim(outfile)
 
@@ -134,19 +132,12 @@ CONTAINS
       WRITE (*, *) 'WRITE_GADGET: Om_m:', om_m
       WRITE (*, *) 'WRITE_GADGET: Om_v:', om_v
 
-      !x=x*1000.
-      !v=v/sqrt(a)
-
       OPEN (7, file=outfile, form='unformatted', status='replace')
       WRITE (7) np, massarr, a8, z8, crapi, crapi, np, crapi, crapi, L8, om_m8, om_v8, h8, crap8
       WRITE (7) x*Lunit
       WRITE (7) v/sqrt(a)
       WRITE (7) id
       CLOSE (7)
-
-      !Incase these are to be used again outwith the subroutine
-      !x=x/1000.
-      !v=v*sqrt(a)
 
       WRITE (*, *) 'WRITE_GADGET: Finished writing file'
       WRITE (*, *)
@@ -157,13 +148,15 @@ CONTAINS
 
       USE file_info
       IMPLICIT NONE
-      CHARACTER(len=*), INTENT(IN) :: infile
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :), v(:, :), m(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: disp(:), c(:), env(:), Dv(:), rmax(:), avg_r(:), rms_r(:)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: npart(:)
       INTEGER, INTENT(OUT) :: n
+      CHARACTER(len=*), INTENT(IN) :: infile
       INTEGER :: i
       LOGICAL :: lexist
+
+      STOP 'NEED TO CHANGE THIS FOR SINGLE/DOUBLE PRECISION'
 
       WRITE (*, *) 'READ_CATALOGUE: Reading in catalogue: ', trim(infile)
       INQUIRE (file=infile, exist=lexist)
