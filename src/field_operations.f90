@@ -16,6 +16,7 @@ MODULE field_operations
    PUBLIC :: anticlip
    PUBLIC :: periodic_distance
 
+   PUBLIC :: box_mode_power
    PUBLIC :: compute_power_spectrum_pole
    PUBLIC :: compute_power_spectrum_rsd
    PUBLIC :: compute_power_spectrum_rsd2
