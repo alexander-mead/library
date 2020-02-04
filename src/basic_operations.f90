@@ -279,19 +279,6 @@ CONTAINS
 
    END SUBROUTINE swap_real
 
-!!$  SUBROUTINE swap_int(a,b)
-!!$
-!!$    !Swaps the values of integers a and b
-!!$    IMPLICIT NONE
-!!$    INTEGER, INTENT(INOUT) :: a, b
-!!$    INTEGER :: c
-!!$
-!!$    c=a
-!!$    a=b
-!!$    b=c
-!!$
-!!$  END SUBROUTINE swap_int
-
    SUBROUTINE swap_int(n, m)
 
       ! Swap integers n and m in the most memory-efficient way possible
