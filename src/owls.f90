@@ -11,6 +11,7 @@ MODULE owls
    PUBLIC :: convert_kT_to_comoving_electron_pressure
    PUBLIC :: write_mccarthy
    PUBLIC :: BAHAMAS_snapshot
+   PUBLIC :: BAHAMAS_scale_factor
    PUBLIC :: BAHAMAS_scale_factors
 
    PUBLIC :: nh_cut
@@ -351,52 +352,73 @@ CONTAINS
 
    END FUNCTION BAHAMAS_snapshot
 
+   ELEMENTAL REAL FUNCTION BAHAMAS_scale_factor(isnap)
+
+      USE cosmology_functions
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: isnap
+      REAL :: z
+
+      IF (isnap == 18) THEN
+         z = 3.000
+      ELSE IF (isnap == 19) THEN
+         z = 2.750
+      ELSE IF (isnap == 20) THEN
+         z = 2.500
+      ELSE IF (isnap == 21) THEN
+         z = 2.250
+      ELSE IF (isnap == 22) THEN
+         z = 2.000
+      ELSE IF (isnap == 23) THEN
+         z = 1.750
+      ELSE IF (isnap == 24) THEN
+         z = 1.500
+      ELSE IF (isnap == 25) THEN
+         z = 1.250
+      ELSE IF (isnap == 26) THEN
+         z = 1.000
+      ELSE IF (isnap == 27) THEN
+         z = 0.750
+      ELSE IF (isnap == 28) THEN
+         z = 0.500
+      ELSE IF (isnap == 29) THEN
+         z = 0.375
+      ELSE IF (isnap == 30) THEN
+         z = 0.250
+      ELSE IF (isnap == 31) THEN
+         z = 0.125
+      ELSE IF (isnap == 32) THEN
+         z = 0.000
+      !ELSE
+      !   STOP 'BAHAMAS_scale_factors'
+      END IF
+
+      BAHAMAS_scale_factor = scale_factor_z(z)
+
+   END FUNCTION BAHAMAS_scale_factor
+
    SUBROUTINE BAHAMAS_scale_factors(a, n)
 
       USE cosmology_functions
       IMPLICIT NONE
-      REAL, ALLOCATABLE, INTENT(OUT) :: a(:)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
       INTEGER, INTENT(IN) :: n
+      INTEGER :: snaps(n)
 
-      IF (ALLOCATED(a)) DEALLOCATE (a)
-      ALLOCATE (a(n))
+      IF (ALLOCATED(a)) DEALLOCATE(a)
+      ALLOCATE(a(n))
 
       IF (n == 4) THEN
-         a(1) = scale_factor_z(2.0)
-         a(2) = scale_factor_z(1.0)
-         a(3) = scale_factor_z(0.5)
-         a(4) = scale_factor_z(0.0)
+         snaps = [22, 26, 28, 32]
       ELSE IF (n == 11) THEN
-         a(1) = scale_factor_z(2.0)
-         a(2) = scale_factor_z(1.75)
-         a(3) = scale_factor_z(1.5)
-         a(4) = scale_factor_z(1.25)
-         a(5) = scale_factor_z(1.0)
-         a(6) = scale_factor_z(0.75)
-         a(7) = scale_factor_z(0.5)
-         a(8) = scale_factor_z(0.375)
-         a(9) = scale_factor_z(0.25)
-         a(10) = scale_factor_z(0.125)
-         a(11) = scale_factor_z(0.0)
+         snaps = [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
       ELSE IF (n == 15) THEN
-         a(1) = scale_factor_z(3.0)
-         a(2) = scale_factor_z(2.75)
-         a(3) = scale_factor_z(2.5)
-         a(4) = scale_factor_z(2.25)
-         a(5) = scale_factor_z(2.0)
-         a(6) = scale_factor_z(1.75)
-         a(7) = scale_factor_z(1.5)
-         a(8) = scale_factor_z(1.25)
-         a(9) = scale_factor_z(1.0)
-         a(10) = scale_factor_z(0.75)
-         a(11) = scale_factor_z(0.5)
-         a(12) = scale_factor_z(0.375)
-         a(13) = scale_factor_z(0.25)
-         a(14) = scale_factor_z(0.125)
-         a(15) = scale_factor_z(0.0)
+         snaps = [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
       ELSE
-         STOP 'BAHAMAS_ZS: Error, nz specified incorrectly'
+         STOP 'BAHAMAS_SCALE_FACTORS: Error, n must be either 4, 11 or 15'
       END IF
+
+      a = BAHAMAS_scale_factor(snaps)
 
    END SUBROUTINE BAHAMAS_scale_factors
 

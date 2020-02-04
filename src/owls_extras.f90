@@ -7,6 +7,7 @@ MODULE owls_extras
    PRIVATE
 
    PUBLIC :: read_BAHAMAS_power
+   PUBLIC :: get_BAHAMAS_ks
 
    INTEGER, PARAMETER :: computer_mac = 1
    INTEGER, PARAMETER :: computer_linux = 2
@@ -15,6 +16,48 @@ MODULE owls_extras
    INTEGER, PARAMETER :: computer = computer_mac
 
 CONTAINS
+
+   SUBROUTINE get_BAHAMAS_ks(mesh, k, nk)
+
+      USE file_info
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: mesh
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      INTEGER, INTENT(OUT) :: nk
+      INTEGER :: i
+      CHARACTER(len=256) :: dir, infile
+      CHARACTER(len=256), PARAMETER :: kfile = 'DMONLY_nu0_L400N1024_WMAP9_snap32_all_all_power.dat'
+
+      dir = BAHAMAS_dir(mesh)
+      infile = trim(dir)//'/'//trim(kfile)
+      nk = file_length(infile, verbose=.FALSE.)
+      
+      ALLOCATE(k(nk))
+      OPEN(7, file=infile)
+      DO i = 1, nk
+         READ(7, *) k(i)
+      END DO
+      CLOSE(7)
+
+   END SUBROUTINE get_BAHAMAS_ks
+
+   CHARACTER(len=64) FUNCTION BAHAMAS_dir(m)
+
+      USE string_operations
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: m
+      CHARACTER(len=8) :: mesh
+      CHARACTER(len=64) :: dir
+
+      ! Directory containing everything
+      IF (computer == computer_mac)   dir = '/Users/Mead/Physics/BAHAMAS/power/'
+      IF (computer == computer_linux) dir = '/home/amead/BAHAMAS/power/'
+
+      ! Convert the mesh size to a string and append to directory
+      mesh = integer_to_string(m)
+      BAHAMAS_dir = TRIM(dir)//'M'//trim(mesh)
+
+   END FUNCTION BAHAMAS_dir
 
    CHARACTER(len=32) FUNCTION BAHAMAS_field_name(i)
 
@@ -38,23 +81,6 @@ CONTAINS
       END IF
 
    END FUNCTION BAHAMAS_field_name
-
-   CHARACTER(len=64) FUNCTION BAHAMAS_dir(m)
-
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: m
-      CHARACTER(len=32) :: mesh
-      CHARACTER(len=64) :: dir
-
-      ! Directory containing everything
-      IF (computer == computer_mac)   dir = '/Users/Mead/Physics/BAHAMAS/power/'
-      IF (computer == computer_linux) dir = '/home/amead/BAHAMAS/power/'
-
-      ! Convert the mesh size to a string and append to directory
-      WRITE (mesh, *) m
-      BAHAMAS_dir = TRIM(dir)//'M'//trim(adjustl(mesh))
-
-   END FUNCTION BAHAMAS_dir
 
    CHARACTER(len=256) FUNCTION BAHAMAS_power_file_name(model, m, z, ip)
 
