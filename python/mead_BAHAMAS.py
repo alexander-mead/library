@@ -1,45 +1,49 @@
+power_dir = '/Users/Mead/Physics/BAHAMAS/power'
+
 # Measured BAHAMAS power spectra file names
 def power_file_name(mesh, model, snap, field_pair):
-    dir = '/Users/Mead/Physics/BAHAMAS/power'
-    field1 = field_pair[0]
-    field2 = field_pair[1]
-    return dir+'/M'+str(mesh)+'/'+model+'_L400N1024_WMAP9_snap'+str(snap)+'_'+field1+'_'+field2+'_power.dat'
+   field1 = field_pair[0]
+   field2 = field_pair[1]
+   return power_dir+'/M'+str(mesh)+'/'+model+'_L400N1024_WMAP9_snap'+str(snap)+'_'+field1+'_'+field2+'_power.dat'
 
 # Measured BAHAMAS errors between different realisations of the AGN_TUNED_nu0 model
 def error_file_name(mesh, snap, field_pair):
-    dir = '/Users/Mead/Physics/BAHAMAS/power'
-    field1 = field_pair[0]
-    field2 = field_pair[1]
-    return dir+'/M'+str(mesh)+'/L400N1024_WMAP9_snap'+str(snap)+'_'+field1+'_'+field2+'_error.dat'
+   field1 = field_pair[0]
+   field2 = field_pair[1]
+   return power_dir+'/M'+str(mesh)+'/L400N1024_WMAP9_snap'+str(snap)+'_'+field1+'_'+field2+'_error.dat'
+
+# Corresponding HMcode power file
+def HMcode_file_name(mesh, snap):
+   return power_dir+'/M'+str(mesh)+'/snap'+str(snap)+'_HMcode.dat'
 
 # Get the snapshot number corresponding to different BAHAMAS redshifts
 def z_to_snap(z):
-    if(z == 0.000):
-        snap = 32
-    elif(z == 0.125):
-        snap = 31
-    elif(z == 0.250):
-        snap = 30
-    elif(z == 0.375):
-        snap = 29
-    elif(z == 0.500):
-        snap = 28
-    elif(z == 0.750):
-        snap = 27
-    elif(z == 1.000):
-        snap = 26
-    elif(z == 1.250):
-        snap = 25
-    elif(z == 1.500):
-        snap = 24
-    elif(z == 1.750):
-        snap = 23
-    elif(z == 2.000):
-        snap = 22
-    else:
-        print('Redshift = ', z)
-        raise ValueError('Snapshot not stored corresponding to this z')
-    return snap
+   if(z == 0.000):
+      snap = 32
+   elif(z == 0.125):
+      snap = 31
+   elif(z == 0.250):
+      snap = 30
+   elif(z == 0.375):
+      snap = 29
+   elif(z == 0.500):
+      snap = 28
+   elif(z == 0.750):
+      snap = 27
+   elif(z == 1.000):
+      snap = 26
+   elif(z == 1.250):
+      snap = 25
+   elif(z == 1.500):
+      snap = 24
+   elif(z == 1.750):
+      snap = 23
+   elif(z == 2.000):
+      snap = 22
+   else:
+      print('Redshift = ', z)
+      raise ValueError('Snapshot not stored corresponding to this z')
+   return snap
 
 # Read a BAHAMAS power/error file and output k, power, error
 def get_measured_power(mesh, model, z, field_pair, realisation_errors=False, correct_shot_noise=False):
@@ -90,4 +94,24 @@ def get_measured_response(mesh, model, z, field_pair):
    response = power/dmonly
 
    return k, response
+
+def get_HMcode_power(mesh, z):
+   import numpy as np
+   snap = z_to_snap(z)
+   infile = HMcode_file_name(mesh, snap)
+   data = np.loadtxt(infile)
+   k = data[:, 0]
+   power = data[:, 1]
+   return k, power
+
+def get_HMcode_corrected_power(mesh, model, z, field_pair, realisation_errors=False, correct_shot_noise=False):
+
+   _, _, shot, modes, error = get_measured_power(mesh, model, z, field_pair, realisation_errors, correct_shot_noise)
+   _, response = get_measured_response(mesh, model, z, field_pair)
+   k, power = get_HMcode_power(mesh, z)
+
+   power = power*response
+
+   return k, power, shot, modes, error
+
 
