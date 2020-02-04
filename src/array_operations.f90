@@ -42,6 +42,7 @@ MODULE array_operations
    PUBLIC :: smooth_array
    PUBLIC :: if_allocated_deallocate
    PUBLIC :: regular_spacing
+   PUBLIC :: safe_allocate
 
    PUBLIC :: unique_entries
    PUBLIC :: number_of_appearances
@@ -77,39 +78,76 @@ MODULE array_operations
    END INTERFACE apply_mask
 
    INTERFACE if_allocated_deallocate
-      PROCEDURE if_allocated_deallocate_1D
-      PROCEDURE if_allocated_deallocate_2D
-      PROCEDURE if_allocated_deallocate_3D
+      PROCEDURE if_allocated_deallocate_real_1D
+      PROCEDURE if_allocated_deallocate_real_2D
+      PROCEDURE if_allocated_deallocate_real_3D
+      PROCEDURE if_allocated_deallocate_int_1D
    END INTERFACE if_allocated_deallocate
+
+   INTERFACE safe_allocate
+      PROCEDURE safe_allocate_real
+      PROCEDURE safe_allocate_int
+   END INTERFACE safe_allocate
 
 CONTAINS
 
-   SUBROUTINE if_allocated_deallocate_1D(x)
+   SUBROUTINE safe_allocate_real(x, n)
+
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
+      INTEGER, INTENT(IN) :: n
+
+      CALL if_allocated_deallocate(x)
+      ALLOCATE(x(n))
+
+   END SUBROUTINE safe_allocate_real
+
+   SUBROUTINE safe_allocate_int(i, n)
+
+      IMPLICIT NONE
+      INTEGER, ALLOCATABLE, INTENT(INOUT) :: i(:)
+      INTEGER, INTENT(IN) :: n
+
+      CALL if_allocated_deallocate(i)
+      ALLOCATE(i(n))
+
+   END SUBROUTINE safe_allocate_int
+
+   SUBROUTINE if_allocated_deallocate_real_1D(x)
 
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
 
       IF(ALLOCATED(x)) DEALLOCATE(x)
 
-   END SUBROUTINE if_allocated_deallocate_1D
+   END SUBROUTINE if_allocated_deallocate_real_1D
 
-   SUBROUTINE if_allocated_deallocate_2D(x)
+   SUBROUTINE if_allocated_deallocate_real_2D(x)
 
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:)
 
       IF(ALLOCATED(x)) DEALLOCATE(x)
 
-   END SUBROUTINE if_allocated_deallocate_2D
+   END SUBROUTINE if_allocated_deallocate_real_2D
 
-   SUBROUTINE if_allocated_deallocate_3D(x)
+   SUBROUTINE if_allocated_deallocate_real_3D(x)
 
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:,:)
 
       IF(ALLOCATED(x)) DEALLOCATE(x)
 
-   END SUBROUTINE if_allocated_deallocate_3D
+   END SUBROUTINE if_allocated_deallocate_real_3D
+
+   SUBROUTINE if_allocated_deallocate_int_1D(i)
+
+      IMPLICIT NONE
+      INTEGER, ALLOCATABLE, INTENT(INOUT) :: i(:)
+
+      IF(ALLOCATED(i)) DEALLOCATE(i)
+
+   END SUBROUTINE if_allocated_deallocate_int_1D
 
    SUBROUTINE smooth_array(x, n, m)
 
@@ -342,32 +380,6 @@ CONTAINS
       sum_double = real(sum)
 
    END FUNCTION sum_double
-
-!!$  SUBROUTINE amputate(arr,n_old,n_new)
-!!$
-!!$    ! Chop an array down to a smaller size
-!!$    ! TODO: Retire
-!!$    IMPLICIT NONE
-!!$    REAL, ALLOCATABLE, INTENT(INOUT) :: arr(:)
-!!$    REAL, ALLOCATABLE :: hold(:)
-!!$    INTEGER, INTENT(IN) :: n_new
-!!$    INTEGER, INTENT(IN) :: n_old
-!!$    INTEGER :: i
-!!$
-!!$    IF(n_old<n_new) STOP 'AMPUTATE: Error, new array should be smaller than the old one'
-!!$
-!!$    ALLOCATE(hold(n_old))
-!!$    hold=arr
-!!$    DEALLOCATE(arr)
-!!$    ALLOCATE(arr(n_new))
-!!$
-!!$    DO i=1,n_new
-!!$       arr(i)=hold(i)
-!!$    END DO
-!!$
-!!$    DEALLOCATE(hold)
-!!$
-!!$  END SUBROUTINE amputate
 
    SUBROUTINE amputate_array(a, n, i1, i2)
 
@@ -748,6 +760,28 @@ CONTAINS
       END IF
 
    END SUBROUTINE fill_array
+
+   SUBROUTINE integer_sequence(is, i1, i2, n)
+
+      IMPLICIT NONE
+      INTEGER, ALLOCATABLE, INTENT(OUT) :: is(:)
+      INTEGER, INTENT(IN) :: i1
+      INTEGER, INTENT(IN) :: i2
+      INTEGER, INTENT(OUT) :: n
+      INTEGER :: i, j
+
+      IF(i2 < i1) STOP 'INTEGER_SEQUENCE: Error, i2 is less than i1'
+
+      n = i2-i1+1
+      !CALL if_allocated_deallocate(is)
+      !ALLOCATE(is(n))
+      CALL safe_allocate(is, n)
+      DO j = 1, n
+         i = i1+j-1
+         is(j) = i
+      END DO
+
+   END SUBROUTINE
 
    SUBROUTINE fill_pixels(min, max, arr, n)
 
