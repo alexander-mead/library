@@ -380,9 +380,9 @@ CONTAINS
       names = ''
       names(0) = 'User defined'
       names(1) = 'Boring'
-      names(2) = 'WMAP7 (cosmo-OWLS version; 1312.5462)'
-      names(3) = 'Planck 2013 (cosmo-OWLS version; 1312.5462)'
-      names(4) = 'WMAP9 (BAHAMAS version: 1712.02411)'
+      names(2) = 'WMAP7 (cosmo-OWLS)'
+      names(3) = 'Planck 2013 (cosmo-OWLS/BAHAMAS)'
+      names(4) = 'WMAP9 (BAHAMAS)'
       names(5) = 'Open'
       names(6) = 'Einstein-de Sitter'
       names(7) = 'IDE I (user)'
@@ -439,10 +439,11 @@ CONTAINS
       names(58) = 'Extreme bound dark energy'
       names(59) = 'Power bump'
       names(60) = 'Boring but with some CDM replaced with 0.3eV neutrinos'
-      names(61) = 'WMAP9 (BAHAMAS AGN 7.6: 1712.02411)'
-      names(62) = 'WMAP9 (BAHAMAS AGN 8.0: 1712.02411)'
-      names(63) = 'Planck (AGN 7.6)'
-      names(64) = 'Planck (AGN 8.0)'
+      names(61) = 'WMAP9 (BAHAMAS AGN 7.6)'
+      names(62) = 'WMAP9 (BAHAMAS AGN 8.0)'
+      names(63) = 'Planck 2015'
+      names(64) = 'Planck 2015 (AGN 7.6)'
+      names(65) = 'Planck 2015 (AGN 8.0)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -658,8 +659,7 @@ CONTAINS
       !cosm%seed = 0
       !cosm%seeded = .FALSE.
 
-      ! Omegas for power spectrum if different from background cosmological parameters
-      ! This is false by default
+      ! Omegas for power spectrum if different from background cosmological parameters; false by default
       cosm%Om_m_pow = 0.
       cosm%Om_b_pow = 0.
       cosm%h_pow = 0.
@@ -681,15 +681,15 @@ CONTAINS
          cosm%sig8 = 0.81
          cosm%n = 0.967
       ELSE IF (icosmo == 3) THEN
-         ! cosmo-OWLS - Planck 2013 (1312.5462)
+         ! Planck 2013 (cosmo-OWLS/BAHAMAS; 1312.5462/1603.02702; no neutrinos)
          cosm%Om_m = 0.3175
          cosm%Om_b = 0.0490
          cosm%Om_v = 1.-cosm%Om_m
          cosm%h = 0.6711
          cosm%n = 0.9624
-         cosm%sig8 = 0.834
+         cosm%sig8 = 0.8341
       ELSE IF (icosmo == 4 .OR. icosmo == 61 .OR. icosmo == 62) THEN
-         ! BAHAMAS - WMAP9 (1712.02411)
+         ! WMAP9 (BAHAMAS; 1712.02411; no neutrinos)
          cosm%h = 0.7000
          cosm%Om_b = 0.0463
          cosm%Om_m = 0.2330+cosm%Om_b
@@ -715,7 +715,6 @@ CONTAINS
          END IF
       ELSE IF (icosmo == 5) THEN
          !  5 - Open model
-         ! 29 - Open model; normalised for Mead 2017 z=1 response
          cosm%Om_v = 0.
       ELSE IF (icosmo == 6 .OR. icosmo == 15) THEN
          !  6 - Einstein-de Sitter (SCDM)
@@ -942,24 +941,18 @@ CONTAINS
          cosm%Om_m = 1.
          cosm%Om_v = 0.
          cosm%m_nu = 4.
-      ELSE IF (icosmo == 42 .OR. icosmo == 56 .OR. icosmo == 63 .OR. icosmo == 64) THEN
-         ! Planck 2018 (Table 1 of https://arxiv.org/abs/1807.06209)
-         ! 42 - no neutrinos
-         ! 54 - fixed 0.06 eV neutrinos
-         ! 63 - AGN 7.6
-         ! 64 - AGN 8.0
-         om_b = 0.022383
+      ELSE IF (icosmo == 56 .OR. icosmo == 42) THEN
+         ! 56 - Planck 2018 (Plik, from Table 1 of https://arxiv.org/abs/1807.06209)
+         ! 42 - Same, but with neutrino mass fixed to zero and nothing else changed
+         cosm%itk = itk_CAMB
          cosm%h = 0.6732
          cosm%n = 0.96605
-         cosm%itk = itk_CAMB
-         cosm%M_nu = 0.
-         IF(icosmo == 56) cosm%m_nu = 0.06
+         cosm%m_nu = 0.06
+         IF(icosmo == 42) cosm%m_nu = 0.
          cosm%Om_m = 0.3158
-         cosm%Om_b = om_b/cosm%h**2
+         cosm%Om_b = 0.022383/cosm%h**2
          cosm%Om_v = 1.-cosm%Om_m
          cosm%sig8 = 0.8120
-         IF (icosmo == 63) cosm%Theat = 10**7.6
-         IF (icosmo == 64) cosm%Theat = 10**8.0
       ELSE IF(icosmo == 49) THEN
          ! CFHTLenS best-fitting cosmology (Heymans 2013; combined with WMAP 7)
          ! From first line of Table 3 of https://arxiv.org/pdf/1303.1808.pdf
@@ -1067,17 +1060,32 @@ CONTAINS
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with BDE'
          END IF
-      ELSE IF(icosmo == 59) THEN
+      ELSE IF (icosmo == 59) THEN
          ! Bump in power
          cosm%bump = .TRUE.
          cosm%norm_method = norm_value ! Normalise like this to prevent bump annoying sigma8
          cosm%A_bump = 0.08
          cosm%k_bump = 5.
          cosm%sigma_bump = 0.5
-      ELSE IF(icosmo == 60) THEN
-         ! Exciting neutrino mass
+      ELSE IF (icosmo == 60) THEN
+         ! Boring cosmology but with exciting neutrino mass
          cosm%m_nu = 0.3
          cosm%itk = itk_CAMB
+      ELSE IF (icosmo == 63 .OR. icosmo == 64 .OR. icosmo == 65) THEN
+         ! 63 - Planck 2015 (BAHAMAS; Table 1 of 1712.02411)
+         ! 64 - As above, but with 10^7.6 AGN temperature
+         ! 65 - As above, but with 10^8.0 AGN temperature
+         ! Note well that this has a neutrino mass
+         cosm%itk = itk_CAMB
+         cosm%m_nu = 0.06
+         cosm%h = 0.6787
+         cosm%Om_b = 0.0482
+         cosm%Om_m = 0.2571+cosm%Om_b
+         cosm%Om_v = 1.-cosm%Om_m
+         cosm%n = 0.9701
+         cosm%sig8 = 0.8085
+         IF(icosmo == 64) cosm%Theat = 10**7.6
+         IF(icosmo == 65) cosm%Theat = 10**8.0
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -2305,31 +2313,31 @@ CONTAINS
 
    END FUNCTION integrand_de
 
-   REAL FUNCTION scale_factor_z(z)
+   ELEMENTAL REAL FUNCTION scale_factor_z(z)
 
       ! The scale factor corresponding to redshift 'z'
       IMPLICIT NONE
       REAL, INTENT(IN) :: z
 
-      IF (z <= -1.) THEN
-         WRITE (*, *) 'SCALE_FACTOR_Z: z:', z
-         STOP 'SCALE_FACTOR_Z: Error, routine called for z<=-1'
-      END IF
+      ! IF (z <= -1.) THEN
+      !    WRITE (*, *) 'SCALE_FACTOR_Z: z:', z
+      !    STOP 'SCALE_FACTOR_Z: Error, routine called for z<=-1'
+      ! END IF
 
       scale_factor_z = 1./(1.+z)
 
    END FUNCTION scale_factor_z
 
-   REAL FUNCTION redshift_a(a)
+   ELEMENTAL REAL FUNCTION redshift_a(a)
 
       ! The redshift corresponding to scale-factor 'a'
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
 
-      IF (a == 0.) THEN
-         WRITE (*, *) 'REDSHIFT_A: a:', a
-         STOP 'REDSHIFT_A: Error, routine called with a=0'
-      END IF
+      ! IF (a == 0.) THEN
+      !    WRITE (*, *) 'REDSHIFT_A: a:', a
+      !    STOP 'REDSHIFT_A: Error, routine called with a=0'
+      ! END IF
 
       redshift_a = -1.+1./a
 
@@ -2367,40 +2375,42 @@ CONTAINS
 
    END FUNCTION redshift_r
 
-   REAL FUNCTION f_k(r, cosm)
+   ELEMENTAL REAL FUNCTION f_k(r, cosm)
 
       ! Curvature function, also comoving angular-diameter distance [Mpc/h]
       IMPLICIT NONE
       REAL, INTENT(IN) :: r ! Comoving distance [Mpc/h]
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       IF (cosm%k == 0.) THEN
          f_k = r
       ELSE IF (cosm%k < 0.) THEN
          f_k = sinh(sqrt(-cosm%k)*r)/sqrt(-cosm%k)
-      ELSE IF (cosm%k > 0.) THEN
-         f_k = sin(sqrt(cosm%k)*r)/sqrt(cosm%k)
+      !ELSE IF (cosm%k > 0.) THEN
       ELSE
-         STOP 'F_K: Something went wrong'
+         f_k = sin(sqrt(cosm%k)*r)/sqrt(cosm%k)
+      ! ELSE
+      !    STOP 'F_K: Something went wrong'
       END IF
 
    END FUNCTION f_k
 
-   REAL FUNCTION fdash_k(r, cosm)
+   ELEMENTAL REAL FUNCTION fdash_k(r, cosm)
 
       ! Derivative of curvature function df_k(r)/dr
       IMPLICIT NONE
       REAL, INTENT(IN) :: r ! Comoving distance [Mpc/h]
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       IF (cosm%k == 0.) THEN
          fdash_k = 1.
       ELSE IF (cosm%k < 0.) THEN
          fdash_k = cosh(sqrt(-cosm%k)*r)
-      ELSE IF (cosm%k > 0.) THEN
-         fdash_k = cos(sqrt(cosm%k)*r)
+      !ELSE IF (cosm%k > 0.) THEN
       ELSE
-         STOP 'FDASH_K: Something went wrong'
+         fdash_k = cos(sqrt(cosm%k)*r)
+      ! ELSE
+      !    STOP 'FDASH_K: Something went wrong'
       END IF
 
    END FUNCTION fdash_k
