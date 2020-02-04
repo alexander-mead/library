@@ -12,27 +12,27 @@ MODULE gadget
    PUBLIC :: read_catalogue
    PUBLIC :: write_catalogue
 
-   REAL, PARAMETER :: Lunit = 1000. ! Convert from Gadget2 kpc/h to Mpc/h
+   REAL, PARAMETER :: Lunit = 1e-3  ! Convert from Gadget2 kpc/h to Mpc/h
    REAL, PARAMETER :: Munit = 1e10  ! Convert from Gadget2 10^10 Msun/h to Msun/h
 
 CONTAINS
 
-   SUBROUTINE read_gadget(x, v, id, L, om_m, om_v, h, m, a, z, n, infile)
+   SUBROUTINE read_gadget(x, v, id, L, Om_m, Om_v, h, m, a, z, n, infile)
 
       IMPLICIT NONE
       REAL*4, ALLOCATABLE, INTENT(OUT) :: x(:, :)
       REAL*4, ALLOCATABLE, INTENT(OUT) :: v(:, :)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: id(:)
-      REAL, INTENT(OUT) :: L
-      REAL, INTENT(OUT) :: om_m
-      REAL, INTENT(OUT) :: om_v
-      REAL, INTENT(OUT) :: h
-      REAL, INTENT(OUT) :: m
-      REAL, INTENT(OUT) :: a
-      REAL, INTENT(OUT) :: z
+      REAL*8, INTENT(OUT) :: L
+      REAL*8, INTENT(OUT) :: Om_m
+      REAL*8, INTENT(OUT) :: Om_v
+      REAL*8, INTENT(OUT) :: h
+      REAL*8, INTENT(OUT) :: m
+      REAL*8, INTENT(OUT) :: a
+      REAL*8, INTENT(OUT) :: z
       INTEGER, INTENT(OUT) :: n
       CHARACTER(len=*), INTENT(IN) :: infile
-      DOUBLE PRECISION :: massarr(6), z8, a8, L8, om_m8, om_v8, h8
+      REAL*8 :: mass(6)!, z8, a8, L8, om_m8, om_v8, h8
       INTEGER :: np(6), np2(6), crap
       LOGICAL :: lexist
 
@@ -41,27 +41,28 @@ CONTAINS
       IF (.NOT. lexist) STOP 'READ_GADGET: Error, input file does not exist'
 
       OPEN (7, file=infile, form='unformatted', status='old')
-      READ (7) np, massarr, a8, z8, crap, crap, np2, crap, crap, L8, om_m8, om_v8, h8
+      READ (7) np, mass, a, z, crap, crap, np2, crap, crap, L, Om_m, Om_v, h
       CLOSE (7)
 
       ! Convert Gadget doubles to my reals
-      a = real(a8)
-      z = real(z8)
-      om_m = real(om_m8)
-      om_v = real(om_v8)
-      h = real(h8)
-      L = real(L8)/Lunit
+      !a = real(a8)
+      !z = real(z8)
+      !om_m = real(om_m8)
+      !om_v = real(om_v8)
+      !h = real(h8)
+      !L = real(L8)/Lunit
 
       ! Multiply the masses by 1e10 to get in units of M_sun/h
-      m = real(massarr(2))*Munit
+      m = mass(2)*Munit
+      L = L*Lunit
       WRITE (*, *) 'READ_GADGET: Particle number:', np(2)
       WRITE (*, *) 'READ_GADGET: Which is:', nint(np(2)**(1./3.)), 'cubed.'
       WRITE (*, *) 'READ_GADGET: Particle mass log10([M_sun/h]):', log10(m)
       WRITE (*, *) 'READ_GADGET: Box size [Mpc/h]:', L
       WRITE (*, *) 'READ_GADGET: a:', a
       WRITE (*, *) 'READ_GADGET: z:', z
-      WRITE (*, *) 'READ_GADGET: Om_m:', om_m
-      WRITE (*, *) 'READ_GADGET: Om_v:', om_v
+      WRITE (*, *) 'READ_GADGET: Om_m:', Om_m
+      WRITE (*, *) 'READ_GADGET: Om_v:', Om_v
 
       ! Fix the total number of simulation particles
       n = np(2)
@@ -70,58 +71,57 @@ CONTAINS
       ALLOCATE (x(3, n), v(3, n), id(n))
 
       ! Read in the binary data, skip the header line
-      ! TODO: Check: I added status='old' without checking
-      OPEN (7, file=infile, form='unformatted', status='old') 
-      !OPEN (7, file=infile, form='unformatted')
+      OPEN (7, file=infile, form='unformatted', status='old')
       READ (7)
       READ (7) x
       READ (7) v
       READ (7) id
       CLOSE (7)
 
-      ! kpc -> Mpc conversion!
-      x = x/Lunit
+      ! kpc -> Mpc conversion
+      x = x*real(Lunit)
 
       ! Change from weird Gadget units to peculiar velocities
-      v = v*sqrt(real(a8))
+      v = v*sqrt(real(a))
 
       WRITE (*, *) 'READ_GADGET: Finished reading in file'
       WRITE (*, *)
 
    END SUBROUTINE read_gadget
 
-   SUBROUTINE write_gadget(x, v, id, L, om_m, om_v, h, m, a, z, n, outfile)
+   SUBROUTINE write_gadget(x, v, id, L, Om_m, Om_v, h, m, a, z, n, outfile)
 
       IMPLICIT NONE
       REAL*4, INTENT(IN) :: x(3, n)
       REAL*4, INTENT(IN) :: v(3, n)
       INTEGER, INTENT(IN) :: id(n)
-      REAL, INTENT(IN) :: L
-      REAL, INTENT(IN) :: om_m
-      REAL, INTENT(IN) :: om_v
-      REAL, INTENT(IN) :: h
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: a
-      REAL, INTENT(IN) :: z
+      REAL*8, INTENT(IN) :: L
+      REAL*8, INTENT(IN) :: Om_m
+      REAL*8, INTENT(IN) :: Om_v
+      REAL*8, INTENT(IN) :: h
+      REAL*8, INTENT(IN) :: m
+      REAL*8, INTENT(IN) :: a
+      REAL*8, INTENT(IN) :: z
       INTEGER, INTENT(IN) :: n
       CHARACTER(len=*), INTENT(IN) :: outfile
-      DOUBLE PRECISION :: massarr(6), z8, a8, L8, om_m8, om_v8, h8, crap8(12)
+      REAL*8 :: mass(6), crap(12)
       INTEGER :: np(6), crapi
 
       WRITE (*, *) 'WRITE_GADGET: Outputting particle data in Gadget2 format: ', trim(outfile)
 
       np = 0
       np(2) = n
-      massarr = 0.d0
-      massarr(2) = m/Munit
-      a8 = a
-      z8 = z
-      crapi = 0
-      crap8 = 0.d0
-      om_m8 = om_m
-      om_v8 = om_v
-      h8 = h
-      L8 = L*Lunit
+      mass = 0.
+      mass(2) = m/Munit ! Convert mass to Gadget units
+      !a8 = a
+      !z8 = z
+      !crapi = 0
+      crap = 0.
+      !om_m8 = om_m
+      !om_v8 = om_v
+      !h8 = h
+      !L8 = L*Lunit
+      !Lout = L/Lunit
 
       WRITE (*, *) 'WRITE_GADGET: Particle number:', n
       WRITE (*, *) 'WRITE_GADGET: Which is:', nint(n**(1./3.)), 'cubed'
@@ -129,12 +129,12 @@ CONTAINS
       WRITE (*, *) 'WRITE_GADGET: a:', a
       WRITE (*, *) 'WRITE_GADGET: z:', z
       WRITE (*, *) 'WRITE_GADGET: Particle mass [Msun/h]:', m
-      WRITE (*, *) 'WRITE_GADGET: Om_m:', om_m
-      WRITE (*, *) 'WRITE_GADGET: Om_v:', om_v
+      WRITE (*, *) 'WRITE_GADGET: Om_m:', Om_m
+      WRITE (*, *) 'WRITE_GADGET: Om_v:', Om_v
 
       OPEN (7, file=outfile, form='unformatted', status='replace')
-      WRITE (7) np, massarr, a8, z8, crapi, crapi, np, crapi, crapi, L8, om_m8, om_v8, h8, crap8
-      WRITE (7) x*Lunit
+      WRITE (7) np, mass, a, z, crapi, crapi, np, crapi, crapi, L/Lunit, Om_m, Om_v, h, crap
+      WRITE (7) x/Lunit
       WRITE (7) v/sqrt(a)
       WRITE (7) id
       CLOSE (7)
