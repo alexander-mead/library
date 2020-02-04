@@ -31,11 +31,13 @@ CONTAINS
       CHARACTER(len=8) :: fmt   
 
       IF (i >= 0 .AND. i < 10) THEN
-         fmt='(I1)'
-      ELSE IF (i >= 10 .OR. i < 100) THEN
-         fmt='(I2)'
-      ELSE IF (i >= 100 .OR. i < 1000) THEN
-         fmt='(I3)'
+         fmt = '(I1)'
+      ELSE IF (i >= 10 .AND. i < 100) THEN
+         fmt = '(I2)'
+      ELSE IF (i >= 100 .AND. i < 1000) THEN
+         fmt = '(I3)'
+      ELSE IF (i >= 1000 .AND. i < 10000) THEN
+         fmt = '(I4)'
       ELSE
          STOP 'INTEGER_TO_STRING: Error, your integer is not supported'
       END IF
