@@ -2401,19 +2401,21 @@ CONTAINS
 
       ! Get the HMcode prediction for a cosmology for a range of k and a
       IMPLICIT NONE
-      REAL, INTENT(IN) :: k(nk)              ! Array of wavenumbers [h/Mpc]
-      REAL, INTENT(IN) :: a(na)              ! Array of scale factors
-      REAL, INTENT(OUT) :: Pk(nk, na)         ! Output power array, note that this is Delta^2(k), not P(k)
-      INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
-      INTEGER, INTENT(IN) :: na              ! Number of scale factors
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL :: Pkk(nk)
+      REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
+      REAL, INTENT(IN) :: a(na)                  ! Array of scale factors
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
+      INTEGER, INTENT(IN) :: na                  ! Number of scale factors
+      TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
       INTEGER :: j
       INTEGER :: ihm = ihm_hmcode_CAMB ! Would like to be a parameter
 
+      ALLOCATE(Pk(nk, na))
+
       DO j = 1, na
-         CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pkk, nk, cosm)
-         Pk(:, j) = Pkk
+         !CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pkk, nk, cosm)
+         !Pk(:, j) = Pkk
+         CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pk(:, j), nk, cosm)
       END DO
 
    END SUBROUTINE calculate_HMcode
