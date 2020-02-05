@@ -4126,7 +4126,13 @@ CONTAINS
 
          Mpiv = pivot_mass(hmod)
          z = hmod%z
-         HMx_alpha = alpha*((m/Mpiv)**alphap)*(1.+z)**alphaz
+         IF (hmod%HMx_mode == 3) THEN
+            HMx_alpha = alpha*((m/Mpiv)**alphap)*(1.+z)**alphaz
+         ELSE IF (in_array(hmod%HMx_mode, [5, 6])) THEN
+            HMx_alpha = (alpha+z*alphaz)*((m/Mpiv)**alphap)
+         ELSE
+            STOP 'HMx_ALPHA: Error, HMx_mode not specified correctly'
+         END IF
 
       ELSE IF (hmod%HMx_mode == 4) THEN
          A = hmod%A_alpha
@@ -4270,7 +4276,7 @@ CONTAINS
          ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
             HMx_Gamma = (Gamma+z*Gammaz)*((m/Mpiv)**Gammap)
          ELSE
-            STOP
+            STOP 'HMx_GAMMA: Error, HMx_mode not specified correctly'
          END IF
 
       ELSE IF (hmod%HMx_mode == 4) THEN
@@ -4316,7 +4322,7 @@ CONTAINS
          IF(hmod%HMx_mode == 3) THEN
             HMx_M0 = M0**((1.+z)**M0z)
          ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-            HMx_M0 =  M0*(exp(M0z)**z)
+            HMx_M0 = M0*(exp(M0z)**z)
          ELSE
             STOP 'HMx_M0: Error, HMx_mode not specified correctly'
          END IF
@@ -4404,7 +4410,13 @@ CONTAINS
          END IF
 
          z = hmod%z
-         HMx_Twhim = Twhim**((1.+z)**Twhimz)
+         IF (hmod%HMx_mode == 3) THEN
+            HMx_Twhim = Twhim**((1.+z)**Twhimz)
+         ELSE IF (in_array(hmod%HMx_mode, [5, 6])) THEN
+            HMx_Twhim = Twhim*(exp(Twhimz)**z)
+         ELSE
+            STOP 'HMx_TWHIM: Error, HMx_mode not specified correctly'
+         END IF
 
       ELSE IF (hmod%HMx_mode == 4) THEN
          A = hmod%A_Twhim
