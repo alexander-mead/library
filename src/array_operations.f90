@@ -43,6 +43,9 @@ MODULE array_operations
    PUBLIC :: if_allocated_deallocate
    PUBLIC :: regular_spacing
    PUBLIC :: safe_allocate
+   PUBLIC :: greater_than_all
+   PUBLIC :: greater_than_any
+   PUBLIC :: in_array
 
    PUBLIC :: unique_entries
    PUBLIC :: number_of_appearances
@@ -90,6 +93,46 @@ MODULE array_operations
    END INTERFACE safe_allocate
 
 CONTAINS
+
+   LOGICAL FUNCTION greater_than_any(x, array, n)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: array(n)
+      INTEGER, INTENT(IN) :: n
+      INTEGER :: i
+
+      STOP 'GREATER_THAN_ANY: Test this'
+
+      greater_than_any = .FALSE.
+      DO i = 1, n
+         IF(x > array(i)) THEN
+            greater_than_any = .TRUE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION greater_than_any
+
+   LOGICAL FUNCTION greater_than_all(x, array, n)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: array(n)
+      INTEGER, INTENT(IN) :: n
+      INTEGER :: i
+
+      STOP 'GREATER_THAN_ALL: Test this'
+
+      greater_than_all = .TRUE.
+      DO i = 1, n
+         IF(x <= array(i)) THEN
+            greater_than_all = .FALSE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION greater_than_all
 
    SUBROUTINE safe_allocate_real(x, n)
 
@@ -1127,23 +1170,24 @@ CONTAINS
 
    END SUBROUTINE unique_index
 
-!!$  LOGICAL FUNCTION in_array(b,a,n)
-!!$
-!!$    ! Test to see if b is in a(n)
-!!$    IMPLICIT NONE
-!!$    INTEGER, INTENT(IN) :: b
-!!$    INTEGER, INTENT(IN) :: a(n)
-!!$    INTEGER, INTENT(IN) :: n
-!!$    INTEGER :: i
-!!$
-!!$    DO i=1,n
-!!$       IF(b==a(i)) THEN
-!!$          in_array=.TRUE.
-!!$       END IF
-!!$       EXIT
-!!$    END DO
-!!$
-!!$  END FUNCTION in_array
+   LOGICAL FUNCTION in_array(x, a)!, n)
+
+      ! Test to see if integer value x is in a(n)
+      ! This is very useful in IF statements where otherwise there would be a long chain of .OR.s
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: x
+      INTEGER, INTENT(IN) :: a(:)
+      INTEGER :: i
+
+      in_array = .FALSE.
+      DO i = 1, size(a)
+         IF (x == a(i)) THEN
+            in_array = .TRUE.
+            EXIT
+         END IF     
+      END DO
+
+   END FUNCTION in_array
 
    LOGICAL FUNCTION repeated_entries(a, n)
 
