@@ -533,7 +533,7 @@ CONTAINS
       names(51) = 'HMcode in CAMB (July 2019)'
       names(52) = 'Standard but with Mead (2017) spherical collapse'
       names(53) = 'HMcode (2016) with Nelder-Mead parameters'
-      names(54) = 'HMcode (2020) with Nelder-Mead parameters'
+      names(54) = ''
       names(55) = 'HMx2020'
       names(56) = 'HMx2020: Model that fits stars-stars AGN 7.6'
       names(57) = 'HMx2020: Model that fits stars-stars AGN 7.8'
@@ -998,7 +998,7 @@ CONTAINS
       END IF
 
       IF (ihm == 1 .OR. ihm == 7 .OR. ihm == 15 .OR. ihm == 28 .OR. &
-         ihm == 31 .OR. ihm == 50 .OR. ihm == 51 .OR. ihm == 53 .OR. ihm == 54) THEN
+         ihm == 31 .OR. ihm == 50 .OR. ihm == 51 .OR. ihm == 53) THEN
          !  1 - HMcode (Mead et al. 2016)
          !  7 - HMcode (Mead et al. 2015)
          ! 15 - HMcode (Mead et al. 2020)
@@ -1007,7 +1007,6 @@ CONTAINS
          ! 50 - HMcode (Mead et al. 2016 w/ pow=1 bug in Dolag)
          ! 51 - HMcode in July 2019 CAMB (supposed to be Mead et al. 2016)
          ! 53 - HMcode (2016) updated Nelder-Mead parameters
-         ! 54 - HMcode (2020) Nelder-Mead parameters
          hmod%ip2h = 1
          hmod%i1hdamp = 2
          hmod%iconc = 1
@@ -1038,47 +1037,28 @@ CONTAINS
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
             hmod%flag_sigma_fdamp = flag_power_total ! Used in Mead et al. (2015) only
-         ELSE IF (ihm == 15 .OR. ihm == 54) THEN
+         ELSE IF (ihm == 15) THEN
             ! Mead et al. (2020)
             hmod%i1hdamp = 3   ! k^4 at large scales for one-halo term
             hmod%ip2h = 3      ! Linear theory with damped wiggles
             hmod%i2hdamp = 2   ! Change back to Mead (2015) model for two-halo damping
             hmod%flag_sigma = flag_power_total ! This seemed to produce better neutrino results
             hmod%zinf_Dolag = 100.
-            IF(ihm == 15) THEN
-               ! Original (UBC?) parameters
-               ! TODO: Maybe delete this?
-               hmod%Dv0 = 444.87
-               hmod%Dv1 = -0.3170
-               hmod%dc0 = 1.6077
-               hmod%dc1 = 0.01461
-               hmod%eta0 = 0.5739
-               hmod%eta1 = 0.2705
-               hmod%f0 = 0.08974
-               hmod%f1 = 3.698
-               hmod%ks = 0.6358
-               hmod%As = 3.0745
-               hmod%alp0 = 3.129
-               hmod%alp1 = 1.850
-               hmod%Dvnu = 0.
-               hmod%dcnu = 0.
-            ELSE IF(ihm == 54) THEN
-               ! Nelder-Mead parameters
-               hmod%Dv0 = 411.
-               hmod%Dv1 = -0.333
-               hmod%dc0 = 1.631
-               hmod%dc1 = 0.0187
-               hmod%eta0 = 0.523
-               hmod%eta1 = 0.259
-               hmod%f0 = 0.0615
-               hmod%f1 = 1.607
-               hmod%ks = 0.599
-               hmod%As = 3.23
-               hmod%alp0 = 3.17
-               hmod%alp1 = 1.88
-               hmod%Dvnu = 0.
-               hmod%dcnu = 0.
-            END IF
+            ! Nelder-Mead parameters
+            hmod%Dv0 = 411.
+            hmod%Dv1 = -0.333
+            hmod%dc0 = 1.631
+            hmod%dc1 = 0.0187
+            hmod%eta0 = 0.523
+            hmod%eta1 = 0.259
+            hmod%f0 = 0.0615
+            hmod%f1 = 1.607
+            hmod%ks = 0.599
+            hmod%As = 3.23
+            hmod%alp0 = 3.17
+            hmod%alp1 = 1.88
+            hmod%Dvnu = 0.
+            hmod%dcnu = 0.
          ELSE IF (ihm == 28) THEN
             ! One-parameter baryon model
             hmod%one_parameter_baryons = .TRUE.
