@@ -6,7 +6,7 @@ def read_first_number_from_line_in_file(file, line_number):
    with open(file, 'r') as f:
 
       # Get the first line
-      for line in range(line_number):
+      for _ in range(line_number):
          line_text = f.readline()
 
       # Now find the number within the string

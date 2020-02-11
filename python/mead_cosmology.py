@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 import scipy.integrate as integrate
 from scipy.interpolate import interp1d
-import mead_general as mead
+import mead_interpolation as interpolation
 
 ## Cosmological constants ##
 
@@ -285,7 +285,7 @@ def initialise_distances():
     r=np.vectorize(r_vectorize)
 
     # Interpolaton function for rp(a)
-    rp_func=mead.log_interp1d(a_tab,rp_tab,kind='cubic',fill_value='extrapolate')
+    rp_func=interpolation.log_interp1d(a_tab,rp_tab,kind='cubic',fill_value='extrapolate')
     def rp_vectorize(a):
         if(a<=small):
             return 0.
@@ -297,7 +297,7 @@ def initialise_distances():
     rp=np.vectorize(rp_vectorize)
 
     # Interpolaton function for t(a)
-    t_func=mead.log_interp1d(a_tab,t_tab,kind='cubic',fill_value='extrapolate')
+    t_func=interpolation.log_interp1d(a_tab,t_tab,kind='cubic',fill_value='extrapolate')
     def t_vectorize(a):
         if(a<=small):
             return 0.
@@ -390,7 +390,7 @@ def initialise_growth():
     print('Initialise_growth: Creating interpolators')
 
     # Create interpolation function for g(a)
-    g_func=mead.log_interp1d(a_tab,g_tab,kind='cubic',fill_value='extrapolate')
+    g_func=interpolation.log_interp1d(a_tab,g_tab,kind='cubic',fill_value='extrapolate')
     def g_vectorize(a):
         if(a<amin):
             return a
@@ -402,7 +402,7 @@ def initialise_growth():
     g=np.vectorize(g_vectorize)
 
     # Create interpolation function for f(a) = dln(g)/dln(a)
-    f_func=mead.log_interp1d(a_tab,f_tab,kind='cubic',fill_value='extrapolate')
+    f_func=interpolation.log_interp1d(a_tab,f_tab,kind='cubic',fill_value='extrapolate')
     def f_vectorize(a):
         if(a<amin):
             return 1.
@@ -467,7 +467,7 @@ def create_Pk(k_tab,Pk_tab):
     global Pk
 
     # Create P(k) interpolation function
-    Pk_func=mead.log_interp1d(k_tab,Pk_tab,kind='cubic')
+    Pk_func=interpolation.log_interp1d(k_tab,Pk_tab,kind='cubic')
     def Pk_vectorize(k):
         if(k<k_tab[0]):
             a=np.log(Pk_tab[1]/Pk_tab[0])/np.log(k_tab[1]/k_tab[0])

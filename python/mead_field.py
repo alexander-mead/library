@@ -61,3 +61,86 @@ def make_Gaussian_random_field_2D(mean_value, power_spectrum, map_size, mesh_cel
    #field = field+mean
    
    return field
+
+# Return a list of the integer coordinates of all local maxima in a 2D field
+def find_field_peaks_2D(field, nx, ny, periodic):
+
+   # Initialise an empty list
+   peaks = []
+
+   # Loop over all cells in field
+   for ix in range(nx):
+      for iy in range(ny):
+
+         # Get the central value of tjhe field
+         central_value = field[ix, iy]
+
+         # Get the coordinates of the neighbours
+         neighbour_cells = neighbour_cells_2D(ix, iy, nx, ny, periodic)
+         #print('Neighbour cells:', type(neighbour_cells), neighbour_cells)
+         i, j = zip(*neighbour_cells)
+         #print(ix, iy, i, j)
+
+         if (all(neighbour_value < central_value for neighbour_value in field[i, j])):
+            peaks.append([ix, iy])
+
+   return peaks
+
+#def downward_trajectory(i, j, field, nx, ny, periodic):
+#   
+#   neighbour_cells = neighbour_cells_2D(i, j, nx, ny, periodic)
+#
+#   i, j = zip(*neighbour_cells)
+#   field_values = field(neighbour_cells)
+
+# Return a list of all cells that are neighbouring some integer cell coordinate
+def neighbour_cells_2D(ix, iy, nx, ny, periodic):
+
+   # Check if the cell is actually within the array
+   if ((ix < 0) or (ix >= nx) or (iy < 0) or (iy >= ny)):
+      raise ValueError('Cell coordinates are wrong')
+
+   # Initialise an empty list
+   cells = []
+
+   # Name the cells sensibly
+   ix_cell = ix
+   ix_mini = ix-1
+   ix_maxi = ix+1
+   iy_cell = iy
+   iy_mini = iy-1
+   iy_maxi = iy+1
+
+   # Deal with the edge cases for periodic and non-periodic fields sensibly
+   if (ix_mini == -1):
+      if (periodic):
+         ix_mini = nx-1
+      else:
+         ix_mini = None
+   if (iy_mini == -1):
+      if (periodic):
+         iy_mini = nx-1
+      else:
+         iy_mini = None
+   if (ix_maxi == nx):
+      if (periodic):
+         ix_maxi = 0
+      else:
+         ix_maxi = None
+   if (iy_maxi == ny):
+      if (periodic):
+         iy_maxi = 0
+      else:
+         iy_maxi = None
+
+   # Add the neighbouring cells to the list
+   for ixx in [ix_mini, ix_cell, ix_maxi]:
+      for iyy in [iy_mini, iy_cell, iy_maxi]:
+         if ((ixx != None) and (iyy != None)):
+            cells.append([ixx, iyy])
+
+   # Remove the initial cell from the list
+   cells.remove([ix_cell, iy_cell])
+
+   # Return a list of lists
+   return cells

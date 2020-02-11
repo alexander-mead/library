@@ -2,9 +2,15 @@ power_dir = '/Users/Mead/Physics/BAHAMAS/power'
 
 # Measured BAHAMAS power spectra file names
 def power_file_name(mesh, model, snap, field_pair):
+   import os.path as path
    field1 = field_pair[0]
    field2 = field_pair[1]
-   return power_dir+'/M'+str(mesh)+'/'+model+'_L400N1024_WMAP9_snap'+str(snap)+'_'+field1+'_'+field2+'_power.dat'
+   file_name1 = power_dir+'/M'+str(mesh)+'/'+model+'_L400N1024_WMAP9_snap'+str(snap)+'_'+field1+'_'+field2+'_power.dat'
+   file_name2 = power_dir+'/M'+str(mesh)+'/'+model+'_L400N1024_WMAP9_snap'+str(snap)+'_'+field2+'_'+field1+'_power.dat'
+   if path.isfile(file_name1):
+      return file_name1
+   else:
+      return file_name2
 
 # Measured BAHAMAS errors between different realisations of the AGN_TUNED_nu0 model
 def error_file_name(mesh, snap, field_pair):
