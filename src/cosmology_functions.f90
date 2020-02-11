@@ -351,11 +351,11 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: imeth_interpolation_Dv = 2  ! Method for Delta_v interpolation
 
    ! Halofit
-   INTEGER, PARAMETER :: halofit_Smith = 1      ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664)
-   INTEGER, PARAMETER :: halofit_Bird = 2       ! Bird et al. (2011; https://arxiv.org/abs/1109.4416)
-   INTEGER, PARAMETER :: halofit_Takahashi = 3  ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
-   INTEGER, PARAMETER :: halofit_CAMB = 4       ! Version as used in CAMB  (date; ???)
-   INTEGER, PARAMETER :: halofit_CLASS = 5      ! Version as used in CLASS (date; ???)
+   INTEGER, PARAMETER :: halofit_Smith = 1     ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664)
+   INTEGER, PARAMETER :: halofit_Bird = 2      ! Bird et al. (2011; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: halofit_Takahashi = 3 ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
+   INTEGER, PARAMETER :: halofit_CAMB = 4      ! Version as used in CAMB  (date; ???)
+   INTEGER, PARAMETER :: halofit_CLASS = 5     ! Version as used in CLASS (date; ???)
 
    ! General integrations
    INTEGER, PARAMETER :: jmin_integration = 5
@@ -3444,7 +3444,8 @@ CONTAINS
 
    REAL FUNCTION neff(r, a, flag, cosm)
 
-      ! Integral for calculating the effective P(k) index
+      ! Integral for calculating the effective linear P(k) power-law index
+      ! This is dlnP(k)/dlnk and ranges from ~1 on large scales to ~-3 on small scales
       IMPLICIT NONE
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
