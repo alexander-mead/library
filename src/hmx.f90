@@ -1492,13 +1492,14 @@ CONTAINS
          hmod%iDv = 4 ! Mead (2017) fitting function for Delta_v
       ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58 .OR. ihm == 60 .OR. ihm == 61) THEN
          ! HMx 2020
-         hmod%response = 1
-         hmod%halo_central_stars = 3 ! 3 - Delta function
+         hmod%response = 1 ! Model should be calculated as a response
+         hmod%halo_central_stars = 3 ! 3 - Delta function for central stars
          hmod%eta = -0.3
-         hmod%fix_star_concentration = .TRUE.
-         hmod%HMx_mode = 5 ! Possible M and z dependence of parameters
+         !hmod%fix_star_concentration = .TRUE. ! TODO: Check this is okay
+         hmod%HMx_mode = 5 ! HMx2020 possible M and z dependence of parameters
          IF(ihm == 56) THEN
             ! AGN 7.6
+            hmod%fix_star_concentration = .TRUE.
             hmod%Astar = 0.03538
             hmod%mstar = 10**12.39794
             hmod%Astarz = -0.01020
@@ -1506,6 +1507,7 @@ CONTAINS
             hmod%mstarz = -0.15334
          ELSE IF (ihm == 57) THEN
             ! AGN 7.8
+            hmod%fix_star_concentration = .TRUE.
             hmod%Astar = 0.03392
             hmod%mstar = 10**12.34581
             hmod%Astarz = -0.01013
@@ -1513,6 +1515,7 @@ CONTAINS
             hmod%mstarz = -0.02782
          ELSE IF (ihm == 58) THEN
             ! AGN 8.0
+            hmod%fix_star_concentration = .TRUE.
             hmod%Astar = 0.03183
             hmod%mstar = 10**12.27733
             hmod%Astarz = -0.00936
@@ -1520,6 +1523,7 @@ CONTAINS
             hmod%mstarz = -0.00126
          ELSE IF (ihm == 60) THEN      
             ! HMx 2020 with temperature scaling that fits the stars-stars
+            hmod%fix_star_concentration = .TRUE.
             hmod%HMx_mode = 6 ! Scaling with temperature
             hmod%Astar_array = [0.03538, 0.03392, 0.03183]
             hmod%Astarz_array = [-0.01020, -0.01013, -0.00936]
@@ -1528,6 +1532,7 @@ CONTAINS
             hmod%eta_array = [-0.32187, -0.31955, -0.30451]
          ELSE IF (ihm == 61) THEN      
             ! HMx 2020 with temperature scaling that fits the stars-stars and matter-matter
+            hmod%fix_star_concentration = .TRUE.
             hmod%HMx_mode = 6 ! Scaling with temperature
             hmod%Astar_array = [0.03538, 0.03392, 0.03183]
             hmod%Astarz_array = [-0.01020, -0.01013, -0.00936]
@@ -4568,7 +4573,7 @@ CONTAINS
 
    REAL FUNCTION HMx_ibeta(m, hmod, cosm)
 
-      ! Isothermal-beta profile
+      ! Isothermal-beta profile index
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
