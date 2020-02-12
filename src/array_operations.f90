@@ -46,17 +46,15 @@ MODULE array_operations
    PUBLIC :: greater_than_all
    PUBLIC :: greater_than_any
    PUBLIC :: in_array
-
+   PUBLIC :: integer_sequence
    PUBLIC :: unique_entries
    PUBLIC :: number_of_appearances
    PUBLIC :: remove_repeated_array_elements
    PUBLIC :: remove_repeated_two_array_elements
-
    PUBLIC :: progression
    PUBLIC :: progression_double
    PUBLIC :: progression_log
    PUBLIC :: progression_log_double
-
    PUBLIC :: fill_array
    PUBLIC :: fill_array_double
 
