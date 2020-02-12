@@ -372,7 +372,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
-      REAL :: Xe, Xi, om_b
+      REAL :: Xe, Xi
 
       ! Names of pre-defined cosmologies
       INTEGER, PARAMETER :: ncosmo = 337
