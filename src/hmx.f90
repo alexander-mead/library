@@ -128,6 +128,7 @@ MODULE HMx
    PUBLIC :: param_eps
    PUBLIC :: param_eps2
    PUBLIC :: param_Gamma
+   PUBLIC :: param_Zamma
    PUBLIC :: param_M0
    PUBLIC :: param_Astar
    PUBLIC :: param_Twhim
@@ -144,6 +145,7 @@ MODULE HMx
    PUBLIC :: param_alphap
    PUBLIC :: param_betap
    PUBLIC :: param_Gammap
+   PUBLIC :: param_Zammap
    PUBLIC :: param_cstarp
    PUBLIC :: param_ibetap
 
@@ -153,6 +155,7 @@ MODULE HMx
    PUBLIC :: param_epsz
    PUBLIC :: param_eps2z
    PUBLIC :: param_Gammaz
+   PUBLIC :: param_Zammaz
    PUBLIC :: param_M0z
    PUBLIC :: param_Astarz
    PUBLIC :: param_Twhimz
@@ -193,18 +196,21 @@ MODULE HMx
       INTEGER :: flag_sigma_eta, flag_sigma_deltac, flag_sigmaV_fdamp
 
       ! Void stuff
-      LOGICAL :: voids, fix_star_concentration
+      LOGICAL :: add_voids
 
       ! Spherical collapse parameters
       REAL :: dc, Dv
 
       ! HMx baryon parameters
-      REAL :: Theat_array(3)
+      LOGICAL :: fix_star_concentration, different_Gammas
+
+      REAL :: Theat_array(3), pivot_mass
       REAL :: alpha, alphap, alphaz, alpha_array(3), alphap_array(3), alphaz_array(3)
       REAL :: beta, betap, betaz
       REAL :: eps, epsz, eps_array(3), epsz_array(3)
       REAL :: eps2, eps2z, eps2_array(3), eps2z_array(3)
-      REAL :: Gamma, Gammap, Gammaz, Gamma_array(3), Gammap_array(3), Gammaz_array(3)    
+      REAL :: Gamma, Gammap, Gammaz, Gamma_array(3), Gammap_array(3), Gammaz_array(3)
+      REAL :: Zamma, Zammap, Zammaz, Zamma_array(3), Zammap_array(3), Zammaz_array(3)
       REAL :: M0, M0z, M0_array(3), M0z_array(3) 
       REAL :: Astar, Astarz, Astar_array(3), Astarz_array(3)
       REAL :: Twhim, Twhimz, Twhim_array(3), Twhimz_array(3)
@@ -278,8 +284,6 @@ MODULE HMx
       REAL :: acc, small_nu, large_nu
       CHARACTER(len=256) :: name
       INTEGER :: HMx_mode
-      !REAL, ALLOCATABLE :: log_k_pdamp(:), log_pdamp(:)
-      !INTEGER :: n_pdamp
 
       ! Mass function and bias parameters
       REAL :: Tinker_alpha, Tinker_beta, Tinker_gamma, Tinker_phi, Tinker_eta
@@ -462,7 +466,10 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_dcnu = 46
    INTEGER, PARAMETER :: param_eps2 = 47
    INTEGER, PARAMETER :: param_eps2z = 48
-   INTEGER, PARAMETER :: param_n = 48
+   INTEGER, PARAMETER :: param_Zamma = 49
+   INTEGER, PARAMETER :: param_Zammap = 50
+   INTEGER, PARAMETER :: param_Zammaz = 51
+   INTEGER, PARAMETER :: param_n = 51
 
    INTEGER, PARAMETER :: ihm_hmcode = 1
    INTEGER, PARAMETER :: ihm_hmcode_CAMB = 51
@@ -541,6 +548,7 @@ CONTAINS
       names(59) = 'Matter masquerading as DMONLY'
       names(60) = 'HMx2020: Temperature-dependent model for stars-stars'
       names(61) = 'HMx2020: Temperature-dependent model for matter-matter'
+      !names(62) = 'HMx2020 with different Gamma for pressure'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -734,6 +742,9 @@ CONTAINS
       ! 8 - Delta function
       hmod%halo_free_gas = 7
 
+      ! Different Gamma parameter for pressure and density
+      hmod%different_Gammas = .FALSE.
+
       ! Cenrtal stars halo profile
       ! 1 - Fedeli (2014) stellar distribution
       ! 2 - Schneider & Teyssier (2015) stellar distribution
@@ -746,7 +757,7 @@ CONTAINS
       ! 2 - Fedeli (2014) stellar distribution
       hmod%halo_satellite_stars = 1
 
-      ! Do stars see the original halo concentration?
+      ! Do stars see the original halo concentration or that modified by the HMx parameters?
       hmod%fix_star_concentration = .FALSE.
 
       ! Neutrino halo profile
@@ -768,7 +779,7 @@ CONTAINS
       hmod%electron_pressure = 2
 
       ! Do voids?
-      hmod%voids = .FALSE.
+      hmod%add_voids = .FALSE.
 
       ! Set the void model
       ! 1 - Top-hat void
@@ -812,8 +823,9 @@ CONTAINS
       ! 6 - HMx2020 redshift and temperature scalings
       hmod%HMx_mode = 3
 
-      ! Pivot is 1e14 or M_h
+      ! Pivot is held fixed or is the non-linear mass (function of cosmology/z)?
       hmod%simple_pivot = .FALSE.
+      hmod%pivot_mass = 1e14
 
       !!! HMx hydro parameters !!!
 
@@ -868,6 +880,14 @@ CONTAINS
       hmod%C_Gamma = 1.150
       hmod%D_Gamma = -17.011
       hmod%E_Gamma = 66.289
+
+      ! Pressure polytropic gas index
+      hmod%Zamma = hmod%Gammaz
+      hmod%Zammap = hmod%Gammap
+      hmod%Zammaz = hmod%Gammaz
+      hmod%Zamma_array = hmod%Zamma
+      hmod%Zammap_array = hmod%Zammap
+      hmod%Zammaz_array = hmod%Zammaz
 
       ! Halo mass that has lost half gas
       hmod%M0 = 1e14     
@@ -1170,7 +1190,7 @@ CONTAINS
          hmod%i1hdamp = 3
       ELSE IF (ihm == 16) THEN
          ! Halo-void model
-         hmod%voids = .TRUE.
+         hmod%add_voids = .TRUE.
       ELSE IF (ihm == 17 .OR. ihm == 18 .OR. ihm == 19) THEN
          ! 17 - HMx AGN 7.6
          ! 18 - HMx AGN tuned
@@ -1471,11 +1491,10 @@ CONTAINS
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
          hmod%iDv = 4 ! Mead (2017) fitting function for Delta_v
       ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58 .OR. ihm == 60 .OR. ihm == 61) THEN
-         ! HMx 2020
+         ! HMx2020
          hmod%response = 1 ! Model should be calculated as a response
          hmod%halo_central_stars = 3 ! 3 - Delta function for central stars
          hmod%eta = -0.3
-         !hmod%fix_star_concentration = .TRUE. ! TODO: Check this is okay
          hmod%HMx_mode = 5 ! HMx2020 possible M and z dependence of parameters
          IF(ihm == 56) THEN
             ! AGN 7.6
@@ -1522,7 +1541,7 @@ CONTAINS
             hmod%eps_array = [0.27910, 0.20000, 0.04947]
             hmod%Gamma_array = [1.23445, 1.33350, 1.59297]
             hmod%M0_array = [10**13.00648, 10**13.36720, 10**14.02713]
-            hmod%epsz_array = [-0.01196, -0.01125, 0.03178]
+            hmod%epsz_array = [-0.01196, -0.01125, 0.03178]            
          END IF
       ELSE IF (ihm == 59) THEN
          ! Such that hydro model masquerades as DMONLY
@@ -1884,7 +1903,7 @@ CONTAINS
          IF (hmod%electron_pressure == 2) WRITE (*, *) 'HALOMODEL: Electron pressure: Using gas profiles'
 
          ! Are voids being done?
-         IF (hmod%voids) THEN
+         IF (hmod%add_voids) THEN
 
             WRITE (*, *) 'HALOMODEL: Considering voids'
 
@@ -3325,7 +3344,7 @@ CONTAINS
       END IF
 
       ! If we are adding in power from voids
-      IF (hmod%voids) THEN
+      IF (hmod%add_voids) THEN
          p_hm = p_hm+p_1void(k, hmod)
       END IF
 
@@ -4076,10 +4095,11 @@ CONTAINS
       ! Returns the 'pivot mass' [Msun/h]
       IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
-      REAL, PARAMETER :: simple_pivot_mass = 1e14
+      !REAL, PARAMETER :: simple_pivot_mass = 1e14
 
       IF (hmod%simple_pivot) THEN
-         pivot_mass = simple_pivot_mass
+         !pivot_mass = simple_pivot_mass
+         pivot_mass = hmod%pivot_mass
       ELSE
          pivot_mass = hmod%Mh
       END IF
@@ -4282,6 +4302,56 @@ CONTAINS
       CALL fix_maximum(HMx_Gamma, HMx_Gamma_max)
 
    END FUNCTION HMx_Gamma
+
+   REAL FUNCTION HMx_Zamma(m, hmod, cosm)
+
+      ! Komatsu-Seljak index()
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: m
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: z, Mpiv, Zamma, Zammap, Zammaz
+
+      IF (.NOT. hmod%different_Gammas) THEN
+
+         HMx_Zamma = HMx_Gamma(m, hmod, cosm)
+
+      ELSE
+
+         IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
+
+            IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
+               Zamma = hmod%Zamma
+               Zammap = hmod%Zammap
+               Zammaz = hmod%Zammaz
+            ELSE IF (hmod%HMx_mode == 6) THEN
+               Zamma = HMx2020_Temperature_scaling(hmod%Zamma_array, hmod, cosm)
+               Zammap = HMx2020_Temperature_scaling(hmod%Zammap_array, hmod, cosm)
+               Zammaz = HMx2020_Temperature_scaling(hmod%Zammaz_array, hmod, cosm)
+            ELSE
+               STOP 'HMx_GAMMA_PRESSURE: Error, HMx_mode not specified correctly'
+            END IF 
+
+            Mpiv = pivot_mass(hmod)
+            z = hmod%z
+            IF (hmod%HMx_mode == 3) THEN
+               HMx_Zamma = Zamma*((m/Mpiv)**Zammap)*(1.+z)**Zammaz
+            ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
+               HMx_Zamma = (Zamma+z*Zammaz)*((m/Mpiv)**Zammap)
+            ELSE
+               STOP 'HMx_GAMMA_PRESSURE: Error, HMx_mode not specified correctly'
+            END IF
+
+         ELSE
+            STOP 'HMx_GAMMA_PRESSURE: Error, HMx_mode not specified correctly'
+         END IF
+
+         CALL fix_minimum(HMx_Zamma, HMx_Gamma_min)
+         CALL fix_maximum(HMx_Zamma, HMx_Gamma_max)
+
+      END IF
+
+   END FUNCTION HMx_Zamma
 
    REAL FUNCTION HMx_M0(hmod, cosm)
 
@@ -5757,7 +5827,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: rho0, T0, r, a
       REAL :: rmin, rmax, p1, p2, frac
-      INTEGER :: irho_density, irho_electron_pressure
+      INTEGER :: irho_density, irho_pressure
 
       frac = halo_static_gas_fraction(m, hmod, cosm)
 
@@ -5778,29 +5848,31 @@ CONTAINS
          IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
             irho_density = 0
-            irho_electron_pressure = 0
+            irho_pressure = 0
          ELSE IF (hmod%halo_static_gas == 1 .OR. hmod%halo_static_gas == 3) THEN
             ! Komatsu & Seljak (2001) profile
             IF (hmod%halo_static_gas == 1) THEN
                ! Simplified KS model
                irho_density = 11
-               irho_electron_pressure = 13
+               irho_pressure = 13
             ELSE IF (hmod%halo_static_gas == 3) THEN
                ! Full KS model
                irho_density = 21
-               irho_electron_pressure = 23
+               irho_pressure = 23
             END IF
             p1 = HMx_Gamma(m, hmod, cosm)
+            p2 = HMx_Zamma(m, hmod, cosm)
          ELSE IF (hmod%halo_static_gas == 2) THEN
             ! Set cored isothermal profile
             !irho_density=6   ! Isothermal beta model with beta=2/3
             irho_density = 15 ! Isothermal beta model with general beta
             p1 = HMx_ibeta(m, hmod, cosm)
-            irho_electron_pressure = irho_density ! Okay to use density for pressure because temperature is constant (isothermal)
+            p2 = p1
+            irho_pressure = irho_density ! Okay to use density for pressure because temperature is constant (isothermal)
          ELSE IF (hmod%halo_static_gas == 4) THEN
             ! NFW
             irho_density = 5 ! Analytical NFW
-            irho_electron_pressure = 0
+            irho_pressure = 0
          ELSE
             STOP 'WIN_STATIC_GAS: Error, halo_static_gas not specified correctly'
          END IF
@@ -5822,15 +5894,16 @@ CONTAINS
          ELSE IF (itype == field_electron_pressure) THEN
 
             ! Electron pressure profile of bound gas
+            ! NOTE: Swapped p1, p2 to p2, p1 here to get the gas index correct in the case that the Gammas differ
+            ! NOTE: This is a bit of a hack and there is probably a much cuter solution 
             IF (real_space) THEN
                r = k
-               win_static_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_electron_pressure)
+               win_static_gas = rho(r, rmin, rmax, rv, rs, p2, p1, irho_pressure)
             ELSE
                ! The electron pressure window is T(r) x rho_e(r), we want unnormalised, so multiply through by normalisation
                ! TODO: Can I make the code more efficient here by having an unnorm window function?
-               win_static_gas = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_electron_pressure)
-               win_static_gas = win_static_gas*normalisation(rmin, rmax, rv, rs, p1, p2, irho_electron_pressure)
-               !win_static_gas=winint(k,rmin,rmax,rv,rs,p1,p2,irho_electron_pressure)
+               win_static_gas = win_norm(k, rmin, rmax, rv, rs, p2, p1, irho_pressure)
+               win_static_gas = win_static_gas*normalisation(rmin, rmax, rv, rs, p2, p1, irho_pressure)
             END IF
 
             ! Calculate the value of the density profile prefactor and change units from cosmological to SI
@@ -5939,7 +6012,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: r, rmin, rmax, p1, p2, frac
-      INTEGER :: irho_density, irho_electron_pressure
+      INTEGER :: irho_density, irho_pressure
       REAL :: rho0, a, T0
 
       frac = halo_hot_gas_fraction(m, hmod, cosm)
@@ -5961,11 +6034,11 @@ CONTAINS
          IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
             irho_density = 0
-            irho_electron_pressure = 0
+            irho_pressure = 0
          ELSE IF (hmod%halo_hot_gas == 1) THEN
             ! Isothermal
             irho_density = 1
-            irho_electron_pressure = 1
+            irho_pressure = 1
          ELSE
             STOP 'WIN_HOT_GAS: Error, halo_hot_gas not specified correctly'
          END IF
@@ -5989,12 +6062,12 @@ CONTAINS
             ! Electron-pressure profile of bound gas
             IF (real_space) THEN
                r = k
-               win_hot_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_electron_pressure)
+               win_hot_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_pressure)
             ELSE
                ! The electron pressure window is T(r) x rho_e(r), we want unnormalised, so multiply through by normalisation
                ! TODO: Can I make the code more efficient here by having an unnorm window function?
-               win_hot_gas = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_electron_pressure)
-               win_hot_gas = win_hot_gas*normalisation(rmin, rmax, rv, rs, p1, p2, irho_electron_pressure)
+               win_hot_gas = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_pressure)
+               win_hot_gas = win_hot_gas*normalisation(rmin, rmax, rv, rs, p1, p2, irho_pressure)
             END IF
 
             ! Calculate the value of the density profile prefactor and change units from cosmological to SI
@@ -6034,7 +6107,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: re, rmin, rmax, r, A, rho0, rhov, T0, p1, p2, beta, c, thing, m0, frac
-      INTEGER :: irho_density, irho_electron_pressure
+      INTEGER :: irho_density, irho_pressure
 
       ! Enable to force the electron pressure to be matched at the virial radius
       ! This is enabled by default for some halo gas/pressure models
@@ -6061,13 +6134,13 @@ CONTAINS
 
             ! Treat as delta functions if there is not much abundance
             irho_density = 0
-            irho_electron_pressure = 0
+            irho_pressure = 0
 
          ELSE IF (hmod%halo_free_gas == 1) THEN
 
             ! Simple isothermal model, motivated by constant velocity and rate expulsion
             irho_density = 1
-            irho_electron_pressure = irho_density ! Okay because T is constant
+            irho_pressure = irho_density ! Okay because T is constant
             rmin = 0.
             rmax = 2.*rv
 
@@ -6075,7 +6148,7 @@ CONTAINS
 
             ! Ejected gas model from Schneider & Teyssier (2015)
             irho_density = 10
-            irho_electron_pressure = irho_density ! Okay because T is constant
+            irho_pressure = irho_density ! Okay because T is constant
             rmin = rv
             re = rv
             p1 = re
@@ -6085,7 +6158,7 @@ CONTAINS
 
             ! Now do isothermal shell connected to the KS profile continuously
             irho_density = 16
-            irho_electron_pressure = irho_density ! Okay because T is constant
+            irho_pressure = irho_density ! Okay because T is constant
 
             ! Isothermal model with continuous link to KS
             rhov = win_static_gas(.TRUE., 2, rv, m, rv, rs, hmod, cosm) ! value of the density at the halo boundary for bound gas
@@ -6102,7 +6175,7 @@ CONTAINS
 
             ! Ejected gas is a continuation of the KS profile
             irho_density = 11 ! KS
-            irho_electron_pressure = 13 ! KS
+            irho_pressure = 13 ! KS
             rmin = rv
             rmax = 2.*rv
             p1 = HMx_Gamma(m, hmod, cosm)
@@ -6114,7 +6187,7 @@ CONTAINS
             IF (m < m0) THEN
 
                irho_density = 0
-               irho_electron_pressure = irho_density
+               irho_pressure = irho_density
                rmin = 0.
                rmax = rv
 
@@ -6122,7 +6195,7 @@ CONTAINS
 
                ! Set the density profile to be the power-law profile
                irho_density = 17
-               irho_electron_pressure = irho_density ! Not okay
+               irho_pressure = irho_density ! Not okay
 
                ! Calculate the KS index at the virial radius
                c = rv/rs
@@ -6165,7 +6238,7 @@ CONTAINS
             rmin = rv
             rmax = 3.*rv
             irho_density = 18
-            irho_electron_pressure = irho_density
+            irho_pressure = irho_density
 
          ELSE IF (hmod%halo_free_gas == 7) THEN
 
@@ -6173,7 +6246,7 @@ CONTAINS
             rmin = 0.
             rmax = rv
             irho_density = 19
-            irho_electron_pressure = irho_density
+            irho_pressure = irho_density
 
          ELSE IF (hmod%halo_free_gas == 8) THEN
 
@@ -6181,7 +6254,7 @@ CONTAINS
             rmin = 0.
             rmax = rv
             irho_density = 0
-            irho_electron_pressure = irho_density
+            irho_pressure = irho_density
 
          ELSE
             STOP 'WIN_FREE_GAS: Error, halo_free_gas specified incorrectly'
@@ -6223,10 +6296,10 @@ CONTAINS
                ! Electron pressure profile of free gas
                IF (real_space) THEN
                   r = k
-                  win_free_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_electron_pressure)
+                  win_free_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_pressure)
                ELSE
-                  win_free_gas = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_electron_pressure)
-                  win_free_gas = win_free_gas*normalisation(rmin, rmax, rv, rs, p1, p2, irho_electron_pressure)
+                  win_free_gas = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_pressure)
+                  win_free_gas = win_free_gas*normalisation(rmin, rmax, rv, rs, p1, p2, irho_pressure)
                END IF
 
                ! Calculate the value of the density profile prefactor [(Msun/h)/(Mpc/h)^3] and change units from cosmological to SI
@@ -7136,8 +7209,7 @@ CONTAINS
             re = p1
             rho = exp(-0.5*(r/re)**2)
          ELSE IF (irho == 11 .OR. irho == 12 .OR. irho == 13 .OR. irho == 21 .OR. irho == 22 .OR. irho == 23) THEN
-            ! Komatsu & Seljak (2001) profile
-            !Gamma=1.18 ! Recommended by Rabold (2017)
+            ! Komatsu & Seljak (2001) profiles for density, temperature and pressure
             IF (irho == 11 .OR. irho == 12 .OR. irho == 13) THEN
                Gamma = p1
                y = r/rs
@@ -7145,20 +7217,13 @@ CONTAINS
             ELSE IF (irho == 21 .OR. irho == 22 .OR. irho == 23) THEN
                c = rv/rs
                Gamma = p1+0.01*(c-6.5)
-               !WRITE(*,*) 'Gamma:', Gamma
                eta0 = 0.00676*(c-6.5)**2+0.206*(c-6.5)+2.48
-               !WRITE(*,*) 'eta0:', eta0
                f1 = (3./eta0)*(Gamma-1.)/Gamma
-               !WRITE(*,*) 'f1:', f1
                f2 = c/NFW_factor(c)
-               !WRITE(*,*) 'f2:', f2
                B = f1*f2
                IF (B > 1.) B = 1.
-               !WRITE(*,*) 'B:', B
                y = r/rs
-               !WRITE(*,*) 'y:', y
                rho = 1.-B*(1.-log(1.+y)/y)
-               !WRITE(*,*) 'rho:', rho
             ELSE
                STOP 'RHO: Error, irho specified incorrectly'
             END IF
@@ -7166,7 +7231,7 @@ CONTAINS
                ! KS density profile
                rho = rho**(1./(Gamma-1.))
             ELSE IF (irho == 12 .OR. irho == 22) THEN
-               ! KS temperature profile
+               ! KS temperature profile (no Gamma dependence)
                rho = rho
             ELSE IF (irho == 13 .OR. irho == 23) THEN
                ! KS pressure profile
@@ -7259,6 +7324,7 @@ CONTAINS
 
       ! This calculates the normalisation of a halo
       ! This is the integral of 4pir^2*rho(r)*dr between rmin and rmax
+      ! This is the total profile 'mass' if rmin=0 and rmax=rv
 
       ! Profile results
       !  0 - Delta function (M = 1)
