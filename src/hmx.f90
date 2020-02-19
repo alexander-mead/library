@@ -4401,7 +4401,8 @@ CONTAINS
          IF(hmod%HMx_mode == 3) THEN
             HMx_M0 = M0**((1.+z)**M0z)
          ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-            HMx_M0 = M0*(exp(M0z)**z)
+            !HMx_M0 = M0*(exp(M0z)**z)
+            HMx_M0 = M0*exp(M0z*z)
          ELSE
             STOP 'HMx_M0: Error, HMx_mode not specified correctly'
          END IF
@@ -4492,7 +4493,8 @@ CONTAINS
          IF (hmod%HMx_mode == 3) THEN
             HMx_Twhim = Twhim**((1.+z)**Twhimz)
          ELSE IF (in_array(hmod%HMx_mode, [5, 6])) THEN
-            HMx_Twhim = Twhim*(exp(Twhimz)**z)
+            !HMx_Twhim = Twhim*(exp(Twhimz)**z)
+            HMx_Twhim = Twhim*exp(Twhimz*z)
          ELSE
             STOP 'HMx_TWHIM: Error, HMx_mode not specified correctly'
          END IF
@@ -4577,7 +4579,8 @@ CONTAINS
       IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4) THEN
          HMx_Mstar = Mstar**((1.+z)**Mstarz)
       ELSE IF(hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-         HMx_Mstar = Mstar*(exp(Mstarz)**z)
+         !HMx_Mstar = Mstar*(exp(Mstarz)**z)
+         HMx_Mstar = Mstar*exp(Mstarz*z)
       ELSE  
          STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
       END IF
