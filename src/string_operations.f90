@@ -61,7 +61,7 @@ CONTAINS
       IF (post_decimal == 0) THEN
          real_to_string = integer_to_string(int(x))
       ELSE
-         fmt = '(F'//trim(integer_to_string(pre_decimal+post_decimal+1))//'.'//trim(integer_to_string(pre_decimal))//')'
+         fmt = '(F'//trim(integer_to_string(pre_decimal+post_decimal+1))//'.'//trim(integer_to_string(post_decimal))//')'
          WRITE (real_to_string, fmt=fmt) x
       END IF
 
