@@ -485,7 +485,7 @@ CONTAINS
       INTEGER :: i
 
       ! Names of pre-defined halo models
-      INTEGER, PARAMETER :: nhalomod = 61 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+      INTEGER, PARAMETER :: nhalomod = 63 ! Total number of pre-defined halo-model types (TODO: this is stupid)
       CHARACTER(len=256):: names(nhalomod)
       names(1) =  'HMcode (Mead et al. 2016)'
       names(2) =  'Basic halo-model (Two-halo term is linear)'
@@ -540,15 +540,16 @@ CONTAINS
       names(51) = 'HMcode in CAMB (July 2019)'
       names(52) = 'Standard but with Mead (2017) spherical collapse'
       names(53) = 'HMcode (2016) with Nelder-Mead parameters'
-      names(54) = ''
+      names(54) = 'Matter masquerading as DMONLY'
       names(55) = 'HMx2020'
       names(56) = 'HMx2020: Model that fits stars-stars AGN 7.6'
       names(57) = 'HMx2020: Model that fits stars-stars AGN 7.8'
-      names(58) = 'HMx2020: Model that fits stars-stars AGN 8.0'
-      names(59) = 'Matter masquerading as DMONLY'
-      names(60) = 'HMx2020: Temperature-dependent model for stars-stars'
-      names(61) = 'HMx2020: Temperature-dependent model for matter-matter'
-      !names(62) = 'HMx2020 with different Gamma for pressure'
+      names(58) = 'HMx2020: Model that fits stars-stars AGN 8.0'   
+      names(59) = 'HMx2020: Temperature-dependent model for stars'
+      names(60) = 'HMx2020: Temperature-dependent model for matter'
+      names(61) = 'HMx2020: Temperature-dependent model for matter, pressure'
+      names(62) = 'HMx2020: Temperature-dependent model for matter, CDM, gas, stars'
+      names(63) = 'HMx2020: Temperature-dependent model for matter, CDM, gas, stars, pressure'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -1490,7 +1491,15 @@ CONTAINS
          ! Standard halo model but with Mead (2017) spherical-collapse fitting function
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
          hmod%iDv = 4 ! Mead (2017) fitting function for Delta_v
-      ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58 .OR. ihm == 60 .OR. ihm == 61) THEN
+      ELSE IF (ihm == 54) THEN
+         ! Such that hydro model masquerades as DMONLY
+         hmod%frac_bound_gas = 3     ! Universal baryon fraction as bound gas
+         hmod%halo_static_gas = 1    ! NFW profile for bound gas
+         hmod%Astar = 0.             ! No stars
+         hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
+         hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
+      ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58 .OR. ihm == 59 .OR. &
+         ihm == 60 .OR. ihm == 61 .OR. ihm == 62 .OR. ihm == 63) THEN
          ! HMx2020
          hmod%response = 1 ! Model should be calculated as a response
          hmod%halo_central_stars = 3 ! 3 - Delta function for central stars
@@ -1520,36 +1529,51 @@ CONTAINS
             hmod%Astarz = -0.00936
             hmod%eta = -0.30451
             hmod%mstarz = -0.00126
-         ELSE IF (ihm == 60) THEN      
-            ! HMx 2020 with temperature scaling that fits the stars-stars
+         ELSE IF (ihm == 59 .OR. ihm == 60 .OR. ihm == 61) THEN      
+            ! 59 - HMx 2020 with temperature scaling that fits stars
+            ! 60 - HMx 2020 with temperature scaling that fits matter (stars fixed)
+            ! 61 - HMx 2020 with temperature scaling that fits matter, pressure (stars fixed)
             hmod%fix_star_concentration = .TRUE.
             hmod%HMx_mode = 6 ! Scaling with temperature
             hmod%Astar_array = [0.03538, 0.03392, 0.03183]
             hmod%Astarz_array = [-0.01020, -0.01013, -0.00936]
-            hmod%Mstar_array = [10**12.39794, 10**12.34581, 10**12.27733]
+            hmod%Mstar_array = 10**[12.39794, 12.34581, 12.27733]
             hmod%Mstarz_array = [-0.15334, -0.02782, -0.00126]
             hmod%eta_array = [-0.32187, -0.31955, -0.30451]
-         ELSE IF (ihm == 61) THEN      
-            ! HMx 2020 with temperature scaling that fits the stars-stars and matter-matter
-            hmod%fix_star_concentration = .TRUE.
+            IF(ihm == 60) THEN
+               ! 60 - Additionally fits matter-matter
+               hmod%eps_array = [0.27910, 0.20000, 0.04947]
+               hmod%Gamma_array = [1.23445, 1.33350, 1.59297]
+               hmod%M0_array = 10**[13.00648, 13.36720, 14.02713]
+               hmod%epsz_array = [-0.01196, -0.01125, 0.03178]
+            END IF
+            IF(ihm == 61) THEN
+               ! 61 - Additionally fits matter, pressure
+               hmod%alpha_array = [0.76425, 0.84710, 1.03136]
+               hmod%eps_array = [-0.10017, -0.10650, -0.12533]
+               hmod%Gamma_array = 1.+[0.16468, 0.17702, 0.19657]
+               hmod%M0_array = 10**[13.19486, 13.59369, 14.24798]
+               hmod%Twhim_array = 10**[6.67618, 6.65445, 6.66146] ! Weirdly similar (z=0 Twhim all the same... ?)
+               hmod%Twhimz_array = [-0.55659, -0.36515, -0.06167]
+               hmod%epsz_array = [-0.04559, -0.10730, -0.01107] ! Non monotonic
+            END IF
+         ELSE IF (ihm == 62) THEN
+            ! 62 - Model for matter, CDM, gas, stars
             hmod%HMx_mode = 6 ! Scaling with temperature
-            hmod%Astar_array = [0.03538, 0.03392, 0.03183]
-            hmod%Astarz_array = [-0.01020, -0.01013, -0.00936]
-            hmod%Mstar_array = [10**12.39794, 10**12.34581, 10**12.27733]
-            hmod%Mstarz_array = [-0.15334, -0.02782, -0.00126]
-            hmod%eta_array = [-0.32187, -0.31955, -0.30451]
-            hmod%eps_array = [0.27910, 0.20000, 0.04947]
-            hmod%Gamma_array = [1.23445, 1.33350, 1.59297]
-            hmod%M0_array = [10**13.00648, 10**13.36720, 10**14.02713]
-            hmod%epsz_array = [-0.01196, -0.01125, 0.03178]            
+            hmod%eps_array = [0.40207, 0.12360, -0.11578]
+            hmod%Gamma_array = 1.+[0.27626, 0.29555, 0.28608] ! Weirdly similar, non monotonic
+            hmod%M0_array = 10**[13.09777, 13.48537, 14.12539]
+            hmod%Astar_array = [0.03460, 0.03417, 0.03205]
+            hmod%Mstar_array = 10**[12.55064, 12.37147, 12.30323]
+            hmod%Gammaz_array = [-0.05539, -0.09365, -0.13816]
+            hmod%Astarz_array = [-0.00917, -0.01046, -0.00935] ! Non monotonic
+            hmod%eta_array = [-0.49697, -0.40520, -0.34431]
+            hmod%epsz_array = [0.04350, -0.01872, 0.14079] ! Non monotonic
+            hmod%Mstarz_array = [-0.46153, 0.01489, -0.08174] ! Non monotonic
+         ELSE IF (ihm == 63) THEN  
+            ! 62 - Model for matter, CDM, gas, stars, electron pressure
+            hmod%HMx_mode = 6 ! Scaling with temperature
          END IF
-      ELSE IF (ihm == 59) THEN
-         ! Such that hydro model masquerades as DMONLY
-         hmod%frac_bound_gas = 3     ! Universal baryon fraction as bound gas
-         hmod%halo_static_gas = 1    ! NFW profile for bound gas
-         hmod%Astar = 0.             ! No stars
-         hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
-         hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -4553,7 +4577,7 @@ CONTAINS
       IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4) THEN
          HMx_Mstar = Mstar**((1.+z)**Mstarz)
       ELSE IF(hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-         HMx_Mstar = Mstar*exp(Mstarz)**z
+         HMx_Mstar = Mstar*(exp(Mstarz)**z)
       ELSE  
          STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
       END IF
