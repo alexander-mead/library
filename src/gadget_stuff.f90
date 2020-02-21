@@ -1,4 +1,4 @@
-MODULE gadget
+MODULE gadget_stuff
 
    USE precision
    USE array_operations
@@ -7,6 +7,7 @@ MODULE gadget
 
    PRIVATE
 
+   PUBLIC :: write_gadget_Pk
    PUBLIC :: read_gadget
    PUBLIC :: write_gadget
    PUBLIC :: read_catalogue
@@ -16,6 +17,36 @@ MODULE gadget
    REAL, PARAMETER :: Munit = 1e10  ! Convert from Gadget2 10^10 Msun/h to Msun/h
 
 CONTAINS
+
+   SUBROUTINE write_gadget_Pk(k, Pk, nk, outfile, verbose)
+
+      ! Converts a CAMB P(k) file to a Gadget format P(k) file 
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k(nk)  ! Input k [h/Mpc]
+      REAL, INTENT(IN) :: Pk(nk) ! Input dimensionless Delta^2(k)
+      INTEGER, INTENT(IN) :: nk  ! Number of points in k
+      CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
+      LOGICAL, INTENT(IN) :: verbose ! Verbose or not
+      INTEGER :: i
+      REAL :: Gadget_k(nk), Gadget_Pk(nk)
+
+      IF(verbose) WRITE(*, *) 'WRITE_GADGET_INPUT_POWER: Converting units to Gadget format'
+
+      Gadget_k = log10(k)-3. ! Convert Mpc/h to kpc/h and take log10
+      Gadget_Pk = log10(Pk)  ! Take log10
+
+      IF(verbose) WRITE(*, *) 'WRITE_GADGET_INPUT_POWER: Output file: ', trim(outfile)
+      OPEN(7, file=outfile)
+      DO i = 1, nk
+         WRITE(7,*) Gadget_k(i), Gadget_Pk(i)
+      END DO
+      CLOSE(7)
+      IF(verbose) THEN
+         WRITE(*, *) 'WRITE_GADGET_INPUT_POWER: Done'
+         WRITE(*, *)
+      END IF
+
+   END SUBROUTINE write_gadget_Pk
 
    SUBROUTINE read_gadget(x, v, id, L, Om_m, Om_v, h, m, a, z, n, infile)
 
@@ -210,4 +241,4 @@ CONTAINS
 
    END SUBROUTINE write_catalogue
 
-END MODULE gadget
+END MODULE gadget_stuff

@@ -67,7 +67,7 @@ _OBJ = \
 	cosmology_functions.o \
 	statistics.o \
 	fitting.o \
-	gadget.o \
+	gadget_stuff.o \
 	ode_solvers.o \
 	vectors.o \
 	orbits.o \
