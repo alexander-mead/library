@@ -180,6 +180,9 @@ MODULE HMx
    PUBLIC :: param_HMcode_alpha1
    PUBLIC :: param_HMcode_Dvnu
    PUBLIC :: param_HMcode_dcnu
+   PUBLIC :: param_HMcode_mbar
+   PUBLIC :: param_HMcode_nbar
+   PUBLIC :: param_HMcode_abar
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -261,6 +264,7 @@ MODULE HMx
 
       ! HMcode parameters
       REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1, Dvnu, dcnu
+      REAL :: mbar, nbar, abar
       LOGICAL :: DMONLY_baryon_recipe, DMONLY_neutrino_correction
 
       ! Halo types
@@ -466,7 +470,10 @@ MODULE HMx
    INTEGER, PARAMETER :: param_Zamma = 49
    INTEGER, PARAMETER :: param_Zammap = 50
    INTEGER, PARAMETER :: param_Zammaz = 51
-   INTEGER, PARAMETER :: param_n = 51
+   INTEGER, PARAMETER :: param_HMcode_mbar = 52
+   INTEGER, PARAMETER :: param_HMcode_nbar = 53
+   INTEGER, PARAMETER :: param_HMcode_abar = 54
+   INTEGER, PARAMETER :: param_n = 54
 
    INTEGER, PARAMETER :: ihm_hmcode = 1
    INTEGER, PARAMETER :: ihm_hmcode_CAMB = 51
@@ -807,9 +814,12 @@ CONTAINS
       hmod%Dvnu = 0.916
       hmod%dcnu = 0.262
 
-      ! HMcode (2020) additional options
+      ! HMcode (2020) additional parameters
       hmod%DMONLY_neutrino_correction = .FALSE.
       hmod%DMONLY_baryon_recipe = .FALSE.
+      hmod%mbar = 1e14
+      hmod%nbar = 1.
+      hmod%abar = 0.
 
       ! ~infinite redshift for Dolag correction
       hmod%zinf_Dolag = 100.
@@ -2056,6 +2066,11 @@ CONTAINS
          WRITE (*, fmt=fmt) 'alpha1:', hmod%alp1
          WRITE (*, fmt=fmt) 'Dvnu:', hmod%Dvnu
          WRITE (*, fmt=fmt) 'dcnu:', hmod%dcnu
+         IF (hmod%DMONLY_baryon_recipe) THEN
+            WRITE (*, fmt=fmt) 'log10(M_bar) [Msun/h]:', log10(hmod%mbar)
+            WRITE (*, fmt=fmt) 'n_bar:', hmod%nbar
+            WRITE (*, fmt=fmt) 'a_bar:', hmod%abar
+         END IF
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMcode variables'
          WRITE (*, *) dashes
@@ -3291,6 +3306,11 @@ CONTAINS
 
       END IF
 
+      ! Add in the faux stellar component
+      IF(hmod%DMONLY_baryon_recipe) THEN
+         p_1h = p_1h+hmod%abar*hmod%Rh
+      END IF
+
       ! Convert from P(k) -> Delta^2(k)
       p_1h = p_1h*(4.*pi)*(k/twopi)**3
 
@@ -3447,24 +3467,22 @@ CONTAINS
    REAL FUNCTION halo_mass_fraction(m, hmod, cosm)
 
       ! Simple baryon model where high-mass haloes have a mass fraction of 1 and low-mass haloes have Omega_c/Omega_m
+      ! TODO: Add the neutrino correction here
+      ! TODO: This is independent of k, so probably should be computed outside and k dependent function for speed
+      ! TODO: Could probably just precompute this once in the halomod init function
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: r, fc
-      REAL, PARAMETER :: m0 = 1e14
-      REAL, PARAMETER :: n = 1
 
       IF(hmod%DMONLY_baryon_recipe) THEN        
-         r = (m/m0)**n ! If m>>m0 then r becomes large, if m<<m0 then r=0       
-         fc = cosm%Om_c/(cosm%Om_c+cosm%Om_b) ! Halo fraction that is CDM        
+         r = (m/hmod%mbar)**hmod%nbar             ! If m>>m0 then r becomes large, if m<<m0 then r=0       
+         fc = cosm%Om_c/(cosm%Om_c+cosm%Om_b)     ! Halo fraction that is CDM (note that the denominator should exclude neutrinos)      
          halo_mass_fraction = fc+(1.-fc)*r/(1.+r) ! Remaining halo mass fraction
       ELSE
          halo_mass_fraction = 1.
       END IF
-
-      !WRITE(*,*) m, halo_mass_fraction
-      !STOP
 
    END FUNCTION halo_mass_fraction
 
@@ -5747,6 +5765,7 @@ CONTAINS
       END IF
 
       ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
+      ! TODO: Should this really be computed here?
       IF (hmod%DMONLY_neutrino_correction) THEN
          win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
       END IF
