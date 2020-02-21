@@ -203,7 +203,6 @@ MODULE HMx
 
       ! HMx baryon parameters
       LOGICAL :: fix_star_concentration, different_Gammas
-
       REAL :: Theat_array(3), pivot_mass
       REAL :: alpha, alphap, alphaz, alpha_array(3), alphap_array(3), alphaz_array(3)
       REAL :: beta, betap, betaz
@@ -245,16 +244,13 @@ MODULE HMx
       INTEGER :: nk
 
       ! HMcode parameters and experimental parameters
-      REAL :: c3, knl, rnl, mnl, neff, Rh, Mh, Mp, sigv_all
+      REAL :: knl, rnl, mnl, neff, Rh, Mh, Mp, sigv_all
       !REAL :: sigV_all, sigV100_all, sig8_all, sig8_cold
       REAL :: sig_eta, sig_deltac, sig_fdamp, sigV_kstar, sigV_fdamp
 
       ! Saturation parameters (e.g., WDM)
       REAL :: nu_saturation
       LOGICAL :: saturation
-
-      ! Neutrino parameters
-      LOGICAL :: DMONLY_neutrino_correction
 
       ! HOD etc.
       REAL :: mhalo_min, mhalo_max, HImin, HImax, rcore, hmass
@@ -265,6 +261,7 @@ MODULE HMx
 
       ! HMcode parameters
       REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1, Dvnu, dcnu
+      LOGICAL :: DMONLY_baryon_recipe, DMONLY_neutrino_correction
 
       ! Halo types
       INTEGER :: halo_DMONLY, halo_CDM, halo_static_gas, halo_cold_gas, halo_hot_gas, halo_free_gas
@@ -485,7 +482,7 @@ CONTAINS
       INTEGER :: i
 
       ! Names of pre-defined halo models
-      INTEGER, PARAMETER :: nhalomod = 63 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+      INTEGER, PARAMETER :: nhalomod = 64 ! Total number of pre-defined halo-model types (TODO: this is stupid)
       CHARACTER(len=256):: names(nhalomod)
       names(1) =  'HMcode (Mead et al. 2016)'
       names(2) =  'Basic halo-model (Two-halo term is linear)'
@@ -550,6 +547,7 @@ CONTAINS
       names(61) = 'HMx2020: Temperature-dependent model for matter, pressure'
       names(62) = 'HMx2020: Temperature-dependent model for matter, CDM, gas, stars'
       names(63) = 'HMx2020: Temperature-dependent model for matter, CDM, gas, stars, pressure'
+      names(64) = 'HMcode (2016) but with HMcode (2020) baryon model'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -809,6 +807,10 @@ CONTAINS
       hmod%Dvnu = 0.916
       hmod%dcnu = 0.262
 
+      ! HMcode (2020) additional options
+      hmod%DMONLY_neutrino_correction = .FALSE.
+      hmod%DMONLY_baryon_recipe = .FALSE.
+
       ! ~infinite redshift for Dolag correction
       hmod%zinf_Dolag = 100.
 
@@ -1005,10 +1007,6 @@ CONTAINS
       hmod%saturation = .FALSE.
       hmod%nu_saturation = 0.
 
-      ! Neutrinos
-      ! TODO: Remove this or what?
-      hmod%DMONLY_neutrino_correction = .FALSE.
-
       IF (ihm == -1) THEN
          WRITE (*, *) 'ASSIGN_HALOMOD: Choose your halo model'
          DO i = 1, nhalomod
@@ -1019,7 +1017,7 @@ CONTAINS
       END IF
 
       IF (ihm == 1 .OR. ihm == 7 .OR. ihm == 15 .OR. ihm == 28 .OR. &
-         ihm == 31 .OR. ihm == 50 .OR. ihm == 51 .OR. ihm == 53) THEN
+         ihm == 31 .OR. ihm == 50 .OR. ihm == 51 .OR. ihm == 53 .OR. ihm == 64) THEN
          !  1 - HMcode (Mead et al. 2016)
          !  7 - HMcode (Mead et al. 2015)
          ! 15 - HMcode (Mead et al. 2020)
@@ -1028,6 +1026,7 @@ CONTAINS
          ! 50 - HMcode (Mead et al. 2016 w/ pow=1 bug in Dolag)
          ! 51 - HMcode in July 2019 CAMB (supposed to be Mead et al. 2016)
          ! 53 - HMcode (2016) updated Nelder-Mead parameters
+         ! 64 - HMcode (2016) but with 2020 baryon recipe
          hmod%ip2h = 1
          hmod%i1hdamp = 2
          hmod%iconc = 1
@@ -1111,6 +1110,9 @@ CONTAINS
             hmod%alp1 = 1.91
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
+         ELSE IF (ihm == 64) THEN
+            ! 64 - HMcode 2016 but with 2020 baryon recipe
+            hmod%DMONLY_baryon_recipe = .TRUE.
          END IF
       ELSE IF (ihm == 2) THEN
          ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686))
@@ -1502,7 +1504,8 @@ CONTAINS
          ihm == 60 .OR. ihm == 61 .OR. ihm == 62 .OR. ihm == 63) THEN
          ! HMx2020
          hmod%response = 1 ! Model should be calculated as a response
-         hmod%halo_central_stars = 3 ! 3 - Delta function for central stars
+         hmod%halo_central_stars = 3 ! 3 - Delta function for central stars (otherwise it would be Fedeli)
+         hmod%halo_satellite_stars = 1 ! 1 - NFW
          hmod%eta = -0.3
          hmod%HMx_mode = 5 ! HMx2020 possible M and z dependence of parameters
          IF(ihm == 56) THEN
@@ -3253,7 +3256,7 @@ CONTAINS
       REAL, INTENT(IN) :: k
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: m, g, fac, ks, wk0_product, m0, rhom, integrand(n)
+      REAL :: m, g, fac, ks, wk0_product, m0, rhom, integrand(n), f
       INTEGER :: i
       INTEGER, PARAMETER :: iorder_hm = iorder_1halo_integration
       INTEGER, PARAMETER :: iorder_df = iorder_delta
@@ -3279,7 +3282,8 @@ CONTAINS
          DO i = 1, n
             g = g_nu(hmod%nu(i), hmod)
             m = hmod%m(i)
-            integrand(i) = g*wk_product(i)/m
+            f = halo_mass_fraction(m, hmod, cosm)
+            integrand(i) = g*((f**2)*wk_product(i))/(f*m)
          END DO
 
          ! Carries out the integration
@@ -3439,6 +3443,30 @@ CONTAINS
       p_1void = p_1void*(4.*pi)*(k/twopi)**3
 
    END FUNCTION p_1void
+
+   REAL FUNCTION halo_mass_fraction(m, hmod, cosm)
+
+      ! Simple baryon model where high-mass haloes have a mass fraction of 1 and low-mass haloes have Omega_c/Omega_m
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: m
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: r, fc
+      REAL, PARAMETER :: m0 = 1e14
+      REAL, PARAMETER :: n = 1
+
+      IF(hmod%DMONLY_baryon_recipe) THEN        
+         r = (m/m0)**n ! If m>>m0 then r becomes large, if m<<m0 then r=0       
+         fc = cosm%Om_c/(cosm%Om_c+cosm%Om_b) ! Halo fraction that is CDM        
+         halo_mass_fraction = fc+(1.-fc)*r/(1.+r) ! Remaining halo mass fraction
+      ELSE
+         halo_mass_fraction = 1.
+      END IF
+
+      !WRITE(*,*) m, halo_mass_fraction
+      !STOP
+
+   END FUNCTION halo_mass_fraction
 
    REAL FUNCTION BNL(k, nu1, nu2, rv1, rv2, hmod)
 
