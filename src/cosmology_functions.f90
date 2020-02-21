@@ -78,6 +78,7 @@ MODULE cosmology_functions
    ! Power and correlation
    PUBLIC :: p_lin
    PUBLIC :: p_dewiggle
+   PUBLIC :: sigma8
    PUBLIC :: sigma
    PUBLIC :: sigmaV
    PUBLIC :: neff
@@ -116,8 +117,9 @@ MODULE cosmology_functions
       REAL :: Om_m_pow, Om_b_pow, h_pow     ! Cosmological parameters used for P(k) if different from background
       REAL :: b0, b1, b2, b3, b4            ! BDE parameters
       REAL :: A_bump, k_bump, sigma_bump    ! Power-spectrum bump 
+      INTEGER :: bump                       ! Do we have a bump in P(k)
       REAL :: Theat                         ! AGN temperature
-      LOGICAL :: bump, warm                 ! Logicals
+      LOGICAL :: warm                       ! Logicals
       
       ! Variables that might be primary that are used in power normalisation
       REAL :: kpiv, As, kval, pval, sig8 ! Normalisation
@@ -444,6 +446,7 @@ CONTAINS
       names(63) = 'Planck 2015'
       names(64) = 'Planck 2015 (AGN 7.6)'
       names(65) = 'Planck 2015 (AGN 8.0)'
+      names(66) = 'Power bump (Mexican model)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -628,7 +631,7 @@ CONTAINS
       cosm%A = 1.                  ! Overall power normalisaiton, should be set to 1
 
       ! Power bump
-      cosm%bump = .FALSE.
+      cosm%bump = 0
       cosm%A_bump = 0.
       cosm%k_bump = 0.
       cosm%sigma_bump = 0.
@@ -1059,14 +1062,20 @@ CONTAINS
             cosm%b4 = -1.
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with BDE'
-         END IF
-      ELSE IF (icosmo == 59) THEN
+         END IF 
+      ELSE IF (icosmo == 59 .OR. icosmo == 66) THEN
          ! Bump in power
-         cosm%bump = .TRUE.
          cosm%norm_method = norm_value ! Normalise like this to prevent bump annoying sigma8
          cosm%A_bump = 0.08
          cosm%k_bump = 5.
          cosm%sigma_bump = 0.5
+         IF (icosmo == 59) THEN
+            cosm%bump = 1
+         ELSE IF (icosmo == 66) THEN
+            cosm%bump = 2
+         ELSE
+            STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with bump'
+         END IF
       ELSE IF (icosmo == 60) THEN
          ! Boring cosmology but with exciting neutrino mass
          cosm%m_nu = 0.3
@@ -1461,7 +1470,7 @@ CONTAINS
          IF (cosm%warm) THEN
             WRITE (*, fmt=format) 'COSMOLOGY:', 'm_wdm [keV]:', cosm%m_wdm
          END IF
-         IF (cosm%bump) THEN
+         IF (cosm%bump .NE. 0) THEN
             WRITE (*, fmt=format) 'COSMOLOGY:', 'A bu:', cosm%A_bump
             WRITE (*, fmt=format) 'COSMOLOGY:', 'k_bu [Mpc/h]:', cosm%k_bump
             WRITE (*, fmt=format) 'COSMOLOGY:', 'sigma bu:', cosm%sigma_bump
@@ -1744,7 +1753,7 @@ CONTAINS
 
    END SUBROUTINE reset_sigma8
 
-   REAL FUNCTION sigma8(cosm)
+   RECURSIVE REAL FUNCTION sigma8(cosm)
 
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -2722,7 +2731,8 @@ CONTAINS
 
       ! Damp transfer function if considering WDM
       IF (cosm%warm) Tk_matter = Tk_matter*Tk_WDM(k, cosm)
-      IF (cosm%bump) Tk_matter = Tk_matter*Tk_bump(k, cosm)
+      IF (cosm%bump == 1) Tk_matter = Tk_matter*Tk_bump(k, cosm)
+      IF (cosm%bump == 2) Tk_matter = Tk_matter*Tk_bump_Mexico(k, cosm)
 
    END FUNCTION Tk_matter
 
@@ -2873,6 +2883,17 @@ CONTAINS
       Tk_bump = 1.+cosm%A_bump*exp(-(log(k/cosm%k_bump)**2/(2.*cosm%sigma_bump**2)))
 
    END FUNCTION Tk_bump
+
+   REAL FUNCTION Tk_bump_Mexico(k, cosm)
+
+      ! Put a Gaussian bump in a linear power spectrum
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      Tk_bump_Mexico = sqrt(1.+cosm%A_bump*exp(-(log(k/cosm%k_bump)**2/cosm%sigma_bump**2)))
+
+   END FUNCTION Tk_bump_Mexico
 
    REAL FUNCTION Tcold(k, a, cosm)
 
@@ -3326,7 +3347,7 @@ CONTAINS
 
    END FUNCTION find_sigma
 
-   REAL FUNCTION sigma(R, a, flag, cosm)
+   RECURSIVE REAL FUNCTION sigma(R, a, flag, cosm)
 
       ! Finds sigma_all from look-up tables
       IMPLICIT NONE
@@ -3344,7 +3365,7 @@ CONTAINS
 
    END FUNCTION sigma
 
-   REAL FUNCTION sigma_integral(r, a, flag, cosm)
+   RECURSIVE REAL FUNCTION sigma_integral(r, a, flag, cosm)
 
       ! Calculates sigma(R) by intergration
       IMPLICIT NONE
@@ -3362,7 +3383,7 @@ CONTAINS
 
    END FUNCTION sigma_integral
 
-   REAL FUNCTION sigma2_integrand(t, R, a, flag, cosm)
+   RECURSIVE REAL FUNCTION sigma2_integrand(t, R, a, flag, cosm)
 
       ! The integrand for the sigma(R) integrals
       USE special_functions
