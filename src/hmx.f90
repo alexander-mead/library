@@ -5766,6 +5766,7 @@ CONTAINS
 
       ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
       ! TODO: Should this really be computed here?
+      ! TODO: Think man, think!
       IF (hmod%DMONLY_neutrino_correction) THEN
          win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
       END IF
@@ -5982,7 +5983,7 @@ CONTAINS
 
             ! Calculate the value of the density profile prefactor and change units from cosmological to SI
             rho0 = m*frac/normalisation(rmin, rmax, rv, rs, p1, p2, irho_density)
-            rho0 = rho0*msun/mpc/mpc/mpc ! Overflow with REAL*4 if you use mpc**3
+            rho0 = rho0*msun/mpc/mpc/mpc ! Overflow with 4-byte real numbers if you use mpc**3
             rho0 = rho0*cosm%h**2 ! Absorb factors of h, so now [kg/m^3]
 
             ! Calculate the value of the temperature prefactor [K]
