@@ -38,9 +38,10 @@ CONTAINS
 
       ! Read in a McCarthy format particle data file
       IMPLICIT NONE
-      CHARACTER(len=*), INTENT(IN) :: infile
-      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :), m(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: m(:)
       INTEGER, INTENT(OUT) :: n
+      CHARACTER(len=*), INTENT(IN) :: infile
       LOGICAL :: lexist
 
       ! Open the file using stream
@@ -93,6 +94,31 @@ CONTAINS
       WRITE (*, *)
 
    END SUBROUTINE read_mccarthy
+
+   SUBROUTINE write_mccarthy(x, m, n, outfile)
+
+      ! Write a particle data file using McCarthy format
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x(3, n)
+      REAL, INTENT(IN) :: m(n)
+      INTEGER, INTENT(IN) :: n
+      CHARACTER(len=*), INTENT(IN) :: outfile
+
+      WRITE (*, *) 'WRITE_MCCARTHY: Outputting binary file: ', trim(outfile)
+
+      WRITE (*, *) 'WRITE_MCCARTHY: Particle number:', n
+      WRITE (*, *) 'WRITE_MCCARTHY: Which is ~', nint(n**(1./3.)), 'cubed.'
+
+      OPEN (7, file=outfile, form='unformatted', access='stream', status='replace')
+      WRITE (7) n
+      WRITE (7) m/mfac
+      WRITE (7) x
+      CLOSE (7)
+
+      WRITE (*, *) 'WRITE_MCCARTHY: Finished writing file'
+      WRITE (*, *)
+
+   END SUBROUTINE write_mccarthy
 
    SUBROUTINE read_mccarthy_gas(x, m, kT, rho, n, infile)
 
@@ -261,31 +287,6 @@ CONTAINS
       WRITE (*, *)
 
    END SUBROUTINE convert_kT_to_comoving_electron_pressure
-
-   SUBROUTINE write_mccarthy(x, m, n, outfile)
-
-      ! Write a particle data file using McCarthy format
-      IMPLICIT NONE
-      CHARACTER(len=*), INTENT(IN) :: outfile
-      REAL, INTENT(IN) :: x(3, n)
-      REAL, INTENT(IN) :: m(n)
-      INTEGER, INTENT(IN) :: n
-
-      WRITE (*, *) 'WRITE_MCCARTHY: Outputting binary file: ', trim(outfile)
-
-      WRITE (*, *) 'WRITE_MCCARTHY: Particle number:', n
-      WRITE (*, *) 'WRITE_MCCARTHY: Which is ~', nint(n**(1./3.)), 'cubed.'
-
-      OPEN (7, file=outfile, form='unformatted', access='stream', status='replace')
-      WRITE (7) n
-      WRITE (7) m/mfac
-      WRITE (7) x
-      CLOSE (7)
-
-      WRITE (*, *) 'WRITE_MCCARTHY: Finished writing file'
-      WRITE (*, *)
-
-   END SUBROUTINE write_mccarthy
 
    SUBROUTINE exclude_nh(nhcut, kT, rho, n)
 
