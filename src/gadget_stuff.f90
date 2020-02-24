@@ -7,7 +7,7 @@ MODULE gadget_stuff
 
    PRIVATE
 
-   PUBLIC :: write_gadget_Pk
+   PUBLIC :: write_gadget_simulation_format_Pk
    PUBLIC :: read_gadget
    PUBLIC :: write_gadget
    PUBLIC :: read_catalogue
@@ -18,7 +18,7 @@ MODULE gadget_stuff
 
 CONTAINS
 
-   SUBROUTINE write_gadget_Pk(k, Pk, nk, outfile, verbose)
+   SUBROUTINE write_gadget_simulation_format_Pk(k, Pk, nk, outfile, verbose)
 
       ! Converts a CAMB P(k) file to a Gadget format P(k) file 
       IMPLICIT NONE
@@ -46,25 +46,27 @@ CONTAINS
          WRITE(*, *)
       END IF
 
-   END SUBROUTINE write_gadget_Pk
+   END SUBROUTINE write_gadget_simulation_format_Pk
 
    SUBROUTINE read_gadget(x, v, id, L, Om_m, Om_v, h, m, a, z, n, infile)
 
+      ! Read in particle data from a Gadget formatted binary file
       IMPLICIT NONE
-      REAL*4, ALLOCATABLE, INTENT(OUT) :: x(:, :)
-      REAL*4, ALLOCATABLE, INTENT(OUT) :: v(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: v(:, :)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: id(:)
-      REAL*8, INTENT(OUT) :: L
-      REAL*8, INTENT(OUT) :: Om_m
-      REAL*8, INTENT(OUT) :: Om_v
-      REAL*8, INTENT(OUT) :: h
-      REAL*8, INTENT(OUT) :: m
-      REAL*8, INTENT(OUT) :: a
-      REAL*8, INTENT(OUT) :: z
+      REAL, INTENT(OUT) :: L
+      REAL, INTENT(OUT) :: Om_m
+      REAL, INTENT(OUT) :: Om_v
+      REAL, INTENT(OUT) :: h
+      REAL, INTENT(OUT) :: m
+      REAL, INTENT(OUT) :: a
+      REAL, INTENT(OUT) :: z
       INTEGER, INTENT(OUT) :: n
       CHARACTER(len=*), INTENT(IN) :: infile
-      REAL*8 :: mass(6)!, z8, a8, L8, om_m8, om_v8, h8
-      INTEGER :: np(6), np2(6), crap
+      REAL*8 :: mass_in(6), L_in, Om_m_in, Om_v_in, h_in, a_in, z_in
+      REAL*4, ALLOCATABLE :: x_in(:, :), v_in(:, :)
+      INTEGER :: np(6), craps(6), crap
       LOGICAL :: lexist
 
       WRITE (*, *) 'READ_GADGET: Reading in Gadget-2 file: ', trim(infile)
@@ -72,48 +74,58 @@ CONTAINS
       IF (.NOT. lexist) STOP 'READ_GADGET: Error, input file does not exist'
 
       OPEN (7, file=infile, form='unformatted', status='old')
-      READ (7) np, mass, a, z, crap, crap, np2, crap, crap, L, Om_m, Om_v, h
+      READ (7) np, mass_in, a_in, z_in, crap, crap, craps, crap, crap, L_in, Om_m_in, Om_v_in, h_in
       CLOSE (7)
 
-      ! Convert Gadget doubles to my reals
-      !a = real(a8)
-      !z = real(z8)
-      !om_m = real(om_m8)
-      !om_v = real(om_v8)
-      !h = real(h8)
-      !L = real(L8)/Lunit
+      ! Convert Gadget header numbers to my numbers
+      ! TODO: Possible precision change
+      m = mass_in(2)*Munit
+      a = a_in
+      z = z_in
+      Om_m = Om_m_in
+      Om_v = Om_v_in
+      h = h_in
+      L = L_in
+      n = np(2)
 
-      ! Multiply the masses by 1e10 to get in units of M_sun/h
-      m = mass(2)*Munit
+      ! Convert units
+      m = m*Munit
       L = L*Lunit
-      WRITE (*, *) 'READ_GADGET: Particle number:', np(2)
-      WRITE (*, *) 'READ_GADGET: Which is:', nint(np(2)**(1./3.)), 'cubed.'
+
+      WRITE (*, *) 'READ_GADGET: Particle number:', n
+      WRITE (*, *) 'READ_GADGET: Which is:', nint(n**(1./3.)), 'cubed.'
       WRITE (*, *) 'READ_GADGET: Particle mass log10([M_sun/h]):', log10(m)
       WRITE (*, *) 'READ_GADGET: Box size [Mpc/h]:', L
       WRITE (*, *) 'READ_GADGET: a:', a
       WRITE (*, *) 'READ_GADGET: z:', z
       WRITE (*, *) 'READ_GADGET: Om_m:', Om_m
       WRITE (*, *) 'READ_GADGET: Om_v:', Om_v
-
-      ! Fix the total number of simulation particles
-      n = np(2)
+      
 
       ! Allocate arrays for position, velocity and particle ID number
-      ALLOCATE (x(3, n), v(3, n), id(n))
+      ALLOCATE (x_in(3, n), v_in(3, n), id(n))
 
       ! Read in the binary data, skip the header line
       OPEN (7, file=infile, form='unformatted', status='old')
       READ (7)
-      READ (7) x
-      READ (7) v
+      READ (7) x_in
+      READ (7) v_in
       READ (7) id
       CLOSE (7)
 
-      ! kpc -> Mpc conversion
-      x = x*real(Lunit)
+      ! Convert precision
+      ALLOCATE(x(3, n))
+      x = x_in
+      DEALLOCATE(x_in)
+      
+      ! Convert precision
+      ALLOCATE(v(3, n))
+      v = v_in
+      DEALLOCATE(v_in)
 
-      ! Change from weird Gadget units to peculiar velocities
-      v = v*sqrt(real(a))
+      ! Convert units
+      x = x*Lunit
+      v = v*sqrt(a)
 
       WRITE (*, *) 'READ_GADGET: Finished reading in file'
       WRITE (*, *)
@@ -122,6 +134,7 @@ CONTAINS
 
    SUBROUTINE write_gadget(x, v, id, L, Om_m, Om_v, h, m, a, z, n, outfile)
 
+      ! Write particle data to a Gadget formatted particle file
       IMPLICIT NONE
       REAL*4, INTENT(IN) :: x(3, n)
       REAL*4, INTENT(IN) :: v(3, n)
@@ -137,6 +150,8 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN) :: outfile
       REAL*8 :: mass(6), crap(12)
       INTEGER :: np(6), crapi
+
+      STOP 'WRITE_GADGET: CHECK THIS CAREFULLY, IT SHOULD BE MODIFIED TO MAKE REAL*4 DATA FILE'
 
       WRITE (*, *) 'WRITE_GADGET: Outputting particle data in Gadget2 format: ', trim(outfile)
 
@@ -179,9 +194,17 @@ CONTAINS
 
       USE file_info
       IMPLICIT NONE
-      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :), v(:, :), m(:)
-      REAL, ALLOCATABLE, INTENT(OUT) :: disp(:), c(:), env(:), Dv(:), rmax(:), avg_r(:), rms_r(:)
+      REAL*4, ALLOCATABLE, INTENT(OUT) :: x(:, :)
+      REAL*4, ALLOCATABLE, INTENT(OUT) :: v(:, :)
+      REAL*4, ALLOCATABLE, INTENT(OUT) :: m(:)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: npart(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: disp(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: c(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: env(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Dv(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: rmax(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: avg_r(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: rms_r(:) 
       INTEGER, INTENT(OUT) :: n
       CHARACTER(len=*), INTENT(IN) :: infile
       INTEGER :: i
@@ -218,11 +241,19 @@ CONTAINS
    SUBROUTINE write_catalogue(x, v, m, npart, disp, c, env, Dv, rmax, avg_r, rms_r, n, outfile)
 
       IMPLICIT NONE
+      REAL, INTENT(IN) :: x(3, n)
+      REAL, INTENT(IN) :: v(3, n)
+      REAL, INTENT(IN) :: m(n)
+      INTEGER, INTENT(IN) :: npart(n)
+      REAL, INTENT(IN) :: disp(n)
+      REAL, INTENT(IN) :: c(n)
+      REAL, INTENT(IN) :: env(n)
+      REAL, INTENT(IN) :: Dv(n)
+      REAL, INTENT(IN) :: rmax(n)
+      REAL, INTENT(IN) :: avg_r(n)
+      REAL, INTENT(IN) :: rms_r(n)
       INTEGER, INTENT(IN) :: n
       CHARACTER(len=*), INTENT(IN) :: outfile
-      REAL, INTENT(IN) :: x(3, n), v(3, n), m(n)
-      REAL, INTENT(IN) :: disp(n), c(n), env(n), Dv(n), rmax(n), avg_r(n), rms_r(n)
-      INTEGER, INTENT(IN) :: npart(n)
       INTEGER :: i
 
       STOP 'WRITE_CATALOGUE: need to change this for single/double precision'
