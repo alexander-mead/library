@@ -81,15 +81,15 @@ CONTAINS
       USE table_integer
       USE constants
       IMPLICIT NONE
-      REAL, INTENT(IN) :: rmin, rmax         ! Maximum and maximum distances to calculate xi for [Mpc/h]
-      REAL, INTENT(OUT) :: r(nr)             ! Output array of r [Mpc/h]
-      REAL, INTENT(OUT) :: xi(nr)            ! Output array of xi
-      INTEGER, INTENT(OUT) :: n(nr)          ! Output array of number of pairs in bin
-      INTEGER, INTENT(IN) :: nr              ! Required number of log-spaced bins
+      REAL, INTENT(IN) :: rmin, rmax           ! Maximum and maximum distances to calculate xi for [Mpc/h]
+      REAL, INTENT(OUT) :: r(nr)               ! Output array of r [Mpc/h]
+      REAL, INTENT(OUT) :: xi(nr)              ! Output array of xi
+      INTEGER, INTENT(OUT) :: n(nr)            ! Output array of number of pairs in bin
+      INTEGER, INTENT(IN) :: nr                ! Required number of log-spaced bins
       REAL, INTENT(IN) :: x1(3, n1), x2(3, n2) ! Particle position arrays [Mpc/h]
-      REAL, INTENT(IN) :: w1(n1), w2(n2)     ! Particle weight arrays
-      INTEGER, INTENT(IN) :: n1, n2          ! Total numbers of particles
-      REAL, INTENT(IN) :: L                  ! Periodic box size [Mpc/h]
+      REAL, INTENT(IN) :: w1(n1), w2(n2)       ! Particle weight arrays
+      INTEGER, INTENT(IN) :: n1, n2            ! Total numbers of particles
+      REAL, INTENT(IN) :: L                    ! Periodic box size [Mpc/h]
       INTEGER :: i, i1, i2
       REAL, ALLOCATABLE :: rbin(:)
       REAL :: rpair, V, nbar1, nbar2, sum1, sum2
