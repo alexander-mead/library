@@ -75,9 +75,10 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i1 ! Lower bound
       INTEGER, INTENT(IN) :: i2 ! Upper bound
-      REAL*4 :: rand            ! Necessary to define for ifort
+      REAL*4 :: rand            ! Necessary to define for ifort and the *4 is necessary
+      INTEGER, PARAMETER :: seed = 0
 
-      random_integer = i1-1+ceiling(rand(0)*real(1+i2-i1))
+      random_integer = i1-1+ceiling(rand(seed)*real(1+i2-i1))
       IF (random_integer == i1-1) random_integer = i1
 
    END FUNCTION random_integer
@@ -110,20 +111,27 @@ CONTAINS
 
    END FUNCTION random_sign
 
+   REAL FUNCTION random_number()
+
+      ! Produces a uniform random number between 0 and 1
+      ! TODO: Retire rand, replace with random_number inbuilt function
+      IMPLICIT NONE
+      REAL*4 :: rand ! Necessary for ifort and the *4 is necessary
+      INTEGER, PARAMETER :: seed = 0
+
+      ! rand is some inbuilt function
+      random_number = rand(seed)
+
+   END FUNCTION random_number
+
    REAL FUNCTION random_uniform(x1, x2)
 
       ! Produces a uniform random number between x1 and x2
-      ! TODO: Retire rand, replace with random_number
       IMPLICIT NONE
       REAL, INTENT(IN) :: x1 ! Lower bound
       REAL, INTENT(IN) :: x2 ! Upper bound
-      REAL*4 :: rand         ! I think this needs to be defined for ifort
-      !REAL :: r
 
-      ! rand is some inbuilt function
-      random_uniform = x1+(x2-x1)*(rand(0))
-      !CALL random_number(r)
-      !random_uniform=x1+(x2-x1)*r
+      random_uniform = x1+(x2-x1)*random_number()
 
    END FUNCTION random_uniform
 
