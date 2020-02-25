@@ -44,7 +44,7 @@ CONTAINS
 
       ! Write a new parameter file
       OPEN (7, file=params)
-      WRITE (7, fmt='(A20,7F10.5)') trim(output), cosm%om_m*cosm%h**2, cosm%om_b*cosm%h**2, cosm%n, cosm%sig8, cosm%w, z
+      WRITE (7, fmt='(A20,7F10.5)') trim(output), cosm%om_m*cosm%h**2, cosm%om_b*cosm%h**2, cosm%ns, cosm%sig8, cosm%w, z
       CLOSE (7)
 
       ! Run emu
@@ -127,7 +127,7 @@ CONTAINS
 
       ! Write a new parameter file
       OPEN (7, file=params)
-      WRITE (7, fmt='(A20,7F10.5)') trim(output), cosm%om_m*cosm%h**2, cosm%om_b*cosm%h**2, cosm%n, -cosm%w, cosm%sig8, cosm%h, z
+      WRITE (7, fmt='(A20,7F10.5)') trim(output), cosm%om_m*cosm%h**2, cosm%om_b*cosm%h**2, cosm%ns, -cosm%w, cosm%sig8, cosm%h, z
       CLOSE (7)
 
       ! Run emu
@@ -199,7 +199,7 @@ CONTAINS
       CALL SYSTEM('rm EMU0.txt')
 
       OPEN (7, file='xstar.dat')
-    WRITE (7, *) (cosm%Om_m*cosm%h**2), (cosm%Om_b*cosm%h**2), cosm%sig8, cosm%h, cosm%n, cosm%w, cosm%wa, (cosm%om_nu*cosm%h**2), z
+    WRITE (7, *) (cosm%Om_m*cosm%h**2), (cosm%Om_b*cosm%h**2), cosm%sig8, cosm%h, cosm%ns, cosm%w, cosm%wa, (cosm%om_nu*cosm%h**2), z
       CLOSE (7)
 
       CALL SYSTEM('/Users/Mead/Physics/MiraTitan/P_tot/emu.exe')

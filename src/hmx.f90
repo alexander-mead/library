@@ -237,7 +237,7 @@ MODULE HMx
 
       ! Look-up tables
       REAL :: mmin, mmax
-      REAL, ALLOCATABLE :: c(:), rv(:), nu(:), sig(:), zc(:), m(:), rr(:), sigf(:), log_m(:)
+      REAL, ALLOCATABLE :: c(:), rv(:), nu(:), sig(:), zc(:), m(:), rr(:), sigf(:), log_m(:), f(:)
       REAL, ALLOCATABLE :: r500(:), m500(:), c500(:), r200(:), m200(:), c200(:)
       REAL, ALLOCATABLE :: r500c(:), m500c(:), c500c(:), r200c(:), m200c(:), c200c(:)
       INTEGER :: n
@@ -1610,7 +1610,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
-      REAL :: Dv, dc, m, nu, R, sig, z, Om_stars
+      REAL :: Dv, dc, m, f, nu, R, sig, z, Om_stars
       REAL, PARAMETER :: glim = g_integral_limit
       REAL, PARAMETER :: gblim = gb_integral_limit
       LOGICAL, PARAMETER :: check_mf = check_mass_function
@@ -1658,11 +1658,13 @@ CONTAINS
          R = radius_m(m, cosm)
          sig = sigma(R, a, hmod%flag_sigma, cosm) ! TODO: Add correction here for cold matter in HMcode (2016)?
          nu = nu_R(R, hmod, cosm)
+         f = DMONLY_halo_mass_fraction(m, hmod, cosm)
 
          hmod%m(i) = m
          hmod%rr(i) = R
          hmod%sig(i) = sig
          hmod%nu(i) = nu
+         hmod%f(i) = f
 
       END DO
 
@@ -3297,8 +3299,8 @@ CONTAINS
          DO i = 1, n
             g = g_nu(hmod%nu(i), hmod)
             m = hmod%m(i)
-            f = halo_mass_fraction(m, hmod, cosm)
-            integrand(i) = g*((f**2)*wk_product(i))/(f*m)
+            f = hmod%f(i) ! TODO: Should this be in halo_DMONLY?
+            integrand(i) = g*((f**2)*wk_product(i))/m
          END DO
 
          ! Carries out the integration
@@ -3464,7 +3466,7 @@ CONTAINS
 
    END FUNCTION p_1void
 
-   REAL FUNCTION halo_mass_fraction(m, hmod, cosm)
+   REAL FUNCTION DMONLY_halo_mass_fraction(m, hmod, cosm)
 
       ! Simple baryon model where high-mass haloes have a mass fraction of 1 and low-mass haloes have Omega_c/Omega_m
       ! TODO: Add the neutrino correction here
@@ -3479,12 +3481,12 @@ CONTAINS
       IF(hmod%DMONLY_baryon_recipe) THEN        
          r = (m/hmod%mbar)**hmod%nbar             ! If m>>m0 then r becomes large, if m<<m0 then r=0       
          fc = cosm%Om_c/(cosm%Om_c+cosm%Om_b)     ! Halo fraction that is CDM (note that the denominator should exclude neutrinos)      
-         halo_mass_fraction = fc+(1.-fc)*r/(1.+r) ! Remaining halo mass fraction
+         DMONLY_halo_mass_fraction = fc+(1.-fc)*r/(1.+r) ! Remaining halo mass fraction
       ELSE
-         halo_mass_fraction = 1.
+         DMONLY_halo_mass_fraction = 1.
       END IF
 
-   END FUNCTION halo_mass_fraction
+   END FUNCTION DMONLY_halo_mass_fraction
 
    REAL FUNCTION BNL(k, nu1, nu2, rv1, rv2, hmod)
 
@@ -4780,7 +4782,7 @@ CONTAINS
       n = hmod%n
 
       ALLOCATE (hmod%log_m(n))
-      ALLOCATE (hmod%zc(n), hmod%m(n), hmod%c(n), hmod%rv(n))
+      ALLOCATE (hmod%zc(n), hmod%m(n), hmod%c(n), hmod%rv(n), hmod%f(n))
       ALLOCATE (hmod%nu(n), hmod%rr(n), hmod%sigf(n), hmod%sig(n))
       ALLOCATE (hmod%m500(n), hmod%r500(n), hmod%c500(n))
       ALLOCATE (hmod%m500c(n), hmod%r500c(n), hmod%c500c(n))
@@ -4792,6 +4794,7 @@ CONTAINS
       hmod%m = 0.
       hmod%c = 0.
       hmod%rv = 0.
+      hmod%f = 0.
       hmod%nu = 0.
       hmod%rr = 0.
       hmod%sigf = 0.
@@ -4817,13 +4820,14 @@ CONTAINS
 
    SUBROUTINE deallocate_HMOD(hmod)
 
-      !Deallocates the look-up tables
+      ! Deallocates the look-up tables
       IMPLICIT NONE
       TYPE(halomod) :: hmod
 
-      !Deallocates look-up tables
+      ! Deallocates look-up tables
       DEALLOCATE (hmod%log_m)
-      DEALLOCATE (hmod%zc, hmod%m, hmod%c, hmod%rv, hmod%nu, hmod%rr, hmod%sigf, hmod%sig)
+      DEALLOCATE (hmod%zc, hmod%m, hmod%c, hmod%rv, hmod%f)
+      DEALLOCATE (hmod%nu, hmod%rr, hmod%sigf, hmod%sig)
       DEALLOCATE (hmod%m500, hmod%r500, hmod%c500, hmod%m500c, hmod%r500c, hmod%c500c)
       DEALLOCATE (hmod%m200, hmod%r200, hmod%c200, hmod%m200c, hmod%r200c, hmod%c200c)
 
@@ -4831,6 +4835,7 @@ CONTAINS
 
    REAL FUNCTION Omega_stars(hmod, cosm)
 
+      ! Calculate the cosmological density in star mass
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4847,7 +4852,7 @@ CONTAINS
 
    SUBROUTINE init_galaxies(hmod, cosm)
 
-      !Calculate the number densities of galaxies
+      ! Calculate the number densities of galaxies
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -5262,8 +5267,8 @@ CONTAINS
 
       ! For some bizarre cosmologies r_nl is very small, so almost no collapse has occured
       ! In this case the n_eff calculation goes mad and needs to be fixed using this fudge.
-      IF (effective_index < cosm%n-4.) effective_index = cosm%n-4.
-      IF (effective_index > cosm%n)    effective_index = cosm%n
+      IF (effective_index < cosm%ns-4.) effective_index = cosm%ns-4.
+      IF (effective_index > cosm%ns)    effective_index = cosm%ns
 
    END FUNCTION effective_index
 

@@ -111,7 +111,7 @@ MODULE cosmology_functions
       ! Primary parameters
       CHARACTER(len=256) :: name            ! Name for cosmological model
       REAL :: Om_m, Om_b, Om_v, Om_w, m_nu  ! Primary parameters
-      REAL :: h, n, w, wa, m_wdm, YH        ! Primary parameters
+      REAL :: h, ns, w, wa, m_wdm, YH        ! Primary parameters
       REAL :: a1, a2, nstar, ws, am, dm, wm ! DE parameters
       REAL :: z_CMB, T_CMB, neff            ! Less primary parameters
       REAL :: Om_m_pow, Om_b_pow, h_pow     ! Cosmological parameters used for P(k) if different from background
@@ -606,7 +606,7 @@ CONTAINS
       cosm%Om_w = 0.
       cosm%m_nu = 0.
       cosm%h = 0.7
-      cosm%n = 0.96
+      cosm%ns =  0.96
       cosm%w = -1.
       cosm%wa = 0.
       cosm%T_CMB = 2.725 ! CMB temperature [K]
@@ -697,14 +697,14 @@ CONTAINS
          cosm%Om_v = 1.-cosm%Om_m
          cosm%h = 0.704
          cosm%sig8 = 0.81
-         cosm%n = 0.967
+         cosm%ns =  0.967
       ELSE IF (icosmo == 3) THEN
          ! Planck 2013 (cosmo-OWLS/BAHAMAS; 1312.5462/1603.02702; no neutrinos)
          cosm%Om_m = 0.3175
          cosm%Om_b = 0.0490
          cosm%Om_v = 1.-cosm%Om_m
          cosm%h = 0.6711
-         cosm%n = 0.9624
+         cosm%ns =  0.9624
          cosm%sig8 = 0.8341
       ELSE IF (icosmo == 4 .OR. icosmo == 61 .OR. icosmo == 62) THEN
          ! WMAP9 (BAHAMAS; 1712.02411; no neutrinos)
@@ -712,7 +712,7 @@ CONTAINS
          cosm%Om_b = 0.0463
          cosm%Om_m = 0.2330+cosm%Om_b
          cosm%Om_v = 1.-cosm%Om_m
-         cosm%n = 0.9720
+         cosm%ns =  0.9720
          cosm%sig8 = 0.8211
          cosm%derive_gas_numbers = .FALSE.
          cosm%mup = 0.61
@@ -881,7 +881,7 @@ CONTAINS
          cosm%Om_b = 0.0486
          cosm%Om_w = 1.-cosm%Om_m ! Necessary to be Omega_w for CAMB
          cosm%h = 0.6774
-         cosm%n = 0.9667
+         cosm%ns =  0.9667
          cosm%sig8 = 0.8159
          cosm%Om_v = 0. ! Necessary for CAMB
          cosm%box = .TRUE.
@@ -921,7 +921,7 @@ CONTAINS
          cosm%Om_b = 0.0469
          cosm%Om_m = 0.27
          cosm%Om_v = 1.-cosm%Om_m
-         cosm%n = 0.95
+         cosm%ns =  0.95
          cosm%sig8 = 0.82 ! Seems wrong at z=0, data more like sigma_8 = 0.80
          cosm%itk = itk_CAMB ! CAMB
          IF(icosmo == 43) cosm%sig8 = 0.80 ! Check to see if better matches with lower sigma_8
@@ -964,7 +964,7 @@ CONTAINS
          ! 42 - Same, but with neutrino mass fixed to zero and nothing else changed
          cosm%itk = itk_CAMB
          cosm%h = 0.6732
-         cosm%n = 0.96605
+         cosm%ns =  0.96605
          cosm%m_nu = 0.06
          IF(icosmo == 42) cosm%m_nu = 0.
          cosm%Om_m = 0.3158
@@ -979,7 +979,7 @@ CONTAINS
          cosm%Om_b = 0.0437
          cosm%Om_v = 1.-cosm%om_m
          cosm%sig8 = 0.794
-         cosm%n = 0.967
+         cosm%ns =  0.967
          cosm%h = 0.717
          cosm%w = -1.
       ELSE IF(icosmo == 50) THEN
@@ -990,7 +990,7 @@ CONTAINS
          cosm%Om_b = 0.0456
          cosm%Om_v = 1.-cosm%om_m
          cosm%sig8 = 0.815
-         cosm%n = 0.966
+         cosm%ns =  0.966
          cosm%h = 0.702
          cosm%w = -1.
       ELSE IF(icosmo == 51 .OR. icosmo == 52 .OR. icosmo == 53 .OR. icosmo == 54 .OR. icosmo == 55) THEN
@@ -1004,7 +1004,7 @@ CONTAINS
             cosm%Om_b = 0.03972
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.61272
-            cosm%n = 0.70918
+            cosm%ns =  0.70918
             cosm%h = 0.54980
             cosm%M_nu = 0.
             cosm%w = -1.
@@ -1015,7 +1015,7 @@ CONTAINS
             cosm%Om_b = 0.05953
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.69869
-            cosm%n = 0.70630
+            cosm%ns =  0.70630
             cosm%h = 0.52845
             cosm%M_nu = 0.0
             cosm%w = -1.
@@ -1026,7 +1026,7 @@ CONTAINS
             cosm%Om_b = 0.03993
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.61299
-            cosm%n = 0.72517
+            cosm%ns =  0.72517
             cosm%h = 0.44980
             cosm%M_nu = 0.
             cosm%w = -1.
@@ -1037,7 +1037,7 @@ CONTAINS
             cosm%Om_b = 0.05109
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.65709
-            cosm%n = 0.70027
+            cosm%ns =  0.70027
             cosm%h = 0.44819
             cosm%M_nu = 0.20378
             cosm%w = -1.01372
@@ -1048,7 +1048,7 @@ CONTAINS
             cosm%Om_b = 0.06696
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.77520
-            cosm%n = 0.98360
+            cosm%ns =  0.98360
             cosm%h = 0.42278
             cosm%M_nu = 0.07639
             cosm%w = -1.26075
@@ -1090,7 +1090,7 @@ CONTAINS
          cosm%h = 0.6731
          cosm%Om_b = 0.02222/cosm%h**2
          cosm%Om_m = cosm%Om_b+0.1197/cosm%h**2
-         cosm%n = 0.9655
+         cosm%ns =  0.9655
          cosm%Om_v = 1.-cosm%Om_m
          cosm%norm_method = norm_value
          cosm%pval = 1.8735e-7
@@ -1118,7 +1118,7 @@ CONTAINS
          cosm%Om_b = 0.0482
          cosm%Om_m = 0.2571+cosm%Om_b
          cosm%Om_v = 1.-cosm%Om_m
-         cosm%n = 0.9701
+         cosm%ns =  0.9701
          cosm%sig8 = 0.8085
          IF(icosmo == 64) cosm%Theat = 10**7.6
          IF(icosmo == 65) cosm%Theat = 10**8.0
@@ -1480,7 +1480,7 @@ CONTAINS
             STOP 'COSMOLOGY: Error, itk not set properly'
          END IF
          !WRITE (*, *) 'COSMOLOGY: Perturbation parameters'
-         WRITE (*, fmt=format) 'COSMOLOGY:', 'n_s:', cosm%n
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'n_s:', cosm%ns
          IF(cosm%norm_method == norm_sigma8) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: sigma_8'
             WRITE (*, fmt=format) 'COSMOLOGY:', 'sigma_8:', cosm%sig8
@@ -3137,7 +3137,7 @@ CONTAINS
                IF(plin_extrap .AND. k > kmax) THEN
                   pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk,:), cosm%na_plin, &
                      iorder, ifind, imeth))
-                  p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%n)
+                  p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%ns)
                ELSE
                   p_lin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin,&
                      cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, iinterp_polynomial))
@@ -3145,7 +3145,7 @@ CONTAINS
             ELSE
                IF(plin_extrap .AND. k > kmax) THEN
                   pmax = exp(cosm%log_plin(nk))
-                  p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%n)
+                  p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%ns)
                ELSE
                   p_lin = exp(find(log(k), cosm%log_k_plin, cosm%log_plin, cosm%nk_plin, iorder, ifind, imeth))
                END IF
@@ -3153,7 +3153,7 @@ CONTAINS
             END IF
          ELSE
             ! In this case get the power from the transfer function
-            p_lin = (cosm%A**2)*(grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%n+3.))
+            p_lin = (cosm%A**2)*(grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%ns+3.))
          END IF
       END IF
 
@@ -5063,7 +5063,7 @@ CONTAINS
 
       ! Primoridial power spectrum properties
       WRITE (7, *) 'initial_power_num = 1'
-      WRITE (7, *) 'scalar_spectral_index(1) =', cosm%n
+      WRITE (7, *) 'scalar_spectral_index(1) =', cosm%ns
       WRITE (7, *) 'scalar_nrun(1) = 0'
       WRITE (7, *) 'scalar_amp(1) =', cosm%As
       WRITE (7, *) 'pivot_scalar =', cosm%kpiv
@@ -5408,7 +5408,7 @@ CONTAINS
       cosm%Om_v = 0.
       cosm%Om_w = 1.-cosm%Om_m
 
-      cosm%n = random_uniform(n_min, n_max)
+      cosm%ns =  random_uniform(n_min, n_max)
 
       cosm%w = random_uniform(w_min, w_max)
 
@@ -5519,7 +5519,7 @@ CONTAINS
       cosm%Om_v = 0.
       cosm%Om_w = 1.-cosm%Om_m
 
-      cosm%n = random_uniform(n_min, n_max)
+      cosm%ns =  random_uniform(n_min, n_max)
 
       cosm%w = random_uniform(w_min, w_max)
 
@@ -5576,7 +5576,7 @@ CONTAINS
       cosm%Om_v = 0.
       cosm%Om_w = 1.-cosm%Om_m
 
-      cosm%n = random_uniform(n_min, n_max)
+      cosm%ns =  random_uniform(n_min, n_max)
 
       cosm%w = random_uniform(w_min, w_max)
 
@@ -5604,7 +5604,7 @@ CONTAINS
          ! M000 (not included in emulator construction)
          om_m = 0.1296
          om_b = 0.0224
-         cosm%n = 0.9700
+         cosm%ns =  0.9700
          cosm%w = 1.000
          cosm%sig8 = 0.8000
          cosm%h = 0.7200
@@ -5612,7 +5612,7 @@ CONTAINS
          ! M001
          om_m = 0.1539
          om_b = 0.0231
-         cosm%n = 0.9468
+         cosm%ns =  0.9468
          cosm%w = 0.816
          cosm%sig8 = 0.8161
          cosm%h = 0.5977
@@ -5620,7 +5620,7 @@ CONTAINS
          ! M002
          om_m = 0.1460
          om_b = 0.0227
-         cosm%n = 0.8952
+         cosm%ns =  0.8952
          cosm%w = 0.758
          cosm%sig8 = 0.8548
          cosm%h = 0.5970
@@ -5628,7 +5628,7 @@ CONTAINS
          ! M003
          om_m = 0.1324
          om_b = 0.0235
-         cosm%n = 0.9984
+         cosm%ns =  0.9984
          cosm%w = 0.874
          cosm%sig8 = 0.8484
          cosm%h = 0.6763
@@ -5636,7 +5636,7 @@ CONTAINS
          ! M004
          om_m = 0.1381
          om_b = 0.0227
-         cosm%n = 0.9339
+         cosm%ns =  0.9339
          cosm%w = 1.087
          cosm%sig8 = 0.7000
          cosm%h = 0.7204
@@ -5644,7 +5644,7 @@ CONTAINS
          ! M005
          om_m = 0.1358
          om_b = 0.0216
-         cosm%n = 0.9726
+         cosm%ns =  0.9726
          cosm%w = 1.242
          cosm%sig8 = 0.8226
          cosm%h = 0.7669
@@ -5652,7 +5652,7 @@ CONTAINS
          ! M006
          om_m = 0.1516
          om_b = 0.0229
-         cosm%n = 0.9145
+         cosm%ns =  0.9145
          cosm%w = 1.223
          cosm%sig8 = 0.6705
          cosm%h = 0.7040
@@ -5660,7 +5660,7 @@ CONTAINS
          ! M007
          om_m = 0.1268
          om_b = 0.0223
-         cosm%n = 0.9210
+         cosm%ns =  0.9210
          cosm%w = 0.70001 ! Changed to avoid problems
          cosm%sig8 = 0.7474
          cosm%h = 0.6189
@@ -5668,7 +5668,7 @@ CONTAINS
          ! M008
          om_m = 0.1448
          om_b = 0.0223
-         cosm%n = 0.9855
+         cosm%ns =  0.9855
          cosm%w = 1.203
          cosm%sig8 = 0.8090
          cosm%h = 0.7218
@@ -5676,7 +5676,7 @@ CONTAINS
          ! M009
          om_m = 0.1392
          om_b = 0.0234
-         cosm%n = 0.9790
+         cosm%ns =  0.9790
          cosm%w = 0.739
          cosm%sig8 = 0.6692
          cosm%h = 0.6127
@@ -5684,7 +5684,7 @@ CONTAINS
          ! M010
          om_m = 0.1403
          om_b = 0.0218
-         cosm%n = 0.8565
+         cosm%ns =  0.8565
          cosm%w = 0.990
          cosm%sig8 = 0.7556
          cosm%h = 0.6695
@@ -5692,7 +5692,7 @@ CONTAINS
          ! M011
          om_m = 0.1437
          om_b = 0.0234
-         cosm%n = 0.8823
+         cosm%ns =  0.8823
          cosm%w = 1.126
          cosm%sig8 = 0.7276
          cosm%h = 0.7177
@@ -5700,7 +5700,7 @@ CONTAINS
          ! M012
          om_m = 0.1223
          om_b = 0.0225
-         cosm%n = 1.0048
+         cosm%ns =  1.0048
          cosm%w = 0.971
          cosm%sig8 = 0.6271
          cosm%h = 0.7396
@@ -5708,7 +5708,7 @@ CONTAINS
          ! M013
          om_m = 0.1482
          om_b = 0.0221
-         cosm%n = 0.9597
+         cosm%ns =  0.9597
          cosm%w = 0.855
          cosm%sig8 = 0.6508
          cosm%h = 0.6107
@@ -5716,7 +5716,7 @@ CONTAINS
          ! M014
          om_m = 0.1471
          om_b = 0.0233
-         cosm%n = 1.0306
+         cosm%ns =  1.0306
          cosm%w = 1.010
          cosm%sig8 = 0.7075
          cosm%h = 0.6688
@@ -5724,7 +5724,7 @@ CONTAINS
          ! M015
          om_m = 0.1415
          om_b = 0.0230
-         cosm%n = 1.0177
+         cosm%ns =  1.0177
          cosm%w = 1.281
          cosm%sig8 = 0.7692
          cosm%h = 0.7737
@@ -5732,7 +5732,7 @@ CONTAINS
          ! M016
          om_m = 0.1245
          om_b = 0.0218
-         cosm%n = 0.9403
+         cosm%ns =  0.9403
          cosm%w = 1.145
          cosm%sig8 = 0.7437
          cosm%h = 0.7929
@@ -5740,7 +5740,7 @@ CONTAINS
          ! M017
          om_m = 0.1426
          om_b = 0.0215
-         cosm%n = 0.9274
+         cosm%ns =  0.9274
          cosm%w = 0.893
          cosm%sig8 = 0.6865
          cosm%h = 0.6305
@@ -5748,7 +5748,7 @@ CONTAINS
          ! M018
          om_m = 0.1313
          om_b = 0.0216
-         cosm%n = 0.8887
+         cosm%ns =  0.8887
          cosm%w = 1.029
          cosm%sig8 = 0.6440
          cosm%h = 0.7136
@@ -5756,7 +5756,7 @@ CONTAINS
          ! M019
          om_m = 0.1279
          om_b = 0.0232
-         cosm%n = 0.8629
+         cosm%ns =  0.8629
          cosm%w = 1.184
          cosm%sig8 = 0.6159
          cosm%h = 0.8120
@@ -5764,7 +5764,7 @@ CONTAINS
          ! M020
          om_m = 0.1290
          om_b = 0.0220
-         cosm%n = 1.0242
+         cosm%ns =  1.0242
          cosm%w = 0.797
          cosm%sig8 = 0.7972
          cosm%h = 0.6442
@@ -5772,7 +5772,7 @@ CONTAINS
          ! M021
          om_m = 0.1335
          om_b = 0.0221
-         cosm%n = 1.0371
+         cosm%ns =  1.0371
          cosm%w = 1.165
          cosm%sig8 = 0.6563
          cosm%h = 0.7601
@@ -5780,7 +5780,7 @@ CONTAINS
          ! M022
          om_m = 0.1505
          om_b = 0.0225
-         cosm%n = 1.0500
+         cosm%ns =  1.0500
          cosm%w = 1.107
          cosm%sig8 = 0.7678
          cosm%h = 0.6736
@@ -5788,7 +5788,7 @@ CONTAINS
          ! M023
          om_m = 0.1211
          om_b = 0.0220
-         cosm%n = 0.9016
+         cosm%ns =  0.9016
          cosm%w = 1.261
          cosm%sig8 = 0.6664
          cosm%h = 0.8694
@@ -5796,7 +5796,7 @@ CONTAINS
          ! M024
          om_m = 0.1302
          om_b = 0.0226
-         cosm%n = 0.9532
+         cosm%ns =  0.9532
          cosm%w = 1.300
          cosm%sig8 = 0.6644
          cosm%h = 0.8380
@@ -5804,7 +5804,7 @@ CONTAINS
          ! M025
          om_m = 0.1494
          om_b = 0.0217
-         cosm%n = 1.0113
+         cosm%ns =  1.0113
          cosm%w = 0.719
          cosm%sig8 = 0.7398
          cosm%h = 0.5724
@@ -5812,7 +5812,7 @@ CONTAINS
          ! M026
          om_m = 0.1347
          om_b = 0.0232
-         cosm%n = 0.9081
+         cosm%ns =  0.9081
          cosm%w = 0.952
          cosm%sig8 = 0.7995
          cosm%h = 0.6931
@@ -5820,7 +5820,7 @@ CONTAINS
          ! M027
          om_m = 0.1369
          om_b = 0.0224
-         cosm%n = 0.8500
+         cosm%ns =  0.8500
          cosm%w = 0.836
          cosm%sig8 = 0.7111
          cosm%h = 0.6387
@@ -5828,7 +5828,7 @@ CONTAINS
          ! M028
          om_m = 0.1527
          om_b = 0.0222
-         cosm%n = 0.8694
+         cosm%ns =  0.8694
          cosm%w = 0.932
          cosm%sig8 = 0.8068
          cosm%h = 0.6189
@@ -5836,7 +5836,7 @@ CONTAINS
          ! M029
          om_m = 0.1256
          om_b = 0.0228
-         cosm%n = 1.0435
+         cosm%ns =  1.0435
          cosm%w = 0.913
          cosm%sig8 = 0.7087
          cosm%h = 0.7067
@@ -5844,7 +5844,7 @@ CONTAINS
          ! M030
          om_m = 0.1234
          om_b = 0.0230
-         cosm%n = 0.8758
+         cosm%ns =  0.8758
          cosm%w = 0.777
          cosm%sig8 = 0.6739
          cosm%h = 0.6626
@@ -5852,7 +5852,7 @@ CONTAINS
          ! M031
          om_m = 0.1550
          om_b = 0.0219
-         cosm%n = 0.9919
+         cosm%ns =  0.9919
          cosm%w = 1.068
          cosm%sig8 = 0.7041
          cosm%h = 0.6394
@@ -5860,7 +5860,7 @@ CONTAINS
          ! M032
          om_m = 0.1200
          om_b = 0.0229
-         cosm%n = 0.9661
+         cosm%ns =  0.9661
          cosm%w = 1.048
          cosm%sig8 = 0.7556
          cosm%h = 0.7901
@@ -5868,7 +5868,7 @@ CONTAINS
          ! M033
          om_m = 0.1399
          om_b = 0.0225
-         cosm%n = 1.0407
+         cosm%ns =  1.0407
          cosm%w = 1.147
          cosm%sig8 = 0.8645
          cosm%h = 0.7286
@@ -5876,7 +5876,7 @@ CONTAINS
          ! M034
          om_m = 0.1497
          om_b = 0.0227
-         cosm%n = 0.9239
+         cosm%ns =  0.9239
          cosm%w = 1.000
          cosm%sig8 = 0.8734
          cosm%h = 0.6510
@@ -5884,7 +5884,7 @@ CONTAINS
          ! M035
          om_m = 0.1485
          om_b = 0.0221
-         cosm%n = 0.9604
+         cosm%ns =  0.9604
          cosm%w = 0.853
          cosm%sig8 = 0.8822
          cosm%h = 0.6100
@@ -5892,7 +5892,7 @@ CONTAINS
          ! M036
          om_m = 0.1216
          om_b = 0.0233
-         cosm%n = 0.9387
+         cosm%ns =  0.9387
          cosm%w = 0.706
          cosm%sig8 = 0.8911
          cosm%h = 0.6421
@@ -5900,7 +5900,7 @@ CONTAINS
          ! M037
          om_m = 0.1495
          om_b = 0.0228
-         cosm%n = 1.0233
+         cosm%ns =  1.0233
          cosm%w = 1.294
          cosm%sig8 = 0.8999 ! Moved off boundary
          cosm%h = 0.7313
@@ -5928,7 +5928,7 @@ CONTAINS
          ! M023
          om_m = 0.1211
          om_b = 0.0220
-         cosm%n = 0.9016
+         cosm%ns =  0.9016
          cosm%w = -1.261
          cosm%sig8 = 0.6664
          cosm%h = 0.8500 ! Have to round down from 0.8694 to 0.85 for FrankenEmu shrunken space
@@ -5957,7 +5957,7 @@ CONTAINS
          om_b = 0.02258
          cosm%sig8 = 0.8
          cosm%h = 0.71
-         cosm%n = 0.963
+         cosm%ns =  0.963
          cosm%w = -1.0
          cosm%wa = 0.0
          om_nu = 0.
@@ -5969,7 +5969,7 @@ CONTAINS
          om_b = 0.02261
          cosm%sig8 = 0.8778
          cosm%h = 0.6167
-         cosm%n = 0.9611
+         cosm%ns =  0.9611
          cosm%w = -0.7000
          cosm%wa = 0.67220
          om_nu = 0.
@@ -5979,7 +5979,7 @@ CONTAINS
          om_b = 0.02328
          cosm%sig8 = 0.8556
          cosm%h = 0.7500
-         cosm%n = 1.0500
+         cosm%ns =  1.0500
          cosm%w = -1.0330
          cosm%wa = 0.91110
          om_nu = 0.
@@ -5989,7 +5989,7 @@ CONTAINS
          om_b = 0.02194
          cosm%sig8 = 0.9000
          cosm%h = 0.7167
-         cosm%n = 0.8944
+         cosm%ns =  0.8944
          cosm%w = -1.1000
          cosm%wa = -0.28330
          om_nu = 0.
@@ -5999,7 +5999,7 @@ CONTAINS
          om_b = 0.02283
          cosm%sig8 = 0.7889
          cosm%h = 0.5833
-         cosm%n = 0.8722
+         cosm%ns =  0.8722
          cosm%w = -1.1670
          cosm%wa = 1.15000
          om_nu = 0.
@@ -6009,7 +6009,7 @@ CONTAINS
          om_b = 0.02350
          cosm%sig8 = 0.7667
          cosm%h = 0.8500
-         cosm%n = 0.9833
+         cosm%ns =  0.9833
          cosm%w = -1.2330
          cosm%wa = -0.04445
          om_nu = 0.
@@ -6019,7 +6019,7 @@ CONTAINS
          om_b = 0.021501 ! Moved off boundary
          cosm%sig8 = 0.8333
          cosm%h = 0.5500
-         cosm%n = 0.9167
+         cosm%ns =  0.9167
          cosm%w = -0.7667
          cosm%wa = 0.19440
          om_nu = 0.
@@ -6029,7 +6029,7 @@ CONTAINS
          om_b = 0.02217
          cosm%sig8 = 0.8111
          cosm%h = 0.8167
-         cosm%n = 1.0280
+         cosm%ns =  1.0280
          cosm%w = -0.8333
          cosm%wa = -1.0000
          om_nu = 0.
@@ -6039,7 +6039,7 @@ CONTAINS
          om_b = 0.02306
          cosm%sig8 = 0.7000
          cosm%h = 0.6833
-         cosm%n = 1.0060
+         cosm%ns =  1.0060
          cosm%w = -0.9000
          cosm%wa = 0.43330
       ELSE IF (node == 9) THEN
@@ -6048,7 +6048,7 @@ CONTAINS
          om_b = 0.02172
          cosm%sig8 = 0.7444
          cosm%h = 0.6500
-         cosm%n = 0.8500
+         cosm%ns =  0.8500
          cosm%w = -0.9667
          cosm%wa = -0.76110
          om_nu = 0.
@@ -6058,7 +6058,7 @@ CONTAINS
          om_b = 0.02239
          cosm%sig8 = 0.7222
          cosm%h = 0.7833
-         cosm%n = 0.9389
+         cosm%ns =  0.9389
          cosm%w = -1.3000
          cosm%wa = -0.52220
          om_nu = 0.
@@ -6068,7 +6068,7 @@ CONTAINS
          om_b = 0.0220
          cosm%sig8 = 0.7151
          cosm%h = 0.5827
-         cosm%n = 0.9357
+         cosm%ns =  0.9357
          cosm%w = -1.0821
          cosm%wa = 1.0646
          om_nu = 0.000345
@@ -6078,7 +6078,7 @@ CONTAINS
          om_b = 0.0224
          cosm%sig8 = 0.7472
          cosm%h = 0.8315
-         cosm%n = 0.8865
+         cosm%ns =  0.8865
          cosm%w = -1.2325
          cosm%wa = -0.7646
          om_nu = 0.001204
@@ -6088,7 +6088,7 @@ CONTAINS
          om_b = 0.0232
          cosm%sig8 = 0.8098
          cosm%h = 0.7398
-         cosm%n = 0.8706
+         cosm%ns =  0.8706
          cosm%w = -1.2993
          cosm%wa = 1.2236
          om_nu = 0.003770
@@ -6098,7 +6098,7 @@ CONTAINS
          om_b = 0.0215
          cosm%sig8 = 0.8742
          cosm%h = 0.5894
-         cosm%n = 1.0151
+         cosm%ns =  1.0151
          cosm%w = -0.7281
          cosm%wa = -0.2088
          om_nu = 0.001752
@@ -6108,7 +6108,7 @@ CONTAINS
          om_b = 0.0224
          cosm%sig8 = 0.8881
          cosm%h = 0.6840
-         cosm%n = 0.8638
+         cosm%ns =  0.8638
          cosm%w = -1.0134
          cosm%wa = 0.0415
          om_nu = 0.002789
@@ -6118,7 +6118,7 @@ CONTAINS
          om_b = 0.0223
          cosm%sig8 = 0.7959
          cosm%h = 0.6452
-         cosm%n = 1.0219
+         cosm%ns =  1.0219
          cosm%w = -1.0139
          cosm%wa = 0.9434
          om_nu = 0.002734
@@ -6128,7 +6128,7 @@ CONTAINS
          om_b = 0.0215
          cosm%sig8 = 0.7332
          cosm%h = 0.7370
-         cosm%n = 1.0377
+         cosm%ns =  1.0377
          cosm%w = -0.9472
          cosm%wa = -0.9897
          om_nu = 0.000168
@@ -6138,7 +6138,7 @@ CONTAINS
          om_b = 0.0217
          cosm%sig8 = 0.7982
          cosm%h = 0.6489
-         cosm%n = 0.9026
+         cosm%ns =  0.9026
          cosm%w = -0.7091
          cosm%wa = 0.6409
          om_nu = 0.006419
@@ -6148,7 +6148,7 @@ CONTAINS
          om_b = 0.0222
          cosm%sig8 = 0.8547
          cosm%h = 0.8251
-         cosm%n = 1.0265
+         cosm%ns =  1.0265
          cosm%w = -0.9813
          cosm%wa = -0.3393
          om_nu = 0.004673
@@ -6158,7 +6158,7 @@ CONTAINS
          om_b = 0.0225
          cosm%sig8 = 0.7561
          cosm%h = 0.6827
-         cosm%n = 0.9913
+         cosm%ns =  0.9913
          cosm%w = -1.0101
          cosm%wa = -0.7778
          om_nu = 0.009777
@@ -6168,7 +6168,7 @@ CONTAINS
          om_b = 0.0221
          cosm%sig8 = 0.8475
          cosm%h = 0.6583
-         cosm%n = 0.9613
+         cosm%ns =  0.9613
          cosm%w = -0.9111
          cosm%wa = -1.5470
          om_nu = 0.000672
@@ -6178,7 +6178,7 @@ CONTAINS
          om_b = 0.0231
          cosm%sig8 = 0.8328
          cosm%h = 0.8234
-         cosm%n = 0.9739
+         cosm%ns =  0.9739
          cosm%w = -0.9312
          cosm%wa = 0.5939
          om_nu = 0.008239
@@ -6188,7 +6188,7 @@ CONTAINS
          om_b = 0.0225
          cosm%sig8 = 0.7113
          cosm%h = 0.7352
-         cosm%n = 0.9851
+         cosm%ns =  0.9851
          cosm%w = -0.8971
          cosm%wa = 0.3247
          om_nu = 0.003733
@@ -6198,7 +6198,7 @@ CONTAINS
          om_b = 0.0229
          cosm%sig8 = 0.7002
          cosm%h = 0.7935
-         cosm%n = 0.8685
+         cosm%ns =  0.8685
          cosm%w = -1.0322
          cosm%wa = 1.0220
          om_nu = 0.003063
@@ -6208,7 +6208,7 @@ CONTAINS
          om_b = 0.0230
          cosm%sig8 = 0.8773
          cosm%h = 0.6240
-         cosm%n = 0.9279
+         cosm%ns =  0.9279
          cosm%w = -0.8282
          cosm%wa = -1.5005
          om_nu = 0.007024
@@ -6218,7 +6218,7 @@ CONTAINS
          om_b = 0.0222
          cosm%sig8 = 0.7785
          cosm%h = 0.7377
-         cosm%n = 0.8618
+         cosm%ns =  0.8618
          cosm%w = -0.7463
          cosm%wa = 0.3647
          om_nu = 0.002082
@@ -6228,7 +6228,7 @@ CONTAINS
          om_b = 0.0234
          cosm%sig8 = 0.8976
          cosm%h = 0.8222
-         cosm%n = 0.9698
+         cosm%ns =  0.9698
          cosm%w = -1.0853
          cosm%wa = 0.8683
          om_nu = 0.002902
@@ -6238,7 +6238,7 @@ CONTAINS
          om_b = 0.0231
          cosm%sig8 = 0.8257
          cosm%h = 0.6109
-         cosm%n = 0.9885
+         cosm%ns =  0.9885
          cosm%w = -0.9311
          cosm%wa = 0.8693
          om_nu = 0.009086
@@ -6248,7 +6248,7 @@ CONTAINS
          om_b = 0.0228
          cosm%sig8 = 0.8999
          cosm%h = 0.8259
-         cosm%n = 0.8505
+         cosm%ns =  0.8505
          cosm%w = -0.7805
          cosm%wa = 0.5688
          om_nu = 0.006588
@@ -6258,7 +6258,7 @@ CONTAINS
          om_b = 0.0222
          cosm%sig8 = 0.8232
          cosm%h = 0.6852
-         cosm%n = 0.8679
+         cosm%ns =  0.8679
          cosm%w = -0.8594
          cosm%wa = -0.4637
          om_nu = 0.008126
@@ -6268,7 +6268,7 @@ CONTAINS
          om_b = 0.0229
          cosm%sig8 = 0.7693
          cosm%h = 0.6684
-         cosm%n = 1.0478
+         cosm%ns =  1.0478
          cosm%w = -1.2670
          cosm%wa = 1.2536
          om_nu = 0.006502
@@ -6278,7 +6278,7 @@ CONTAINS
          om_b = 0.021501 ! Moved off boundary
          cosm%sig8 = 0.8812
          cosm%h = 0.8019
-         cosm%n = 1.0005
+         cosm%ns =  1.0005
          cosm%w = -0.7282
          cosm%wa = -1.6927
          om_nu = 0.000905
@@ -6288,7 +6288,7 @@ CONTAINS
          om_b = 0.0230
          cosm%sig8 = 0.7005
          cosm%h = 0.6752
-         cosm%n = 1.0492
+         cosm%ns =  1.0492
          cosm%w = -0.7119
          cosm%wa = -0.8184
          om_nu = 0.007968
@@ -6298,7 +6298,7 @@ CONTAINS
          om_b = 0.0216
          cosm%sig8 = 0.7018
          cosm%h = 0.5970
-         cosm%n = 0.8791
+         cosm%ns =  0.8791
          cosm%w = -0.8252
          cosm%wa = -1.1148
          om_nu = 0.003602
@@ -6308,7 +6308,7 @@ CONTAINS
          om_b = 0.0228
          cosm%sig8 = 0.8210
          cosm%h = 0.6815
-         cosm%n = 0.9872
+         cosm%ns =  0.9872
          cosm%w = -1.1642
          cosm%wa = -0.1801
          om_nu = 0.004440
@@ -6318,7 +6318,7 @@ CONTAINS
          om_b = 0.0220
          cosm%sig8 = 0.8631
          cosm%h = 0.6477
-         cosm%n = 0.8985
+         cosm%ns =  0.8985
          cosm%w = -0.8632
          cosm%wa = 0.8285
          om_nu = 0.001082
