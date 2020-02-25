@@ -17,7 +17,7 @@ PROGRAM cosmology_functions_demo
    LOGICAL, PARAMETER :: test_background = .TRUE.
    LOGICAL, PARAMETER :: test_spherical = .TRUE.
    LOGICAL, PARAMETER :: test_power = .TRUE.
-   LOGICAL, PARAMETER :: test_dewiggle = .TRUE.
+   LOGICAL, PARAMETER :: test_dewiggle = .FALSE.
    LOGICAL, PARAMETER :: test_correlation = .FALSE.
    LOGICAL, PARAMETER :: test_sigma = .TRUE.
    LOGICAL, PARAMETER :: test_sigmaV = .TRUE.
