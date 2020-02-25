@@ -446,7 +446,10 @@ CONTAINS
       names(63) = 'Planck 2015'
       names(64) = 'Planck 2015 (AGN 7.6)'
       names(65) = 'Planck 2015 (AGN 8.0)'
-      names(66) = 'Power bump (Mexican model)'
+      names(66) = 'Axel power bump k = 0.05h/Mpc'
+      names(67) = 'Axel power bump k = 0.1h/Mpc'
+      names(68) = 'Axel power bump k = 1h/Mpc'
+      names(69) = 'Axel power no bump'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -621,14 +624,26 @@ CONTAINS
       ! AGN
       cosm%Theat = 10**7.8 ! AGN temperature
 
-      ! Normalisation
+      !! Normalisation !!
+
+      ! Overall power normalisaiton, should always be set to 1 and then will be changed later
+      cosm%A = 1.
+
+      ! Large-scale structure normalisation
       cosm%norm_method = norm_sigma8
-      cosm%sig8 = 0.8              ! Large-scale structure normalisation
-      cosm%kval = 0.001            ! Wavenumber at which to define the power amplitude
-      cosm%pval = 0.1973236854e-06 ! Power at the wavenumber
-      cosm%kpiv = 0.05             ! Wavenumber at which to define the power amplitude
-      cosm%As = 2.1e-9             ! This is a generally sensible value
-      cosm%A = 1.                  ! Overall power normalisaiton, should be set to 1
+      cosm%sig8 = 0.8              
+
+      ! Large-scale structure normalisation at a specific wavenumber
+      !cosm%norm_method = norm_value
+      cosm%kval = 0.001
+      cosm%pval = 0.1973236854e-06 ! Power value to get sig8 = 0.8 for a boring cosmology
+
+      ! As CMB normalisation
+      !cosm%norm_method = norm_As
+      cosm%kpiv = 0.05 ! Wavenumber at which to define the normalisation
+      cosm%As = 2.1e-9 ! This is a generally sensible value
+      
+      !! !!
 
       ! Power bump
       cosm%bump = 0
@@ -1063,18 +1078,30 @@ CONTAINS
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with BDE'
          END IF 
-      ELSE IF (icosmo == 59 .OR. icosmo == 66) THEN
+      ELSE IF (icosmo == 59) THEN
          ! Bump in power
-         cosm%norm_method = norm_value ! Normalise like this to prevent bump annoying sigma8
+         cosm%norm_method = norm_value ! Normalise like this to prevent bump annoying sigma8        
+         cosm%bump = 1
          cosm%A_bump = 0.08
          cosm%k_bump = 5.
-         cosm%sigma_bump = 0.5
-         IF (icosmo == 59) THEN
-            cosm%bump = 1
-         ELSE IF (icosmo == 66) THEN
+         cosm%sigma_bump = 0.5      
+      ELSE IF (icosmo == 66 .OR. icosmo == 67 .OR. icosmo == 68 .OR. icosmo == 69) THEN
+         ! Axel bump cosmologies
+         cosm%h = 0.6731
+         cosm%Om_b = 0.02222/cosm%h**2
+         cosm%Om_m = cosm%Om_b+0.1197/cosm%h**2
+         cosm%n = 0.9655
+         cosm%Om_v = 1.-cosm%Om_m
+         cosm%norm_method = norm_value
+         cosm%pval = 1.8735e-7
+         !cosm%itk = itk_CAMB
+         IF (icosmo == 66 .OR. icosmo == 67 .OR. icosmo == 68) THEN
             cosm%bump = 2
-         ELSE
-            STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with bump'
+            cosm%A_bump = 0.16
+            cosm%sigma_bump = 1.05
+            IF(icosmo == 66) cosm%k_bump = 0.05
+            IF(icosmo == 67) cosm%k_bump = 0.1
+            IF(icosmo == 68) cosm%k_bump = 1.
          END IF
       ELSE IF (icosmo == 60) THEN
          ! Boring cosmology but with exciting neutrino mass
