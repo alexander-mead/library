@@ -79,7 +79,7 @@ CONTAINS
 
       ! Convert Gadget header numbers to my numbers
       ! TODO: Possible precision change
-      m = mass_in(2)*Munit
+      m = mass_in(2)
       a = a_in
       z = z_in
       Om_m = Om_m_in
@@ -174,7 +174,7 @@ CONTAINS
       WRITE (*, *) 'WRITE_GADGET: Box size [Mpc/h]:', L
       WRITE (*, *) 'WRITE_GADGET: a:', a
       WRITE (*, *) 'WRITE_GADGET: z:', z
-      WRITE (*, *) 'WRITE_GADGET: Particle mass [Msun/h]:', m
+      WRITE (*, *) 'WRITE_GADGET: Particle mass log10([Msun/h]):', log10(m)
       WRITE (*, *) 'WRITE_GADGET: Om_m:', Om_m
       WRITE (*, *) 'WRITE_GADGET: Om_v:', Om_v
 
