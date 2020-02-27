@@ -120,4 +120,3 @@ def get_HMcode_corrected_power(mesh, model, z, field_pair, realisation_errors=Fa
 
    return k, power, shot, modes, error
 
-
