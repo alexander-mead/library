@@ -4,11 +4,11 @@ MODULE io
 
    PRIVATE
 
-   PUBLIC :: read_VD20_power
+   PUBLIC :: VD20_read_power
 
    CONTAINS
 
-   SUBROUTINE read_VD20_power(k, z, Pk, nk, nz, name)
+   SUBROUTINE VD20_read_power(k, z, Pk, nk, nz, name)
 
       USE file_info
       IMPLICIT NONE
@@ -18,7 +18,7 @@ MODULE io
       INTEGER, INTENT(OUT) :: nk
       INTEGER, INTENT(OUT) :: nz
       CHARACTER(len=*), INTENT(IN) :: name
-      CHARACTER(len=128), PARAMETER :: dir = '/Users/Mead/Physics/data/VD20/data'
+      CHARACTER(len=128), PARAMETER :: dir = '/Users/Mead/Physics/data/VD20'
       CHARACTER(len=256) :: infile
       INTEGER :: i, n, ik, iz
       REAL :: crap
@@ -63,6 +63,6 @@ MODULE io
       END DO
       CLOSE(7)
 
-   END SUBROUTINE read_VD20_power
+   END SUBROUTINE VD20_read_power
 
 END MODULE io
