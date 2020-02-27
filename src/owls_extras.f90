@@ -6,8 +6,10 @@ MODULE owls_extras
 
    PRIVATE
 
-   PUBLIC :: read_BAHAMAS_power
-   PUBLIC :: get_BAHAMAS_ks
+   PUBLIC :: BAHAMAS_read_power
+   PUBLIC :: BAHAMAS_get_ks
+   PUBLIC :: VD20_get_power
+   PUBLIC :: VD20_get_response
 
    INTEGER, PARAMETER :: computer_mac = 1
    INTEGER, PARAMETER :: computer_linux = 2
@@ -17,7 +19,7 @@ MODULE owls_extras
 
 CONTAINS
 
-   SUBROUTINE get_BAHAMAS_ks(mesh, k, nk)
+   SUBROUTINE BAHAMAS_get_ks(mesh, k, nk)
 
       USE file_info
       IMPLICIT NONE
@@ -39,7 +41,7 @@ CONTAINS
       END DO
       CLOSE(7)
 
-   END SUBROUTINE get_BAHAMAS_ks
+   END SUBROUTINE BAHAMAS_get_ks
 
    CHARACTER(len=64) FUNCTION BAHAMAS_dir(m)
 
@@ -177,7 +179,7 @@ CONTAINS
 
    END FUNCTION BAHAMAS_error_file_name
 
-   SUBROUTINE read_BAHAMAS_power(k, Pk, Er, nk, z, name, mesh, field, cosm, kmin, kmax, &
+   SUBROUTINE BAHAMAS_read_power(k, Pk, Er, nk, z, name, mesh, field, cosm, kmin, kmax, &
       cut_nyquist, subtract_shot, realisation_errors, response, verbose)
 
       USE basic_operations
@@ -224,7 +226,7 @@ CONTAINS
          Pk = Pk*Pk_HMcode(:,1)
       END IF
 
-   END SUBROUTINE read_BAHAMAS_power
+   END SUBROUTINE BAHAMAS_read_power
 
    SUBROUTINE read_simulation_power_spectrum(k, Pk, Er, nk, infile, kmin, kmax, cut_nyquist, subtract_shot, verbose)
 
@@ -387,5 +389,96 @@ CONTAINS
       END IF  
 
    END SUBROUTINE cut_kmax
+
+   SUBROUTINE VD20_get_power(k, Pk, nk, z, name)
+
+      USE io
+      USE array_operations
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
+      INTEGER, INTENT(OUT) :: nk
+      REAL, INTENT(IN) :: z
+      CHARACTER(len=*), INTENT(IN) :: name
+      REAL, ALLOCATABLE :: zs(:), P(:, :)
+      INTEGER :: iz, nz
+      REAL, PARAMETER :: eps = 1e-4
+
+      CALL read_VD20_power(k, zs, P, nk, nz, name)
+
+      iz = array_position(z, zs, nz, eps)
+
+      ALLOCATE(Pk(nk))
+      Pk = P(:, iz)
+
+   END SUBROUTINE VD20_get_power
+
+   SUBROUTINE VD20_get_response(k, Rk, nk, z, name)
+
+      USE io
+      USE array_operations
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Rk(:)
+      INTEGER, INTENT(OUT) :: nk
+      REAL, INTENT(IN) :: z
+      CHARACTER(len=*), INTENT(IN) :: name
+      REAL, ALLOCATABLE :: Pk(:), Pk_dmonly(:)
+      CHARACTER(len=256) :: name_dmonly
+
+      name_dmonly = VD20_dmonly_counterpart(name)
+
+      CALL get_VD20_power(k, Pk, nk, z, name)
+      CALL get_VD20_power(k, Pk_dmonly, nk, z, name_dmonly)
+
+      ALLOCATE(Rk(nk))
+
+      Rk = Pk/Pk_dmonly
+
+   END SUBROUTINE VD20_get_response
+
+   CHARACTER(len=256) FUNCTION VD20_dmonly_counterpart(name)
+
+      IMPLICIT NONE
+      CHARACTER(len=*), INTENT(IN) :: name
+
+      IF (trim(name) == 'BAHAMAS_Theat7.6_nu0_WMAP9') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0_WMAP9_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_Theat8.0_nu0_WMAP9') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0_WMAP9_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0.06_Planck2015') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0.06_Planck2015_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0.06_WMAP9') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0.06_WMAP9_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0.12_Planck2015') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0.12_Planck2015_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0.12_WMAP9') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0.12_WMAP9_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0.24_Planck2015') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0.24_Planck2015_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0.24_WMAP9') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0.24_WMAP9_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0.48_Planck2015') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0.48_Planck2015_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0.48_WMAP9') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0.48_WMAP9_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0_BAO_L200N512') THEN
+         VD20_dmonly_counterpart = 'DMONLY_nu0_BAO_L200N512'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0_Planck2013') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0_Planck2013_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0_WMAP9') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0_WMAP9_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0_WMAP9_L100N512') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0_WMAP9_L100N512'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0_WMAP9_v2') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0_v2_WMAP9_L400N1024'
+      ELSE IF (trim(name) == 'BAHAMAS_nu0_WMAP9_v3') THEN
+         VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0_v3_WMAP9_L400N1024'
+      ELSE
+         WRITE (*, *) 'VD20_DMONLY_COUNTERPART: Simulation: ', trim(name)
+         STOP 'VD20_DMONLY_COUNTERPART: Error, no counterpart found'
+      END IF
+
+   END FUNCTION VD20_dmonly_counterpart
 
 END MODULE owls_extras
