@@ -45,7 +45,7 @@ MODULE array_operations
    PUBLIC :: safe_allocate
    PUBLIC :: greater_than_all
    PUBLIC :: greater_than_any
-   PUBLIC :: in_array
+   PUBLIC :: is_in_array
    PUBLIC :: integer_sequence
    PUBLIC :: unique_entries
    PUBLIC :: number_of_appearances
@@ -57,6 +57,12 @@ MODULE array_operations
    PUBLIC :: progression_log_double
    PUBLIC :: fill_array
    PUBLIC :: fill_array_double
+   PUBLIC :: fill_array_log
+
+   INTERFACE array_position
+      MODULE PROCEDURE array_position_int
+      MODULE PROCEDURE array_position_real
+   END INTERFACE array_position
 
    INTERFACE add_to_array
       MODULE PROCEDURE add_to_array_2D
@@ -336,7 +342,7 @@ CONTAINS
 
    END SUBROUTINE add_to_array_3D
 
-   INTEGER FUNCTION array_position(x, a, n)
+   INTEGER FUNCTION array_position_int(x, a, n)
 
       ! Returns the location in a(n) of value x
       ! If x is not in array then returns zero
@@ -346,16 +352,39 @@ CONTAINS
       INTEGER, INTENT(IN) :: n    ! Size of array
       INTEGER :: i
 
-      array_position = 0
+      array_position_int = 0
 
       DO i = 1, n
          IF (a(i) == x) THEN
-            array_position = i
+            array_position_int = i
             EXIT
          END IF
       END DO
 
-   END FUNCTION array_position
+   END FUNCTION array_position_int
+
+   INTEGER FUNCTION array_position_real(x, a, n, eps)
+
+      ! Returns the location in a(n) of value x
+      ! If x is not in array then returns zero
+      USE basic_operations
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x    ! Value to check if it is in array
+      REAL, INTENT(IN) :: a(n) ! Array to check
+      INTEGER, INTENT(IN) :: n ! Size of array
+      REAL, INTENT(IN) :: eps  ! Difference to tolerate
+      INTEGER :: i
+
+      array_position_real = 0
+
+      DO i = 1, n
+         IF(requal(x, a(i), eps)) THEN
+            array_position_real = i
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION array_position_real
 
    INTEGER FUNCTION number_of_appearances(x, a, n)
 
@@ -802,6 +831,19 @@ CONTAINS
 
    END SUBROUTINE fill_array
 
+   SUBROUTINE fill_array_log(xmin, xmax, x, nx)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: xmin
+      REAL, INTENT(IN) :: xmax
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
+      INTEGER, INTENT(IN) :: nx
+
+      CALL fill_array(log(xmin), log(xmax), x, nx)
+      x = exp(x)
+
+   END SUBROUTINE fill_array_log
+
    SUBROUTINE integer_sequence(is, i1, i2, n)
 
       IMPLICIT NONE
@@ -1128,8 +1170,8 @@ CONTAINS
    SUBROUTINE unique_index(array, n, unique, m, match)
 
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: array(n) ! Array to find the unique indices of
-      INTEGER, INTENT(IN) :: n        ! Number of entries in input array
+      INTEGER, INTENT(IN) :: array(n)                ! Array to find the unique indices of
+      INTEGER, INTENT(IN) :: n                       ! Number of entries in input array
       INTEGER, ALLOCATABLE, INTENT(OUT) :: unique(:) ! Output array of unique indices
       INTEGER, INTENT(OUT) :: m                      ! Number of unique indices
       INTEGER, INTENT(OUT) :: match(n)               ! Array for matching input and unique arrays
@@ -1168,7 +1210,7 @@ CONTAINS
 
    END SUBROUTINE unique_index
 
-   LOGICAL FUNCTION in_array(x, a)!, n)
+   LOGICAL FUNCTION is_in_array(x, a)!, n)
 
       ! Test to see if integer value x is in a(n)
       ! This is very useful in IF statements where otherwise there would be a long chain of .OR.s
@@ -1177,15 +1219,15 @@ CONTAINS
       INTEGER, INTENT(IN) :: a(:)
       INTEGER :: i
 
-      in_array = .FALSE.
+      is_in_array = .FALSE.
       DO i = 1, size(a)
          IF (x == a(i)) THEN
-            in_array = .TRUE.
+            is_in_array = .TRUE.
             EXIT
          END IF     
       END DO
 
-   END FUNCTION in_array
+   END FUNCTION is_in_array
 
    LOGICAL FUNCTION repeated_entries(a, n)
 
