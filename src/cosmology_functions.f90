@@ -76,6 +76,8 @@ MODULE cosmology_functions
    PUBLIC :: dc_Spherical
 
    ! Power and correlation
+   PUBLIC :: Pk_Delta
+   PUBLIC :: Delta_Pk
    PUBLIC :: p_lin
    PUBLIC :: p_dewiggle
    PUBLIC :: sigma8
@@ -317,7 +319,6 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amin_sigma = 0.1                  ! Minimum a value for sigma(R,a) tables when growth is scale dependent
    REAL, PARAMETER :: amax_sigma = 1.0                  ! Maximum a value for sigma(R,a) tables when growth is scale dependent
    INTEGER, PARAMETER :: na_sigma = 16                  ! Number of a values for sigma(R,a) tables
-   !LOGICAL, PARAMETER :: tabulate_cold_sigma = .TRUE.   ! Should the sigma tables be filled with cold sigma or all sigma?
    INTEGER, PARAMETER :: iorder_interpolation_sigma = 3 ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interpolation_sigma = 3  ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: imeth_interpolation_sigma = 2  ! Method for sigma(R) interpolation
@@ -3032,66 +3033,6 @@ CONTAINS
 
    END FUNCTION Tcold_EH
 
-   ! REAL FUNCTION Tcold_EH_incorrect(k, a, cosm)
-
-   !    ! Calculates the ratio of T(k) for cold vs. all matter
-   !    ! Uses approximations in Eisenstein & Hu (1999; arXiv 9710252)
-   !    ! Note that this assumes that there are exactly 3 species of neutrinos
-   !    ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
-   !    IMPLICIT NONE
-   !    REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-   !    REAL, INTENT(IN) :: a ! Scale factor
-   !    TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-   !    REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
-   !    REAL :: BigT
-   !    INTEGER, PARAMETER :: N_massive_nu = 3
-
-   !    IF (cosm%f_nu == 0.) THEN
-
-   !       ! Fix to unity if there are no neutrinos
-   !       Tcold_EH_incorrect = 1.
-
-   !    ELSE
-
-   !       ! Get the redshift
-   !       z = redshift_a(a)
-
-   !       ! Growth exponent under the assumption that neutrinos are completely unclustered (equation 11)
-   !       pcb = (5.-sqrt(1.+24.*(1.-cosm%f_nu)))/4.
-
-   !       ! Theta for temperature (BigT=T/2.7 K)
-   !       BigT = cosm%T_CMB/2.7
-
-   !       ! The matter-radiation equality redshift
-   !       zeq = (2.5e4)*cosm%om_m*(cosm%h**2.)*(BigT**(-4.))
-
-   !       ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
-   !       ! For my purpose (just the ratio) seems to work better using the EdS growth function result, \propto a .
-   !       ! In any case, can't use grow at the moment because that is normalised by default.
-   !       D = (1.+zeq)/(1.+z) ! TODO: Could update this
-
-   !       ! Wave number relative to the horizon scale at equality (equation 5)
-   !       ! Extra factor of h becauase all my k are in units of h/Mpc
-   !       q = k*cosm%h*BigT**2./(cosm%om_m*cosm%h**2.)
-
-   !       ! Free streaming scale (equation 14)
-   !       ! Note that Eisenstein & Hu (1999) only consider the case of 3 neutrinos
-   !       ! with Nnu of these being massive with the mass split evenly between Nnu species.
-   !       yfs = 17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(real(N_massive_nu)*q/cosm%f_nu)**2.
-
-   !       ! These are (almost) the scale-dependent growth functions for each component in Eisenstein & Hu (1999)
-   !       ! Some part is missing, but this cancels when they are divided by each other, which is all I need them for.
-   !       ! Equations (12) and (13)
-   !       Dcb = (1.+(D/(1.+yfs))**0.7)**(pcb/0.7)
-   !       Dcbnu = ((1.-cosm%f_nu)**(0.7/pcb)+(D/(1.+yfs))**0.7)**(pcb/0.7)
-
-   !       ! Finally, the ratio
-   !       Tcold_EH_incorrect = Dcb/Dcbnu
-
-   !    END IF
-
-   ! END FUNCTION Tcold_EH_incorrect
-
    REAL RECURSIVE FUNCTION p_lin(k, a, flag, cosm)
 
       ! Linear matter power spectrum
@@ -3181,45 +3122,6 @@ CONTAINS
       p_lin_extrapolation = pmax*((log(k)/log(kmax))**2)*(k/kmax)**(ns-1.)
 
    END FUNCTION p_lin_extrapolation
-
-!!$  SUBROUTINE init_power(cosm)
-!!$
-!!$    ! Fill a look-up table for the linear power spectrum from a fitting function
-!!$    IMPLICIT NONE
-!!$    TYPE(cosmology), INTENT(INOUT) :: cosm
-!!$    INTEGER :: i
-!!$    REAL :: k
-!!$
-!!$    ! PARAMETERS
-!!$    REAL, PARAMETER :: kmin=1e-3
-!!$    REAL, PARAMETER :: kmax=1e2
-!!$    INTEGER, PARAMETER :: n_plin=256
-!!$
-!!$    ! Set the numer of points in the look-up tables
-!!$    ! Note you need to have enough to resolve the BAO well
-!!$    ! Probably some non-log/linear spacing would be best (CAMB does this)
-!!$    cosm%n_plin=n_plin
-!!$
-!!$    ! Allocate arrays
-!!$    IF(ALLOCATED(cosm%log_k_plin)) DEALLOCATE(cosm%log_k_plin)
-!!$    IF(ALLOCATED(cosm%log_plin)) DEALLOCATE(cosm%log_plin)
-!!$    ALLOCATE(cosm%log_k_plin(cosm%n_plin),cosm%log_plin(cosm%n_plin))
-!!$
-!!$    ! Get values for the linear power spectrum
-!!$    DO i=1,cosm%n_plin
-!!$       k=progression_log(kmin,kmax,i,cosm%n_plin)
-!!$       cosm%log_k_plin(i)=k
-!!$       cosm%log_plin(i)=(Tk(k,cosm)**2)*k**(cosm%n+3.)
-!!$    END DO
-!!$
-!!$    ! Take logarithms
-!!$    cosm%log_k_plin=log(cosm%log_k_plin)
-!!$    cosm%log_plin=log(cosm%log_plin)
-!!$
-!!$    ! Change the flag to true
-!!$    cosm%has_power=.TRUE.
-!!$
-!!$  END SUBROUTINE init_power
 
    SUBROUTINE init_sigma(cosm)
 
@@ -6737,5 +6639,28 @@ CONTAINS
       p_dewiggle = p_linear+(f-1.)*p_wiggle*grow(a, cosm)**2
 
    END FUNCTION p_dewiggle
+
+   REAL FUNCTION Pk_Delta(Delta, k)
+
+      ! Converts dimensionless Delta^2(k) to P(k) [Mpc/h]^3
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: Delta ! Power spectrum in Delta^2(k) dimensionless form
+      REAL, INTENT(IN) :: k     ! Wavenumber [h/Mpc]
+
+      Pk_Delta = Delta/(k/twopi)**3
+      Pk_Delta = Pk_Delta/(4.*pi)
+
+   END FUNCTION Pk_Delta
+
+   REAL FUNCTION Delta_Pk(Pk, k)
+
+      ! Converts P(k) [Mpc/h]^3 to dimensionless Delta^2(k) 
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: Pk ! Power spectrum in P(k) [Mpc/h]^3
+      REAL, INTENT(IN) :: k  ! Wavenumber [h/Mpc]
+
+      Delta_Pk = (4.*pi)*((k/twopi)**3)*Pk
+
+   END FUNCTION Delta_Pk
 
 END MODULE cosmology_functions
