@@ -58,6 +58,7 @@ _OBJ = \
 	random_numbers.o \
 	calculus.o \
 	file_info.o \
+	io.o \
 	camb_stuff.o \
 	table_integer.o \
 	interpolate.o \
