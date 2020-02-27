@@ -237,7 +237,7 @@ MODULE HMx
 
       ! Look-up tables
       REAL :: mmin, mmax
-      REAL, ALLOCATABLE :: c(:), rv(:), nu(:), sig(:), zc(:), m(:), rr(:), sigf(:), log_m(:), f(:)
+      REAL, ALLOCATABLE :: c(:), rv(:), nu(:), sig(:), zc(:), m(:), rr(:), sigf(:), log_m(:)
       REAL, ALLOCATABLE :: r500(:), m500(:), c500(:), r200(:), m200(:), c200(:)
       REAL, ALLOCATABLE :: r500c(:), m500c(:), c500c(:), r200c(:), m200c(:), c200c(:)
       INTEGER :: n
@@ -553,7 +553,7 @@ CONTAINS
       names(60) = 'HMx2020: Temperature-dependent model for matter'
       names(61) = 'HMx2020: Temperature-dependent model for matter, pressure'
       names(62) = 'HMx2020: Temperature-dependent model for matter, CDM, gas, stars'
-      names(63) = 'HMx2020: Temperature-dependent model for matter, CDM, gas, stars, pressure'
+      names(63) = 'HMx2020: Temperature-dependent model for everything'
       names(64) = 'HMcode (2016) but with HMcode (2020) baryon model'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
@@ -1610,7 +1610,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
-      REAL :: Dv, dc, m, f, nu, R, sig, z, Om_stars
+      REAL :: Dv, dc, m, nu, R, sig, z, Om_stars
       REAL, PARAMETER :: glim = g_integral_limit
       REAL, PARAMETER :: gblim = gb_integral_limit
       LOGICAL, PARAMETER :: check_mf = check_mass_function
@@ -1658,13 +1658,11 @@ CONTAINS
          R = radius_m(m, cosm)
          sig = sigma(R, a, hmod%flag_sigma, cosm) ! TODO: Add correction here for cold matter in HMcode (2016)?
          nu = nu_R(R, hmod, cosm)
-         f = DMONLY_halo_mass_fraction(m, hmod, cosm)
 
          hmod%m(i) = m
          hmod%rr(i) = R
          hmod%sig(i) = sig
          hmod%nu(i) = nu
-         hmod%f(i) = f
 
       END DO
 
@@ -2781,12 +2779,14 @@ CONTAINS
             END DO
          END DO
 
-         ! If linear theory is used for two-halo term we recalculate the window functions for the two-halo term with k=0 fixed
+         ! If linear theory is used for two-halo term we must recalculate the window functions for the two-halo term with k=0 fixed
+         ! TODO: Given that this is evaluated at k=0. this could be evaluated only once, rather than for every k
          IF (hmod%ip2h == 1 .OR. hmod%ip2h == 3) THEN
             CALL init_windows(0., ifield, nf, wk, hmod%n, hmod, cosm)
          END IF
 
-         ! If we are worrying about unbound gas then we need this
+         ! If we are worrying about halo profiles that somehow change between one- and two-halo evaulations then we need this
+         ! This applies to ejected halo gas, but also to massive neutrinos and simple baryon feedback models
          CALL add_smooth_component_to_windows(ifield, nf, wk, hmod%n, hmod, cosm)
 
          ! Get the two-halo term
@@ -2933,6 +2933,17 @@ CONTAINS
                IF(i_dmonly .NE. 0) wk(i, i_dmonly) = wk(i, i_dmonly)+fc
                IF(i_matter .NE. 0) wk(i, i_matter) = wk(i, i_matter)+fc
                IF(i_neutrino .NE. 0) wk(i, i_neutrino) = wk(i, i_neutrino)+fc
+            END DO
+         END IF
+      END IF
+
+      ! Undo the simple baryon recipe
+      IF (hmod%DMONLY_baryon_recipe) THEN
+         i_dmonly = array_position(field_dmonly, fields, nf)
+         IF (i_dmonly .NE. 0) THEN
+            DO i = 1, hmod%n
+               wk(i, i_dmonly) = wk(i, i_dmonly)-sqrt(hmod%abar*hmod%Rh)
+               wk(i, i_dmonly) = wk(i, i_dmonly)/DMONLY_halo_mass_fraction(hmod%m(i), hmod, cosm)
             END DO
          END IF
       END IF
@@ -3273,7 +3284,7 @@ CONTAINS
       REAL, INTENT(IN) :: k
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: m, g, fac, ks, wk0_product, m0, rhom, integrand(n), f
+      REAL :: m, g, fac, ks, wk0_product, m0, rhom, integrand(n)
       INTEGER :: i
       INTEGER, PARAMETER :: iorder_hm = iorder_1halo_integration
       INTEGER, PARAMETER :: iorder_df = iorder_delta
@@ -3299,18 +3310,12 @@ CONTAINS
          DO i = 1, n
             g = g_nu(hmod%nu(i), hmod)
             m = hmod%m(i)
-            f = hmod%f(i) ! TODO: Should this be in halo_DMONLY?
-            integrand(i) = g*((f**2)*wk_product(i))/m
+            integrand(i) = g*wk_product(i)/m
          END DO
 
          ! Carries out the integration
          p_1h = rhom*integrate_table(hmod%nu, integrand, n, 1, n, iorder_hm)
 
-      END IF
-
-      ! Add in the faux stellar component
-      IF(hmod%DMONLY_baryon_recipe) THEN
-         p_1h = p_1h+hmod%abar*hmod%Rh
       END IF
 
       ! Convert from P(k) -> Delta^2(k)
@@ -3479,10 +3484,11 @@ CONTAINS
       REAL :: r, fc
 
       IF(hmod%DMONLY_baryon_recipe) THEN        
-         r = (m/hmod%mbar)**hmod%nbar             ! If m>>m0 then r becomes large, if m<<m0 then r=0       
-         fc = cosm%Om_c/(cosm%Om_c+cosm%Om_b)     ! Halo fraction that is CDM (note that the denominator should exclude neutrinos)      
+         r = (m/hmod%mbar)**hmod%nbar                    ! If m>>m0 then r becomes large, if m<<m0 then r=0       
+         fc = cosm%Om_c/(cosm%Om_c+cosm%Om_b)            ! Halo fraction that is CDM (note that the denominator should exclude neutrinos)      
          DMONLY_halo_mass_fraction = fc+(1.-fc)*r/(1.+r) ! Remaining halo mass fraction
       ELSE
+         ! This should probably never be called
          DMONLY_halo_mass_fraction = 1.
       END IF
 
@@ -4205,7 +4211,7 @@ CONTAINS
          z = hmod%z
          IF (hmod%HMx_mode == 3) THEN
             HMx_alpha = alpha*((m/Mpiv)**alphap)*(1.+z)**alphaz
-         ELSE IF (in_array(hmod%HMx_mode, [5, 6])) THEN
+         ELSE IF (is_in_array(hmod%HMx_mode, [5, 6])) THEN
             HMx_alpha = (alpha+z*alphaz)*((m/Mpiv)**alphap)
          ELSE
             STOP 'HMx_ALPHA: Error, HMx_mode not specified correctly'
@@ -4540,7 +4546,7 @@ CONTAINS
          z = hmod%z
          IF (hmod%HMx_mode == 3) THEN
             HMx_Twhim = Twhim**((1.+z)**Twhimz)
-         ELSE IF (in_array(hmod%HMx_mode, [5, 6])) THEN
+         ELSE IF (is_in_array(hmod%HMx_mode, [5, 6])) THEN
             !HMx_Twhim = Twhim*(exp(Twhimz)**z)
             HMx_Twhim = Twhim*exp(Twhimz*z)
          ELSE
@@ -4782,7 +4788,7 @@ CONTAINS
       n = hmod%n
 
       ALLOCATE (hmod%log_m(n))
-      ALLOCATE (hmod%zc(n), hmod%m(n), hmod%c(n), hmod%rv(n), hmod%f(n))
+      ALLOCATE (hmod%zc(n), hmod%m(n), hmod%c(n), hmod%rv(n))
       ALLOCATE (hmod%nu(n), hmod%rr(n), hmod%sigf(n), hmod%sig(n))
       ALLOCATE (hmod%m500(n), hmod%r500(n), hmod%c500(n))
       ALLOCATE (hmod%m500c(n), hmod%r500c(n), hmod%c500c(n))
@@ -4794,7 +4800,6 @@ CONTAINS
       hmod%m = 0.
       hmod%c = 0.
       hmod%rv = 0.
-      hmod%f = 0.
       hmod%nu = 0.
       hmod%rr = 0.
       hmod%sigf = 0.
@@ -4826,7 +4831,7 @@ CONTAINS
 
       ! Deallocates look-up tables
       DEALLOCATE (hmod%log_m)
-      DEALLOCATE (hmod%zc, hmod%m, hmod%c, hmod%rv, hmod%f)
+      DEALLOCATE (hmod%zc, hmod%m, hmod%c, hmod%rv)
       DEALLOCATE (hmod%nu, hmod%rr, hmod%sigf, hmod%sig)
       DEALLOCATE (hmod%m500, hmod%r500, hmod%c500, hmod%m500c, hmod%r500c, hmod%c500c)
       DEALLOCATE (hmod%m200, hmod%r200, hmod%c200, hmod%m200c, hmod%r200c, hmod%c200c)
@@ -5769,11 +5774,16 @@ CONTAINS
          win_DMONLY = m*win_norm(k, rmin, rmax, rv, rss, p1, p2, irho)/comoving_matter_density(cosm)
       END IF
 
+      ! Improvements for dark-matter only models
       ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
       ! TODO: Should this really be computed here?
       ! TODO: Think man, think!
       IF (hmod%DMONLY_neutrino_correction) THEN
          win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
+      END IF
+      IF (hmod%DMONLY_baryon_recipe) THEN
+         win_DMONLY = win_DMONLY*DMONLY_halo_mass_fraction(m, hmod, cosm) ! Account for 'gas expulsion'
+         win_DMONLY = win_DMONLY+sqrt(hmod%abar*hmod%Rh) ! Add in 'stars'
       END IF
 
    END FUNCTION win_DMONLY
