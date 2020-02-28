@@ -322,7 +322,8 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interpolation_sigma = 3 ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interpolation_sigma = 3  ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: imeth_interpolation_sigma = 2  ! Method for sigma(R) interpolation
-   INTEGER, PARAMETER :: sigma_cold_store = flag_power_cold_unorm ! Which version of the cold spectrum should be tabulated
+   INTEGER, PARAMETER :: sigma_cold_store = flag_power_cold_unorm ! Which version of the cold spectrum should be tabulated (can be 0 for none)
+   !INTEGER, PARAMETER :: sigma_cold_store = 0           ! Which version of the cold spectrum should be tabulated (can be 0 for none)
 
    ! sigma_v(R) integration
    REAL, PARAMETER :: alpha_sigmaV = 3.     ! Exponent to increase integration speed
@@ -1100,9 +1101,15 @@ CONTAINS
             cosm%bump = 2
             cosm%A_bump = 0.16
             cosm%sigma_bump = 1.05
-            IF(icosmo == 66) cosm%k_bump = 0.05
-            IF(icosmo == 67) cosm%k_bump = 0.1
-            IF(icosmo == 68) cosm%k_bump = 1.
+            IF(icosmo == 66) THEN
+               cosm%k_bump = 0.05
+            ELSE IF(icosmo == 67) THEN
+               cosm%k_bump = 0.1
+            ELSE IF(icosmo == 68) THEN
+               cosm%k_bump = 1.
+            ELSE
+               STOP 'ASSIGN_HALOMOD: Error, something went wrong with bumps cosmology'
+            END IF
          END IF
       ELSE IF (icosmo == 60) THEN
          ! Boring cosmology but with exciting neutrino mass
@@ -3154,14 +3161,14 @@ CONTAINS
       cosm%nr_sigma = nr_sigma
 
       ! Allocate carrays
-      IF(cosm%scale_dependent_growth) THEN
+      IF (cosm%scale_dependent_growth) THEN
          cosm%na_sigma = na_sigma
          CALL fill_array(log(amin_sigma), log(amax_sigma), cosm%log_a_sigma, na_sigma)
          ALLOCATE (cosm%log_sigmaa(nr_sigma, na_sigma))
-         ALLOCATE (cosm%log_sigmaca(nr_sigma, na_sigma))   
+         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmaca(nr_sigma, na_sigma))   
       ELSE
          ALLOCATE (cosm%log_sigma(nr_sigma))
-         ALLOCATE (cosm%log_sigmac(nr_sigma))
+         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmac(nr_sigma))
       END IF
 
       ! Do we need to loop over both matter and cold or not?
@@ -3175,6 +3182,8 @@ CONTAINS
 
          IF (iflag == 1) flag = flag_power_total
          IF (iflag == 2) flag = sigma_cold_store
+
+         IF (flag == 0) CYCLE
 
          ! Do the calculations to fill the look-up tables
          ! Deal with scale-dependent/independent growth separately
@@ -3213,7 +3222,7 @@ CONTAINS
       END DO
 
       ! If the cold spectrum is trivial then the cold sigma is equal to the matter sigma
-      IF(cosm%trivial_cold) THEN
+      IF ((sigma_cold_store .NE. 0) .AND. cosm%trivial_cold) THEN
          IF (cosm%scale_dependent_growth) THEN
             cosm%log_sigmaca = cosm%log_sigmaa
          ELSE
@@ -3223,7 +3232,7 @@ CONTAINS
 
       ! Write useful information to screen
       IF (cosm%verbose) THEN
-         IF(cosm%scale_dependent_growth) THEN
+         IF (cosm%scale_dependent_growth) THEN
             WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigmaa(nr_sigma,na_sigma))
             WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigmaa(1,na_sigma))
          ELSE
@@ -3408,7 +3417,7 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = iorder_neff
 
       sig = sigma(r, a, flag, cosm) ! Note that this is cold for the moment
-      neff = -3.-2.*integrate_cosm(tmin, tmax, neff_integrand, r, a, flag, cosm, acc, iorder)/sig**2
+      neff = -2.*integrate_cosm(tmin, tmax, neff_integrand, r, a, flag, cosm, acc, iorder)/sig**2
 
    END FUNCTION neff
 
