@@ -5,8 +5,8 @@ set term qt dashed
 
 file = 'data/neff.dat'
 
-nmin=-3.
-nmax=1.
+nmin=0.
+nmax=4.
 
 rmin=-0.015
 rmax=0.015
