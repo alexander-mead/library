@@ -489,7 +489,7 @@ CONTAINS
       INTEGER :: i
 
       ! Names of pre-defined halo models
-      INTEGER, PARAMETER :: nhalomod = 64 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+      INTEGER, PARAMETER :: nhalomod = 65 ! Total number of pre-defined halo-model types (TODO: this is stupid)
       CHARACTER(len=256):: names(nhalomod)
       names(1) =  'HMcode (Mead et al. 2016)'
       names(2) =  'Basic halo-model (Two-halo term is linear)'
@@ -545,7 +545,7 @@ CONTAINS
       names(52) = 'Standard but with Mead (2017) spherical collapse'
       names(53) = 'HMcode (2016) with Nelder-Mead parameters'
       names(54) = 'Matter masquerading as DMONLY'
-      names(55) = 'HMx2020'
+      names(55) = 'HMx2020: Baseline'
       names(56) = 'HMx2020: Model that fits stars-stars AGN 7.6'
       names(57) = 'HMx2020: Model that fits stars-stars AGN 7.8'
       names(58) = 'HMx2020: Model that fits stars-stars AGN 8.0'   
@@ -555,6 +555,7 @@ CONTAINS
       names(62) = 'HMx2020: Temperature-dependent model for matter, CDM, gas, stars'
       names(63) = 'HMx2020: Temperature-dependent model for everything'
       names(64) = 'HMcode (2016) but with HMcode (2020) baryon model'
+      names(65) = 'HMx2020: Baseline, no response'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -815,7 +816,7 @@ CONTAINS
       hmod%dcnu = 0.262
 
       ! HMcode (2020) additional parameters
-      hmod%DMONLY_neutrino_correction = .FALSE.
+      hmod%DMONLY_neutrino_correction = .TRUE.
       hmod%DMONLY_baryon_recipe = .FALSE.
       hmod%mbar = 1e14
       hmod%nbar = 1.
@@ -1026,8 +1027,8 @@ CONTAINS
          WRITE (*, *)
       END IF
 
-      IF (ihm == 1 .OR. ihm == 7 .OR. ihm == 15 .OR. ihm == 28 .OR. &
-         ihm == 31 .OR. ihm == 50 .OR. ihm == 51 .OR. ihm == 53 .OR. ihm == 64) THEN
+      IF (ihm == 1 .OR. ihm == 7 .OR. ihm == 15 .OR. ihm == 28 .OR. ihm == 31 .OR. &
+         ihm == 50 .OR. ihm == 51 .OR. ihm == 53 .OR. ihm == 64) THEN
          !  1 - HMcode (Mead et al. 2016)
          !  7 - HMcode (Mead et al. 2015)
          ! 15 - HMcode (Mead et al. 2020)
@@ -1054,6 +1055,7 @@ CONTAINS
          hmod%flag_sigma_eta = flag_power_total
          hmod%flag_sigmaV_fdamp = flag_power_total
          hmod%flag_sigmaV_kstar = flag_power_total
+         hmod%DMONLY_neutrino_correction = .FALSE.
          IF (ihm == 7) THEN
             ! Mead et al. (2015)
             hmod%idc = 6
@@ -1089,6 +1091,7 @@ CONTAINS
             hmod%alp1 = 1.88
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
+            hmod%DMONLY_neutrino_correction = .TRUE.
          ELSE IF (ihm == 28) THEN
             ! One-parameter baryon model
             hmod%one_parameter_baryons = .TRUE.
@@ -1506,19 +1509,22 @@ CONTAINS
       ELSE IF (ihm == 54) THEN
          ! Such that hydro model masquerades as DMONLY
          hmod%frac_bound_gas = 3     ! Universal baryon fraction as bound gas
-         hmod%halo_static_gas = 1    ! NFW profile for bound gas
+         hmod%halo_static_gas = 4    ! NFW profile for bound gas
          hmod%Astar = 0.             ! No stars
          hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
          hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
       ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58 .OR. ihm == 59 .OR. &
-         ihm == 60 .OR. ihm == 61 .OR. ihm == 62 .OR. ihm == 63) THEN
-         ! HMx2020
+         ihm == 60 .OR. ihm == 61 .OR. ihm == 62 .OR. ihm == 63 .OR. ihm == 65) THEN
+         ! HMx2020: Baseline
          hmod%response = 1 ! Model should be calculated as a response
          hmod%halo_central_stars = 3 ! 3 - Delta function for central stars (otherwise it would be Fedeli)
          hmod%halo_satellite_stars = 1 ! 1 - NFW
          hmod%eta = -0.3
          hmod%HMx_mode = 5 ! HMx2020 possible M and z dependence of parameters
-         IF(ihm == 56) THEN
+         IF (ihm == 65) THEN
+            ! Not with response
+            hmod%response = 0
+         ELSE IF (ihm == 56) THEN
             ! AGN 7.6
             hmod%fix_star_concentration = .TRUE.
             hmod%Astar = 0.03538
@@ -5255,7 +5261,8 @@ CONTAINS
 
    REAL FUNCTION effective_index(hmod, cosm)
 
-      ! Power spectrum slope a the non-linear scale
+      ! Power spectrum effective slope a the non-linear scale
+      ! Defined as -3. + d ln sigma^2 / d ln r, so pertains to P(k) not Delta^2(k) in HMcode
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -5267,7 +5274,7 @@ CONTAINS
       IF(derivative) THEN
          effective_index = -3.-derivative_table(log(hmod%rnl), log(hmod%rr), log(hmod%sig**2), hmod%n, iorder, imeth)
       ELSE
-         effective_index = neff(hmod%rnl, hmod%a, hmod%flag_sigma, cosm)
+         effective_index = -3.+neff(hmod%rnl, hmod%a, hmod%flag_sigma, cosm)
       END IF
 
       ! For some bizarre cosmologies r_nl is very small, so almost no collapse has occured
