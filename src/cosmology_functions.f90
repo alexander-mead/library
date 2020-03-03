@@ -452,6 +452,8 @@ CONTAINS
       names(67) = 'Axel power bump k = 0.1h/Mpc'
       names(68) = 'Axel power bump k = 1h/Mpc'
       names(69) = 'Axel power no bump'
+      names(70) = 'WMAP9 (Extreme low AGN temperature)'
+      names(71) = 'WMAP9 (Extreme high AGN temperature)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -708,7 +710,7 @@ CONTAINS
          cosm%h = 0.6711
          cosm%ns =  0.9624
          cosm%sig8 = 0.8341
-      ELSE IF (icosmo == 4 .OR. icosmo == 61 .OR. icosmo == 62) THEN
+      ELSE IF (icosmo == 4 .OR. icosmo == 61 .OR. icosmo == 62 .OR. icosmo == 70 .OR. icosmo == 71) THEN
          ! WMAP9 (BAHAMAS; 1712.02411; no neutrinos)
          cosm%h = 0.7000
          cosm%Om_b = 0.0463
@@ -721,15 +723,21 @@ CONTAINS
          Xi = 1.08
          Xe = 1.17
          cosm%mue = cosm%mup*(Xe+Xi)/Xe
-         IF(icosmo == 4) THEN
+         IF (icosmo == 4) THEN
             ! AGN tuned
             cosm%Theat = 10**7.8
-         ELSE IF(icosmo == 61) THEN
+         ELSE IF (icosmo == 61) THEN
             ! AGN low
             cosm%Theat = 10**7.6
-         ELSE IF(icosmo == 62) THEN
+         ELSE IF (icosmo == 62) THEN
             ! AGN high
             cosm%Theat = 10**8.0
+         ELSE IF (icosmo == 70) THEN
+            ! AGN extreme low
+            cosm%Theat = 10**7.0
+         ELSE IF (icosmo == 71) THEN
+            ! AGN extreme high
+            cosm%Theat = 10**8.6
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly for AGN temperature'
          END IF
