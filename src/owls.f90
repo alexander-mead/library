@@ -401,6 +401,8 @@ CONTAINS
    SUBROUTINE BAHAMAS_scale_factors(a, n)
 
       USE cosmology_functions
+
+      ! Returns an array of all the BAHAMAS scale factors for a given set of n
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
       INTEGER, INTENT(IN) :: n
