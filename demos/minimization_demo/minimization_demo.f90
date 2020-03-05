@@ -1,43 +1,51 @@
 PROGRAM minimization_demo
 
    USE minimization
+   USE basic_operations
 
    IMPLICIT NONE 
    INTEGER :: imode  
    LOGICAL, PARAMETER :: verbose_examples = .TRUE.
 
-   WRITE(*, *)
-   WRITE(*, *) 'Chooose example'
-   WRITE(*, *) '1 - Nelder-Mead 1D'
-   WRITE(*, *) '2 - Nelder-Mead 2D'
-   WRITE(*, *) '3 - Gradient minimization 1D'
-   WRITE(*, *) '4 - Gradient minimization 2D'
-   WRITE(*, *) '5 - Grid minimization 1D'
-   WRITE(*, *) '6 - Quadratic minimization 1D'
-   WRITE(*, *) '7 - Gradient minimization 1D'
-   WRITE(*, *) '8 - Adaptive minimization 1D'
-   WRITE(*, *) '9 - Adaptive minimization 3D'
-   READ(*, *) imode
-   WRITE(*, *)
+   CALL read_command_argument(1, imode, '', 0)
 
-   IF(imode == 1) THEN     
+   IF (imode == 0) THEN
+      WRITE(*, *)
+      WRITE(*, *) 'Chooose example'
+      WRITE(*, *) ' 1 - Nelder-Mead 1D'
+      WRITE(*, *) ' 2 - Nelder-Mead 2D'
+      WRITE(*, *) ' 3 - Gradient minimization 1D'
+      WRITE(*, *) ' 4 - Gradient minimization 2D'
+      WRITE(*, *) ' 5 - Grid minimization 1D'
+      WRITE(*, *) ' 6 - Quadratic minimization 1D'
+      WRITE(*, *) ' 7 - Gradient minimization 1D'
+      WRITE(*, *) ' 8 - Adaptive minimization 1D'
+      WRITE(*, *) ' 9 - Adaptive minimization 3D'
+      WRITE(*, *) '10 - Nelder-Mead multiple 2D'
+      READ(*, *) imode
+      WRITE(*, *)
+   END IF
+
+   IF (imode == 1) THEN     
       CALL Nelder_Mead_example_1D(verbose_examples)
-   ELSE IF(imode == 2) THEN
+   ELSE IF (imode == 2) THEN
       CALL Nelder_Mead_example_2D(verbose_examples)
-   ELSE IF(imode == 3) THEN
+   ELSE IF (imode == 3) THEN
       CALL gradient_minimization_example_1D()
-   ELSE IF(imode == 4) THEN
+   ELSE IF (imode == 4) THEN
       CALL gradient_minimization_example_2D()
-   ELSE IF(imode == 5) THEN
+   ELSE IF (imode == 5) THEN
       CALL grid_minimization_example_1D()
-   ELSE IF(imode == 6) THEN
+   ELSE IF (imode == 6) THEN
       CALL quadratic_minimization_example_1D()
-   ELSE IF(imode == 7) THEN
+   ELSE IF (imode == 7) THEN
       CALL gradient_minimization_example_1D()
-   ELSE IF(imode == 8) THEN
+   ELSE IF (imode == 8) THEN
       CALL adaptive_minimization_example_1D()
-   ELSE IF(imode == 9) THEN
+   ELSE IF (imode == 9) THEN
       CALL adaptive_minimization_example_3D()
+   ELSE IF (imode == 10) THEN
+      CALL Nelder_Mead_multiple_example_2D(verbose_examples)
    ELSE
       STOP 'MINIMIZATION_DEMO: Error, imode not specified correctly'
    END IF
@@ -48,8 +56,9 @@ PROGRAM minimization_demo
 
       LOGICAL, INTENT(IN) :: verbose
       REAL, ALLOCATABLE :: x(:), dx(:)
+      REAL :: fom
       INTEGER :: n
-      REAL, PARAMETER :: tol = 1e-5
+      REAL, PARAMETER :: tol = 1e-8
 
       n=1
       ALLOCATE(x(n), dx(n))
@@ -61,7 +70,7 @@ PROGRAM minimization_demo
       WRITE(*, *) 'x:', x(1)
       WRITE(*, *)
 
-      CALL Nelder_Mead(x, dx, n, func_1D, tol, verbose)
+      CALL Nelder_Mead(x, dx, n, fom, func_1D, tol, verbose)
       WRITE(*, *) 'Minimization found at'
       WRITE(*, *) 'x:', x(1)
       WRITE(*, *)
@@ -82,8 +91,9 @@ PROGRAM minimization_demo
 
       LOGICAL, INTENT(IN) :: verbose
       REAL, ALLOCATABLE :: x(:), dx(:)
+      REAL :: fom
       INTEGER :: n
-      REAL, PARAMETER :: tol = 1e-5
+      REAL, PARAMETER :: tol = 1e-8
 
       n=2
       ALLOCATE(x(n), dx(n))
@@ -98,13 +108,44 @@ PROGRAM minimization_demo
       WRITE(*, *) 'y:', x(2)
       WRITE(*, *)
 
-      CALL Nelder_Mead(x, dx, n, func_2D, tol, verbose)
+      CALL Nelder_Mead(x, dx, n, fom, func_2D, tol, verbose)
       WRITE(*, *) 'Minimization found at'
       WRITE(*, *) 'x:', x(1)
       WRITE(*, *) 'y:', x(2)
       WRITE(*, *)
 
    END SUBROUTINE Nelder_Mead_example_2D
+
+   SUBROUTINE Nelder_Mead_multiple_example_2D(verbose)
+
+      LOGICAL, INTENT(IN) :: verbose
+      REAL, ALLOCATABLE :: x(:), xmin(:), xmax(:), dx(:)
+      REAL :: fom
+      INTEGER :: n
+      REAL, PARAMETER :: tol = 1e-8
+      INTEGER, PARAMETER :: m = 10
+
+      n=2
+      ALLOCATE(x(n), xmin(n), xmax(n), dx(n))
+
+      ! Initial guess
+      x = 0.
+      xmin = 0.
+      xmax = 6.
+      dx(1) = 1.
+      dx(2) = 1.
+      WRITE(*, *) 'Initial guess'
+      WRITE(*, *) 'x:', x(1)
+      WRITE(*, *) 'y:', x(2)
+      WRITE(*, *)
+
+      CALL Nelder_Mead_multiple(x, xmin, xmax, dx, n, fom, m, func_2D, tol, verbose)
+      WRITE(*, *) 'Minimization found at'
+      WRITE(*, *) 'x:', x(1)
+      WRITE(*, *) 'y:', x(2)
+      WRITE(*, *)
+
+   END SUBROUTINE Nelder_Mead_multiple_example_2D
 
    REAL FUNCTION func_2D(x, n)
 

@@ -7,6 +7,7 @@ MODULE minimization
    PRIVATE
 
    PUBLIC :: Nelder_Mead
+   PUBLIC :: Nelder_Mead_multiple
    PUBLIC :: adaptive_minimization_1D
    PUBLIC :: adaptive_minimization_3D
    PUBLIC :: grid_minimization_1D
@@ -22,7 +23,53 @@ MODULE minimization
 
    CONTAINS
 
-   SUBROUTINE Nelder_Mead(x, dx, n, f, tol, verbose)
+   SUBROUTINE Nelder_Mead_multiple(x, xmin, xmax, dx, n, fom, m, f, tol, verbose)
+
+      USE random_numbers
+      IMPLICIT NONE
+      REAL, INTENT(OUT) :: x(n)
+      REAL, INTENT(IN) :: xmin(n)
+      REAL, INTENT(IN) :: xmax(n)
+      REAL, INTENT(IN) :: dx(n)
+      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(OUT) :: fom
+      INTEGER, INTENT(IN) :: m
+      REAL, EXTERNAL :: f
+      REAL, INTENT(IN) :: tol
+      LOGICAL, INTENT(IN) :: verbose
+      REAL :: y(n), fy
+      INTEGER :: i, j
+
+      INTERFACE
+         FUNCTION f(x, n)
+            REAL, INTENT(IN) :: x(n)
+            INTEGER, INTENT(IN) :: n
+         END FUNCTION f
+      END INTERFACE
+
+      fom = HUGE(fom)
+      DO i = 1, m
+
+         DO j = 1, n
+            y(j) = random_uniform(xmin(j), xmax(j))
+         END DO
+
+         CALL Nelder_Mead(y, dx, n, fy, f, tol, verbose)
+
+         IF (fy < fom) THEN
+            x = y
+            fom = fy
+         END IF
+
+      END DO
+
+      WRITE (*, *) 'NELDER_MEAD_MULTIPLE: Best fit:', fom, (x(j), j = 1, n)
+      WRITE (*, *)
+
+
+   END SUBROUTINE Nelder_Mead_multiple
+
+   SUBROUTINE Nelder_Mead(x, dx, n, fom, f, tol, verbose)
 
       ! Nelder-Mead simplex for fiding minima of a function
       ! Coded up using https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
@@ -30,6 +77,7 @@ MODULE minimization
       REAL, INTENT(INOUT) :: x(n)
       REAL, INTENT(IN) :: dx(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(OUT) :: fom
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: tol
       LOGICAL, INTENT(IN) :: verbose
@@ -63,9 +111,10 @@ MODULE minimization
          ff(i) = f(xx(i, :), n)
       END DO
 
+      ! Start the minimization
       ii = 0
       operation = 'Starting'
-      WRITE(nstring,*) n+1
+      WRITE(nstring, *) n+1
       DO
 
          ii = ii+1
@@ -73,10 +122,10 @@ MODULE minimization
          ! Sort the points from best to worst
          CALL Nelder_Mead_sort(xx, ff, n)
          
-         IF(verbose) WRITE(*, '(A16,I10,'//trim(nstring)//'F15.7)') TRIM(operation), ii, ff(1), (xx(1, i), i = 1, n)
+         IF (verbose) WRITE(*, '(A16,I10,'//trim(nstring)//'F15.7)') TRIM(operation), ii, ff(1), (xx(1, i), i = 1, n)
 
          ! Decide on convergence
-         IF(Nelder_Mead_termination(ff, n, tol)) THEN
+         IF (Nelder_Mead_termination(ff, n, tol)) THEN
             DO i = 1, n
                x(i) = xx(1, i)
             END DO
@@ -134,16 +183,17 @@ MODULE minimization
             END IF
          END IF
 
-         ! ! Shrinkage
-         ! DO i = 2, n+1
-         !    xx(i, :) = xx(1, :)+sigma*(xx(i, :)-xx(1, :))
-         !    ff(i) = f(xx(i, :), n)
-         ! END DO
-
       END DO
 
       ! Report the minimization point
       x = xx(1, :)
+      fom = ff(1)
+
+      IF (verbose) THEN
+         !WRITE(*, '(A16,I10,'//trim(nstring)//'F15.7)') 'Best', ii, fom, (x(1, i), i = 1, n)
+         WRITE(*, *) 'NELDER_MEAD: Done'
+         WRITE(*, *)
+      END IF
 
    END SUBROUTINE Nelder_Mead
 
