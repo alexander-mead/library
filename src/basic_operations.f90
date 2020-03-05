@@ -3,7 +3,7 @@ MODULE basic_operations
    ! TODO: Rename basic_operations -> basic_operations
 
    IMPLICIT NONE
-
+ 
    PRIVATE
 
    PUBLIC :: fix_minimum
@@ -27,6 +27,7 @@ MODULE basic_operations
    INTERFACE read_command_argument
       MODULE PROCEDURE read_command_argument_real
       MODULE PROCEDURE read_command_argument_integer
+      MODULE PROCEDURE read_command_argument_logical
       MODULE PROCEDURE read_command_argument_character
    END INTERFACE read_command_argument
 
@@ -79,57 +80,102 @@ CONTAINS
 
    END SUBROUTINE fix_maximum
 
-   SUBROUTINE read_command_argument_real(i, x, desc)
+   SUBROUTINE read_command_argument_real(i, x, desc, def)
 
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       REAL, INTENT(OUT) :: x               ! Real number to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
+      REAL, INTENT(IN), OPTIONAL :: def
       CHARACTER(len=256) :: word
 
       CALL get_command_argument(i, word)
       IF (word == '') THEN
-         WRITE (*, *) 'READ_COMMAND_ARGUMENT_REAL: Missing command-line argument number:', i
-         WRITE (*, *) 'READ_COMMAND_ARGUMENT_REAL: Missing command-line argument: ', TRIM(desc)
-         STOP
+         IF (present(def)) THEN
+            x = def
+         ELSE
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_REAL: Missing command-line argument number:', i
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_REAL: Missing command-line argument: ', TRIM(desc)
+            STOP
+         END IF
       ELSE
          READ (word, *) x
       END IF
 
    END SUBROUTINE read_command_argument_real
 
-   SUBROUTINE read_command_argument_integer(i, x, desc)
+   SUBROUTINE read_command_argument_integer(i, x, desc, def)
 
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       INTEGER, INTENT(OUT) :: x            ! Real number to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
+      INTEGER, INTENT(IN), OPTIONAL :: def
       CHARACTER(len=256) :: word
 
       CALL get_command_argument(i, word)
       IF (word == '') THEN
-         WRITE (*, *) 'READ_COMMAND_ARGUMENT_INTEGER: Missing command-line argument:', i
-         WRITE (*, *) 'READ_COMMAND_ARGUMENT_INTEGER: Missing command-line argument: ', TRIM(desc)
-         STOP
+         IF (present(def)) THEN
+            x = def
+         ELSE
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_INTEGER: Missing command-line argument:', i
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_INTEGER: Missing command-line argument: ', TRIM(desc)
+            STOP
+         END IF
       ELSE
          READ (word, *) x
       END IF
 
    END SUBROUTINE read_command_argument_integer
 
-   SUBROUTINE read_command_argument_character(i, x, desc)
+   SUBROUTINE read_command_argument_logical(i, x, desc, def)
+
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: i             ! Position of command-line argument
+      LOGICAL, INTENT(OUT) :: x            ! Real number to be assigned command-line argument
+      CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
+      LOGICAL, INTENT(IN), OPTIONAL :: def
+      CHARACTER(len=256) :: word
+
+      CALL get_command_argument(i, word)
+      IF (word == '') THEN
+         IF (present(def)) THEN
+            x = def
+         ELSE
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_LOGICAL: Missing command-line argument:', i
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_LOGICAL: Missing command-line argument: ', TRIM(desc)
+            STOP
+         END IF
+      ELSE
+         IF (word == 'TRUE') THEN
+            x = .TRUE.
+         ELSE IF (word == 'FALSE') THEN
+            x = .FALSE.
+         ELSE
+            STOP 'READ_COMMAND_ARGUMENT_LOGICAL: Error, should be either TRUE or FALSE'
+         END IF
+      END IF
+
+   END SUBROUTINE read_command_argument_logical
+
+   SUBROUTINE read_command_argument_character(i, x, desc, def)
 
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       CHARACTER(len=256), INTENT(OUT) :: x ! String to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
+      CHARACTER(len=256), INTENT(IN), OPTIONAL :: def
       CHARACTER(len=256) :: word
 
       CALL get_command_argument(i, word)
       IF (word == '') THEN
-         WRITE (*, *) 'READ_COMMAND_ARGUMENT_CHARACTER: Missing command-line argument:', i
-         WRITE (*, *) 'READ_COMMAND_ARGUMENT_CHARACTER: Missing command-line argument: ', TRIM(desc)
-         STOP
+         IF (present(def)) THEN
+            x = def
+         ELSE
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_CHARACTER: Missing command-line argument:', i
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_CHARACTER: Missing command-line argument: ', TRIM(desc)
+            STOP
+         END IF
       ELSE
          x = word
       END IF
