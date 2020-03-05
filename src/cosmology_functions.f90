@@ -1237,7 +1237,10 @@ CONTAINS
 
       ! Check neutrino mass fraction is not too high
       IF (cosm%f_nu > 0.5) STOP 'INIT_COSMOLOGY: Error, neutrino mass fraction is too high'
-      IF ((cosm%m_nu .NE. 0.) .AND. cosm%a_nu > 0.2) STOP 'INIT_COSMOLOGY: Error, neutrinos are too light'
+      IF ((cosm%m_nu .NE. 0.) .AND. cosm%a_nu > 0.2) THEN
+         WRITE(*, *) 'INIT_COSMOLOGY: Neutrino mass [eV]:', cosm%m_nu
+         STOP 'INIT_COSMOLOGY: Error, neutrinos are too light'
+      END IF
 
       ! Decide on scale-dependent growth and cold spectrum
       cosm%scale_dependent_growth = .FALSE.
@@ -1836,7 +1839,7 @@ CONTAINS
       ! Comoving matter density [(Msun/h) / (Mpc/h)^3]
       ! Not a function of redshift, constant value throughout time
       IMPLICIT NONE
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       comoving_matter_density = critical_density_cos*cosm%Om_m
 
@@ -1848,7 +1851,7 @@ CONTAINS
       ! Proportional to a^-3 always
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       physical_matter_density = comoving_matter_density(cosm)*a**(-3)
 
@@ -2065,7 +2068,7 @@ CONTAINS
       ! TODO: Account for radiation -> matter transition properly
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       IF (a > cosm%a_nu) THEN
          w_nu = 0.
@@ -2080,7 +2083,7 @@ CONTAINS
       ! Variations of the dark energy equation-of-state parameter w(a)
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: p1, p2, p3, p4
       DOUBLE PRECISION :: f1, f2, f3, f4
       REAL :: z
@@ -2230,7 +2233,7 @@ CONTAINS
       ! TODO: Account for radiation -> matter transition properly
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       IF (a > cosm%a_nu) THEN
          X_nu = a**(-3)
