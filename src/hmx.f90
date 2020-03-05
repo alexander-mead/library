@@ -183,6 +183,7 @@ MODULE HMx
    PUBLIC :: param_HMcode_mbar
    PUBLIC :: param_HMcode_nbar
    PUBLIC :: param_HMcode_abar
+   PUBLIC :: param_HMcode_sbar
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -264,7 +265,7 @@ MODULE HMx
 
       ! HMcode parameters
       REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1, Dvnu, dcnu
-      REAL :: mbar, nbar, abar
+      REAL :: mbar, nbar, abar, sbar
       LOGICAL :: DMONLY_baryon_recipe, DMONLY_neutrino_correction
 
       ! Halo types
@@ -473,9 +474,10 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_mbar = 52
    INTEGER, PARAMETER :: param_HMcode_nbar = 53
    INTEGER, PARAMETER :: param_HMcode_abar = 54
-   INTEGER, PARAMETER :: param_n = 54
+   INTEGER, PARAMETER :: param_HMcode_sbar = 55
+   INTEGER, PARAMETER :: param_n = 55
 
-   INTEGER, PARAMETER :: ihm_hmcode = 1
+   INTEGER, PARAMETER :: ihm_hmcode_2016 = 1
    INTEGER, PARAMETER :: ihm_hmcode_CAMB = 51
 
 CONTAINS
@@ -820,7 +822,8 @@ CONTAINS
       hmod%DMONLY_baryon_recipe = .FALSE.
       hmod%mbar = 1e14
       hmod%nbar = 1.
-      hmod%abar = 0.
+      hmod%abar = 1.
+      hmod%sbar = 0.
 
       ! ~infinite redshift for Dolag correction
       hmod%zinf_Dolag = 100.
@@ -867,8 +870,8 @@ CONTAINS
       hmod%betaz = 0.0
 
       ! Low-gas-content concentration modification
-      hmod%eps = 0.         
-      hmod%epsz = 0.0 
+      hmod%eps = 0.0
+      hmod%epsz = 0.0
       hmod%eps_array = hmod%eps
       hmod%epsz_array = hmod%epsz
       hmod%A_eps = -0.289
@@ -1070,11 +1073,11 @@ CONTAINS
             hmod%dcnu = 0.
             hmod%flag_sigma_fdamp = flag_power_total ! Used in Mead et al. (2015) only
          ELSE IF (ihm == 15) THEN
-            ! Mead et al. (2020)
+            ! HMcode 2020 (Mead et al. 2020)
             hmod%i1hdamp = 3   ! k^4 at large scales for one-halo term
             hmod%ip2h = 3      ! Linear theory with damped wiggles
             hmod%i2hdamp = 2   ! Change back to Mead (2015) model for two-halo damping
-            hmod%flag_sigma = flag_power_total ! This seemed to produce better neutrino results
+            hmod%flag_sigma = flag_power_cold_unorm ! This seemed to produce better neutrino results
             hmod%zinf_Dolag = 100.
             ! Nelder-Mead parameters
             hmod%Dv0 = 411.
@@ -1126,6 +1129,7 @@ CONTAINS
          ELSE IF (ihm == 64) THEN
             ! 64 - HMcode 2016 but with 2020 baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
+            !hmod%sbar = 1e-3
          END IF
       ELSE IF (ihm == 2) THEN
          ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686))
@@ -2076,6 +2080,7 @@ CONTAINS
             WRITE (*, fmt=fmt) 'log10(M_bar) [Msun/h]:', log10(hmod%mbar)
             WRITE (*, fmt=fmt) 'n_bar:', hmod%nbar
             WRITE (*, fmt=fmt) 'a_bar:', hmod%abar
+            WRITE (*, fmt=fmt) 's_bar:', hmod%sbar
          END IF
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMcode variables'
@@ -2626,7 +2631,7 @@ CONTAINS
       INTEGER, ALLOCATABLE :: iifield(:)
       TYPE(halomod) :: hmcode
       INTEGER, PARAMETER :: dmonly(1) = field_dmonly ! Needed because it needs to be an array(1)
-      INTEGER :: ihmcode = ihm_hmcode                ! Would like to be a parameter
+      INTEGER :: ihmcode = ihm_hmcode_2016           ! Would like to be a parameter
 
       ! Make a new indexing scheme for only the unique arrays
       CALL unique_index(ifield, nf, iifield, nnf, match)
@@ -2948,8 +2953,7 @@ CONTAINS
          i_dmonly = array_position(field_dmonly, fields, nf)
          IF (i_dmonly .NE. 0) THEN
             DO i = 1, hmod%n
-               wk(i, i_dmonly) = wk(i, i_dmonly)-sqrt(hmod%abar*hmod%Rh)
-               wk(i, i_dmonly) = wk(i, i_dmonly)/DMONLY_halo_mass_fraction(hmod%m(i), hmod, cosm)
+               wk(i, i_dmonly) = unbaryonify_wk(wk(i, i_dmonly), hmod%m(i), hmod, cosm)
             END DO
          END IF
       END IF
@@ -5789,11 +5793,48 @@ CONTAINS
          win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
       END IF
       IF (hmod%DMONLY_baryon_recipe) THEN
-         win_DMONLY = win_DMONLY*DMONLY_halo_mass_fraction(m, hmod, cosm) ! Account for 'gas expulsion'
-         win_DMONLY = win_DMONLY+sqrt(hmod%abar*hmod%Rh) ! Add in 'stars'
+         win_DMONLY = baryonify_wk(win_DMONLY, m, hmod, cosm)
       END IF
 
    END FUNCTION win_DMONLY
+
+   REAL FUNCTION baryonify_wk(wk, m, hmod, cosm)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: wk
+      REAL, INTENT(IN) :: m
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: wkn
+
+      !STOP 'BARYONIFY_WK: The star model is just plain wrong here'
+
+      wkn = wk
+      wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm)  ! Account for 'gas expulsion'
+      wkn = wkn*hmod%abar                                 ! Multiplicative amplitude correction
+      wkn = wkn+hmod%sbar*m/comoving_matter_density(cosm) ! Add in 'stars'
+
+      baryonify_wk = wkn
+
+   END FUNCTION baryonify_wk
+
+   REAL FUNCTION unbaryonify_wk(wk, m, hmod, cosm)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: wk
+      REAL, INTENT(IN) :: m
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: wko
+
+      wko = wk
+      wko = wko-hmod%sbar*m/comoving_matter_density(cosm) ! Subtract 'stars'
+      wko = wko/hmod%abar                                 ! Divide out amplitude correction
+      wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm)  ! Remove 'gas expulsion'
+
+      unbaryonify_wk = wko
+
+   END FUNCTION unbaryonify_wk
 
    REAL FUNCTION win_matter(real_space, k, m, rv, rs, hmod, cosm)
 
