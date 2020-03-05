@@ -88,12 +88,16 @@ MODULE array_operations
       PROCEDURE if_allocated_deallocate_real_1D
       PROCEDURE if_allocated_deallocate_real_2D
       PROCEDURE if_allocated_deallocate_real_3D
-      PROCEDURE if_allocated_deallocate_int_1D
+      PROCEDURE if_allocated_deallocate_integer_1D
+      PROCEDURE if_allocated_deallocate_logical_1D
+      PROCEDURE if_allocated_deallocate_character_1D
    END INTERFACE if_allocated_deallocate
 
    INTERFACE safe_allocate
       PROCEDURE safe_allocate_real
-      PROCEDURE safe_allocate_int
+      PROCEDURE safe_allocate_integer
+      PROCEDURE safe_allocate_logical
+      PROCEDURE safe_allocate_character
    END INTERFACE safe_allocate
 
 CONTAINS
@@ -149,7 +153,7 @@ CONTAINS
 
    END SUBROUTINE safe_allocate_real
 
-   SUBROUTINE safe_allocate_int(i, n)
+   SUBROUTINE safe_allocate_integer(i, n)
 
       IMPLICIT NONE
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: i(:)
@@ -158,7 +162,29 @@ CONTAINS
       CALL if_allocated_deallocate(i)
       ALLOCATE(i(n))
 
-   END SUBROUTINE safe_allocate_int
+   END SUBROUTINE safe_allocate_integer
+
+   SUBROUTINE safe_allocate_logical(l, n)
+
+      IMPLICIT NONE
+      LOGICAL, ALLOCATABLE, INTENT(INOUT) :: l(:)
+      INTEGER, INTENT(IN) :: n
+
+      CALL if_allocated_deallocate(l)
+      ALLOCATE(l(n))
+
+   END SUBROUTINE safe_allocate_logical
+
+   SUBROUTINE safe_allocate_character(c, n)
+
+      IMPLICIT NONE
+      CHARACTER(len=*), ALLOCATABLE, INTENT(INOUT) :: c(:)
+      INTEGER, INTENT(IN) :: n
+
+      CALL if_allocated_deallocate(c)
+      ALLOCATE(c(n))
+
+   END SUBROUTINE safe_allocate_character
 
    SUBROUTINE if_allocated_deallocate_real_1D(x)
 
@@ -187,14 +213,32 @@ CONTAINS
 
    END SUBROUTINE if_allocated_deallocate_real_3D
 
-   SUBROUTINE if_allocated_deallocate_int_1D(i)
+   SUBROUTINE if_allocated_deallocate_integer_1D(i)
 
       IMPLICIT NONE
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: i(:)
 
       IF(ALLOCATED(i)) DEALLOCATE(i)
 
-   END SUBROUTINE if_allocated_deallocate_int_1D
+   END SUBROUTINE if_allocated_deallocate_integer_1D
+
+   SUBROUTINE if_allocated_deallocate_logical_1D(l)
+
+      IMPLICIT NONE
+      LOGICAL, ALLOCATABLE, INTENT(INOUT) :: l(:)
+
+      IF(ALLOCATED(l)) DEALLOCATE(l)
+
+   END SUBROUTINE if_allocated_deallocate_logical_1D
+
+   SUBROUTINE if_allocated_deallocate_character_1D(c)
+
+      IMPLICIT NONE
+      CHARACTER(len=*), ALLOCATABLE, INTENT(INOUT) :: c(:)
+
+      IF(ALLOCATED(c)) DEALLOCATE(c)
+
+   END SUBROUTINE if_allocated_deallocate_character_1D
 
    SUBROUTINE smooth_array(x, n, m)
 
