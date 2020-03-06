@@ -95,7 +95,7 @@ CONTAINS
             x = def
          ELSE
             WRITE (*, *) 'READ_COMMAND_ARGUMENT_REAL: Missing command-line argument number:', i
-            WRITE (*, *) 'READ_COMMAND_ARGUMENT_REAL: Missing command-line argument: ', TRIM(desc)
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_REAL: ', TRIM(desc)
             STOP
          END IF
       ELSE
@@ -119,7 +119,7 @@ CONTAINS
             x = def
          ELSE
             WRITE (*, *) 'READ_COMMAND_ARGUMENT_INTEGER: Missing command-line argument:', i
-            WRITE (*, *) 'READ_COMMAND_ARGUMENT_INTEGER: Missing command-line argument: ', TRIM(desc)
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_INTEGER: ', TRIM(desc)
             STOP
          END IF
       ELSE
@@ -143,7 +143,7 @@ CONTAINS
             x = def
          ELSE
             WRITE (*, *) 'READ_COMMAND_ARGUMENT_LOGICAL: Missing command-line argument:', i
-            WRITE (*, *) 'READ_COMMAND_ARGUMENT_LOGICAL: Missing command-line argument: ', TRIM(desc)
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_LOGICAL: ', TRIM(desc)
             STOP
          END IF
       ELSE
@@ -162,9 +162,9 @@ CONTAINS
 
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
-      CHARACTER(len=256), INTENT(OUT) :: x ! String to be assigned command-line argument
+      CHARACTER(len=*), INTENT(OUT) :: x ! String to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
-      CHARACTER(len=256), INTENT(IN), OPTIONAL :: def
+      CHARACTER(len=*), INTENT(IN), OPTIONAL :: def
       CHARACTER(len=256) :: word
 
       CALL get_command_argument(i, word)
@@ -173,11 +173,11 @@ CONTAINS
             x = def
          ELSE
             WRITE (*, *) 'READ_COMMAND_ARGUMENT_CHARACTER: Missing command-line argument:', i
-            WRITE (*, *) 'READ_COMMAND_ARGUMENT_CHARACTER: Missing command-line argument: ', TRIM(desc)
+            WRITE (*, *) 'READ_COMMAND_ARGUMENT_CHARACTER: ', TRIM(desc)
             STOP
          END IF
       ELSE
-         x = word
+         x = trim(word)
       END IF
 
    END SUBROUTINE read_command_argument_character
