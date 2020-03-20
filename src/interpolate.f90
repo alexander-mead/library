@@ -807,9 +807,12 @@ CONTAINS
       ! Interpolates array 'x1-y1' onto new 'x' values x2 and output y2
       ! TODO: This could be more efficient because it currently does 'find integer' every time
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x1(n1), y1(n1), x2(n2)
+      REAL, INTENT(IN) :: x1(n1)
+      REAL, INTENT(IN) :: y1(n1)
+      INTEGER, INTENT(IN) :: n1
+      REAL, INTENT(IN) :: x2(n2)
       REAL, INTENT(OUT) :: y2(n2)
-      INTEGER, INTENT(IN) :: n1, n2
+      INTEGER, INTENT(IN) :: n2
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
       INTEGER, INTENT(IN) :: iinterp
@@ -820,5 +823,35 @@ CONTAINS
       END DO
 
    END SUBROUTINE interpolate_array
+
+   ! SUBROUTINE rebin_interpolate(x, y, xmin, xmax, n1, n2)
+
+   !    IMPLICIT NONE
+   !    REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
+   !    REAL, ALLOCATABLE, INTENT(INOUT) :: y(:)
+   !    REAL, INTENT(IN) :: xmin
+   !    REAL, INTENT(IN) :: xmax
+   !    INTEGER, INTENT(IN) :: n1
+   !    INTEGER, INTENT(IN) :: n2
+
+   !    ! Rebin on a log-linear axis
+   !    IF (rebin) THEN
+   !       kmin = kmin_rebin
+   !       kmax = kmax_rebin
+   !       nk = nk_rebin
+   !       CALL fill_array(log(kmin), log(kmax), k2, nk)
+   !       k2 = exp(k2)
+   !       ALLOCATE (P2(nk))
+   !       CALL interpolate_array(log(k), log(P), n, log(k2), P2, nk, 3, 3, 2)
+   !       P2 = exp(P2)
+   !       DEALLOCATE (k, P)
+   !       ALLOCATE (k(nk), P(nk))
+   !       k = k2
+   !       P = P2
+   !       n = nk
+   !       DEALLOCATE (k2, P2)
+   !    END IF
+
+   ! END SUBROUTINE rebin_interpolate
 
 END MODULE interpolate
