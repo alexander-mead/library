@@ -10,6 +10,7 @@ MODULE owls_extras
    PUBLIC :: BAHAMAS_get_ks
    PUBLIC :: VD20_get_power
    PUBLIC :: VD20_get_response
+   PUBLIC :: VD20_get_more_power
 
    INTEGER, PARAMETER :: computer_mac = 1
    INTEGER, PARAMETER :: computer_linux = 2
@@ -390,6 +391,77 @@ CONTAINS
 
    END SUBROUTINE cut_kmax
 
+   SUBROUTINE VD20_get_more_power(k, Pk, Ek, nk, z, name, cosm, response, kmin, kmax, rebin)
+
+      USE basic_operations
+      USE array_operations
+      USE interpolate
+      USE cosmology_functions
+      USE HMx
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Ek(:)
+      INTEGER, INTENT(OUT) :: nk
+      REAL, INTENT(IN) :: z
+      CHARACTER(len=*), INTENT(IN) :: name
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      LOGICAL, OPTIONAL, INTENT(IN) :: response
+      REAL, OPTIONAL, INTENT(IN) :: kmin
+      REAL, OPTIONAL, INTENT(IN) :: kmax
+      LOGICAL, OPTIONAL, INTENT(IN) :: rebin
+      REAL, ALLOCATABLE :: Pk_HMcode(:, :), a(:), k2(:), Pk2(:)
+
+      INTEGER, PARAMETER :: na = 1
+      LOGICAL, PARAMETER :: verbose = .FALSE.
+      INTEGER, PARAMETER :: nk_rebin = 128
+      INTEGER, PARAMETER :: iorder_rebin = 3
+      INTEGER, PARAMETER :: ifind_rebin = 3
+      INTEGER, PARAMETER :: iinterp_rebin = 2
+
+      IF (present_and_correct(response)) THEN
+
+         CALL VD20_get_response(k, Pk, nk, z, name)
+
+         ALLOCATE (Pk_HMcode(nk, na))
+         ALLOCATE (a(na))
+         a(1) = scale_factor_z(z)
+
+         CALL calculate_HMcode(k, a, Pk_HMcode, nk, na, cosm)
+         Pk = Pk*Pk_HMcode(:, 1)
+
+      ELSE
+
+         CALL VD20_get_power(k, Pk, nk, z, name)
+
+      END IF
+
+      ALLOCATE(Ek(nk))
+      Ek = 0.
+
+      CALL cut_kmin(kmin, k, Pk, Ek, nk, verbose)
+      CALL cut_kmax(kmax, k, Pk, Ek, nk, verbose)
+
+      ! Rebin on a log-linear axis
+      IF (present_and_correct(rebin)) THEN
+         IF(.NOT. present(kmin) .OR. .NOT. present(kmax)) THEN
+            STOP 'VD20_GET_MORE_POWER: Something went wroxng'
+         END IF
+         CALL fill_array_log(kmin, kmax, k2, nk_rebin)
+         ALLOCATE (Pk2(nk_rebin))
+         CALL interpolate_array(log(k), log(Pk), nk, log(k2), Pk2, nk_rebin, iorder_rebin, ifind_rebin, iinterp_rebin)
+         Pk2 = exp(Pk2)
+         DEALLOCATE (k, Pk, Ek)
+         nk = nk_rebin
+         ALLOCATE (k(nk), Pk(nk), Ek(nk))
+         k = k2
+         Pk = Pk2
+         Ek = 0.
+         DEALLOCATE (k2, Pk2)
+      END IF
+
+   END SUBROUTINE VD20_get_more_power
+
    SUBROUTINE VD20_get_power(k, Pk, nk, z, name)
 
       USE io
@@ -400,23 +472,21 @@ CONTAINS
       INTEGER, INTENT(OUT) :: nk
       REAL, INTENT(IN) :: z
       CHARACTER(len=*), INTENT(IN) :: name
-      REAL, ALLOCATABLE :: zs(:), P(:, :)
+      REAL, ALLOCATABLE :: zs(:), Pks(:, :)
       INTEGER :: iz, nz
       REAL, PARAMETER :: eps = 1e-4
 
-      CALL read_VD20_power(k, zs, P, nk, nz, name)
+      CALL VD20_read_power(k, zs, Pks, nk, nz, name)
 
       iz = array_position(z, zs, nz, eps)
-
       ALLOCATE(Pk(nk))
-      Pk = P(:, iz)
+      Pk = Pks(:, iz)
 
    END SUBROUTINE VD20_get_power
 
    SUBROUTINE VD20_get_response(k, Rk, nk, z, name)
 
       USE io
-      USE array_operations
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Rk(:)
@@ -428,8 +498,8 @@ CONTAINS
 
       name_dmonly = VD20_dmonly_counterpart(name)
 
-      CALL get_VD20_power(k, Pk, nk, z, name)
-      CALL get_VD20_power(k, Pk_dmonly, nk, z, name_dmonly)
+      CALL VD20_get_power(k, Pk, nk, z, name)
+      CALL VD20_get_power(k, Pk_dmonly, nk, z, name_dmonly)
 
       ALLOCATE(Rk(nk))
 
