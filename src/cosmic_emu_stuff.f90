@@ -194,12 +194,19 @@ CONTAINS
       INTEGER :: i, nk
       REAL, ALLOCATABLE :: k2(:), P2(:)
       REAL :: kmin, kmax
+      REAL, PARAMETER :: kmin_rebin = 1e-2
+      REAL, PARAMETER :: kmax_rebin = 7.
+      INTEGER, PARAMETER :: nk_rebin = 128
+      INTEGER, PARAMETER :: iorder_rebin = 3
+      INTEGER, PARAMETER :: ifind_rebin = 3
+      INTEGER, PARAMETER :: iinterp_rebin = 2
 
       CALL SYSTEM('rm xstar.dat')
       CALL SYSTEM('rm EMU0.txt')
 
       OPEN (7, file='xstar.dat')
-    WRITE (7, *) (cosm%Om_m*cosm%h**2), (cosm%Om_b*cosm%h**2), cosm%sig8, cosm%h, cosm%ns, cosm%w, cosm%wa, (cosm%om_nu*cosm%h**2), z
+      WRITE (7, *) (cosm%Om_m*cosm%h**2), (cosm%Om_b*cosm%h**2), cosm%sig8, &
+         cosm%h, cosm%ns, cosm%w, cosm%wa, (cosm%om_nu*cosm%h**2), z
       CLOSE (7)
 
       CALL SYSTEM('/Users/Mead/Physics/MiraTitan/P_tot/emu.exe')
@@ -228,13 +235,13 @@ CONTAINS
 
       ! Rebin on a log-linear axis
       IF (rebin) THEN
-         kmin = 1e-2
-         kmax = 7.
-         nk = 128
+         kmin = kmin_rebin
+         kmax = kmax_rebin
+         nk = nk_rebin
          CALL fill_array(log(kmin), log(kmax), k2, nk)
          k2 = exp(k2)
          ALLOCATE (P2(nk))
-         CALL interpolate_array(log(k), log(P), n, log(k2), P2, nk, 3, 3, 2)
+         CALL interpolate_array(log(k), log(P), n, log(k2), P2, nk, iorder_rebin, ifind_rebin, iinterp_rebin)
          P2 = exp(P2)
          DEALLOCATE (k, P)
          ALLOCATE (k(nk), P(nk))
