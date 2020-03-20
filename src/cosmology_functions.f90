@@ -112,20 +112,27 @@ MODULE cosmology_functions
 
       ! Primary parameters
       CHARACTER(len=256) :: name            ! Name for cosmological model
-      REAL :: Om_m, Om_b, Om_v, Om_w, m_nu  ! Primary parameters
-      REAL :: h, ns, w, wa, m_wdm, YH        ! Primary parameters
-      REAL :: a1, a2, nstar, ws, am, dm, wm ! DE parameters
-      REAL :: z_CMB, T_CMB, neff            ! Less primary parameters
+      REAL :: Om_m, Om_b, Om_v, Om_w, m_nu  ! Densities
+      REAL :: h, ns, w, wa, m_wdm, YH       ! Cosmological parameters
+      REAL :: a1, a2, nstar, ws, am, dm, wm ! Dark-energy parameters
+      REAL :: z_CMB, T_CMB, neff            ! CMB/radiation parameters
       REAL :: Om_m_pow, Om_b_pow, h_pow     ! Cosmological parameters used for P(k) if different from background
       REAL :: b0, b1, b2, b3, b4            ! BDE parameters
-      REAL :: A_bump, k_bump, sigma_bump    ! Power-spectrum bump 
-      INTEGER :: bump                       ! Do we have a bump in P(k)
+      REAL :: A_bump, k_bump, sigma_bump    ! Power-spectrum bump   
       REAL :: Theat                         ! AGN temperature
-      LOGICAL :: warm                       ! Logicals
-      
-      ! Variables that might be primary that are used in power normalisation
-      REAL :: kpiv, As, kval, pval, sig8 ! Normalisation
-      INTEGER :: norm_method             ! Power normalisation scheme
+      REAL :: Lbox                          ! Box size [Mpc/h]
+      INTEGER :: bump                       ! Type of bump to add to P(k)
+      INTEGER :: norm_method                ! Power normalisation scheme
+      INTEGER :: iw                         ! Switch for dark-energy type
+      INTEGER :: itk                        ! Switch for transfer function type
+      LOGICAL :: box                        ! Constrain the calculation to take place in a box?    
+      LOGICAL :: warm                       ! Is DM warm?
+      LOGICAL :: power_Omegas               ! Are the Omegas for the background different from those for the perturbations?
+      LOGICAL :: derive_gas_numbers         ! Should mu_e and mu_p be derived or not?
+
+      ! Variables that might be primary or secondary depening on the power normalisation
+      REAL :: kpiv, As, kval, pval, sig8    ! Power spectrum normalisation   
+      REAL :: mue, mup                      ! Gas parameters
 
       ! Derived parameters
       REAL :: A, Gamma, k                ! Power spectrum amplitude and shape parameter for DEFW
@@ -135,33 +142,26 @@ MODULE cosmology_functions
       REAL :: omega_m, omega_b, omega_c  ! Physical densities
       REAL :: Om_c_pow                   ! Cosmological parameters used for P(k) if different from background
       REAL :: age, horizon               ! Derived distance/time
-      REAL :: mue, mup, YHe              ! Derived thermal parameters
+      REAL :: YHe                        ! Derived thermal parameters
       REAL :: Om_ws, astar, a1n, a2n     ! Derived DE parameters
       REAL :: gnorm                      ! Growth-factor normalisation
-
-      ! Box size
-      REAL :: Lbox, kbox
-      LOGICAL :: box
-
-      ! Switches
-      INTEGER :: iw, itk
-      LOGICAL :: power_Omegas, derive_gas_numbers, scale_dependent_growth, trivial_cold
-
-      ! Look-up tables
+      REAL :: kbox                       ! Wavenumber of box mode
+      LOGICAL :: scale_dependent_growth  ! Is the linear growth scale dependent in this cosmology?
+      LOGICAL :: trivial_cold            ! Is the cold spectrum trivially related to the matter spectrum?    
+      
+      ! Look-up tables that are filled during a calculation
       REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)        ! Arrays for input linear P(k)
-      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)
-      REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:)                                    ! Arrays for sigma(R)
-      REAL, ALLOCATABLE :: log_sigma(:), log_sigmaa(:, :), log_sigmac(:), log_sigmaca(:,:)
+      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)                           ! Arrays for cold T(k) and wiggle P(k)
+      REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:)                                    ! Arrays for R and a for sigma(R, a)
+      REAL, ALLOCATABLE :: log_sigma(:), log_sigmaa(:, :), log_sigmac(:), log_sigmaca(:,:)   ! Arrays for sigma(R, a)
       REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
-      REAL, ALLOCATABLE :: log_p(:), log_a_p(:)         ! Arrays for distance (particle horizon)
-      REAL, ALLOCATABLE :: log_t(:), log_a_t(:)         ! Arrays for time
-      REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:)  ! Arrays for spherical-collapse parameters
-      REAL, ALLOCATABLE :: log_a_Xde(:), log_Xde(:)     ! Arrays for dark-energy density
-      INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin, n_Xde ! Array entries
-      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde ! What has been calculated
-
-      ! Have normalisations and initialisations been done?
-      LOGICAL :: is_init, is_normalised, has_wiggle
+      REAL, ALLOCATABLE :: log_p(:), log_a_p(:)        ! Arrays for distance (particle horizon)
+      REAL, ALLOCATABLE :: log_t(:), log_a_t(:)        ! Arrays for time
+      REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:) ! Arrays for spherical-collapse parameters
+      REAL, ALLOCATABLE :: log_a_Xde(:), log_Xde(:)    ! Arrays for dark-energy density
+      INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin, n_Xde ! Number of array entries
+      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
+      LOGICAL :: is_init, is_normalised, has_wiggle ! Flags to check if things have been done  
 
       ! For random cosmologies
       !LOGICAL :: seeded
@@ -454,6 +454,9 @@ CONTAINS
       names(69) = 'Axel power no bump'
       names(70) = 'WMAP9 (Extreme low AGN temperature)'
       names(71) = 'WMAP9 (Extreme high AGN temperature)'
+      names(72) = 'Axel power bump k = 0.05h/Mpc'
+      names(73) = 'Axel power bump k = 0.1h/Mpc'
+      names(74) = 'Axel power bump k = 1h/Mpc'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -655,7 +658,7 @@ CONTAINS
       cosm%k_bump = 0.
       cosm%sigma_bump = 0.
 
-      ! Alternative dark energy
+      ! Alternative dark energy models
       cosm%a1 = 0.
       cosm%a2 = 0.
       cosm%nstar = 0.
@@ -1095,7 +1098,8 @@ CONTAINS
          cosm%A_bump = 0.08
          cosm%k_bump = 5.
          cosm%sigma_bump = 0.5      
-      ELSE IF (icosmo == 66 .OR. icosmo == 67 .OR. icosmo == 68 .OR. icosmo == 69) THEN
+      ELSE IF (icosmo == 66 .OR. icosmo == 67 .OR. icosmo == 68 .OR. icosmo == 69 .OR. &
+         icosmo == 72 .OR. icosmo == 73 .OR. icosmo == 74) THEN
          ! Axel bump cosmologies
          cosm%h = 0.6731
          cosm%Om_b = 0.02222/cosm%h**2
@@ -1114,6 +1118,20 @@ CONTAINS
             ELSE IF(icosmo == 67) THEN
                cosm%k_bump = 0.1
             ELSE IF(icosmo == 68) THEN
+               cosm%k_bump = 1.
+            ELSE
+               STOP 'ASSIGN_HALOMOD: Error, something went wrong with bumps cosmology'
+            END IF
+         END IF
+         IF (icosmo == 72 .OR. icosmo == 73 .OR. icosmo == 74) THEN
+            cosm%bump = 2
+            cosm%A_bump = 0.16
+            cosm%sigma_bump = 0.105
+            IF(icosmo == 72) THEN
+               cosm%k_bump = 0.05
+            ELSE IF(icosmo == 73) THEN
+               cosm%k_bump = 0.1
+            ELSE IF(icosmo == 74) THEN
                cosm%k_bump = 1.
             ELSE
                STOP 'ASSIGN_HALOMOD: Error, something went wrong with bumps cosmology'
@@ -1303,9 +1321,9 @@ CONTAINS
          cosm%mup = 4./(5.*cosm%YH+3.)
          ! Mean mass per gas electron divided by proton mass
          ! ~1.136 if fH=0.76, gas is ionised and H and He only; 1.17 in BAHAMAS
-         cosm%mue = 2./(1.+cosm%YH)
-         cosm%YHe = 1.-cosm%YH ! Helium mass fraction
+         cosm%mue = 2./(1.+cosm%YH)       
       END IF
+      cosm%YHe = 1.-cosm%YH ! Helium mass fraction
 
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_COSMOLOGY: mu_p:', cosm%mup
@@ -1695,16 +1713,18 @@ CONTAINS
          CALL init_CAMB_linear(cosm)
       END IF
 
+      ! Normalise the linear spectrum
       IF(cosm%norm_method == norm_sigma8) THEN
          CALL normalise_power_sigma8(cosm)
       ELSE IF(cosm%norm_method == norm_value) THEN
          CALL normalise_power_value(cosm)
       ELSE IF(cosm%itk == itk_CAMB .AND. cosm%norm_method == norm_As) THEN
-         ! Do nothing
+         ! Do nothing because the CAMB will have done the normalisation correctly
       ELSE
          STOP 'NORMALISE_POWER: Error, normalisation method not specified correctly'
       END IF
 
+      ! If normalisation is not done via sigma8 then calculate sigma8
       IF(cosm%norm_method .NE. norm_sigma8) THEN
          CALL reset_sigma8(cosm)
       END IF
@@ -1742,7 +1762,7 @@ CONTAINS
          cosm%As = cosm%As*(cosm%sig8/sigma8_initial)**2 
          ! Normalisation
          IF (run_CAMB_twice) THEN
-            ! Run again to normalise...
+            ! Run again to normalise..., almost certainly foolish
             CALL init_CAMB_linear(cosm)
          ELSE
             ! ... or normalise using sigma8 and rescaling linear power
