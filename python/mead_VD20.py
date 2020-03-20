@@ -1,4 +1,14 @@
-def get_power(name):
+def get_power(name, z):
+
+   import numpy as np
+
+   k, zs, Pks = get_powers(name)
+
+   i = np.where(zs == z)
+
+   return k, Pks[:,i[0]]
+
+def get_powers(name):
 
    import numpy as np
 
@@ -15,13 +25,23 @@ def get_power(name):
 
    return k, z, Pk
 
-def get_response(name):
+def get_response(name, z):
 
-   k, z, Pk = get_power(name)
+   import numpy as np
+
+   k, zs, Rks = get_responses(name)
+   
+   i = np.where(zs == z)
+
+   return k, Rks[:, i[0]]
+
+def get_responses(name):
+
+   k, z, Pk = get_powers(name)
 
    name_dmonly = dmonly_counterpart(name)
 
-   k, z, Pk_dmonly = get_power(name_dmonly)
+   k, z, Pk_dmonly = get_powers(name_dmonly)
 
    return k, z, Pk/Pk_dmonly
 
