@@ -92,16 +92,24 @@ CONTAINS
 
       IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: file
-      LOGICAL :: lexist
 
       ! Check file exists
-      INQUIRE (file=file, exist=lexist)
-      IF (.NOT. lexist) THEN
+      IF (.NOT. file_exists(file)) THEN
          WRITE (*, *) 'CHECK_FILE_EXISTS: File: ', trim(file)
          STOP 'CHECK_FILE_EXISTS: File does not exist'
       END IF
 
    END SUBROUTINE check_file_exists
+
+   LOGICAL FUNCTION file_exists(file)
+
+      ! Returns true if a file exists, or false otherwise
+      IMPLICIT NONE
+      CHARACTER(len=*), INTENT(IN) :: file
+
+      INQUIRE (file=file, exist=file_exists)
+
+   END FUNCTION file_exists
 
 END MODULE file_info
 
