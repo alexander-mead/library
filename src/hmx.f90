@@ -1531,44 +1531,68 @@ CONTAINS
          ELSE IF (ihm == 56) THEN
             ! AGN 7.6
             hmod%fix_star_concentration = .TRUE.
-            hmod%Astar = 0.03538
-            hmod%mstar = 10**12.39794
-            hmod%Astarz = -0.01020
-            hmod%eta = -0.32187
-            hmod%mstarz = -0.15334
+            !hmod%Astar = 0.03538
+            !hmod%mstar = 10**12.39794
+            !hmod%Astarz = -0.01020
+            !hmod%eta = -0.32187
+            !hmod%mstarz = -0.15334
+            hmod%Astar = 0.03477
+            hmod%mstar = 10**12.46201
+            hmod%Astarz = -0.00926
+            hmod%eta = -0.34285
+            hmod%mstarz = -0.36641
          ELSE IF (ihm == 57) THEN
             ! AGN 7.8
             hmod%fix_star_concentration = .TRUE.
-            hmod%Astar = 0.03392
-            hmod%mstar = 10**12.34581
-            hmod%Astarz = -0.01013
-            hmod%eta = -0.31955
-            hmod%mstarz = -0.02782
+            !hmod%Astar = 0.03392
+            !hmod%mstar = 10**12.34581
+            !hmod%Astarz = -0.01013
+            !hmod%eta = -0.31955
+            !hmod%mstarz = -0.02782
+            hmod%Astar = 0.03302
+            hmod%mstar = 10**12.44789
+            hmod%Astarz = -0.00881
+            hmod%eta = -0.35556
+            hmod%mstarz = -0.35206
          ELSE IF (ihm == 58) THEN
             ! AGN 8.0
             hmod%fix_star_concentration = .TRUE.
-            hmod%Astar = 0.03183
-            hmod%mstar = 10**12.27733
-            hmod%Astarz = -0.00936
-            hmod%eta = -0.30451
-            hmod%mstarz = -0.00126
+            !hmod%Astar = 0.03183
+            !hmod%mstar = 10**12.27733
+            !hmod%Astarz = -0.00936
+            !hmod%eta = -0.30451
+            !hmod%mstarz = -0.00126
+            hmod%Astar = 0.03093
+            hmod%mstar = 10**12.39230
+            hmod%Astarz = -0.00818
+            hmod%eta = -0.35052
+            hmod%mstarz = -0.30727
          ELSE IF (ihm == 59 .OR. ihm == 60 .OR. ihm == 61) THEN      
             ! 59 - HMx 2020 with temperature scaling that fits stars
             ! 60 - HMx 2020 with temperature scaling that fits matter (stars fixed)
             ! 61 - HMx 2020 with temperature scaling that fits matter, pressure (stars fixed)
             hmod%fix_star_concentration = .TRUE.
             hmod%HMx_mode = 6 ! Scaling with temperature
-            hmod%Astar_array = [0.03538, 0.03392, 0.03183]
-            hmod%Astarz_array = [-0.01020, -0.01013, -0.00936]
-            hmod%Mstar_array = 10**[12.39794, 12.34581, 12.27733]
-            hmod%Mstarz_array = [-0.15334, -0.02782, -0.00126]
-            hmod%eta_array = [-0.32187, -0.31955, -0.30451]
+            !hmod%Astar_array = [0.03538, 0.03392, 0.03183]
+            !hmod%Astarz_array = [-0.01020, -0.01013, -0.00936]
+            !hmod%Mstar_array = 10**[12.39794, 12.34581, 12.27733]
+            !hmod%Mstarz_array = [-0.15334, -0.02782, -0.00126]
+            !hmod%eta_array = [-0.32187, -0.31955, -0.30451]
+            hmod%Astar_array = [0.0348, 0.0330, 0.0309]          
+            hmod%Mstar_array = 10**[12.4620, 12.4479, 12.3923]
+            hmod%Astarz_array = [-0.0093, -0.0088, -0.0082]
+            hmod%eta_array = [-0.3428, -0.3556, -0.3505]
+            hmod%Mstarz_array = [-0.3664, -0.3521, -0.3073]           
             IF(ihm == 60) THEN
                ! 60 - Additionally fits matter-matter
-               hmod%eps_array = [0.27910, 0.20000, 0.04947]
-               hmod%Gamma_array = [1.23445, 1.33350, 1.59297]
-               hmod%M0_array = 10**[13.00648, 13.36720, 14.02713]
-               hmod%epsz_array = [-0.01196, -0.01125, 0.03178]
+               !hmod%eps_array = [0.27910, 0.20000, 0.04947]
+               !hmod%Gamma_array = [1.23445, 1.33350, 1.59297]
+               !hmod%M0_array = 10**[13.00648, 13.36720, 14.02713]
+               !hmod%epsz_array = [-0.01196, -0.01125, 0.03178]
+               hmod%eps_array = [0.2841, 0.2038, 0.0526]
+               hmod%Gamma_array = 1.+[0.2363, 0.3376, 0.6237]
+               hmod%M0_array = 10**[13.0020, 13.3658, 14.0226]
+               hmod%epsz_array = [-0.0046, -0.0047, 0.0365]
             END IF
             IF(ihm == 61) THEN
                ! 61 - Additionally fits matter, pressure
@@ -1579,6 +1603,13 @@ CONTAINS
                hmod%Twhim_array = 10**[6.67618, 6.65445, 6.66146] ! Weirdly similar (z=0 Twhim all the same... ?)
                hmod%Twhimz_array = [-0.55659, -0.36515, -0.06167]
                hmod%epsz_array = [-0.04559, -0.10730, -0.01107] ! Non monotonic
+               !hmod%alpha_array = 
+               !hmod%eps_array = 
+               !hmod%Gamma_array = 
+               !hmod%M0_array = 
+               !hmod%Twhim_array = 
+               !hmod%Twhimz_array = 
+               !hmod%epsz_array = 
             END IF
          ELSE IF (ihm == 62) THEN
             ! 62 - Model for matter, CDM, gas, stars
