@@ -14,7 +14,7 @@ MODULE io
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: z(:)
-      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:,:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
       INTEGER, INTENT(OUT) :: nk
       INTEGER, INTENT(OUT) :: nz
       CHARACTER(len=*), INTENT(IN) :: name
@@ -29,6 +29,7 @@ MODULE io
 
       ! Create the input file name
       infile = trim(dir)//'/'//trim(name)//'.dat'
+      CALL check_file_exists(infile)
 
       ! Count the length of the file
       n = file_length(infile, verbose=.TRUE.)
@@ -51,8 +52,8 @@ MODULE io
       ! Fill arrays
       ik = 0
       iz = 0
-      OPEN(7, file=infile)
-      READ(7, *)
+      OPEN(7, file=infile, status='old')
+      READ(7, *) ! Read header
       DO i = 1, n       
          IF(MOD(i-1, nk) == 0) THEN
             ik = 0
