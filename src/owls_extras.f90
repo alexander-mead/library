@@ -544,25 +544,25 @@ CONTAINS
          VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0_v2_WMAP9_L400N1024'
       ELSE IF (trim(name) == 'BAHAMAS_nu0_WMAP9_v3') THEN
          VD20_dmonly_counterpart = 'DMONLY_2fluid_nu0_v3_WMAP9_L400N1024'
-      ELSE IF (trim(name) == 'C-OWLS_AGN_Planck2013.dat') THEN
+      ELSE IF (trim(name) == 'C-OWLS_AGN_Planck2013') THEN
          VD20_dmonly_counterpart = 'DMONLY_Planck2013_L400N1024'
-      ELSE IF (trim(name) == 'C-OWLS_AGN_Theat8.5_Planck2013.dat') THEN
+      ELSE IF (trim(name) == 'C-OWLS_AGN_Theat8.5_Planck2013') THEN
          VD20_dmonly_counterpart = 'DMONLY_Planck2013_L400N1024'
-      ELSE IF (trim(name) == 'C-OWLS_AGN_Theat8.5_WMAP7.dat') THEN
+      ELSE IF (trim(name) == 'C-OWLS_AGN_Theat8.5_WMAP7') THEN
          VD20_dmonly_counterpart = 'DMONLY_WMAP7_L400N1024'
-      ELSE IF (trim(name) == 'C-OWLS_AGN_Theat8.7_Planck2013.dat') THEN
+      ELSE IF (trim(name) == 'C-OWLS_AGN_Theat8.7_Planck2013') THEN
          VD20_dmonly_counterpart = 'DMONLY_Planck2013_L400N1024'
-      ELSE IF (trim(name) == 'C-OWLS_AGN_Theat8.7_WMAP7.dat') THEN
+      ELSE IF (trim(name) == 'C-OWLS_AGN_Theat8.7_WMAP7') THEN
          VD20_dmonly_counterpart = 'DMONLY_WMAP7_L400N1024'
-      ELSE IF (trim(name) == 'C-OWLS_AGN_WMAP7.dat') THEN
+      ELSE IF (trim(name) == 'C-OWLS_AGN_WMAP7') THEN
          VD20_dmonly_counterpart = 'DMONLY_WMAP7_L400N1024'
-      ELSE IF (trim(name) == 'C-OWLS_NOCOOL_UVB_Planck2013.dat') THEN
+      ELSE IF (trim(name) == 'C-OWLS_NOCOOL_UVB_Planck2013') THEN
          VD20_dmonly_counterpart = 'DMONLY_Planck2013_L400N1024'
-      ELSE IF (trim(name) == 'C-OWLS_NOCOOL_UVB_WMAP7.dat') THEN
+      ELSE IF (trim(name) == 'C-OWLS_NOCOOL_UVB_WMAP7') THEN
          VD20_dmonly_counterpart = 'DMONLY_WMAP7_L400N1024'
-      ELSE IF (trim(name) == 'C-OWLS_REF_Planck2013.dat') THEN
+      ELSE IF (trim(name) == 'C-OWLS_REF_Planck2013') THEN
          VD20_dmonly_counterpart = 'DMONLY_Planck2013_L400N1024'
-      ELSE IF (trim(name) == 'C-OWLS_REF_WMAP7.dat') THEN
+      ELSE IF (trim(name) == 'C-OWLS_REF_WMAP7') THEN
          VD20_dmonly_counterpart = 'DMONLY_WMAP7_L400N1024'
       ELSE
          WRITE (*, *) 'VD20_DMONLY_COUNTERPART: Simulation: ', trim(name)
