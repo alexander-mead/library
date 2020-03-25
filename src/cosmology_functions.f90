@@ -457,6 +457,10 @@ CONTAINS
       names(72) = 'Axel power bump k = 0.05h/Mpc'
       names(73) = 'Axel power bump k = 0.1h/Mpc'
       names(74) = 'Axel power bump k = 1h/Mpc'
+      names(75) = 'WMAP9 with 0.06eV neutrinos (BAHAMAS)'
+      names(76) = 'WMAP9 with 0.12eV neutrinos (BAHAMAS)'
+      names(77) = 'WMAP9 with 0.24eV neutrinos (BAHAMAS)'
+      names(78) = 'WMAP9 with 0.48eV neutrinos (BAHAMAS)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -713,8 +717,17 @@ CONTAINS
          cosm%h = 0.6711
          cosm%ns =  0.9624
          cosm%sig8 = 0.8341
-      ELSE IF (icosmo == 4 .OR. icosmo == 61 .OR. icosmo == 62 .OR. icosmo == 70 .OR. icosmo == 71) THEN
-         ! WMAP9 (BAHAMAS; 1712.02411; no neutrinos)
+      !ELSE IF (icosmo == 4 .OR. icosmo == 61 .OR. icosmo == 62 .OR. icosmo == 70 .OR. icosmo == 71) THEN
+      ELSE IF (is_in_array(icosmo, [4, 61, 62, 70, 71, 75, 76, 77, 78])) THEN
+         !  4 - WMAP9 (BAHAMAS; 1712.02411; no neutrinos)
+         ! 61 - WMAP9 with T_AGN = 10^7.6 K (low)
+         ! 62 - WMAP9 with T_AGN = 10^8.0 K (high)
+         ! 70 - WMAP9 with T_AGN = 10^7.0 K (extremely low)
+         ! 71 - WMAP9 with T_AGN = 10^8.6 K (extrmely high)
+         ! 75 - WMAP9 with 0.06eV neutrinos
+         ! 76 - WMAP9 with 0.12eV neutrinos
+         ! 77 - WMAP9 with 0.24eV neutrinos
+         ! 78 - WMAP9 with 0.48eV neutrinos
          cosm%h = 0.7000
          cosm%Om_b = 0.0463
          cosm%Om_m = 0.2330+cosm%Om_b
@@ -726,24 +739,15 @@ CONTAINS
          Xi = 1.08
          Xe = 1.17
          cosm%mue = cosm%mup*(Xe+Xi)/Xe
-         IF (icosmo == 4) THEN
-            ! AGN tuned
-            cosm%Theat = 10**7.8
-         ELSE IF (icosmo == 61) THEN
-            ! AGN low
-            cosm%Theat = 10**7.6
-         ELSE IF (icosmo == 62) THEN
-            ! AGN high
-            cosm%Theat = 10**8.0
-         ELSE IF (icosmo == 70) THEN
-            ! AGN extreme low
-            cosm%Theat = 10**7.0
-         ELSE IF (icosmo == 71) THEN
-            ! AGN extreme high
-            cosm%Theat = 10**8.6
-         ELSE
-            STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly for AGN temperature'
-         END IF
+         IF (icosmo == 4)  cosm%Theat = 10**7.8 ! Standard AGN temperature
+         IF (icosmo == 61) cosm%Theat = 10**7.6 ! Low AGN temperature
+         IF (icosmo == 62) cosm%Theat = 10**8.0 ! High AGN temperature
+         IF (icosmo == 70) cosm%Theat = 10**7.0 ! Extremely low AGN temperature
+         IF (icosmo == 71) cosm%Theat = 10**8.6 ! Extremely high AGN temperature
+         IF (icosmo == 75) cosm%m_nu = 0.06 ! 0.06eV (minimal) neutrino mass
+         IF (icosmo == 76) cosm%m_nu = 0.12 ! 0.12eV neutrinos
+         IF (icosmo == 77) cosm%m_nu = 0.24 ! 0.24eV neutrinos
+         IF (icosmo == 78) cosm%m_nu = 0.48 ! 0.48eV neutrinos
       ELSE IF (icosmo == 5) THEN
          !  5 - Open model
          cosm%Om_v = 0.
@@ -1141,10 +1145,14 @@ CONTAINS
          ! Boring cosmology but with exciting neutrino mass
          cosm%m_nu = 0.3
          cosm%itk = itk_CAMB
-      ELSE IF (icosmo == 63 .OR. icosmo == 64 .OR. icosmo == 65) THEN
+      !ELSE IF (icosmo == 63 .OR. icosmo == 64 .OR. icosmo == 65) THEN
+      ELSE IF (is_in_array(icosmo, [63, 64, 65, 79, 80, 81])) THEN
          ! 63 - Planck 2015 (BAHAMAS; Table 1 of 1712.02411)
-         ! 64 - As above, but with 10^7.6 AGN temperature
-         ! 65 - As above, but with 10^8.0 AGN temperature
+         ! 64 - Planck 2015 but with 10^7.6 AGN temperature
+         ! 65 - Planck 2015 but with 10^8.0 AGN temperature
+         ! 79 - Planck 2015 but with 0.12eV neutrinos
+         ! 80 - Planck 2015 but with 0.12eV neutrinos
+         ! 81 - Planck 2015 but with 0.12eV neutrinos
          ! Note well that this has a neutrino mass
          cosm%itk = itk_CAMB
          cosm%m_nu = 0.06
@@ -1154,8 +1162,11 @@ CONTAINS
          cosm%Om_v = 1.-cosm%Om_m
          cosm%ns =  0.9701
          cosm%sig8 = 0.8085
-         IF(icosmo == 64) cosm%Theat = 10**7.6
-         IF(icosmo == 65) cosm%Theat = 10**8.0
+         IF (icosmo == 64) cosm%Theat = 10**7.6
+         IF (icosmo == 65) cosm%Theat = 10**8.0
+         IF (icosmo == 79) cosm%m_nu = 0.12
+         IF (icosmo == 80) cosm%m_nu = 0.24
+         IF (icosmo == 81) cosm%m_nu = 0.48
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
