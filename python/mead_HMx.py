@@ -18,18 +18,35 @@ def fitted_power_file_name(mode, model, z, chain, field_pair, label):
 
 # Read the halo-model power spectra and output the wavenumber and power spectrum
 def get_fitted_power(mode, model, z, chain, field_pair, label):
-   from numpy import loadtxt
+   #from numpy import loadtxt
    infile = fitted_power_file_name(mode, model, z, chain, field_pair, label)
    k, power = get_power(infile)
    return k, power
 
 # Read the halo-model power spectra and output the wavenumber and power spectrum
 def get_fitted_response(mode, model, z, chain, field_pair, label):
-   from numpy import loadtxt
+   #from numpy import loadtxt
    k, power = get_fitted_power(mode, model, z, chain, field_pair, label)
    _, dmonly = get_fitted_power(mode, model, z, chain, ('dmonly','dmonly'), label)
    response = power/dmonly
    return k, response
+
+def get_HMcode_power(mode, model, z, chain):
+
+   from numpy import loadtxt
+
+   dir = '/Users/Mead/Physics/HMx/fitting'
+   infile = dir+'/m'+str(mode)+'/'+model+'/c1_z%1.3f_cos1_HMcode_power.dat' % (z)
+
+   data = loadtxt(infile)
+
+   column_k = 0
+   column_power = 1
+   
+   k = data[:, column_k]
+   power = data[:, column_power]
+
+   return k, power
 
 # Output the correpsonding letter and integer for a given field (e.g., matter -> m, 2)
 def field_name_to_letter_and_integer(name):

@@ -23,6 +23,8 @@ def get_powers(name):
    k = np.unique(data[:, 1])
    Pk = np.swapaxes(data[:,3].reshape(nz, nk), 0, 1)
 
+   z = np.flip(z)
+
    return k, z, Pk
 
 def get_response(name, z):
@@ -64,6 +66,16 @@ def dmonly_counterpart(name):
       'BAHAMAS_nu0_BAO_L200N512': 'DMONLY_nu0_BAO_L200N512',
       'BAHAMAS_nu0_Planck2013': 'DMONLY_2fluid_nu0_Planck2013_L400N1024',
       'BAHAMAS_nu0_WMAP9_L100N512': 'DMONLY_2fluid_nu0_WMAP9_L100N512',
+      'C-OWLS_AGN_Planck2013': 'DMONLY_Planck2013_L400N1024',
+      'C-OWLS_AGN_Theat8.5_Planck2013': 'DMONLY_Planck2013_L400N1024',
+      'C-OWLS_AGN_Theat8.7_Planck2013': 'DMONLY_Planck2013_L400N1024',
+      'C-OWLS_NOCOOL_UVB_Planck2013': 'DMONLY_Planck2013_L400N1024',
+      'C-OWLS_REF_Planck2013': 'DMONLY_Planck2013_L400N1024',
+      'C-OWLS_AGN_WMAP7': 'DMONLY_WMAP7_L400N1024',
+      'C-OWLS_AGN_Theat8.5_WMAP7': 'DMONLY_WMAP7_L400N1024',
+      'C-OWLS_AGN_Theat8.7_WMAP7': 'DMONLY_WMAP7_L400N1024',
+      'C-OWLS_NOCOOL_UVB_WMAP7': 'DMONLY_WMAP7_L400N1024',
+      'C-OWLS_REF_WMAP7': 'DMONLY_WMAP7_L400N1024',
       }
 
    return match[name]
