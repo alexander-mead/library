@@ -59,6 +59,11 @@ MODULE array_operations
    PUBLIC :: fill_array_double
    PUBLIC :: fill_array_log
 
+   INTERFACE is_in_array
+      MODULE PROCEDURE is_in_array_integer
+      MODULE PROCEDURE is_in_array_character
+   END INTERFACE is_in_array
+
    INTERFACE array_position
       MODULE PROCEDURE array_position_int
       MODULE PROCEDURE array_position_real
@@ -1254,7 +1259,7 @@ CONTAINS
 
    END SUBROUTINE unique_index
 
-   LOGICAL FUNCTION is_in_array(x, a)!, n)
+   LOGICAL FUNCTION is_in_array_integer(x, a)
 
       ! Test to see if integer value x is in a(n)
       ! This is very useful in IF statements where otherwise there would be a long chain of .OR.s
@@ -1263,15 +1268,34 @@ CONTAINS
       INTEGER, INTENT(IN) :: a(:)
       INTEGER :: i
 
-      is_in_array = .FALSE.
+      is_in_array_integer = .FALSE.
       DO i = 1, size(a)
          IF (x == a(i)) THEN
-            is_in_array = .TRUE.
+            is_in_array_integer = .TRUE.
             EXIT
          END IF     
       END DO
 
-   END FUNCTION is_in_array
+   END FUNCTION is_in_array_integer
+
+   LOGICAL FUNCTION is_in_array_character(x, a)
+
+      ! Test to see if integer value x is in a(n)
+      ! This is very useful in IF statements where otherwise there would be a long chain of .OR.s
+      IMPLICIT NONE
+      CHARACTER(len=*), INTENT(IN) :: x
+      CHARACTER(len=*), INTENT(IN) :: a(:)
+      INTEGER :: i
+
+      is_in_array_character = .FALSE.
+      DO i = 1, size(a)
+         IF (trim(x) == trim(a(i))) THEN
+            is_in_array_character = .TRUE.
+            EXIT
+         END IF     
+      END DO
+
+   END FUNCTION is_in_array_character
 
    LOGICAL FUNCTION repeated_entries(a, n)
 
