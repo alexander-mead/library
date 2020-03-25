@@ -235,6 +235,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: itk_EH = 1            ! Eisenstein and Hu linear spectrum
    INTEGER, PARAMETER :: itk_CAMB = 2          ! CAMB linear spectrum
    INTEGER, PARAMETER :: itk_DEFW = 3          ! DEFW linear spectrum
+   INTEGER, PARAMETER :: itk_external = 4      ! DEFW linear spectrum
    INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
    INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
    INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB
@@ -888,9 +889,9 @@ CONTAINS
          cosm%itk = itk_CAMB ! Set to CAMB linear power
       ELSE IF (icosmo == 26) THEN
          ! Boring with CAMB linear spectrum
-         cosm%itk = itk_CAMB ! Set to CAMB linear power
+         cosm%itk = itk_external   ! Set to CAMB linear power
          cosm%Om_w = cosm%Om_v ! Necessary for CAMB
-         cosm%Om_v = 0. ! Necessary for CAMB
+         cosm%Om_v = 0.        ! Necessary for CAMB
       ELSE IF (icosmo == 27) THEN
          ! Illustris; L = 75 Mpc/h
          cosm%itk = itk_CAMB ! Set to CAMB linear power
@@ -1521,9 +1522,7 @@ CONTAINS
          ELSE IF(cosm%itk == itk_DEFW) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: DEFW'
          ELSE IF(cosm%itk == 4) THEN
-            ! TODO: Remove this
-            WRITE(*,*) 'COSMOLOGY: Linear power spectrum: External'
-            STOP 'COSMOLOGY: Error, I do not think this is supported any more'
+            WRITE(*,*) 'COSMOLOGY: Linear: External'
          ELSE
             STOP 'COSMOLOGY: Error, itk not set properly'
          END IF
@@ -1720,23 +1719,22 @@ CONTAINS
       cosm%is_normalised = .TRUE.
 
       ! Get the CAMB power if necessary
-      IF(cosm%itk == itk_CAMB) THEN
-         CALL init_CAMB_linear(cosm)
-      END IF
+      IF (cosm%itk == itk_CAMB)     CALL init_CAMB_linear(cosm)
+      IF (cosm%itk == itk_external) CALL init_external_linear(cosm)
 
       ! Normalise the linear spectrum
-      IF(cosm%norm_method == norm_sigma8) THEN
+      IF (cosm%norm_method == norm_sigma8) THEN
          CALL normalise_power_sigma8(cosm)
-      ELSE IF(cosm%norm_method == norm_value) THEN
+      ELSE IF (cosm%norm_method == norm_value) THEN
          CALL normalise_power_value(cosm)
-      ELSE IF(cosm%itk == itk_CAMB .AND. cosm%norm_method == norm_As) THEN
+      ELSE IF (cosm%itk == itk_CAMB .AND. cosm%norm_method == norm_As) THEN
          ! Do nothing because the CAMB will have done the normalisation correctly
       ELSE
          STOP 'NORMALISE_POWER: Error, normalisation method not specified correctly'
       END IF
 
       ! If normalisation is not done via sigma8 then calculate sigma8
-      IF(cosm%norm_method .NE. norm_sigma8) THEN
+      IF (cosm%norm_method .NE. norm_sigma8) THEN
          CALL reset_sigma8(cosm)
       END IF
 
@@ -1750,7 +1748,7 @@ CONTAINS
       REAL :: sigma8_initial, sigma8_final, kbox_save
       LOGICAL, PARAMETER :: run_CAMB_twice = .FALSE. ! This is almost always a stupid thing to do
 
-      IF (cosm%verbose) WRITE (*, *) 'NORMALISE_SIGMA8: Normalising power to get correct sigma_8'
+      IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Normalising power to get correct sigma_8'
 
       ! Remove the k-cut for the normalisation          
       kbox_save = 0. ! Need to give this a value otherwise get a warning in debug mode
@@ -1762,12 +1760,12 @@ CONTAINS
       ! Calculate the initial sigma_8 value (will not be correct)
       sigma8_initial = sigma8(cosm)
 
-      IF (cosm%verbose) WRITE (*, *) 'NORMALISE_SIGMA8: Initial sigma_8:', real(sigma8_initial)
+      IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Initial sigma_8:', real(sigma8_initial)
 
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW) THEN
          cosm%A = cosm%sig8/sigma8_initial
          !cosm%A=391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
-      ELSE IF(cosm%itk == itk_CAMB) THEN
+      ELSE IF(cosm%itk == itk_CAMB .OR. cosm%itk == itk_external) THEN
          ! TODO: Resetting As is not really necesary and might not be logical to do here
          ! TODO: Need to think about normalisation parameters as primary vs. seconary
          cosm%As = cosm%As*(cosm%sig8/sigma8_initial)**2 
@@ -1784,7 +1782,7 @@ CONTAINS
             END IF
          END IF
       ELSE
-         STOP 'NORMALISE_SIGMA8: Error, cannot normalise with this itk'
+         STOP 'NORMALISE_POWER_SIGMA8: Error, cannot normalise with this itk'
       END IF
 
       ! Replace the k-cut if necessary
@@ -1797,9 +1795,9 @@ CONTAINS
 
       ! Write to screen
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'NORMALISE_SIGMA8: Target sigma_8:', real(cosm%sig8)
-         WRITE (*, *) 'NORMALISE_SIGMA8: Final sigma_8 (calculated):', real(sigma8_final)
-         WRITE (*, *) 'NORMALISE_SIGMA8: Done'
+         WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Target sigma_8:', real(cosm%sig8)
+         WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Final sigma_8 (calculated):', real(sigma8_final)
+         WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Done'
          WRITE (*, *)
       END IF
 
@@ -1815,7 +1813,7 @@ CONTAINS
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW) THEN
          cosm%A = cosm%A*sqrt(cosm%pval/p_lin(cosm%kval, a, flag_power_total, cosm))
       ELSE
-         STOP 'NORMALISE_VALUE: Error, this is not possible for your transfer function'
+         STOP 'NORMALISE_POWER_VALUE: Error, this is not possible for your transfer function'
       END IF
 
    END SUBROUTINE normalise_power_value
@@ -2807,7 +2805,7 @@ CONTAINS
       END IF
 
       ! Damp transfer function if considering WDM
-      IF (cosm%warm) Tk_matter = Tk_matter*Tk_WDM(k, cosm)
+      IF (cosm%warm)      Tk_matter = Tk_matter*Tk_WDM(k, cosm)
       IF (cosm%bump == 1) Tk_matter = Tk_matter*Tk_bump(k, cosm)
       IF (cosm%bump == 2) Tk_matter = Tk_matter*Tk_bump_Mexico(k, cosm)
 
@@ -5202,7 +5200,7 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
       CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini'
       LOGICAL, PARAMETER :: non_linear = .FALSE.       ! Should not use non-linear when trying to get linear theory
-      INTEGER, PARAMETER :: halofit_version = 5        ! 5 - HMcode 2015 (probably irrelevant here)
+      INTEGER, PARAMETER :: halofit_version = 5        ! 5 - HMcode 2015 (irrelevant here)
       REAL, PARAMETER :: amin = amin_CAMB              ! Minimum scale factor to get from CAMB
       REAL, PARAMETER :: amax = amax_CAMB              ! Maximum scale factor to get from CAMB
       LOGICAL, PARAMETER :: rebin = rebin_CAMB         ! Should we rebin CAMB input P(k)?
@@ -5311,6 +5309,54 @@ CONTAINS
       END IF
 
    END SUBROUTINE init_CAMB_linear
+
+   SUBROUTINE init_external_linear(cosm)
+
+      ! TODO: Add rebinning in k?
+      ! TODO: Add support for massive neutrinos?
+      ! TODO: Add support for scale-dependent growth?
+      IMPLICIT NONE
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: k, plin
+      INTEGER :: ik
+      INTEGER :: nk
+      INTEGER, PARAMETER :: na = 1 ! Fix to assume scale-independent growth. Could be relaxed.
+      CHARACTER(len=256), PARAMETER :: infile = '/Users/Mead/Physics/CAMB_files/boring/boring_matterpower.dat'
+
+      nk = file_length(infile) ! Read in how many k values there are
+      nk = nk-1                ! Remove one due to comment line
+
+      cosm%na_plin = na
+      cosm%nk_plin = nk
+
+      CALL if_allocated_deallocate(cosm%log_k_plin)
+      CALL if_allocated_deallocate(cosm%log_a_plin)
+      CALL if_allocated_deallocate(cosm%log_plin)
+      ALLOCATE(cosm%log_k_plin(nk))
+      ALLOCATE(cosm%log_a_plin(na))
+      ALLOCATE(cosm%log_plin(nk))
+
+      OPEN(7, file=infile)
+      READ(7, *) ! Skip first comment line
+      DO ik = 1, nk
+         READ(7, *) k, plin            ! Read in data from file
+         plin = Delta_Pk(plin, k)      ! Convert input P(k) to Delta^2(k)
+         cosm%log_k_plin(ik) = log(k)  ! Array is log
+         cosm%log_plin(ik) = log(plin) ! Array is log
+      END DO
+      CLOSE(7)
+
+      ! CALL if_allocated_deallocate(cosm%log_k_Tcold)
+      ! CALL if_allocated_deallocate(cosm%Tcold)
+      ! ALLOCATE(cosm%log_k_Tcold(nk))
+      ! ALLOCATE(cosm%Tcold(nk, na))
+      ! cosm%log_k_Tcold = cosm%log_k_plin
+      ! cosm%Tcold = 1.
+      ! cosm%nk_Tcold = nk
+
+      cosm%has_power = .TRUE.
+
+   END SUBROUTINE init_external_linear
 
    SUBROUTINE random_cosmology(cosm)
 
