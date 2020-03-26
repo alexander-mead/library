@@ -11,6 +11,7 @@ LIB_DEBUG = libmead_debug.a
 
 # Standard Fortran compile flags
 FFLAGS = \
+	-fPIC \
 	-fimplicit-none \
 	-std=gnu \
 	-lgfortran \

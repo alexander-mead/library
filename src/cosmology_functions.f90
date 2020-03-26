@@ -90,6 +90,7 @@ MODULE cosmology_functions
    PUBLIC :: flag_power_total
    PUBLIC :: flag_power_cold
    PUBLIC :: flag_power_cold_unorm
+   PUBLIC :: norm_sigma8
 
    ! CAMB interface
    PUBLIC :: get_CAMB_power
