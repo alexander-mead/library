@@ -85,21 +85,28 @@ MODULE cosmology_functions
    PUBLIC :: sigmaV
    PUBLIC :: neff
    PUBLIC :: xi_lin
+   PUBLIC :: calculate_plin
    PUBLIC :: flag_power_total
    PUBLIC :: flag_power_cold
    PUBLIC :: flag_power_cold_unorm
 
    ! CAMB interface
    PUBLIC :: get_CAMB_power
+   PUBLIC :: CAMB_nonlinear_HALOFIT_Smith
+   PUBLIC :: CAMB_nonlinear_HALOFIT_Bird
+   PUBLIC :: CAMB_nonlinear_HALOFIT_Takahashi 
+   PUBLIC :: CAMB_nonlinear_HMcode2015
+   PUBLIC :: CAMB_nonlinear_HMcode2016
 
-   ! Halofit
-   PUBLIC :: halofit_Smith
-   PUBLIC :: halofit_Takahashi
-   PUBLIC :: halofit_Bird
-   PUBLIC :: halofit_CAMB
-   PUBLIC :: halofit_CLASS
-   PUBLIC :: calculate_halofit_a
-
+   ! HALOFIT
+   PUBLIC :: calculate_HALOFIT_a
+   PUBLIC :: calculate_HALOFIT
+   PUBLIC :: HALOFIT_Smith
+   PUBLIC :: HALOFIT_Takahashi
+   PUBLIC :: HALOFIT_Bird
+   PUBLIC :: HALOFIT_CAMB
+   PUBLIC :: HALOFIT_CLASS
+   
    INTERFACE integrate_cosm
       MODULE PROCEDURE integrate_cosm_1
       MODULE PROCEDURE integrate_cosm_2
@@ -356,11 +363,18 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: imeth_interpolation_Dv = 2  ! Method for Delta_v interpolation
 
    ! Halofit
-   INTEGER, PARAMETER :: halofit_Smith = 1     ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664)
-   INTEGER, PARAMETER :: halofit_Bird = 2      ! Bird et al. (2011; https://arxiv.org/abs/1109.4416)
-   INTEGER, PARAMETER :: halofit_Takahashi = 3 ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
-   INTEGER, PARAMETER :: halofit_CAMB = 4      ! Version as used in CAMB  (date; ???)
-   INTEGER, PARAMETER :: halofit_CLASS = 5     ! Version as used in CLASS (date; ???)
+   INTEGER, PARAMETER :: HALOFIT_Smith = 1     ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664)
+   INTEGER, PARAMETER :: HALOFIT_Bird = 2      ! Bird et al. (2011; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: HALOFIT_Takahashi = 3 ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
+   INTEGER, PARAMETER :: HALOFIT_CAMB = 4      ! Version as used in CAMB  (date; ???)
+   INTEGER, PARAMETER :: HALOFIT_CLASS = 5     ! Version as used in CLASS (date; ???)
+
+   ! CAMB non-linear
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5
 
    ! General integrations
    INTEGER, PARAMETER :: jmin_integration = 5
@@ -3080,6 +3094,28 @@ CONTAINS
 
    END FUNCTION Tcold_EH
 
+   SUBROUTINE calculate_plin(k, a, Pk, nk, na, cosm)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k(nk)
+      REAL, INTENT(IN) :: a(na)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      INTEGER, INTENT(IN) :: nk
+      INTEGER, INTENT(IN) :: na
+      TYPE(cosmology) :: cosm
+      INTEGER :: ik, ia
+      INTEGER, PARAMETER :: flag = flag_power_total
+
+      ALLOCATE(Pk(nk, na))
+
+      DO ia = 1, na
+         DO ik = 1, nk
+            Pk(ik, ia) = p_lin(k(ik), a(ia), flag, cosm)
+         END DO
+      END DO
+
+   END SUBROUTINE calculate_plin
+
    REAL RECURSIVE FUNCTION p_lin(k, a, flag, cosm)
 
       ! Linear matter power spectrum
@@ -5200,7 +5236,7 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
       CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini'
       LOGICAL, PARAMETER :: non_linear = .FALSE.       ! Should not use non-linear when trying to get linear theory
-      INTEGER, PARAMETER :: halofit_version = 5        ! 5 - HMcode 2015 (irrelevant here)
+      INTEGER, PARAMETER :: halofit_version = 0        ! Irrelevant here
       REAL, PARAMETER :: amin = amin_CAMB              ! Minimum scale factor to get from CAMB
       REAL, PARAMETER :: amax = amax_CAMB              ! Maximum scale factor to get from CAMB
       LOGICAL, PARAMETER :: rebin = rebin_CAMB         ! Should we rebin CAMB input P(k)?
@@ -6335,7 +6371,7 @@ CONTAINS
 
    END SUBROUTINE Mira_Titan_node_cosmology
 
-   SUBROUTINE halofit_init(rknl, rneff, rncur, a, cosm, verbose)
+   SUBROUTINE HALOFIT_init(rknl, rneff, rncur, a, cosm, verbose)
 
       ! Halofit initialisation routine taken from https://www.roe.ac.uk/~jap/haloes/
       IMPLICIT NONE
@@ -6356,7 +6392,7 @@ CONTAINS
       xlogr2 = 3.5
 10    rmid = (xlogr2+xlogr1)/2.0
       rmid = 10**rmid
-      call wint(rmid, sig, d1, d2, a, cosm)
+      call wint_HALOFIT(rmid, sig, d1, d2, a, cosm)
       diff = sig-1.0
       if (abs(diff) .le. 0.001) then
          rknl = 1./rmid
@@ -6384,9 +6420,58 @@ CONTAINS
 
       !ihf=0
 
-   END SUBROUTINE halofit_init
+   END SUBROUTINE HALOFIT_init
 
-   SUBROUTINE wint(r, sig, d1, d2, a, cosm)
+   SUBROUTINE calculate_HALOFIT(k, a, Pk, nk, na, cosm, version)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k(nk) ! Array of wavenumbers
+      REAL, INTENT(IN) :: a(na) ! Scale factor
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array
+      INTEGER :: nk ! Number of points in k
+      INTEGER :: na ! Number of points in a
+      TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
+      INTEGER, OPTIONAL, INTENT(IN) :: version ! HALOFIT version
+      REAL :: Plin(nk), Pq(nk), Ph(nk), Pnl(nk)
+      INTEGER :: j
+      LOGICAL, PARAMETER :: verbose = .FALSE.
+
+      ALLOCATE(Pk(nk, na))
+
+      DO j = 1, na
+         CALL calculate_HALOFIT_a(k, a(j), Plin, Pq, Ph, Pnl, nk, cosm, verbose, version)
+         Pk(:, j) = Pnl
+      END DO
+
+   END SUBROUTINE calculate_HALOFIT
+
+   SUBROUTINE calculate_HALOFIT_a(k, a, Plin, Pq, Ph, Pnl, n, cosm, verbose, ihf)
+
+      ! Get a HALOFIT P(k,a) prediction
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k(n)       ! Array of wavenumbers
+      REAL, INTENT(IN) :: a          ! Scale factor
+      REAL, INTENT(OUT) :: Plin(n)   ! Output array of linear power
+      REAL, INTENT(OUT) :: Pq(n)     ! Output array of quasi-linear power
+      REAL, INTENT(OUT) :: Ph(n)     ! Output array of halo power
+      REAL, INTENT(OUT) :: Pnl(n)    ! Output array of HALOFIT power
+      INTEGER, INTENT(IN) :: n       ! Size of input k array
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmological model
+      LOGICAL, INTENT(IN) :: verbose ! Verbosity
+      INTEGER, INTENT(IN) :: ihf     ! Interger for HALOFIT version
+      REAL :: rknl, rneff, rncur
+      INTEGER :: i
+
+      CALL HALOFIT_init(rknl, rneff, rncur, a, cosm, verbose)
+
+      DO i = 1, n
+         Plin(i) = p_lin(k(i), a, flag_power_total, cosm)
+         CALL HALOFIT(k(i), rneff, rncur, rknl, Plin(i), Pnl(i), Pq(i), Ph(i), a, cosm, ihf)
+      END DO
+
+   END SUBROUTINE calculate_HALOFIT_a
+
+   SUBROUTINE wint_HALOFIT(r, sig, d1, d2, a, cosm)
 
       ! Halofit window integration routine
       IMPLICIT NONE
@@ -6423,35 +6508,9 @@ CONTAINS
       d1 = -sum2/sum1
       d2 = -sum2*sum2/sum1/sum1-sum3/sum1
 
-   END SUBROUTINE wint
+   END SUBROUTINE wint_HALOFIT
 
-   SUBROUTINE calculate_halofit_a(k, a, Plin, Pq, Ph, Pnl, n, cosm, verbose, ihf)
-
-      ! Get a halofit P(k,a) prediction
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k(n)       ! Array of wavenumbers
-      REAL, INTENT(IN) :: a          ! Scale factor
-      REAL, INTENT(OUT) :: Plin(n)   ! Output array of linear power
-      REAL, INTENT(OUT) :: Pq(n)     ! Output array of quasi-linear power
-      REAL, INTENT(OUT) :: Ph(n)     ! Output array of halo power
-      REAL, INTENT(OUT) :: Pnl(n)    ! Output array of halofit power
-      INTEGER, INTENT(IN) :: n       ! Size of input k array
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmological model
-      LOGICAL, INTENT(IN) :: verbose ! Verbosity
-      INTEGER, INTENT(IN) :: ihf     ! Interger for halofit version
-      REAL :: rknl, rneff, rncur
-      INTEGER :: i
-
-      CALL halofit_init(rknl, rneff, rncur, a, cosm, verbose)
-
-      DO i = 1, n
-         Plin(i) = p_lin(k(i), a, flag_power_total, cosm)
-         CALL halofit(k(i), rneff, rncur, rknl, Plin(i), Pnl(i), Pq(i), Ph(i), a, cosm, ihf)
-      END DO
-
-   END SUBROUTINE calculate_halofit_a
-
-   SUBROUTINE halofit(rk, rn, rncur, rknl, plin, pnl, pq, ph, a, cosm, ihf)
+   SUBROUTINE HALOFIT(rk, rn, rncur, rknl, plin, pnl, pq, ph, a, cosm, ihf)
 
       ! Calculates the HALOFIT power spectrum after rn, rncur and rknl have been pre-calculated
       ! ihf = 1 - Smith et al. 2003
@@ -6482,7 +6541,7 @@ CONTAINS
       wz = w_de(a, cosm) ! Choice here; do you use w or w(z)? w(z) is better I think
       fnu = cosm%Om_nu/cosm%Om_m ! TODO: Does this mean that neutrinos should not be included in Om_m?
 
-      IF (ihf == 1) THEN
+      IF (ihf == HALOFIT_Smith) THEN
          ! Smith et al. (2003)
          aa = 10**(1.4861+1.8369*rn+1.6762*rn**2+0.7940*rn**3+0.1670*rn**4-0.6206*rncur) ! Smith equation (C9)
          bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.9400*rncur) ! Smith equation (C10)
@@ -6492,7 +6551,7 @@ CONTAINS
          beta = 0.8291+0.9854*rn+0.3401*rn**2 ! Smith equation (C14)
          mu = 10**(-3.5442+0.1908*rn) ! Smith equation (C15)
          nu = 10**(0.9589+1.2857*rn) ! Smith equation (C16)
-      ELSE IF (ihf == 2) THEN
+      ELSE IF (ihf == HALOFIT_Bird) THEN
          ! Bird et al. (2012); based off Smith et al. (2003)
          aa = 10**(1.4861+1.8369*rn+1.6762*rn**2+0.7940*rn**3+0.1670*rn**4-0.6206*rncur)
          bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.9400*rncur)
@@ -6502,7 +6561,7 @@ CONTAINS
          beta = 0.8291+0.9854*rn+0.3401*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10)
          mu = 10**(-3.5442+0.1908*rn)
          nu = 10**(0.9589+1.2857*rn)
-      ELSE IF (ihf == 3) THEN
+      ELSE IF (ihf == HALOFIT_Takahashi) THEN
          ! Takahashi et al. (2012); complete refit, all parameters different from Smith et al. (2003)
          aa = 10**(1.5222+2.8553*rn+2.3706*rn**2+0.9903*rn**3+0.2250*rn**4-0.6038*rncur+0.1749*Om_vz*(1.+wz)) ! Takahashi equation (A6)
          bb = 10**(-0.5642+0.5864*rn+0.5716*rn**2-1.5474*rncur+0.2279*Om_vz*(1.+wz)) ! Takahashi equation (A7)
@@ -6512,7 +6571,7 @@ CONTAINS
          beta = 2.0379-0.7354*rn+0.3157*rn**2+1.2490*rn**3+0.3980*rn**4-0.1682*rncur ! Takahashi equation (A11)
          mu = 0. ! Takahashi equation (A12)
          nu = 10**(5.2105+3.6902*rn) ! Takahashi equation (A13)
-      ELSE IF (ihf == 4) THEN
+      ELSE IF (ihf == HALOFIT_CAMB) THEN
          ! Unpublished CAMB from halofit_ppf.f90; based on Takahashi et al. (2012) plus Bird et al. (2012)
          aa = 10**(1.5222+2.8553*rn+2.3706*rn**2+0.9903*rn**3+0.2250*rn**4-0.6038*rncur+0.1749*Om_vz*(1.+wz))
          bb = 10**(-0.5642+0.5864*rn+0.5716*rn**2-1.5474*rncur+0.2279*Om_vz*(1.+wz))
@@ -6558,13 +6617,13 @@ CONTAINS
       ! Ratio of current wave number to the non-linear wave number
       y = rk/rknl
 
-      IF (ihf == 1) THEN
+      IF (ihf == HALOFIT_Smith) THEN
          ! Smith et al. (2003)
          fy = y/4.+y**2/8.                                    ! Smith (below C2)
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Smith (C4)
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Smith (C3)
          pq = plin*(1.+plin)**beta/(1.+plin*alpha)*exp(-fy)   ! Smith (C2)
-      ELSE IF (ihf == 2) THEN
+      ELSE IF (ihf == HALOFIT_Bird) THEN
          ! Bird et al. (2012)
          fy = y/4.+y**2/8.
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Bird equation (A2)
@@ -6573,13 +6632,13 @@ CONTAINS
          ph = ph*(1.+Q)                                       ! Bird equation (A7)
          pq = plin*(1.+(26.3*fnu*rk**2.)/(1.+1.5*rk**2))      ! Bird equation (A9)
          pq = plin*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)       ! Bird equation (A8)
-      ELSE IF (ihf == 3) THEN
+      ELSE IF (ihf == HALOFIT_Takahashi) THEN
          ! Takahashi et al. (2012)
          fy = y/4.+y**2/8.                                    ! Takahashi equation (below A2)
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Takahashi equation (A3ii)
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Takahashi equation (A3i)
          pq = plin*(1.+plin)**beta/(1.+plin*alpha)*exp(-fy)   ! Takahashi equation (A2)
-      ELSE IF (ihf == 4) THEN
+      ELSE IF (ihf == HALOFIT_CAMB) THEN
          ! Unpublished CAMB stuff from halofit_ppf.f90
          fy = y/4.+y**2/8.
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam))
@@ -6592,7 +6651,7 @@ CONTAINS
 
       pnl = pq+ph
 
-   END SUBROUTINE halofit
+   END SUBROUTINE HALOFIT
 
    REAL FUNCTION z_lss(cosm)
 
