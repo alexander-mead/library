@@ -10,16 +10,64 @@ MODULE cosmic_emu_stuff
 
    PRIVATE
 
-   PUBLIC :: get_Cosmic_Emu_power
-   PUBLIC :: get_Franken_Emu_power
-   PUBLIC :: get_Mira_Titan_power
+   PUBLIC :: get_CosmicEmu_power_z
+   PUBLIC :: get_FrankenEmu_power_z
+   PUBLIC :: get_MiraTitan_power_z
+   PUBLIC :: get_emulator_power
+   PUBLIC :: emulator_CosmicEmu
+   PUBLIC :: emulator_FrankenEmu
+   PUBLIC :: emulator_MiraTitan
+
+   INTEGER, PARAMETER :: emulator_CosmicEmu = 1
+   INTEGER, PARAMETER :: emulator_FrankenEmu = 2
+   INTEGER, PARAMETER :: emulator_MiraTitan = 3
 
 CONTAINS
 
-   SUBROUTINE get_Cosmic_Emu_power(k, P, n, z, cosm, rebin)
+   SUBROUTINE get_emulator_power(k, a, Pk, nk, na, cosm, rebin, emulator_version)
+
+      IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, INTENT(IN) :: a(na)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      INTEGER, INTENT(OUT) :: nk
+      INTEGER, INTENT(IN) :: na
+      TYPE(cosmology), INTENT(IN) :: cosm
+      LOGICAL, INTENT(IN) :: rebin
+      INTEGER, INTENT(IN) :: emulator_version
+      INTEGER :: ia
+      REAL :: z
+      REAL, ALLOCATABLE :: k_emu(:), Pk_emu(:)
+
+      DO ia = 1, na
+
+         z = redshift_a(a(ia))
+
+         IF (emulator_version == emulator_CosmicEmu) THEN
+            CALL get_CosmicEmu_power_z(k_emu, Pk_emu, nk, z, cosm, rebin)
+         ELSE IF (emulator_version == emulator_FrankenEmu) THEN
+            CALL get_FrankenEmu_power_z(k_emu, Pk_emu, nk, z, cosm, rebin)
+         ELSE IF (emulator_version == emulator_MiraTitan) THEN
+            CALL get_MiraTitan_power_z(k_emu, Pk_emu, nk, z, cosm, rebin)
+         ELSE
+            STOP 'GET_EMULATOR_POWER: Error, emulator_version not specified correctly'
+         END IF
+
+         IF (.NOT. allocated(k))  ALLOCATE(k(nk))
+         IF (.NOT. allocated(Pk)) ALLOCATE(Pk(nk, na))
+
+         k = k_emu
+         Pk(:, ia) = Pk_emu
+
+      END DO
+
+   END SUBROUTINE get_emulator_power
+
+   SUBROUTINE get_CosmicEmu_power_z(k, P, n, z, cosm, rebin)
     
       IMPLICIT NONE
-      REAL, ALLOCATABLE, INTENT(OUT) :: k(:), P(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: P(:)
       INTEGER, INTENT(OUT) :: n
       REAL, INTENT(IN) :: z
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -58,19 +106,19 @@ CONTAINS
       ALLOCATE (k(n), P(n))
 
       ! Write useful things to screen
-      WRITE (*, *) 'GET_COSMIC_EMU_POWER: z:', z
-      WRITE (*, *) 'GET_COSMIC_EMU_POWER: P(k) file length:', n
-      WRITE (*, *) 'GET_COSMIC_EMU_POWER: Reading in P(k): ', trim(output)
+      WRITE (*, *) 'GET_COSMICEMU_POWER_Z: z:', z
+      WRITE (*, *) 'GET_COSMICEMU_POWER_Z: P(k) file length:', n
+      WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Reading in P(k): ', trim(output)
 
       ! Read in data file
       OPEN (7, file=output)
       DO i = 1-nh, n
          IF (i == h_li-nh) THEN
             READ (7, *) crap, crap, crap, crap, crap, crap, crap, crap, h
-            WRITE (*, *) 'GET_COSMIC_EMU_POWER: CMB derived h:', h
-            WRITE (*, *) 'GET_COSMIC_EMU_POWER: Cosmology h:', cosm%h
-            WRITE (*, *) 'GET_COSMIC_EMU_POWER: h ratio:', cosm%h/h
-            IF (.NOT. requal(h, cosm%h, eps_h)) STOP 'GET_COSMIC_EMU_POWER: Error, h values differ'
+            WRITE (*, *) 'GET_COSMICEMU_POWER_Z: CMB derived h:', h
+            WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Cosmology h:', cosm%h
+            WRITE (*, *) 'GET_COSMICEMU_POWER_Z: h ratio:', cosm%h/h
+            IF (.NOT. requal(h, cosm%h, eps_h)) STOP 'GET_COSMIC_EMU_POWER_Z: Error, h values differ'
          ELSE IF (i < 1) THEN
             READ (7, *)
          ELSE
@@ -98,15 +146,16 @@ CONTAINS
       END IF
 
       ! Done
-      WRITE (*, *) 'GET_COSMIC_EMU_POWER: Done'
+      WRITE (*, *) 'GET_COSMIC_EMU_POWER_Z: Done'
       WRITE (*, *)
 
-   END SUBROUTINE get_Cosmic_Emu_power
+   END SUBROUTINE get_CosmicEmu_power_z
 
-   SUBROUTINE get_Franken_Emu_power(k, P, n, z, cosm, rebin)
+   SUBROUTINE get_FrankenEmu_power_z(k, P, n, z, cosm, rebin)
 
       IMPLICIT NONE
-      REAL, ALLOCATABLE, INTENT(OUT) :: k(:), P(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: P(:)
       INTEGER, INTENT(OUT) :: n
       REAL, INTENT(IN) :: z
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -141,9 +190,9 @@ CONTAINS
       ALLOCATE (k(n), P(n))
 
       ! Write useful things to screen
-      WRITE (*, *) 'GET_FRANKENEMU_POWER: z:', z
-      WRITE (*, *) 'GET_FRANKENEMU_POWER: P(k) file length:', n
-      WRITE (*, *) 'GET_FRANKENEMU_POWER: Reading in P(k): ', trim(output)
+      WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: z:', z
+      WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: P(k) file length:', n
+      WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: Reading in P(k): ', trim(output)
 
       ! Read in data file
       OPEN (7, file=output)
@@ -175,12 +224,12 @@ CONTAINS
       END IF
 
       ! Done
-      WRITE (*, *) 'GET_FRANKENEMU_POWER: Done'
+      WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: Done'
       WRITE (*, *)
 
-   END SUBROUTINE get_Franken_Emu_power
+   END SUBROUTINE get_FrankenEmu_power_z
 
-   SUBROUTINE get_Mira_Titan_power(k, P, n, z, cosm, rebin)
+   SUBROUTINE get_MiraTitan_power_z(k, P, n, z, cosm, rebin)
 
       USE constants
       IMPLICIT NONE
@@ -217,9 +266,9 @@ CONTAINS
       IF (ALLOCATED(P)) DEALLOCATE (P)
       ALLOCATE (k(n), P(n))
 
-      WRITE (*, *) 'GET_MIRA_TITAN_POWER: z:', z
-      WRITE (*, *) 'GET_MIRA_TITAN_POWER: P(k) file length:', n
-      WRITE (*, *) 'GET_MIRA_TITAN_POWER: Reading in P(k)'
+      WRITE (*, *) 'GET_MIRATITAN_POWER_Z: z:', z
+      WRITE (*, *) 'GET_MIRATITAN_POWER_Z: P(k) file length:', n
+      WRITE (*, *) 'GET_MIRATITAN_POWER_Z: Reading in P(k)'
 
       OPEN (7, file=output)
       DO i = 1, n
@@ -251,9 +300,9 @@ CONTAINS
          DEALLOCATE (k2, P2)
       END IF
 
-      WRITE (*, *) 'GET_MIRA_TITAN_POWER: Done'
+      WRITE (*, *) 'GET_MIRATITAN_POWER_Z: Done'
       WRITE (*, *)
 
-   END SUBROUTINE get_Mira_Titan_power
+   END SUBROUTINE get_MiraTitan_power_z
 
 END MODULE cosmic_emu_stuff
