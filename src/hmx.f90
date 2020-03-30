@@ -37,7 +37,7 @@ MODULE HMx
    PUBLIC :: calculate_HMx
    PUBLIC :: calculate_HMx_a
    PUBLIC :: calculate_HMcode
-   PUBLIC :: calculate_HMcode_CAMB
+   !PUBLIC :: calculate_HMcode_CAMB
    PUBLIC :: set_halo_type
    PUBLIC :: halo_type
    PUBLIC :: M_nu
@@ -75,6 +75,13 @@ MODULE HMx
    PUBLIC :: mass_function
    PUBLIC :: multiplicity_function
    PUBLIC :: halo_bias
+
+   ! HMcode versions
+   PUBLIC :: HMcode2015
+   PUBLIC :: HMcode2015_CAMB
+   PUBLIC :: HMcode2016
+   PUBLIC :: HMcode2016_CAMB
+   PUBLIC :: HMcode2020
 
    ! HMx functions
    PUBLIC :: HMx_alpha
@@ -351,6 +358,7 @@ MODULE HMx
    REAL, PARAMETER :: HMx_beta_min = 1e-2  ! Minimum alpha parameter; needs to be set at not zero
    REAL, PARAMETER :: HMx_Gamma_min = 1.10 ! Minimum polytropic index
    REAL, PARAMETER :: HMx_Gamma_max = 2.00 ! Maximum polytropic index
+   REAL, PARAMETER :: HMx_eps_min = -0.99  ! Minimum concentration modification
    REAL, PARAMETER :: HMx_Astar_min = 0.   ! Minimum halo star fraction (I think this can be zero)3
    REAL, PARAMETER :: HMx_eta_min = 0.     ! Minimum value for star index thing
    REAL, PARAMETER :: frac_min = -1e-5     ! Fractions cannot be less than frac min (slightly below zero for roundoff)
@@ -477,8 +485,11 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_sbar = 55
    INTEGER, PARAMETER :: param_n = 55
 
-   INTEGER, PARAMETER :: ihm_hmcode_2016 = 1
-   INTEGER, PARAMETER :: ihm_hmcode_CAMB = 51
+   INTEGER, PARAMETER :: HMcode2015 = 7
+   INTEGER, PARAMETER :: HMcode2015_CAMB = 66 
+   INTEGER, PARAMETER :: HMcode2016 = 1
+   INTEGER, PARAMETER :: HMcode2016_CAMB = 51
+   INTEGER, PARAMETER :: HMcode2020 = 15
 
 CONTAINS
 
@@ -491,15 +502,15 @@ CONTAINS
       INTEGER :: i
 
       ! Names of pre-defined halo models
-      INTEGER, PARAMETER :: nhalomod = 65 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+      INTEGER, PARAMETER :: nhalomod = 66 ! Total number of pre-defined halo-model types (TODO: this is stupid)
       CHARACTER(len=256):: names(nhalomod)
-      names(1) =  'HMcode (Mead et al. 2016)'
+      names(1) =  'HMcode (2016)'
       names(2) =  'Basic halo-model (Two-halo term is linear)'
       names(3) =  'Standard halo-model (Seljak 2000)'
       names(4) =  'Standard halo-model but with Mead et al. (2015) smoothed transition'
       names(5) =  'Standard halo-model but with Delta_v=200 and delta_c=1.686 and Bullock c(M)'
       names(6) =  'Half-accurate HMcode (Mead et al. 2015, 2016)'
-      names(7) =  'HMcode (Mead et al. 2015)'
+      names(7) =  'HMcode (2015)'
       names(8) =  'Including scatter in halo properties at fixed mass'
       names(9) =  'Parameters for CCL tests (high accuracy)'
       names(10) = 'Comparison of mass conversions with Wayne Hu code'
@@ -542,8 +553,8 @@ CONTAINS
       names(47) = 'Isothermal beta model for gas in response'
       names(48) = 'Non-linear halo bias for standard model'
       names(49) = 'Non-linear halo bias with Tinker and virial haloes'
-      names(50) = 'HMcode (Mead et al. 2016) with Dolag pow=1 bug'
-      names(51) = 'HMcode in CAMB (July 2019)'
+      names(50) = 'HMcode (2016) with Dolag pow=1 bug'
+      names(51) = 'HMcode (2016) with CAMB parameters'
       names(52) = 'Standard but with Mead (2017) spherical collapse'
       names(53) = 'HMcode (2016) with Nelder-Mead parameters'
       names(54) = 'Matter masquerading as DMONLY'
@@ -558,6 +569,7 @@ CONTAINS
       names(63) = 'HMx2020: Temperature-dependent model for everything'
       names(64) = 'HMcode (2016) but with HMcode (2020) baryon model'
       names(65) = 'HMx2020: Baseline, no response'
+      names(66) = 'HMcode (2015) with CAMB parameters'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
 
@@ -1030,17 +1042,19 @@ CONTAINS
          WRITE (*, *)
       END IF
 
-      IF (ihm == 1 .OR. ihm == 7 .OR. ihm == 15 .OR. ihm == 28 .OR. ihm == 31 .OR. &
-         ihm == 50 .OR. ihm == 51 .OR. ihm == 53 .OR. ihm == 64) THEN
-         !  1 - HMcode (Mead et al. 2016)
-         !  7 - HMcode (Mead et al. 2015)
-         ! 15 - HMcode (Mead et al. 2020)
-         ! 28 - HMcode (Mead et al. 2016 w/ one parameter baryon model)
-         ! 31 - HMcode (Mead et al. 2016 w/ additional BAO damping)
-         ! 50 - HMcode (Mead et al. 2016 w/ pow=1 bug in Dolag)
-         ! 51 - HMcode in July 2019 CAMB (supposed to be Mead et al. 2016)
+      !IF (ihm == 1 .OR. ihm == 7 .OR. ihm == 15 .OR. ihm == 28 .OR. ihm == 31 .OR. &
+      !   ihm == 50 .OR. ihm == 51 .OR. ihm == 53 .OR. ihm == 64) THEN
+      IF (is_in_array(ihm, [1, 7, 15, 28, 31, 50, 51, 53, 64, 66])) THEN
+         !  1 - HMcode (2016)
+         !  7 - HMcode (2015)
+         ! 15 - HMcode (2020)
+         ! 28 - HMcode (2016 w/ one parameter baryon model)
+         ! 31 - HMcode (2016 w/ additional BAO damping)
+         ! 50 - HMcode (016 w/ pow=1 bug in Dolag)
+         ! 51 - HMcode (2016) but with CAMB halo mass range and number of points
          ! 53 - HMcode (2016) updated Nelder-Mead parameters
          ! 64 - HMcode (2016) but with 2020 baryon recipe
+         ! 66 - HMcode (2015) but with CAMB halo mass range and number of points
          hmod%ip2h = 1
          hmod%i1hdamp = 2
          hmod%iconc = 1
@@ -1059,7 +1073,7 @@ CONTAINS
          hmod%flag_sigmaV_fdamp = flag_power_total
          hmod%flag_sigmaV_kstar = flag_power_total
          hmod%DMONLY_neutrino_correction = .FALSE.
-         IF (ihm == 7) THEN
+         IF (ihm == 7 .OR. ihm == 66) THEN
             ! Mead et al. (2015)
             hmod%idc = 6
             hmod%i2hdamp = 2
@@ -1072,6 +1086,12 @@ CONTAINS
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
             hmod%flag_sigma_fdamp = flag_power_total ! Used in Mead et al. (2015) only
+            IF (ihm == 66) THEN
+               ! CAMB mass range and number of points
+               hmod%mmin = 1e0  ! Lower mass limit for integration [Msun/h]
+               hmod%mmax = 1e18 ! Upper mass limit for integration [Msun/h]
+               hmod%n = 256     ! Number of points in halo mass
+            END IF
          ELSE IF (ihm == 15) THEN
             ! HMcode 2020 (Mead et al. 2020)
             hmod%i1hdamp = 3   ! k^4 at large scales for one-halo term
@@ -1106,10 +1126,10 @@ CONTAINS
             ! Bug present in CAMB when Dolag power is set to 1 rather than 1.5
             hmod%iDolag = 2
          ELSE IF (ihm == 51) THEN
-            ! CAMB version of HMcode (July 2019)
+            ! CAMB mass range and number of points
             hmod%mmin = 1e0  ! Lower mass limit for integration [Msun/h]
             hmod%mmax = 1e18 ! Upper mass limit for integration [Msun/h]
-            hmod%n = 256
+            hmod%n = 256     ! Number of points in halo mass
          ELSE IF (ihm == 53) THEN
             ! HMcode (2016) with improved fitted parameters
             hmod%Dv0 = 416.
@@ -1517,8 +1537,9 @@ CONTAINS
          hmod%Astar = 0.             ! No stars
          hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
          hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
-      ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58 .OR. ihm == 59 .OR. &
-         ihm == 60 .OR. ihm == 61 .OR. ihm == 62 .OR. ihm == 63 .OR. ihm == 65) THEN
+      !ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58 .OR. ihm == 59 .OR. &
+      !   ihm == 60 .OR. ihm == 61 .OR. ihm == 62 .OR. ihm == 63 .OR. ihm == 65) THEN
+      ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, 60, 61, 62, 63, 65])) THEN
          ! HMx2020: Baseline
          hmod%response = 1 ! Model should be calculated as a response
          hmod%halo_central_stars = 3 ! 3 - Delta function for central stars (otherwise it would be Fedeli)
@@ -1528,6 +1549,18 @@ CONTAINS
          IF (ihm == 65) THEN
             ! Not with response
             hmod%response = 0
+         ! ELSE IF (ihm == 66) THEN
+         !    ! Broken model
+         !    hmod%eps = -0.900
+         !    hmod%epsz = -0.172 ! THIS IS THE PROBLEM
+         !    hmod%Gamma = 1.389
+         !    hmod%Gammaz = -1.000
+         !    hmod%M0 = 10**14.91
+         !    hmod%Astar = 0.0210
+         !    hmod%Astarz = 0.025
+         !    hmod%Mstar = 10**12.78
+         !    hmod%Mstarz = -0.830
+         !    hmod%eta = -0.303
          ELSE IF (ihm == 56) THEN
             ! AGN 7.6
             hmod%fix_star_concentration = .TRUE.
@@ -2485,7 +2518,7 @@ CONTAINS
 
    END SUBROUTINE set_halo_type
 
-   SUBROUTINE calculate_HMcode(k, a, Pk, nk, na, cosm)
+   SUBROUTINE calculate_HMcode(k, a, Pk, nk, na, cosm, version)
 
       ! Get the HMcode prediction for a cosmology for a range of k and a
       IMPLICIT NONE
@@ -2495,8 +2528,20 @@ CONTAINS
       INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
       INTEGER, INTENT(IN) :: na                  ! Number of scale factors
       TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
+      INTEGER, OPTIONAL, INTENT(IN) :: version   ! The ihm corresponding to the HMcode version
       INTEGER :: j
-      INTEGER :: ihm = ihm_hmcode_CAMB ! Would like to be a parameter
+      INTEGER :: ihm
+      !INTEGER :: ihm = ihm_hmcode_CAMB ! Would like to be a parameter
+
+      IF(.NOT. present(version)) THEN
+         ihm = HMcode2016
+      ELSE
+         ihm = version
+      END IF
+
+      IF(.NOT. is_in_array(ihm, [HMcode2015, HMcode2015_CAMB, HMcode2016, HMcode2016_CAMB, HMcode2020])) THEN
+         STOP 'CALCULATE_HMCODE: Error, you have asked for an HMcode version that is not supported'
+      END IF
 
       ALLOCATE(Pk(nk, na))
 
@@ -2508,26 +2553,26 @@ CONTAINS
 
    END SUBROUTINE calculate_HMcode
 
-   SUBROUTINE calculate_HMcode_CAMB(k, a, Pk, nk, na, cosm)
+   ! SUBROUTINE calculate_HMcode_CAMB(k, a, Pk, nk, na, cosm)
 
-      ! Get the HMcode prediction for a cosmology for a range of k and a
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k(nk)              ! Array of wavenumbers [h/Mpc]
-      REAL, INTENT(IN) :: a(na)              ! Array of scale factors
-      REAL, INTENT(OUT) :: Pk(nk, na)        ! Output power array, note that this is Delta^2(k), not P(k)
-      INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
-      INTEGER, INTENT(IN) :: na              ! Number of scale factors
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL :: Pkk(nk)
-      INTEGER :: j
-      INTEGER :: ihm = ihm_hmcode_CAMB ! Would like to be a parameter
+   !    ! Get the HMcode prediction for a cosmology for a range of k and a
+   !    IMPLICIT NONE
+   !    REAL, INTENT(IN) :: k(nk)              ! Array of wavenumbers [h/Mpc]
+   !    REAL, INTENT(IN) :: a(na)              ! Array of scale factors
+   !    REAL, INTENT(OUT) :: Pk(nk, na)        ! Output power array, note that this is Delta^2(k), not P(k)
+   !    INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
+   !    INTEGER, INTENT(IN) :: na              ! Number of scale factors
+   !    TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+   !    REAL :: Pkk(nk)
+   !    INTEGER :: j
+   !    INTEGER :: ihm = ihm_hmcode_CAMB ! Would like to be a parameter
 
-      DO j = 1, na
-         CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pkk, nk, cosm)
-         Pk(:, j) = Pkk
-      END DO
+   !    DO j = 1, na
+   !       CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pkk, nk, cosm)
+   !       Pk(:, j) = Pkk
+   !    END DO
 
-   END SUBROUTINE calculate_HMcode_CAMB
+   ! END SUBROUTINE calculate_HMcode_CAMB
 
    SUBROUTINE calculate_P_lin(k, a, Pk, nk, na, cosm)
 
@@ -2662,7 +2707,7 @@ CONTAINS
       INTEGER, ALLOCATABLE :: iifield(:)
       TYPE(halomod) :: hmcode
       INTEGER, PARAMETER :: dmonly(1) = field_dmonly ! Needed because it needs to be an array(1)
-      INTEGER :: ihmcode = ihm_hmcode_2016           ! Would like to be a parameter
+      INTEGER :: ihmcode = HMcode2016 ! Would like to be a parameter
 
       ! Make a new indexing scheme for only the unique arrays
       CALL unique_index(ifield, nf, iifield, nnf, match)
@@ -4344,6 +4389,8 @@ CONTAINS
       ELSE
          STOP 'HMx_EPS: Error, HMx_mode not specified correctly'
       END IF
+
+      CALL fix_minimum(HMx_eps, HMx_eps_min)
 
    END FUNCTION HMx_eps
 
