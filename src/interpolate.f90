@@ -61,8 +61,8 @@ CONTAINS
       xtab = xin
       ytab = yin
 
-      IF (xtab(1) > xtab(n)) THEN
-         ! Reverse the arrays in this case
+      ! Reverse the arrays in this case
+      IF (xtab(1) > xtab(n)) THEN       
          CALL reverse_array(xtab, n)
          CALL reverse_array(ytab, n)
       END IF
