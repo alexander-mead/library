@@ -146,7 +146,7 @@ CONTAINS
       END IF
 
       ! Done
-      WRITE (*, *) 'GET_COSMIC_EMU_POWER_Z: Done'
+      WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Done'
       WRITE (*, *)
 
    END SUBROUTINE get_CosmicEmu_power_z
