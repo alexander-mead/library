@@ -16,9 +16,9 @@ CONTAINS
       ! Solves y(x)=0. for x
       USE interpolate
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: xtab(n)
       REAL, INTENT(IN) :: ytab(n)
-      INTEGER, INTENT(IN) :: n
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: ifind = 3
       INTEGER, PARAMETER :: imeth = 2
@@ -34,9 +34,9 @@ CONTAINS
       USE basic_operations
       USE interpolate
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: xtab(n)
       REAL, INTENT(IN) :: ytab(n)
-      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: acc
       REAL :: x1, x2, y1, y2, x, y
       INTEGER :: i

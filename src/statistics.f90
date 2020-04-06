@@ -16,8 +16,8 @@ CONTAINS
    REAL FUNCTION mean(x, n)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: x(n)
       DOUBLE PRECISION :: sum
       INTEGER :: i
 
@@ -38,8 +38,8 @@ CONTAINS
       ! Sample is simply the variance of your sample 1/N
       ! However, if you are estimating the population variance then you need 1/(N-1)
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: x(n)
       DOUBLE PRECISION :: sum
       REAL :: avg
       INTEGER :: i
@@ -58,8 +58,8 @@ CONTAINS
    REAL FUNCTION standard_deviation(x, n)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: x(n)
 
       standard_deviation = sqrt(variance(x, n))
 
@@ -75,8 +75,8 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:)       ! Output array of bin edges, size n+1
       INTEGER, ALLOCATABLE, INTENT(OUT) :: hist(:) ! Output integer array of bin counts, size n
       INTEGER, INTENT(IN) :: n     ! Number of bins
-      REAL, INTENT(IN) :: data(m)  ! Data to be binned
       INTEGER, INTENT(IN) :: m     ! Number of points to be binned
+      REAL, INTENT(IN) :: data(m)  ! Data to be binned
       INTEGER :: i, j
 
       WRITE (*, *) 'HISTOGRAM: Assiging arrays'
@@ -112,10 +112,10 @@ CONTAINS
 
       USE calculus_table
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(n)
       REAL, INTENT(IN) :: p(n)
       REAL, INTENT(OUT) :: c(n)
-      INTEGER, INTENT(IN) :: n
       REAL :: norm
       INTEGER :: i
       INTEGER, PARAMETER :: iorder=0 ! Zeroth-order (histogram) integration and plenty of points are best here
@@ -134,9 +134,9 @@ CONTAINS
 
       USE interpolate
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(n)
       REAL, INTENT(IN) :: p(n)
-      INTEGER, INTENT(IN) :: n
       REAL, INTENT(OUT) :: one_sigma(2)
       REAL, INTENT(OUT) :: two_sigma(2)
       REAL :: c(n), ans, ci
@@ -185,10 +185,10 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: p             ! Parameter value
       REAL, EXTERNAL :: model           ! Model function
+      INTEGER, INTENT(IN) :: n          ! Number of data points
       REAL, INTENT(IN) :: x_data(n)     ! x values for data
       REAL, INTENT(IN) :: y_data(n)     ! y values for data
       REAL, INTENT(IN) :: sigma_data(n) ! Error bar for data
-      INTEGER, INTENT(IN) :: n          ! Number of data points
       REAL :: y, chi2
       INTEGER :: i
 

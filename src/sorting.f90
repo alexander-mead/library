@@ -38,8 +38,8 @@ CONTAINS
 
       ! Sort arrays in order from lowest to highest values
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: a(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(INOUT) :: a(n)
       INTEGER, INTENT(IN) :: isort
 
       IF (isort == isort_stupid) THEN
@@ -58,8 +58,8 @@ CONTAINS
 
       ! Bubble sort array 'a' into lowest to highest value
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: a(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(INOUT) :: a(n)
       REAL :: hold
       INTEGER :: i
       LOGICAL :: sorted
@@ -83,8 +83,8 @@ CONTAINS
 
       ! I have no idea what this is
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: a(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(INOUT) :: a(n)
       REAL :: hold, min
       INTEGER :: i, j, minl
 
@@ -164,8 +164,8 @@ CONTAINS
 
       ! Index the array 'a' from lowest to highest value
       IMPLICIT NONE
-      REAL, INTENT(IN) :: a(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: a(n)
       INTEGER, INTENT(OUT) :: ind(n)
       INTEGER, INTENT(IN) :: isort
 
@@ -182,10 +182,10 @@ CONTAINS
    SUBROUTINE index_int(a, ind, n, isort)
 
       ! Index the array 'a' from lowest to highest value
-      IMPLICIT NONE
+      IMPLICIT NONE      
+      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: a(n)
       INTEGER, INTENT(OUT) :: ind(n)
-      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: isort
       
       IF (isort == isort_stupid) THEN
@@ -202,9 +202,9 @@ CONTAINS
 
       ! Create an index array for a(:) that indexes from smallest to largest value
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n 
       REAL, INTENT(IN) :: a(n)
       INTEGER, INTENT(OUT) :: ind(n)
-      INTEGER, INTENT(IN) :: n 
       INTEGER :: i, isort, hold
 
       DO i = 1, n
@@ -230,9 +230,9 @@ CONTAINS
 
       ! Create an index array for integer a(:) that indexes from smallest to largest value
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: a(n)
       INTEGER, INTENT(OUT) :: ind(n)
-      INTEGER, INTENT(IN) :: n
       INTEGER :: i, isort, hold
 
       DO i = 1, n
@@ -257,9 +257,9 @@ CONTAINS
    SUBROUTINE stupid_index_real(a, ind, n)
 
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n    
       REAL, INTENT(IN) :: a(n)
       INTEGER, INTENT(OUT) :: ind(n)
-      INTEGER, INTENT(IN) :: n    
       INTEGER :: i, j
       REAL :: b(n)
 
@@ -277,9 +277,9 @@ CONTAINS
    SUBROUTINE stupid_index_int(a, ind, n)
 
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: a(n)
       INTEGER, INTENT(OUT) :: ind(n)
-      INTEGER, INTENT(IN) :: n
       INTEGER :: i, j, b(n)
 
       b = a
@@ -297,8 +297,8 @@ CONTAINS
 
       ! Checks if array 'a' is sorted from highest to lowest
       IMPLICIT NONE
-      REAL, INTENT(IN) :: a(n) ! Input array to check
       INTEGER, INTENT(IN) :: n ! Number of entried in array
+      REAL, INTENT(IN) :: a(n) ! Input array to check
       INTEGER :: i
 
       check_sorted = .TRUE.
@@ -316,9 +316,9 @@ CONTAINS
 
       ! Checks if array indices for 'a' are sorted from highest to lowest
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n    ! Number of entried in array
       REAL, INTENT(IN) :: a(n)    ! Input array to check
       INTEGER, INTENT(IN) :: j(n) ! Input array indices to check
-      INTEGER, INTENT(IN) :: n    ! Number of entried in array
       INTEGER :: i
 
       check_sorted_index = .TRUE.
@@ -335,9 +335,9 @@ CONTAINS
    SUBROUTINE reindex(a, j, n)
 
       ! Reindex the array 'a' with the new indices 'j'
+      INTEGER, INTENT(IN) :: n    ! Number of entried in array
       REAL, INTENT(INOUT) :: a(n) ! Input array to check
       INTEGER, INTENT(IN) :: j(n) ! Input array indices to check
-      INTEGER, INTENT(IN) :: n    ! Number of entried in array
       REAL :: b(n)
       INTEGER :: i
 

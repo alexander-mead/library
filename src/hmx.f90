@@ -2631,11 +2631,11 @@ CONTAINS
 
       ! Get the HMcode prediction for a cosmology for a range of k and a
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
+      INTEGER, INTENT(IN) :: na                  ! Number of scale factors
       REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
       REAL, INTENT(IN) :: a(na)                  ! Array of scale factors
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
-      INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
-      INTEGER, INTENT(IN) :: na                  ! Number of scale factors
       TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
       INTEGER, OPTIONAL, INTENT(IN) :: version   ! The ihm corresponding to the HMcode version
       INTEGER :: j
@@ -2664,11 +2664,11 @@ CONTAINS
 
       ! Get the linear power for a cosmology for a range of k and a
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
+      INTEGER, INTENT(IN) :: na              ! Number of scale factors
       REAL, INTENT(IN) :: k(nk)              ! Array of wavenumbers [h/Mpc]
       REAL, INTENT(IN) :: a(na)              ! Array of scale factors
       REAL, INTENT(OUT) :: Pk(nk, na)         ! Output power array, note that this is Delta^2(k), not P(k)
-      INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
-      INTEGER, INTENT(IN) :: na              ! Number of scale factors
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       INTEGER :: i, j
 
@@ -2706,10 +2706,10 @@ CONTAINS
       ! Get the HMcode prediction at this z for this cosmology
       IMPLICIT NONE
       INTEGER, INTENT(INOUT) :: ihm
+      INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
       REAL, INTENT(IN) :: k(nk)              ! Array of wavenumbers [h/Mpc]
       REAL, INTENT(IN) :: a                  ! Scale factor
       REAL, INTENT(OUT) :: Pk(nk)            ! Output power array, note that this is Delta^2(k), not P(k)
-      INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: pow_lin(nk), pow_2h(nk), pow_1h(nk), pow_hm(nk)
       TYPE(halomod) :: hmod
@@ -2730,12 +2730,12 @@ CONTAINS
       ! Public facing function, calculates the halo model power for k and a range
       ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed or (a,k,:,:)?
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
       INTEGER, INTENT(IN) :: nf         ! Number of different fields
-      REAL, INTENT(IN) :: k(nk)         ! k array [h/Mpc]
+      INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
       INTEGER, INTENT(IN) :: nk         ! Number of k points
-      REAL, INTENT(IN) :: a(na)         ! a array
+      REAL, INTENT(IN) :: k(nk)         ! k array [h/Mpc]
       INTEGER, INTENT(IN) :: na         ! Number of a points
+      REAL, INTENT(IN) :: a(na)         ! a array
       REAL, ALLOCATABLE, INTENT(OUT) :: pow_li(:, :)       ! Pow(k,a)
       REAL, ALLOCATABLE, INTENT(OUT) :: pow_2h(:, :, :, :) ! Pow(f1,f2,k,a)
       REAL, ALLOCATABLE, INTENT(OUT) :: pow_1h(:, :, :, :) ! Pow(f1,f2,k,a)
@@ -2795,10 +2795,11 @@ CONTAINS
 
       ! Calculate halo model Pk(a) for a k range
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: ifield(nf)
+
       INTEGER, INTENT(IN) :: nf
-      REAL, INTENT(IN) :: k(nk)
+      INTEGER, INTENT(IN) :: ifield(nf)
       INTEGER, INTENT(IN) :: nk
+      REAL, INTENT(IN) :: k(nk)
       REAL, INTENT(OUT) :: pow_li(nk)
       REAL, INTENT(OUT) :: pow_2h(nf, nf, nk)
       REAL, INTENT(OUT) :: pow_1h(nf, nf, nk)
@@ -2935,8 +2936,8 @@ CONTAINS
       ! Gets the one- and two-halo terms and combines them
       ! TODO: Include scatter in two-halo term
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: ifield(nf)
       INTEGER, INTENT(IN) :: nf
+      INTEGER, INTENT(IN) :: ifield(nf)
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: plin
       REAL, INTENT(OUT) :: pow_2h(nf, nf)
@@ -3019,10 +3020,10 @@ CONTAINS
       ! Fill the window functions for all the different fields
       IMPLICIT NONE
       REAL, INTENT(IN) :: k
-      INTEGER, INTENT(IN) :: fields(nf)
-      REAL, INTENT(OUT) :: wk(nm, nf)
       INTEGER, INTENT(IN) :: nf
+      INTEGER, INTENT(IN) :: fields(nf)
       INTEGER, INTENT(IN) :: nm
+      REAL, INTENT(OUT) :: wk(nm, nf)
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: i, j
@@ -3098,10 +3099,10 @@ CONTAINS
       ! This is for contributions due to unbound gas, and the effect of this on electron pressure
       ! TODO: Have I inculded the halo bias corresponding to the free component correctly?
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: fields(nf)
-      REAL, INTENT(INOUT) :: wk(nm, nf)
       INTEGER, INTENT(IN) :: nf
+      INTEGER, INTENT(IN) :: fields(nf)
       INTEGER, INTENT(IN) :: nm
+      REAL, INTENT(INOUT) :: wk(nm, nf)
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: m, rv, c, rs, nu, fc, pc
@@ -3201,8 +3202,8 @@ CONTAINS
    FUNCTION wk_product_scatter(n, ifield, k, hmod, cosm)
 
       IMPLICIT NONE
-      REAL :: wk_product_scatter(n)
       INTEGER, INTENT(IN) :: n
+      REAL :: wk_product_scatter(n)
       INTEGER, INTENT(IN) :: ifield(2)
       REAL, INTENT(IN) :: k
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -3224,8 +3225,8 @@ CONTAINS
       ! Produces the 'two-halo' power
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: ih(2)
-      REAL, INTENT(IN) :: wk(n, 2)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: wk(n, 2)
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: plin
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -3414,8 +3415,8 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: ih
       REAL, INTENT(OUT) :: int
-      REAL, INTENT(IN) :: wk(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: wk(n)
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER, INTENT(IN) :: ibias
@@ -3477,8 +3478,8 @@ CONTAINS
 
       ! Calculates the one-halo term
       IMPLICIT NONE
-      REAL, INTENT(IN) :: wk_product(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: wk_product(n)
       REAL, INTENT(IN) :: k
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -5387,6 +5388,7 @@ CONTAINS
 
       !Converts mass definition from Delta_1 rho_1 overdense to Delta_2 rho_2 overdense
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n  ! Number of entries in tables
       REAL, INTENT(IN) :: r1(n) ! Array of initial virial radii [Mpc/h]
       REAL, INTENT(IN) :: c1(n) ! Array of initial halo concentration
       REAL, INTENT(IN) :: m1(n) ! Array of initial halo mass [Msun/h]
@@ -5397,7 +5399,6 @@ CONTAINS
       REAL, INTENT(OUT) :: m2(n) ! Output array of halo mass with new definition [Msun/h]
       REAL, INTENT(IN) :: D2 ! Final halo overdensity definition (e.g., 200, 500)
       REAL, INTENT(IN) :: rho2 ! Final halo overdensity defintion (critical or mass)
-      INTEGER, INTENT(IN) :: n  ! Number of entries in tables
       REAL :: f(n)
       REAL :: rmin, rmax, rs
       REAL, ALLOCATABLE :: r(:)
@@ -7955,8 +7956,8 @@ CONTAINS
    SUBROUTINE winint_speed_tests(k, nk, rmin, rmax, rv, rs, p1, p2, irho, base, ext)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: k(nk), rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: nk, irho
+      REAL, INTENT(IN) :: k(nk), rmin, rmax, rv, rs, p1, p2
       CHARACTER(len=*), INTENT(IN) :: base
       CHARACTER(len=*), INTENT(IN) :: ext
       CHARACTER(len=256) :: outfile
@@ -9916,12 +9917,12 @@ CONTAINS
    SUBROUTINE write_power(k, pow_li, pow_2h, pow_1h, pow_hm, nk, output, verbose)
 
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk
       REAL, INTENT(IN) :: k(nk)
       REAL, INTENT(IN) :: pow_li(nk)
       REAL, INTENT(IN) :: pow_2h(nk)
       REAL, INTENT(IN) :: pow_1h(nk)
       REAL, INTENT(IN) :: pow_hm(nk)
-      INTEGER, INTENT(IN) :: nk
       CHARACTER(len=*), INTENT(IN) :: output   
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
@@ -9947,14 +9948,14 @@ CONTAINS
    SUBROUTINE write_power_fields(k, pow_li, pow_2h, pow_1h, pow_hm, nk, fields, nf, base, verbose)
 
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk
+      INTEGER, INTENT(IN) :: nf
       REAL, INTENT(IN) :: k(nk)
       REAL, INTENT(IN) :: pow_li(nk)
       REAL, INTENT(IN) :: pow_2h(nf, nf, nk)
       REAL, INTENT(IN) :: pow_1h(nf, nf, nk)
       REAL, INTENT(IN) :: pow_hm(nf, nf, nk)
-      INTEGER, INTENT(IN) :: nk
       INTEGER, INTENT(IN) :: fields(nf)
-      INTEGER, INTENT(IN) :: nf
       CHARACTER(len=*), INTENT(IN) :: base   
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: j1, j2
@@ -9981,14 +9982,14 @@ CONTAINS
    SUBROUTINE write_power_a_multiple(k, a, pow_li, pow_2h, pow_1h, pow_hm, nk, na, base, verbose)
 
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk
+      INTEGER, INTENT(IN) :: na
       REAL, INTENT(IN) :: k(nk)
-      REAL, INTENT(IN) :: a(nk)
+      REAL, INTENT(IN) :: a(na)
       REAL, INTENT(IN) :: pow_li(nk, na)
       REAL, INTENT(IN) :: pow_2h(nk, na)
       REAL, INTENT(IN) :: pow_1h(nk, na)
       REAL, INTENT(IN) :: pow_hm(nk, na)
-      INTEGER, INTENT(IN) :: nk
-      INTEGER, INTENT(IN) :: na
       CHARACTER(len=*), INTENT(IN) :: base
       LOGICAL, INTENT(IN) :: verbose
       REAL :: pow(nk, na)
@@ -10025,11 +10026,11 @@ CONTAINS
    SUBROUTINE write_power_a(k, a, pow, nk, na, output, verbose)
 
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk
+      INTEGER, INTENT(IN) :: na
       REAL, INTENT(IN) :: k(nk)
       REAL, INTENT(IN) :: a(na)     
       REAL, INTENT(IN) :: pow(nk, na)
-      INTEGER, INTENT(IN) :: nk
-      INTEGER, INTENT(IN) :: na
       CHARACTER(len=*), INTENT(IN) :: output     
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i, j

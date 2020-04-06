@@ -58,8 +58,8 @@ CONTAINS
       ! F(0)=0 is not provided
       ! F(1)=1; F(2)=1; F(3)=2; F(4)=3; ...; F(n)=F(n-1)+F(n-2)
       IMPLICIT NONE
-      INTEGER, INTENT(OUT) :: F(n)
       INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(OUT) :: F(n)
       INTEGER :: i
 
       IF (n <= 0) THEN
@@ -102,8 +102,8 @@ CONTAINS
       ! f(1)=1, f(2)=2, f(3)=6, f(4)=24, ..., f(n)=n*f(n-1)
       ! TODO: Should this really be INT8 here?
       IMPLICIT NONE
-      INTEGER*8, INTENT(OUT) :: f(n)
       INTEGER, INTENT(IN) :: n
+      INTEGER(kind=8), INTENT(OUT) :: f(n)
       INTEGER :: i
 
       IF (n <= 0) THEN
@@ -120,13 +120,13 @@ CONTAINS
 
    END SUBROUTINE get_factorials
 
-   INTEGER*8 FUNCTION factorial(n)
+   INTEGER(kind=8) FUNCTION factorial(n)
 
       ! Calculates the nth factorial number
       ! TODO: Any way of avoiding the INT8 here?
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
-      INTEGER*8 :: f8(n)
+      INTEGER(kind=8) :: f8(n)
 
       IF (n < 0) THEN
          STOP 'FACTORIAL: Error, factorials not defined for n<0'
