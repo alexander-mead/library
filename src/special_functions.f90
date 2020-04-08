@@ -19,6 +19,7 @@ MODULE special_functions
    PUBLIC :: sinc
    PUBLIC :: wk_tophat
    PUBLIC :: wk_tophat_deriv
+   PUBLIC :: wk_tophat_dderiv
    PUBLIC :: Gaussian
    PUBLIC :: lognormal
    PUBLIC :: uniform
