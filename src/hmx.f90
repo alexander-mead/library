@@ -37,6 +37,7 @@ MODULE HMx
    PUBLIC :: calculate_HMx
    PUBLIC :: calculate_HMx_a
    PUBLIC :: calculate_HMcode
+   PUBLIC :: calculate_HMx_DMONLY
    !PUBLIC :: calculate_HMcode_CAMB
    PUBLIC :: set_halo_type
    PUBLIC :: halo_type
@@ -189,8 +190,12 @@ MODULE HMx
    PUBLIC :: param_HMcode_dcnu
    PUBLIC :: param_HMcode_mbar
    PUBLIC :: param_HMcode_nbar
-   PUBLIC :: param_HMcode_abar
+   PUBLIC :: param_HMcode_Amf
    PUBLIC :: param_HMcode_sbar
+   PUBLIC :: param_HMcode_STp
+   PUBLIC :: param_HMcode_STq
+   PUBLIC :: param_HMcode_kdamp
+   PUBLIC :: param_HMcode_Ap
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -200,7 +205,7 @@ MODULE HMx
 
       ! Switches
       INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, ip2h_corr
-      INTEGER :: idc, iDv, ieta, ikstar, i2hdamp, i1hdamp, itrans
+      INTEGER :: idc, iDv, ieta, i2hdamp, i1hdamp, itrans
       
       ! Flags for sigma 
       INTEGER :: flag_sigma, flag_sigmaV_kstar, flag_sigma_fdamp
@@ -255,8 +260,7 @@ MODULE HMx
       INTEGER :: nk
 
       ! HMcode parameters and experimental parameters
-      REAL :: knl, rnl, mnl, neff, Rh, Mh, Mp, sigv_all
-      !REAL :: sigV_all, sigV100_all, sig8_all, sig8_cold
+      REAL :: knl, rnl, mnl, neff, Rh, Mh, Mp, sigV_all, sig8_all
       REAL :: sig_eta, sig_deltac, sig_fdamp, sigV_kstar, sigV_fdamp
 
       ! Saturation parameters (e.g., WDM)
@@ -271,9 +275,13 @@ MODULE HMx
       REAL :: gmin, gmax, gbmin, gbmax, gnorm
 
       ! HMcode parameters
-      REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1, Dvnu, dcnu
-      REAL :: mbar, nbar, abar, sbar
+      REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1, Dvnu, dcnu!, g0, g1   
       LOGICAL :: DMONLY_baryon_recipe, DMONLY_neutrino_correction
+
+      ! HMcode (2020) parameters
+      !REAL :: ki, kf, nf, ff, ke, ne, al
+      REAL :: kdamp, Ap
+      REAL :: mbar, nbar, sbar
 
       ! Halo types
       INTEGER :: halo_DMONLY, halo_CDM, halo_static_gas, halo_cold_gas, halo_hot_gas, halo_free_gas
@@ -297,7 +305,7 @@ MODULE HMx
       ! Mass function and bias parameters
       REAL :: Tinker_alpha, Tinker_beta, Tinker_gamma, Tinker_phi, Tinker_eta
       REAL :: alpha_numu
-      REAL :: ST_p, ST_q, ST_A, Amp_mf
+      REAL :: ST_p, ST_q, ST_A, Amf
       LOGICAL :: has_mass_function
 
       ! Infinite redshift as far as the Dolag correction is concerned
@@ -481,9 +489,22 @@ MODULE HMx
    INTEGER, PARAMETER :: param_Zammaz = 51
    INTEGER, PARAMETER :: param_HMcode_mbar = 52
    INTEGER, PARAMETER :: param_HMcode_nbar = 53
-   INTEGER, PARAMETER :: param_HMcode_abar = 54
+   INTEGER, PARAMETER :: param_HMcode_Amf = 54
    INTEGER, PARAMETER :: param_HMcode_sbar = 55
-   INTEGER, PARAMETER :: param_n = 55
+   INTEGER, PARAMETER :: param_HMcode_STp = 56
+   INTEGER, PARAMETER :: param_HMcode_STq = 57
+   !INTEGER, PARAMETER :: param_HMcode_g0 = 58
+   !INTEGER, PARAMETER :: param_HMcode_g1 = 59
+   !INTEGER, PARAMETER :: param_HMcode_ki = 60
+   !INTEGER, PARAMETER :: param_HMcode_ff = 61
+   !INTEGER, PARAMETER :: param_HMcode_kf = 62
+   !INTEGER, PARAMETER :: param_HMcode_nf = 63
+   !INTEGER, PARAMETER :: param_HMcode_ke = 64
+   !INTEGER, PARAMETER :: param_HMcode_ne = 65
+   !INTEGER, PARAMETER :: param_HMcode_al = 66
+   INTEGER, PARAMETER :: param_HMcode_kdamp = 58
+   INTEGER, PARAMETER :: param_HMcode_Ap = 59
+   INTEGER, PARAMETER :: param_n = 59
 
    INTEGER, PARAMETER :: HMcode2015 = 7
    INTEGER, PARAMETER :: HMcode2015_CAMB = 66 
@@ -500,16 +521,16 @@ CONTAINS
       TYPE(halomod), INTENT(OUT) :: hmod
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
-
-      ! Names of pre-defined halo models
-      INTEGER, PARAMETER :: nhalomod = 66 ! Total number of pre-defined halo-model types (TODO: this is stupid)
+      INTEGER, PARAMETER :: nhalomod = 1000 ! Some large-enough number
       CHARACTER(len=256):: names(nhalomod)
+
+      names = ''
       names(1) =  'HMcode (2016)'
-      names(2) =  'Basic halo-model (Two-halo term is linear)'
-      names(3) =  'Standard halo-model (Seljak 2000)'
-      names(4) =  'Standard halo-model but with Mead et al. (2015) smoothed transition'
-      names(5) =  'Standard halo-model but with Delta_v=200 and delta_c=1.686 and Bullock c(M)'
-      names(6) =  'Half-accurate HMcode (Mead et al. 2015, 2016)'
+      names(2) =  'Basic halomodel (Two-halo term is linear; Dv=200; dc=1.686; c(M) Bullock)'
+      names(3) =  'Standard halomodel (Seljak 2000)'
+      names(4) =  'Standard halomodel but with HMcode (2015) smoothed transition'
+      names(5) =  'Standard halomodel but with Dv=200 and dc=1.686 and Bullock c(M)'
+      names(6) =  'Half-accurate HMcode (HMcode 2015, 2016)'
       names(7) =  'HMcode (2015)'
       names(8) =  'Including scatter in halo properties at fixed mass'
       names(9) =  'Parameters for CCL tests (high accuracy)'
@@ -528,7 +549,7 @@ CONTAINS
       names(22) = 'Delta function-NFW star profile model response'
       names(23) = 'Tinker mass function and bias; virial mass'
       names(24) = 'Non-linear halo bias for M200c haloes with Tinker'
-      names(25) = 'Villaescusa-Navarro HI halo model'
+      names(25) = 'Villaescusa-Navarro HI halomodel'
       names(26) = 'Delta-function mass function'
       names(27) = 'Press & Schecter mass function'
       names(28) = 'One-parameter baryon test'
@@ -570,8 +591,19 @@ CONTAINS
       names(64) = 'HMcode (2016) but with HMcode (2020) baryon model'
       names(65) = 'HMx2020: Baseline, no response'
       names(66) = 'HMcode (2015) with CAMB parameters'
+      names(67) = 'Standard with Dv=200 and dc=1.686'
+      names(68) = 'Standard with Bullock c(M)'
+      names(69) = 'Standard with simple Bullock c(M)'
+      names(70) = 'Standard but with no Dolag correction'
+      names(71) = 'Standard but with Dolag with 1.5 exponent'
+      names(72) = 'Standard but with linear two-halo term'
+      names(73) = 'Standard but with linear two-halo term with damped wiggles'
+      names(74) = 'Standard but with dc=1.686 fixed'
+      names(75) = 'Standard but with dc from Mead (2017) fit'
+      names(76) = 'Standard but with Dv from Mead (2017) fit'
+      names(77) = 'HMcode (test) unfitted'
 
-      IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halo model'
+      IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
       ! Default options
       hmod%mmin = 1e7  ! Lower mass limit for integration [Msun/h]
@@ -591,7 +623,6 @@ CONTAINS
       hmod%ip2h = 2
 
       ! Method to correct the two-halo integral
-      ! NB. This cannot be a parameter here because the value needs to be changed if doing cumulative distributions of power with mass
       ! 1 - Do nothing
       ! 2 - Add value of missing integral assuming that W(k)=1 (only works for matter fields)
       ! 3 - Put the missing part of the integrand as a delta function at lower mass limit
@@ -607,8 +638,8 @@ CONTAINS
 
       ! One-halo term large-scale damping
       ! 1 - No damping
-      ! 2 - Mead et al. (2015)
-      ! 3 - k^4 at large scales
+      ! 2 - HMcode (2015, 2016)
+      ! 3 - HMcode (2020) k^4 at large scales
       hmod%i1hdamp = 1
 
       ! Mass and halo bias function pair
@@ -630,27 +661,27 @@ CONTAINS
       hmod%iconc = 4
 
       ! How to calculate sigma(R); either cold matter or all matter
-      ! Defaults are from Mead et al. (2016)
+      ! Defaults are from HMcode (2016)
       hmod%flag_sigma = flag_power_cold_unorm
       hmod%flag_sigma_deltac = flag_power_total
       hmod%flag_sigma_eta = flag_power_total
-      hmod%flag_sigma_fdamp = flag_power_total   ! Used in Mead et al. (2015) only
+      hmod%flag_sigma_fdamp = flag_power_total   ! Used in HMcode (2015) only
       hmod%flag_sigmaV_fdamp = flag_power_total
       hmod%flag_sigmaV_kstar = flag_power_total
 
       ! Linear collapse threshold delta_c
       ! 1 - Fixed 1.686
       ! 2 - Nakamura & Suto (1997) fitting function
-      ! 3 - Mead et al. (2016)
+      ! 3 - HMcode (2016)
       ! 4 - Mead (2017) fitting function
       ! 5 - Spherical-collapse calculation
-      ! 6 - Mead et al. (2015)
+      ! 6 - HMcode (2015)
       hmod%idc = 2
 
       ! Virial density Delta_v
       ! 1 - Fixed 200
       ! 2 - Bryan & Norman (1998; arXiv:astro-ph/9710107) fitting function
-      ! 3 - Mead et al. (2015)
+      ! 3 - HMcode (2015)
       ! 4 - Mead (2017) fitting function
       ! 5 - Spherical-collapse calculation
       ! 6 - Fixed to unity to give Lagrangian radius
@@ -658,23 +689,20 @@ CONTAINS
 
       ! eta for halo window function
       ! 1 - No
-      ! 2 - Mead et al. (2015)
+      ! 2 - HMcode (2015)
       hmod%ieta = 1
-
-      ! k* for one-halo term large-scale damping
-      ! 1 - No
-      ! 2 - Mead et al. (2015)
-      hmod%ikstar = 1
 
       ! Concentration-mass rescaling
       ! 1 - No
-      ! 2 - Mead et al. (2015, 2016)
+      ! 2 - HMcode (2015, 2016)
+      ! 3 - HMcode (test) with sigma8 dependence
       hmod%iAs = 1
 
       ! fdamp for two-halo term damping
       ! 1 - No
-      ! 2 - Mead et al. (2015)
-      ! 3 - Mead et al. (2016)
+      ! 2 - HMcode (2015)
+      ! 3 - HMcode (2016)
+      ! 4 - HMcode (2020) perturbation theory and exponential damping
       hmod%i2hdamp = 1
 
       ! alpha for two- to one-halo transition region
@@ -683,6 +711,7 @@ CONTAINS
       ! 3 - ?
       ! 4 - New HMx transition
       ! 5 - Tanh transition
+      ! 6 - HMcode (2020) alpha
       hmod%itrans = 1
 
       ! Use the Dolag et al. (2004; astro-ph/0309771) c(M) correction for dark energy?
@@ -834,8 +863,18 @@ CONTAINS
       hmod%DMONLY_baryon_recipe = .FALSE.
       hmod%mbar = 1e14
       hmod%nbar = 1.
-      hmod%abar = 1.
       hmod%sbar = 0.
+      hmod%kdamp = 1e-2
+      hmod%Ap = 0.
+      !hmod%g0 = 0.
+      !hmod%g1 = 0.
+      !hmod%ki = 1e-2
+      !hmod%ff = 0.02
+      !hmod%kf = 1e-2
+      !hmod%nf = 2.
+      !hmod%ke = 1e0
+      !hmod%ne = 1.
+      !hmod%al = 1.
 
       ! ~infinite redshift for Dolag correction
       hmod%zinf_Dolag = 100.
@@ -844,8 +883,8 @@ CONTAINS
       hmod%one_parameter_baryons = .FALSE.
 
       ! HMx parameters
-      ! 1 - 
-      ! 2 - 
+      ! 1 - ?
+      ! 2 - ?
       ! 3 - Standard
       ! 4 - Tilman model
       ! 5 - HMx2020 redshift scalings
@@ -1014,7 +1053,7 @@ CONTAINS
       ! Sheth & Tormen (1999) mass function parameters
       hmod%ST_p = 0.3
       hmod%ST_q = 0.707
-      hmod%Amp_mf = 1.0
+      hmod%Amf = 1.0
 
       ! Index to make the mass function integration easier
       ! Should be related to how the mass function diverges at low nu
@@ -1036,21 +1075,20 @@ CONTAINS
       IF (ihm == -1) THEN
          WRITE (*, *) 'ASSIGN_HALOMOD: Choose your halo model'
          DO i = 1, nhalomod
-            WRITE (*, *) i, TRIM(names(i))
+            IF(trim(names(i)) == '') EXIT
+            WRITE (*, *) i, trim(names(i))
          END DO
          READ (*, *) ihm
          WRITE (*, *)
       END IF
 
-      !IF (ihm == 1 .OR. ihm == 7 .OR. ihm == 15 .OR. ihm == 28 .OR. ihm == 31 .OR. &
-      !   ihm == 50 .OR. ihm == 51 .OR. ihm == 53 .OR. ihm == 64) THEN
       IF (is_in_array(ihm, [1, 7, 15, 28, 31, 50, 51, 53, 64, 66])) THEN
          !  1 - HMcode (2016)
          !  7 - HMcode (2015)
          ! 15 - HMcode (2020)
          ! 28 - HMcode (2016 w/ one parameter baryon model)
          ! 31 - HMcode (2016 w/ additional BAO damping)
-         ! 50 - HMcode (016 w/ pow=1 bug in Dolag)
+         ! 50 - HMcode (2016 w/ pow=1 bug in Dolag)
          ! 51 - HMcode (2016) but with CAMB halo mass range and number of points
          ! 53 - HMcode (2016) updated Nelder-Mead parameters
          ! 64 - HMcode (2016) but with 2020 baryon recipe
@@ -1061,7 +1099,6 @@ CONTAINS
          hmod%idc = 3
          hmod%iDv = 3
          hmod%ieta = 2
-         hmod%ikstar = 2
          hmod%iAs = 2
          hmod%i2hdamp = 3
          hmod%itrans = 2
@@ -1074,7 +1111,7 @@ CONTAINS
          hmod%flag_sigmaV_kstar = flag_power_total
          hmod%DMONLY_neutrino_correction = .FALSE.
          IF (ihm == 7 .OR. ihm == 66) THEN
-            ! Mead et al. (2015)
+            ! HMcode (2015)
             hmod%idc = 6
             hmod%i2hdamp = 2
             hmod%itrans = 2
@@ -1085,7 +1122,7 @@ CONTAINS
             hmod%iDolag = 2
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
-            hmod%flag_sigma_fdamp = flag_power_total ! Used in Mead et al. (2015) only
+            hmod%flag_sigma_fdamp = flag_power_total ! Used in HMcode (2015) only
             IF (ihm == 66) THEN
                ! CAMB mass range and number of points
                hmod%mmin = 1e0  ! Lower mass limit for integration [Msun/h]
@@ -1093,11 +1130,11 @@ CONTAINS
                hmod%n = 256     ! Number of points in halo mass
             END IF
          ELSE IF (ihm == 15) THEN
-            ! HMcode 2020 (Mead et al. 2020)
-            hmod%i1hdamp = 3   ! k^4 at large scales for one-halo term
-            hmod%ip2h = 3      ! Linear theory with damped wiggles
-            hmod%i2hdamp = 2   ! Change back to Mead (2015) model for two-halo damping
-            hmod%flag_sigma = flag_power_cold_unorm ! This seemed to produce better neutrino results
+            ! HMcode (2020)
+            hmod%i1hdamp = 3 ! k^4 at large scales for one-halo term
+            hmod%ip2h = 3    ! Linear theory with damped wiggles
+            hmod%i2hdamp = 2 ! Change back to Mead (2015) model for two-halo damping
+            hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
             hmod%zinf_Dolag = 100.
             ! Nelder-Mead parameters
             hmod%Dv0 = 411.
@@ -1161,9 +1198,8 @@ CONTAINS
          ! Standard halo-model calculation (Seljak 2000)
          ! This is the default, so do nothing here
       ELSE IF (ihm == 4) THEN
-         ! Standard halo-model calculation but with Mead et al. (2015) smoothed two- to one-halo transition and one-halo damping
+         ! Standard halo-model calculation but with HMcode (2015) smoothed two- to one-halo transition and one-halo damping
          hmod%itrans = 3
-         hmod%ikstar = 2
          hmod%i1hdamp = 3
          hmod%safe_negative = .TRUE.
       ELSE IF (ihm == 5) THEN
@@ -1172,8 +1208,7 @@ CONTAINS
          hmod%iDv = 1
          hmod%iconc = 1
       ELSE IF (ihm == 6) THEN
-         ! Half-accurate halo-model calculation, inspired by (Mead et al. 2015, 2016)
-         hmod%ikstar = 2
+         ! Half-accurate halo-model calculation, inspired by (HMcode 2015, 2016)
          hmod%i1hdamp = 3
          hmod%i2hdamp = 3
          hmod%safe_negative = .TRUE.
@@ -1200,7 +1235,6 @@ CONTAINS
          hmod%idc = 2   ! Virial dc
          hmod%iDv = 2   ! Virial Dv
          hmod%ieta = 1
-         hmod%ikstar = 1
          hmod%iAs = 1
          hmod%i2hdamp = 1
          hmod%itrans = 1
@@ -1215,8 +1249,8 @@ CONTAINS
          hmod%electron_pressure = 1
       ELSE IF (ihm == 12) THEN
          ! Spherical-collapse model to produce Mead (2017) results
-         hmod%idc = 5    ! Mead (2017) fitting function for delta_c
-         hmod%iDv = 5    ! Mead (2017) fitting function for Delta_v
+         hmod%idc = 5    ! Spherical-collapse calculation for delta_c
+         hmod%iDv = 5    ! Spherical-collapse calculation for Delta_v
          hmod%imf = 2    ! Sheth & Tormen mass function
          hmod%iconc = 1  ! Bullock et al. c(M) relation
          hmod%iDolag = 2 ! This is important for the accuracy of the z=0 results presented in Mead (2017)
@@ -1226,7 +1260,6 @@ CONTAINS
       ELSE IF (ihm == 14) THEN
          ! Experimental scale-dependent halo bias
          hmod%ibias = 5
-         hmod%ikstar = 2
          hmod%i1hdamp = 3
       ELSE IF (ihm == 16) THEN
          ! Halo-void model
@@ -1237,7 +1270,6 @@ CONTAINS
          ! 19 - HMx AGN 8.0
          hmod%HMx_mode = 4
          hmod%itrans = 4
-         hmod%ikstar = 2
          hmod%i1hdamp = 3
          hmod%safe_negative = .TRUE.
          hmod%response = 1
@@ -1272,7 +1304,6 @@ CONTAINS
          hmod%iconc = 5   ! Duffy M200c concentrations for full sample
          hmod%idc = 1     ! Fixed to 1.686
          !hmod%i1hdamp=3 ! One-halo damping like k^4
-         !hmod%ikstar=2  ! One-halo damping via k* from Mead et al. (2015)
       ELSE IF (ihm == 25) THEN
          ! Villaescusa-Navarro HI halo model
          hmod%imf = 3     ! Tinker mass function
@@ -1519,13 +1550,11 @@ CONTAINS
          ! Non-linear halo bias for standard halo model with virial haloes
          hmod%ibias = 3   ! Non-linear halo bias
          !hmod%i1hdamp=3 ! One-halo damping like k^4
-         !hmod%ikstar=2  ! One-halo damping via k* from Mead et al. (2015)
       ELSE IF (ihm == 49) THEN
          ! Non-linear halo bias and Tinker mass function and virial mass haloes
          hmod%imf = 3     ! Tinker mass function and bias
          hmod%ibias = 3   ! Non-linear halo bias
          !hmod%i1hdamp=3 ! One-halo damping like k^4
-         !hmod%ikstar=2  ! One-halo damping via k* from Mead et al. (2015)
       ELSE IF(ihm == 52) THEN
          ! Standard halo model but with Mead (2017) spherical-collapse fitting function
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
@@ -1537,15 +1566,13 @@ CONTAINS
          hmod%Astar = 0.             ! No stars
          hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
          hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
-      !ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58 .OR. ihm == 59 .OR. &
-      !   ihm == 60 .OR. ihm == 61 .OR. ihm == 62 .OR. ihm == 63 .OR. ihm == 65) THEN
       ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, 60, 61, 62, 63, 65])) THEN
          ! HMx2020: Baseline
          hmod%response = 1 ! Model should be calculated as a response
-         hmod%halo_central_stars = 3 ! 3 - Delta function for central stars (otherwise it would be Fedeli)
+         hmod%halo_central_stars = 3   ! 3 - Delta function for central stars
          hmod%halo_satellite_stars = 1 ! 1 - NFW
-         hmod%eta = -0.3
-         hmod%HMx_mode = 5 ! HMx2020 possible M and z dependence of parameters
+         hmod%eta = -0.3               ! eta to split central and satellitee galaxies
+         hmod%HMx_mode = 5             ! HMx2020 possible M and z dependence of parameters
          IF (ihm == 65) THEN
             ! Not with response
             hmod%response = 0
@@ -1661,6 +1688,99 @@ CONTAINS
             ! 62 - Model for matter, CDM, gas, stars, electron pressure
             hmod%HMx_mode = 6 ! Scaling with temperature
          END IF
+      ELSE IF (ihm == 67) THEN
+         ! Standard halo-model calculation but with Delta_v = 200 and delta_c = 1.686
+         hmod%idc = 1
+         hmod%iDv = 1
+      ELSE IF (ihm == 68) THEN
+         ! Standard halo-model calculation but with Bullock c(M)
+         hmod%iconc = 1
+      ELSE IF (ihm == 69) THEN
+         ! Standard halo-model calculation but with simple Bullock c(M)
+         hmod%iconc = 2
+      ELSE IF (ihm == 70) THEN
+         ! Standard but wiht no Dolag correction
+         hmod%iDolag = 1
+      ELSE IF (ihm == 71) THEN
+         ! Standard but with Dolag correction with 1.5 exponent
+         hmod%iDolag = 3
+      ELSE IF (ihm == 72) THEN
+         ! Standard but with linear two-halo term
+         hmod%ip2h = 1
+      ELSE IF (ihm == 73) THEN
+         ! Standard but with two-halo term with damped wiggles
+         hmod%ip2h = 3
+      ELSE IF (ihm == 74) THEN
+         ! Standard but with dc = 1.686 fixed
+         hmod%idc = 1
+      ELSE IF (ihm == 75) THEN
+         ! Standard but with dc from Mead (2017) fit
+         hmod%idc = 4
+      ELSE IF (ihm == 76) THEN
+         ! Standard but with Dv from Mead (2017) fit
+         hmod%iDv = 4
+      !ELSE IF (is_in_array(ihm, [77])) THEN
+      ELSE IF (ihm == 77) THEN
+         ! HMcode (test) prototype
+         hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
+         hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
+         hmod%itrans = 2  ! 2 - alpha smoothing
+         hmod%i2hdamp = 4 ! 4 - fdamp for perturbation theory      
+         hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
+         hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
+         hmod%iconc = 1   ! 1 - Bullock c(M) relation   
+         hmod%iDolag = 3  ! 3 - Dolag c(M) correction with 1.5 power
+         hmod%iAs = 3     ! 2 - Vary c(M) relation prefactor
+         hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
+         ! Model 1
+         !hmod%ks = 0.9165773
+         !hmod%alp0 = 3.6149043
+         !hmod%alp1 = 2.0684254
+         ! Model 2 - this one is great for k<1
+         !hmod%f0 = 0.2468631
+         !hmod%f1 = 0.9596436
+         !hmod%ks = 0.1207590
+         !hmod%alp0 = 2.0299129
+         !hmod%alp1 = 1.6482285
+         !hmod%kdamp = 0.0476102
+         ! Model 3
+         !hmod%f0 = 0.7633153
+         !hmod%f1 = -2.7352528
+         !hmod%ks = 0.8793649
+         !hmod%As = 4.3013891
+         !hmod%alp0 = 3.5429452
+         !hmod%alp1 = 2.0471195
+         !hmod%kdamp = 4.3161717  
+         ! Model 4
+         !hmod%eta0 = 0.9952730
+         !hmod%eta1 = 0.2887444
+         !hmod%f0 = 0.2088968
+         !hmod%f1 = -3.0000000
+         !hmod%ks = 0.8666497
+         !hmod%As = 4.3023274
+         !hmod%alp0 = 5.0000000
+         !hmod%alp1 = 2.3818019
+         !hmod%kdamp = 3.7771747
+         ! Model 5
+         !hmod%f0 = 0.3912038 
+         !hmod%f1 = 5.0000000
+         !hmod%ks = 0.7081901
+         !hmod%As = 4.3181673
+         !hmod%alp0 = 2.4172494
+         !hmod%alp1 = 1.7144703
+         !hmod%kdamp = 0.1504777
+         !hmod%Ap = 0.5145956
+         ! Model 6
+         hmod%eta0 = -0.1852042
+         hmod%eta1 = -2.9707354
+         hmod%f0 = 0.3150726
+         hmod%f1 = -4.8408558
+         hmod%ks = 0.8643431
+         hmod%As = 4.3945540
+         hmod%alp0 = 3.5232892
+         hmod%alp1 = 2.0363236
+         hmod%kdamp = 4.9463079
+         hmod%Ap = 0.1386356
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -1708,10 +1828,11 @@ CONTAINS
 
       ! Find and save values of sigma
       hmod%sigV_all = sigmaV(0., a, flag_power_total, cosm)
+      hmod%sig8_all = sigma(8., a, flag_power_total, cosm)
       IF (hmod%idc == 3 .OR. hmod%idc == 6) hmod%sig_deltac = sigma(8., a, hmod%flag_sigma_deltac, cosm)
-      IF (hmod%ieta == 2)    hmod%sig_eta = sigma(8., a, hmod%flag_sigma_eta, cosm)
-      IF (hmod%ikstar == 2)  hmod%sigV_kstar = sigmaV(0., a, hmod%flag_sigmaV_kstar, cosm)
-      IF (hmod%i2hdamp == 2) hmod%sig_fdamp = sigma(8., a, hmod%flag_sigma_fdamp, cosm)
+      IF (hmod%ieta == 2) hmod%sig_eta = sigma(8., a, hmod%flag_sigma_eta, cosm)
+      IF (hmod%i1hdamp .NE. 1) hmod%sigV_kstar = sigmaV(0., a, hmod%flag_sigmaV_kstar, cosm)
+      IF (hmod%i2hdamp == 2 .OR. hmod%i2hdamp == 4) hmod%sig_fdamp = sigma(8., a, hmod%flag_sigma_fdamp, cosm)
       IF (hmod%i2hdamp == 3) hmod%sigV_fdamp = sigmaV(100., a, hmod%flag_sigmaV_fdamp, cosm)
 
       IF (verbose) THEN
@@ -1719,9 +1840,9 @@ CONTAINS
          WRITE (*, *) 'INIT_HALOMOD: Number of entries:', hmod%n
          WRITE (*, *) 'INIT_HALOMOD: Tables being filled at redshift:', REAL(z)
          WRITE (*, *) 'INIT_HALOMOD: Tables being filled at scale-factor:', REAL(a)
-         !WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigV_all)
+         WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigV_all)
          !IF (hmod%i2hdamp == 3) WRITE (*, *) 'INIT_HALOMOD: sigmaV_100 [Mpc/h]:', REAL(hmod%sigV100_all)
-         !WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (all):', REAL(hmod%sig8_all)
+         WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (all):', REAL(hmod%sig8_all)
          !WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (cold):', REAL(hmod%sig8_cold)
       END IF
 
@@ -2040,44 +2161,40 @@ CONTAINS
          ! delta_c
          IF (hmod%idc == 1) WRITE (*, *) 'HALOMODEL: Fixed delta_c = 1.686'
          IF (hmod%idc == 2) WRITE (*, *) 'HALOMODEL: delta_c from Nakamura & Suto (1997) fitting function'
-         IF (hmod%idc == 3) WRITE (*, *) 'HALOMODEL: delta_c from Mead et al. (2016) power spectrum fit'
+         IF (hmod%idc == 3) WRITE (*, *) 'HALOMODEL: delta_c from HMcode (2016) power spectrum fit'
          IF (hmod%idc == 4) WRITE (*, *) 'HALOMODEL: delta_c from Mead (2017) fitting function'
          IF (hmod%idc == 5) WRITE (*, *) 'HALOMODEL: delta_c from spherical-collapse calculation'
-         IF (hmod%idc == 6) WRITE (*, *) 'HALOMODEL: delta_c from Mead et al. (2015) power spectrum fit'
+         IF (hmod%idc == 6) WRITE (*, *) 'HALOMODEL: delta_c from HMcode (2015) power spectrum fit'
 
          ! Delta_v
-         IF (hmod%iDv == 1) WRITE (*, *) 'HALOMODEL: Fixed Delta_v = 200'
+         IF (hmod%iDv == 1) WRITE (*, *) 'HALOMODEL: Delta_v = 200 fixed'
          IF (hmod%iDv == 2) WRITE (*, *) 'HALOMODEL: Delta_v from Bryan & Norman (1998) fitting function'
-         IF (hmod%iDv == 3) WRITE (*, *) 'HALOMODEL: Delta_v from Mead et al. (2016) power spectrum fit'
+         IF (hmod%iDv == 3) WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2016) power spectrum fit'
          IF (hmod%iDv == 4) WRITE (*, *) 'HALOMODEL: Delta_v from Mead (2017) fitting function'
          IF (hmod%iDv == 5) WRITE (*, *) 'HALOMODEL: Delta_v from spherical-collapse calculation'
          IF (hmod%iDv == 6) WRITE (*, *) 'HALOMODEL: Delta_v to give haloes Lagrangian radius'
-         IF (hmod%iDv == 7) WRITE (*, *) 'HALOMODEL: Fixed Delta_v for M200c'
-         IF (hmod%iDv == 8) WRITE (*, *) 'HALOMODEL: Delta_v from Mead et al. (2015) power spectrum fit'
+         IF (hmod%iDv == 7) WRITE (*, *) 'HALOMODEL: Delta_v for M200c'
+         IF (hmod%iDv == 8) WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2015) power spectrum fit'
 
          ! eta for halo window function
          IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta = 0 fixed'
-         IF (hmod%ieta == 2) WRITE (*, *) 'HALOMODEL: eta from Mead et al. (2015, 2016) power spectrum fit'
+         IF (hmod%ieta == 2) WRITE (*, *) 'HALOMODEL: eta from HMcode (2015, 2016) power spectrum fit'
 
          ! Small-scale two-halo term damping coefficient
          IF (hmod%i2hdamp == 1) WRITE (*, *) 'HALOMODEL: No two-halo term damping at small scales'
-         IF (hmod%i2hdamp == 2) WRITE (*, *) 'HALOMODEL: Two-halo term damping from Mead et al. (2015)'
-         IF (hmod%i2hdamp == 3) WRITE (*, *) 'HALOMODEL: Two-halo term damping from Mead et al. (2016)'
+         IF (hmod%i2hdamp == 2) WRITE (*, *) 'HALOMODEL: Two-halo term damping from HMcode (2015)'
+         IF (hmod%i2hdamp == 3) WRITE (*, *) 'HALOMODEL: Two-halo term damping from HMcode (2016)'
+         IF (hmod%i2hdamp == 4) WRITE (*, *) 'HALOMODEL: Two-halo term damping from HMcode (2020)'
 
          ! Large-scale one-halo term damping function
          IF (hmod%i1hdamp == 1) WRITE (*, *) 'HALOMODEL: No damping in one-halo term at large scales'
          IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping via an exponential'
          IF (hmod%i1hdamp == 3) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping like Delta^2 ~ k^7'
 
-         ! Large-scale one-halo term damping coefficient
-         IF (hmod%i1hdamp .NE. 1) THEN
-            IF (hmod%ikstar == 1) WRITE (*, *) 'HALOMODEL: No damping in one-halo term at large scales'
-            IF (hmod%ikstar == 2) WRITE (*, *) 'HALOMODEL: One-halo term damping function from Mead et al. (2015, 2016)'
-         END IF
-
          ! Concentration-mass scaling
          IF (hmod%iAs == 1) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
-         IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled mass independently (Mead et al. 2015, 2016)'
+         IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled mass independently (HMcode 2015, 2016)'
+         IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled as function of sigma (HMcode test)'
 
          ! Two- to one-halo transition region
          IF (hmod%itrans == 1) WRITE (*, *) 'HALOMODEL: Standard sum of two- and one-halo terms'
@@ -2085,6 +2202,7 @@ CONTAINS
          IF (hmod%itrans == 3) WRITE (*, *) 'HALOMODEL: Experimental smoothed transition'
          IF (hmod%itrans == 4) WRITE (*, *) 'HALOMODEL: Experimental smoothed transition for HMx (2.5 exponent)'
          IF (hmod%itrans == 5) WRITE (*, *) 'HALOMODEL: Tanh transition with k_nl'
+         IF (hmod%itrans == 6) WRITE (*, *) 'HALOMODEL: HMcode (2020) smoothed transition'
 
          ! Response
          IF (hmod%response == 1) WRITE (*, *) 'HALOMODEL: All power computed as matter-matter response with HMcode'
@@ -2102,7 +2220,7 @@ CONTAINS
             WRITE (*, *) dashes
             WRITE (*, *) 'HALOMODEL: Mass function parameters'
             WRITE (*, *) dashes
-            WRITE (*, fmt=fmt) 'Amplitude:', hmod%Amp_mf
+            WRITE (*, fmt=fmt) 'Amplitude:', hmod%Amf
             IF (hmod%imf == 2) THEN
                WRITE (*, fmt=fmt) 'Sheth & Tormen p:', hmod%ST_p
                WRITE (*, fmt=fmt) 'Sheth & Tormen q:', hmod%ST_q
@@ -2134,6 +2252,8 @@ CONTAINS
          WRITE (*, fmt=fmt) 'eta1:', hmod%eta1
          WRITE (*, fmt=fmt) 'f0:', hmod%f0
          WRITE (*, fmt=fmt) 'f1:', hmod%f1
+         !WRITE (*, fmt=fmt) 'g0:', hmod%g0
+         !WRITE (*, fmt=fmt) 'g1:', hmod%g1
          WRITE (*, fmt=fmt) 'ks:', hmod%ks
          WRITE (*, fmt=fmt) 'As:', hmod%As
          WRITE (*, fmt=fmt) 'alpha0:', hmod%alp0
@@ -2143,16 +2263,16 @@ CONTAINS
          IF (hmod%DMONLY_baryon_recipe) THEN
             WRITE (*, fmt=fmt) 'log10(M_bar) [Msun/h]:', log10(hmod%mbar)
             WRITE (*, fmt=fmt) 'n_bar:', hmod%nbar
-            WRITE (*, fmt=fmt) 'a_bar:', hmod%abar
+            !WRITE (*, fmt=fmt) 'a_bar:', hmod%abar
             WRITE (*, fmt=fmt) 's_bar:', hmod%sbar
          END IF
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMcode variables'
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'eta:', eta_HMcode(hmod, cosm)
-         WRITE (*, fmt=fmt) 'k*:', kstar_HMcode(hmod, cosm)
+         IF(hmod%i1hdamp .NE. 1) WRITE (*, fmt=fmt) 'k*:', kstar_HMcode(hmod, cosm)
          WRITE (*, fmt=fmt) 'A:', A_HMcode(hmod, cosm)
-         WRITE (*, fmt=fmt) 'fdamp:', fdamp_HMcode(hmod, cosm)
+         IF(hmod%i2hdamp .NE. 1) WRITE (*, fmt=fmt) 'fdamp:', fdamp_HMcode(hmod, cosm)
          WRITE (*, fmt=fmt) 'alpha:', alpha_HMcode(hmod, cosm)
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMx parameters'
@@ -2570,6 +2690,27 @@ CONTAINS
       END DO
 
    END SUBROUTINE calculate_P_lin
+
+   SUBROUTINE calculate_HMx_DMONLY(ihm, k, a, Pk, nk, na, cosm)
+
+      INTEGER, INTENT(INOUT) :: ihm
+      REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
+      REAL, INTENT(IN) :: a(na)                  ! Scale factor
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
+      INTEGER, INTENT(IN) :: na                  ! Number of scale factors
+      TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
+      INTEGER :: ia
+      REAL :: Pk_here(nk)
+
+      ALLOCATE(Pk(nk, na))
+
+      DO ia = 1, na
+         CALL calculate_HMx_DMONLY_a(ihm, k, a(ia), Pk_here, nk, cosm)
+         Pk(:, ia) = Pk_here
+      END DO
+
+   END SUBROUTINE calculate_HMx_DMONLY
 
    SUBROUTINE calculate_HMx_DMONLY_a(ihm, k, a, Pk, nk, cosm)
 
@@ -3100,7 +3241,7 @@ CONTAINS
       REAL, INTENT(IN) :: plin
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: sigv, fdamp, rhom
+      REAL :: sigv, fdamp, rhom, kdamp, ndamp
       REAL :: m0, b0, wk0(2), nu0
       REAL :: m1, m2, rv1, rv2, b1, b2, g1, g2, u1, u2, nu1, nu2
       REAL :: Inl, Inl_11, Inl_21, Inl_12, Inl_22, B_NL
@@ -3261,7 +3402,7 @@ CONTAINS
       END IF
 
       ! Apply damping to the two-halo term
-      IF (hmod%i2hdamp .NE. 1) THEN
+      IF (hmod%i2hdamp == 2 .OR. hmod%i2hdamp == 3) THEN
          ! Two-halo damping parameters
          sigv = hmod%sigV_all
          fdamp = fdamp_HMcode(hmod, cosm)
@@ -3270,6 +3411,11 @@ CONTAINS
          ELSE
             p_2h = p_2h*(1.-fdamp*(tanh(k*sigv/sqrt(abs(fdamp))))**2)
          END IF
+      ELSE IF (hmod%i2hdamp == 4) THEN
+         fdamp = fdamp_HMcode(hmod, cosm)
+         kdamp = hmod%kdamp
+         ndamp = 2.
+         p_2h = p_2h*(1.-fdamp*((k/kdamp)**ndamp)/((k/kdamp)**ndamp+1.))
       END IF
 
    END FUNCTION p_2h
@@ -3384,14 +3530,10 @@ CONTAINS
       ! Convert from P(k) -> Delta^2(k)
       p_1h = p_1h*(4.*pi)*(k/twopi)**3
 
-      ! Damping of the 1-halo term at very large scales
-      ks = kstar_HMcode(hmod, cosm)
-
-      IF (ks > 0.) THEN
-
-         IF (hmod%i1hdamp == 1) THEN
-            ! Do nothing in this case
-         ELSE IF (hmod%i1hdamp == 2) THEN
+      IF (hmod%i1hdamp .NE. 1) THEN
+         ! Damping of the 1-halo term at very large scales
+         ks = kstar_HMcode(hmod, cosm)
+         IF (hmod%i1hdamp == 2) THEN
             IF ((k/ks)**2 > ks_limit) THEN
                ! Prevents problems if k/ks is very large
                fac = 0.
@@ -3402,12 +3544,12 @@ CONTAINS
          ELSE IF (hmod%i1hdamp == 3) THEN
             ! Note that the power here should be 4 because it multiplies Delta^2(k) ~ k^3 at low k (NOT 7)
             ! Want f(k<<ks) ~ k^4; f(k>>ks) = 1
-            fac = 1./(1.+(ks/k)**4)
+            !fac = 1./(1.+(ks/k)**4)
+            fac = (k/ks)**4/(1.+(k/ks)**4)
             p_1h = p_1h*fac
          ELSE
             STOP 'P_1H: Error, i1hdamp not specified correctly'
          END IF
-
       END IF
 
    END FUNCTION p_1h
@@ -3424,7 +3566,7 @@ CONTAINS
 
       ! alpha is set to one sometimes, which is just the standard halo-model sum of terms
       ! No need to have an IF statement around this
-      IF (hmod%itrans == 2 .OR. hmod%itrans == 3 .OR. hmod%itrans == 4) THEN
+      IF (hmod%itrans == 2 .OR. hmod%itrans == 3 .OR. hmod%itrans == 4 .OR. hmod%itrans == 6) THEN
 
          ! If either term is less than zero then we need to be careful
          IF (pow_2h < 0. .OR. pow_1h < 0.) THEN
@@ -3433,8 +3575,9 @@ CONTAINS
             IF (hmod%safe_negative) THEN
                p_hm = pow_2h+pow_1h
             ELSE
+               WRITE (*, *) 'P_HM: k [h/Mpc]:', k
                WRITE (*, *) 'P_HM: Two-halo term:', pow_2h
-               WRITE (*, *) 'P_1h: One-halo term:', pow_1h
+               WRITE (*, *) 'P_HM: One-halo term:', pow_1h
                STOP 'P_HM: Error, either pow_2h or pow_1h is negative, which is a problem for smoothed transition'
             END IF
 
@@ -3445,6 +3588,11 @@ CONTAINS
             p_hm = (pow_2h**alpha+pow_1h**alpha)**(1./alpha)
 
          END IF
+
+      !ELSE IF (hmod%itrans == 6) THEN
+
+      !   alpha = hmod%al
+      !   p_hm = (pow_2h**alpha+pow_1h**alpha)**(1./alpha)
 
       ELSE IF (hmod%itrans == 5) THEN
 
@@ -4031,10 +4179,10 @@ CONTAINS
          ! From Nakamura & Suto (1997) LCDM fitting function
          delta_c = dc_NakamuraSuto(a, cosm)
       ELSE IF (hmod%idc == 3 .OR. hmod%idc == 6) THEN
-         ! From Mead et al. (2015)
+         ! From HMcode (2015)
          delta_c = hmod%dc0+hmod%dc1*log(hmod%sig_deltac)
          IF (hmod%idc == 3) THEN
-            ! Mead et al. (2016) addition of small cosmology and explicit neutrino dependence
+            ! HMcode(2016) addition of small cosmology and explicit neutrino dependence
             delta_c = delta_c*(1.+hmod%dcnu*cosm%f_nu)
             delta_c = delta_c*(dc_NakamuraSuto(a, cosm)/dc0)
          END IF
@@ -4068,12 +4216,12 @@ CONTAINS
          ! From Bryan & Norman (1998; arXiv:astro-ph/9710107) fitting functions
          Delta_v = Dv_BryanNorman(a, cosm)
       ELSE IF (hmod%iDv == 3 .OR. hmod%iDv == 8) THEN
-         ! From Mead et al. (2015, 2016)
-         ! This has Omega_m(a) dependence in Mead et al. (2016)
+         ! From HMcode(2015, 2016)
+         ! This has Omega_m(a) dependence in HMcode (2016)
          ! TODO: It may be more logical to have an Omega_cold(a) dependence
          Delta_v = hmod%Dv0*Omega_m(a, cosm)**hmod%Dv1
          IF (hmod%iDv == 3) THEN
-            ! Mead et al. (2016) neutrino addition
+            ! HMcode(2016) neutrino addition
             Delta_v = Delta_v*(1.+hmod%Dvnu*cosm%f_nu)
          END IF
       ELSE IF (hmod%iDv == 4) THEN
@@ -4109,7 +4257,7 @@ CONTAINS
       IF (hmod%ieta == 1) THEN
          eta_HMcode = 0.
       ELSE IF (hmod%ieta == 2) THEN
-         ! From Mead et al. (2015; arXiv 1505.07833, 2016)
+         ! From HMcode(2015; arXiv 1505.07833, 2016)
          IF (hmod%one_parameter_baryons) THEN
             eta0 = 0.98-hmod%As*0.12
          ELSE
@@ -4133,15 +4281,7 @@ CONTAINS
       ! To prevent compile-time warnings
       crap = cosm%A
 
-      IF (hmod%ikstar == 1) THEN
-         ! Set to zero for the standard Poisson one-halo term
-         kstar_HMcode = 0.
-      ELSE IF (hmod%ikstar == 2) THEN
-         ! One-halo cut-off wavenumber from Mead et al. (2015, 2016)
-         kstar_HMcode = hmod%ks/hmod%sigV_kstar
-      ELSE
-         STOP 'KSTAR_HMcode: Error, ikstar defined incorrectly'
-      END IF
+      kstar_HMcode = hmod%ks/hmod%sigV_kstar
 
    END FUNCTION kstar_HMcode
 
@@ -4160,8 +4300,10 @@ CONTAINS
          ! Set to 4 for the standard Bullock value
          A_HMcode = 4.
       ELSE IF (hmod%iAs == 2) THEN
-         ! This is the 'A' halo-concentration parameter in Mead et al. (2015; arXiv 1505.07833, 2016)
+         ! This is the 'A' halo-concentration parameter in HMcode(2015; arXiv 1505.07833, 2016)
          A_HMcode = hmod%As
+      ELSE IF (hmod%iAs == 3) THEN
+         A_HMcode = hmod%As*(hmod%sig8_all/0.8)**hmod%Ap
       ELSE
          STOP 'A_HMcode: Error, iAs defined incorrectly'
       END IF
@@ -4185,11 +4327,11 @@ CONTAINS
       IF (hmod%i2hdamp == 1) THEN
          ! Set to 0 for the standard linear theory two halo term
          fdamp_HMcode = 0.
-      ELSE IF (hmod%i2hdamp == 2) THEN
-         ! Mead et al. (2015)
+      ELSE IF (hmod%i2hdamp == 2 .OR. hmod%i2hdamp == 4) THEN
+         ! HMcode (2015)
          fdamp_HMcode = hmod%f0*hmod%sig_fdamp**hmod%f1
       ELSE IF (hmod%i2hdamp == 3) THEN
-         ! Mead et al. (2016)
+         ! HMcode (2016)
          fdamp_HMcode = hmod%f0*hmod%sigv_fdamp**hmod%f1
       ELSE
          STOP 'FDAMP_HMcode: Error, i2hdamp defined incorrectly'
@@ -4213,14 +4355,16 @@ CONTAINS
       crap = cosm%A
 
       IF (hmod%itrans == 2) THEN
-         ! From Mead et al. (2015, 2016)
+         ! From HMcode (2015, 2016)
          alpha_HMcode = hmod%alp0*hmod%alp1**hmod%neff
       ELSE IF (hmod%itrans == 3) THEN
-         ! Specially for HMx, exponentiated Mead et al. (2016) result
+         ! Specially for HMx, exponentiated HMcode (2016) result
          alpha_HMcode = (hmod%alp0*hmod%alp1**hmod%neff)**1.5
       ELSE IF (hmod%itrans == 4) THEN
-         ! Specially for HMx, exponentiated Mead et al. (2016) result
+         ! Specially for HMx, exponentiated HMcode (2016) result
          alpha_HMcode = (hmod%alp0*hmod%alp1**hmod%neff)**2.5
+      ELSE IF (hmod%itrans == 6) THEN
+         alpha_HMcode = hmod%alp0
       ELSE
          alpha_HMcode = 1.
       END IF
@@ -4230,6 +4374,54 @@ CONTAINS
       IF (alpha_HMcode > alpha_HMcode_max) alpha_HMcode = alpha_HMcode_max
 
    END FUNCTION alpha_HMcode
+
+   ! REAL FUNCTION HMcode_onehalodamping(k, hmod, cosm)
+
+   !    IMPLICIT NONE
+   !    REAL, INTENT(IN) :: k
+   !    TYPE(halomod), INTENT(IN) :: hmod
+   !    TYPE(cosmology), INTENT(IN) :: cosm
+   !    REAL :: ki
+
+   !    ki = hmod%ki
+
+   !    HMcode_onehalodamping = (k/ki)**4/(1.+(k/ki)**4)
+
+   ! END FUNCTION HMcode_onehalodamping
+
+   ! REAL FUNCTION HMcode_twohalodamping(k, hmod, cosm)
+
+   !    IMPLICIT NONE
+   !    REAL, INTENT(IN) :: k
+   !    TYPE(halomod), INTENT(IN) :: hmod
+   !    TYPE(cosmology), INTENT(IN) :: cosm
+   !    REAL :: kf, nf, ff, ke, ne
+   !    REAL :: F, E
+
+   !    ff = hmod%ff
+   !    kf = hmod%kf
+   !    nf = hmod%nf
+
+   !    ke = hmod%ke
+   !    ne = hmod%ne
+
+   !    F = 1.-ff*(hmod%sig8_all/0.8)*((k/kf)**nf)/((k/kf)**nf+1.)
+   !    E = exp(-(k/ke)**ne)
+   !    HMcode_twohalodamping = F*E
+
+   ! END FUNCTION HMcode_twohalodamping
+
+   ! REAL FUNCTION HMcode_transition(p2h, p1h, hmod, cosm)
+
+   !    IMPLICIT NONE
+   !    REAL, INTENT(INOUT) :: p2h
+   !    REAL, INTENT(INOUT) :: p1h
+   !    TYPE(halomod), INTENT(IN) :: hmod
+   !    TYPE(cosmology), INTENT(IN) :: cosm
+
+
+
+   ! END FUNCTION
 
    REAL FUNCTION pivot_mass(hmod)
 
@@ -5333,7 +5525,7 @@ CONTAINS
       IF(derivative) THEN
          effective_index = -3.-derivative_table(log(hmod%rnl), log(hmod%rr), log(hmod%sig**2), hmod%n, iorder, imeth)
       ELSE
-         effective_index = -3.+neff(hmod%rnl, hmod%a, hmod%flag_sigma, cosm)
+         effective_index = neff(hmod%rnl, hmod%a, hmod%flag_sigma, cosm)
       END IF
 
       ! For some bizarre cosmologies r_nl is very small, so almost no collapse has occured
@@ -5468,10 +5660,10 @@ CONTAINS
       f = ginf_wCDM/ginf_LCDM
 
       IF (hmod%iDolag == 2) THEN
-         ! Standard correction (Mead et al. 2015)
+         ! Standard correction (HMcode 2015)
          hmod%c = hmod%c*f
       ELSE IF (hmod%iDolag == 3) THEN
-         ! Changed this to a power of 1.5 in Mead et al. 2016, produces more accurate results for extreme DE
+         ! Changed this to a power of 1.5 in HMcode 2016, produces more accurate results for extreme DE
          hmod%c = hmod%c*f**1.5
       ELSE IF (hmod%iDolag == 4) THEN
          ! Correction with a sensible redshift dependence
@@ -5866,7 +6058,7 @@ CONTAINS
 
       wkn = wk
       wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm)  ! Account for 'gas expulsion'
-      wkn = wkn*hmod%abar                                 ! Multiplicative amplitude correction
+      !wkn = wkn*hmod%abar                                 ! Multiplicative amplitude correction
       wkn = wkn+hmod%sbar*m/comoving_matter_density(cosm) ! Add in 'stars'
 
       baryonify_wk = wkn
@@ -5884,7 +6076,7 @@ CONTAINS
 
       wko = wk
       wko = wko-hmod%sbar*m/comoving_matter_density(cosm) ! Subtract 'stars'
-      wko = wko/hmod%abar                                 ! Divide out amplitude correction
+      !wko = wko/hmod%abar                                 ! Divide out amplitude correction
       wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm)  ! Remove 'gas expulsion'
 
       unbaryonify_wk = wko
@@ -8560,7 +8752,7 @@ CONTAINS
          STOP 'G_NU: Error, imf specified incorrectly'
       END IF
 
-      g_nu=g_nu*hmod%Amp_mf
+      g_nu=g_nu*hmod%Amf
 
    END FUNCTION g_nu
 
