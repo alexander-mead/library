@@ -101,6 +101,7 @@ MODULE cosmology_functions
    ! HALOFIT
    PUBLIC :: calculate_HALOFIT_a
    PUBLIC :: calculate_HALOFIT
+   PUBLIC :: HALOFIT_init
    PUBLIC :: HALOFIT_Smith
    PUBLIC :: HALOFIT_Smith_paper
    PUBLIC :: HALOFIT_Bird
@@ -341,9 +342,14 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_sigmaV = 3  ! Polynomial order for sigmaV(R) integration
 
    ! neff integration
-   REAL, PARAMETER :: alpha_neff = 2.     ! Exponent to increase integration speed (3 seemed to give inaccuracies; no idea why)
-   REAL, PARAMETER :: acc_neff = acc_cosm ! Accuracy parameter for sigma(R) integration
-   INTEGER, PARAMETER :: iorder_neff = 3  ! Polynomial order for neff(R) integration
+   REAL, PARAMETER :: alpha_dsigma = 2.     ! Exponent to increase integration speed (3 seemed to give inaccuracies; no idea why)
+   REAL, PARAMETER :: acc_dsigma = acc_cosm ! Accuracy parameter for sigma(R) integration
+   INTEGER, PARAMETER :: iorder_dsigma = 3  ! Polynomial order for neff(R) integration
+
+   ! ncur integration
+   REAL, PARAMETER :: alpha_ddsigma = 2.     ! Exponent to increase integration speed (3 seemed to give inaccuracies; no idea why)
+   REAL, PARAMETER :: acc_ddsigma = acc_cosm ! Accuracy parameter for sigma(R) integration
+   INTEGER, PARAMETER :: iorder_ddsigma = 3  ! Polynomial order for neff(R) integration
 
    ! Spherical collapse
    INTEGER, PARAMETER :: imeth_ODE_spherical = 3 ! Method for spherical collapse ODE solving
@@ -907,7 +913,7 @@ CONTAINS
          cosm%itk = itk_CAMB ! Set to CAMB linear power
       ELSE IF (icosmo == 26) THEN
          ! Boring with CAMB linear spectrum
-         cosm%itk = itk_external   ! Set to CAMB linear power
+         cosm%itk = itk_CAMB   ! Set to CAMB linear power
          cosm%Om_w = cosm%Om_v ! Necessary for CAMB
          cosm%Om_v = 0.        ! Necessary for CAMB
       ELSE IF (icosmo == 27) THEN
@@ -3483,8 +3489,21 @@ CONTAINS
 
    REAL FUNCTION neff(r, a, flag, cosm)
 
-      ! Integral for calculating the effective linear P(k) power-law index
-      ! This is dlnP(k)/dlnk and ranges from ~1 on large scales to ~-3 on small scales
+      ! Effective spectral index on scale R
+      ! 3 + neff = -dln(sigma^2)/dlnR and ranges from ~1 on large scales to ~-3 on small scales
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: r
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      neff = -3.-dsigma(r, a, flag, cosm)
+
+   END FUNCTION neff
+
+   REAL FUNCTION dsigma(r, a, flag, cosm)
+
+      ! dln(sigma^2)/dlnR
       IMPLICIT NONE
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
@@ -3493,16 +3512,17 @@ CONTAINS
       REAL :: sig
       REAL, PARAMETER :: tmin = 0.
       REAL, PARAMETER :: tmax = 1.
-      REAL, PARAMETER :: acc = acc_neff
-      INTEGER, PARAMETER :: iorder = iorder_neff
+      REAL, PARAMETER :: acc = acc_dsigma
+      INTEGER, PARAMETER :: iorder = iorder_dsigma
 
-      sig = sigma(r, a, flag, cosm) ! Note that this is cold for the moment
-      neff = -2.*integrate_cosm(tmin, tmax, neff_integrand, r, a, flag, cosm, acc, iorder)/sig**2
+      sig = sigma(r, a, flag, cosm)
+      dsigma = 2.*integrate_cosm(tmin, tmax, dsigma_integrand, r, a, flag, cosm, acc, iorder)/sig**2
 
-   END FUNCTION neff
+   END FUNCTION dsigma
 
-   REAL FUNCTION neff_integrand(t, R, a, flag, cosm)
+   REAL FUNCTION dsigma_integrand(t, R, a, flag, cosm)
 
+      ! Integral for calculating dln(sigma^2)/dlnR
       ! Transformation is kR = (1/t-1)**alpha
       USE special_functions
       IMPLICIT NONE
@@ -3512,19 +3532,81 @@ CONTAINS
       INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: w_hat, w_hat_deriv, k, kR
-      REAL, PARAMETER :: alpha = alpha_neff
+      REAL, PARAMETER :: alpha = alpha_dsigma
 
       IF (t <= 0. .OR. t >= 1.) THEN
-         neff_integrand = 0.
+         dsigma_integrand = 0.
       ELSE
          kR = (-1.+1./t)**alpha
          k = kR/R
          w_hat = wk_tophat(kR)
          w_hat_deriv = wk_tophat_deriv(kR)
-         neff_integrand = p_lin(k, a, flag, cosm)*w_hat*w_hat_deriv*alpha*kR/(t*(1.-t))     
+         dsigma_integrand = p_lin(k, a, flag, cosm)*w_hat*w_hat_deriv*kR*alpha/(t*(1.-t))     
       END IF
 
-   END FUNCTION neff_integrand
+   END FUNCTION dsigma_integrand
+
+   REAL FUNCTION ncur(r, a, flag, cosm)
+
+      ! Effective spectral index on scale R
+      ! 3 + neff = -dln(sigma^2)/dlnR and ranges from ~1 on large scales to ~-3 on small scales
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: r
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      ncur = -ddsigma(r, a, flag, cosm)
+
+   END FUNCTION ncur
+
+   REAL FUNCTION ddsigma(r, a, flag, cosm)
+
+      ! Integral for calculating the effective linear P(k) power-law index
+      ! This is dlnP(k)/dlnk and ranges from ~1 on large scales to ~-3 on small scales
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: r
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: sig, dsig
+      REAL, PARAMETER :: tmin = 0.
+      REAL, PARAMETER :: tmax = 1.
+      REAL, PARAMETER :: acc = acc_ddsigma
+      INTEGER, PARAMETER :: iorder = iorder_ddsigma
+
+      sig = sigma(r, a, flag, cosm)
+      dsig = dsigma(r, a, flag, cosm)
+      ddsigma = 2.*integrate_cosm(tmin, tmax, ddsigma_integrand, r, a, flag, cosm, acc, iorder)/sig**2
+      ddsigma = ddsigma+dsig+dsig**2
+
+   END FUNCTION ddsigma
+
+   REAL FUNCTION ddsigma_integrand(t, R, a, flag, cosm)
+
+      ! Transformation is kR = (1/t-1)**alpha
+      USE special_functions
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: t
+      REAL, INTENT(IN) :: R
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: w_hat, dw_hat, ddw_hat, k, kR
+      REAL, PARAMETER :: alpha = alpha_ddsigma
+
+      IF (t <= 0. .OR. t >= 1.) THEN
+         ddsigma_integrand = 0.
+      ELSE
+         kR = (-1.+1./t)**alpha
+         k = kR/R
+         w_hat = wk_tophat(kR)
+         dw_hat = wk_tophat_deriv(kR)
+         ddw_hat = wk_tophat_dderiv(kR)
+         ddsigma_integrand = p_lin(k, a, flag, cosm)*(w_hat*ddw_hat+dw_hat**2)*(kR**2)*alpha/(t*(1.-t))     
+      END IF
+
+   END FUNCTION ddsigma_integrand
 
    REAL RECURSIVE FUNCTION grow(a, cosm)
 
