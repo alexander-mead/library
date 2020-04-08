@@ -84,6 +84,10 @@ MODULE HMx
    PUBLIC :: HMcode2016_CAMB
    PUBLIC :: HMcode2020
 
+   ! HMx versions
+   PUBLIC :: HMx2020_matter_with_temperature_scaling
+   PUBLIC :: HMx2020_matter_pressure_with_temperature_scaling
+
    ! HMx functions
    PUBLIC :: HMx_alpha
    PUBLIC :: HMx_beta
@@ -511,6 +515,9 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2016 = 1
    INTEGER, PARAMETER :: HMcode2016_CAMB = 51
    INTEGER, PARAMETER :: HMcode2020 = 15
+
+   INTEGER, PARAMETER :: HMx2020_matter_with_temperature_scaling = 60
+   INTEGER, PARAMETER :: HMx2020_matter_pressure_with_temperature_scaling = 61
 
 CONTAINS
 
@@ -1566,7 +1573,9 @@ CONTAINS
          hmod%Astar = 0.             ! No stars
          hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
          hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
-      ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, 60, 61, 62, 63, 65])) THEN
+      !ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58 .OR. ihm == 59 .OR. &
+      !   ihm == 60 .OR. ihm == 61 .OR. ihm == 62 .OR. ihm == 63 .OR. ihm == 65) THEN
+      ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, HMx2020_matter_with_temperature_scaling, HMx2020_matter_pressure_with_temperature_scaling, 62, 63, 65])) THEN
          ! HMx2020: Baseline
          hmod%response = 1 ! Model should be calculated as a response
          hmod%halo_central_stars = 3   ! 3 - Delta function for central stars
@@ -1615,7 +1624,9 @@ CONTAINS
             hmod%Astarz = -0.00818
             hmod%eta = -0.35052
             hmod%mstarz = -0.30727
-         ELSE IF (ihm == 59 .OR. ihm == 60 .OR. ihm == 61) THEN      
+         ELSE IF (ihm == 59 &
+                  .OR. ihm == HMx2020_matter_with_temperature_scaling &
+                  .OR. ihm == HMx2020_matter_pressure_with_temperature_scaling) THEN      
             ! 59 - HMx 2020 with temperature scaling that fits stars
             ! 60 - HMx 2020 with temperature scaling that fits matter (stars fixed)
             ! 61 - HMx 2020 with temperature scaling that fits matter, pressure (stars fixed)
@@ -1631,7 +1642,7 @@ CONTAINS
             hmod%Astarz_array = [-0.0093, -0.0088, -0.0082]
             hmod%eta_array = [-0.3428, -0.3556, -0.3505]
             hmod%Mstarz_array = [-0.3664, -0.3521, -0.3073]           
-            IF(ihm == 60) THEN
+            IF(ihm == HMx2020_matter_with_temperature_scaling) THEN
                ! 60 - Additionally fits matter-matter
                !hmod%eps_array = [0.27910, 0.20000, 0.04947]
                !hmod%Gamma_array = [1.23445, 1.33350, 1.59297]
@@ -1642,7 +1653,7 @@ CONTAINS
                hmod%M0_array = 10**[13.0020, 13.3658, 14.0226]
                hmod%epsz_array = [-0.0046, -0.0047, 0.0365]
             END IF
-            IF(ihm == 61) THEN
+            IF(ihm == HMx2020_matter_pressure_with_temperature_scaling) THEN
                ! 61 - Additionally fits matter, pressure
                hmod%alpha_array = [0.76425, 0.84710, 1.03136]
                hmod%eps_array = [-0.10017, -0.10650, -0.12533]
