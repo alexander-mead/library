@@ -3120,11 +3120,11 @@ CONTAINS
    SUBROUTINE calculate_plin(k, a, Pk, nk, na, cosm)
 
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk
+      INTEGER, INTENT(IN) :: na
       REAL, INTENT(IN) :: k(nk)
       REAL, INTENT(IN) :: a(na)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
-      INTEGER, INTENT(IN) :: nk
-      INTEGER, INTENT(IN) :: na
       TYPE(cosmology) :: cosm
       INTEGER :: ik, ia
       INTEGER, PARAMETER :: flag = flag_power_total
@@ -6526,11 +6526,11 @@ CONTAINS
    SUBROUTINE calculate_HALOFIT(k, a, Pk, nk, na, cosm, version)
 
       IMPLICIT NONE
+      INTEGER :: nk ! Number of points in k
+      INTEGER :: na ! Number of points in a
       REAL, INTENT(IN) :: k(nk) ! Array of wavenumbers
       REAL, INTENT(IN) :: a(na) ! Scale factor
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array
-      INTEGER :: nk ! Number of points in k
-      INTEGER :: na ! Number of points in a
       TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
       INTEGER, OPTIONAL, INTENT(IN) :: version ! HALOFIT version
       REAL :: Plin(nk), Pq(nk), Ph(nk), Pnl(nk)
