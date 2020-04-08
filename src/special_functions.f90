@@ -209,12 +209,12 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, PARAMETER :: dx = 1e-3 ! Taylor expansion for |x|<dx
-      REAL, PARAMETER :: mx = 1e12 ! Set to zero to avoid problems for |x|>mx
+      !REAL, PARAMETER :: mx = 1e12 ! Set to zero to avoid problems for |x|>mx
 
       ! Taylor expansion used for low x to avoid cancelation problems
-      IF (abs(x) > mx) THEN
-         wk_tophat = 0. ! TODO: Is this necessary?
-      ELSE IF (abs(x) < dx) THEN
+      !IF (abs(x) > mx) THEN
+      !   wk_tophat = 0. ! TODO: Is this necessary?
+      IF (abs(x) < dx) THEN
          wk_tophat = 1.-x**2/10.
       ELSE
          wk_tophat = (3./x**3)*(sin(x)-x*cos(x))
@@ -228,7 +228,6 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, PARAMETER :: dx = 1e-3 ! Taylor expansion for |x|<dx
-      !REAL, PARAMETER :: mx = 1e12 ! Set to zero to avoid problems for |x|>mx
 
       ! Taylor expansion used for low x to avoid cancelation problems
       IF (abs(x) < dx) THEN
@@ -238,6 +237,22 @@ CONTAINS
       END IF
 
    END FUNCTION wk_tophat_deriv
+
+   REAL FUNCTION wk_tophat_dderiv(x)
+
+      ! The second derivative of a normlaised Fourier Transform of a spherical top-hat
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, PARAMETER :: dx = 1e-3 ! Taylor expansion for |x|<dx
+
+      ! Taylor expansion used for low x to avoid cancelation problems
+      IF (abs(x) < dx) THEN
+         wk_tophat_dderiv = -0.2+3.*x**2/70.
+      ELSE
+         wk_tophat_dderiv = (3./x**5)*((12.-5.*x**2)*sin(x)+x*(x**2-12.)*cos(x))
+      END IF
+
+   END FUNCTION wk_tophat_dderiv
 
    REAL FUNCTION apodise(x, x1, x2, n)
 
