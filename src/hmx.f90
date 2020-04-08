@@ -1576,18 +1576,6 @@ CONTAINS
          IF (ihm == 65) THEN
             ! Not with response
             hmod%response = 0
-         ! ELSE IF (ihm == 66) THEN
-         !    ! Broken model
-         !    hmod%eps = -0.900
-         !    hmod%epsz = -0.172 ! THIS IS THE PROBLEM
-         !    hmod%Gamma = 1.389
-         !    hmod%Gammaz = -1.000
-         !    hmod%M0 = 10**14.91
-         !    hmod%Astar = 0.0210
-         !    hmod%Astarz = 0.025
-         !    hmod%Mstar = 10**12.78
-         !    hmod%Mstarz = -0.830
-         !    hmod%eta = -0.303
          ELSE IF (ihm == 56) THEN
             ! AGN 7.6
             hmod%fix_star_concentration = .TRUE.
@@ -1686,6 +1674,7 @@ CONTAINS
             hmod%Mstarz_array = [-0.46153, 0.01489, -0.08174] ! Non monotonic
          ELSE IF (ihm == 63) THEN  
             ! 62 - Model for matter, CDM, gas, stars, electron pressure
+            ! TODO: Not applied becuase it did not work
             hmod%HMx_mode = 6 ! Scaling with temperature
          END IF
       ELSE IF (ihm == 67) THEN
