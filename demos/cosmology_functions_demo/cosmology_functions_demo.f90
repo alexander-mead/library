@@ -22,6 +22,7 @@ PROGRAM cosmology_functions_demo
    LOGICAL, PARAMETER :: test_sigma = .TRUE.
    LOGICAL, PARAMETER :: test_sigmaV = .TRUE.
    LOGICAL, PARAMETER :: test_neff = .TRUE.
+   LOGICAL, PARAMETER :: test_ncur = .TRUE.
 
    REAL, PARAMETER :: amin = 1e-5
    REAL, PARAMETER :: amax = 1
@@ -248,6 +249,24 @@ PROGRAM cosmology_functions_demo
       CALL CPU_TIME(t2)
       WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Time for neff [s]:', t2-t1
       WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: neff done'
+      WRITE (*, *)
+   END IF
+
+   IF(test_ncur) THEN
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing ncur(R)'
+      CALL CPU_TIME(t1)
+      OPEN (10, file='data/ncur.dat')
+      DO i = 1, nr
+         r = progression_log(rmin, rmax, i, nr)
+         WRITE (10, *) r, &
+               ncur(r, 1., flag_power_total, cosm), &
+               ncur(r, 1., flag_power_cold, cosm)
+         !WRITE(*, *) r, ncur(r, 1., flag_power_total, cosm)
+      END DO
+      CLOSE (10)
+      CALL CPU_TIME(t2)
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Time for ncur [s]:', t2-t1
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: ncur done'
       WRITE (*, *)
    END IF
 

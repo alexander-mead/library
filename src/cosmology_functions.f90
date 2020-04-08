@@ -84,6 +84,7 @@ MODULE cosmology_functions
    PUBLIC :: sigma
    PUBLIC :: sigmaV
    PUBLIC :: neff
+   PUBLIC :: ncur
    PUBLIC :: xi_lin
    PUBLIC :: calculate_plin
    PUBLIC :: flag_power_total
@@ -3578,7 +3579,7 @@ CONTAINS
       sig = sigma(r, a, flag, cosm)
       dsig = dsigma(r, a, flag, cosm)
       ddsigma = 2.*integrate_cosm(tmin, tmax, ddsigma_integrand, r, a, flag, cosm, acc, iorder)/sig**2
-      ddsigma = ddsigma+dsig+dsig**2
+      ddsigma = ddsigma+dsig-dsig**2
 
    END FUNCTION ddsigma
 
