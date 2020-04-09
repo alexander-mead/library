@@ -175,6 +175,7 @@ MODULE cosmology_functions
       REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:) ! Arrays for spherical-collapse parameters
       REAL, ALLOCATABLE :: log_a_Xde(:), log_Xde(:)    ! Arrays for dark-energy density
       INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin, n_Xde ! Number of array entries
+      REAL :: amin_sigma, amax_sigma                                                               ! Ranges of arrays
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
       LOGICAL :: is_init, is_normalised, has_wiggle ! Flags to check if things have been done  
 
@@ -1465,6 +1466,12 @@ CONTAINS
          CALL if_allocated_deallocate(cosm%log_plin)
          CALL if_allocated_deallocate(cosm%log_plina)
       ENDIF
+
+      cosm%nr_sigma = 0
+      cosm%na_sigma = 0
+
+      cosm%amin_sigma = 0.0
+      cosm%amax_sigma = 0.0
 
       ! Ensure delloacte spherical-collapse arrays
       cosm%has_spherical = .FALSE.
@@ -3247,27 +3254,31 @@ CONTAINS
       CALL if_allocated_deallocate(cosm%log_sigmaa)
       CALL if_allocated_deallocate(cosm%log_sigmaca)
 
+      ! Set nr_sigma, na_sigma, amin_sigma, and amax_sigma to defaults if not set by the user
+      IF(cosm%nr_sigma == 0) cosm%nr_sigma = nr_sigma
+      IF(cosm%na_sigma == 0) cosm%na_sigma = na_sigma
+      IF(cosm%amin_sigma == 0.0) cosm%amin_sigma = amin_sigma
+      IF(cosm%amax_sigma == 0.0) cosm%amax_sigma = amax_sigma
+
       ! Write to screen
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_SIGMA: Filling sigma(R) interpolation tables'
          WRITE (*, *) 'INIT_SIGMA: R minimum [Mpc/h]:', real(rmin_sigma)
          WRITE (*, *) 'INIT_SIGMA: R maximum [Mpc/h]:', real(rmax_sigma)
-         WRITE (*, *) 'INIT_SIGMA: Number of points:', nr_sigma
+         WRITE (*, *) 'INIT_SIGMA: Number of points:', cosm%nr_sigma
       END IF
 
       ! Allocate and fill array of R values
-      CALL fill_array(log(rmin_sigma), log(rmax_sigma), cosm%log_r_sigma, nr_sigma)
-      cosm%nr_sigma = nr_sigma
+      CALL fill_array(log(rmin_sigma), log(rmax_sigma), cosm%log_r_sigma, cosm%nr_sigma)
 
       ! Allocate carrays
       IF (cosm%scale_dependent_growth) THEN
-         cosm%na_sigma = na_sigma
-         CALL fill_array(log(amin_sigma), log(amax_sigma), cosm%log_a_sigma, na_sigma)
-         ALLOCATE (cosm%log_sigmaa(nr_sigma, na_sigma))
-         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmaca(nr_sigma, na_sigma))   
+         CALL fill_array(log(cosm%amin_sigma), log(cosm%amax_sigma), cosm%log_a_sigma, cosm%na_sigma)
+         ALLOCATE (cosm%log_sigmaa(cosm%nr_sigma, cosm%na_sigma))
+         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmaca(nr_sigma, cosm%na_sigma))   
       ELSE
-         ALLOCATE (cosm%log_sigma(nr_sigma))
-         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmac(nr_sigma))
+         ALLOCATE (cosm%log_sigma(cosm%nr_sigma))
+         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmac(cosm%nr_sigma))
       END IF
 
       ! Do we need to loop over both matter and cold or not?
@@ -3289,9 +3300,9 @@ CONTAINS
          IF (cosm%scale_dependent_growth) THEN
 
             ! Loop over R and a and calculate sigma(R,a)
-            DO j = 1, na_sigma
+            DO j = 1, cosm%na_sigma
                a = exp(cosm%log_a_sigma(j))
-               DO i = 1, nr_sigma
+               DO i = 1, cosm%nr_sigma
                   R = exp(cosm%log_r_sigma(i))
                   sig = sigma_integral(R, a, flag, cosm)
                   IF (flag == flag_power_total) THEN
@@ -3306,7 +3317,7 @@ CONTAINS
 
             ! Loop over R values and calculate sigma(R)
             a = 1. ! Fill this table at a=1
-            DO i = 1, nr_sigma
+            DO i = 1, cosm%nr_sigma
                R = exp(cosm%log_r_sigma(i))
                sig = sigma_integral(R, a, flag, cosm)
                IF (flag == flag_power_total) THEN
@@ -3332,10 +3343,10 @@ CONTAINS
       ! Write useful information to screen
       IF (cosm%verbose) THEN
          IF (cosm%scale_dependent_growth) THEN
-            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigmaa(nr_sigma,na_sigma))
-            WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigmaa(1,na_sigma))
+            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigmaa(cosm%nr_sigma,cosm%na_sigma))
+            WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigmaa(1,cosm%na_sigma))
          ELSE
-            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigma(nr_sigma))
+            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigma(cosm%nr_sigma))
             WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigma(1))
          END IF
          WRITE (*, *) 'INIT_SIGMA: Done'
@@ -5495,6 +5506,9 @@ CONTAINS
          cosm%status = 1
          RETURN
       ENDIF
+
+      cosm%amin_sigma = MINVAL(EXP(cosm%log_a_plin))
+      cosm%amax_sigma = MAXVAL(EXP(cosm%log_a_plin))
 
       cosm%has_power = .TRUE.
 
