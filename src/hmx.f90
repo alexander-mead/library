@@ -8995,7 +8995,7 @@ CONTAINS
 
       ! Normalisation of ST mass function (involves Gamma function)
       !hmod%ST_A = 1./(sqrt(pi/(2.*q))+(1./sqrt(q))*(2.**(-p-0.5))*Gamma(0.5-p))
-      hmod%ST_A = sqrt(2.*q/pi)+Gamma(0.5-p)/sqrt(q*2**(2.*p+1.))
+      hmod%ST_A = sqrt(2.*q)/(sqrt(pi)+Gamma(0.5-p)/2**p)
 
       ! Set the flag to true
       hmod%has_mass_function = .TRUE.
