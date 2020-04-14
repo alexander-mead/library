@@ -2,7 +2,7 @@ PROGRAM cosmology_functions_test
 
   USE constants
   USE array_operations
-  USE logical_operations
+  USE basic_operations
   USE cosmology_functions
 
   IMPLICIT NONE

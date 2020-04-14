@@ -1,6 +1,6 @@
 PROGRAM logical_operations_test
 
-  USE logical_operations
+  USE basic_operations
 
   IMPLICIT NONE
   LOGICAL :: fails
@@ -11,7 +11,6 @@ PROGRAM logical_operations_test
   CALL test_swap(fails)
   CALL test_positive_negative(fails)
   CALL test_even_odd(fails)
-  CALL test_regular_spacing(fails)
   
 CONTAINS
 
@@ -195,54 +194,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE test_even_odd
-
-  SUBROUTINE test_regular_spacing(fail)
-
-   IMPLICIT NONE
-   LOGICAL, INTENT(OUT) :: fail
-   REAL, ALLOCATABLE :: a(:)
-   INTEGER :: itest
-   LOGICAL :: result
-   INTEGER, PARAMETER :: n=5
-   INTEGER, PARAMETER :: ntest=2
-
-   DO itest=1,ntest
-
-      ALLOCATE(a(n))
-      IF(itest==1) THEN
-         a(1)=1.
-         a(2)=2.
-         a(3)=3.
-         a(4)=4.
-         a(5)=5.
-         result=.TRUE.
-      ELSE IF(itest==2) THEN
-         a(1)=1.
-         a(2)=2.
-         a(3)=3.1
-         a(4)=4.
-         a(5)=5.
-         result=.FALSE.
-      ELSE
-         STOP 'TEST_REGULAR_SPACING: Error, itest specified incorrecly'
-      END IF
-
-      IF(result .NEQV. regular_spacing(a,n)) THEN
-         WRITE(*,*) 'TEST_REGULAR_SPACING: Array:', a
-         WRITE(*,*) 'TEST_REGULAR_SPACING: Expected result:', result 
-         fail=.TRUE.
-         STOP 'TEST_REGULAR_SPACING: Test failed'
-      END IF
-
-      DEALLOCATE(a)
-
-   END DO
-
-   IF(.NOT. fail) THEN
-      WRITE(*,*) 'TEST_REGULAR_SPACING: Pass'
-      WRITE(*,*)
-   END IF
-
-  END SUBROUTINE test_regular_spacing
 
 END PROGRAM logical_operations_test
