@@ -38,7 +38,6 @@ MODULE HMx
    PUBLIC :: calculate_HMx_a
    PUBLIC :: calculate_HMcode
    PUBLIC :: calculate_HMx_DMONLY
-   !PUBLIC :: calculate_HMcode_CAMB
    PUBLIC :: set_halo_type
    PUBLIC :: halo_type
    PUBLIC :: M_nu
@@ -196,6 +195,7 @@ MODULE HMx
    PUBLIC :: param_HMcode_STq
    PUBLIC :: param_HMcode_kdamp
    PUBLIC :: param_HMcode_Ap
+   PUBLIC :: param_HMcode_Ac
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -280,7 +280,7 @@ MODULE HMx
 
       ! HMcode (2020) parameters
       !REAL :: ki, kf, nf, ff, ke, ne, al
-      REAL :: kdamp, Ap
+      REAL :: kdamp, Ap, Ac
       REAL :: mbar, nbar, sbar
 
       ! Halo types
@@ -355,11 +355,11 @@ MODULE HMx
    LOGICAL, PARAMETER :: simple_voids = .FALSE.    ! Use simple voids or not
 
    ! HMcode
-   REAL, PARAMETER :: fdamp_HMcode_min = 1e-3 ! Minimum value for f_damp parameter
-   REAL, PARAMETER :: fdamp_HMcode_max = 0.99 ! Maximum value for f_damp parameter
-   REAL, PARAMETER :: alpha_HMcode_min = 0.5  ! Minimum value for alpha transition parameter
-   REAL, PARAMETER :: alpha_HMcode_max = 2.0  ! Maximum value for alpha transition parameter
-   REAL, PARAMETER :: ks_limit = 7.           ! Limit for (k/k*)^2 in one-halo term
+   REAL, PARAMETER :: HMcode_fdamp_min = 0.   ! Minimum value for f_damp parameter
+   REAL, PARAMETER :: HMcode_fdamp_max = 0.99 ! Maximum value for f_damp parameter
+   REAL, PARAMETER :: HMcode_alpha_min = 0.5  ! Minimum value for alpha transition parameter
+   REAL, PARAMETER :: HMcode_alpha_max = 2.0  ! Maximum value for alpha transition parameter
+   REAL, PARAMETER :: HMcode_ks_limit = 7.    ! Limit for (k/k*)^2 in one-halo term
 
    ! HMx
    REAL, PARAMETER :: HMx_alpha_min = 1e-2 ! Minimum alpha parameter; needs to be set at not zero
@@ -493,18 +493,10 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_sbar = 55
    INTEGER, PARAMETER :: param_HMcode_STp = 56
    INTEGER, PARAMETER :: param_HMcode_STq = 57
-   !INTEGER, PARAMETER :: param_HMcode_g0 = 58
-   !INTEGER, PARAMETER :: param_HMcode_g1 = 59
-   !INTEGER, PARAMETER :: param_HMcode_ki = 60
-   !INTEGER, PARAMETER :: param_HMcode_ff = 61
-   !INTEGER, PARAMETER :: param_HMcode_kf = 62
-   !INTEGER, PARAMETER :: param_HMcode_nf = 63
-   !INTEGER, PARAMETER :: param_HMcode_ke = 64
-   !INTEGER, PARAMETER :: param_HMcode_ne = 65
-   !INTEGER, PARAMETER :: param_HMcode_al = 66
    INTEGER, PARAMETER :: param_HMcode_kdamp = 58
    INTEGER, PARAMETER :: param_HMcode_Ap = 59
-   INTEGER, PARAMETER :: param_n = 59
+   INTEGER, PARAMETER :: param_HMcode_Ac = 60
+   INTEGER, PARAMETER :: param_n = 60
 
    INTEGER, PARAMETER :: HMcode2015 = 7
    INTEGER, PARAMETER :: HMcode2015_CAMB = 66 
@@ -689,7 +681,7 @@ CONTAINS
 
       ! eta for halo window function
       ! 1 - No
-      ! 2 - HMcode (2015)
+      ! 2 - HMcode (2015, 2016)
       hmod%ieta = 1
 
       ! Concentration-mass rescaling
@@ -843,20 +835,36 @@ CONTAINS
       hmod%safe_negative = .FALSE.
 
       ! HMcode (2016) parameters
-      hmod%Dv0 = 418.
-      hmod%Dv1 = -0.352
-      hmod%dc0 = 1.59
-      hmod%dc1 = 0.0314
-      hmod%eta0 = 0.603
-      hmod%eta1 = 0.300
-      hmod%f0 = 0.0095
-      hmod%f1 = 1.37
-      hmod%ks = 0.584
-      hmod%As = 3.13
-      hmod%alp0 = 3.24
-      hmod%alp1 = 1.85
-      hmod%Dvnu = 0.916
-      hmod%dcnu = 0.262
+      !hmod%Dv0 = 418.
+      !hmod%Dv1 = -0.352
+      !hmod%dc0 = 1.59
+      !hmod%dc1 = 0.0314
+      !hmod%eta0 = 0.603
+      !hmod%eta1 = 0.300  
+      !hmod%f0 = 0.0095
+      !hmod%f1 = 1.37
+      !hmod%ks = 0.584
+      !hmod%As = 3.13
+      !hmod%alp0 = 3.24
+      !hmod%alp1 = 1.85
+      !hmod%Dvnu = 0.916
+      !hmod%dcnu = 0.262
+
+      ! HMcode unfitted parameters
+      hmod%Dv0 = 200.
+      hmod%Dv1 = 0.
+      hmod%dc0 = 1.686
+      hmod%dc1 = 0.
+      hmod%eta0 = 0.
+      hmod%eta1 = 0.
+      hmod%f0 = 0.
+      hmod%f1 = 0.
+      hmod%ks = 0.
+      hmod%As = 4.
+      hmod%alp0 = 1.
+      hmod%alp1 = 0.
+      hmod%Dvnu = 0.
+      hmod%dcnu = 0.
 
       ! HMcode (2020) additional parameters
       hmod%DMONLY_neutrino_correction = .TRUE.
@@ -866,15 +874,7 @@ CONTAINS
       hmod%sbar = 0.
       hmod%kdamp = 1e-2
       hmod%Ap = 0.
-      !hmod%g0 = 0.
-      !hmod%g1 = 0.
-      !hmod%ki = 1e-2
-      !hmod%ff = 0.02
-      !hmod%kf = 1e-2
-      !hmod%nf = 2.
-      !hmod%ke = 1e0
-      !hmod%ne = 1.
-      !hmod%al = 1.
+      hmod%Ac = 0.
 
       ! ~infinite redshift for Dolag correction
       hmod%zinf_Dolag = 100.
@@ -950,7 +950,7 @@ CONTAINS
       hmod%E_Gamma = 66.289
 
       ! Pressure polytropic gas index
-      hmod%Zamma = hmod%Gammaz
+      hmod%Zamma = hmod%Gamma
       hmod%Zammap = hmod%Gammap
       hmod%Zammaz = hmod%Gammaz
       hmod%Zamma_array = hmod%Zamma
@@ -1110,16 +1110,30 @@ CONTAINS
          hmod%flag_sigmaV_fdamp = flag_power_total
          hmod%flag_sigmaV_kstar = flag_power_total
          hmod%DMONLY_neutrino_correction = .FALSE.
+         hmod%Dv0 = 418.
+         hmod%Dv1 = -0.352
+         hmod%dc0 = 1.59
+         hmod%dc1 = 0.0314
+         hmod%eta0 = 0.603
+         hmod%eta1 = 0.300
+         hmod%f0 = 0.0095
+         hmod%f1 = 1.37
+         hmod%ks = 0.584
+         hmod%As = 3.13
+         hmod%alp0 = 3.24
+         hmod%alp1 = 1.85
+         hmod%Dvnu = 0.916
+         hmod%dcnu = 0.262
          IF (ihm == 7 .OR. ihm == 66) THEN
             ! HMcode (2015)
             hmod%idc = 6
             hmod%i2hdamp = 2
             hmod%itrans = 2
+            hmod%iDolag = 2
             hmod%f0 = 0.188
             hmod%f1 = 4.29
             hmod%alp0 = 2.93
-            hmod%alp1 = 1.77
-            hmod%iDolag = 2
+            hmod%alp1 = 1.77       
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
             hmod%flag_sigma_fdamp = flag_power_total ! Used in HMcode (2015) only
@@ -1145,7 +1159,8 @@ CONTAINS
             hmod%eta1 = 0.259
             hmod%f0 = 0.0615
             hmod%f1 = 1.607
-            hmod%ks = 0.599
+            !hmod%ks = 3e-2 ! REFIT THIS
+            hmod%ks = 0.136
             hmod%As = 3.23
             hmod%alp0 = 3.17
             hmod%alp1 = 1.88
@@ -1270,9 +1285,12 @@ CONTAINS
          ! 19 - HMx AGN 8.0
          hmod%HMx_mode = 4
          hmod%itrans = 4
+         !hmod%itrans = 1
          hmod%i1hdamp = 3
          hmod%safe_negative = .TRUE.
          hmod%response = 1
+         hmod%alp0 = 3.24
+         hmod%alp1 = 1.85
          IF (ihm == 17) THEN
             ! AGN 7.6
             hmod%Theat = 10**7.6
@@ -1708,7 +1726,6 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
-      !ELSE IF (is_in_array(ihm, [77])) THEN
       ELSE IF (ihm == 77) THEN
          ! HMcode (test) prototype
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
@@ -1720,7 +1737,59 @@ CONTAINS
          hmod%iconc = 1   ! 1 - Bullock c(M) relation   
          hmod%iDolag = 3  ! 3 - Dolag c(M) correction with 1.5 power
          hmod%iAs = 3     ! 2 - Vary c(M) relation prefactor
+         hmod%ieta = 2    ! 1 - No eta change of Fourier halo profiles UNDO
          hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
+         ! Model 1: 7.960e-3 for Cosmic Emu
+         !hmod%f0 = 0.2271961
+         !hmod%f1 = 0.5385409
+         !hmod%ks = 0.1488894
+         !hmod%alp0 = 2.2775044
+         !hmod%alp1 = 1.7389202
+         !hmod%kdamp = 0.1806523
+         ! Model 2: 0.0230 for Franken Emu
+         !hmod%f0 = 0.2271961    ! Fixed
+         !hmod%f1 = 0.5385409    ! Fixed
+         !hmod%ks = 0.1488894    ! Fixed
+         !hmod%kdamp = 0.1806523 ! Fixed
+         !hmod%eta0 = 0.7192406
+         !hmod%eta1 = 0.5736005
+         !hmod%As = 3.5018705
+         !hmod%alp0 = 4.3772702
+         !hmod%alp1 = 2.2858554
+         !hmod%ST_p = 0.0101010
+         !hmod%ST_q = 0.8621307
+         !hmod%Ap = -0.8937481
+         ! Model 3: 0.0181 for Franken Emu
+         !hmod%f0 = 0.2271961    ! Fixed
+         !hmod%f1 = 0.5385409    ! Fixed
+         !hmod%ks = 0.1488894    ! Fixed
+         !hmod%kdamp = 0.1806523 ! Fixed
+         !hmod%eta0 = 0.2792648
+         !hmod%eta1 = -0.1682227
+         !hmod%As = 2.9815926
+         !hmod%alp0 = 4.1557051
+         !hmod%alp1 = 2.2542386
+         !hmod%Amf = 1.3549046
+         !hmod%ST_p = 0.0100154
+         !hmod%ST_q = 0.9968444
+         !hmod%Ap = -0.0102720
+         ! Model 4: 0.0166 for Franken Emu
+         hmod%f0 = 0.2385760
+         hmod%f1 = 0.8145470
+         hmod%ks = 0.1398440
+         hmod%kdamp = 0.1595842
+         hmod%eta0 = 0.2580939
+         hmod%eta1 = -0.0330454
+         hmod%As = 1.8618050
+         hmod%alp0 = 3.1508852
+         hmod%alp1 = 1.9979316
+         hmod%Amf = 1.2125096
+         hmod%ST_p = 0.1512131
+         hmod%ST_q = 0.8838104
+         hmod%Ap = -0.0872705
+         hmod%Ac = 1.7020399
+         !!!
+
          ! Model 1
          !hmod%ks = 0.9165773
          !hmod%alp0 = 3.6149043
@@ -1732,7 +1801,7 @@ CONTAINS
          !hmod%alp0 = 2.0299129
          !hmod%alp1 = 1.6482285
          !hmod%kdamp = 0.0476102
-         ! Model 3
+         ! Model 3 - everything free
          !hmod%f0 = 0.7633153
          !hmod%f1 = -2.7352528
          !hmod%ks = 0.8793649
@@ -1740,9 +1809,9 @@ CONTAINS
          !hmod%alp0 = 3.5429452
          !hmod%alp1 = 2.0471195
          !hmod%kdamp = 4.3161717  
-         ! Model 4
-         !hmod%eta0 = 0.9952730
-         !hmod%eta1 = 0.2887444
+         ! Model 4: everything free
+         !hmod%eta0 = 0.9952730 ! NOTE: I think this had no effect on the fit
+         !hmod%eta1 = 0.2887444 ! NOTE: I think this had no effect on the fit
          !hmod%f0 = 0.2088968
          !hmod%f1 = -3.0000000
          !hmod%ks = 0.8666497
@@ -1750,7 +1819,7 @@ CONTAINS
          !hmod%alp0 = 5.0000000
          !hmod%alp1 = 2.3818019
          !hmod%kdamp = 3.7771747
-         ! Model 5
+         ! Model 5: everything free
          !hmod%f0 = 0.3912038 
          !hmod%f1 = 5.0000000
          !hmod%ks = 0.7081901
@@ -1759,17 +1828,70 @@ CONTAINS
          !hmod%alp1 = 1.7144703
          !hmod%kdamp = 0.1504777
          !hmod%Ap = 0.5145956
-         ! Model 6
-         hmod%eta0 = -0.1852042
-         hmod%eta1 = -2.9707354
-         hmod%f0 = 0.3150726
-         hmod%f1 = -4.8408558
-         hmod%ks = 0.8643431
-         hmod%As = 4.3945540
-         hmod%alp0 = 3.5232892
-         hmod%alp1 = 2.0363236
-         hmod%kdamp = 4.9463079
-         hmod%Ap = 0.1386356
+         ! Model 6: everything free
+         !hmod%eta0 = -0.1852042 ! NOTE: I think this had no effect on the fit
+         !hmod%eta1 = -2.9707354 ! NOTE: I think this had no effect on the fit
+         !hmod%f0 = 0.3150726
+         !hmod%f1 = -4.8408558
+         !hmod%ks = 0.8643431
+         !hmod%As = 4.3945540
+         !hmod%alp0 = 3.5232892
+         !hmod%alp1 = 2.0363236
+         !hmod%kdamp = 4.9463079
+         !hmod%Ap = 0.1386356
+         ! Model 7: everything free
+         !hmod%eta0 = 2.8732599  ! NOTE: I think this had no effect on the fit
+         !hmod%eta1 = -3.8744308 ! NOTE: I think this had no effect on the fit
+         !hmod%f0 = 0.3451798
+         !hmod%f1 = -1.4086859
+         !hmod%ks = 1.0947604
+         !hmod%As = 4.9357684
+         !hmod%alp0 = 2.3157694
+         !hmod%alp1 = 1.7706776
+         !hmod%ST_p = 0.3263362
+         !hmod%ST_q = 0.7371557
+         !hmod%kdamp = 10.0000000
+         !hmod%Ap = 0.1393672
+         ! Model 8: Fixed f0, f1, ks, kdamp to model 2
+         !hmod%f0 = 0.2468631    ! Fixed
+         !hmod%f1 = 0.9596436    ! Fixed
+         !hmod%ks = 0.1207590    ! Fixed
+         !hmod%kdamp = 0.0476102 ! Fixed
+         !hmod%alp0 = 1.6483997
+         !hmod%alp1 = 1.5423662
+         !hmod%As = 5.1424024
+         !hmod%ST_p = 0.3417235
+         !hmod%ST_q = 0.7055036
+         !hmod%Ap = 0.4173671
+         ! Model 9: Fixed f0, f1, ks, kdamp to model 2: FOM: 2.195e-2
+         !hmod%f0 = 0.2468631    ! Fixed
+         !hmod%f1 = 0.9596436    ! Fixed
+         !hmod%ks = 0.1207590    ! Fixed
+         !hmod%kdamp = 0.0476102 ! Fixed
+         !hmod%alp0 = 1.6658357
+         !hmod%alp1 = 1.5493507
+         !hmod%As = 5.0041362
+         !hmod%ST_p = 0.4046661
+         !hmod%ST_q = 0.7043138
+         !hmod%Ap = 0.4022281
+         !hmod%Amf = 1.4999952
+         ! Model 10: Fixed f0, f1, ks, kdamp to model 2: FOM: 1.69e-2
+         !hmod%f0 = 0.2468631    ! Fixed
+         !hmod%f1 = 0.9596436    ! Fixed
+         !hmod%ks = 0.1207590    ! Fixed
+         !hmod%kdamp = 0.0476102 ! Fixed
+         !hmod%eta0 = 0.2314036
+         !hmod%eta1 = -0.0133794
+         !hmod%As = 3.5934052
+         !hmod%alp0 = 2.7787582
+         !hmod%alp1 = 1.9027919
+         !hmod%Amf = 1.4999964
+         !hmod%ST_p = 0.2839222
+         !hmod%ST_q = 0.8532435
+         !hmod%Ap = -0.0475853
+
+         !!!
+
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2183,7 +2305,7 @@ CONTAINS
          ! Concentration-mass scaling
          IF (hmod%iAs == 1) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
          IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled mass independently (HMcode 2015, 2016)'
-         IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled as function of sigma (HMcode test)'
+         IF (hmod%iAs == 3) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled as function of sigma (HMcode test)'
 
          ! Two- to one-halo transition region
          IF (hmod%itrans == 1) WRITE (*, *) 'HALOMODEL: Standard sum of two- and one-halo terms'
@@ -2258,11 +2380,13 @@ CONTAINS
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMcode variables'
          WRITE (*, *) dashes
-         WRITE (*, fmt=fmt) 'eta:', eta_HMcode(hmod, cosm)
-         IF(hmod%i1hdamp .NE. 1) WRITE (*, fmt=fmt) 'k*:', kstar_HMcode(hmod, cosm)
-         WRITE (*, fmt=fmt) 'A:', A_HMcode(hmod, cosm)
-         IF(hmod%i2hdamp .NE. 1) WRITE (*, fmt=fmt) 'fdamp:', fdamp_HMcode(hmod, cosm)
-         WRITE (*, fmt=fmt) 'alpha:', alpha_HMcode(hmod, cosm)
+         WRITE (*, fmt=fmt) 'eta:', HMcode_eta(hmod, cosm)
+         !IF(hmod%i1hdamp .NE. 1) WRITE (*, fmt=fmt) 'k*:', HMcode_kstar(hmod, cosm)
+         WRITE (*, fmt=fmt) 'k*:', HMcode_kstar(hmod, cosm)
+         WRITE (*, fmt=fmt) 'A:', HMcode_A(hmod, cosm)
+         !IF(hmod%i2hdamp .NE. 1) WRITE (*, fmt=fmt) 'fdamp:', HMcode_fdamp(hmod, cosm)
+         WRITE (*, fmt=fmt) 'fdamp:', HMcode_fdamp(hmod, cosm)
+         WRITE (*, fmt=fmt) 'alpha:', HMcode_alpha(hmod, cosm)
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMx parameters'
          WRITE (*, *) dashes
@@ -2655,7 +2779,7 @@ CONTAINS
       ALLOCATE(Pk(nk, na))
 
       DO j = 1, na
-         CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pk(:, j), nk, cosm)
+         CALL calculate_HMx_DMONLY_a(k, a(j), Pk(:, j), nk, cosm, ihm)
       END DO
 
    END SUBROUTINE calculate_HMcode
@@ -2680,46 +2804,48 @@ CONTAINS
 
    END SUBROUTINE calculate_P_lin
 
-   SUBROUTINE calculate_HMx_DMONLY(ihm, k, a, Pk, nk, na, cosm)
+   SUBROUTINE calculate_HMx_DMONLY(k, a, Pk, nk, na, cosm, ihm)
 
-      INTEGER, INTENT(INOUT) :: ihm
+      IMPLICIT NONE
       REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
       REAL, INTENT(IN) :: a(na)                  ! Scale factor
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
       INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
       INTEGER, INTENT(IN) :: na                  ! Number of scale factors
       TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
+      INTEGER, INTENT(INOUT) :: ihm
       INTEGER :: ia
       REAL :: Pk_here(nk)
 
       ALLOCATE(Pk(nk, na))
 
       DO ia = 1, na
-         CALL calculate_HMx_DMONLY_a(ihm, k, a(ia), Pk_here, nk, cosm)
+         CALL calculate_HMx_DMONLY_a(k, a(ia), Pk_here, nk, cosm, ihm)
          Pk(:, ia) = Pk_here
       END DO
 
    END SUBROUTINE calculate_HMx_DMONLY
 
-   SUBROUTINE calculate_HMx_DMONLY_a(ihm, k, a, Pk, nk, cosm)
+   SUBROUTINE calculate_HMx_DMONLY_a(k, a, Pk, nk, cosm, ihm)
 
       ! Get the HMcode prediction at this z for this cosmology
       IMPLICIT NONE
-      INTEGER, INTENT(INOUT) :: ihm
       REAL, INTENT(IN) :: k(nk)              ! Array of wavenumbers [h/Mpc]
       REAL, INTENT(IN) :: a                  ! Scale factor
       REAL, INTENT(OUT) :: Pk(nk)            ! Output power array, note that this is Delta^2(k), not P(k)
       INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      INTEGER, INTENT(INOUT) :: ihm
       REAL :: pow_lin(nk), pow_2h(nk), pow_1h(nk), pow_hm(nk)
       TYPE(halomod) :: hmod
-      INTEGER, PARAMETER :: dmonly(1) = field_dmonly ! Fix to DMONLY
+      INTEGER, PARAMETER :: nf = 1
+      INTEGER, PARAMETER :: dmonly(nf) = field_dmonly ! Fix to DMONLY 
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       ! Do an HMcode run
       CALL assign_halomod(ihm, hmod, verbose)
       CALL init_halomod(a, hmod, cosm, verbose)
-      CALL calculate_HMx_a(dmonly, 1, k, nk, pow_lin, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
+      CALL calculate_HMx_a(dmonly, nf, k, nk, pow_lin, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
       Pk = pow_hm
       CALL print_halomod(hmod, cosm, verbose)
 
@@ -3060,7 +3186,7 @@ CONTAINS
       END IF
 
       ! Get eta
-      eta = eta_HMcode(hmod, cosm)
+      eta = HMcode_eta(hmod, cosm)
 
       ! Calculate the halo window functions for each field
       DO j = 1, nf
@@ -3394,15 +3520,15 @@ CONTAINS
       IF (hmod%i2hdamp == 2 .OR. hmod%i2hdamp == 3) THEN
          ! Two-halo damping parameters
          sigv = hmod%sigV_all
-         fdamp = fdamp_HMcode(hmod, cosm)
+         fdamp = HMcode_fdamp(hmod, cosm)
          IF (fdamp == 0.) THEN
             p_2h = p_2h
          ELSE
             p_2h = p_2h*(1.-fdamp*(tanh(k*sigv/sqrt(abs(fdamp))))**2)
          END IF
       ELSE IF (hmod%i2hdamp == 4) THEN
-         fdamp = fdamp_HMcode(hmod, cosm)
-         kdamp = hmod%kdamp
+         fdamp = HMcode_fdamp(hmod, cosm)
+         kdamp = hmod%kdamp!*hmod%knl
          ndamp = 2.
          p_2h = p_2h*(1.-fdamp*((k/kdamp)**ndamp)/((k/kdamp)**ndamp+1.))
       END IF
@@ -3519,26 +3645,31 @@ CONTAINS
       ! Convert from P(k) -> Delta^2(k)
       p_1h = p_1h*(4.*pi)*(k/twopi)**3
 
-      IF (hmod%i1hdamp .NE. 1) THEN
+      IF (hmod%i1hdamp == 1) THEN
+         ! Do nothing
+      ELSE IF (hmod%i1hdamp == 2) THEN
          ! Damping of the 1-halo term at very large scales
-         ks = kstar_HMcode(hmod, cosm)
-         IF (hmod%i1hdamp == 2) THEN
-            IF ((k/ks)**2 > ks_limit) THEN
-               ! Prevents problems if k/ks is very large
-               fac = 0.
-            ELSE
-               fac = exp(-((k/ks)**2))
-            END IF
-            p_1h = p_1h*(1.-fac)
-         ELSE IF (hmod%i1hdamp == 3) THEN
-            ! Note that the power here should be 4 because it multiplies Delta^2(k) ~ k^3 at low k (NOT 7)
-            ! Want f(k<<ks) ~ k^4; f(k>>ks) = 1
-            !fac = 1./(1.+(ks/k)**4)
-            fac = (k/ks)**4/(1.+(k/ks)**4)
-            p_1h = p_1h*fac
+         ks = HMcode_kstar(hmod, cosm)
+         IF (ks == 0. .OR. ((k/ks)**2 > HMcode_ks_limit)) THEN
+            ! Prevents problems if k/ks is very large
+            fac = 0.
          ELSE
-            STOP 'P_1H: Error, i1hdamp not specified correctly'
+            fac = exp(-((k/ks)**2))
          END IF
+         p_1h = p_1h*(1.-fac)
+      ELSE IF (hmod%i1hdamp == 3) THEN
+         ! Note that the power here should be 4 because it multiplies Delta^2(k) ~ k^3 at low k (NOT 7)
+         ! Want f(k<<ks) ~ k^4; f(k>>ks) = 1
+         !fac = 1./(1.+(ks/k)**4)
+         ks = HMcode_kstar(hmod, cosm)
+         IF (ks == 0.) THEN
+            fac = 1.
+         ELSE
+            fac = (k/ks)**4/(1.+(k/ks)**4)
+         END IF
+         p_1h = p_1h*fac
+      ELSE
+         STOP 'P_1H: Error, i1hdamp not specified correctly'
       END IF
 
    END FUNCTION p_1h
@@ -3573,15 +3704,10 @@ CONTAINS
          ELSE
 
             ! Do the standard smoothed transition
-            alpha = alpha_HMcode(hmod, cosm)
+            alpha = HMcode_alpha(hmod, cosm)
             p_hm = (pow_2h**alpha+pow_1h**alpha)**(1./alpha)
 
          END IF
-
-      !ELSE IF (hmod%itrans == 6) THEN
-
-      !   alpha = hmod%al
-      !   p_hm = (pow_2h**alpha+pow_1h**alpha)**(1./alpha)
 
       ELSE IF (hmod%itrans == 5) THEN
 
@@ -4231,7 +4357,7 @@ CONTAINS
 
    END FUNCTION Delta_v
 
-   REAL FUNCTION eta_HMcode(hmod, cosm)
+   REAL FUNCTION HMcode_eta(hmod, cosm)
 
       ! Calculates the eta that comes into the bastardised one-halo term
       IMPLICIT NONE
@@ -4244,7 +4370,7 @@ CONTAINS
       crap = cosm%A
 
       IF (hmod%ieta == 1) THEN
-         eta_HMcode = 0.
+         HMcode_eta = 0.
       ELSE IF (hmod%ieta == 2) THEN
          ! From HMcode(2015; arXiv 1505.07833, 2016)
          IF (hmod%one_parameter_baryons) THEN
@@ -4252,14 +4378,14 @@ CONTAINS
          ELSE
             eta0 = hmod%eta0
          END IF
-         eta_HMcode = eta0-hmod%eta1*hmod%sig_eta
+         HMcode_eta = eta0-hmod%eta1*hmod%sig_eta
       ELSE
-         STOP 'ETA_HMcode: Error, ieta defined incorrectly'
+         STOP 'HMcode_ETA: Error, ieta defined incorrectly'
       END IF
 
-   END FUNCTION eta_HMcode
+   END FUNCTION HMcode_eta
 
-   REAL FUNCTION kstar_HMcode(hmod, cosm)
+   REAL FUNCTION HMcode_kstar(hmod, cosm)
 
       ! Calculates the one-halo damping wave number
       IMPLICIT NONE
@@ -4270,11 +4396,15 @@ CONTAINS
       ! To prevent compile-time warnings
       crap = cosm%A
 
-      kstar_HMcode = hmod%ks/hmod%sigV_kstar
+      IF (hmod%i1hdamp == 2) THEN
+         HMcode_kstar = hmod%ks/hmod%sigV_kstar
+      ELSE
+         HMcode_kstar = hmod%ks!*hmod%knl
+      END IF
 
-   END FUNCTION kstar_HMcode
+   END FUNCTION HMcode_kstar
 
-   REAL FUNCTION A_HMcode(hmod, cosm)
+   REAL FUNCTION HMcode_A(hmod, cosm)
 
       ! Halo concentration pre-factor
       IMPLICIT NONE
@@ -4287,22 +4417,23 @@ CONTAINS
 
       IF (hmod%iAs == 1) THEN
          ! Set to 4 for the standard Bullock value
-         A_HMcode = 4.
+         HMcode_A = 4.
       ELSE IF (hmod%iAs == 2) THEN
          ! This is the 'A' halo-concentration parameter in HMcode(2015; arXiv 1505.07833, 2016)
-         A_HMcode = hmod%As
+         HMcode_A = hmod%As
       ELSE IF (hmod%iAs == 3) THEN
-         A_HMcode = hmod%As*(hmod%sig8_all/0.8)**hmod%Ap
+         ! HMcode (test)
+         HMcode_A = hmod%As*(hmod%sig8_all/0.8)**hmod%Ap+hmod%Ac
       ELSE
-         STOP 'A_HMcode: Error, iAs defined incorrectly'
+         STOP 'HMcode_A: Error, iAs defined incorrectly'
       END IF
 
       ! Now this is divided by 4 so as to be relative to the Bullock base result
-      A_HMcode = A_HMcode/4.
+      HMcode_A = HMcode_A/4.
 
-   END FUNCTION A_HMcode
+   END FUNCTION HMcode_A
 
-   REAL FUNCTION fdamp_HMcode(hmod, cosm)
+   REAL FUNCTION HMcode_fdamp(hmod, cosm)
 
       ! Calculates the linear-theory damping factor
       IMPLICIT NONE
@@ -4315,24 +4446,24 @@ CONTAINS
 
       IF (hmod%i2hdamp == 1) THEN
          ! Set to 0 for the standard linear theory two halo term
-         fdamp_HMcode = 0.
+         HMcode_fdamp = 0.
       ELSE IF (hmod%i2hdamp == 2 .OR. hmod%i2hdamp == 4) THEN
          ! HMcode (2015)
-         fdamp_HMcode = hmod%f0*hmod%sig_fdamp**hmod%f1
+         HMcode_fdamp = hmod%f0*hmod%sig_fdamp**hmod%f1
       ELSE IF (hmod%i2hdamp == 3) THEN
          ! HMcode (2016)
-         fdamp_HMcode = hmod%f0*hmod%sigv_fdamp**hmod%f1
+         HMcode_fdamp = hmod%f0*hmod%sigv_fdamp**hmod%f1
       ELSE
          STOP 'FDAMP_HMcode: Error, i2hdamp defined incorrectly'
       END IF
 
       ! Catches extreme values of fdamp that occur for ridiculous cosmologies
-      IF (fdamp_HMcode < fdamp_HMcode_min) fdamp_HMcode = fdamp_HMcode_min
-      IF (fdamp_HMcode > fdamp_HMcode_max) fdamp_HMcode = fdamp_HMcode_max
+      IF (HMcode_fdamp < HMcode_fdamp_min) HMcode_fdamp = HMcode_fdamp_min
+      IF (HMcode_fdamp > HMcode_fdamp_max) HMcode_fdamp = HMcode_fdamp_max
 
-   END FUNCTION fdamp_HMcode
+   END FUNCTION HMcode_fdamp
 
-   REAL FUNCTION alpha_HMcode(hmod, cosm)
+   REAL FUNCTION HMcode_alpha(hmod, cosm)
 
       ! Calculates the alpha to smooth the two- to one-halo transition
       IMPLICIT NONE
@@ -4345,24 +4476,36 @@ CONTAINS
 
       IF (hmod%itrans == 2) THEN
          ! From HMcode (2015, 2016)
-         alpha_HMcode = hmod%alp0*hmod%alp1**hmod%neff
+         IF(hmod%alp1 == 0.) THEN
+            HMcode_alpha = hmod%alp0
+         ELSE
+            HMcode_alpha = hmod%alp0*(hmod%alp1**hmod%neff)
+         END IF
       ELSE IF (hmod%itrans == 3) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
-         alpha_HMcode = (hmod%alp0*hmod%alp1**hmod%neff)**1.5
+         IF(hmod%alp1 == 0.) THEN
+            HMcode_alpha = hmod%alp0**1.5
+         ELSE
+            HMcode_alpha = (hmod%alp0*hmod%alp1**hmod%neff)**1.5
+         END IF
       ELSE IF (hmod%itrans == 4) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
-         alpha_HMcode = (hmod%alp0*hmod%alp1**hmod%neff)**2.5
+         IF(hmod%alp1 == 0.) THEN
+            HMcode_alpha = hmod%alp0**2.5
+         ELSE
+            HMcode_alpha = (hmod%alp0*hmod%alp1**hmod%neff)**2.5
+         END IF
       ELSE IF (hmod%itrans == 6) THEN
-         alpha_HMcode = hmod%alp0
+         HMcode_alpha = hmod%alp0
       ELSE
-         alpha_HMcode = 1.
+         HMcode_alpha = 1.
       END IF
 
       ! Catches values of alpha that are crazy
-      IF (alpha_HMcode < alpha_HMcode_min) alpha_HMcode = alpha_HMcode_min
-      IF (alpha_HMcode > alpha_HMcode_max) alpha_HMcode = alpha_HMcode_max
+      IF (HMcode_alpha < HMcode_alpha_min) HMcode_alpha = HMcode_alpha_min
+      IF (HMcode_alpha > HMcode_alpha_max) HMcode_alpha = HMcode_alpha_max
 
-   END FUNCTION alpha_HMcode
+   END FUNCTION HMcode_alpha
 
    ! REAL FUNCTION HMcode_onehalodamping(k, hmod, cosm)
 
@@ -5578,7 +5721,7 @@ CONTAINS
          END IF
 
          ! Rescale halo concentrations via the 'A' HMcode parameter
-         hmod%c(i) = hmod%c(i)*A_HMcode(hmod, cosm)
+         hmod%c(i) = hmod%c(i)*HMcode_A(hmod, cosm)
 
       END DO
 
@@ -8851,7 +8994,8 @@ CONTAINS
       q = hmod%ST_q
 
       ! Normalisation of ST mass function (involves Gamma function)
-      hmod%ST_A = 1./(sqrt(pi/(2.*q))+(1./sqrt(q))*(2.**(-p-0.5))*Gamma(0.5-p))
+      !hmod%ST_A = 1./(sqrt(pi/(2.*q))+(1./sqrt(q))*(2.**(-p-0.5))*Gamma(0.5-p))
+      hmod%ST_A = sqrt(2.*q/pi)+Gamma(0.5-p)/sqrt(q*2**(2.*p+1.))
 
       ! Set the flag to true
       hmod%has_mass_function = .TRUE.
