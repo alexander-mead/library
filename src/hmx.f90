@@ -2790,7 +2790,7 @@ CONTAINS
       ALLOCATE(Pk(nk, na))
 
       DO j = 1, na
-         CALL calculate_HMx_DMONLY_a(k, a(j), Pk(:, j), nk, cosm, ihm)
+         CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pk(:, j), nk, cosm)
       END DO
 
    END SUBROUTINE calculate_HMcode
@@ -2831,13 +2831,13 @@ CONTAINS
       ALLOCATE(Pk(nk, na))
 
       DO ia = 1, na
-         CALL calculate_HMx_DMONLY_a(k, a(ia), Pk_here, nk, cosm, ihm)
+         CALL calculate_HMx_DMONLY_a(ihm, k, a(ia), Pk_here, nk, cosm)
          Pk(:, ia) = Pk_here
       END DO
 
    END SUBROUTINE calculate_HMx_DMONLY
 
-   SUBROUTINE calculate_HMx_DMONLY_a(ihm, k, a, Pk, nk, cosm, ihm)
+   SUBROUTINE calculate_HMx_DMONLY_a(ihm, k, a, Pk, nk, cosm)
 
       ! Get the HMcode prediction at this z for this cosmology
       IMPLICIT NONE
@@ -2847,7 +2847,6 @@ CONTAINS
       REAL, INTENT(IN) :: a                  ! Scale factor
       REAL, INTENT(OUT) :: Pk(nk)            ! Output power array, note that this is Delta^2(k), not P(k)
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER, INTENT(INOUT) :: ihm
       REAL :: pow_lin(nk), pow_2h(nk), pow_1h(nk), pow_hm(nk)
       TYPE(halomod) :: hmod
       INTEGER, PARAMETER :: nf = 1
