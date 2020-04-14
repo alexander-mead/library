@@ -37,7 +37,7 @@ MODULE HMx
    PUBLIC :: calculate_HMx
    PUBLIC :: calculate_HMx_a
    PUBLIC :: calculate_HMcode
-   PUBLIC :: calculate_HMx_DMONLY
+   PUBLIC :: calculate_HMx_DMONLY ! TODO: Retire
    PUBLIC :: set_halo_type
    PUBLIC :: halo_type
    PUBLIC :: M_nu
@@ -601,6 +601,8 @@ CONTAINS
       names(75) = 'Standard but with dc from Mead (2017) fit'
       names(76) = 'Standard but with Dv from Mead (2017) fit'
       names(77) = 'HMcode (test) unfitted'
+      names(78) = 'HMcode (test) fitted to Cosmic Emu k<1'
+      names(79) = 'HMcode (test) fitted'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1737,8 +1739,11 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
-      ELSE IF (ihm == 77) THEN
-         ! HMcode (test) prototype
+      ELSE IF (ihm == 77 .OR. ihm == 78 .OR. ihm == 79) THEN
+         ! HMcode (test)
+         ! 77 - Unfitted
+         ! 78 - Fitted to Cosmic Emu for k<1
+         ! 79 - Fitted
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 2  ! 2 - alpha smoothing
@@ -1750,55 +1755,58 @@ CONTAINS
          hmod%iAs = 3     ! 2 - Vary c(M) relation prefactor
          hmod%ieta = 2    ! 1 - No eta change of Fourier halo profiles UNDO
          hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
-         ! Model 1: 7.960e-3 for Cosmic Emu
-         !hmod%f0 = 0.2271961
-         !hmod%f1 = 0.5385409
-         !hmod%ks = 0.1488894
-         !hmod%alp0 = 2.2775044
-         !hmod%alp1 = 1.7389202
-         !hmod%kdamp = 0.1806523
-         ! Model 2: 0.0230 for Franken Emu
-         !hmod%f0 = 0.2271961    ! Fixed
-         !hmod%f1 = 0.5385409    ! Fixed
-         !hmod%ks = 0.1488894    ! Fixed
-         !hmod%kdamp = 0.1806523 ! Fixed
-         !hmod%eta0 = 0.7192406
-         !hmod%eta1 = 0.5736005
-         !hmod%As = 3.5018705
-         !hmod%alp0 = 4.3772702
-         !hmod%alp1 = 2.2858554
-         !hmod%ST_p = 0.0101010
-         !hmod%ST_q = 0.8621307
-         !hmod%Ap = -0.8937481
-         ! Model 3: 0.0181 for Franken Emu
-         !hmod%f0 = 0.2271961    ! Fixed
-         !hmod%f1 = 0.5385409    ! Fixed
-         !hmod%ks = 0.1488894    ! Fixed
-         !hmod%kdamp = 0.1806523 ! Fixed
-         !hmod%eta0 = 0.2792648
-         !hmod%eta1 = -0.1682227
-         !hmod%As = 2.9815926
-         !hmod%alp0 = 4.1557051
-         !hmod%alp1 = 2.2542386
-         !hmod%Amf = 1.3549046
-         !hmod%ST_p = 0.0100154
-         !hmod%ST_q = 0.9968444
-         !hmod%Ap = -0.0102720
-         ! Model 4: 0.0166 for Franken Emu
-         hmod%f0 = 0.2385760
-         hmod%f1 = 0.8145470
-         hmod%ks = 0.1398440
-         hmod%kdamp = 0.1595842
-         hmod%eta0 = 0.2580939
-         hmod%eta1 = -0.0330454
-         hmod%As = 1.8618050
-         hmod%alp0 = 3.1508852
-         hmod%alp1 = 1.9979316
-         hmod%Amf = 1.2125096
-         hmod%ST_p = 0.1512131
-         hmod%ST_q = 0.8838104
-         hmod%Ap = -0.0872705
-         hmod%Ac = 1.7020399
+         IF (ihm == 78) THEN
+            ! Model 1: 7.960e-3 for Cosmic Emu
+            hmod%f0 = 0.2271961
+            hmod%f1 = 0.5385409
+            hmod%ks = 0.1488894
+            hmod%alp0 = 2.2775044
+            hmod%alp1 = 1.7389202
+            hmod%kdamp = 0.1806523
+         ELSE IF (ihm == 79) THEN
+            ! Model 2: 0.0230 for Franken Emu
+            !hmod%f0 = 0.2271961    ! Fixed
+            !hmod%f1 = 0.5385409    ! Fixed
+            !hmod%ks = 0.1488894    ! Fixed
+            !hmod%kdamp = 0.1806523 ! Fixed
+            !hmod%eta0 = 0.7192406
+            !hmod%eta1 = 0.5736005
+            !hmod%As = 3.5018705
+            !hmod%alp0 = 4.3772702
+            !hmod%alp1 = 2.2858554
+            !hmod%ST_p = 0.0101010
+            !hmod%ST_q = 0.8621307
+            !hmod%Ap = -0.8937481
+            ! Model 3: 0.0181 for Franken Emu
+            !hmod%f0 = 0.2271961    ! Fixed
+            !hmod%f1 = 0.5385409    ! Fixed
+            !hmod%ks = 0.1488894    ! Fixed
+            !hmod%kdamp = 0.1806523 ! Fixed
+            !hmod%eta0 = 0.2792648
+            !hmod%eta1 = -0.1682227
+            !hmod%As = 2.9815926
+            !hmod%alp0 = 4.1557051
+            !hmod%alp1 = 2.2542386
+            !hmod%Amf = 1.3549046
+            !hmod%ST_p = 0.0100154
+            !hmod%ST_q = 0.9968444
+            !hmod%Ap = -0.0102720
+            ! Model 4: 0.0166 for Franken Emu
+            hmod%f0 = 0.2385760
+            hmod%f1 = 0.8145470
+            hmod%ks = 0.1398440
+            hmod%kdamp = 0.1595842
+            hmod%eta0 = 0.2580939
+            hmod%eta1 = -0.0330454
+            hmod%As = 1.8618050
+            hmod%alp0 = 3.1508852
+            hmod%alp1 = 1.9979316
+            hmod%Amf = 1.2125096
+            hmod%ST_p = 0.1512131
+            hmod%ST_q = 0.8838104
+            hmod%Ap = -0.0872705
+            hmod%Ac = 1.7020399
+         END IF
          !!!
 
          ! Model 1
