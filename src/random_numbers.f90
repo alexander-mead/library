@@ -38,7 +38,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: seed
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       INTEGER :: int, timearray(3)
-      REAL*4 :: rand ! Necessary to define for ifort, also the *4 is necessary
+      REAL(kind=4) :: rand ! Necessary to define for ifort, also the *4 is necessary
 
       IF (present_and_correct(verbose)) THEN
          WRITE (*, *) 'RNG_SET: Initialising random number generator'
@@ -75,7 +75,7 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i1 ! Lower bound
       INTEGER, INTENT(IN) :: i2 ! Upper bound
-      REAL*4 :: rand            ! Necessary to define for ifort and the *4 is necessary
+      REAL(kind=4) :: rand            ! Necessary to define for ifort and the *4 is necessary
       INTEGER, PARAMETER :: seed = 0
 
       random_integer = i1-1+ceiling(rand(seed)*real(1+i2-i1))
@@ -116,7 +116,7 @@ CONTAINS
       ! Produces a uniform random number between 0 and 1
       ! TODO: Retire rand, replace with random_number inbuilt function
       IMPLICIT NONE
-      REAL*4 :: rand ! Necessary for ifort and the *4 is necessary
+      REAL(kind=4) :: rand ! Necessary for ifort and the *4 is necessary
       INTEGER, PARAMETER :: seed = 0
 
       ! rand is some inbuilt function

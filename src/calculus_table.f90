@@ -22,9 +22,9 @@ CONTAINS
       USE array_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: xin(n)
       REAL, INTENT(IN) :: yin(n)
-      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
       REAL ::  xtab(n), ytab(n)
@@ -207,9 +207,9 @@ CONTAINS
       ! Integrates tables y(x)dx
       USE fix_polynomial
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(n)
       REAL, INTENT(IN) :: y(n)
-      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: n1
       INTEGER, INTENT(IN) :: n2
       INTEGER, INTENT(IN) :: iorder
@@ -348,11 +348,11 @@ CONTAINS
 
       ! A crude integration scheme for tabulated 2D functions
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nx
+      INTEGER, INTENT(IN) :: ny
       REAL, INTENT(IN) :: x(nx)
       REAL, INTENT(IN) :: y(ny)
       REAL, INTENT(IN) :: F(nx, ny)
-      INTEGER, INTENT(IN) :: nx
-      INTEGER, INTENT(IN) :: ny
       INTEGER :: ix, iy
       DOUBLE PRECISION :: sum
       REAL :: dx, dy

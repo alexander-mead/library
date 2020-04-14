@@ -111,8 +111,8 @@ CONTAINS
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: array(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: array(n)
       INTEGER :: i
 
       STOP 'GREATER_THAN_ANY: Test this'
@@ -131,8 +131,8 @@ CONTAINS
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: array(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: array(n)
       INTEGER :: i
 
       STOP 'GREATER_THAN_ALL: Test this'
@@ -251,8 +251,8 @@ CONTAINS
       ! For example, if m = 2 then poisition i in the smoothed array is the average over i-2, i-1, i, i+1, i+2 in the old array
       ! It probably only makes sense to do this if x(t) is a function and the t are uniformally distributed
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x(n) ! Array to smooth
       INTEGER, INTENT(IN) :: n    ! Size of array
+      REAL, INTENT(INOUT) :: x(n) ! Array to smooth
       INTEGER, INTENT(IN) :: m    ! Number of entries to smooth over in one direction
       INTEGER :: i, iup, idn, j, mm
       REAL :: x_save(n)
@@ -289,8 +289,8 @@ CONTAINS
       ! Checks to see if x falls within the range of values in array a
       IMPLICIT NONE
       REAL, INTENT(IN) :: x    ! Value to check
-      REAL, INTENT(IN) :: a(n) ! Array (of x values, presumably)
       INTEGER, INTENT(IN) :: n ! Size of array
+      REAL, INTENT(IN) :: a(n) ! Array (of x values, presumably)
 
       IF (x >= minval(a) .AND. x <= maxval(a)) THEN
          within_array = .TRUE.
@@ -305,9 +305,9 @@ CONTAINS
       ! Swap arrays x<->y in a memory-efficient way
       ! Only one excess real number is ever stored
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n    ! Size of arrays
       REAL, INTENT(INOUT) :: x(n) ! Array 1
       REAL, INTENT(INOUT) :: y(n) ! Array 2
-      INTEGER, INTENT(IN) :: n    ! Size of arrays
       INTEGER :: i
       REAL :: h
 
@@ -346,8 +346,8 @@ CONTAINS
       ! Add value 'v' to array 'a' at location 'i' in array
       ! If 'i' is outside the array range then this routine does nothing
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: a(m, m)
       INTEGER, INTENT(IN) :: m
+      REAL, INTENT(INOUT) :: a(m, m)
       REAL, INTENT(IN) :: v
       INTEGER, INTENT(IN) :: i(2)
       INTEGER :: j
@@ -371,8 +371,8 @@ CONTAINS
       ! Add value 'v' to array 'a' at location 'i' in array
       ! If 'i' is outside the array range then this routine does nothing
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: a(m, m, m)
       INTEGER, INTENT(IN) :: m
+      REAL, INTENT(INOUT) :: a(m, m, m)
       REAL, INTENT(IN) :: v
       INTEGER, INTENT(IN) :: i(3)
       INTEGER :: j
@@ -397,8 +397,8 @@ CONTAINS
       ! If x is not in array then returns zero
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: x    ! Value to check if it is in array
-      INTEGER, INTENT(IN) :: a(n) ! Array to check
       INTEGER, INTENT(IN) :: n    ! Size of array
+      INTEGER, INTENT(IN) :: a(n) ! Array to check
       INTEGER :: i
 
       array_position_int = 0
@@ -419,8 +419,8 @@ CONTAINS
       USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: x    ! Value to check if it is in array
-      REAL, INTENT(IN) :: a(n) ! Array to check
       INTEGER, INTENT(IN) :: n ! Size of array
+      REAL, INTENT(IN) :: a(n) ! Array to check
       REAL, INTENT(IN) :: eps  ! Difference to tolerate
       INTEGER :: i
 
@@ -441,8 +441,8 @@ CONTAINS
       ! If x is not in a(n) then returns zero
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: x    ! Value to check if it is in array
-      INTEGER, INTENT(IN) :: a(n) ! Array to check
       INTEGER, INTENT(IN) :: n    ! Size of array
+      INTEGER, INTENT(IN) :: a(n) ! Array to check
       INTEGER :: i
 
       number_of_appearances = 0
@@ -461,8 +461,8 @@ CONTAINS
       ! If x is not in array then returns zero
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: x    ! Value to check if it is in array
-      INTEGER, INTENT(IN) :: a(n) ! Array to check
       INTEGER, INTENT(IN) :: n    ! Size of array
+      INTEGER, INTENT(IN) :: a(n) ! Array to check
       INTEGER, ALLOCATABLE, INTENT(OUT) :: b(:)
       INTEGER, INTENT(OUT) :: m
       INTEGER :: i, p
@@ -485,8 +485,8 @@ CONTAINS
       ! Sum using double precision, which is necessary for many array elements
       IMPLICIT NONE
       REAL :: sum_double
-      REAL, INTENT(IN) :: a(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: a(n)
       DOUBLE PRECISION :: sum
       INTEGER :: i
 
@@ -543,9 +543,9 @@ CONTAINS
       ! Reduces the size of array1 to the size of array2
       ! This will not preserve the spacing of entries in array1 and might be a terrible idea in many cases
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n1, n2
       REAL, INTENT(IN) :: arr1(n1)
       REAL, INTENT(OUT) :: arr2(n2)
-      INTEGER, INTENT(IN) :: n1, n2
       INTEGER :: i, j
 
       DO i = 1, n2
@@ -685,8 +685,8 @@ CONTAINS
    SUBROUTINE write_array_list_real(a, n)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: a(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: a(n)
       INTEGER :: i
 
       WRITE (*, *) 'WRITE_ARRAY_LIST: Writing array'
@@ -701,8 +701,8 @@ CONTAINS
    SUBROUTINE write_array_list_int(a, n)
 
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: a(n)
       INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: a(n)
       INTEGER :: i
 
       WRITE (*, *) 'WRITE_ARRAY_LIST: Writing array'
@@ -718,9 +718,9 @@ CONTAINS
 
       ! This splays out a 3d array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n1, n2
       REAL :: splay_2D(n1*n2)
       REAL, INTENT(IN) :: a(n1, n2)
-      INTEGER, INTENT(IN) :: n1, n2
       INTEGER :: i, j, ii
 
       ! Set sum integer to zero
@@ -740,9 +740,9 @@ CONTAINS
       ! This splays out a 3d array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
       ! TODO: Should i, j, k order of loops be reversed?
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n1, n2, n3
       REAL :: splay_3D(n1*n2*n3)
       REAL, INTENT(IN) :: a(n1, n2, n3)
-      INTEGER, INTENT(IN) :: n1, n2, n3
       INTEGER :: i, j, k, ii
 
       ! Set sum integer to zero
@@ -813,9 +813,9 @@ CONTAINS
 
       ! Takes arrays a and b and merges them together to make c with length SIZE(a)+SIZE(b)
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: na, nb
       REAL, INTENT(IN) :: a(na), b(nb)
       REAL, ALLOCATABLE, INTENT(OUT) :: c(:)
-      INTEGER, INTENT(IN) :: na, nb
       INTEGER, INTENT(OUT) :: nc
       INTEGER :: i
 
@@ -838,9 +838,9 @@ CONTAINS
 
       ! Concatenate arrays a and b to form new array with length SIZE(a)+SIZE(b)
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: na, nb
       REAL :: concatenate_arrays(na+nb)
       REAL, INTENT(IN) :: a(na), b(nb)
-      INTEGER, INTENT(IN) :: na, nb
       INTEGER :: i
 
       DO i = 1, na
@@ -1016,9 +1016,9 @@ CONTAINS
       ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
       USE fix_polynomial
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(n)
       REAL, INTENT(IN) :: y(n)
-      INTEGER, INTENT(IN) :: n
       REAL :: x1, x2, x3, y1, y2, y3, a, b, c
       INTEGER :: imax(1), i
 
@@ -1059,9 +1059,9 @@ CONTAINS
 
       ! Flags objects that make the cut as 'okay'
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       LOGICAL, INTENT(OUT) :: okay(n)
       REAL, INTENT(IN) :: m(n)
-      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: min
       REAL, INTENT(IN) :: max
       INTEGER :: i, o
@@ -1197,8 +1197,8 @@ CONTAINS
 
       ! Counts the total number of unique entries in array 'a'
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: a(n) ! Input array
       INTEGER, INTENT(IN) :: n    ! Size of input array
+      INTEGER, INTENT(IN) :: a(n) ! Input array
       INTEGER :: i, j
 
       ! Initially assume all entries are unique
@@ -1219,8 +1219,8 @@ CONTAINS
    SUBROUTINE unique_index(array, n, unique, m, match)
 
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: array(n)                ! Array to find the unique indices of
       INTEGER, INTENT(IN) :: n                       ! Number of entries in input array
+      INTEGER, INTENT(IN) :: array(n)                ! Array to find the unique indices of
       INTEGER, ALLOCATABLE, INTENT(OUT) :: unique(:) ! Output array of unique indices
       INTEGER, INTENT(OUT) :: m                      ! Number of unique indices
       INTEGER, INTENT(OUT) :: match(n)               ! Array for matching input and unique arrays
@@ -1301,8 +1301,8 @@ CONTAINS
 
       ! Checks for repeated entries in a(n)
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: a(n)
       INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: a(n)
       INTEGER :: i, j
 
       repeated_entries = .FALSE.
@@ -1324,8 +1324,8 @@ CONTAINS
       ! Returns true if array a is regularly spaced
       USE basic_operations
       IMPLICIT NONE
-      REAL, INTENT(IN) :: a(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: a(n)
       REAL :: amin, amax, b
       INTEGER :: i
       REAL, PARAMETER :: eps = 1e-5

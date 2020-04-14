@@ -90,6 +90,10 @@ MODULE cosmology_functions
    PUBLIC :: flag_power_total
    PUBLIC :: flag_power_cold
    PUBLIC :: flag_power_cold_unorm
+   PUBLIC :: norm_sigma8
+   PUBLIC :: norm_none
+   PUBLIC :: itk_external
+   PUBLIC :: itk_EH
 
    ! CAMB interface
    PUBLIC :: get_CAMB_power
@@ -171,6 +175,7 @@ MODULE cosmology_functions
       REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:) ! Arrays for spherical-collapse parameters
       REAL, ALLOCATABLE :: log_a_Xde(:), log_Xde(:)    ! Arrays for dark-energy density
       INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin, n_Xde ! Number of array entries
+      REAL :: amin_sigma, amax_sigma                                                               ! Ranges of arrays
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
       LOGICAL :: is_init, is_normalised, has_wiggle ! Flags to check if things have been done  
 
@@ -180,6 +185,9 @@ MODULE cosmology_functions
 
       ! Verbose
       LOGICAL :: verbose
+
+      ! Error handling
+      INTEGER :: status
 
    END TYPE cosmology
 
@@ -250,6 +258,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
    INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
    INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB
+   INTEGER, PARAMETER :: norm_none = 4         ! Power spectrum does not need to be normalised
    INTEGER, PARAMETER :: flag_power_total = 1      ! Flag to get the total matter power spectrum
    INTEGER, PARAMETER :: flag_power_cold = 2       ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
    INTEGER, PARAMETER :: flag_power_cold_unorm = 3 ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
@@ -1450,11 +1459,19 @@ CONTAINS
          cosm%has_power = .TRUE.
       END IF
 
-      ! Ensure deallocate linear-power tables
-      CALL if_allocated_deallocate(cosm%log_k_plin)
-      CALL if_allocated_deallocate(cosm%log_a_plin)
-      CALL if_allocated_deallocate(cosm%log_plin)
-      CALL if_allocated_deallocate(cosm%log_plina)
+      IF (cosm%itk /= itk_external) THEN
+         ! Ensure deallocate linear-power tables if not using external tables
+         CALL if_allocated_deallocate(cosm%log_k_plin)
+         CALL if_allocated_deallocate(cosm%log_a_plin)
+         CALL if_allocated_deallocate(cosm%log_plin)
+         CALL if_allocated_deallocate(cosm%log_plina)
+      ENDIF
+
+      cosm%nr_sigma = 0
+      cosm%na_sigma = 0
+
+      cosm%amin_sigma = 0.0
+      cosm%amax_sigma = 0.0
 
       ! Ensure delloacte spherical-collapse arrays
       cosm%has_spherical = .FALSE.
@@ -1754,6 +1771,8 @@ CONTAINS
          CALL normalise_power_value(cosm)
       ELSE IF (cosm%itk == itk_CAMB .AND. cosm%norm_method == norm_As) THEN
          ! Do nothing because the CAMB will have done the normalisation correctly
+      ELSE IF (cosm%itk == itk_external .AND. cosm%norm_method == norm_none) THEN
+         ! No need to do anything
       ELSE
          STOP 'NORMALISE_POWER: Error, normalisation method not specified correctly'
       END IF
@@ -3108,11 +3127,11 @@ CONTAINS
    SUBROUTINE calculate_plin(k, a, Pk, nk, na, cosm)
 
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk
+      INTEGER, INTENT(IN) :: na
       REAL, INTENT(IN) :: k(nk)
       REAL, INTENT(IN) :: a(na)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
-      INTEGER, INTENT(IN) :: nk
-      INTEGER, INTENT(IN) :: na
       TYPE(cosmology) :: cosm
       INTEGER :: ik, ia
       INTEGER, PARAMETER :: flag = flag_power_total
@@ -3235,27 +3254,31 @@ CONTAINS
       CALL if_allocated_deallocate(cosm%log_sigmaa)
       CALL if_allocated_deallocate(cosm%log_sigmaca)
 
+      ! Set nr_sigma, na_sigma, amin_sigma, and amax_sigma to defaults if not set by the user
+      IF(cosm%nr_sigma == 0) cosm%nr_sigma = nr_sigma
+      IF(cosm%na_sigma == 0) cosm%na_sigma = na_sigma
+      IF(cosm%amin_sigma == 0.0) cosm%amin_sigma = amin_sigma
+      IF(cosm%amax_sigma == 0.0) cosm%amax_sigma = amax_sigma
+
       ! Write to screen
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_SIGMA: Filling sigma(R) interpolation tables'
          WRITE (*, *) 'INIT_SIGMA: R minimum [Mpc/h]:', real(rmin_sigma)
          WRITE (*, *) 'INIT_SIGMA: R maximum [Mpc/h]:', real(rmax_sigma)
-         WRITE (*, *) 'INIT_SIGMA: Number of points:', nr_sigma
+         WRITE (*, *) 'INIT_SIGMA: Number of points:', cosm%nr_sigma
       END IF
 
       ! Allocate and fill array of R values
-      CALL fill_array(log(rmin_sigma), log(rmax_sigma), cosm%log_r_sigma, nr_sigma)
-      cosm%nr_sigma = nr_sigma
+      CALL fill_array(log(rmin_sigma), log(rmax_sigma), cosm%log_r_sigma, cosm%nr_sigma)
 
       ! Allocate carrays
       IF (cosm%scale_dependent_growth) THEN
-         cosm%na_sigma = na_sigma
-         CALL fill_array(log(amin_sigma), log(amax_sigma), cosm%log_a_sigma, na_sigma)
-         ALLOCATE (cosm%log_sigmaa(nr_sigma, na_sigma))
-         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmaca(nr_sigma, na_sigma))   
+         CALL fill_array(log(cosm%amin_sigma), log(cosm%amax_sigma), cosm%log_a_sigma, cosm%na_sigma)
+         ALLOCATE (cosm%log_sigmaa(cosm%nr_sigma, cosm%na_sigma))
+         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmaca(nr_sigma, cosm%na_sigma))   
       ELSE
-         ALLOCATE (cosm%log_sigma(nr_sigma))
-         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmac(nr_sigma))
+         ALLOCATE (cosm%log_sigma(cosm%nr_sigma))
+         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmac(cosm%nr_sigma))
       END IF
 
       ! Do we need to loop over both matter and cold or not?
@@ -3277,9 +3300,9 @@ CONTAINS
          IF (cosm%scale_dependent_growth) THEN
 
             ! Loop over R and a and calculate sigma(R,a)
-            DO j = 1, na_sigma
+            DO j = 1, cosm%na_sigma
                a = exp(cosm%log_a_sigma(j))
-               DO i = 1, nr_sigma
+               DO i = 1, cosm%nr_sigma
                   R = exp(cosm%log_r_sigma(i))
                   sig = sigma_integral(R, a, flag, cosm)
                   IF (flag == flag_power_total) THEN
@@ -3294,7 +3317,7 @@ CONTAINS
 
             ! Loop over R values and calculate sigma(R)
             a = 1. ! Fill this table at a=1
-            DO i = 1, nr_sigma
+            DO i = 1, cosm%nr_sigma
                R = exp(cosm%log_r_sigma(i))
                sig = sigma_integral(R, a, flag, cosm)
                IF (flag == flag_power_total) THEN
@@ -3320,10 +3343,10 @@ CONTAINS
       ! Write useful information to screen
       IF (cosm%verbose) THEN
          IF (cosm%scale_dependent_growth) THEN
-            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigmaa(nr_sigma,na_sigma))
-            WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigmaa(1,na_sigma))
+            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigmaa(cosm%nr_sigma,cosm%na_sigma))
+            WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigmaa(1,cosm%na_sigma))
          ELSE
-            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigma(nr_sigma))
+            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigma(cosm%nr_sigma))
             WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigma(1))
          END IF
          WRITE (*, *) 'INIT_SIGMA: Done'
@@ -5025,8 +5048,8 @@ CONTAINS
       USE CAMB_stuff
       USE string_operations
       IMPLICIT NONE
-      REAL, INTENT(IN) :: a(na)
       INTEGER, INTENT(IN) :: na
+      REAL, INTENT(IN) :: a(na)
       REAL, ALLOCATABLE, INTENT(OUT) :: k_Pk(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
       INTEGER, INTENT(OUT) :: nkPk
@@ -5078,7 +5101,7 @@ CONTAINS
       omnuh2 = Om_nu*h**2
 
       ! Remove previous parameters file
-      CALL SYSTEM('rm -rf '//trim(params))
+      CALL EXECUTE_COMMAND_LINE('rm -rf '//trim(params))
 
       ! Open new parameters file for writing
       OPEN (7, file=params, status='replace')
@@ -5216,12 +5239,12 @@ CONTAINS
       CLOSE (7)
 
       ! Remove old files and run CAMB
-      CALL SYSTEM('rm -rf '//trim(transfer)//'*')
-      CALL SYSTEM('rm -rf '//trim(matterpower)//'*')
+      CALL EXECUTE_COMMAND_LINE('rm -rf '//trim(transfer)//'*')
+      CALL EXECUTE_COMMAND_LINE('rm -rf '//trim(matterpower)//'*')
       IF (cosm%verbose) THEN
-         CALL SYSTEM(trim(camb)//' '//trim(params)//' > /dev/null')
+         CALL EXECUTE_COMMAND_LINE(trim(camb)//' '//trim(params)//' > /dev/null')
       ELSE
-         CALL SYSTEM(trim(camb)//' '//trim(params))
+         CALL EXECUTE_COMMAND_LINE(trim(camb)//' '//trim(params))
       END IF
       IF (cosm%verbose) WRITE (*, *) 'GET_CAMB_POWER: CAMB run complete'
 
@@ -5273,10 +5296,10 @@ CONTAINS
       USE array_operations
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: k(:)
+      INTEGER, INTENT(IN) :: na
       REAL, INTENT(IN) :: a(na)
       REAL, ALLOCATABLE, INTENT(INOUT) :: Pk(:,:)
       INTEGER, INTENT(INOUT) :: nk
-      INTEGER, INTENT(IN) :: na
       INTEGER :: i, naa
       LOGICAL :: kkeep(nk), akeep(na)
       REAL, ALLOCATABLE :: aa(:)
@@ -5434,48 +5457,58 @@ CONTAINS
    END SUBROUTINE init_CAMB_linear
 
    SUBROUTINE init_external_linear(cosm)
-
-      ! TODO: Add rebinning in k?
-      ! TODO: Add support for massive neutrinos?
-      ! TODO: Add support for scale-dependent growth?
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: k, plin
-      INTEGER :: ik
-      INTEGER :: nk
-      INTEGER, PARAMETER :: na = 1 ! Fix to assume scale-independent growth. Could be relaxed.
-      CHARACTER(len=256), PARAMETER :: infile = '/Users/Mead/Physics/CAMB_files/boring/boring_matterpower.dat'
+      INTEGER :: nk, nk_plin, na, na_plin
+      INTEGER :: plina_shape(2)
 
-      nk = file_length(infile) ! Read in how many k values there are
-      nk = nk-1                ! Remove one due to comment line
+      IF(ALLOCATED(cosm%log_k_plin)) THEN
+         nk = SIZE(cosm%log_k_plin)
+      ELSE
+         write(*,*) "cosmology%log_k_plin has not been allocated!"
+         cosm%status = 1
+         RETURN
+      ENDIF
 
-      cosm%na_plin = na
-      cosm%nk_plin = nk
+      IF(ALLOCATED(cosm%log_a_plin)) THEN
+         na = SIZE(cosm%log_a_plin)
+      ELSE
+         write(*,*) "cosmology%log_a_plin has not been allocated!"
+         cosm%status = 1
+         RETURN
+      ENDIF
 
-      CALL if_allocated_deallocate(cosm%log_k_plin)
-      CALL if_allocated_deallocate(cosm%log_a_plin)
-      CALL if_allocated_deallocate(cosm%log_plin)
-      ALLOCATE(cosm%log_k_plin(nk))
-      ALLOCATE(cosm%log_a_plin(na))
-      ALLOCATE(cosm%log_plin(nk))
+      IF(ALLOCATED(cosm%log_plin)) THEN
+         nk_plin = SIZE(cosm%log_plin)
+      ELSE
+         write(*,*) "cosmology%log_plin has not been allocated!"
+         cosm%status = 1
+         RETURN
+      ENDIF
 
-      OPEN(7, file=infile)
-      READ(7, *) ! Skip first comment line
-      DO ik = 1, nk
-         READ(7, *) k, plin            ! Read in data from file
-         plin = Delta_Pk(plin, k)      ! Convert input P(k) to Delta^2(k)
-         cosm%log_k_plin(ik) = log(k)  ! Array is log
-         cosm%log_plin(ik) = log(plin) ! Array is log
-      END DO
-      CLOSE(7)
+      IF(ALLOCATED(cosm%log_plina)) THEN
+         plina_shape = SHAPE(cosm%log_plina)
+         na_plin = plina_shape(2)
+      ELSE
+         write(*,*) "cosmology%log_plina has not been allocated!"
+         cosm%status = 1
+         RETURN
+      ENDIF
 
-      ! CALL if_allocated_deallocate(cosm%log_k_Tcold)
-      ! CALL if_allocated_deallocate(cosm%Tcold)
-      ! ALLOCATE(cosm%log_k_Tcold(nk))
-      ! ALLOCATE(cosm%Tcold(nk, na))
-      ! cosm%log_k_Tcold = cosm%log_k_plin
-      ! cosm%Tcold = 1.
-      ! cosm%nk_Tcold = nk
+      IF(nk /= nk_plin .OR. nk /= cosm%nk_plin) THEN
+         write(*,*) "Sizes of cosmology%log_plin, cosmology%log_k_plin, or cosmology%nk_plin are inconsistent:", nk_plin, nk, cosm%nk_plin
+         cosm%status = 1
+         RETURN
+      ENDIF
+
+      IF(na /= cosm%na_plin .OR. na /= na_plin) THEN
+         write(*,*) "Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:", na_plin, na, cosm%na_plin
+         cosm%status = 1
+         RETURN
+      ENDIF
+
+      cosm%amin_sigma = MINVAL(EXP(cosm%log_a_plin))
+      cosm%amax_sigma = MAXVAL(EXP(cosm%log_a_plin))
 
       cosm%has_power = .TRUE.
 
@@ -6507,11 +6540,11 @@ CONTAINS
    SUBROUTINE calculate_HALOFIT(k, a, Pk, nk, na, cosm, version)
 
       IMPLICIT NONE
+      INTEGER :: nk ! Number of points in k
+      INTEGER :: na ! Number of points in a
       REAL, INTENT(IN) :: k(nk) ! Array of wavenumbers
       REAL, INTENT(IN) :: a(na) ! Scale factor
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array
-      INTEGER :: nk ! Number of points in k
-      INTEGER :: na ! Number of points in a
       TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
       INTEGER, OPTIONAL, INTENT(IN) :: version ! HALOFIT version
       REAL :: Plin(nk), Pq(nk), Ph(nk), Pnl(nk)
@@ -6531,13 +6564,13 @@ CONTAINS
 
       ! Get a HALOFIT P(k,a) prediction
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n       ! Size of input k array
       REAL, INTENT(IN) :: k(n)       ! Array of wavenumbers
       REAL, INTENT(IN) :: a          ! Scale factor
       REAL, INTENT(OUT) :: Plin(n)   ! Output array of linear power
       REAL, INTENT(OUT) :: Pq(n)     ! Output array of quasi-linear power
       REAL, INTENT(OUT) :: Ph(n)     ! Output array of halo power
       REAL, INTENT(OUT) :: Pnl(n)    ! Output array of HALOFIT power
-      INTEGER, INTENT(IN) :: n       ! Size of input k array
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmological model
       LOGICAL, INTENT(IN) :: verbose ! Verbosity
       INTEGER, INTENT(IN) :: ihf     ! Interger for HALOFIT version

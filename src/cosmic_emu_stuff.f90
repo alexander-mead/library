@@ -87,8 +87,8 @@ CONTAINS
       REAL, PARAMETER :: eps_h = 3e-3
 
       ! Remove previous parameter and power file
-      CALL SYSTEM('rm '//trim(params))
-      CALL SYSTEM('rm '//trim(output))
+      CALL EXECUTE_COMMAND_LINE('rm '//trim(params))
+      CALL EXECUTE_COMMAND_LINE('rm '//trim(output))
 
       ! Write a new parameter file
       OPEN (7, file=params)
@@ -96,7 +96,7 @@ CONTAINS
       CLOSE (7)
 
       ! Run emu
-      CALL SYSTEM(trim(exe)//' '//trim(params))! > /dev/null')
+      CALL EXECUTE_COMMAND_LINE(trim(exe)//' '//trim(params))! > /dev/null')
 
       ! Get length of emu file
       n = file_length(output)
@@ -171,8 +171,8 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: exe = '/Users/Mead/Physics/FrankenEmu/emu.exe'
 
       ! Remove previous parameter and power file
-      CALL SYSTEM('rm '//trim(params))
-      CALL SYSTEM('rm '//trim(output))
+      CALL EXECUTE_COMMAND_LINE('rm '//trim(params))
+      CALL EXECUTE_COMMAND_LINE('rm '//trim(output))
 
       ! Write a new parameter file
       OPEN (7, file=params)
@@ -180,7 +180,7 @@ CONTAINS
       CLOSE (7)
 
       ! Run emu
-      CALL SYSTEM(trim(exe)//' '//trim(params))! > /dev/null')
+      CALL EXECUTE_COMMAND_LINE(trim(exe)//' '//trim(params))! > /dev/null')
 
       ! Get length of emu file
       n = file_length(output, verbose=.FALSE.)
@@ -250,15 +250,15 @@ CONTAINS
       INTEGER, PARAMETER :: ifind_rebin = 3
       INTEGER, PARAMETER :: iinterp_rebin = 2
 
-      CALL SYSTEM('rm xstar.dat')
-      CALL SYSTEM('rm EMU0.txt')
+      CALL EXECUTE_COMMAND_LINE('rm xstar.dat')
+      CALL EXECUTE_COMMAND_LINE('rm EMU0.txt')
 
       OPEN (7, file='xstar.dat')
       WRITE (7, *) (cosm%Om_m*cosm%h**2), (cosm%Om_b*cosm%h**2), cosm%sig8, &
          cosm%h, cosm%ns, cosm%w, cosm%wa, (cosm%om_nu*cosm%h**2), z
       CLOSE (7)
 
-      CALL SYSTEM('/Users/Mead/Physics/MiraTitan/P_tot/emu.exe')
+      CALL EXECUTE_COMMAND_LINE('/Users/Mead/Physics/MiraTitan/P_tot/emu.exe')
       output = 'EMU0.txt'
 
       n = file_length(output, verbose=.FALSE.)

@@ -23,8 +23,8 @@ CONTAINS
       ! If x is above the upper value of the array then n is returned (IMPORTANT)
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: xtab(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: xtab(n)
       INTEGER, INTENT(IN) :: ifind
 
       ! Methods (ifind)
@@ -53,8 +53,8 @@ CONTAINS
       ! Assuming the table is exactly linear this gives you the integer position
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: xtab(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: xtab(n)
       REAL :: x1, xn
 
       x1 = xtab(1)
@@ -68,8 +68,8 @@ CONTAINS
       ! Does a stupid search through the table from beginning to end to find integer
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: xtab(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: xtab(n)
       INTEGER :: i
 
       IF (xtab(1) > xtab(n)) STOP 'SEARCH_INT: table in wrong order'
@@ -87,8 +87,8 @@ CONTAINS
       ! Finds the position of the value in the table by continually splitting it in half
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: xtab(n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: xtab(n)
       INTEGER :: i1, i2, imid
 
       IF (xtab(1) > xtab(n)) STOP 'INT_SPLIT: table in wrong order'

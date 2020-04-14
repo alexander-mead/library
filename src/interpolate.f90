@@ -32,9 +32,9 @@ CONTAINS
       ! If the value required is off the table edge the extrapolation is always linear
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: xin(n)
       REAL, INTENT(IN) :: yin(n)
-      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
       INTEGER, INTENT(IN) :: iinterp
@@ -303,13 +303,13 @@ CONTAINS
       ! If the value required is off the table edge the extrapolation is always linear
       ! TODO: Loops over coordinates to avoid repetition?
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nx
+      INTEGER, INTENT(IN) :: ny
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xin(nx)
       REAL, INTENT(IN) :: y
       REAL, INTENT(IN) :: yin(ny)
       REAL, INTENT(IN) :: fin(nx, ny)
-      INTEGER, INTENT(IN) :: nx
-      INTEGER, INTENT(IN) :: ny
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
       INTEGER, INTENT(IN) :: iinterp
@@ -657,6 +657,9 @@ CONTAINS
       ! A 3D interpolation routine to find value f(x,y,z) given a function evalated on arrays
       ! The linear version implemented here is also know as 'trilinear interpolation'
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nx
+      INTEGER, INTENT(IN) :: ny
+      INTEGER, INTENT(IN) :: nz
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xin(nx)
       REAL, INTENT(IN) :: y
@@ -664,9 +667,6 @@ CONTAINS
       REAL, INTENT(IN) :: z
       REAL, INTENT(IN) :: zin(nz)
       REAL, INTENT(IN) :: fin(nx, ny, nz)
-      INTEGER, INTENT(IN) :: nx
-      INTEGER, INTENT(IN) :: ny
-      INTEGER, INTENT(IN) :: nz
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
       INTEGER, INTENT(IN) :: iinterp
@@ -807,12 +807,12 @@ CONTAINS
       ! Interpolates array 'x1-y1' onto new 'x' values x2 and output y2
       ! TODO: This could be more efficient because it currently does 'find integer' every time
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n1
       REAL, INTENT(IN) :: x1(n1)
       REAL, INTENT(IN) :: y1(n1)
-      INTEGER, INTENT(IN) :: n1
+      INTEGER, INTENT(IN) :: n2
       REAL, INTENT(IN) :: x2(n2)
       REAL, INTENT(OUT) :: y2(n2)
-      INTEGER, INTENT(IN) :: n2
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
       INTEGER, INTENT(IN) :: iinterp
