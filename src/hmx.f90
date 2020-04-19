@@ -603,6 +603,7 @@ CONTAINS
       names(77) = 'HMcode (test) unfitted'
       names(78) = 'HMcode (test) fitted to Cosmic Emu k<1'
       names(79) = 'HMcode (test) fitted'
+      names(80) = 'Standard but with Jenkins mass function' 
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -682,10 +683,13 @@ CONTAINS
       ! Virial density Delta_v
       ! 1 - Fixed 200
       ! 2 - Bryan & Norman (1998; arXiv:astro-ph/9710107) fitting function
-      ! 3 - HMcode (2015)
+      ! 3 - HMcode (2016)
       ! 4 - Mead (2017) fitting function
       ! 5 - Spherical-collapse calculation
       ! 6 - Fixed to unity to give Lagrangian radius
+      ! 7 - For M200c
+      ! 8 - HMcode (2015)
+      ! 9 - Fixed to 18pi^2 ~ 178
       hmod%iDv = 2
 
       ! eta for halo window function
@@ -1739,6 +1743,10 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
+      ELSE IF (ihm == 80) THEN
+         ! Jenkins mass function (defined for FoF 0.2 haloes)
+         hmod%iDv = 9 ! 9 - ~ 178
+         hmod%imf = 5
       ELSE IF (ihm == 77 .OR. ihm == 78 .OR. ihm == 79) THEN
          ! HMcode (test)
          ! 77 - Unfitted
@@ -2164,6 +2172,7 @@ CONTAINS
          IF (hmod%imf == 2) WRITE (*, *) 'HALOMODEL: Sheth & Tormen (1999) mass function'
          IF (hmod%imf == 3) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function'
          IF (hmod%imf == 4) WRITE (*, *) 'HALOMODEL: Delta function mass function'
+         IF (hmod%imf == 5) WRITE (*, *) 'HALOMODEL: Jenkins (2001) mass function'
 
          ! Concentration-mass relation
          IF (hmod%iconc == 1) WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -2305,6 +2314,7 @@ CONTAINS
          IF (hmod%iDv == 6) WRITE (*, *) 'HALOMODEL: Delta_v to give haloes Lagrangian radius'
          IF (hmod%iDv == 7) WRITE (*, *) 'HALOMODEL: Delta_v for M200c'
          IF (hmod%iDv == 8) WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2015) power spectrum fit'
+         IF (hmod%iDv == 9) WRITE (*, *) 'HALOMODEL: Delta_v = 178 fixed'
 
          ! eta for halo window function
          IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta = 0 fixed'
@@ -2346,26 +2356,22 @@ CONTAINS
          WRITE (*, fmt=fmt) 'scale factor:', hmod%a
          WRITE (*, fmt=fmt) 'Dv:', Delta_v(hmod, cosm)
          WRITE (*, fmt=fmt) 'dc:', delta_c(hmod, cosm)
-         IF (hmod%imf == 2 .OR. hmod%imf == 3 .OR. hmod%imf == 4) THEN
-            WRITE (*, *) dashes
-            WRITE (*, *) 'HALOMODEL: Mass function parameters'
-            WRITE (*, *) dashes
-            WRITE (*, fmt=fmt) 'Amplitude:', hmod%Amf
-            IF (hmod%imf == 2) THEN
-               WRITE (*, fmt=fmt) 'Sheth & Tormen p:', hmod%ST_p
-               WRITE (*, fmt=fmt) 'Sheth & Tormen q:', hmod%ST_q
-               WRITE (*, fmt=fmt) 'Sheth & Tormen A:', hmod%ST_A
-            ELSE IF (hmod%imf == 3) THEN
-               WRITE (*, fmt=fmt) 'Tinker alpha:', hmod%Tinker_alpha
-               WRITE (*, fmt=fmt) 'Tinker beta:', hmod%Tinker_beta
-               WRITE (*, fmt=fmt) 'Tinker gamma:', hmod%Tinker_gamma
-               WRITE (*, fmt=fmt) 'Tinker eta:', hmod%Tinker_eta
-               WRITE (*, fmt=fmt) 'Tinker phi:', hmod%Tinker_phi
-            ELSE IF (hmod%imf == 4) THEN
-               WRITE (*, *) 'Halo mass log10(M) [Msun/h]:', log10(hmod%hmass)
-            ELSE
-               STOP 'HALOMODEL: Error, something went wrong with imf'
-            END IF
+         WRITE (*, *) dashes
+         WRITE (*, *) 'HALOMODEL: Mass function parameters'
+         WRITE (*, *) dashes
+         WRITE (*, fmt=fmt) 'Amplitude:', hmod%Amf
+         IF (hmod%imf == 2) THEN
+            WRITE (*, fmt=fmt) 'Sheth & Tormen p:', hmod%ST_p
+            WRITE (*, fmt=fmt) 'Sheth & Tormen q:', hmod%ST_q
+            WRITE (*, fmt=fmt) 'Sheth & Tormen A:', hmod%ST_A
+         ELSE IF (hmod%imf == 3) THEN
+            WRITE (*, fmt=fmt) 'Tinker alpha:', hmod%Tinker_alpha
+            WRITE (*, fmt=fmt) 'Tinker beta:', hmod%Tinker_beta
+            WRITE (*, fmt=fmt) 'Tinker gamma:', hmod%Tinker_gamma
+            WRITE (*, fmt=fmt) 'Tinker eta:', hmod%Tinker_eta
+            WRITE (*, fmt=fmt) 'Tinker phi:', hmod%Tinker_phi
+         ELSE IF (hmod%imf == 4) THEN
+            WRITE (*, *) 'Halo mass log10(M) [Msun/h]:', log10(hmod%hmass)
          END IF
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: Halo parameters'
@@ -4371,6 +4377,9 @@ CONTAINS
       ELSE IF (hmod%iDv == 7) THEN
          ! M200c
          Delta_v = 200./Omega_m(a, cosm)
+      ELSE IF (hmod%iDv == 9) THEN
+         ! 18pi^2 ~178
+         Delta_v = Dv0
       ELSE
          STOP 'DELTA_V: Error, iDv defined incorrectly'
       END IF
@@ -8755,6 +8764,8 @@ CONTAINS
          b_nu = b_Tinker(nu, hmod)
       ELSE IF (hmod%imf == 4) THEN
          b_nu = 1.
+      ELSE IF (hmod%imf == 5) THEN
+         b_nu = b_Jenkins(nu, hmod)
       ELSE
          STOP 'B_NU: Error, imf not specified correctly'
       END IF
@@ -8812,6 +8823,26 @@ CONTAINS
       b_Tinker = 1.+(gamma*nu**2-(1.+2.*eta))/dc+(2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
 
    END FUNCTION b_Tinker
+
+   REAL FUNCTION b_Jenkins(nu, hmod)
+
+      ! Bias from applying peak-background split to Jenkins (2001) mass function
+      ! Haloes defined with FoF with b = 0.2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: x
+
+      x = log(nu)-0.0876
+
+      IF (x > 0.) THEN
+         b_Jenkins = 1.+3.8*abs(x)**2.8/hmod%dc
+      ELSE
+         b_Jenkins = 1.-3.8*abs(x)**2.8/hmod%dc
+         IF (b_Jenkins < 0.) b_Jenkins = 0.
+      END IF
+
+   END FUNCTION b_Jenkins
 
    REAL FUNCTION b2_nu(nu, hmod)
 
@@ -8900,6 +8931,8 @@ CONTAINS
          g_nu = g_Tinker(nu, hmod)
       ELSE IF (hmod%imf == 4) THEN
          STOP 'G_NU: Error, this function should not be used for delta-mass-function'
+      ELSE IF (hmod%imf == 5) THEN
+         g_nu = g_Jenkins(nu, hmod)
       ELSE
          STOP 'G_NU: Error, imf specified incorrectly'
       END IF
@@ -8984,13 +9017,28 @@ CONTAINS
 
    END FUNCTION g_Tinker
 
+   REAL FUNCTION g_Jenkins(nu, hmod)
+
+      ! Mass function from astro-ph/0005260
+      ! Haloes defined with FoF with b = 0.2
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: x
+
+      x = log(nu)-0.0876
+
+      g_Jenkins = 0.315*exp(-abs(x)**3.8)/nu
+
+   END FUNCTION g_Jenkins
+
    SUBROUTINE init_mass_function(hmod)
 
       ! Initialise anything to do with the halo mass function
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      IF (hmod%imf == 1 .OR. hmod%imf == 4) THEN
+      IF (hmod%imf == 1 .OR. hmod%imf == 4 .OR. hmod%imf == 5) THEN
          hmod%has_mass_function = .TRUE.
       ELSE IF (hmod%imf == 2) THEN
          CALL init_ST(hmod)
