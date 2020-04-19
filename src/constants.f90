@@ -42,7 +42,6 @@ MODULE constants
    !!
 
    ! Astronomy constants
-
    REAL, PARAMETER :: au = 149597870700.               ! Astronomical unit [m] (https://en.wikipedia.org/wiki/Astronomical_unit)
    REAL, PARAMETER :: H0_cos = 100.                    ! Hubble parameter [km s^-1 (Mpc/h)^-1]
    REAL, PARAMETER :: Msun = 1.98847e30                ! Solar mass [kg] (https://en.wikipedia.org/wiki/Solar_mass)
