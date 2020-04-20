@@ -502,12 +502,14 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_Ac = 60
    INTEGER, PARAMETER :: param_n = 60
 
+   ! HMcode versions
    INTEGER, PARAMETER :: HMcode2015 = 7
    INTEGER, PARAMETER :: HMcode2015_CAMB = 66 
    INTEGER, PARAMETER :: HMcode2016 = 1
    INTEGER, PARAMETER :: HMcode2016_CAMB = 51
    INTEGER, PARAMETER :: HMcode2020 = 15
 
+   ! HMx versions
    INTEGER, PARAMETER :: HMx2020_matter_with_temperature_scaling = 60
    INTEGER, PARAMETER :: HMx2020_matter_pressure_with_temperature_scaling = 61
 
@@ -515,12 +517,13 @@ CONTAINS
 
    SUBROUTINE assign_halomod(ihm, hmod, verbose)
 
+      ! TODO: nhalomod should not be necessary
       IMPLICIT NONE
       INTEGER, INTENT(INOUT) :: ihm
       TYPE(halomod), INTENT(OUT) :: hmod
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
-      INTEGER, PARAMETER :: nhalomod = 1000 ! Some large-enough number
+      INTEGER, PARAMETER :: nhalomod = 1000 ! Some large-enough integer
       CHARACTER(len=256):: names(nhalomod)
 
       names = ''
@@ -1597,8 +1600,6 @@ CONTAINS
          hmod%Astar = 0.             ! No stars
          hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
          hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
-      !ELSE IF (ihm == 55 .OR. ihm == 56 .OR. ihm == 57 .OR. ihm == 58 .OR. ihm == 59 .OR. &
-      !   ihm == 60 .OR. ihm == 61 .OR. ihm == 62 .OR. ihm == 63 .OR. ihm == 65) THEN
       ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, HMx2020_matter_with_temperature_scaling, HMx2020_matter_pressure_with_temperature_scaling, 62, 63, 65])) THEN
          ! HMx2020: Baseline
          hmod%response = 1 ! Model should be calculated as a response
@@ -1612,11 +1613,6 @@ CONTAINS
          ELSE IF (ihm == 56) THEN
             ! AGN 7.6
             hmod%fix_star_concentration = .TRUE.
-            !hmod%Astar = 0.03538
-            !hmod%mstar = 10**12.39794
-            !hmod%Astarz = -0.01020
-            !hmod%eta = -0.32187
-            !hmod%mstarz = -0.15334
             hmod%Astar = 0.03477
             hmod%mstar = 10**12.46201
             hmod%Astarz = -0.00926
@@ -1625,11 +1621,6 @@ CONTAINS
          ELSE IF (ihm == 57) THEN
             ! AGN 7.8
             hmod%fix_star_concentration = .TRUE.
-            !hmod%Astar = 0.03392
-            !hmod%mstar = 10**12.34581
-            !hmod%Astarz = -0.01013
-            !hmod%eta = -0.31955
-            !hmod%mstarz = -0.02782
             hmod%Astar = 0.03302
             hmod%mstar = 10**12.44789
             hmod%Astarz = -0.00881
@@ -1638,11 +1629,6 @@ CONTAINS
          ELSE IF (ihm == 58) THEN
             ! AGN 8.0
             hmod%fix_star_concentration = .TRUE.
-            !hmod%Astar = 0.03183
-            !hmod%mstar = 10**12.27733
-            !hmod%Astarz = -0.00936
-            !hmod%eta = -0.30451
-            !hmod%mstarz = -0.00126
             hmod%Astar = 0.03093
             hmod%mstar = 10**12.39230
             hmod%Astarz = -0.00818
@@ -1656,11 +1642,6 @@ CONTAINS
             ! 61 - HMx 2020 with temperature scaling that fits matter, pressure (stars fixed)
             hmod%fix_star_concentration = .TRUE.
             hmod%HMx_mode = 6 ! Scaling with temperature
-            !hmod%Astar_array = [0.03538, 0.03392, 0.03183]
-            !hmod%Astarz_array = [-0.01020, -0.01013, -0.00936]
-            !hmod%Mstar_array = 10**[12.39794, 12.34581, 12.27733]
-            !hmod%Mstarz_array = [-0.15334, -0.02782, -0.00126]
-            !hmod%eta_array = [-0.32187, -0.31955, -0.30451]
             hmod%Astar_array = [0.0348, 0.0330, 0.0309]          
             hmod%Mstar_array = 10**[12.4620, 12.4479, 12.3923]
             hmod%Astarz_array = [-0.0093, -0.0088, -0.0082]
@@ -1668,10 +1649,6 @@ CONTAINS
             hmod%Mstarz_array = [-0.3664, -0.3521, -0.3073]           
             IF(ihm == HMx2020_matter_with_temperature_scaling) THEN
                ! 60 - Additionally fits matter-matter
-               !hmod%eps_array = [0.27910, 0.20000, 0.04947]
-               !hmod%Gamma_array = [1.23445, 1.33350, 1.59297]
-               !hmod%M0_array = 10**[13.00648, 13.36720, 14.02713]
-               !hmod%epsz_array = [-0.01196, -0.01125, 0.03178]
                hmod%eps_array = [0.2841, 0.2038, 0.0526]
                hmod%Gamma_array = 1.+[0.2363, 0.3376, 0.6237]
                hmod%M0_array = 10**[13.0020, 13.3658, 14.0226]
@@ -1686,13 +1663,6 @@ CONTAINS
                hmod%Twhim_array = 10**[6.67618, 6.65445, 6.66146] ! Weirdly similar (z=0 Twhim all the same... ?)
                hmod%Twhimz_array = [-0.55659, -0.36515, -0.06167]
                hmod%epsz_array = [-0.04559, -0.10730, -0.01107] ! Non monotonic
-               !hmod%alpha_array = 
-               !hmod%eps_array = 
-               !hmod%Gamma_array = 
-               !hmod%M0_array = 
-               !hmod%Twhim_array = 
-               !hmod%Twhimz_array = 
-               !hmod%epsz_array = 
             END IF
          ELSE IF (ihm == 62) THEN
             ! 62 - Model for matter, CDM, gas, stars
@@ -1815,110 +1785,6 @@ CONTAINS
             hmod%Ap = -0.0872705
             hmod%Ac = 1.7020399
          END IF
-         !!!
-
-         ! Model 1
-         !hmod%ks = 0.9165773
-         !hmod%alp0 = 3.6149043
-         !hmod%alp1 = 2.0684254
-         ! Model 2 - this one is great for k<1
-         !hmod%f0 = 0.2468631
-         !hmod%f1 = 0.9596436
-         !hmod%ks = 0.1207590
-         !hmod%alp0 = 2.0299129
-         !hmod%alp1 = 1.6482285
-         !hmod%kdamp = 0.0476102
-         ! Model 3 - everything free
-         !hmod%f0 = 0.7633153
-         !hmod%f1 = -2.7352528
-         !hmod%ks = 0.8793649
-         !hmod%As = 4.3013891
-         !hmod%alp0 = 3.5429452
-         !hmod%alp1 = 2.0471195
-         !hmod%kdamp = 4.3161717  
-         ! Model 4: everything free
-         !hmod%eta0 = 0.9952730 ! NOTE: I think this had no effect on the fit
-         !hmod%eta1 = 0.2887444 ! NOTE: I think this had no effect on the fit
-         !hmod%f0 = 0.2088968
-         !hmod%f1 = -3.0000000
-         !hmod%ks = 0.8666497
-         !hmod%As = 4.3023274
-         !hmod%alp0 = 5.0000000
-         !hmod%alp1 = 2.3818019
-         !hmod%kdamp = 3.7771747
-         ! Model 5: everything free
-         !hmod%f0 = 0.3912038 
-         !hmod%f1 = 5.0000000
-         !hmod%ks = 0.7081901
-         !hmod%As = 4.3181673
-         !hmod%alp0 = 2.4172494
-         !hmod%alp1 = 1.7144703
-         !hmod%kdamp = 0.1504777
-         !hmod%Ap = 0.5145956
-         ! Model 6: everything free
-         !hmod%eta0 = -0.1852042 ! NOTE: I think this had no effect on the fit
-         !hmod%eta1 = -2.9707354 ! NOTE: I think this had no effect on the fit
-         !hmod%f0 = 0.3150726
-         !hmod%f1 = -4.8408558
-         !hmod%ks = 0.8643431
-         !hmod%As = 4.3945540
-         !hmod%alp0 = 3.5232892
-         !hmod%alp1 = 2.0363236
-         !hmod%kdamp = 4.9463079
-         !hmod%Ap = 0.1386356
-         ! Model 7: everything free
-         !hmod%eta0 = 2.8732599  ! NOTE: I think this had no effect on the fit
-         !hmod%eta1 = -3.8744308 ! NOTE: I think this had no effect on the fit
-         !hmod%f0 = 0.3451798
-         !hmod%f1 = -1.4086859
-         !hmod%ks = 1.0947604
-         !hmod%As = 4.9357684
-         !hmod%alp0 = 2.3157694
-         !hmod%alp1 = 1.7706776
-         !hmod%ST_p = 0.3263362
-         !hmod%ST_q = 0.7371557
-         !hmod%kdamp = 10.0000000
-         !hmod%Ap = 0.1393672
-         ! Model 8: Fixed f0, f1, ks, kdamp to model 2
-         !hmod%f0 = 0.2468631    ! Fixed
-         !hmod%f1 = 0.9596436    ! Fixed
-         !hmod%ks = 0.1207590    ! Fixed
-         !hmod%kdamp = 0.0476102 ! Fixed
-         !hmod%alp0 = 1.6483997
-         !hmod%alp1 = 1.5423662
-         !hmod%As = 5.1424024
-         !hmod%ST_p = 0.3417235
-         !hmod%ST_q = 0.7055036
-         !hmod%Ap = 0.4173671
-         ! Model 9: Fixed f0, f1, ks, kdamp to model 2: FOM: 2.195e-2
-         !hmod%f0 = 0.2468631    ! Fixed
-         !hmod%f1 = 0.9596436    ! Fixed
-         !hmod%ks = 0.1207590    ! Fixed
-         !hmod%kdamp = 0.0476102 ! Fixed
-         !hmod%alp0 = 1.6658357
-         !hmod%alp1 = 1.5493507
-         !hmod%As = 5.0041362
-         !hmod%ST_p = 0.4046661
-         !hmod%ST_q = 0.7043138
-         !hmod%Ap = 0.4022281
-         !hmod%Amf = 1.4999952
-         ! Model 10: Fixed f0, f1, ks, kdamp to model 2: FOM: 1.69e-2
-         !hmod%f0 = 0.2468631    ! Fixed
-         !hmod%f1 = 0.9596436    ! Fixed
-         !hmod%ks = 0.1207590    ! Fixed
-         !hmod%kdamp = 0.0476102 ! Fixed
-         !hmod%eta0 = 0.2314036
-         !hmod%eta1 = -0.0133794
-         !hmod%As = 3.5934052
-         !hmod%alp0 = 2.7787582
-         !hmod%alp1 = 1.9027919
-         !hmod%Amf = 1.4999964
-         !hmod%ST_p = 0.2839222
-         !hmod%ST_q = 0.8532435
-         !hmod%Ap = -0.0475853
-
-         !!!
-
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
