@@ -97,8 +97,8 @@ def read_parameter_file(file):
    from mead_strings import read_first_number_from_line_in_file
 
    # Read the file
-   parameter_file_figure_of_merit_line = 1
-   parameter_file_header_length = 5
+   parameter_file_figure_of_merit_line = 2
+   parameter_file_header_length = 6
    parameter_file_footer_length = 1
    parameter_file_names_column = 1
    parameter_file_best_fit_column = 3
