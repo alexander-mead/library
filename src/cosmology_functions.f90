@@ -483,19 +483,22 @@ CONTAINS
       names(63) = 'Planck 2015'
       names(64) = 'Planck 2015 (AGN 7.6)'
       names(65) = 'Planck 2015 (AGN 8.0)'
-      names(66) = 'Axel power bump k = 0.05h/Mpc'
-      names(67) = 'Axel power bump k = 0.1h/Mpc'
-      names(68) = 'Axel power bump k = 1h/Mpc'
+      names(66) = 'Power bump: A = 0.15; k = 0.05h/Mpc; sigma = 1.0'
+      names(67) = 'Power bump: A = 0.15; k = 0.10h/Mpc; sigma = 1.0'
+      names(68) = 'Power bump: A = 0.15; k = 1.00h/Mpc; sigma = 1.0'
       names(69) = 'Axel power no bump'
       names(70) = 'WMAP9 (Extreme low AGN temperature)'
       names(71) = 'WMAP9 (Extreme high AGN temperature)'
-      names(72) = 'Axel power bump k = 0.05h/Mpc'
-      names(73) = 'Axel power bump k = 0.1h/Mpc'
-      names(74) = 'Axel power bump k = 1h/Mpc'
+      names(72) = 'Power bump: A = 0.15; k = 0.05h/Mpc; sigma = 0.1'
+      names(73) = 'Power bump: A = 0.15; k = 0.10h/Mpc; sigma = 0.1'
+      names(74) = 'Power bump: A = 0.15; k = 1.00h/Mpc; sigma = 0.1'
       names(75) = 'WMAP9 with 0.06eV neutrinos (BAHAMAS)'
       names(76) = 'WMAP9 with 0.12eV neutrinos (BAHAMAS)'
       names(77) = 'WMAP9 with 0.24eV neutrinos (BAHAMAS)'
       names(78) = 'WMAP9 with 0.48eV neutrinos (BAHAMAS)'
+      names(79) = 'Power bump: A = 0.15; k = 0.05h/Mpc; sigma = 0.3'
+      names(80) = 'Power bump: A = 0.15; k = 0.10h/Mpc; sigma = 0.3'
+      names(81) = 'Power bump: A = 0.15; k = 1.00h/Mpc; sigma = 0.3'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1137,8 +1140,7 @@ CONTAINS
          cosm%A_bump = 0.08
          cosm%k_bump = 5.
          cosm%sigma_bump = 0.5      
-      ELSE IF (icosmo == 66 .OR. icosmo == 67 .OR. icosmo == 68 .OR. icosmo == 69 .OR. &
-         icosmo == 72 .OR. icosmo == 73 .OR. icosmo == 74) THEN
+      ELSE IF (is_in_array(icosmo, [66, 67, 68, 69, 72, 73, 74, 79, 80, 81])) THEN
          ! Axel bump cosmologies
          cosm%h = 0.6731
          cosm%Om_b = 0.02222/cosm%h**2
@@ -1148,34 +1150,16 @@ CONTAINS
          cosm%norm_method = norm_value
          cosm%pval = 1.8735e-7
          !cosm%itk = itk_CAMB
-         IF (icosmo == 66 .OR. icosmo == 67 .OR. icosmo == 68) THEN
+         IF (is_in_array(icosmo, [66, 67, 68, 72, 73, 74, 79, 80, 81])) THEN
             cosm%bump = 2
-            cosm%A_bump = 0.16
-            cosm%sigma_bump = 1.05
-            IF(icosmo == 66) THEN
-               cosm%k_bump = 0.05
-            ELSE IF(icosmo == 67) THEN
-               cosm%k_bump = 0.1
-            ELSE IF(icosmo == 68) THEN
-               cosm%k_bump = 1.
-            ELSE
-               STOP 'ASSIGN_HALOMOD: Error, something went wrong with bumps cosmology'
-            END IF
+            cosm%A_bump = 0.15
          END IF
-         IF (icosmo == 72 .OR. icosmo == 73 .OR. icosmo == 74) THEN
-            cosm%bump = 2
-            cosm%A_bump = 0.16
-            cosm%sigma_bump = 0.105
-            IF(icosmo == 72) THEN
-               cosm%k_bump = 0.05
-            ELSE IF(icosmo == 73) THEN
-               cosm%k_bump = 0.1
-            ELSE IF(icosmo == 74) THEN
-               cosm%k_bump = 1.
-            ELSE
-               STOP 'ASSIGN_HALOMOD: Error, something went wrong with bumps cosmology'
-            END IF
-         END IF
+         IF (icosmo == 66 .OR. icosmo == 67 .OR. icosmo == 68) cosm%sigma_bump = 1.
+         IF (icosmo == 72 .OR. icosmo == 73 .OR. icosmo == 74) cosm%sigma_bump = 0.1
+         IF (icosmo == 79 .OR. icosmo == 80 .OR. icosmo == 81) cosm%sigma_bump = 0.3
+         IF (icosmo == 66 .OR. icosmo == 72 .OR. icosmo == 79) cosm%k_bump = 0.05
+         IF (icosmo == 67 .OR. icosmo == 73 .OR. icosmo == 80) cosm%k_bump = 0.1
+         IF (icosmo == 68 .OR. icosmo == 74 .OR. icosmo == 81) cosm%k_bump = 1.0
       ELSE IF (icosmo == 60) THEN
          ! Boring cosmology but with exciting neutrino mass
          cosm%m_nu = 0.3
