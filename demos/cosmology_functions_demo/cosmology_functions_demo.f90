@@ -10,19 +10,19 @@ PROGRAM cosmology_functions_demo
    REAL :: a, z, k, r
    REAL :: t1, t2, t3, t4, xi
    REAL :: crap
-   REAL :: sigv
+   REAL :: sigv, sig8
    INTEGER :: i
    CHARACTER(len=256) :: cosmo
 
    LOGICAL, PARAMETER :: test_background = .TRUE.
-   LOGICAL, PARAMETER :: test_spherical = .TRUE.
+   LOGICAL, PARAMETER :: test_spherical = .FALSE.
    LOGICAL, PARAMETER :: test_power = .TRUE.
    LOGICAL, PARAMETER :: test_dewiggle = .FALSE.
    LOGICAL, PARAMETER :: test_correlation = .FALSE.
    LOGICAL, PARAMETER :: test_sigma = .TRUE.
    LOGICAL, PARAMETER :: test_sigmaV = .TRUE.
    LOGICAL, PARAMETER :: test_neff = .TRUE.
-   LOGICAL, PARAMETER :: test_ncur = .TRUE.
+   LOGICAL, PARAMETER :: test_ncur = .FALSE.
 
    REAL, PARAMETER :: amin = 1e-5
    REAL, PARAMETER :: amax = 1
@@ -59,6 +59,9 @@ PROGRAM cosmology_functions_demo
 
    ! Write the cosmology to screen
    CALL print_cosmology(cosm)
+
+   !sig8 = sigma8(cosm)
+   !WRITE(*,*) 'SIGMA8:', sig8
 
    ! Test background quantities
    IF (test_background) THEN
