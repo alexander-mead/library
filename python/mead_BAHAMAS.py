@@ -20,7 +20,7 @@ def error_file_name(mesh, snap, field_pair):
 
 # Corresponding HMcode power file
 def HMcode_file_name(mesh, snap):
-   return power_dir+'/M'+str(mesh)+'/snap'+str(snap)+'_HMcode.dat'
+   return power_dir+'/M'+str(mesh)+'/HMcode/snap'+str(snap)+'_HMcode.dat'
 
 # Get the snapshot number corresponding to different BAHAMAS redshifts
 def z_to_snap(z):
