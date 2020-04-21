@@ -92,8 +92,11 @@ MODULE cosmology_functions
    PUBLIC :: flag_power_cold_unorm
    PUBLIC :: norm_sigma8
    PUBLIC :: norm_none
-   PUBLIC :: itk_external
+   PUBLIC :: itk_none
    PUBLIC :: itk_EH
+   PUBLIC :: itk_DEFW
+   PUBLIC :: itk_CAMB
+   PUBLIC :: itk_external
 
    ! CAMB interface
    PUBLIC :: get_CAMB_power
@@ -251,6 +254,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: kmin_plin = 0.           ! Power below this wavenumber is set to zero [h/Mpc]
    REAL, PARAMETER :: kmax_plin = 1e8          ! Power above this wavenumber is set to zero [h/Mpc]
    LOGICAL, PARAMETER :: plin_extrap = .FALSE. ! Extrapolate high-k power assumning P(k) ~ ln(k)^2 k^(n-3) (otherwise power law)?
+   INTEGER, PARAMETER :: itk_none = 0          ! Pure power-law spectrum
    INTEGER, PARAMETER :: itk_EH = 1            ! Eisenstein and Hu linear spectrum
    INTEGER, PARAMETER :: itk_CAMB = 2          ! CAMB linear spectrum
    INTEGER, PARAMETER :: itk_DEFW = 3          ! DEFW linear spectrum
@@ -986,7 +990,7 @@ CONTAINS
          cosm%itk = itk_CAMB ! Set to CAMB linear power
          cosm%iw = iw_wCDM    ! Set to constant w dark energy
          cosm%Om_v = 0.      ! Necessary for CAMB
-      ELSE IF (icosmo == 39 .OR. icosmo == 40 .OR. icosmo == 45 .OR. icosmo == 46 .OR. icosmo == 47 .OR. icosmo == 48) THEN
+      ELSE IF (is_in_array(icosmo, [39, 40, 45, 46, 47, 48])) THEN
          ! Random cosmologies
          IF(icosmo == 39) THEN
             CALL random_LCDM_cosmology(cosm)
@@ -1047,7 +1051,7 @@ CONTAINS
          cosm%ns =  0.966
          cosm%h = 0.702
          cosm%w = -1.
-      ELSE IF(icosmo == 51 .OR. icosmo == 52 .OR. icosmo == 53 .OR. icosmo == 54 .OR. icosmo == 55) THEN
+      ELSE IF (is_in_array(icosmo, [51, 52, 53, 54, 55])) THEN
          ! CAMB test problem cosmologies
          cosm%itk = itk_CAMB
          cosm%iw = iw_waCDM
@@ -1141,14 +1145,18 @@ CONTAINS
          cosm%sigma_bump = 0.5      
       ELSE IF (is_in_array(icosmo, [66, 67, 68, 69, 72, 73, 74, 79, 80, 81])) THEN
          ! Axel bump cosmologies
-         cosm%h = 0.6766
-         cosm%Om_b = 0.02242/cosm%h**2
-         cosm%Om_m = cosm%Om_b+0.11933/cosm%h**2
-         cosm%ns =  0.9665
+         cosm%h = 0.7
+         cosm%Om_b = 0.05
+         cosm%Om_m = 0.30
+         cosm%ns =  0.96
          cosm%Om_v = 1.-cosm%Om_m
          cosm%norm_method = norm_value
-         cosm%pval = 1.8735e-7
-         !cosm%itk = itk_CAMB
+         cosm%pval = 1.995809e-7 ! Gives sigma8 = 0.8 for no bump   
+         cosm%itk = itk_CAMB
+         IF (cosm%itk == itk_CAMB) THEN
+            cosm%Om_w = cosm%Om_v
+            cosm%Om_v = 0.
+         END IF
          IF (is_in_array(icosmo, [66, 67, 68, 72, 73, 74, 79, 80, 81])) THEN
             cosm%bump = 2
             cosm%A_bump = 0.15
@@ -1435,7 +1443,7 @@ CONTAINS
       CALL if_allocated_deallocate(cosm%log_sigmaca)
 
       ! Switch for power?
-      IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW) THEN
+      IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
          ! Default to use internal linear P(k) from Eisenstein & Hu
          cosm%has_power = .FALSE.
       ELSE
@@ -1540,7 +1548,9 @@ CONTAINS
             WRITE (*, fmt=format) 'COSMOLOGY:', 'b4:', cosm%b4
          END IF
          WRITE (*, *) dashes
-         IF(cosm%itk == itk_EH) THEN
+         IF(cosm%itk == itk_none) THEN
+            WRITE(*,*) 'COSMOLOGY: Linear: Pure power law'
+         ELSE IF(cosm%itk == itk_EH) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: Eisenstein & Hu'
          ELSE IF(cosm%itk == itk_CAMB) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: CAMB'
@@ -1550,9 +1560,8 @@ CONTAINS
             WRITE(*,*) 'COSMOLOGY: Linear: External'
          ELSE
             STOP 'COSMOLOGY: Error, itk not set properly'
-         END IF
-         !WRITE (*, *) 'COSMOLOGY: Perturbation parameters'
-         WRITE (*, fmt=format) 'COSMOLOGY:', 'n_s:', cosm%ns
+         END IF   
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'n_s:', cosm%ns  
          IF(cosm%norm_method == norm_sigma8) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: sigma_8'
             WRITE (*, fmt=format) 'COSMOLOGY:', 'sigma_8:', cosm%sig8
@@ -1564,7 +1573,7 @@ CONTAINS
             WRITE (*, *) 'COSMOLOGY: Normalisation: A_s'
             WRITE (*, fmt=format) 'COSMOLOGY:', 'ks [1/Mpc]:', cosm%kpiv
             WRITE (*, fmt=format) 'COSMOLOGY:', 'As:', cosm%As
-         END IF
+         END IF      
          IF (cosm%box) WRITE (*, fmt=format) 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
          IF (cosm%warm) THEN
             WRITE (*, fmt=format) 'COSMOLOGY:', 'm_wdm [keV]:', cosm%m_wdm
@@ -1738,14 +1747,14 @@ CONTAINS
 
       ! Normalise the power spectrum using whatever scheme you choose to do this with
       IMPLICIT NONE
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-
-      ! Change the flag *before* doing this calculation because it calls power
-      cosm%is_normalised = .TRUE.
+      TYPE(cosmology), INTENT(INOUT) :: cosm  
 
       ! Get the CAMB power if necessary
       IF (cosm%itk == itk_CAMB)     CALL init_CAMB_linear(cosm)
       IF (cosm%itk == itk_external) CALL init_external_linear(cosm)
+
+      ! Change the flag *before* doing the normalisation calculation because it calls power
+      cosm%is_normalised = .TRUE.
 
       ! Normalise the linear spectrum
       IF (cosm%norm_method == norm_sigma8) THEN
@@ -1789,7 +1798,7 @@ CONTAINS
 
       IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Initial sigma_8:', real(sigma8_initial)
 
-      IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW) THEN
+      IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
          cosm%A = cosm%sig8/sigma8_initial
          !cosm%A=391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
       ELSE IF(cosm%itk == itk_CAMB .OR. cosm%itk == itk_external) THEN
@@ -1832,15 +1841,21 @@ CONTAINS
 
    SUBROUTINE normalise_power_value(cosm)
 
-      ! Normalise the power spectrum by taking the dimensionless power at some wavenumber
+      ! Normalise the power spectrum by fixing the power at some wavenumber at a=1
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: fac
       REAL, PARAMETER :: a = 1.
 
-      IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW) THEN
+      IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
          cosm%A = cosm%A*sqrt(cosm%pval/p_lin(cosm%kval, a, flag_power_total, cosm))
       ELSE
-         STOP 'NORMALISE_POWER_VALUE: Error, this is not possible for your transfer function'
+         fac = cosm%pval/p_lin(cosm%kval, a, flag_power_total, cosm)
+         IF (cosm%scale_dependent_growth) THEN
+            cosm%log_plina = cosm%log_plina+log(fac)
+         ELSE
+            cosm%log_plin = cosm%log_plin+log(fac)
+         END IF
       END IF
 
    END SUBROUTINE normalise_power_value
@@ -1857,6 +1872,7 @@ CONTAINS
 
    RECURSIVE REAL FUNCTION sigma8(cosm)
 
+      ! Calculate the value of sigma8 from the linear power spectrum
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: R = 8. ! Because we are doing sigma(R = 8 Mpc/h) normalisation
@@ -2819,10 +2835,12 @@ CONTAINS
 
       ! Transfer function selection
       IMPLICIT NONE
-      REAL :: k ! Wavenumber [h/Mpc]
+      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%itk == itk_EH) THEN
+      IF (cosm%itk == itk_none) THEN
+         Tk_matter = 1.
+      ELSE IF (cosm%itk == itk_EH) THEN
          Tk_matter = Tk_EH(k, cosm)
       ELSE IF (cosm%itk == itk_DEFW) THEN
          Tk_matter = Tk_DEFW(k, cosm)
@@ -2832,11 +2850,29 @@ CONTAINS
       END IF
 
       ! Damp transfer function if considering WDM
-      IF (cosm%warm)      Tk_matter = Tk_matter*Tk_WDM(k, cosm)
-      IF (cosm%bump == 1) Tk_matter = Tk_matter*Tk_bump(k, cosm)
-      IF (cosm%bump == 2) Tk_matter = Tk_matter*Tk_bump_Mexico(k, cosm)
+      !IF (cosm%warm)      Tk_matter = Tk_matter*Tk_WDM(k, cosm)
+      !IF (cosm%bump == 1) Tk_matter = Tk_matter*Tk_bump(k, cosm)
+      !IF (cosm%bump == 2) Tk_matter = Tk_matter*Tk_bump_Mexico(k, cosm)
+      Tk_matter = Tk_matter*Tk_factor(k, cosm)
 
    END FUNCTION Tk_matter
+
+   REAL FUNCTION Tk_factor(k, cosm)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      ! Damp transfer function if considering WDM
+      Tk_factor = 1.
+      IF (cosm%warm) Tk_factor = Tk_factor*Tk_WDM(k, cosm)
+      IF (cosm%bump == 1) THEN
+         Tk_factor = Tk_factor*Tk_bump(k, cosm)
+      ELSE IF (cosm%bump == 2) THEN
+         Tk_factor = Tk_factor*Tk_bump_Mexico(k, cosm)
+      END IF
+
+   END FUNCTION Tk_factor
 
    REAL FUNCTION Tk_DEFW(k, cosm)
 
@@ -3149,7 +3185,7 @@ CONTAINS
 
       ! This line generates a recursion
       IF (.NOT. cosm%is_normalised) THEN
-         cosm%is_normalised = .TRUE. ! TODO: Is this line necessary?
+         !cosm%is_normalised = .TRUE. ! TODO: Is this line necessary?         
          CALL normalise_power(cosm)
       END IF
 
@@ -3196,9 +3232,7 @@ CONTAINS
 
       IF (flag == flag_power_cold .OR. flag == flag_power_cold_unorm) THEN
          p_lin = p_lin*Tcold(k, a, cosm)**2
-         IF (flag == flag_power_cold_unorm) THEN
-            p_lin = p_lin/(1.-cosm%f_nu)**2
-         END IF
+         IF (flag == flag_power_cold_unorm) p_lin = p_lin/(1.-cosm%f_nu)**2
       END IF
 
    END FUNCTION p_lin
@@ -5078,6 +5112,8 @@ CONTAINS
          h = cosm%h
       END IF
 
+      IF (cosm%Om_v .NE. 0) STOP 'GET_CAMB_POWER: Need to provide Omega_w to CAMB, not Omega_v'
+
       ! Physical density parameters that CAMB requires
       ombh2 = Om_b*h**2
       omch2 = Om_c*h**2
@@ -5320,8 +5356,9 @@ CONTAINS
       USE array_operations
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, ALLOCATABLE :: a(:), kPk(:), Pk(:,:), kTc(:), Tc(:,:)
-      INTEGER :: i, j, na, nPk, nTc
+      REAL, ALLOCATABLE :: a(:), kPk(:), Pk(:, :), kTc(:), Tc(:, :)
+      REAL :: k, fac
+      INTEGER :: i, j, na, nPk, nTc, ik
       CHARACTER(len=256), PARAMETER :: camb = 'camb'
       CHARACTER(len=256), PARAMETER :: dir = '/Users/Mead/Physics/CAMB_files/tmp/'
       CHARACTER(len=256), PARAMETER :: root = trim(dir)//'temp'
@@ -5361,6 +5398,18 @@ CONTAINS
 
       ! Get the CAMB P(k) at a series of 'a' values
       CALL get_CAMB_power(a, na, kPk, Pk, nPk, kTc, Tc, nTc, non_linear, halofit_version, cosm)
+
+      ! Apply non-CAMB transfer functions
+      DO ik = 1, nPk
+         k = kPk(ik)
+         fac = Tk_factor(k, cosm)
+         Pk(ik,:) = Pk(ik, :)*fac**2
+      END DO
+      DO ik = 1, nTc
+         k = kTc(ik)
+         fac = Tk_factor(k, cosm)
+         Tc(ik,:) = Tc(ik, :)*fac
+      END DO
 
       CALL if_allocated_deallocate(cosm%log_k_Tcold)
       CALL if_allocated_deallocate(cosm%Tcold)
