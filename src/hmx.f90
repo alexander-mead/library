@@ -37,7 +37,8 @@ MODULE HMx
    PUBLIC :: calculate_HMx
    PUBLIC :: calculate_HMx_a
    PUBLIC :: calculate_HMcode
-   PUBLIC :: calculate_HMx_DMONLY ! TODO: Retire
+   !PUBLIC :: calculate_HMx_DMONLY ! TODO: Retire
+   PUBLIC :: calculate_halomod
    PUBLIC :: set_halo_type
    PUBLIC :: halo_type
    PUBLIC :: M_nu
@@ -607,6 +608,12 @@ CONTAINS
       names(78) = 'HMcode (test) fitted to Cosmic Emu k<1'
       names(79) = 'HMcode (test) fitted'
       names(80) = 'Standard but with Jenkins mass function' 
+      names(81) = 'HMx2020: matter-only response; Model that fits stars-stars AGN 7.6'
+      names(82) = 'HMx2020: matter-only response; Model that fits stars-stars AGN 7.8'
+      names(83) = 'HMx2020: matter-only response; Model that fits stars-stars AGN 8.0'
+      names(84) = 'HMx2020: different Gammas; Model that fits stars-stars AGN 7.6'
+      names(85) = 'HMx2020: different Gammas; Model that fits stars-stars AGN 7.8'
+      names(86) = 'HMx2020: different Gammas; Model that fits stars-stars AGN 8.0'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1045,8 +1052,8 @@ CONTAINS
 
       ! Do we treat the halomodel as a response model (multiply by HMcode) or not
       ! 0 - No
-      ! 1 - Yes to all spectra
-      ! 2 - Yes only to matter spectra
+      ! 1 - Yes for all power spectra
+      ! 2 - Yes only for matter-field (CDM, gas, stars) power spectra
       hmod%response = 0
 
       ! Halo mass if the mass function is a delta function
@@ -1600,17 +1607,17 @@ CONTAINS
          hmod%Astar = 0.             ! No stars
          hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
          hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
-      ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, HMx2020_matter_with_temperature_scaling, HMx2020_matter_pressure_with_temperature_scaling, 62, 63, 65])) THEN
+      ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, 60, 61, 62, 63, 65, 81, 82, 83, 84, 85, 86])) THEN
          ! HMx2020: Baseline
-         hmod%response = 1 ! Model should be calculated as a response
+         hmod%response = 1             ! Model should be calculated as a response
          hmod%halo_central_stars = 3   ! 3 - Delta function for central stars
          hmod%halo_satellite_stars = 1 ! 1 - NFW
          hmod%eta = -0.3               ! eta to split central and satellitee galaxies
          hmod%HMx_mode = 5             ! HMx2020 possible M and z dependence of parameters
-         IF (ihm == 65) THEN
-            ! Not with response
-            hmod%response = 0
-         ELSE IF (ihm == 56) THEN
+         IF (ihm == 65) hmod%response = 0                      ! No response
+         IF (is_in_array(ihm, [81, 82, 83])) hmod%response = 2 ! Matter-only response
+         IF (is_in_array(ihm, [84, 85, 86])) hmod%different_Gammas = .TRUE.
+         IF (ihm == 56 .OR. ihm == 81 .OR. ihm == 84) THEN
             ! AGN 7.6
             hmod%fix_star_concentration = .TRUE.
             hmod%Astar = 0.03477
@@ -1618,7 +1625,7 @@ CONTAINS
             hmod%Astarz = -0.00926
             hmod%eta = -0.34285
             hmod%mstarz = -0.36641
-         ELSE IF (ihm == 57) THEN
+         ELSE IF (ihm == 57 .OR. ihm == 82 .OR. ihm == 85) THEN
             ! AGN 7.8
             hmod%fix_star_concentration = .TRUE.
             hmod%Astar = 0.03302
@@ -1626,7 +1633,7 @@ CONTAINS
             hmod%Astarz = -0.00881
             hmod%eta = -0.35556
             hmod%mstarz = -0.35206
-         ELSE IF (ihm == 58) THEN
+         ELSE IF (ihm == 58 .OR. ihm == 83 .OR. ihm == 86) THEN
             ! AGN 8.0
             hmod%fix_star_concentration = .TRUE.
             hmod%Astar = 0.03093
@@ -2211,8 +2218,8 @@ CONTAINS
          IF (hmod%itrans == 6) WRITE (*, *) 'HALOMODEL: HMcode (2020) smoothed transition'
 
          ! Response
-         IF (hmod%response == 1) WRITE (*, *) 'HALOMODEL: All power computed as matter-matter response with HMcode'
-         IF (hmod%response == 2) WRITE (*, *) 'HALOMODEL: Matter, CDM, gas, star power computed as matter-matter response with HMcode'
+         IF (hmod%response == 1) WRITE (*, *) 'HALOMODEL: All power spectra computed via response'
+         IF (hmod%response == 2) WRITE (*, *) 'HALOMODEL: Only matter-field power spectra computed via response'
 
          ! Numerical parameters
          WRITE (*, *) dashes
@@ -2655,7 +2662,6 @@ CONTAINS
       INTEGER, OPTIONAL, INTENT(IN) :: version   ! The ihm corresponding to the HMcode version
       INTEGER :: j
       INTEGER :: ihm
-      !INTEGER :: ihm = ihm_hmcode_CAMB ! Would like to be a parameter
 
       IF(.NOT. present(version)) THEN
          ihm = HMcode2016
@@ -2667,13 +2673,35 @@ CONTAINS
          STOP 'CALCULATE_HMCODE: Error, you have asked for an HMcode version that is not supported'
       END IF
 
+      !ALLOCATE(Pk(nk, na))
+      !DO j = 1, na
+      !   CALL calculate_halomodel_a(k, a(j), Pk(:, j), nk, cosm, ihm)
+      !END DO
+      CALL calculate_halomod(k, a, Pk, nk, na, cosm, ihm)
+
+   END SUBROUTINE calculate_HMcode
+
+   SUBROUTINE calculate_halomod(k, a, Pk, nk, na, cosm, ihm)
+
+      ! Get the halo model prediction for matter--matter for cosmology for a range of k and a
+      ! Assumes DMONLY halo profiles etc.
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
+      INTEGER, INTENT(IN) :: na                  ! Number of scale factors
+      REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
+      REAL, INTENT(IN) :: a(na)                  ! Array of scale factors
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
+      INTEGER, INTENT(INOUT) :: ihm              ! The ihm corresponding to the HMcode version
+      INTEGER :: j
+
       ALLOCATE(Pk(nk, na))
 
       DO j = 1, na
-         CALL calculate_HMx_DMONLY_a(ihm, k, a(j), Pk(:, j), nk, cosm)
+         CALL calculate_halomod_a(k, a(j), Pk(:, j), nk, cosm, ihm)
       END DO
 
-   END SUBROUTINE calculate_HMcode
+   END SUBROUTINE calculate_halomod
 
    SUBROUTINE calculate_P_lin(k, a, Pk, nk, na, cosm)
 
@@ -2695,31 +2723,31 @@ CONTAINS
 
    END SUBROUTINE calculate_P_lin
 
-   SUBROUTINE calculate_HMx_DMONLY(k, a, Pk, nk, na, cosm, ihm)
+   ! SUBROUTINE calculate_HMx_DMONLY(k, a, Pk, nk, na, cosm, ihm)
 
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
-      REAL, INTENT(IN) :: a(na)                  ! Scale factor
-      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
-      INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
-      INTEGER, INTENT(IN) :: na                  ! Number of scale factors
-      TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
-      INTEGER, INTENT(INOUT) :: ihm
-      INTEGER :: ia
-      REAL :: Pk_here(nk)
+   !    IMPLICIT NONE
+   !    REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
+   !    REAL, INTENT(IN) :: a(na)                  ! Scale factor
+   !    REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+   !    INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
+   !    INTEGER, INTENT(IN) :: na                  ! Number of scale factors
+   !    TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
+   !    INTEGER, INTENT(INOUT) :: ihm
+   !    INTEGER :: ia
+   !    REAL :: Pk_here(nk)
 
-      ALLOCATE(Pk(nk, na))
+   !    ALLOCATE(Pk(nk, na))
 
-      DO ia = 1, na
-         CALL calculate_HMx_DMONLY_a(ihm, k, a(ia), Pk_here, nk, cosm)
-         Pk(:, ia) = Pk_here
-      END DO
+   !    DO ia = 1, na
+   !       CALL calculate_HMx_DMONLY_a(ihm, k, a(ia), Pk_here, nk, cosm)
+   !       Pk(:, ia) = Pk_here
+   !    END DO
 
-   END SUBROUTINE calculate_HMx_DMONLY
+   ! END SUBROUTINE calculate_HMx_DMONLY
 
-   SUBROUTINE calculate_HMx_DMONLY_a(ihm, k, a, Pk, nk, cosm)
+   SUBROUTINE calculate_halomod_a(k, a, Pk, nk, cosm, ihm)
 
-      ! Get the HMcode prediction at this z for this cosmology
+      ! Get the HMcode prediction at this z for this cosmology for matter-matter with DMONLY haloes
       IMPLICIT NONE
       INTEGER, INTENT(INOUT) :: ihm
       INTEGER, INTENT(IN) :: nk              ! Number of wavenumber
@@ -2740,7 +2768,7 @@ CONTAINS
       Pk = pow_hm
       CALL print_halomod(hmod, cosm, verbose)
 
-   END SUBROUTINE calculate_HMx_DMONLY_a
+   END SUBROUTINE calculate_halomod_a
 
    SUBROUTINE calculate_HMx(ifield, nf, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
 
@@ -2898,17 +2926,15 @@ CONTAINS
 
             ELSE IF (hmod%response == 2) THEN
 
-               ! Exclude pressure from the response
+               ! Only apply response to matter fields
                ! TODO: Slow array accessing here
                DO ii = 1, nf
                   DO jj = 1, nf
-                     !IF ((iifield(ii) .NE. field_electron_pressure) .AND. (iifield(jj) .NE. field_electron_pressure)) THEN
                      IF(is_matter_field(iifield(ii)) .AND. is_matter_field(iifield(jj))) THEN
                         upow_2h(ii, jj, i) = upow_2h(ii, jj, i)*hmcode_2h(i)/powg_2h(i) ! Two-halo response times HMcode
                         upow_1h(ii, jj, i) = upow_1h(ii, jj, i)*hmcode_1h(i)/powg_1h(i) ! One-halo response times HMcode
                         upow_hm(ii, jj, i) = upow_hm(ii, jj, i)*hmcode_hm(i)/powg_hm(i) ! Full model response times HMcode
                      END IF
-                     !END IF
                   END DO
                END DO
 
@@ -2934,13 +2960,14 @@ CONTAINS
 
    LOGICAL FUNCTION is_matter_field(i)
 
-      ! Returns TRUE if the input field integer corresponds to dmonly, matter, CDM, gas or star
-      ! TODO: Should I add hot/cold gas and central/satellite stars?
+      ! TRUE if the input field is matter and corresponds to dmonly, matter, CDM, gas or star (or consituents)
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i
 
       IF ((i == field_dmonly) .OR. (i == field_matter) .OR. (i == field_cdm) .OR. &
-            (i == field_gas) .OR. (i == field_stars) .OR. (i == field_neutrino)) THEN
+            (i == field_gas) .OR. (i == field_stars) .OR. (i == field_neutrino) .OR. &
+            (i == field_central_stars) .OR. (i == field_satellite_stars) .OR. (i == field_bound_gas) .OR. &
+            (i == field_free_gas)) THEN
          is_matter_field = .TRUE.
       ELSE
          is_matter_field = .FALSE.
