@@ -755,7 +755,6 @@ CONTAINS
          cosm%h = 0.6711
          cosm%ns =  0.9624
          cosm%sig8 = 0.8341
-      !ELSE IF (icosmo == 4 .OR. icosmo == 61 .OR. icosmo == 62 .OR. icosmo == 70 .OR. icosmo == 71) THEN
       ELSE IF (is_in_array(icosmo, [4, 61, 62, 70, 71, 75, 76, 77, 78])) THEN
          !  4 - WMAP9 (BAHAMAS; 1712.02411; no neutrinos)
          ! 61 - WMAP9 with T_AGN = 10^7.6 K (low)
@@ -1142,10 +1141,10 @@ CONTAINS
          cosm%sigma_bump = 0.5      
       ELSE IF (is_in_array(icosmo, [66, 67, 68, 69, 72, 73, 74, 79, 80, 81])) THEN
          ! Axel bump cosmologies
-         cosm%h = 0.6731
-         cosm%Om_b = 0.02222/cosm%h**2
-         cosm%Om_m = cosm%Om_b+0.1197/cosm%h**2
-         cosm%ns =  0.9655
+         cosm%h = 0.6766
+         cosm%Om_b = 0.02242/cosm%h**2
+         cosm%Om_m = cosm%Om_b+0.11933/cosm%h**2
+         cosm%ns =  0.9665
          cosm%Om_v = 1.-cosm%Om_m
          cosm%norm_method = norm_value
          cosm%pval = 1.8735e-7
