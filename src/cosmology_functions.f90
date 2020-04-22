@@ -760,6 +760,7 @@ CONTAINS
          cosm%ns =  0.9624
          cosm%sig8 = 0.8341
       ELSE IF (is_in_array(icosmo, [4, 61, 62, 70, 71, 75, 76, 77, 78])) THEN
+         ! TODO: Should this use CAMB linear spectrum?
          !  4 - WMAP9 (BAHAMAS; 1712.02411; no neutrinos)
          ! 61 - WMAP9 with T_AGN = 10^7.6 K (low)
          ! 62 - WMAP9 with T_AGN = 10^8.0 K (high)
@@ -1288,6 +1289,9 @@ CONTAINS
          WRITE (*, *) 'INIT_COSMOLOGY: a_nu:', cosm%a_nu
          WRITE (*, *) 'INIT_COSMOLOGY: z_nu:', cosm%z_nu
          WRITE (*, *) 'INIT_COSMOLOGY: f_nu:', cosm%f_nu
+      END IF
+      IF ((cosm%m_nu .NE. 0) .AND. is_in_array(cosm%itk, [itk_none, itk_DEFW, itk_EH])) THEN
+         STOP 'INIT_COSMOLOGY: You cannot use a linear power fitting function for massive neutrino cosmologies'
       END IF
 
       ! Check neutrino mass fraction is not too high
