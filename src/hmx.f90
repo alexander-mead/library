@@ -37,7 +37,6 @@ MODULE HMx
    PUBLIC :: calculate_HMx
    PUBLIC :: calculate_HMx_a
    PUBLIC :: calculate_HMcode
-   !PUBLIC :: calculate_HMx_DMONLY ! TODO: Retire
    PUBLIC :: calculate_halomod
    PUBLIC :: set_halo_type
    PUBLIC :: halo_type
@@ -284,7 +283,6 @@ MODULE HMx
       LOGICAL :: DMONLY_baryon_recipe, DMONLY_neutrino_correction
 
       ! HMcode (2020) parameters
-      !REAL :: ki, kf, nf, ff, ke, ne, al
       REAL :: kdamp, Ap, Ac
       REAL :: mbar, nbar, sbar
 
@@ -620,8 +618,8 @@ CONTAINS
       ! Default options
       hmod%mmin = 1e7  ! Lower mass limit for integration [Msun/h]
       hmod%mmax = 1e17 ! Upper mass limit for integration [Msun/h]
-      hmod%n = 128     ! Number of points in integration (128 is okay, 1024 is better)
-      hmod%acc = 1e-3  ! Accuracy for continuous integrals (1e-3 is okay, 1e-4 is better)
+      hmod%n = 128     ! Number of points in integration (128 is okay, 1024 is better; linear in runtime)
+      hmod%acc = 1e-4  ! Accuracy for continuous integrals (1e-3 is okay, 1e-4 is better)
 
       ! Small and large values for nu (6 is okay, corrections are suppressed by exp(-large_nu^2)
       hmod%small_nu = 1e-6
