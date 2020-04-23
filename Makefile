@@ -3,8 +3,7 @@
 # Set the Fortran compiler
 FC = gfortran
 
-# FFTW include
-# FFTW = usr/include
+# FFTW include directory
 FFTW = usr/local/include
 
 # Library name
