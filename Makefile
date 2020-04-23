@@ -23,8 +23,6 @@ FLAGS = \
 	-fdefault-double-8 \
 	-ffree-line-length-none
 
-#-I/usr/local/include
-
 # Additional flags for standard compilation
 FLAGS_ALL = \
 	-fcheck=all,no-array-temps \
