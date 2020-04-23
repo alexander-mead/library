@@ -198,7 +198,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: acc_cosm = 1e-4 ! Global accuacy for the cosmological integrations
 
    ! Writing to screen parameters
-   REAL, PARAMETER :: small_print = 1e-5 ! Used to decide if writing curvature to screen to avoid silly numbers
+   REAL, PARAMETER :: small_curve = 1e-5 ! Used to decide if writing curvature to screen to avoid silly numbers
 
    ! Equation of state parameters for cosmological fluids
    REAL, PARAMETER :: w_c = 0.    ! CDM
@@ -1225,7 +1225,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: Xs, f1, f2
       REAL :: rho_g, Om_g_h2, rho_crit, f_nu_rad
-      REAL, PARAMETER :: small = small_print ! Some small number for writing curvature things
+      REAL, PARAMETER :: small = small_curve ! Some small number for writing curvature things
 
       ! Set all 'has/is' to false
       cosm%has_distance = .FALSE.
@@ -1487,7 +1487,7 @@ CONTAINS
       ! Prints the cosmological parameters to the screen
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, PARAMETER :: small = small_print
+      REAL, PARAMETER :: small = small_curve
       CHARACTER(len=16), PARAMETER :: format = '(A11,A16,F11.5)'
       CHARACTER(len=37), PARAMETER :: dashes = '====================================='
 
