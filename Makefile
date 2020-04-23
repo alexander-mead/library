@@ -3,6 +3,10 @@
 # Set the Fortran compiler
 FC = gfortran
 
+# FFTW include
+# FFTW = usr/include
+FFTW = usr/local/include
+
 # Library name
 LIB = libmead.a
 
@@ -10,7 +14,7 @@ LIB = libmead.a
 LIB_DEBUG = libmead_debug.a
 
 # Standard Fortran compile flags
-FFLAGS = \
+FLAGS = \
 	-fPIC \
 	-fimplicit-none \
 	-std=gnu \
@@ -18,8 +22,9 @@ FFLAGS = \
 	-fmax-errors=4 \
 	-fdefault-real-8 \
 	-fdefault-double-8 \
-	-ffree-line-length-none \
-	-I/usr/local/include
+	-ffree-line-length-none
+
+#-I/usr/local/include
 
 # Additional flags for standard compilation
 FLAGS_ALL = \
@@ -87,11 +92,11 @@ _OBJ = \
 	owls_extras
 
 # Default compile option
-all: FFLAGS += $(FLAGS_ALL)
+all: FLAGS += $(FLAGS_ALL)
 all: $(LIB)
 
 # Debug mode
-debug: FFLAGS += $(FLAGS_DEBUG)
+debug: FLAGS += $(FLAGS_DEBUG)
 debug: $(LIB_DEBUG)
 
 # Add prefix of build directory to objects
@@ -118,11 +123,11 @@ $(LIB_DEBUG): $(OBJ_DEBUG).o
 
 # Rule to create the object files
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90
-	$(FC) $(FFLAGS) -c -o $@ $< -J$(BUILD_DIR)
+	$(FC) $(FLAGS) -I/$(FFTW) -c -o $@ $< -J$(BUILD_DIR)
 
 # Rule to create the object files
 $(BUILD_DIR_DEBUG)/%.o: $(SRC_DIR)/%.f90
-	$(FC) $(FFLAGS) -c -o $@ $< -J$(BUILD_DIR_DEBUG)
+	$(FC) $(FLAGS) -I/$(FFTW) -c -o $@ $< -J$(BUILD_DIR_DEBUG)
 
 # Clean up
 clean:
