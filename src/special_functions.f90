@@ -259,19 +259,113 @@ CONTAINS
       REAL :: l(n+1)     
       INTEGER :: i, j
 
-      ! Initialise variables, one for sum and one for multiplication
-      Lagrange_polynomial = 0.
-      l = 1.
+      IF (n == 0) THEN
+         Lagrange_polynomial = yv(1)
+      ELSE IF (n == 1) THEN
+         Lagrange_polynomial = Lagrange_polynomial_1(x, xv, yv)
+      ELSE IF (n == 2) THEN
+         Lagrange_polynomial = Lagrange_polynomial_2(x, xv, yv)
+      ELSE IF (n == 3) THEN
+         Lagrange_polynomial = Lagrange_polynomial_3(x, xv, yv)
+      ELSE
 
-      ! Loops to find the polynomials, one is a sum and one is a multiple
-      DO i = 0, n
-         DO j = 0, n
-            IF (i .NE. j) l(i+1) = l(i+1)*(x-xv(j+1))/(xv(i+1)-xv(j+1))
+         ! Initialise variables, one for sum and one for multiplication
+         Lagrange_polynomial = 0.
+         l = 1.
+
+         ! Loops to find the polynomials, one is a sum and one is a multiple
+         DO i = 0, n
+            DO j = 0, n
+               IF (i .NE. j) l(i+1) = l(i+1)*(x-xv(j+1))/(xv(i+1)-xv(j+1))
+            END DO
+            Lagrange_polynomial = Lagrange_polynomial+l(i+1)*yv(i+1)
          END DO
-         Lagrange_polynomial = Lagrange_polynomial+l(i+1)*yv(i+1)
-      END DO
+
+      END IF
 
    END FUNCTION Lagrange_polynomial
+
+   REAL FUNCTION Lagrange_polynomial_1(x, xv, yv)
+
+      ! Dedicated function for linear interpolation polynomial
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: xv(2)
+      REAL, INTENT(IN) :: yv(2)
+      REAL :: x01, x02
+      REAL :: x12
+      REAL :: f1, f2
+
+      x01 = x-xv(1)
+      x02 = x-xv(2)
+
+      x12 = xv(1)-xv(2)
+
+      f1 = x02*yv(1)
+      f2 = x01*yv(2)
+
+      Lagrange_polynomial_1 = (f1-f2)/x12
+
+   END FUNCTION Lagrange_polynomial_1
+
+   REAL FUNCTION Lagrange_polynomial_2(x, xv, yv)
+
+      ! Dedicated function for quadratic interpolation polynomial
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: xv(3)
+      REAL, INTENT(IN) :: yv(3)
+      REAL :: x01, x02, x03
+      REAL :: x12, x13, x23
+      REAL :: f1, f2, f3
+
+      x01 = x-xv(1)
+      x02 = x-xv(2) 
+      x03 = x-xv(3)
+
+      x12 = xv(1)-xv(2)
+      x13 = xv(1)-xv(3)
+      x23 = xv(2)-xv(3)
+
+      f1 = yv(1)*x02*x03/(x12*x13)
+      f2 = x01*yv(2)*x03/(x12*x23)
+      f3 = x01*x02*yv(3)/(x13*x23)
+
+      Lagrange_polynomial_2 = f1-f2+f3
+
+   END FUNCTION Lagrange_polynomial_2
+
+   REAL FUNCTION Lagrange_polynomial_3(x, xv, yv)
+
+      ! Dedicated function for cubic interpolation polynomial
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: xv(4)
+      REAL, INTENT(IN) :: yv(4)
+      REAL :: x01, x02, x03, x04
+      REAL :: x12, x13, x14, x23, x24, x34
+      REAL :: f1, f2, f3, f4
+
+      x01 = x-xv(1)
+      x02 = x-xv(2) 
+      x03 = x-xv(3)
+      x04 = x-xv(4)
+
+      x12 = xv(1)-xv(2)
+      x13 = xv(1)-xv(3)
+      x14 = xv(1)-xv(4)
+      x23 = xv(2)-xv(3)
+      x24 = xv(2)-xv(4)
+      x34 = xv(3)-xv(4)
+
+      f1 = yv(1)*x02*x03*x04/(x12*x13*x14)
+      f2 = x01*yv(2)*x03*x04/(x12*x23*x24)
+      f3 = x01*x02*yv(3)*x04/(x13*x23*x34)
+      f4 = x01*x02*x03*yv(4)/(x14*x24*x34)
+
+      Lagrange_polynomial_3 = f1-f2+f3-f4
+
+   END FUNCTION Lagrange_polynomial_3
 
    REAL FUNCTION sinc(x)
 
