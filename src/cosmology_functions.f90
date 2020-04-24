@@ -1237,7 +1237,7 @@ CONTAINS
       cosm%is_init = .FALSE.
       cosm%is_normalised = .FALSE.
       cosm%has_wiggle = .FALSE.
-      cosm%A = 1. ! Overall power normalisaiton, should always b
+      cosm%A = 1. ! Overall power normalisaiton, should always be unity
 
       ! Things to do with finite box
       IF (cosm%box) cosm%kbox = twopi/cosm%Lbox
@@ -1311,11 +1311,6 @@ CONTAINS
 
       IF (cosm%verbose .AND. cosm%scale_dependent_growth) WRITE (*, *) 'INIT_COSMOLOGY: Scale-dependent growth'
       IF (cosm%verbose .AND. (.NOT. cosm%trivial_cold))   WRITE (*, *) 'INIT_COSMOLOGY: Non-trivial cold spectrum'
-
-      ! Check that we are able to cope with scale-dependent growth
-      ! IF(cosm%growk .AND. (cosm%itk .NE. 2)) THEN
-      !   STOP 'INIT_COSMOLOGY: Error, scale-dependent growth requires CAMB for linear spectra'
-      ! END IF
 
       ! Derived cosmological parameters
       cosm%Om_c = cosm%Om_m-cosm%Om_b-cosm%Om_nu ! Omega_m defined to include CDM, baryons and massive neutrinos
@@ -1462,9 +1457,11 @@ CONTAINS
          CALL if_allocated_deallocate(cosm%log_plina)
       ENDIF
 
+      ! TILMAN: Added these
       cosm%nr_sigma = 0
       cosm%na_sigma = 0
 
+      ! TILMAN: Added these
       cosm%amin_sigma = 0.0
       cosm%amax_sigma = 0.0
 
