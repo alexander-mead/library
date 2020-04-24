@@ -122,7 +122,7 @@ $(LIB_DEBUG): $(OBJ_DEBUG).o
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90
 	$(FC) $(FLAGS) -I/$(FFTW) -c -o $@ $< -J$(BUILD_DIR)
 
-# Rule to create the object files
+# Rule to create the debugging object files
 $(BUILD_DIR_DEBUG)/%.o: $(SRC_DIR)/%.f90
 	$(FC) $(FLAGS) -I/$(FFTW) -c -o $@ $< -J$(BUILD_DIR_DEBUG)
 
