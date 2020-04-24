@@ -720,13 +720,13 @@ CONTAINS
       hmod%i2hdamp = 0
 
       ! alpha for two- to one-halo transition region
-      ! 1 - No
-      ! 2 - Smoothed transition with alpha
-      ! 3 - ?
-      ! 4 - New HMx transition
-      ! 5 - Tanh transition
-      ! 6 - HMcode (2020) alpha
-      hmod%itrans = 1
+      ! 0 - No
+      ! 1 - Smoothed transition with alpha
+      ! 2 - ?
+      ! 3 - New HMx transition
+      ! 4 - Tanh transition
+      ! 5 - HMcode (2020) alpha
+      hmod%itrans = 0
 
       ! Use the Dolag et al. (2004; astro-ph/0309771) c(M) correction for dark energy?
       ! 0 - No
@@ -1123,7 +1123,7 @@ CONTAINS
          hmod%ieta = 1
          hmod%iAs = 1
          hmod%i2hdamp = 2
-         hmod%itrans = 2
+         hmod%itrans = 1
          hmod%iDolag = 2
          hmod%zinf_Dolag = 10.
          hmod%flag_sigma = flag_power_cold_unorm
@@ -1150,7 +1150,7 @@ CONTAINS
             ! HMcode (2015)
             hmod%idc = 6
             hmod%i2hdamp = 1
-            hmod%itrans = 2
+            hmod%itrans = 1
             hmod%iDolag = 1
             hmod%f0 = 0.188
             hmod%f1 = 4.29
@@ -1236,7 +1236,7 @@ CONTAINS
          ! This is the default, so do nothing here
       ELSE IF (ihm == 4) THEN
          ! Standard halo-model calculation but with HMcode (2015) smoothed two- to one-halo transition and one-halo damping
-         hmod%itrans = 3
+         hmod%itrans = 2
          hmod%i1hdamp = 2
          hmod%safe_negative = .TRUE.
       ELSE IF (ihm == 5) THEN
@@ -1253,7 +1253,7 @@ CONTAINS
          hmod%iDv = 3
          hmod%ieta = 1
          hmod%iAs = 1
-         hmod%itrans = 2
+         hmod%itrans = 1
          hmod%iconc = 1
          hmod%iDolag = 2
       ELSE IF (ihm == 8) THEN
@@ -1274,7 +1274,7 @@ CONTAINS
          hmod%ieta = 0  ! 0 - No
          hmod%iAs = 0
          hmod%i2hdamp = 0
-         hmod%itrans = 1
+         hmod%itrans = 0
          hmod%iDolag = 0
       ELSE IF (ihm == 10) THEN
          ! For mass conversions comparison with Wayne Hu's code
@@ -1293,7 +1293,7 @@ CONTAINS
          hmod%iDolag = 1 ! This is important for the accuracy of the z=0 results presented in Mead (2017)
       ELSE IF (ihm == 13) THEN
          ! Experimental sigmoid transition
-         hmod%itrans = 5
+         hmod%itrans = 4
       ELSE IF (ihm == 14) THEN
          ! Experimental scale-dependent halo bias
          hmod%ibias = 5
@@ -1306,7 +1306,7 @@ CONTAINS
          ! 18 - HMx AGN tuned
          ! 19 - HMx AGN 8.0
          hmod%HMx_mode = 4
-         hmod%itrans = 4
+         hmod%itrans = 3
          !hmod%itrans = 1
          hmod%i1hdamp = 2
          hmod%safe_negative = .TRUE.
@@ -1730,7 +1730,7 @@ CONTAINS
          ! 79 - Fitted
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
-         hmod%itrans = 2  ! 2 - alpha smoothing
+         hmod%itrans = 1  ! 1 - alpha smoothing
          hmod%i2hdamp = 3 ! 3 - fdamp for perturbation theory      
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
          hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
@@ -2209,12 +2209,12 @@ CONTAINS
          IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled as function of sigma (HMcode test)'
 
          ! Two- to one-halo transition region
-         IF (hmod%itrans == 1) WRITE (*, *) 'HALOMODEL: Standard sum of two- and one-halo terms'
-         IF (hmod%itrans == 2) WRITE (*, *) 'HALOMODEL: Smoothed transition using alpha'
-         IF (hmod%itrans == 3) WRITE (*, *) 'HALOMODEL: Experimental smoothed transition'
-         IF (hmod%itrans == 4) WRITE (*, *) 'HALOMODEL: Experimental smoothed transition for HMx (2.5 exponent)'
-         IF (hmod%itrans == 5) WRITE (*, *) 'HALOMODEL: Tanh transition with k_nl'
-         IF (hmod%itrans == 6) WRITE (*, *) 'HALOMODEL: HMcode (2020) smoothed transition'
+         IF (hmod%itrans == 0) WRITE (*, *) 'HALOMODEL: Standard sum of two- and one-halo terms'
+         IF (hmod%itrans == 1) WRITE (*, *) 'HALOMODEL: Smoothed transition using alpha'
+         IF (hmod%itrans == 2) WRITE (*, *) 'HALOMODEL: Experimental smoothed transition'
+         IF (hmod%itrans == 3) WRITE (*, *) 'HALOMODEL: Experimental smoothed transition for HMx (2.5 exponent)'
+         IF (hmod%itrans == 4) WRITE (*, *) 'HALOMODEL: Tanh transition with k_nl'
+         IF (hmod%itrans == 5) WRITE (*, *) 'HALOMODEL: HMcode (2020) smoothed transition'
 
          ! Response
          IF (hmod%response == 1) WRITE (*, *) 'HALOMODEL: All power spectra computed via response'
@@ -3605,7 +3605,7 @@ CONTAINS
 
       ! alpha is set to one sometimes, which is just the standard halo-model sum of terms
       ! No need to have an IF statement around this
-      IF (hmod%itrans == 2 .OR. hmod%itrans == 3 .OR. hmod%itrans == 4 .OR. hmod%itrans == 6) THEN
+      IF (hmod%itrans == 1 .OR. hmod%itrans == 2 .OR. hmod%itrans == 3 .OR. hmod%itrans == 5) THEN
 
          ! If either term is less than zero then we need to be careful
          IF (pow_2h < 0. .OR. pow_1h < 0.) THEN
@@ -3628,7 +3628,7 @@ CONTAINS
 
          END IF
 
-      ELSE IF (hmod%itrans == 5) THEN
+      ELSE IF (hmod%itrans == 4) THEN
 
          ! Sigmoid transition
          con = 1. ! Constant for the transition
@@ -4396,28 +4396,28 @@ CONTAINS
       ! To prevent compile-time warnings
       crap = cosm%A
 
-      IF (hmod%itrans == 2) THEN
+      IF (hmod%itrans == 1) THEN
          ! From HMcode (2015, 2016)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0
          ELSE
             HMcode_alpha = hmod%alp0*(hmod%alp1**hmod%neff)
          END IF
-      ELSE IF (hmod%itrans == 3) THEN
+      ELSE IF (hmod%itrans == 2) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**1.5
          ELSE
             HMcode_alpha = (hmod%alp0*hmod%alp1**hmod%neff)**1.5
          END IF
-      ELSE IF (hmod%itrans == 4) THEN
+      ELSE IF (hmod%itrans == 3) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**2.5
          ELSE
             HMcode_alpha = (hmod%alp0*hmod%alp1**hmod%neff)**2.5
          END IF
-      ELSE IF (hmod%itrans == 6) THEN
+      ELSE IF (hmod%itrans == 5) THEN
          HMcode_alpha = hmod%alp0
       ELSE
          HMcode_alpha = 1.
