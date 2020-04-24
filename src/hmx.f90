@@ -344,7 +344,7 @@ MODULE HMx
    REAL, PARAMETER :: eps_p2h = 1e-3                     ! Tolerance for requal for lower limit of two-halo power
    REAL, PARAMETER :: g_integral_limit = -1e-4           ! Mininum allowed value for g(nu) integral
    REAL, PARAMETER :: gb_integral_limit = -1e-4          ! Mininum allowed value for g(nu)b(nu) integral
-   LOGICAL, PARAMETER :: check_mass_function = .FALSE.   ! Check that the missing g(nu)b(nu) and g(nu) are not negative?
+   LOGICAL, PARAMETER :: check_mass_function = .FALSE.   ! Check properties of the mass function
    INTEGER, PARAMETER :: iorder_integration = 3          ! Order for standard integration
    INTEGER, PARAMETER :: iorder_2halo_integration = 3    ! Order for 2-halo integration
    INTEGER, PARAMETER :: iorder_1halo_integration = 1    ! Order for 1-halo integration (basic because of wiggles)
@@ -1812,7 +1812,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
-      REAL :: m, nu, R, sig, z, Om_stars
+      REAL :: log_m, m, nu, R, sig, z, Om_stars
       REAL, PARAMETER :: glim = g_integral_limit
       REAL, PARAMETER :: gblim = gb_integral_limit
       LOGICAL, PARAMETER :: check_mf = check_mass_function
@@ -1860,20 +1860,19 @@ CONTAINS
       ! Loop over halo masses and fill arrays
       DO i = 1, hmod%n
 
-         m = exp(progression(log(hmod%mmin), log(hmod%mmax), i, hmod%n))
+         log_m = progression(log(hmod%mmin), log(hmod%mmax), i, hmod%n)
+         m = exp(log_m)
          R = radius_m(m, cosm)
          sig = sigma(R, a, hmod%flag_sigma, cosm)
          nu = hmod%dc/sig
 
+         hmod%log_m(i) = log_m
          hmod%m(i) = m
          hmod%rr(i) = R
          hmod%sig(i) = sig
          hmod%nu(i) = nu
 
       END DO
-
-      ! log-mass array
-      hmod%log_m = log(hmod%m)
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: M, R, nu, sigma tables filled'
 
@@ -1915,21 +1914,21 @@ CONTAINS
          ! Calculate missing mass things if necessary
          IF (hmod%i2hcor .NE. 0) THEN
 
-            hmod%gmin = 1.-integrate_g_nu(hmod%nu(1), hmod%large_nu, hmod)
-            hmod%gmax = integrate_g_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
+            IF (check_mf) hmod%gmin = 1.-integrate_g_nu(hmod%nu(1), hmod%large_nu, hmod)
+            IF (check_mf) hmod%gmax = integrate_g_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
             hmod%gbmin = 1.-integrate_gb_nu(hmod%nu(1), hmod%large_nu, hmod)
-            hmod%gbmax = integrate_gb_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
-            hmod%gnorm = integrate_g_mu(hmod%small_nu, hmod%large_nu, hmod)
+            IF (check_mf) hmod%gbmax = integrate_gb_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
+            IF (check_mf) hmod%gnorm = integrate_g_mu(hmod%small_nu, hmod%large_nu, hmod)
 
             IF (verbose) THEN
-               WRITE (*, *) 'INIT_HALOMOD: Missing g(nu) at low end:', REAL(hmod%gmin)
-               WRITE (*, *) 'INIT_HALOMOD: Missing g(nu) at high end:', REAL(hmod%gmax)
+               IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Missing g(nu) at low end:', REAL(hmod%gmin)
+               IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Missing g(nu) at high end:', REAL(hmod%gmax)
                WRITE (*, *) 'INIT_HALOMOD: Missing g(nu)b(nu) at low end:', REAL(hmod%gbmin)
-               WRITE (*, *) 'INIT_HALOMOD: Missing g(nu)b(nu) at high end:', REAL(hmod%gbmax)
-               WRITE (*, *) 'INIT_HALOMOD: Total g(nu) integration:', REAL(hmod%gnorm) ! Could do better and actually integrate to zero
+               IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Missing g(nu)b(nu) at high end:', REAL(hmod%gbmax)
+               IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Total g(nu) integration:', REAL(hmod%gnorm)
             END IF
 
-            IF(check_mf) THEN
+            IF (check_mf) THEN
                IF (hmod%gmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'
                IF (hmod%gmax < glim) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
                IF (hmod%gbmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
@@ -2653,7 +2652,6 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
       TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
       INTEGER, OPTIONAL, INTENT(IN) :: version   ! The ihm corresponding to the HMcode version
-      INTEGER :: j
       INTEGER :: ihm
 
       IF(.NOT. present(version)) THEN
@@ -3458,7 +3456,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER, INTENT(IN) :: ibias
-      REAL :: rhom, b, m0, m, nu, integrand(n)
+      REAL :: rhom, b, m, nu, integrand(n)
       INTEGER :: i
       INTEGER, PARAMETER :: iorder = iorder_2halo_integration
 
@@ -3497,14 +3495,13 @@ CONTAINS
          ELSE IF (hmod%i2hcor == 1) THEN
             ! Add on the value of integral b(nu)*g(nu) assuming W(k)=1
             ! Advised by Yoo et al. (2006) and Cacciato et al. (2012)
-            STOP 'P_2H: This will not work for fields that do not have mass fractions defined'
+            ! TODO: This will not work for fields that do not have mass fractions defined
+            ! TODO: Could make correct, see Appendix B of HMx paper
             int = int+hmod%gbmin*halo_fraction(ih, m, hmod, cosm)
          ELSE IF (hmod%i2hcor == 2) THEN
             ! Put the missing part of the integrand as a delta function at the low-mass limit of the integral
-            ! I think this is the best thing to do
             ! Advised by Schmidt (2016)
-            m0 = hmod%m(1)
-            int = int+hmod%gbmin*(rhom*wk(1)/m0)
+            int = int+hmod%gbmin*rhom*wk(1)/hmod%m(1)
          ELSE
             STOP 'P_2h: Error, i2hcor not specified correctly'
          END IF
@@ -3574,7 +3571,6 @@ CONTAINS
       ELSE IF (hmod%i1hdamp == 2) THEN
          ! Note that the power here should be 4 because it multiplies Delta^2(k) ~ k^3 at low k (NOT 7)
          ! Want f(k<<ks) ~ k^4; f(k>>ks) = 1
-         !fac = 1./(1.+(ks/k)**4)
          ks = HMcode_kstar(hmod, cosm)
          IF (ks == 0.) THEN
             fac = 1.
@@ -8912,7 +8908,10 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: x
+      REAL :: x, crap
+
+      ! Prevent compile-time warning
+      crap = hmod%a
 
       x = log(nu)-0.0876
 
