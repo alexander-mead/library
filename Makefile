@@ -55,7 +55,7 @@ _OBJ = \
 	precision.o \
 	constants.o \
 	physics.o \
-	fix_polynomial.o \
+	special_functions.o \
 	basic_operations.o \
 	array_operations.o \
 	random_numbers.o \
@@ -65,7 +65,6 @@ _OBJ = \
 	camb_stuff.o \
 	table_integer.o \
 	interpolate.o \
-	special_functions.o \
 	calculus_table.o \
 	string_operations.o \
 	cosmology_functions.o \
