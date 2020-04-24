@@ -905,8 +905,8 @@ CONTAINS
       hmod%one_parameter_baryons = .FALSE.
 
       ! HMx parameters
-      ! 1 - ?
-      ! 2 - ?
+      ! 1 - NOT USED
+      ! 2 - NOT USED
       ! 3 - Standard
       ! 4 - Tilman model
       ! 5 - HMx2020 redshift scalings
@@ -1823,9 +1823,6 @@ CONTAINS
       z = redshift_a(a)
       hmod%z = z
 
-      IF (ALLOCATED(hmod%log_m)) CALL deallocate_HMOD(hmod)
-      CALL allocate_HMOD(hmod)
-
       ! Reset flags to false
       hmod%has_galaxies = .FALSE.
       hmod%has_HI = .FALSE.
@@ -1834,6 +1831,7 @@ CONTAINS
       hmod%has_bnl = .FALSE.
 
       ! Find and save values of sigma
+      ! TODO: This is a bit of a mess
       hmod%sigV_all = sigmaV(0., a, flag_power_total, cosm) ! TODO: Is this always necessary?
       hmod%sig8_all = sigma(8., a, flag_power_total, cosm)
       IF (hmod%idc == 3 .OR. hmod%idc == 6) hmod%sig_deltac = sigma(8., a, hmod%flag_sigma_deltac, cosm)
@@ -1842,20 +1840,31 @@ CONTAINS
       IF (hmod%i2hdamp == 1 .OR. hmod%i2hdamp == 3) hmod%sig_fdamp = sigma(8., a, hmod%flag_sigma_fdamp, cosm)
       IF (hmod%i2hdamp == 2) hmod%sigV_fdamp = sigmaV(100., a, hmod%flag_sigmaV_fdamp, cosm)
 
+      ! Calcuate delta_c and Delta_v
+      ! Sometimes these calculations rely on the sigma that should be calculated before this
+      hmod%dc = delta_c(hmod, cosm)
+      hmod%Dv = Delta_v(hmod, cosm)
+
       IF (verbose) THEN
-         WRITE (*, *) 'INIT_HALOMOD: Filling look-up tables'
-         WRITE (*, *) 'INIT_HALOMOD: Number of entries:', hmod%n
+         WRITE (*, *) 'INIT_HALOMOD: Initialising calculation'
          WRITE (*, *) 'INIT_HALOMOD: Tables being filled at redshift:', REAL(z)
          WRITE (*, *) 'INIT_HALOMOD: Tables being filled at scale-factor:', REAL(a)
          WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigV_all)
          !IF (hmod%i2hdamp == 3) WRITE (*, *) 'INIT_HALOMOD: sigmaV_100 [Mpc/h]:', REAL(hmod%sigV100_all)
          WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (all):', REAL(hmod%sig8_all)
          !WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (cold):', REAL(hmod%sig8_cold)
+         WRITE (*, *) 'INIT_HALOMOD: Delta_v:', REAL(hmod%Dv)
+         WRITE (*, *) 'INIT_HALOMOD: delta_c:', REAL(hmod%dc)
       END IF
 
-      ! Calcuate delta_c and Delta_v
-      hmod%dc = delta_c(hmod, cosm)
-      hmod%Dv = Delta_v(hmod, cosm)
+      ! Deallocate and reallocate arrays if necessary
+      IF (ALLOCATED(hmod%log_m)) CALL deallocate_halomod(hmod)
+      CALL allocate_halomod(hmod)
+
+      IF (verbose) THEN
+         WRITE (*, *) 'INIT_HALOMOD: Filling look-up tables'
+         WRITE (*, *) 'INIT_HALOMOD: Number of entries:', hmod%n
+      END IF
 
       ! Loop over halo masses and fill arrays
       DO i = 1, hmod%n
@@ -1891,8 +1900,6 @@ CONTAINS
       ! Write some useful information to the screen
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: virial radius tables filled'
-         WRITE (*, *) 'INIT_HALOMOD: Delta_v:', REAL(hmod%Dv)
-         WRITE (*, *) 'INIT_HALOMOD: delta_c:', REAL(hmod%dc)
          WRITE (*, *) 'INIT_HALOMOD: Minimum nu:', REAL(hmod%nu(1))
          WRITE (*, *) 'INIT_HALOMOD: Maximum nu:', REAL(hmod%nu(hmod%n))
          WRITE (*, *) 'INIT_HALOMOD: Minimum sigma:', REAL(hmod%sig(hmod%n))
@@ -1941,6 +1948,7 @@ CONTAINS
 
       ! Find non-linear radius and scale
       ! This is defined as nu(M_star)=1 *not* sigma(M_star)=1, so depends on delta_c
+      ! TODO: Not necessary for some halo models
       hmod%rnl = r_nl(hmod)
       hmod%mnl = mass_r(hmod%rnl, cosm)
       hmod%knl = 1./hmod%rnl
@@ -1952,18 +1960,12 @@ CONTAINS
       END IF
 
       ! Calculate the effective spectral index at the collapse scale
+      ! TODO: Not necessary for some halo models
       hmod%neff = effective_index(hmod, cosm)
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Collapse n_eff:', REAL(hmod%neff)
 
-      ! Calculate the concentration-mass relation
-      CALL fill_halo_concentration(hmod, cosm)
-      IF (verbose) THEN
-         WRITE (*, *) 'INIT_HALOMOD: Halo concentration tables filled'
-         WRITE (*, *) 'INIT_HALOMOD: Minimum concentration:', REAL(hmod%c(hmod%n))
-         WRITE (*, *) 'INIT_HALOMOD: Maximum concentration:', REAL(hmod%c(1))
-      END IF
-
       ! Calculate the amplitude of the the one-halo term
+      ! TODO: Not necessary for some halo models
       hmod%Rh = one_halo_amplitude(hmod, cosm)
       hmod%Mh = hmod%Rh*comoving_matter_density(cosm)
       IF (verbose) THEN
@@ -1972,10 +1974,20 @@ CONTAINS
       END IF
 
       ! Calculate the total stellar mass fraction
+      ! TODO: Not necessary for some halo models
       IF (calculate_stars .AND. verbose) THEN
          Om_stars = Omega_stars(hmod, cosm)
          WRITE (*, *) 'INIT_HALOMOD: Omega_*:', Om_stars
          WRITE (*, *) 'INIT_HALOMOD: Omega_* / Omega_m:', Om_stars/cosm%Om_m
+      END IF
+
+      ! Calculate the concentration-mass relation
+      ! Note that this requires mnl etc. for some c(M) relations. Do not move!
+      CALL fill_halo_concentration(hmod, cosm)
+      IF (verbose) THEN
+         WRITE (*, *) 'INIT_HALOMOD: Halo concentration tables filled'
+         WRITE (*, *) 'INIT_HALOMOD: Minimum concentration:', REAL(hmod%c(hmod%n))
+         WRITE (*, *) 'INIT_HALOMOD: Maximum concentration:', REAL(hmod%c(1))
       END IF
 
       ! Finish
@@ -5079,7 +5091,7 @@ CONTAINS
 
    END FUNCTION r_nl
 
-   SUBROUTINE allocate_HMOD(hmod)
+   SUBROUTINE allocate_halomod(hmod)
 
       ! Allocates memory for the look-up tables
       IMPLICIT NONE
@@ -5123,9 +5135,9 @@ CONTAINS
       hmod%r200c = 0.
       hmod%c200c = 0.
 
-   END SUBROUTINE allocate_HMOD
+   END SUBROUTINE allocate_halomod
 
-   SUBROUTINE deallocate_HMOD(hmod)
+   SUBROUTINE deallocate_halomod(hmod)
 
       ! Deallocates the look-up tables
       IMPLICIT NONE
@@ -5138,7 +5150,7 @@ CONTAINS
       DEALLOCATE (hmod%m500, hmod%r500, hmod%c500, hmod%m500c, hmod%r500c, hmod%c500c)
       DEALLOCATE (hmod%m200, hmod%r200, hmod%c200, hmod%m200c, hmod%r200c, hmod%c200c)
 
-   END SUBROUTINE deallocate_HMOD
+   END SUBROUTINE deallocate_halomod
 
    REAL FUNCTION Omega_stars(hmod, cosm)
 
@@ -5330,7 +5342,7 @@ CONTAINS
          END FUNCTION integrand
       END INTERFACE
 
-      rhobar_tracer=integrate_hmod_cosm_exp(log(nu_min),log(nu_max),integrand,hmod,cosm,hmod%acc,3)
+      rhobar_tracer=integrate_hmod_cosm_exp(log(nu_min), log(nu_max), integrand, hmod, cosm, hmod%acc, 3)
       rhobar_tracer=rhobar_tracer*comoving_matter_density(cosm)
 
    END FUNCTION rhobar_tracer
@@ -5568,6 +5580,7 @@ CONTAINS
       
       ! Numerical differentiation to find effective index at collapse
       IF(derivative) THEN
+         STOP 'EFFECTIVE_INDEX: This should never be used ever again'
          effective_index = -3.-derivative_table(log(hmod%rnl), log(hmod%rr), log(hmod%sig**2), hmod%n, iorder, imeth)
       ELSE
          effective_index = neff(hmod%rnl, hmod%a, hmod%flag_sigma, cosm)
@@ -6495,7 +6508,7 @@ CONTAINS
                win_hot_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_pressure)
             ELSE
                ! The electron pressure window is T(r) x rho_e(r), we want unnormalised, so multiply through by normalisation
-               ! TODO: Can I make the code more efficient here by having an unnorm window function?
+               ! TODO: Can I make the code more efficient here by having an un-normalised window function?
                win_hot_gas = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_pressure)
                win_hot_gas = win_hot_gas*normalisation(rmin, rmax, rv, rs, p1, p2, irho_pressure)
             END IF
@@ -8437,7 +8450,7 @@ CONTAINS
    REAL FUNCTION winint_approx(rn, rm, i, k, rmin, rmax, rv, rs, p1, p2, irho, iorder)
 
       ! Approximate forms for the integral over the sine bump times a polynomial
-      USE fix_polynomial
+      USE special_functions
       IMPLICIT NONE
       REAL, INTENT(IN) :: rn, rm
       INTEGER, INTENT(IN) :: i
@@ -8477,7 +8490,7 @@ CONTAINS
       IF (iorder == 0) THEN
          a0 = y0
       ELSE IF (iorder == 1) THEN
-         CALL fix_line(a1, a0, x0, y0, x1, y1)
+         CALL fix_linear(a1, a0, x0, y0, x1, y1)
       ELSE IF (iorder == 2) THEN
          CALL fix_quadratic(a2, a1, a0, x0, y0, x1, y1, x2, y2)
       ELSE IF (iorder == 3) THEN
@@ -8501,7 +8514,7 @@ CONTAINS
 
       ! An attempt to do an automatic combination of approximation and proper integration
       ! It turned out to be very slow
-      USE fix_polynomial
+      USE special_functions
       IMPLICIT NONE
       REAL, INTENT(IN) :: rn, rm
       INTEGER, INTENT(IN) :: i
