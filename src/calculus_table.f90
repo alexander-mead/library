@@ -18,7 +18,7 @@ CONTAINS
 
       ! Given two arrays x and y such that y=y(x) this uses interpolation to calculate the derivative y'(x_i) at position x_i
       USE table_integer
-      USE fix_polynomial
+      USE special_functions
       USE array_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
@@ -86,7 +86,7 @@ CONTAINS
 
          END IF
 
-         CALL fix_line(a, b, x1, y1, x2, y2)
+         CALL fix_linear(a, b, x1, y1, x2, y2)
          derivative_table = a
 
       ELSE IF (iorder == 2) THEN
@@ -205,7 +205,7 @@ CONTAINS
    REAL FUNCTION integrate_table_1D(x, y, n, n1, n2, iorder)
       
       ! Integrates tables y(x)dx
-      USE fix_polynomial
+      USE special_functions
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(n)

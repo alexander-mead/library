@@ -1,8 +1,8 @@
 MODULE interpolate
 
-   USE fix_polynomial
    USE table_integer
    USE array_operations
+   USE special_functions
 
    IMPLICIT NONE
 
@@ -96,7 +96,7 @@ CONTAINS
             y2 = ytab(2)
 
             IF (iinterp == iinterp_polynomial) THEN
-               CALL fix_line(a, b, x1, y1, x2, y2)
+               CALL fix_linear(a, b, x1, y1, x2, y2)
                find_1D = a*x+b
             ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
@@ -115,7 +115,7 @@ CONTAINS
             y2 = ytab(n)
 
             IF (iinterp == iinterp_polynomial) THEN
-               CALL fix_line(a, b, x1, y1, x2, y2)
+               CALL fix_linear(a, b, x1, y1, x2, y2)
                find_1D = a*x+b
             ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
@@ -156,7 +156,7 @@ CONTAINS
             END IF
 
             IF (iinterp == iinterp_polynomial) THEN
-               CALL fix_line(a, b, x1, y1, x2, y2)
+               CALL fix_linear(a, b, x1, y1, x2, y2)
                find_1D = a*x+b
             ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
@@ -476,7 +476,7 @@ CONTAINS
 
             !! x interpolation
 
-            CALL fix_line(a, b, x1, f10, x2, f20)
+            CALL fix_linear(a, b, x1, f10, x2, f20)
             find_2D = a*x+b
 
             !!
@@ -537,7 +537,7 @@ CONTAINS
 
             ! y interpolation
 
-            CALL fix_line(a, b, y1, f01, y2, f02)
+            CALL fix_linear(a, b, y1, f01, y2, f02)
             find_2D = a*y+b
 
          ELSE

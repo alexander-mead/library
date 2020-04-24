@@ -657,7 +657,7 @@ MODULE minimization
 
       ! This calculates the extrema of a function under the assumption that it is quadratic
       ! Takes 3 points to form a quadratic and then read off minimum
-      USE fix_polynomial
+      USE special_functions
       IMPLICIT NONE
       REAL, INTENT(IN) :: x1, x2, x3, y1, y2, y3
       REAL :: a, b, c

@@ -1014,7 +1014,8 @@ CONTAINS
    REAL FUNCTION maximum(x, y, n)
 
       ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
-      USE fix_polynomial
+      !USE fix_polynomial
+      USE special_functions
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(n)

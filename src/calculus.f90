@@ -462,7 +462,7 @@ CONTAINS
       ! Integrates between a and b until desired accuracy is reached!
       ! Fits a cubic between successive 4 points
       ! Only useful if points are not eqaully spaced, thus this routine is probably redundant
-      USE fix_polynomial
+      USE special_functions
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
