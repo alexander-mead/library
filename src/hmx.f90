@@ -647,10 +647,10 @@ CONTAINS
       hmod%ibias = 1
 
       ! One-halo term large-scale damping
-      ! 1 - No damping
-      ! 2 - HMcode (2015, 2016)
-      ! 3 - HMcode (2020) k^4 at large scales
-      hmod%i1hdamp = 1
+      ! 0 - No damping
+      ! 1 - HMcode (2015, 2016)
+      ! 2 - HMcode (2020) k^4 at large scales
+      hmod%i1hdamp = 0
 
       ! Mass and halo bias function pair
       ! 1 - Press & Schecter (1974)
@@ -1116,7 +1116,7 @@ CONTAINS
          ! 64 - HMcode (2016) but with 2020 baryon recipe
          ! 66 - HMcode (2015) but with CAMB halo mass range and number of points
          hmod%ip2h = 1
-         hmod%i1hdamp = 2
+         hmod%i1hdamp = 1
          hmod%iconc = 1
          hmod%idc = 3
          hmod%iDv = 3
@@ -1167,9 +1167,9 @@ CONTAINS
             END IF
          ELSE IF (ihm == 15) THEN
             ! HMcode (2020)
-            hmod%i1hdamp = 3 ! k^4 at large scales for one-halo term
-            hmod%ip2h = 3    ! Linear theory with damped wiggles
-            hmod%i2hdamp = 2 ! Change back to Mead (2015) model for two-halo damping
+            hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
+            hmod%ip2h = 3    ! 3 - Linear theory with damped wiggles
+            hmod%i2hdamp = 2 ! 2 - Change back to Mead (2015) model for two-halo damping
             hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
             hmod%zinf_Dolag = 100.
             ! Nelder-Mead parameters
@@ -1237,7 +1237,7 @@ CONTAINS
       ELSE IF (ihm == 4) THEN
          ! Standard halo-model calculation but with HMcode (2015) smoothed two- to one-halo transition and one-halo damping
          hmod%itrans = 3
-         hmod%i1hdamp = 3
+         hmod%i1hdamp = 2
          hmod%safe_negative = .TRUE.
       ELSE IF (ihm == 5) THEN
          ! Standard halo-model calculation but with Delta_v = 200 and delta_c = 1.686 fixed and Bullock c(M)
@@ -1246,7 +1246,7 @@ CONTAINS
          hmod%iconc = 1
       ELSE IF (ihm == 6) THEN
          ! Half-accurate halo-model calculation, inspired by (HMcode 2015, 2016)
-         hmod%i1hdamp = 3
+         hmod%i1hdamp = 2
          hmod%i2hdamp = 3
          hmod%safe_negative = .TRUE.
          hmod%idc = 3
@@ -1266,7 +1266,7 @@ CONTAINS
          hmod%ip2h = 2
          hmod%ip2h_corr = 3
          hmod%ibias = 1
-         hmod%i1hdamp = 1
+         hmod%i1hdamp = 0
          hmod%imf = 2
          hmod%iconc = 4 ! 4 - Virial Duffy relation for full sample
          hmod%idc = 2   ! 2 - Virial dc
@@ -1297,7 +1297,7 @@ CONTAINS
       ELSE IF (ihm == 14) THEN
          ! Experimental scale-dependent halo bias
          hmod%ibias = 5
-         hmod%i1hdamp = 3
+         hmod%i1hdamp = 2
       ELSE IF (ihm == 16) THEN
          ! Halo-void model
          hmod%add_voids = .TRUE.
@@ -1308,7 +1308,7 @@ CONTAINS
          hmod%HMx_mode = 4
          hmod%itrans = 4
          !hmod%itrans = 1
-         hmod%i1hdamp = 3
+         hmod%i1hdamp = 2
          hmod%safe_negative = .TRUE.
          hmod%response = 1
          hmod%alp0 = 3.24
@@ -1729,7 +1729,7 @@ CONTAINS
          ! 78 - Fitted to Cosmic Emu for k<1
          ! 79 - Fitted
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
-         hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
+         hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
          hmod%itrans = 2  ! 2 - alpha smoothing
          hmod%i2hdamp = 4 ! 4 - fdamp for perturbation theory      
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
@@ -1841,7 +1841,7 @@ CONTAINS
       hmod%sig8_all = sigma(8., a, flag_power_total, cosm)
       IF (hmod%idc == 3 .OR. hmod%idc == 6) hmod%sig_deltac = sigma(8., a, hmod%flag_sigma_deltac, cosm)
       IF (hmod%ieta == 1) hmod%sig_eta = sigma(8., a, hmod%flag_sigma_eta, cosm)
-      IF (hmod%i1hdamp .NE. 1) hmod%sigV_kstar = sigmaV(0., a, hmod%flag_sigmaV_kstar, cosm)
+      IF (hmod%i1hdamp .NE. 0) hmod%sigV_kstar = sigmaV(0., a, hmod%flag_sigmaV_kstar, cosm)
       IF (hmod%i2hdamp == 2 .OR. hmod%i2hdamp == 4) hmod%sig_fdamp = sigma(8., a, hmod%flag_sigma_fdamp, cosm)
       IF (hmod%i2hdamp == 3) hmod%sigV_fdamp = sigmaV(100., a, hmod%flag_sigmaV_fdamp, cosm)
 
@@ -2199,9 +2199,9 @@ CONTAINS
          IF (hmod%i2hdamp == 4) WRITE (*, *) 'HALOMODEL: Two-halo term damping from HMcode (2020)'
 
          ! Large-scale one-halo term damping function
-         IF (hmod%i1hdamp == 1) WRITE (*, *) 'HALOMODEL: No damping in one-halo term at large scales'
-         IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping via an exponential'
-         IF (hmod%i1hdamp == 3) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping like Delta^2 ~ k^7'
+         IF (hmod%i1hdamp == 0) WRITE (*, *) 'HALOMODEL: No damping in one-halo term at large scales'
+         IF (hmod%i1hdamp == 1) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping via an exponential'
+         IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping like Delta^2 ~ k^7'
 
          ! Concentration-mass scaling
          IF (hmod%iAs == 0) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
@@ -3564,9 +3564,9 @@ CONTAINS
       ! Convert from P(k) -> Delta^2(k)
       p_1h = p_1h*(4.*pi)*(k/twopi)**3
 
-      IF (hmod%i1hdamp == 1) THEN
+      IF (hmod%i1hdamp == 0) THEN
          ! Do nothing
-      ELSE IF (hmod%i1hdamp == 2) THEN
+      ELSE IF (hmod%i1hdamp == 1) THEN
          ! Damping of the 1-halo term at very large scales
          ks = HMcode_kstar(hmod, cosm)
          IF (ks == 0. .OR. ((k/ks)**2 > HMcode_ks_limit)) THEN
@@ -3576,7 +3576,7 @@ CONTAINS
             fac = exp(-((k/ks)**2))
          END IF
          p_1h = p_1h*(1.-fac)
-      ELSE IF (hmod%i1hdamp == 3) THEN
+      ELSE IF (hmod%i1hdamp == 2) THEN
          ! Note that the power here should be 4 because it multiplies Delta^2(k) ~ k^3 at low k (NOT 7)
          ! Want f(k<<ks) ~ k^4; f(k>>ks) = 1
          !fac = 1./(1.+(ks/k)**4)
@@ -4318,7 +4318,7 @@ CONTAINS
       ! To prevent compile-time warnings
       crap = cosm%A
 
-      IF (hmod%i1hdamp == 2) THEN
+      IF (hmod%i1hdamp == 1) THEN
          HMcode_kstar = hmod%ks/hmod%sigV_kstar
       ELSE
          HMcode_kstar = hmod%ks!*hmod%knl
