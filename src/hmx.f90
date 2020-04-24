@@ -35,7 +35,7 @@ MODULE HMx
    ! Calculations
    PUBLIC :: calculate_P_lin
    PUBLIC :: calculate_HMx
-   PUBLIC :: calculate_HMx_a
+   PUBLIC :: calculate_HMx_a   ! TODO: Remove (hard task)
    PUBLIC :: calculate_HMcode
    PUBLIC :: calculate_halomod
    PUBLIC :: set_halo_type
@@ -618,7 +618,7 @@ CONTAINS
       ! Default options
       hmod%mmin = 1e7  ! Lower mass limit for integration [Msun/h]
       hmod%mmax = 1e17 ! Upper mass limit for integration [Msun/h]
-      hmod%n = 128     ! Number of points in integration (128 is okay, 1024 is better; linear in runtime)
+      hmod%n = 128     ! Number of points in integration (128 is okay, 1024 is better)
       hmod%acc = 1e-4  ! Accuracy for continuous integrals (1e-3 is okay, 1e-4 is better)
 
       ! Small and large values for nu (6 is okay, corrections are suppressed by exp(-large_nu^2)
@@ -657,6 +657,7 @@ CONTAINS
       ! 2 - Sheth & Tormen (1999)
       ! 3 - Tinker et al. (2010)
       ! 4 - Delta function in mass
+      ! 5 - Jenkins et al. (2001)
       hmod%imf = 2
 
       ! Concentration-mass relation
@@ -675,8 +676,8 @@ CONTAINS
       hmod%flag_sigma = flag_power_cold_unorm
       hmod%flag_sigma_deltac = flag_power_total
       hmod%flag_sigma_eta = flag_power_total
-      hmod%flag_sigma_fdamp = flag_power_total   ! Used in HMcode (2015) only
-      hmod%flag_sigmaV_fdamp = flag_power_total
+      hmod%flag_sigma_fdamp = flag_power_total  ! Used in HMcode (2015)
+      hmod%flag_sigmaV_fdamp = flag_power_total ! Used in HMcode (2016)
       hmod%flag_sigmaV_kstar = flag_power_total
 
       ! Linear collapse threshold delta_c
@@ -701,15 +702,15 @@ CONTAINS
       hmod%iDv = 2
 
       ! eta for halo window function
-      ! 1 - No
-      ! 2 - HMcode (2015, 2016)
+      ! 0 - No
+      ! 1 - HMcode (2015, 2016)
       hmod%ieta = 1
 
       ! Concentration-mass rescaling
-      ! 1 - No
-      ! 2 - HMcode (2015, 2016)
-      ! 3 - HMcode (test) with sigma8 dependence
-      hmod%iAs = 1
+      ! 0 - No
+      ! 1 - HMcode (2015, 2016)
+      ! 2 - HMcode (test) with sigma8 dependence
+      hmod%iAs = 0
 
       ! fdamp for two-halo term damping
       ! 1 - No
@@ -1119,8 +1120,8 @@ CONTAINS
          hmod%iconc = 1
          hmod%idc = 3
          hmod%iDv = 3
-         hmod%ieta = 2
-         hmod%iAs = 2
+         hmod%ieta = 1
+         hmod%iAs = 1
          hmod%i2hdamp = 3
          hmod%itrans = 2
          hmod%iDolag = 3
@@ -1250,8 +1251,8 @@ CONTAINS
          hmod%safe_negative = .TRUE.
          hmod%idc = 3
          hmod%iDv = 3
-         hmod%ieta = 2
-         hmod%iAs = 2
+         hmod%ieta = 1
+         hmod%iAs = 1
          hmod%itrans = 2
          hmod%iconc = 1
          hmod%iDolag = 3
@@ -1267,11 +1268,11 @@ CONTAINS
          hmod%ibias = 1
          hmod%i1hdamp = 1
          hmod%imf = 2
-         hmod%iconc = 4 ! Virial Duffy relation for full sample
-         hmod%idc = 2   ! Virial dc
-         hmod%iDv = 2   ! Virial Dv
-         hmod%ieta = 1
-         hmod%iAs = 1
+         hmod%iconc = 4 ! 4 - Virial Duffy relation for full sample
+         hmod%idc = 2   ! 2 - Virial dc
+         hmod%iDv = 2   ! 2 - Virial Dv
+         hmod%ieta = 0  ! 0 - No
+         hmod%iAs = 0
          hmod%i2hdamp = 1
          hmod%itrans = 1
          hmod%iDolag = 1
@@ -1735,8 +1736,8 @@ CONTAINS
          hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
          hmod%iconc = 1   ! 1 - Bullock c(M) relation   
          hmod%iDolag = 3  ! 3 - Dolag c(M) correction with 1.5 power
-         hmod%iAs = 3     ! 2 - Vary c(M) relation prefactor
-         hmod%ieta = 2    ! 1 - No eta change of Fourier halo profiles UNDO
+         hmod%iAs = 2     ! 1 - Vary c(M) relation prefactor
+         hmod%ieta = 1    ! 0 - No eta change of Fourier halo profiles UNDO
          hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
          IF (ihm == 78) THEN
             ! Model 1: 7.960e-3 for Cosmic Emu
@@ -1839,7 +1840,7 @@ CONTAINS
       hmod%sigV_all = sigmaV(0., a, flag_power_total, cosm)
       hmod%sig8_all = sigma(8., a, flag_power_total, cosm)
       IF (hmod%idc == 3 .OR. hmod%idc == 6) hmod%sig_deltac = sigma(8., a, hmod%flag_sigma_deltac, cosm)
-      IF (hmod%ieta == 2) hmod%sig_eta = sigma(8., a, hmod%flag_sigma_eta, cosm)
+      IF (hmod%ieta == 1) hmod%sig_eta = sigma(8., a, hmod%flag_sigma_eta, cosm)
       IF (hmod%i1hdamp .NE. 1) hmod%sigV_kstar = sigmaV(0., a, hmod%flag_sigmaV_kstar, cosm)
       IF (hmod%i2hdamp == 2 .OR. hmod%i2hdamp == 4) hmod%sig_fdamp = sigma(8., a, hmod%flag_sigma_fdamp, cosm)
       IF (hmod%i2hdamp == 3) hmod%sigV_fdamp = sigmaV(100., a, hmod%flag_sigmaV_fdamp, cosm)
@@ -2188,8 +2189,8 @@ CONTAINS
          IF (hmod%iDv == 9) WRITE (*, *) 'HALOMODEL: Delta_v = 178 fixed'
 
          ! eta for halo window function
-         IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta = 0 fixed'
-         IF (hmod%ieta == 2) WRITE (*, *) 'HALOMODEL: eta from HMcode (2015, 2016) power spectrum fit'
+         IF (hmod%ieta == 0) WRITE (*, *) 'HALOMODEL: eta = 0 fixed'
+         IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta from HMcode (2015, 2016) power spectrum fit'
 
          ! Small-scale two-halo term damping coefficient
          IF (hmod%i2hdamp == 1) WRITE (*, *) 'HALOMODEL: No two-halo term damping at small scales'
@@ -2203,9 +2204,9 @@ CONTAINS
          IF (hmod%i1hdamp == 3) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping like Delta^2 ~ k^7'
 
          ! Concentration-mass scaling
-         IF (hmod%iAs == 1) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
-         IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled mass independently (HMcode 2015, 2016)'
-         IF (hmod%iAs == 3) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled as function of sigma (HMcode test)'
+         IF (hmod%iAs == 0) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
+         IF (hmod%iAs == 1) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled mass independently (HMcode 2015, 2016)'
+         IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled as function of sigma (HMcode test)'
 
          ! Two- to one-halo transition region
          IF (hmod%itrans == 1) WRITE (*, *) 'HALOMODEL: Standard sum of two- and one-halo terms'
@@ -2803,6 +2804,7 @@ CONTAINS
       ALLOCATE (pow_li(nk, na), pow_2h(nf, nf, nk, na), pow_1h(nf, nf, nk, na), pow_hm(nf, nf, nk, na))
 
       ! Do the halo-model calculation by looping over scale factor index
+      ! TODO: Why does this loop backwards?
       DO i = na, 1, -1
 
          z = redshift_a(a(i))
@@ -4289,9 +4291,9 @@ CONTAINS
       ! To prevent compile-time warnings
       crap = cosm%A
 
-      IF (hmod%ieta == 1) THEN
+      IF (hmod%ieta == 0) THEN
          HMcode_eta = 0.
-      ELSE IF (hmod%ieta == 2) THEN
+      ELSE IF (hmod%ieta == 1) THEN
          ! From HMcode(2015; arXiv 1505.07833, 2016)
          IF (hmod%one_parameter_baryons) THEN
             eta0 = 0.98-hmod%As*0.12
@@ -4335,13 +4337,13 @@ CONTAINS
       ! To prevent compile-time warnings
       crap = cosm%A
 
-      IF (hmod%iAs == 1) THEN
+      IF (hmod%iAs == 0) THEN
          ! Set to 4 for the standard Bullock value
          HMcode_A = 4.
-      ELSE IF (hmod%iAs == 2) THEN
+      ELSE IF (hmod%iAs == 1) THEN
          ! This is the 'A' halo-concentration parameter in HMcode(2015; arXiv 1505.07833, 2016)
          HMcode_A = hmod%As
-      ELSE IF (hmod%iAs == 3) THEN
+      ELSE IF (hmod%iAs == 2) THEN
          ! HMcode (test)
          HMcode_A = hmod%As*(hmod%sig8_all/0.8)**hmod%Ap+hmod%Ac
       ELSE
