@@ -712,12 +712,12 @@ CONTAINS
       ! 2 - HMcode (test) with sigma8 dependence
       hmod%iAs = 0
 
-      ! fdamp for two-halo term damping
-      ! 1 - No
-      ! 2 - HMcode (2015)
-      ! 3 - HMcode (2016)
-      ! 4 - HMcode (2020) perturbation theory and exponential damping
-      hmod%i2hdamp = 1
+      ! Two-halo term damping
+      ! 0 - No
+      ! 1 - HMcode (2015)
+      ! 2 - HMcode (2016)
+      ! 3 - HMcode (2020) perturbation theory and exponential damping
+      hmod%i2hdamp = 0
 
       ! alpha for two- to one-halo transition region
       ! 1 - No
@@ -729,11 +729,11 @@ CONTAINS
       hmod%itrans = 1
 
       ! Use the Dolag et al. (2004; astro-ph/0309771) c(M) correction for dark energy?
-      ! 1 - No
-      ! 2 - Exactly as in Dolag et al. (2004)
-      ! 3 - As in Dolag et al. (2004) but with a ^1.5 power
-      ! 4 - My version of Dolag (2004) with some redshift dependence
-      hmod%iDolag = 2
+      ! 0 - No
+      ! 1 - Exactly as in Dolag et al. (2004)
+      ! 2 - As in Dolag et al. (2004) but with a ^1.5 power
+      ! 3 - My version of Dolag (2004) with some redshift dependence
+      hmod%iDolag = 1
 
       ! Halo gas fraction
       ! 1 - Fedeli (2014a) bound gas model
@@ -1122,9 +1122,9 @@ CONTAINS
          hmod%iDv = 3
          hmod%ieta = 1
          hmod%iAs = 1
-         hmod%i2hdamp = 3
+         hmod%i2hdamp = 2
          hmod%itrans = 2
-         hmod%iDolag = 3
+         hmod%iDolag = 2
          hmod%zinf_Dolag = 10.
          hmod%flag_sigma = flag_power_cold_unorm
          hmod%flag_sigma_deltac = flag_power_total
@@ -1149,9 +1149,9 @@ CONTAINS
          IF (ihm == 7 .OR. ihm == 66) THEN
             ! HMcode (2015)
             hmod%idc = 6
-            hmod%i2hdamp = 2
+            hmod%i2hdamp = 1
             hmod%itrans = 2
-            hmod%iDolag = 2
+            hmod%iDolag = 1
             hmod%f0 = 0.188
             hmod%f1 = 4.29
             hmod%alp0 = 2.93
@@ -1169,7 +1169,7 @@ CONTAINS
             ! HMcode (2020)
             hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
             hmod%ip2h = 3    ! 3 - Linear theory with damped wiggles
-            hmod%i2hdamp = 2 ! 2 - Change back to Mead (2015) model for two-halo damping
+            hmod%i2hdamp = 1 ! 1 - Change back to Mead (2015) model for two-halo damping
             hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
             hmod%zinf_Dolag = 100.
             ! Nelder-Mead parameters
@@ -1198,7 +1198,7 @@ CONTAINS
             hmod%ip2h = 3
          ELSE IF (ihm == 50) THEN
             ! Bug present in CAMB when Dolag power is set to 1 rather than 1.5
-            hmod%iDolag = 2
+            hmod%iDolag = 1
          ELSE IF (ihm == 51) THEN
             ! CAMB mass range and number of points
             hmod%mmin = 1e0  ! Lower mass limit for integration [Msun/h]
@@ -1247,7 +1247,7 @@ CONTAINS
       ELSE IF (ihm == 6) THEN
          ! Half-accurate halo-model calculation, inspired by (HMcode 2015, 2016)
          hmod%i1hdamp = 2
-         hmod%i2hdamp = 3
+         hmod%i2hdamp = 2
          hmod%safe_negative = .TRUE.
          hmod%idc = 3
          hmod%iDv = 3
@@ -1255,7 +1255,7 @@ CONTAINS
          hmod%iAs = 1
          hmod%itrans = 2
          hmod%iconc = 1
-         hmod%iDolag = 3
+         hmod%iDolag = 2
       ELSE IF (ihm == 8) THEN
          ! Include scatter in halo properties
          hmod%dlnc = 0.25
@@ -1273,9 +1273,9 @@ CONTAINS
          hmod%iDv = 2   ! 2 - Virial Dv
          hmod%ieta = 0  ! 0 - No
          hmod%iAs = 0
-         hmod%i2hdamp = 1
+         hmod%i2hdamp = 0
          hmod%itrans = 1
-         hmod%iDolag = 1
+         hmod%iDolag = 0
       ELSE IF (ihm == 10) THEN
          ! For mass conversions comparison with Wayne Hu's code
          hmod%iconc = 2
@@ -1290,7 +1290,7 @@ CONTAINS
          hmod%iDv = 5    ! Spherical-collapse calculation for Delta_v
          hmod%imf = 2    ! Sheth & Tormen mass function
          hmod%iconc = 1  ! Bullock et al. c(M) relation
-         hmod%iDolag = 2 ! This is important for the accuracy of the z=0 results presented in Mead (2017)
+         hmod%iDolag = 1 ! This is important for the accuracy of the z=0 results presented in Mead (2017)
       ELSE IF (ihm == 13) THEN
          ! Experimental sigmoid transition
          hmod%itrans = 5
@@ -1699,11 +1699,11 @@ CONTAINS
          ! Standard halo-model calculation but with simple Bullock c(M)
          hmod%iconc = 2
       ELSE IF (ihm == 70) THEN
-         ! Standard but wiht no Dolag correction
-         hmod%iDolag = 1
+         ! Standard but with no Dolag correction
+         hmod%iDolag = 0
       ELSE IF (ihm == 71) THEN
          ! Standard but with Dolag correction with 1.5 exponent
-         hmod%iDolag = 3
+         hmod%iDolag = 2
       ELSE IF (ihm == 72) THEN
          ! Standard but with linear two-halo term
          hmod%ip2h = 1
@@ -1731,11 +1731,11 @@ CONTAINS
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
          hmod%itrans = 2  ! 2 - alpha smoothing
-         hmod%i2hdamp = 4 ! 4 - fdamp for perturbation theory      
+         hmod%i2hdamp = 3 ! 3 - fdamp for perturbation theory      
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
          hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
          hmod%iconc = 1   ! 1 - Bullock c(M) relation   
-         hmod%iDolag = 3  ! 3 - Dolag c(M) correction with 1.5 power
+         hmod%iDolag = 2  ! 2 - Dolag c(M) correction with 1.5 power
          hmod%iAs = 2     ! 1 - Vary c(M) relation prefactor
          hmod%ieta = 1    ! 0 - No eta change of Fourier halo profiles UNDO
          hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
@@ -1842,8 +1842,8 @@ CONTAINS
       IF (hmod%idc == 3 .OR. hmod%idc == 6) hmod%sig_deltac = sigma(8., a, hmod%flag_sigma_deltac, cosm)
       IF (hmod%ieta == 1) hmod%sig_eta = sigma(8., a, hmod%flag_sigma_eta, cosm)
       IF (hmod%i1hdamp .NE. 0) hmod%sigV_kstar = sigmaV(0., a, hmod%flag_sigmaV_kstar, cosm)
-      IF (hmod%i2hdamp == 2 .OR. hmod%i2hdamp == 4) hmod%sig_fdamp = sigma(8., a, hmod%flag_sigma_fdamp, cosm)
-      IF (hmod%i2hdamp == 3) hmod%sigV_fdamp = sigmaV(100., a, hmod%flag_sigmaV_fdamp, cosm)
+      IF (hmod%i2hdamp == 1 .OR. hmod%i2hdamp == 3) hmod%sig_fdamp = sigma(8., a, hmod%flag_sigma_fdamp, cosm)
+      IF (hmod%i2hdamp == 2) hmod%sigV_fdamp = sigmaV(100., a, hmod%flag_sigmaV_fdamp, cosm)
 
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Filling look-up tables'
@@ -2057,10 +2057,10 @@ CONTAINS
          IF (hmod%iconc == 8) WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Duffy et al. (2008) concentration-mass relation'
 
          ! Concentration-mass relation correction
-         IF (hmod%iDolag == 1) WRITE (*, *) 'HALOMODEL: No concentration-mass correction for dark energy'
-         IF (hmod%iDolag == 2) WRITE (*, *) 'HALOMODEL: Dolag (2004) dark energy concentration correction'
-         IF (hmod%iDolag == 3) WRITE (*, *) 'HALOMODEL: Dolag (2004) dark energy concentration correction with 1.5 exponent'
-         IF (hmod%iDolag == 4) WRITE (*, *) 'HALOMODEL: Dolag (2004) dark energy concentration correction with redshift dependence'
+         IF (hmod%iDolag == 0) WRITE (*, *) 'HALOMODEL: No concentration-mass correction for dark energy'
+         IF (hmod%iDolag == 1) WRITE (*, *) 'HALOMODEL: Dolag (2004) dark energy concentration correction'
+         IF (hmod%iDolag == 2) WRITE (*, *) 'HALOMODEL: Dolag (2004) dark energy concentration correction with 1.5 exponent'
+         IF (hmod%iDolag == 3) WRITE (*, *) 'HALOMODEL: Dolag (2004) dark energy concentration correction with redshift dependence'
 
          ! Bound gas fraction
          IF (hmod%frac_bound_gas == 1) WRITE (*, *) 'HALOMODEL: Halo bound gas fraction: Fedeli (2014)'
@@ -2193,10 +2193,10 @@ CONTAINS
          IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta from HMcode (2015, 2016) power spectrum fit'
 
          ! Small-scale two-halo term damping coefficient
-         IF (hmod%i2hdamp == 1) WRITE (*, *) 'HALOMODEL: No two-halo term damping at small scales'
-         IF (hmod%i2hdamp == 2) WRITE (*, *) 'HALOMODEL: Two-halo term damping from HMcode (2015)'
-         IF (hmod%i2hdamp == 3) WRITE (*, *) 'HALOMODEL: Two-halo term damping from HMcode (2016)'
-         IF (hmod%i2hdamp == 4) WRITE (*, *) 'HALOMODEL: Two-halo term damping from HMcode (2020)'
+         IF (hmod%i2hdamp == 0) WRITE (*, *) 'HALOMODEL: No two-halo term damping at small scales'
+         IF (hmod%i2hdamp == 1) WRITE (*, *) 'HALOMODEL: Two-halo term damping from HMcode (2015)'
+         IF (hmod%i2hdamp == 2) WRITE (*, *) 'HALOMODEL: Two-halo term damping from HMcode (2016)'
+         IF (hmod%i2hdamp == 3) WRITE (*, *) 'HALOMODEL: Two-halo term damping from HMcode (2020)'
 
          ! Large-scale one-halo term damping function
          IF (hmod%i1hdamp == 0) WRITE (*, *) 'HALOMODEL: No damping in one-halo term at large scales'
@@ -3436,7 +3436,7 @@ CONTAINS
       END IF
 
       ! Apply damping to the two-halo term
-      IF (hmod%i2hdamp == 2 .OR. hmod%i2hdamp == 3) THEN
+      IF (hmod%i2hdamp == 1 .OR. hmod%i2hdamp == 2) THEN
          ! Two-halo damping parameters
          sigv = hmod%sigV_all
          fdamp = HMcode_fdamp(hmod, cosm)
@@ -3445,7 +3445,7 @@ CONTAINS
          ELSE
             p_2h = p_2h*(1.-fdamp*(tanh(k*sigv/sqrt(abs(fdamp))))**2)
          END IF
-      ELSE IF (hmod%i2hdamp == 4) THEN
+      ELSE IF (hmod%i2hdamp == 3) THEN
          fdamp = HMcode_fdamp(hmod, cosm)
          kdamp = hmod%kdamp!*hmod%knl
          ndamp = 2.
@@ -4366,13 +4366,13 @@ CONTAINS
       ! To prevent compile-time warnings
       crap = cosm%A
 
-      IF (hmod%i2hdamp == 1) THEN
+      IF (hmod%i2hdamp == 0) THEN
          ! Set to 0 for the standard linear theory two halo term
          HMcode_fdamp = 0.
-      ELSE IF (hmod%i2hdamp == 2 .OR. hmod%i2hdamp == 4) THEN
+      ELSE IF (hmod%i2hdamp == 1 .OR. hmod%i2hdamp == 3) THEN
          ! HMcode (2015)
          HMcode_fdamp = hmod%f0*hmod%sig_fdamp**hmod%f1
-      ELSE IF (hmod%i2hdamp == 3) THEN
+      ELSE IF (hmod%i2hdamp == 2) THEN
          ! HMcode (2016)
          HMcode_fdamp = hmod%f0*hmod%sigv_fdamp**hmod%f1
       ELSE
@@ -5648,7 +5648,7 @@ CONTAINS
       END DO
 
       ! Dolag2004 prescription for adding DE dependence
-      IF (hmod%iDolag .NE. 1) CALL Dolag_correction(hmod, cosm)
+      IF (hmod%iDolag .NE. 0) CALL Dolag_correction(hmod, cosm)
 
       ! Rescale the concentration-mass relation for gas the epsilon parameter
       ! This only rescales the concentrations of haloes that *contain* substantial amounts of gas
@@ -5713,13 +5713,13 @@ CONTAINS
       ! Fractional difference compared to LCDM
       f = ginf_wCDM/ginf_LCDM
 
-      IF (hmod%iDolag == 2) THEN
+      IF (hmod%iDolag == 1) THEN
          ! Standard correction (HMcode 2015)
          hmod%c = hmod%c*f
-      ELSE IF (hmod%iDolag == 3) THEN
+      ELSE IF (hmod%iDolag == 2) THEN
          ! Changed this to a power of 1.5 in HMcode 2016, produces more accurate results for extreme DE
          hmod%c = hmod%c*f**1.5
-      ELSE IF (hmod%iDolag == 4) THEN
+      ELSE IF (hmod%iDolag == 3) THEN
          ! Correction with a sensible redshift dependence
          a = hmod%a
          g_wCDM = grow(a, cosm)
