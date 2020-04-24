@@ -208,7 +208,7 @@ MODULE HMx
       REAL :: z, a
 
       ! Switches
-      INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, ip2h_corr
+      INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, i2hcor
       INTEGER :: idc, iDv, ieta, i2hdamp, i1hdamp, itrans
       
       ! Flags for sigma 
@@ -297,7 +297,7 @@ MODULE HMx
 
       LOGICAL :: one_parameter_baryons
 
-      LOGICAL :: has_HI, has_galaxies, has_mass_conversions, safe_negative, has_dewiggle
+      LOGICAL :: has_HI, has_galaxies, has_mass_conversions, safe_negative
 
       LOGICAL :: simple_pivot
       INTEGER :: response
@@ -633,10 +633,10 @@ CONTAINS
       hmod%ip2h = 2
 
       ! Method to correct the two-halo integral
-      ! 1 - Do nothing
-      ! 2 - Add value of missing integral assuming that W(k)=1 (only works for matter fields)
-      ! 3 - Put the missing part of the integrand as a delta function at lower mass limit
-      hmod%ip2h_corr = 3
+      ! 0 - Do nothing
+      ! 1 - Add value of missing integral assuming that W(k)=1 (only works for matter fields)
+      ! 2 - Put the missing part of the integrand as a delta function at lower mass limit
+      hmod%i2hcor = 2
 
       ! Order of halo bias to go to
       ! 1 - Linear order (standard)
@@ -1086,7 +1086,6 @@ CONTAINS
       hmod%has_galaxies = .FALSE.
       hmod%has_HI = .FALSE.
       hmod%has_mass_conversions = .FALSE.
-      hmod%has_dewiggle = .FALSE.
       hmod%has_mass_function = .FALSE.
       hmod%has_bnl = .FALSE.
 
@@ -1172,7 +1171,7 @@ CONTAINS
             hmod%i2hdamp = 1 ! 1 - Change back to Mead (2015) model for two-halo damping
             hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
             hmod%zinf_Dolag = 100.
-            ! Nelder-Mead parameters
+            ! Nelder-Mead fitted parameters
             hmod%Dv0 = 411.
             hmod%Dv1 = -0.333
             hmod%dc0 = 1.631
@@ -1181,7 +1180,6 @@ CONTAINS
             hmod%eta1 = 0.259
             hmod%f0 = 0.0615
             hmod%f1 = 1.607
-            !hmod%ks = 3e-2 ! REFIT THIS
             hmod%ks = 0.136
             hmod%As = 3.23
             hmod%alp0 = 3.17
@@ -1264,7 +1262,7 @@ CONTAINS
          hmod%n = 2048   ! Increase accuracy for the CCL benchmarks
          hmod%acc = 1e-5 ! Increase accuracy for the CCL benchmarks
          hmod%ip2h = 2
-         hmod%ip2h_corr = 3
+         hmod%i2hcor = 2
          hmod%ibias = 1
          hmod%i1hdamp = 0
          hmod%imf = 2
@@ -1814,7 +1812,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
-      REAL :: Dv, dc, m, nu, R, sig, z, Om_stars
+      REAL :: m, nu, R, sig, z, Om_stars
       REAL, PARAMETER :: glim = g_integral_limit
       REAL, PARAMETER :: gblim = gb_integral_limit
       LOGICAL, PARAMETER :: check_mf = check_mass_function
@@ -1832,12 +1830,11 @@ CONTAINS
       hmod%has_galaxies = .FALSE.
       hmod%has_HI = .FALSE.
       hmod%has_mass_conversions = .FALSE.
-      hmod%has_dewiggle = .FALSE.
       hmod%has_mass_function = .FALSE.
       hmod%has_bnl = .FALSE.
 
       ! Find and save values of sigma
-      hmod%sigV_all = sigmaV(0., a, flag_power_total, cosm)
+      hmod%sigV_all = sigmaV(0., a, flag_power_total, cosm) ! TODO: Is this always necessary?
       hmod%sig8_all = sigma(8., a, flag_power_total, cosm)
       IF (hmod%idc == 3 .OR. hmod%idc == 6) hmod%sig_deltac = sigma(8., a, hmod%flag_sigma_deltac, cosm)
       IF (hmod%ieta == 1) hmod%sig_eta = sigma(8., a, hmod%flag_sigma_eta, cosm)
@@ -1856,13 +1853,17 @@ CONTAINS
          !WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (cold):', REAL(hmod%sig8_cold)
       END IF
 
+      ! Calcuate delta_c and Delta_v
+      hmod%dc = delta_c(hmod, cosm)
+      hmod%Dv = Delta_v(hmod, cosm)
+
       ! Loop over halo masses and fill arrays
       DO i = 1, hmod%n
 
          m = exp(progression(log(hmod%mmin), log(hmod%mmax), i, hmod%n))
          R = radius_m(m, cosm)
-         sig = sigma(R, a, hmod%flag_sigma, cosm) ! TODO: Add correction here for cold matter in HMcode (2016)?
-         nu = nu_R(R, hmod, cosm)
+         sig = sigma(R, a, hmod%flag_sigma, cosm)
+         nu = hmod%dc/sig
 
          hmod%m(i) = m
          hmod%rr(i) = R
@@ -1876,10 +1877,6 @@ CONTAINS
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: M, R, nu, sigma tables filled'
 
-      ! Get delta_c
-      dc = delta_c(hmod, cosm)
-      hmod%dc = dc
-
       ! For spectra with finite variance we have cut-off masses etc.
       IF(cosm%warm) THEN
          hmod%saturation = .TRUE.
@@ -1890,15 +1887,13 @@ CONTAINS
       END IF
 
       ! Fill virial radius table using real radius table
-      Dv = Delta_v(hmod, cosm)
-      hmod%Dv = Dv
-      hmod%rv = hmod%rr/(Dv**(1./3.))
+      hmod%rv = hmod%rr/hmod%Dv**(1./3.)
 
       ! Write some useful information to the screen
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: virial radius tables filled'
-         WRITE (*, *) 'INIT_HALOMOD: Delta_v:', REAL(Dv)
-         WRITE (*, *) 'INIT_HALOMOD: delta_c:', REAL(dc)
+         WRITE (*, *) 'INIT_HALOMOD: Delta_v:', REAL(hmod%Dv)
+         WRITE (*, *) 'INIT_HALOMOD: delta_c:', REAL(hmod%dc)
          WRITE (*, *) 'INIT_HALOMOD: Minimum nu:', REAL(hmod%nu(1))
          WRITE (*, *) 'INIT_HALOMOD: Maximum nu:', REAL(hmod%nu(hmod%n))
          WRITE (*, *) 'INIT_HALOMOD: Minimum sigma:', REAL(hmod%sig(hmod%n))
@@ -1918,13 +1913,12 @@ CONTAINS
       ELSE
 
          ! Calculate missing mass things if necessary
-         IF (hmod%ip2h_corr == 2 .OR. hmod%ip2h_corr == 3) THEN
+         IF (hmod%i2hcor .NE. 0) THEN
 
             hmod%gmin = 1.-integrate_g_nu(hmod%nu(1), hmod%large_nu, hmod)
             hmod%gmax = integrate_g_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
             hmod%gbmin = 1.-integrate_gb_nu(hmod%nu(1), hmod%large_nu, hmod)
             hmod%gbmax = integrate_gb_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
-            !hmod%gnorm=integrate_g_nu(hmod%small_nu,hmod%large_nu,hmod)
             hmod%gnorm = integrate_g_mu(hmod%small_nu, hmod%large_nu, hmod)
 
             IF (verbose) THEN
@@ -2034,9 +2028,9 @@ CONTAINS
 
          ! Correction for missing low-mass haloes
          IF (hmod%ip2h == 2) THEN
-            IF (hmod%ip2h_corr == 1) WRITE (*, *) 'HALOMODEL: No two-halo correction applied for missing low-mass haloes'
-            IF (hmod%ip2h_corr == 2) WRITE (*, *) 'HALOMODEL: Two-halo term corrected by adding missing g(nu)b(nu)'
-            IF (hmod%ip2h_corr == 3) WRITE (*, *) 'HALOMODEL: Two-halo term corrected via delta function at low mass end'
+            IF (hmod%i2hcor == 0) WRITE (*, *) 'HALOMODEL: No two-halo correction applied for missing low-mass haloes'
+            IF (hmod%i2hcor == 1) WRITE (*, *) 'HALOMODEL: Two-halo term corrected by adding missing g(nu)b(nu)'
+            IF (hmod%i2hcor == 2) WRITE (*, *) 'HALOMODEL: Two-halo term corrected via delta function at low mass end'
          END IF
 
          ! Halo mass function
@@ -3496,22 +3490,23 @@ CONTAINS
 
       IF (ibias == 1) THEN
 
-         IF (hmod%ip2h_corr == 1) THEN
+         IF (hmod%i2hcor == 0) THEN
             ! Do nothing in this case
             ! There will be large errors if there should be any signal from low-mass haloes
             ! e.g., for the matter power spectrum
-         ELSE IF (hmod%ip2h_corr == 2) THEN
+         ELSE IF (hmod%i2hcor == 1) THEN
             ! Add on the value of integral b(nu)*g(nu) assuming W(k)=1
-            ! Advised by Yoo et al. (????) and Cacciato et al. (2012)
+            ! Advised by Yoo et al. (2006) and Cacciato et al. (2012)
             STOP 'P_2H: This will not work for fields that do not have mass fractions defined'
             int = int+hmod%gbmin*halo_fraction(ih, m, hmod, cosm)
-         ELSE IF (hmod%ip2h_corr == 3) THEN
+         ELSE IF (hmod%i2hcor == 2) THEN
             ! Put the missing part of the integrand as a delta function at the low-mass limit of the integral
             ! I think this is the best thing to do
+            ! Advised by Schmidt (2016)
             m0 = hmod%m(1)
             int = int+hmod%gbmin*(rhom*wk(1)/m0)
          ELSE
-            STOP 'P_2h: Error, ip2h_corr not specified correctly'
+            STOP 'P_2h: Error, i2hcor not specified correctly'
          END IF
 
       END IF
