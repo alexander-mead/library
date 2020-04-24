@@ -180,7 +180,8 @@ MODULE cosmology_functions
       INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin, n_Xde ! Number of array entries
       REAL :: amin_sigma, amax_sigma                                                               ! Ranges of arrays
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
-      LOGICAL :: is_init, is_normalised, has_wiggle ! Flags to check if things have been done  
+      LOGICAL :: has_wiggle
+      LOGICAL :: is_init, is_normalised ! Flags to check if things have been done  
 
       ! For random cosmologies
       !LOGICAL :: seeded
@@ -722,9 +723,17 @@ CONTAINS
       cosm%box = .FALSE.
       cosm%Lbox = 100. ! Box size [Mpc/h]
 
-      ! Set flags
+      ! Set is/has flags to negative
       cosm%is_init = .FALSE.
       cosm%is_normalised = .FALSE.
+      cosm%has_distance = .FALSE.
+      cosm%has_growth = .FALSE.
+      cosm%has_sigma = .FALSE.
+      cosm%has_spherical = .FALSE.
+      cosm%has_power = .FALSE.
+      cosm%has_time = .FALSE.
+      cosm%has_Xde = .FALSE.
+      cosm%has_wiggle = .FALSE.
 
       ! For random cosmologies
       !cosm%seed = 0
@@ -6860,7 +6869,7 @@ CONTAINS
       ! TODO: Smoothing should be over one wiggle period, not just fixed ns
       ! TODO: Convert this to some-sort of wiggle T(k), rather than an addition thing?
       ! TODO: This does not work very well
-      USE fix_polynomial
+      USE special_functions
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: logkv(4), logpv(4)
