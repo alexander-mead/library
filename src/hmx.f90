@@ -35,7 +35,7 @@ MODULE HMx
    ! Calculations
    PUBLIC :: calculate_P_lin
    PUBLIC :: calculate_HMx
-   PUBLIC :: calculate_HMx_a   ! TODO: Remove (hard task)
+   PUBLIC :: calculate_HMx_a ! TODO: Remove (hard task)
    PUBLIC :: calculate_HMcode
    PUBLIC :: calculate_halomod
    PUBLIC :: set_halo_type
@@ -178,13 +178,13 @@ MODULE HMx
 
    ! Fitting parameters - HMcode
    PUBLIC :: param_HMcode_Dv0
-   PUBLIC :: param_HMcode_Dvp
+   PUBLIC :: param_HMcode_Dv1
    PUBLIC :: param_HMcode_dc0
-   PUBLIC :: param_HMcode_dcp
+   PUBLIC :: param_HMcode_dc1
    PUBLIC :: param_HMcode_eta0
    PUBLIC :: param_HMcode_eta1
    PUBLIC :: param_HMcode_f0
-   PUBLIC :: param_HMcode_fp
+   PUBLIC :: param_HMcode_f1
    PUBLIC :: param_HMcode_kstar
    PUBLIC :: param_HMcode_As
    PUBLIC :: param_HMcode_alpha0
@@ -212,8 +212,7 @@ MODULE HMx
       INTEGER :: idc, iDv, ieta, i2hdamp, i1hdamp, itrans
       
       ! Flags for sigma 
-      INTEGER :: flag_sigma, flag_sigmaV_kstar, flag_sigma_fdamp
-      INTEGER :: flag_sigma_eta, flag_sigma_deltac, flag_sigmaV_fdamp
+      INTEGER :: flag_sigma
 
       ! Void stuff
       LOGICAL :: add_voids
@@ -264,8 +263,8 @@ MODULE HMx
       INTEGER :: nk
 
       ! HMcode parameters and experimental parameters
-      REAL :: knl, rnl, mnl, neff, Rh, Mh, Mp, sigV_all, sig8_all
-      REAL :: sig_eta, sig_deltac, sig_fdamp, sigV_kstar, sigV_fdamp
+      REAL :: knl, rnl, mnl, neff, Rh, Mh, Mp, sigv
+      !REAL :: sig_eta, sig_deltac, sig_fdamp, sigV_kstar, sigV_fdamp, sigV_all, sig8_all
 
       ! Saturation parameters (e.g., WDM)
       REAL :: nu_saturation
@@ -279,7 +278,8 @@ MODULE HMx
       REAL :: gmin, gmax, gbmin, gbmax, gnorm
 
       ! HMcode parameters
-      REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1, Dvnu, dcnu!, g0, g1   
+      REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1, Dvnu, dcnu
+      REAL :: HMcode_kstar, HMcode_fdamp, HMcode_alpha, HMcode_eta, HMcode_A
       LOGICAL :: DMONLY_baryon_recipe, DMONLY_neutrino_correction
 
       ! HMcode (2020) parameters
@@ -460,13 +460,13 @@ MODULE HMx
    INTEGER, PARAMETER :: param_Twhimz = 19
    INTEGER, PARAMETER :: param_eta = 20
    INTEGER, PARAMETER :: param_HMcode_Dv0 = 21
-   INTEGER, PARAMETER :: param_HMcode_Dvp = 22
+   INTEGER, PARAMETER :: param_HMcode_Dv1 = 22
    INTEGER, PARAMETER :: param_HMcode_dc0 = 23
-   INTEGER, PARAMETER :: param_HMcode_dcp = 24
+   INTEGER, PARAMETER :: param_HMcode_dc1 = 24
    INTEGER, PARAMETER :: param_HMcode_eta0 = 25
    INTEGER, PARAMETER :: param_HMcode_eta1 = 26
    INTEGER, PARAMETER :: param_HMcode_f0 = 27
-   INTEGER, PARAMETER :: param_HMcode_fp = 28
+   INTEGER, PARAMETER :: param_HMcode_f1 = 28
    INTEGER, PARAMETER :: param_HMcode_kstar = 29
    INTEGER, PARAMETER :: param_HMcode_As = 30
    INTEGER, PARAMETER :: param_HMcode_alpha0 = 31
@@ -671,14 +671,8 @@ CONTAINS
       ! 8 - Duffy et al. (2008; astro-ph/0804.2486): relaxed 200c
       hmod%iconc = 4
 
-      ! How to calculate sigma(R); either cold matter or all matter
-      ! Defaults are from HMcode (2016)
+      ! How to calculate sigma(R); either cold matter (two definitions) or all matter
       hmod%flag_sigma = flag_power_cold_unorm
-      hmod%flag_sigma_deltac = flag_power_total
-      hmod%flag_sigma_eta = flag_power_total
-      hmod%flag_sigma_fdamp = flag_power_total  ! Used in HMcode (2015)
-      hmod%flag_sigmaV_fdamp = flag_power_total ! Used in HMcode (2016)
-      hmod%flag_sigmaV_kstar = flag_power_total
 
       ! Linear collapse threshold delta_c
       ! 1 - Fixed 1.686
@@ -1113,7 +1107,7 @@ CONTAINS
          ! 51 - HMcode (2016) but with CAMB halo mass range and number of points
          ! 53 - HMcode (2016) updated Nelder-Mead parameters
          ! 64 - HMcode (2016) but with 2020 baryon recipe
-         ! 66 - HMcode (2015) but with CAMB halo mass range and number of points
+         ! 66 - HMcode (2015) but with CAMB halo mass range and number of mass points
          hmod%ip2h = 1
          hmod%i1hdamp = 1
          hmod%iconc = 1
@@ -1126,10 +1120,6 @@ CONTAINS
          hmod%iDolag = 2
          hmod%zinf_Dolag = 10.
          hmod%flag_sigma = flag_power_cold_unorm
-         hmod%flag_sigma_deltac = flag_power_total
-         hmod%flag_sigma_eta = flag_power_total
-         hmod%flag_sigmaV_fdamp = flag_power_total
-         hmod%flag_sigmaV_kstar = flag_power_total
          hmod%DMONLY_neutrino_correction = .FALSE.
          hmod%Dv0 = 418.
          hmod%Dv1 = -0.352
@@ -1146,7 +1136,8 @@ CONTAINS
          hmod%Dvnu = 0.916
          hmod%dcnu = 0.262
          IF (ihm == 7 .OR. ihm == 66) THEN
-            ! HMcode (2015)
+            !  7 - HMcode (2015)
+            ! 66 - HMcode (2015) but with CAMB halo mass range and number of mass points
             hmod%idc = 6
             hmod%i2hdamp = 1
             hmod%itrans = 1
@@ -1157,9 +1148,9 @@ CONTAINS
             hmod%alp1 = 1.77       
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
-            hmod%flag_sigma_fdamp = flag_power_total ! Used in HMcode (2015) only
+            hmod%flag_sigma = flag_power_total
             IF (ihm == 66) THEN
-               ! CAMB mass range and number of points
+               ! 66 - HMcode (2015) but with CAMB halo mass range and number of mass points
                hmod%mmin = 1e0  ! Lower mass limit for integration [Msun/h]
                hmod%mmax = 1e18 ! Upper mass limit for integration [Msun/h]
                hmod%n = 256     ! Number of points in halo mass
@@ -1831,27 +1822,22 @@ CONTAINS
       hmod%has_bnl = .FALSE.
 
       ! Find and save values of sigma
-      ! TODO: This is a bit of a mess
-      hmod%sigV_all = sigmaV(0., a, flag_power_total, cosm) ! TODO: Is this always necessary?
-      hmod%sig8_all = sigma(8., a, flag_power_total, cosm)
-      IF (hmod%idc == 3 .OR. hmod%idc == 6) hmod%sig_deltac = sigma(8., a, hmod%flag_sigma_deltac, cosm)
-      IF (hmod%ieta == 1) hmod%sig_eta = sigma(8., a, hmod%flag_sigma_eta, cosm)
-      IF (hmod%i1hdamp .NE. 0) hmod%sigV_kstar = sigmaV(0., a, hmod%flag_sigmaV_kstar, cosm)
-      IF (hmod%i2hdamp == 1 .OR. hmod%i2hdamp == 3) hmod%sig_fdamp = sigma(8., a, hmod%flag_sigma_fdamp, cosm)
-      IF (hmod%i2hdamp == 2) hmod%sigV_fdamp = sigmaV(100., a, hmod%flag_sigmaV_fdamp, cosm)
+      ! TODO: This is only necessary for some halo models
+      hmod%sigv = sigmaV(0., a, flag_power_total, cosm) 
 
       ! Calcuate delta_c and Delta_v
       ! Sometimes these calculations rely on the sigma that should be calculated before this
       hmod%dc = delta_c(hmod, cosm)
       hmod%Dv = Delta_v(hmod, cosm)
 
+      ! Write to screen
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Initialising calculation'
          WRITE (*, *) 'INIT_HALOMOD: Tables being filled at redshift:', REAL(z)
          WRITE (*, *) 'INIT_HALOMOD: Tables being filled at scale-factor:', REAL(a)
-         WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigV_all)
+         WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigv)
          !IF (hmod%i2hdamp == 3) WRITE (*, *) 'INIT_HALOMOD: sigmaV_100 [Mpc/h]:', REAL(hmod%sigV100_all)
-         WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (all):', REAL(hmod%sig8_all)
+         !WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (all):', REAL(hmod%sig8_all)
          !WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (cold):', REAL(hmod%sig8_cold)
          WRITE (*, *) 'INIT_HALOMOD: Delta_v:', REAL(hmod%Dv)
          WRITE (*, *) 'INIT_HALOMOD: delta_c:', REAL(hmod%dc)
@@ -1948,7 +1934,7 @@ CONTAINS
 
       ! Find non-linear radius and scale
       ! This is defined as nu(M_star)=1 *not* sigma(M_star)=1, so depends on delta_c
-      ! TODO: Not necessary for some halo models
+      ! TODO: Is this always necessary?
       hmod%rnl = r_nl(hmod)
       hmod%mnl = mass_r(hmod%rnl, cosm)
       hmod%knl = 1./hmod%rnl
@@ -1981,8 +1967,24 @@ CONTAINS
          WRITE (*, *) 'INIT_HALOMOD: Omega_* / Omega_m:', Om_stars/cosm%Om_m
       END IF
 
+      ! Calculate HMcode things
+      ! TODO: Not necessary for some halo models
+      hmod%HMcode_kstar = HMcode_kstar(hmod, cosm)
+      hmod%HMcode_fdamp = HMcode_fdamp(hmod, cosm)
+      hmod%HMcode_alpha = HMcode_alpha(hmod, cosm)
+      hmod%HMcode_eta = HMcode_eta(hmod, cosm)
+      hmod%HMcode_A = HMcode_A(hmod, cosm)
+      IF (verbose) THEN
+         WRITE (*, *) 'INIT_HALOMOD: k*:', hmod%HMcode_kstar
+         WRITE (*, *) 'INIT_HALOMOD: fdamp:', hmod%HMcode_fdamp
+         WRITE (*, *) 'INIT_HALOMOD: alpha:', hmod%HMcode_alpha
+         WRITE (*, *) 'INIT_HALOMOD: eta:', hmod%HMcode_eta
+         WRITE (*, *) 'INIT_HALOMOD: A:', hmod%HMcode_A
+      END IF
+
       ! Calculate the concentration-mass relation
-      ! Note that this requires mnl etc. for some c(M) relations. Do not move!
+      ! Note that this requires mnl etc. for some c(M) relations. 
+      ! This should be the final thing in init_halomod. Do not move!
       CALL fill_halo_concentration(hmod, cosm)
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Halo concentration tables filled'
@@ -2282,13 +2284,11 @@ CONTAINS
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMcode variables'
          WRITE (*, *) dashes
-         WRITE (*, fmt=fmt) 'eta:', HMcode_eta(hmod, cosm)
-         !IF(hmod%i1hdamp .NE. 1) WRITE (*, fmt=fmt) 'k*:', HMcode_kstar(hmod, cosm)
-         WRITE (*, fmt=fmt) 'k*:', HMcode_kstar(hmod, cosm)
-         WRITE (*, fmt=fmt) 'A:', HMcode_A(hmod, cosm)
-         !IF(hmod%i2hdamp .NE. 1) WRITE (*, fmt=fmt) 'fdamp:', HMcode_fdamp(hmod, cosm)
-         WRITE (*, fmt=fmt) 'fdamp:', HMcode_fdamp(hmod, cosm)
-         WRITE (*, fmt=fmt) 'alpha:', HMcode_alpha(hmod, cosm)
+         WRITE (*, fmt=fmt) 'k*:', hmod%HMcode_kstar
+         WRITE (*, fmt=fmt) 'fdamp:', hmod%HMcode_fdamp
+         WRITE (*, fmt=fmt) 'alpha:', hmod%HMcode_alpha
+         WRITE (*, fmt=fmt) 'eta:', hmod%HMcode_eta
+         WRITE (*, fmt=fmt) 'A:', hmod%HMcode_A
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMx parameters'
          WRITE (*, *) dashes
@@ -3048,7 +3048,7 @@ CONTAINS
       ! Loop over fields and get the total halo-model power
       DO i = 1, nf
          DO j = i, nf
-            pow_hm(i, j) = p_hm(k, pow_2h(i, j), pow_1h(i, j), hmod, cosm)
+            pow_hm(i, j) = p_hm(k, pow_2h(i, j), pow_1h(i, j), hmod)
          END DO
       END DO
 
@@ -3109,7 +3109,7 @@ CONTAINS
       END IF
 
       ! Get eta
-      eta = HMcode_eta(hmod, cosm)
+      eta = hmod%HMcode_eta
 
       ! Calculate the halo window functions for each field
       DO j = 1, nf
@@ -3303,7 +3303,7 @@ CONTAINS
       ELSE IF (hmod%ip2h == 3) THEN
 
          ! Damped BAO linear theory
-         p_2h = p_dewiggle(k, hmod%a, flag_power_total, hmod%sigV_all, cosm)
+         p_2h = p_dewiggle(k, hmod%a, flag_power_total, hmod%sigv, cosm)
 
       ELSE IF (hmod%ip2h == 4) THEN
 
@@ -3442,15 +3442,15 @@ CONTAINS
       ! Apply damping to the two-halo term
       IF (hmod%i2hdamp == 1 .OR. hmod%i2hdamp == 2) THEN
          ! Two-halo damping parameters
-         sigv = hmod%sigV_all
-         fdamp = HMcode_fdamp(hmod, cosm)
+         sigv = hmod%sigv
+         fdamp = hmod%HMcode_fdamp
          IF (fdamp == 0.) THEN
             p_2h = p_2h
          ELSE
             p_2h = p_2h*(1.-fdamp*(tanh(k*sigv/sqrt(abs(fdamp))))**2)
          END IF
       ELSE IF (hmod%i2hdamp == 3) THEN
-         fdamp = HMcode_fdamp(hmod, cosm)
+         fdamp = hmod%HMcode_fdamp
          kdamp = hmod%kdamp!*hmod%knl
          ndamp = 2.
          p_2h = p_2h*(1.-fdamp*((k/kdamp)**ndamp)/((k/kdamp)**ndamp+1.))
@@ -3572,7 +3572,7 @@ CONTAINS
          ! Do nothing
       ELSE IF (hmod%i1hdamp == 1) THEN
          ! Damping of the 1-halo term at very large scales
-         ks = HMcode_kstar(hmod, cosm)
+         ks = hmod%HMcode_kstar
          IF (ks == 0. .OR. ((k/ks)**2 > HMcode_ks_limit)) THEN
             ! Prevents problems if k/ks is very large
             fac = 0.
@@ -3583,7 +3583,7 @@ CONTAINS
       ELSE IF (hmod%i1hdamp == 2) THEN
          ! Note that the power here should be 4 because it multiplies Delta^2(k) ~ k^3 at low k (NOT 7)
          ! Want f(k<<ks) ~ k^4; f(k>>ks) = 1
-         ks = HMcode_kstar(hmod, cosm)
+         ks = hmod%HMcode_kstar
          IF (ks == 0.) THEN
             fac = 1.
          ELSE
@@ -3596,14 +3596,13 @@ CONTAINS
 
    END FUNCTION p_1h
 
-   REAL FUNCTION p_hm(k, pow_2h, pow_1h, hmod, cosm)
+   REAL FUNCTION p_hm(k, pow_2h, pow_1h, hmod)
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: pow_2h
       REAL, INTENT(IN) :: pow_1h
       TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: alpha, pow, con
 
       ! alpha is set to one sometimes, which is just the standard halo-model sum of terms
@@ -3626,7 +3625,7 @@ CONTAINS
          ELSE
 
             ! Do the standard smoothed transition
-            alpha = HMcode_alpha(hmod, cosm)
+            alpha = hmod%HMcode_alpha
             p_hm = (pow_2h**alpha+pow_1h**alpha)**(1./alpha)
 
          END IF
@@ -4205,7 +4204,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: a
+      REAL :: a, sig
 
       a = hmod%a
 
@@ -4217,7 +4216,8 @@ CONTAINS
          delta_c = dc_NakamuraSuto(a, cosm)
       ELSE IF (hmod%idc == 3 .OR. hmod%idc == 6) THEN
          ! From HMcode (2015)
-         delta_c = hmod%dc0+hmod%dc1*log(hmod%sig_deltac)
+         sig = sigma(8., a, flag_power_total, cosm)
+         delta_c = hmod%dc0+hmod%dc1*log(sig)
          IF (hmod%idc == 3) THEN
             ! HMcode(2016) addition of small cosmology and explicit neutrino dependence
             delta_c = delta_c*(1.+hmod%dcnu*cosm%f_nu)
@@ -4282,81 +4282,26 @@ CONTAINS
 
    END FUNCTION Delta_v
 
-   REAL FUNCTION HMcode_eta(hmod, cosm)
-
-      ! Calculates the eta that comes into the bastardised one-halo term
-      IMPLICIT NONE
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: eta0
-      REAL :: crap
-
-      ! To prevent compile-time warnings
-      crap = cosm%A
-
-      IF (hmod%ieta == 0) THEN
-         HMcode_eta = 0.
-      ELSE IF (hmod%ieta == 1) THEN
-         ! From HMcode(2015; arXiv 1505.07833, 2016)
-         IF (hmod%one_parameter_baryons) THEN
-            eta0 = 0.98-hmod%As*0.12
-         ELSE
-            eta0 = hmod%eta0
-         END IF
-         HMcode_eta = eta0-hmod%eta1*hmod%sig_eta
-      ELSE
-         STOP 'HMcode_ETA: Error, ieta defined incorrectly'
-      END IF
-
-   END FUNCTION HMcode_eta
-
    REAL FUNCTION HMcode_kstar(hmod, cosm)
 
       ! Calculates the one-halo damping wave number
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: sigv
       REAL :: crap
 
       ! To prevent compile-time warnings
       crap = cosm%A
 
       IF (hmod%i1hdamp == 1) THEN
-         HMcode_kstar = hmod%ks/hmod%sigV_kstar
+         sigv = sigmaV(0., hmod%a, flag_power_total, cosm)
+         HMcode_kstar = hmod%ks/sigv
       ELSE
          HMcode_kstar = hmod%ks!*hmod%knl
       END IF
 
    END FUNCTION HMcode_kstar
-
-   REAL FUNCTION HMcode_A(hmod, cosm)
-
-      ! Halo concentration pre-factor
-      IMPLICIT NONE
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: crap
-
-      ! To prevent compile-time warnings
-      crap = cosm%A
-
-      IF (hmod%iAs == 0) THEN
-         ! Set to 4 for the standard Bullock value
-         HMcode_A = 4.
-      ELSE IF (hmod%iAs == 1) THEN
-         ! This is the 'A' halo-concentration parameter in HMcode(2015; arXiv 1505.07833, 2016)
-         HMcode_A = hmod%As
-      ELSE IF (hmod%iAs == 2) THEN
-         ! HMcode (test)
-         HMcode_A = hmod%As*(hmod%sig8_all/0.8)**hmod%Ap+hmod%Ac
-      ELSE
-         STOP 'HMcode_A: Error, iAs defined incorrectly'
-      END IF
-
-      ! Now this is divided by 4 so as to be relative to the Bullock base result
-      HMcode_A = HMcode_A/4.
-
-   END FUNCTION HMcode_A
 
    REAL FUNCTION HMcode_fdamp(hmod, cosm)
 
@@ -4364,6 +4309,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: sig, sigv
       REAL :: crap
 
       ! To prevent compile-time warnings
@@ -4374,10 +4320,12 @@ CONTAINS
          HMcode_fdamp = 0.
       ELSE IF (hmod%i2hdamp == 1 .OR. hmod%i2hdamp == 3) THEN
          ! HMcode (2015)
-         HMcode_fdamp = hmod%f0*hmod%sig_fdamp**hmod%f1
+         sig = sigma(8., hmod%a, flag_power_total, cosm)
+         HMcode_fdamp = hmod%f0*sig**hmod%f1
       ELSE IF (hmod%i2hdamp == 2) THEN
          ! HMcode (2016)
-         HMcode_fdamp = hmod%f0*hmod%sigv_fdamp**hmod%f1
+         sigv = sigmaV(100., hmod%a, flag_power_total, cosm)
+         HMcode_fdamp = hmod%f0*sigv**hmod%f1
       ELSE
          STOP 'FDAMP_HMcode: Error, i2hdamp defined incorrectly'
       END IF
@@ -4393,7 +4341,8 @@ CONTAINS
       ! Calculates the alpha to smooth the two- to one-halo transition
       IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
-      TYPE(cosmology), INTENT(IN) :: cosm
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: n_eff
       REAL :: crap
 
       ! To prevent compile-time warnings
@@ -4401,24 +4350,30 @@ CONTAINS
 
       IF (hmod%itrans == 1) THEN
          ! From HMcode (2015, 2016)
+         !n_eff = hmod%neff
+         n_eff = effective_index(hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0
          ELSE
-            HMcode_alpha = hmod%alp0*(hmod%alp1**hmod%neff)
+            HMcode_alpha = hmod%alp0*(hmod%alp1**n_eff)
          END IF
       ELSE IF (hmod%itrans == 2) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
+         !n_eff = hmod%neff
+         n_eff = effective_index(hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**1.5
          ELSE
-            HMcode_alpha = (hmod%alp0*hmod%alp1**hmod%neff)**1.5
+            HMcode_alpha = (hmod%alp0*hmod%alp1**n_eff)**1.5
          END IF
       ELSE IF (hmod%itrans == 3) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
+         !n_eff = hmod%neff
+         n_eff = effective_index(hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**2.5
          ELSE
-            HMcode_alpha = (hmod%alp0*hmod%alp1**hmod%neff)**2.5
+            HMcode_alpha = (hmod%alp0*hmod%alp1**n_eff)**2.5
          END IF
       ELSE IF (hmod%itrans == 5) THEN
          HMcode_alpha = hmod%alp0
@@ -4431,6 +4386,66 @@ CONTAINS
       IF (HMcode_alpha > HMcode_alpha_max) HMcode_alpha = HMcode_alpha_max
 
    END FUNCTION HMcode_alpha
+
+   REAL FUNCTION HMcode_eta(hmod, cosm)
+
+      ! Calculates the eta that comes into the bastardised one-halo term
+      IMPLICIT NONE
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: eta0, sig
+      REAL :: crap
+
+      ! To prevent compile-time warnings
+      crap = cosm%A
+
+      IF (hmod%ieta == 0) THEN
+         HMcode_eta = 0.
+      ELSE IF (hmod%ieta == 1) THEN
+         ! From HMcode(2015; arXiv 1505.07833, 2016)
+         IF (hmod%one_parameter_baryons) THEN
+            eta0 = 0.98-hmod%As*0.12
+         ELSE
+            eta0 = hmod%eta0
+         END IF
+         sig = sigma(8., hmod%a, flag_power_total, cosm)
+         HMcode_eta = eta0-hmod%eta1*sig
+      ELSE
+         STOP 'HMcode_ETA: Error, ieta defined incorrectly'
+      END IF
+
+   END FUNCTION HMcode_eta
+
+   REAL FUNCTION HMcode_A(hmod, cosm)
+
+      ! Halo concentration pre-factor
+      IMPLICIT NONE
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: sig
+      REAL :: crap
+
+      ! To prevent compile-time warnings
+      crap = cosm%A
+
+      IF (hmod%iAs == 0) THEN
+         ! Set to 4 for the standard Bullock value
+         HMcode_A = 4.
+      ELSE IF (hmod%iAs == 1) THEN
+         ! This is the 'A' halo-concentration parameter in HMcode(2015; 2016)
+         HMcode_A = hmod%As
+      ELSE IF (hmod%iAs == 2) THEN
+         ! HMcode (test)
+         sig = sigma(8., hmod%a, flag_power_total, cosm)
+         HMcode_A = hmod%As*(sig/0.8)**hmod%Ap+hmod%Ac
+      ELSE
+         STOP 'HMcode_A: Error, iAs defined incorrectly'
+      END IF
+
+      ! Now this is divided by 4 so as to be relative to the Bullock base result
+      HMcode_A = HMcode_A/4.
+
+   END FUNCTION HMcode_A
 
    ! REAL FUNCTION HMcode_onehalodamping(k, hmod, cosm)
 
@@ -5572,7 +5587,7 @@ CONTAINS
       ! Power spectrum effective slope a the non-linear scale
       ! Defined as -3. + d ln sigma^2 / d ln r, so pertains to P(k) not Delta^2(k) in HMcode
       IMPLICIT NONE
-      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: imeth = 3
@@ -5647,7 +5662,7 @@ CONTAINS
          END IF
 
          ! Rescale halo concentrations via the 'A' HMcode parameter
-         hmod%c(i) = hmod%c(i)*HMcode_A(hmod, cosm)
+         hmod%c(i) = hmod%c(i)*hmod%HMcode_A
 
       END DO
 
