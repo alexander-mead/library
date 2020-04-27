@@ -53,7 +53,7 @@ MODULE HMx
    PUBLIC :: mean_halo_number_density
    PUBLIC :: virial_radius
    PUBLIC :: convert_mass_definitions
-   PUBLIC :: win_type
+   PUBLIC :: win
    PUBLIC :: UPP              ! TODO: Retire
    PUBLIC :: p_1void          ! TODO: Retire
    PUBLIC :: halo_HI_fraction ! TODO: Retire
@@ -1821,7 +1821,8 @@ CONTAINS
       hmod%has_mass_function = .FALSE.
       hmod%has_bnl = .FALSE.
 
-      ! Find and save values of sigma
+      ! Calculate sigma_v
+      ! TODO: This is really a 'cosmology' thing
       ! TODO: This is only necessary for some halo models
       hmod%sigv = sigmaV(0., a, flag_power_total, cosm) 
 
@@ -1836,9 +1837,6 @@ CONTAINS
          WRITE (*, *) 'INIT_HALOMOD: Tables being filled at redshift:', REAL(z)
          WRITE (*, *) 'INIT_HALOMOD: Tables being filled at scale-factor:', REAL(a)
          WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigv)
-         !IF (hmod%i2hdamp == 3) WRITE (*, *) 'INIT_HALOMOD: sigmaV_100 [Mpc/h]:', REAL(hmod%sigV100_all)
-         !WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (all):', REAL(hmod%sig8_all)
-         !WRITE (*, *) 'INIT_HALOMOD: sigma_8(z) (cold):', REAL(hmod%sig8_cold)
          WRITE (*, *) 'INIT_HALOMOD: Delta_v:', REAL(hmod%Dv)
          WRITE (*, *) 'INIT_HALOMOD: delta_c:', REAL(hmod%dc)
       END IF
@@ -3125,7 +3123,7 @@ CONTAINS
             rs = rv/c
             nu = hmod%nu(i)
 
-            wk(i, j) = win_type(real_space, fields(j), k*nu**eta, m, rv, rs, hmod, cosm)
+            wk(i, j) = win(real_space, fields(j), k*nu**eta, m, rv, rs, hmod, cosm)
 
          END DO
 
@@ -4145,7 +4143,7 @@ CONTAINS
       DO i = 1, n
          r = exp(progression(log(rmin), log(rmax), i, n))
          r = r*rv
-         WRITE (7, *) r/rv, (win_type(real_space, fields(j), r, m, rv, rs, hmod, cosm)*rv**3, j=1, nf) ! rv**3 here is from r^2 dr
+         WRITE (7, *) r/rv, (win(real_space, fields(j), r, m, rv, rs, hmod, cosm)*rv**3, j=1, nf) ! rv**3 here is from r^2 dr
       END DO
       CLOSE (7)
 
@@ -4192,7 +4190,7 @@ CONTAINS
       DO i = 1, n
          x = exp(progression(log(xmin), log(xmax), i, n))
          k = x/rv
-         WRITE (7, *) x, (win_type(rsp, fields(j), k, m, rv, rs, hmod, cosm)*rhobar/m, j=1, nf)
+         WRITE (7, *) x, (win(rsp, fields(j), k, m, rv, rs, hmod, cosm)*rhobar/m, j=1, nf)
       END DO
       CLOSE (7)
 
@@ -4295,7 +4293,8 @@ CONTAINS
       crap = cosm%A
 
       IF (hmod%i1hdamp == 1) THEN
-         sigv = sigmaV(0., hmod%a, flag_power_total, cosm)
+         !sigv = sigmaV(0., hmod%a, flag_power_total, cosm)
+         sigv = hmod%sigv
          HMcode_kstar = hmod%ks/sigv
       ELSE
          HMcode_kstar = hmod%ks!*hmod%knl
@@ -4350,8 +4349,8 @@ CONTAINS
 
       IF (hmod%itrans == 1) THEN
          ! From HMcode (2015, 2016)
-         !n_eff = hmod%neff
-         n_eff = effective_index(hmod, cosm)
+         n_eff = hmod%neff
+         !n_eff = effective_index(hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0
          ELSE
@@ -4359,8 +4358,8 @@ CONTAINS
          END IF
       ELSE IF (hmod%itrans == 2) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
-         !n_eff = hmod%neff
-         n_eff = effective_index(hmod, cosm)
+         n_eff = hmod%neff
+         !n_eff = effective_index(hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**1.5
          ELSE
@@ -4368,8 +4367,8 @@ CONTAINS
          END IF
       ELSE IF (hmod%itrans == 3) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
-         !n_eff = hmod%neff
-         n_eff = effective_index(hmod, cosm)
+         n_eff = hmod%neff
+         !n_eff = effective_index(hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**2.5
          ELSE
@@ -4446,54 +4445,6 @@ CONTAINS
       HMcode_A = HMcode_A/4.
 
    END FUNCTION HMcode_A
-
-   ! REAL FUNCTION HMcode_onehalodamping(k, hmod, cosm)
-
-   !    IMPLICIT NONE
-   !    REAL, INTENT(IN) :: k
-   !    TYPE(halomod), INTENT(IN) :: hmod
-   !    TYPE(cosmology), INTENT(IN) :: cosm
-   !    REAL :: ki
-
-   !    ki = hmod%ki
-
-   !    HMcode_onehalodamping = (k/ki)**4/(1.+(k/ki)**4)
-
-   ! END FUNCTION HMcode_onehalodamping
-
-   ! REAL FUNCTION HMcode_twohalodamping(k, hmod, cosm)
-
-   !    IMPLICIT NONE
-   !    REAL, INTENT(IN) :: k
-   !    TYPE(halomod), INTENT(IN) :: hmod
-   !    TYPE(cosmology), INTENT(IN) :: cosm
-   !    REAL :: kf, nf, ff, ke, ne
-   !    REAL :: F, E
-
-   !    ff = hmod%ff
-   !    kf = hmod%kf
-   !    nf = hmod%nf
-
-   !    ke = hmod%ke
-   !    ne = hmod%ne
-
-   !    F = 1.-ff*(hmod%sig8_all/0.8)*((k/kf)**nf)/((k/kf)**nf+1.)
-   !    E = exp(-(k/ke)**ne)
-   !    HMcode_twohalodamping = F*E
-
-   ! END FUNCTION HMcode_twohalodamping
-
-   ! REAL FUNCTION HMcode_transition(p2h, p1h, hmod, cosm)
-
-   !    IMPLICIT NONE
-   !    REAL, INTENT(INOUT) :: p2h
-   !    REAL, INTENT(INOUT) :: p1h
-   !    TYPE(halomod), INTENT(IN) :: hmod
-   !    TYPE(cosmology), INTENT(IN) :: cosm
-
-
-
-   ! END FUNCTION
 
    REAL FUNCTION pivot_mass(hmod)
 
@@ -5589,17 +5540,9 @@ CONTAINS
       IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: imeth = 3
-      LOGICAL, PARAMETER :: derivative = .FALSE.
       
       ! Numerical differentiation to find effective index at collapse
-      IF(derivative) THEN
-         STOP 'EFFECTIVE_INDEX: This should never be used ever again'
-         effective_index = -3.-derivative_table(log(hmod%rnl), log(hmod%rr), log(hmod%sig**2), hmod%n, iorder, imeth)
-      ELSE
-         effective_index = neff(hmod%rnl, hmod%a, hmod%flag_sigma, cosm)
-      END IF
+      effective_index = neff(hmod%rnl, hmod%a, hmod%flag_sigma, cosm)
 
       ! For some bizarre cosmologies r_nl is very small, so almost no collapse has occured
       ! In this case the n_eff calculation goes mad and needs to be fixed using this fudge.
@@ -5615,12 +5558,6 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: mnl, m, zc, z
       INTEGER :: i
-
-      ! iconc = 1: Full Bullock et al. (2001)
-      ! iconc = 2: Simple Bullock et al. (2001)
-      ! iconc = 3: Duffy et al. (2008): mean
-      ! iconc = 4: Duffy et al. (2008): virial
-      ! iconc = 5: Duffy et al. (2008): relaxed
 
       ! Get the redshift
       z = hmod%z
@@ -5937,7 +5874,7 @@ CONTAINS
 
    END FUNCTION mass_r
 
-   REAL FUNCTION win_type(real_space, ifield, k, m, rv, rs, hmod, cosm)
+   REAL FUNCTION win(real_space, ifield, k, m, rv, rs, hmod, cosm)
 
       ! Selects the halo profile type
       IMPLICIT NONE
@@ -5952,45 +5889,45 @@ CONTAINS
       REAL :: nu, mmin, mmax
 
       IF (ifield == field_dmonly) THEN
-         win_type = win_DMONLY(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_DMONLY(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_neutrino) THEN
-         win_type = win_neutrino(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_neutrino(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_matter) THEN
-         win_type = win_matter(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_matter(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_cdm) THEN
-         win_type = win_CDM(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_CDM(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_gas) THEN
-         win_type = win_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
+         win = win_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_stars) THEN
-         win_type = win_stars(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_stars(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_bound_gas) THEN
-         win_type = win_bound_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
+         win = win_bound_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_free_gas) THEN
-         win_type = win_free_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
+         win = win_free_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_electron_pressure) THEN
-         win_type = win_electron_pressure(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_electron_pressure(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_void) THEN
-         win_type = win_void(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_void(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_compensated_void) THEN
-         win_type = win_compensated_void(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_compensated_void(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_central_galaxies) THEN
-         win_type = win_centrals(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_centrals(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_satellite_galaxies) THEN
-         win_type = win_satellites(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_satellites(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_galaxies) THEN
-         win_type = win_galaxies(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_galaxies(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_HI) THEN
-         win_type = win_HI(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_HI(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_cold_gas) THEN
-         win_type = win_cold_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
+         win = win_cold_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_hot_gas) THEN
-         win_type = win_hot_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
+         win = win_hot_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_static_gas) THEN
-         win_type = win_static_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
+         win = win_static_gas(real_space, ifield, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_central_stars) THEN
-         win_type = win_central_stars(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_central_stars(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_satellite_stars) THEN
-         win_type = win_satellite_stars(real_space, k, m, rv, rs, hmod, cosm)
+         win = win_satellite_stars(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_CIB_353 .OR. ifield == field_CIB_545 .OR. ifield == field_CIB_857) THEN
          IF (ifield == field_CIB_353) THEN
             nu = 353.e9 ! Frequency [Hz]
@@ -6001,7 +5938,7 @@ CONTAINS
          ELSE
             STOP 'WIN_TYPE: Error, ifield specified incorrectly'
          END IF
-         win_type = win_CIB(real_space, nu, k, m, rv, rs, hmod, cosm)
+         win = win_CIB(real_space, nu, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_halo_11p0_11p5 .OR. ifield == field_halo_11p5_12p0 .OR. &
                ifield == field_halo_12p0_12p5 .OR. ifield == field_halo_12p5_13p0 .OR. &
                ifield == field_halo_13p0_13p5 .OR. ifield == field_halo_13p5_14p0 .OR. &
@@ -6033,13 +5970,13 @@ CONTAINS
          ELSE
             STOP 'WIN_TYPE: Error, ifield specified incorrectly'
          END IF
-         win_type = win_haloes(real_space, mmin, mmax, k, m, rv, rs, hmod, cosm)
+         win = win_haloes(real_space, mmin, mmax, k, m, rv, rs, hmod, cosm)
       ELSE
          WRITE (*, *) 'WIN_TYPE: ifield:', ifield
          STOP 'WIN_TYPE: Error, ifield specified incorreclty'
       END IF
 
-   END FUNCTION win_type
+   END FUNCTION win
 
    REAL FUNCTION win_DMONLY(real_space, k, m, rv, rs, hmod, cosm)
 
@@ -10029,7 +9966,7 @@ CONTAINS
       !Halo profiles
       DO j = 1, 2
          rs = rv/c
-         wk(j) = win_type(real_space, ih(j), k, m, rv, rs, hmod, cosm)
+         wk(j) = win(real_space, ih(j), k, m, rv, rs, hmod, cosm)
       END DO
 
       !Probability distribution
