@@ -2807,7 +2807,6 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
-      REAL :: plin
       REAL :: powg_2h(nk), powg_1h(nk), powg_hm(nk)
       REAL, ALLOCATABLE :: upow_2h(:, :, :), upow_1h(:, :, :), upow_hm(:, :, :)
       REAL :: hmcode_2h(nk), hmcode_1h(nk), hmcode_hm(nk)
@@ -2850,12 +2849,13 @@ CONTAINS
       DO i = 1, nk
 
          ! Get the linear power
-         plin = p_lin(k(i), hmod%a, flag_power_total, cosm)
-         pow_li(i) = plin
+         !plin = p_lin(k(i), hmod%a, flag_power_total, cosm)
+         !pow_li(i) = plin
+         pow_li(i) = plin(k(i), hmod%a, flag_power_total, cosm)
 
          ! Do the halo model calculation
          ! TODO: slow array accessing
-         CALL calculate_HMx_ka(iifield, nnf, k(i), plin, upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
+         CALL calculate_HMx_ka(iifield, nnf, k(i), pow_li(i), upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
 
          !IF (response) THEN
 
@@ -2869,8 +2869,8 @@ CONTAINS
          IF (hmod%response == 1 .OR. hmod%response == 2) THEN
 
             ! If doing a response then calculate a DMONLY prediction too
-            CALL calculate_HMx_ka(dmonly, 1, k(i), plin, powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
-            CALL calculate_HMx_ka(dmonly, 1, k(i), plin, hmcode_2h(i), hmcode_1h(i), hmcode_hm(i), hmcode, cosm)
+            CALL calculate_HMx_ka(dmonly, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
+            CALL calculate_HMx_ka(dmonly, 1, k(i), pow_li(i), hmcode_2h(i), hmcode_1h(i), hmcode_hm(i), hmcode, cosm)
 
             IF (hmod%response == 1) THEN
 
@@ -2941,7 +2941,7 @@ CONTAINS
 
    END FUNCTION is_matter_field
 
-   SUBROUTINE calculate_HMx_ka(ifield, nf, k, plin, pow_2h, pow_1h, pow_hm, hmod, cosm)
+   SUBROUTINE calculate_HMx_ka(ifield, nf, k, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm)
 
       ! Gets the one- and two-halo terms and combines them
       ! TODO: Include scatter in two-halo term
@@ -2949,7 +2949,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: nf
       INTEGER, INTENT(IN) :: ifield(nf)
       REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: plin
+      REAL, INTENT(IN) :: pow_li
       REAL, INTENT(OUT) :: pow_2h(nf, nf)
       REAL, INTENT(OUT) :: pow_1h(nf, nf)
       REAL, INTENT(OUT) :: pow_hm(nf, nf)
@@ -3001,7 +3001,7 @@ CONTAINS
                ih(2) = ifield(j)
                wk2(:, 1) = wk(:, i)
                wk2(:, 2) = wk(:, j)
-               pow_2h(i, j) = p_2h(ih, wk2, hmod%n, k, plin, hmod, cosm)
+               pow_2h(i, j) = p_2h(ih, wk2, hmod%n, k, pow_li, hmod, cosm)
             END DO
          END DO
 
@@ -3230,7 +3230,7 @@ CONTAINS
 
    END FUNCTION wk_product_scatter
 
-   REAL FUNCTION p_2h(ih, wk, n, k, plin, hmod, cosm)
+   REAL FUNCTION p_2h(ih, wk, n, k, pli, hmod, cosm)
 
       ! Produces the 'two-halo' power
       IMPLICIT NONE
@@ -3238,7 +3238,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: wk(n, 2)
       REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: plin
+      REAL, INTENT(IN) :: pli
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: sigv, fdamp, rhom, kdamp, ndamp
@@ -3260,7 +3260,7 @@ CONTAINS
       IF (hmod%ip2h == 1) THEN
 
          ! Simply linear theory
-         p_2h = plin
+         p_2h = pli
 
       ELSE IF (hmod%ip2h == 3) THEN
 
@@ -3295,7 +3295,7 @@ CONTAINS
 
          END IF
 
-         p_2h = plin*I2hs(1)*I2hs(2)
+         p_2h = pli*I2hs(1)*I2hs(2)
 
          IF (hmod%ibias == 2) THEN
 
@@ -3309,7 +3309,7 @@ CONTAINS
                CALL I_2h(ih(j), I2h, wk(:, j), n, hmod, cosm, ibias=2)
                I2hs(j) = I2h
             END DO
-            p_2h = p_2h+(plin**2)*I2hs(1)*I2hs(2)*rhom**2 ! TODO: Should rhom^2 really be here?
+            p_2h = p_2h+(pli**2)*I2hs(1)*I2hs(2)*rhom**2 ! TODO: Should rhom^2 really be here?
 
          ELSE IF (hmod%ibias == 3) THEN
 
@@ -3368,7 +3368,7 @@ CONTAINS
             IF (add_I_11)          Inl = Inl+Inl_11
             IF (add_I_12_and_I_21) Inl = Inl+Inl_12+Inl_21
 
-            p_2h = p_2h+plin*Inl
+            p_2h = p_2h+pli*Inl
 
          ELSE IF (hmod%ibias == 4) THEN
 

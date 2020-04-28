@@ -78,7 +78,7 @@ MODULE cosmology_functions
    ! Power and correlation
    PUBLIC :: Pk_Delta
    PUBLIC :: Delta_Pk
-   PUBLIC :: p_lin
+   PUBLIC :: plin
    PUBLIC :: calculate_plin
    PUBLIC :: p_dewiggle
    PUBLIC :: sigma8
@@ -1716,7 +1716,7 @@ CONTAINS
       IF (k == 0.) THEN
          xi_integrand = 0.
       ELSE
-         xi_integrand = sinc(k*r)*p_lin(k, a, flag, cosm)/k
+         xi_integrand = sinc(k*r)*plin(k, a, flag, cosm)/k
       END IF
 
    END FUNCTION xi_integrand
@@ -1748,7 +1748,7 @@ CONTAINS
       ELSE
          kr = (-1.+1./t)**alpha
          k = kr/r
-         xi_integrand_transformed = sinc(kr)*p_lin(k, a, flag, cosm)*alpha/(t*(1.-t))
+         xi_integrand_transformed = sinc(kr)*plin(k, a, flag, cosm)*alpha/(t*(1.-t))
       END IF
 
    END FUNCTION xi_integrand_transformed
@@ -1858,9 +1858,9 @@ CONTAINS
       REAL, PARAMETER :: a = 1.
 
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
-         cosm%A = cosm%A*sqrt(cosm%pval/p_lin(cosm%kval, a, flag_power_total, cosm))
+         cosm%A = cosm%A*sqrt(cosm%pval/plin(cosm%kval, a, flag_power_total, cosm))
       ELSE
-         fac = cosm%pval/p_lin(cosm%kval, a, flag_power_total, cosm)
+         fac = cosm%pval/plin(cosm%kval, a, flag_power_total, cosm)
          IF (cosm%scale_dependent_growth) THEN
             cosm%log_plina = cosm%log_plina+log(fac)
          ELSE
@@ -3169,13 +3169,13 @@ CONTAINS
 
       DO ia = 1, na
          DO ik = 1, nk
-            Pk(ik, ia) = p_lin(k(ik), a(ia), flag, cosm)
+            Pk(ik, ia) = plin(k(ik), a(ia), flag, cosm)
          END DO
       END DO
 
    END SUBROUTINE calculate_plin
 
-   REAL RECURSIVE FUNCTION p_lin(k, a, flag, cosm)
+   REAL RECURSIVE FUNCTION plin(k, a, flag, cosm)
 
       ! Linear matter power spectrum
       ! Must be a recursive function because normalise_power calls this function again
@@ -3200,16 +3200,16 @@ CONTAINS
       END IF
 
       IF (k <= kmin_plin) THEN
-         ! If p_lin happens to be foolishly called for 0 mode
+         ! If plin happens to be foolishly called for 0 mode
          ! This call should never happen, but may in integrals
-         p_lin = 0.
+         plin = 0.
       ELSE IF (k > kmax_plin) THEN
-         ! Avoids some issues if p_lin is called for absurdly high k values
+         ! Avoids some issues if plin is called for absurdly high k values
          ! For some reason crashes can occur if this is the case
-         p_lin = 0.
+         plin = 0.
       ELSE IF (cosm%box .AND. k < cosm%kbox) THEN
          ! If investigating effects caused by a finite box size
-         p_lin = 0.
+         plin = 0.
       ELSE
          IF (cosm%has_power) THEN
             IF(plin_extrap) THEN
@@ -3220,34 +3220,34 @@ CONTAINS
                IF(plin_extrap .AND. k > kmax) THEN
                   pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk,:), cosm%na_plin, &
                      iorder, ifind, imeth))
-                  p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%ns)
+                  plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
                ELSE
-                  p_lin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin,&
+                  plin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin,&
                      cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, iinterp_polynomial))
                END IF
             ELSE
                IF(plin_extrap .AND. k > kmax) THEN
                   pmax = exp(cosm%log_plin(nk))
-                  p_lin = p_lin_extrapolation(k, kmax, pmax, cosm%ns)
+                  plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
                ELSE
-                  p_lin = exp(find(log(k), cosm%log_k_plin, cosm%log_plin, cosm%nk_plin, iorder, ifind, imeth))
+                  plin = exp(find(log(k), cosm%log_k_plin, cosm%log_plin, cosm%nk_plin, iorder, ifind, imeth))
                END IF
-               p_lin = (grow(a, cosm)**2)*p_lin
+               plin = (grow(a, cosm)**2)*plin
             END IF
          ELSE
             ! In this case get the power from the transfer function
-            p_lin = (cosm%A**2)*(grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%ns+3.))
+            plin = (cosm%A**2)*(grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%ns+3.))
          END IF
       END IF
 
       IF (flag == flag_power_cold .OR. flag == flag_power_cold_unorm) THEN
-         p_lin = p_lin*Tcold(k, a, cosm)**2
-         IF (flag == flag_power_cold_unorm) p_lin = p_lin/(1.-cosm%f_nu)**2
+         plin = plin*Tcold(k, a, cosm)**2
+         IF (flag == flag_power_cold_unorm) plin = plin/(1.-cosm%f_nu)**2
       END IF
 
-   END FUNCTION p_lin
+   END FUNCTION plin
 
-   REAL FUNCTION p_lin_extrapolation(k,kmax,pmax,ns)
+   REAL FUNCTION plin_extrapolation(k,kmax,pmax,ns)
 
       ! Extrapolate linear power at small scales assuming Delta^2(k) goes like ln(k)^2 k^(n-1)
       ! This works really badly if kmax is not high enough; maybe best just to use power-law
@@ -3259,9 +3259,9 @@ CONTAINS
       REAL, INTENT(IN) :: pmax ! Delta^2(k) at maximum wavenumber
       REAL, INTENT(IN) :: ns   ! Specral index
 
-      p_lin_extrapolation = pmax*((log(k)/log(kmax))**2)*(k/kmax)**(ns-1.)
+      plin_extrapolation = pmax*((log(k)/log(kmax))**2)*(k/kmax)**(ns-1.)
 
-   END FUNCTION p_lin_extrapolation
+   END FUNCTION plin_extrapolation
 
    SUBROUTINE init_sigma(cosm)
 
@@ -3481,7 +3481,7 @@ CONTAINS
          kR = (-1.+1./t)**alpha
          k = kR/R
          w_hat = wk_tophat(kR)
-         sigma2_integrand = p_lin(k, a, flag, cosm)*(w_hat**2)*alpha/(t*(1.-t))
+         sigma2_integrand = plin(k, a, flag, cosm)*(w_hat**2)*alpha/(t*(1.-t))
       END IF
 
    END FUNCTION sigma2_integrand
@@ -3533,7 +3533,7 @@ CONTAINS
             k = kR/R
          END IF
          w_hat = wk_tophat(kR)
-         sigmaV2_integrand = (p_lin(k, a, flag, cosm)/k**2)*(w_hat**2)*alpha/(t*(1.-t))
+         sigmaV2_integrand = (plin(k, a, flag, cosm)/k**2)*(w_hat**2)*alpha/(t*(1.-t))
       END IF
 
    END FUNCTION sigmaV2_integrand
@@ -3592,7 +3592,7 @@ CONTAINS
          k = kR/R
          w_hat = wk_tophat(kR)
          w_hat_deriv = wk_tophat_deriv(kR)
-         dsigma_integrand = p_lin(k, a, flag, cosm)*w_hat*w_hat_deriv*kR*alpha/(t*(1.-t))     
+         dsigma_integrand = plin(k, a, flag, cosm)*w_hat*w_hat_deriv*kR*alpha/(t*(1.-t))     
       END IF
 
    END FUNCTION dsigma_integrand
@@ -3654,7 +3654,7 @@ CONTAINS
          w_hat = wk_tophat(kR)
          dw_hat = wk_tophat_deriv(kR)
          ddw_hat = wk_tophat_dderiv(kR)
-         ddsigma_integrand = p_lin(k, a, flag, cosm)*(w_hat*ddw_hat+dw_hat**2)*(kR**2)*alpha/(t*(1.-t))     
+         ddsigma_integrand = plin(k, a, flag, cosm)*(w_hat*ddw_hat+dw_hat**2)*(kR**2)*alpha/(t*(1.-t))     
       END IF
 
    END FUNCTION ddsigma_integrand
@@ -6589,27 +6589,27 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array
       TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
       INTEGER, OPTIONAL, INTENT(IN) :: version ! HALOFIT version
-      REAL :: Plin(nk), Pq(nk), Ph(nk), Pnl(nk)
+      REAL :: Pli(nk), Pq(nk), Ph(nk), Pnl(nk)
       INTEGER :: j
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       ALLOCATE(Pk(nk, na))
 
       DO j = 1, na
-         CALL calculate_HALOFIT_a(k, a(j), Plin, Pq, Ph, Pnl, nk, cosm, verbose, version)
+         CALL calculate_HALOFIT_a(k, a(j), Pli, Pq, Ph, Pnl, nk, cosm, verbose, version)
          Pk(:, j) = Pnl
       END DO
 
    END SUBROUTINE calculate_HALOFIT
 
-   SUBROUTINE calculate_HALOFIT_a(k, a, Plin, Pq, Ph, Pnl, n, cosm, verbose, ihf)
+   SUBROUTINE calculate_HALOFIT_a(k, a, Pli, Pq, Ph, Pnl, n, cosm, verbose, ihf)
 
       ! Get a HALOFIT P(k,a) prediction
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n       ! Size of input k array
       REAL, INTENT(IN) :: k(n)       ! Array of wavenumbers
       REAL, INTENT(IN) :: a          ! Scale factor
-      REAL, INTENT(OUT) :: Plin(n)   ! Output array of linear power
+      REAL, INTENT(OUT) :: Pli(n)   ! Output array of linear power
       REAL, INTENT(OUT) :: Pq(n)     ! Output array of quasi-linear power
       REAL, INTENT(OUT) :: Ph(n)     ! Output array of halo power
       REAL, INTENT(OUT) :: Pnl(n)    ! Output array of HALOFIT power
@@ -6622,8 +6622,8 @@ CONTAINS
       CALL HALOFIT_init(rknl, rneff, rncur, a, cosm, verbose)
 
       DO i = 1, n
-         Plin(i) = p_lin(k(i), a, flag_power_total, cosm)
-         CALL HALOFIT(k(i), rneff, rncur, rknl, Plin(i), Pnl(i), Pq(i), Ph(i), a, cosm, ihf)
+         Pli(i) = plin(k(i), a, flag_power_total, cosm)
+         CALL HALOFIT(k(i), rneff, rncur, rknl, Pli(i), Pnl(i), Pq(i), Ph(i), a, cosm, ihf)
       END DO
 
    END SUBROUTINE calculate_HALOFIT_a
@@ -6649,7 +6649,7 @@ CONTAINS
          t = (float(i)-0.5)/float(nint)
          y = -1.+1./t
          rk = y
-         d2 = p_lin(rk, a, flag_power_total, cosm)
+         d2 = plin(rk, a, flag_power_total, cosm)
          x = y*r
          w1 = exp(-x*x)
          w2 = 2*x*x*w1
@@ -6667,7 +6667,7 @@ CONTAINS
 
    END SUBROUTINE wint_HALOFIT
 
-   SUBROUTINE HALOFIT(rk, rn, rncur, rknl, plin, pnl, pq, ph, a, cosm, ihf)
+   SUBROUTINE HALOFIT(rk, rn, rncur, rknl, pli, pnl, pq, ph, a, cosm, ihf)
 
       ! Calculates the HALOFIT power spectrum after rn, rncur and rknl have been pre-calculated
       ! ihf = 1 - Smith et al. 2003 (astro-ph/0207664)
@@ -6680,7 +6680,7 @@ CONTAINS
       REAL, INTENT(IN) :: rn
       REAL, INTENT(IN) :: rncur
       REAL, INTENT(IN) :: rknl
-      REAL, INTENT(IN) :: plin
+      REAL, INTENT(IN) :: pli
       REAL, INTENT(OUT) :: pnl
       REAL, INTENT(OUT) :: pq
       REAL, INTENT(OUT) :: ph
@@ -6799,7 +6799,7 @@ CONTAINS
          fy = y/4.+y**2/8.                                    ! Smith (below C2)
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Smith (C4)
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Smith (C3)
-         pq = plin*(1.+plin)**beta/(1.+plin*alpha)*exp(-fy)   ! Smith (C2)
+         pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)   ! Smith (C2)
       ELSE IF (ihf == HALOFIT_Bird .OR. ihf == HALOFIT_Bird_paper) THEN
          ! Bird et al. (2012)
          fy = y/4.+y**2/8.
@@ -6807,21 +6807,21 @@ CONTAINS
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Bird equation (A1)
          Q = fnu*(2.080-12.4*(Om_m-0.3))/(1.+(1.2e-3)*y**3)   ! Bird equation (A6)
          ph = ph*(1.+Q)                                       ! Bird equation (A7)
-         pq = plin*(1.+(26.3*fnu*rk**2.)/(1.+1.5*rk**2))      ! Bird equation (A9)
-         pq = plin*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)       ! Bird equation (A8)
+         pq = pli*(1.+(26.3*fnu*rk**2.)/(1.+1.5*rk**2))      ! Bird equation (A9)
+         pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)       ! Bird equation (A8)
       ELSE IF (ihf == HALOFIT_Takahashi) THEN
          ! Takahashi et al. (2012)
          fy = y/4.+y**2/8.                                    ! Takahashi equation (below A2)
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Takahashi equation (A3ii)
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Takahashi equation (A3i)
-         pq = plin*(1.+plin)**beta/(1.+plin*alpha)*exp(-fy)   ! Takahashi equation (A2)
+         pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)   ! Takahashi equation (A2)
       ELSE IF (ihf == HALOFIT_CAMB) THEN
          ! Unpublished CAMB stuff from halofit_ppf.f90
          fy = y/4.+y**2/8.
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam))
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))*(1.+fnu*0.977)    ! CAMB; halofit_ppf.f90; halofit
-         pq = plin*(1.+fnu*47.48*rk**2/(1.+1.5*rk**2))        ! CAMB; halofit_ppf.f90; halofit
-         pq = plin*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)
+         pq = pli*(1.+fnu*47.48*rk**2/(1.+1.5*rk**2))        ! CAMB; halofit_ppf.f90; halofit
+         pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)
       ELSE
          STOP 'HALOFIT: Error, ihf specified incorrectly'
       END IF
@@ -6965,7 +6965,7 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = 3
       INTEGER, PARAMETER :: imeth = 2
 
-      p_linear = p_lin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle
+      p_linear = plin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle
       IF (.NOT. cosm%has_wiggle) CALL init_wiggle(cosm)
       p_wiggle = find(log(k), cosm%log_k_plin, cosm%p_wiggle, cosm%nk_plin, iorder, ifind, imeth)
       f = exp(-(k*sigv)**2)
