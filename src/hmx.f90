@@ -2738,10 +2738,6 @@ CONTAINS
       INTEGER, PARAMETER :: field(1) = [field_DMONLY]
       INTEGER, PARAMETER :: nf = 1
 
-      !ALLOCATE(pow_li(nk, na), pow_2h(nk, na), pow_1h(nk, na), pow_hm(nk, na))
-      ! DO ia = 1, na
-      !   CALL calculate_halomod_a(k, a(ia), pow_li, pow_2h, pow_1h, pow_hm, nk, cosm, ihm)
-      !END DO
       CALL calculate_HMx_full(field, k, a, pow_li, pows_2h, pows_1h, pows_hm, nf, nk, na, cosm, ihm)
 
       ALLOCATE(pow_2h(nk, na), pow_1h(nk, na), pow_hm(nk, na))
@@ -2944,15 +2940,6 @@ CONTAINS
          ! Do the halo model calculation
          ! TODO: slow array accessing
          CALL calculate_HMx_ka(iifield, nnf, k(i), pow_li(i), upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
-
-         !IF (response) THEN
-
-            ! If doing a response then calculate a DMONLY prediction too
-            !CALL calculate_HMx_ka(dmonly, 1, k(i), plin, powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
-            !pow_li(i) = 1.                             ! This is just linear-over-linear, which is one
-            !upow_2h(:, :, i) = upow_2h(:, :, i)/powg_2h(i) ! Two-halo response (slow array accessing)
-            !upow_1h(:, :, i) = upow_1h(:, :, i)/powg_1h(i) ! One-halo response (slow array accessing)
-            !upow_hm(:, :, i) = upow_hm(:, :, i)/powg_hm(i) ! Full model response (slow array accessing)
 
          IF (hmod%response == 1 .OR. hmod%response == 2) THEN
 
