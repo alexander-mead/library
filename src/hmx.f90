@@ -33,7 +33,6 @@ MODULE HMx
    PUBLIC :: write_power_fields
 
    ! Calculations
-   PUBLIC :: calculate_P_lin
    PUBLIC :: calculate_HMx
    PUBLIC :: calculate_HMx_a ! TODO: Remove (hard task)
    PUBLIC :: calculate_HMcode
@@ -2651,26 +2650,6 @@ CONTAINS
 
    END SUBROUTINE set_halo_type
 
-   SUBROUTINE calculate_P_lin(k, a, Pk, nk, na, cosm)
-
-      ! Get the linear power for a cosmology for a range of k and a
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: nk              ! Number of wavenumbers
-      INTEGER, INTENT(IN) :: na              ! Number of scale factors
-      REAL, INTENT(IN) :: k(nk)              ! Array of wavenumbers [h/Mpc]
-      REAL, INTENT(IN) :: a(na)              ! Array of scale factors
-      REAL, INTENT(OUT) :: Pk(nk, na)         ! Output power array, note that this is Delta^2(k), not P(k)
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER :: i, j
-
-      DO j = 1, na
-         DO i = 1, nk
-            Pk(i, j) = P_lin(k(i), a(j), flag_power_total, cosm)
-         END DO
-      END DO
-
-   END SUBROUTINE calculate_P_lin
-
    SUBROUTINE calculate_HMcode(k, a, Pk, nk, na, cosm, version)
 
       ! Get the HMcode prediction for a cosmology for a range of k and a
@@ -2694,10 +2673,6 @@ CONTAINS
          STOP 'CALCULATE_HMCODE: Error, you have asked for an HMcode version that is not supported'
       END IF
 
-      !ALLOCATE(Pk(nk, na))
-      !DO j = 1, na
-      !   CALL calculate_halomodel_a(k, a(j), Pk(:, j), nk, cosm, ihm)
-      !END DO
       CALL calculate_halomod(k, a, Pk, nk, na, cosm, ihm)
 
    END SUBROUTINE calculate_HMcode

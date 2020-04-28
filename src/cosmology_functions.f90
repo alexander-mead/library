@@ -79,6 +79,7 @@ MODULE cosmology_functions
    PUBLIC :: Pk_Delta
    PUBLIC :: Delta_Pk
    PUBLIC :: p_lin
+   PUBLIC :: calculate_plin
    PUBLIC :: p_dewiggle
    PUBLIC :: sigma8
    PUBLIC :: sigma
@@ -86,7 +87,6 @@ MODULE cosmology_functions
    PUBLIC :: neff
    PUBLIC :: ncur
    PUBLIC :: xi_lin
-   PUBLIC :: calculate_plin
    PUBLIC :: flag_power_total
    PUBLIC :: flag_power_cold
    PUBLIC :: flag_power_cold_unorm
