@@ -6,16 +6,16 @@ PROGRAM cosmology_functions_test
   USE cosmology_functions
 
   IMPLICIT NONE
-  LOGICAL :: fail
-  LOGICAL, PARAMETER :: verbose=.FALSE.
+  LOGICAL :: fail_main
+  LOGICAL, PARAMETER :: verbose_main = .FALSE.
 
   WRITE(*,*)
 
-  CALL test_EdS(fail,verbose)
+  CALL test_EdS(fail_main, verbose_main)
 
 CONTAINS
 
-  SUBROUTINE test_EdS(fail,verbose)
+  SUBROUTINE test_EdS(fail, verbose)
 
     IMPLICIT NONE
     LOGICAL, INTENT(OUT) :: fail

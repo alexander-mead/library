@@ -5,31 +5,31 @@ PROGRAM array_operations_test
 
   IMPLICIT NONE
 
-  LOGICAL :: fail
-  LOGICAL, PARAMETER :: verbose=.FALSE.
+  LOGICAL :: fail_main
+  LOGICAL, PARAMETER :: verbose_main = .FALSE.
 
   ! Initial white space
   WRITE(*,*)
 
   ! Tests
-  CALL test_reverse_array(fail,verbose)
-  CALL test_swap_arrays(fail,verbose)
-  CALL test_remove_repeated_entries(fail,verbose)
-  CALL test_remove_array_element(fail,verbose)
-  CALL test_repeated_entries(fail,verbose)
-  CALL test_number_of_appearances(fail,verbose)
-  CALL test_array_positions(fail,verbose)
-  CALL test_unique_entries(fail,verbose)
-  CALL test_amputate_array(fail,verbose)
-  CALL test_unique_index(fail,verbose)
-  CALL test_fill_array(fail,verbose)
-  CALL test_splay(fail,verbose)
-  CALL test_reduce_array(fail,verbose)
-  CALL test_regular_spacing(fail)
+  CALL test_reverse_array(fail_main, verbose_main)
+  CALL test_swap_arrays(fail_main, verbose_main)
+  CALL test_remove_repeated_entries(fail_main, verbose_main)
+  CALL test_remove_array_element(fail_main, verbose_main)
+  CALL test_repeated_entries(fail_main, verbose_main)
+  CALL test_number_of_appearances(fail_main, verbose_main)
+  CALL test_array_positions(fail_main, verbose_main)
+  CALL test_unique_entries(fail_main, verbose_main)
+  CALL test_amputate_array(fail_main, verbose_main)
+  CALL test_unique_index(fail_main, verbose_main)
+  CALL test_fill_array(fail_main, verbose_main)
+  CALL test_splay(fail_main, verbose_main)
+  CALL test_reduce_array(fail_main, verbose_main)
+  CALL test_regular_spacing(fail_main)
 
 CONTAINS
 
-  SUBROUTINE test_reverse_array(fail,verbose)
+  SUBROUTINE test_reverse_array(fail, verbose)
 
     IMPLICIT NONE
     LOGICAL, INTENT(OUT) :: fail
