@@ -1831,7 +1831,7 @@ CONTAINS
 
    END SUBROUTINE Cl_contribution
 
-   SUBROUTINE xpow_halomod(ix, nx, ell, Cl, nl, hmod, cosm, verbose)
+   SUBROUTINE xpow_halomod(ix, nx, ell, Cl, nl, cosm, ihm, verbose)
 
       ! Calculates the C(l) for the cross correlation of fields ix(1) and ix(2)
       ! TODO: Speed up if there are repeated fields in ix(n) (should this ever happen?)
@@ -1844,8 +1844,9 @@ CONTAINS
       REAL, INTENT(IN) :: ell(nl)
       REAL, INTENT(OUT) :: Cl(nl, nx, nx)
       INTEGER, INTENT(IN) :: nl
-      TYPE(halomod), INTENT(INOUT) :: hmod
+      !TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER, INTENT(INOUT) :: ihm
       LOGICAL, INTENT(IN) :: verbose
       REAL, ALLOCATABLE :: a(:), k(:), pow_li(:, :), pow_2h(:, :, :, :), pow_1h(:, :, :, :), pow_hm(:, :, :, :)
       REAL :: lmin, lmax
@@ -1899,7 +1900,8 @@ CONTAINS
       END DO
 
       ! Do the halo model power spectrum calculation
-      CALL calculate_HMx(ip, nnx, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
+      !CALL calculate_HMx(ip, nnx, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
+      CALL calculate_HMx_full(ip, k, a, pow_li, pow_2h, pow_1h, pow_hm, nnx, nk, na, cosm, ihm)
 
       ! Set the Cl to zero initially
       uCl = 0.

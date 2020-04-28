@@ -32,11 +32,14 @@ MODULE HMx
    PUBLIC :: write_power_a_multiple
    PUBLIC :: write_power_fields
 
-   ! Calculations
-   PUBLIC :: calculate_HMx
-   PUBLIC :: calculate_HMx_a ! TODO: Remove (hard task)
+   ! Calculations  
+   PUBLIC :: calculate_HMx      ! TODO: Replace calculate_HMx with this
+   PUBLIC :: calculate_HMx_full ! TODO: Replace calculate_HMx with this
+   PUBLIC :: calculate_HMx_old  ! TODO: Replace with the new version
+   PUBLIC :: calculate_HMx_a    ! TODO: Remove (hard task)
    PUBLIC :: calculate_HMcode
    PUBLIC :: calculate_halomod
+   PUBLIC :: calculate_halomod_full
    PUBLIC :: set_halo_type
    PUBLIC :: halo_type
    PUBLIC :: M_nu
@@ -2661,6 +2664,26 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
       TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
       INTEGER, OPTIONAL, INTENT(IN) :: version   ! The ihm corresponding to the HMcode version
+      REAL, ALLOCATABLE :: pow_li(:, :), pow_2h(:, :), pow_1h(:, :)
+
+      CALL calculate_HMcode_full(k, a, pow_li, pow_2h, pow_1h, Pk, nk, na, cosm, version)
+
+   END SUBROUTINE calculate_HMcode
+
+   SUBROUTINE calculate_HMcode_full(k, a, pow_li, pow_2h, pow_1h, pow_hm, nk, na, cosm, version)
+
+      ! Get the HMcode prediction for a cosmology for a range of k and a
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
+      INTEGER, INTENT(IN) :: na                  ! Number of scale factors
+      REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
+      REAL, INTENT(IN) :: a(na)                  ! Array of scale factors
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_li(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_2h(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_1h(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_hm(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
+      INTEGER, OPTIONAL, INTENT(IN) :: version   ! The ihm corresponding to the HMcode version
       INTEGER :: ihm
 
       IF(.NOT. present(version)) THEN
@@ -2673,9 +2696,9 @@ CONTAINS
          STOP 'CALCULATE_HMCODE: Error, you have asked for an HMcode version that is not supported'
       END IF
 
-      CALL calculate_halomod(k, a, Pk, nk, na, cosm, ihm)
+      CALL calculate_halomod_full(k, a, pow_li, pow_2h, pow_1h, pow_hm, nk, na, cosm, ihm)
 
-   END SUBROUTINE calculate_HMcode
+   END SUBROUTINE calculate_HMcode_full
 
    SUBROUTINE calculate_halomod(k, a, Pk, nk, na, cosm, ihm)
 
@@ -2689,45 +2712,110 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
       TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
       INTEGER, INTENT(INOUT) :: ihm              ! The ihm corresponding to the HMcode version
-      INTEGER :: j
+      REAL, ALLOCATABLE :: pow_li(:, :), pow_2h(:, :), pow_1h(:, :)
 
-      ALLOCATE(Pk(nk, na))
-
-      DO j = 1, na
-         CALL calculate_halomod_a(k, a(j), Pk(:, j), nk, cosm, ihm)
-      END DO
+      CALL calculate_halomod_full(k, a, pow_li, pow_2h, pow_1h, Pk, nk, na, cosm, ihm)
 
    END SUBROUTINE calculate_halomod
 
-   SUBROUTINE calculate_halomod_a(k, a, Pk, nk, cosm, ihm)
+   SUBROUTINE calculate_halomod_full(k, a, pow_li, pow_2h, pow_1h, pow_hm, nk, na, cosm, ihm)
 
-      ! Get the HMcode prediction at this z for this cosmology for matter-matter with DMONLY haloes
+      ! Get the halo model prediction for matter--matter for cosmology for a range of k and a
+      ! Assumes DMONLY halo profiles etc.
+      ! TODO: Can I directly put in 2D arrays into routine that expects 4D if some dimensions are length 1?
       IMPLICIT NONE
-      INTEGER, INTENT(INOUT) :: ihm
-      INTEGER, INTENT(IN) :: nk              ! Number of wavenumber
-      REAL, INTENT(IN) :: k(nk)              ! Array of wavenumbers [h/Mpc]
-      REAL, INTENT(IN) :: a                  ! Scale factor
-      REAL, INTENT(OUT) :: Pk(nk)            ! Output power array, note that this is Delta^2(k), not P(k)
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL :: pow_lin(nk), pow_2h(nk), pow_1h(nk), pow_hm(nk)
-      TYPE(halomod) :: hmod
+      INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
+      INTEGER, INTENT(IN) :: na                  ! Number of scale factors
+      REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
+      REAL, INTENT(IN) :: a(na)                  ! Array of scale factors
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_li(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_2h(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_1h(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_hm(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
+      INTEGER, INTENT(INOUT) :: ihm              ! The ihm corresponding to the HMcode version
+      REAL, ALLOCATABLE :: pows_2h(:, :, :, :), pows_1h(:, :, :, :), pows_hm(:, :, :, :)
+      INTEGER, PARAMETER :: field(1) = [field_DMONLY]
       INTEGER, PARAMETER :: nf = 1
-      INTEGER, PARAMETER :: dmonly(nf) = field_dmonly ! Fix to DMONLY 
-      LOGICAL, PARAMETER :: verbose = .FALSE.
 
-      ! Do an HMcode run
-      CALL assign_halomod(ihm, hmod, verbose)
-      CALL init_halomod(a, hmod, cosm, verbose)
-      CALL calculate_HMx_a(dmonly, nf, k, nk, pow_lin, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
-      Pk = pow_hm
-      CALL print_halomod(hmod, cosm, verbose)
+      !ALLOCATE(pow_li(nk, na), pow_2h(nk, na), pow_1h(nk, na), pow_hm(nk, na))
+      ! DO ia = 1, na
+      !   CALL calculate_halomod_a(k, a(ia), pow_li, pow_2h, pow_1h, pow_hm, nk, cosm, ihm)
+      !END DO
+      CALL calculate_HMx_full(field, k, a, pow_li, pows_2h, pows_1h, pows_hm, nf, nk, na, cosm, ihm)
 
-   END SUBROUTINE calculate_halomod_a
+      ALLOCATE(pow_2h(nk, na), pow_1h(nk, na), pow_hm(nk, na))
+      pow_2h = pows_2h(1, 1, :, :)
+      pow_1h = pows_1h(1, 1, :, :)
+      pow_hm = pows_hm(1, 1, :, :)
 
-   SUBROUTINE calculate_HMx(ifield, nf, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
+   END SUBROUTINE calculate_halomod_full
+
+   SUBROUTINE calculate_HMx(ifield, k, a, pow, nf, nk, na, cosm, ihm)
 
       ! Public facing function, calculates the halo model power for k and a range
       ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed or (a,k,:,:)?
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nf         ! Number of different fields
+      INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
+      INTEGER, INTENT(IN) :: nk         ! Number of k points
+      REAL, INTENT(IN) :: k(nk)         ! k array [h/Mpc]
+      INTEGER, INTENT(IN) :: na         ! Number of a points
+      REAL, INTENT(IN) :: a(na)         ! a array
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow(:, :, :, :) ! Pow(f1,f2,k,a)
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      INTEGER, INTENT(INOUT) :: ihm
+      REAL, ALLOCATABLE :: pow_li(:, :), pow_2h(:, :, :, :), pow_1h(:, :, :, :)
+
+      CALL calculate_HMx_full(ifield, k, a, pow_li, pow_2h, pow_1h, pow, nf, nk, na, cosm, ihm)
+
+   END SUBROUTINE calculate_HMx
+
+   SUBROUTINE calculate_HMx_full(ifield, k, a, pow_li, pow_2h, pow_1h, pow_hm, nf, nk, na, cosm, ihm)
+
+      ! Public facing function, calculates the halo model power for k and a range
+      ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed or (a,k,:,:)?
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nf         ! Number of different fields
+      INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
+      INTEGER, INTENT(IN) :: nk         ! Number of k points
+      REAL, INTENT(IN) :: k(nk)         ! k array [h/Mpc]
+      INTEGER, INTENT(IN) :: na         ! Number of a points
+      REAL, INTENT(IN) :: a(na)         ! a array
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_li(:, :)       ! Pow(k,a)
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_2h(:, :, :, :) ! Pow(f1,f2,k,a)
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_1h(:, :, :, :) ! Pow(f1,f2,k,a)
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow_hm(:, :, :, :) ! Pow(f1,f2,k,a)
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      INTEGER, INTENT(INOUT) :: ihm
+      INTEGER :: ia
+      TYPE(halomod) :: hmod
+      LOGICAL, PARAMETER :: verbose = .FALSE.
+
+      CALL assign_halomod(ihm ,hmod, verbose)
+
+      ALLOCATE(pow_li(nk, na), pow_2h(nf, nf, nk, na), pow_1h(nf, nf, nk, na), pow_hm(nf, nf, nk, na))
+
+      DO ia = 1, na
+
+         CALL init_halomod(a(ia), hmod, cosm, verbose)
+
+         CALL calculate_HMx_a(ifield, nf, k, nk, &
+            pow_li(:, ia), &
+            pow_2h(:, :, :, ia), &
+            pow_1h(:, :, :, ia), &
+            pow_hm(:, :, :, ia), &
+            hmod, cosm, verbose)
+
+      END DO
+
+   END SUBROUTINE calculate_HMx_full
+
+   SUBROUTINE calculate_HMx_old(ifield, nf, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
+
+      ! Public facing function, calculates the halo model power for k and a range
+      ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed or (a,k,:,:)?
+      ! TODO: Remove
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: nf         ! Number of different fields
       INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
@@ -2759,7 +2847,7 @@ CONTAINS
       ALLOCATE (pow_li(nk, na), pow_2h(nf, nf, nk, na), pow_1h(nf, nf, nk, na), pow_hm(nf, nf, nk, na))
 
       ! Do the halo-model calculation by looping over scale factor index
-      ! TODO: Why does this loop backwards?
+      ! TODO: Why does this loop backwards. Is it to do with the write-to-screen command?
       DO i = na, 1, -1
 
          z = redshift_a(a(i))
@@ -2789,7 +2877,7 @@ CONTAINS
          WRITE (*, *)
       END IF
 
-   END SUBROUTINE calculate_HMx
+   END SUBROUTINE calculate_HMx_old
 
    SUBROUTINE calculate_HMx_a(ifield, nf, k, nk, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
 
