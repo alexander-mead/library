@@ -614,6 +614,7 @@ CONTAINS
       names(84) = 'HMx2020: different Gammas; Model that fits stars-stars AGN 7.6'
       names(85) = 'HMx2020: different Gammas; Model that fits stars-stars AGN 7.8'
       names(86) = 'HMx2020: different Gammas; Model that fits stars-stars AGN 8.0'
+      names(87) = 'Standard but with Despali et al. (2016) mass function'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1710,10 +1711,6 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
-      ELSE IF (ihm == 80) THEN
-         ! Jenkins mass function (defined for FoF 0.2 haloes)
-         hmod%iDv = 9 ! 9 - ~ 178
-         hmod%imf = 5
       ELSE IF (ihm == 77 .OR. ihm == 78 .OR. ihm == 79) THEN
          ! HMcode (test)
          ! 77 - Unfitted
@@ -1782,6 +1779,13 @@ CONTAINS
             hmod%Ap = -0.0872705
             hmod%Ac = 1.7020399
          END IF
+      ELSE IF (ihm == 80) THEN
+         ! Jenkins mass function (defined for FoF 0.2 haloes)
+         hmod%iDv = 9 ! 9 - ~ 178
+         hmod%imf = 5
+      ELSE IF (ihm == 87) THEN
+         ! Despali et al. (2016) mass function
+         hmod%imf = 6
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2052,6 +2056,7 @@ CONTAINS
          IF (hmod%imf == 3) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function'
          IF (hmod%imf == 4) WRITE (*, *) 'HALOMODEL: Delta function mass function'
          IF (hmod%imf == 5) WRITE (*, *) 'HALOMODEL: Jenkins (2001) mass function'
+         IF (hmod%imf == 6) WRITE (*, *) 'HALOMODEL: Despali et al. (2016) mass function'
 
          ! Concentration-mass relation
          IF (hmod%iconc == 1) WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -8631,7 +8636,7 @@ CONTAINS
 
       IF (hmod%imf == 1) THEN
          b_nu = b_ps(nu, hmod)
-      ELSE IF (hmod%imf == 2) THEN
+      ELSE IF (hmod%imf == 2 .OR. hmod%imf == 6) THEN
          b_nu = b_st(nu, hmod)
       ELSE IF (hmod%imf == 3) THEN
          b_nu = b_Tinker(nu, hmod)
@@ -8667,8 +8672,17 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: dc, p, q
 
-      p = hmod%ST_p
-      q = hmod%ST_q
+      IF (hmod%imf == 2) THEN
+         p = hmod%ST_p
+         q = hmod%ST_q       
+      ELSE IF (hmod%imf == 6) THEN
+         ! Despali et al. (2016)      
+         p = 0.2579
+         q = 0.7663
+      ELSE
+         STOP 'B_ST: Error, imf set incorrectly'
+      END IF
+
       dc = hmod%dc
 
       b_st = 1.+(q*(nu**2)-1.+2.*p/(1.+(q*nu**2)**p))/dc
@@ -8768,14 +8782,16 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: eps1, eps2, E1, E2, dc
+      REAL :: eps1, eps2, E1, E2, dc, p, q
 
       ! Notation follows from Cooray & Sheth (2002) pp 25-26
 
       REAL, PARAMETER :: a2 = -17./21.
-      REAL, PARAMETER :: p = 0.3
-      REAL, PARAMETER :: q = 0.707
+      !REAL, PARAMETER :: p = 0.3
+      !REAL, PARAMETER :: q = 0.707
 
+      p = hmod%ST_p
+      q = hmod%ST_q
       dc = hmod%dc
 
       eps1 = (q*nu**2-1.)/dc
@@ -8798,7 +8814,7 @@ CONTAINS
 
       IF (hmod%imf == 1) THEN
          g_nu = g_ps(nu, hmod)
-      ELSE IF (hmod%imf == 2) THEN
+      ELSE IF (hmod%imf == 2 .OR. hmod%imf == 6) THEN
          g_nu = g_st(nu, hmod)
       ELSE IF (hmod%imf == 3) THEN
          g_nu = g_Tinker(nu, hmod)
@@ -8861,9 +8877,19 @@ CONTAINS
       REAL :: p, q, A
 
       ! Mass-function parameters
-      A = hmod%ST_A
-      p = hmod%ST_p
-      q = hmod%ST_q
+      IF (hmod%imf == 2) THEN
+         ! Sheth & Tormen (1999)
+         A = hmod%ST_A
+         p = hmod%ST_p
+         q = hmod%ST_q
+      ELSE IF (hmod%imf == 6) THEN
+         ! Despali et al. (2016) 
+         A = 0.3298 ! Note that this is not normalised
+         p = 0.2579
+         q = 0.7663   
+      ELSE
+         STOP 'G_ST: Error, imf not specified correclty'
+      END IF
 
       g_st = A*(1.+((q*nu**2)**(-p)))*exp(-q*nu**2/2.)
 
@@ -8914,7 +8940,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      IF (hmod%imf == 1 .OR. hmod%imf == 4 .OR. hmod%imf == 5) THEN
+      IF (hmod%imf == 1 .OR. hmod%imf == 4 .OR. hmod%imf == 5 .OR. hmod%imf == 6) THEN
          hmod%has_mass_function = .TRUE.
       ELSE IF (hmod%imf == 2) THEN
          CALL init_ST(hmod)
