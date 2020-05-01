@@ -1905,7 +1905,7 @@ CONTAINS
       ELSE
 
          ! Calculate missing mass things if necessary
-         IF (hmod%i2hcor .NE. 0) THEN
+         IF (hmod%i2hcor /= 0) THEN
 
             IF (check_mf) hmod%gmin = 1.-integrate_g_nu(hmod%nu(1), hmod%large_nu, hmod)
             IF (check_mf) hmod%gmax = integrate_g_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
@@ -2358,7 +2358,7 @@ CONTAINS
          WRITE (*, fmt=fmt) 'log10(M_HI_max) [Msun/h]:', log10(hmod%HImax)
          WRITE (*, *) dashes
          IF (hmod%halo_DMONLY == 5) WRITE (*, fmt=fmt) 'r_core [Mpc/h]:', hmod%rcore
-         IF (hmod%dlnc .NE. 0.) WRITE (*, fmt=fmt) 'delta ln(c):', hmod%dlnc
+         IF (hmod%dlnc /= 0.) WRITE (*, fmt=fmt) 'delta ln(c):', hmod%dlnc
          WRITE (*, *)
 
       END IF
@@ -3134,11 +3134,11 @@ CONTAINS
 
          ! If all, cdm, gas and stars exist then activate the quick-matter mode
          IF (cosm%f_nu == 0.) THEN
-            IF ((i_all .NE. 0) .AND. (i_cdm .NE. 0) .AND. (i_gas .NE. 0) .AND. (i_sta .NE. 0)) THEN
+            IF ((i_all /= 0) .AND. (i_cdm /= 0) .AND. (i_gas /= 0) .AND. (i_sta /= 0)) THEN
                quick_matter = .TRUE.
             END IF
          ELSE 
-            IF ((i_all .NE. 0) .AND. (i_cdm .NE. 0) .AND. (i_gas .NE. 0) .AND. (i_sta .NE. 0) .AND. (i_neu .NE. 0)) THEN
+            IF ((i_all /= 0) .AND. (i_cdm /= 0) .AND. (i_gas /= 0) .AND. (i_sta /= 0) .AND. (i_neu /= 0)) THEN
                quick_matter = .TRUE.
             END IF
          END IF
@@ -3171,7 +3171,7 @@ CONTAINS
       ! If quick-matter mode is active then create the total matter window by summing contributions
       IF (use_quick_matter .AND. quick_matter) THEN       
             wk(:, i_all) = wk(:, i_cdm)+wk(:, i_gas)+wk(:, i_sta)
-         IF(cosm%f_nu .NE. 0.) THEN
+         IF(cosm%f_nu /= 0.) THEN
             wk(:, i_all) = wk(:, i_cdm)+wk(:,i_neu)
          END IF
       END IF
@@ -3199,7 +3199,7 @@ CONTAINS
 
       ! Add in neutrinos
       ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
-      IF (cosm%f_nu .NE. 0. .AND. hmod%halo_neutrino == 1) THEN
+      IF (cosm%f_nu /= 0. .AND. hmod%halo_neutrino == 1) THEN
          i_dmonly = array_position(field_dmonly, fields, nf)
          i_matter = array_position(field_matter, fields, nf)
          i_neutrino = array_position(field_neutrino, fields, nf)
@@ -3210,9 +3210,9 @@ CONTAINS
             DO i = 1, hmod%n
                m = hmod%m(i)
                fc = halo_neutrino_fraction(m, hmod, cosm)*m/comoving_matter_density(cosm)
-               IF(i_dmonly .NE. 0) wk(i, i_dmonly) = wk(i, i_dmonly)+fc
-               IF(i_matter .NE. 0) wk(i, i_matter) = wk(i, i_matter)+fc
-               IF(i_neutrino .NE. 0) wk(i, i_neutrino) = wk(i, i_neutrino)+fc
+               IF(i_dmonly /= 0) wk(i, i_dmonly) = wk(i, i_dmonly)+fc
+               IF(i_matter /= 0) wk(i, i_matter) = wk(i, i_matter)+fc
+               IF(i_neutrino /= 0) wk(i, i_neutrino) = wk(i, i_neutrino)+fc
             END DO
          END IF
       END IF
@@ -3220,7 +3220,7 @@ CONTAINS
       ! Undo the simple baryon recipe
       IF (hmod%DMONLY_baryon_recipe) THEN
          i_dmonly = array_position(field_dmonly, fields, nf)
-         IF (i_dmonly .NE. 0) THEN
+         IF (i_dmonly /= 0) THEN
             DO i = 1, hmod%n
                wk(i, i_dmonly) = unbaryonify_wk(wk(i, i_dmonly), hmod%m(i), hmod, cosm)
             END DO
@@ -3253,10 +3253,10 @@ CONTAINS
 
                ! Correction factor for the gas density profiles
                fc = halo_ejected_gas_fraction(m, hmod, cosm)*m/comoving_matter_density(cosm)
-               IF (i_matter .NE. 0)  wk(i, i_matter) =  wk(i, i_matter)+fc
-               IF (i_gas .NE. 0)     wk(i, i_gas) = wk(i, i_gas)+fc
-               IF (i_freegas .NE. 0) wk(i, i_freegas) = wk(i, i_freegas)+fc
-               IF (i_pressure .NE. 0) THEN
+               IF (i_matter /= 0)  wk(i, i_matter) =  wk(i, i_matter)+fc
+               IF (i_gas /= 0)     wk(i, i_gas) = wk(i, i_gas)+fc
+               IF (i_freegas /= 0) wk(i, i_freegas) = wk(i, i_freegas)+fc
+               IF (i_pressure /= 0) THEN
 
                   ! Calculate the value of the density profile prefactor [(Msun/h)/(Mpc/h)^3] and change units from cosmological to SI
                   rho0 = m*halo_ejected_gas_fraction(m, hmod, cosm) ! rho0 in [(Msun/h)/(Mpc/h)^3]
@@ -5643,7 +5643,7 @@ CONTAINS
       END DO
 
       ! Dolag2004 prescription for adding DE dependence
-      IF (hmod%iDolag .NE. 0) CALL Dolag_correction(hmod, cosm)
+      IF (hmod%iDolag /= 0) CALL Dolag_correction(hmod, cosm)
 
       ! Rescale the concentration-mass relation for gas the epsilon parameter
       ! This only rescales the concentrations of haloes that *contain* substantial amounts of gas
@@ -6055,7 +6055,6 @@ CONTAINS
          ! Cored NFW
          irho = 24
          p1 = hmod%rcore
-         !p1 = hmod%ccore
       ELSE IF (hmod%halo_DMONLY == 6) THEN
          ! Isothermal
          irho = 1
@@ -7586,7 +7585,6 @@ CONTAINS
          IF (irho == 0) THEN
             ! Delta function
             ! Do not assign any value to rho as this gets handled properly elsewhere
-            ! STOP 'RHO: You should not be here for a delta-function profile'
             rho = 0.
          ELSE IF (irho == 1 .OR. irho == 16) THEN
             ! Isothermal
@@ -7806,60 +7804,34 @@ CONTAINS
       ELSE IF (irho == 2) THEN
          ! Top hat
          normalisation = 4.*pi*(rmax**3-rmin**3)/3.
-      ELSE IF (irho == 3) THEN
+      ELSE IF (irho == 3 .AND. (rmin /= 0)) THEN
          ! Moore et al. (1999)
-         IF (rmin .NE. 0.) THEN
-            normalisation = winint(0., rmin, rmax, rv, rs, p1, p2, irho, imeth_win)
-         ELSE
-            cmax = rmax/rs
-            normalisation = (2./3.)*4.*pi*(rs**3)*log(1.+cmax**1.5)
-         END IF
-      ELSE IF (irho == 4 .OR. irho == 5) THEN
+         cmax = rmax/rs
+         normalisation = (2./3.)*4.*pi*(rs**3)*log(1.+cmax**1.5)
+      ELSE IF (irho == 4 .OR. irho == 5 .AND. (rmin /= 0)) THEN
          ! NFW (1997)
-         IF (rmin .NE. 0.) THEN
-            normalisation = winint(0., rmin, rmax, rv, rs, p1, p2, irho, imeth_win)
-         ELSE
-            cmax = rmax/rs
-            normalisation = 4.*pi*(rs**3)*NFW_factor(cmax)!(log(1.+cmax)-cmax/(1.+cmax))
-         END IF
-      ELSE IF (irho == 6) THEN
+         cmax = rmax/rs
+         normalisation = norm_NFW(rs, cmax)
+      ELSE IF (irho == 6 .AND. (rmin /= 0)) THEN
          ! Isothermal beta model with beta=2/3
-         IF (rmin .NE. 0.) THEN
-            normalisation = winint(0., rmin, rmax, rv, rs, p1, p2, irho, imeth_win)
-         ELSE
-            cmax = rmax/rs
-            normalisation = 4.*pi*(rs**3)*(cmax-atan(cmax))
-         END IF
-      ELSE IF (irho == 7) THEN
-         ! Fedeli (2014) stellar model
-         IF (rmin .NE. 0) THEN
-            ! I could actually derive an analytical expression here if this was ever necessary
-            normalisation = winint(0., rmin, rmax, rv, rs, p1, p2, irho, imeth_win)
-         ELSE
-            ! This would be even easier if rmax -> infinity (just 4*pi*rstar^2)
-            rstar = p1
-            normalisation = 4.*pi*(rstar**3)*(1.-exp(-rmax/rstar)*(1.+rmax/rstar))
-            !normalisation=4.*pi*rstar**3 ! rmax/rstar -> infinity limit (rmax >> rstar)
-         END IF
-      ELSE IF (irho == 9) THEN
+         cmax = rmax/rs
+         normalisation = 4.*pi*(rs**3)*(cmax-atan(cmax))
+      ELSE IF (irho == 7 .AND. (rmin /= 0)) THEN
+         ! Fedeli (2014) stellar mode
+         ! This would be even easier if rmax -> infinity (just 4*pi*rstar^2)
+         rstar = p1
+         normalisation = 4.*pi*(rstar**3)*(1.-exp(-rmax/rstar)*(1.+rmax/rstar))
+         !normalisation=4.*pi*rstar**3 ! rmax/rstar -> infinity limit (rmax >> rstar)
+      ELSE IF (irho == 9 .AND. (rmin /= 0)) THEN
          ! Stellar profile from Schneider & Teyssier (2015)
-         IF (rmin .NE. 0.) THEN
-            normalisation = winint(0., rmin, rmax, rv, rs, p1, p2, irho, imeth_win)
-         ELSE
-            ! Assumed to go on to r -> infinity
-            rstar = p1
-            normalisation = 4.*(pi**(3./2.))*rstar
-         END IF
-      ELSE IF (irho == 10) THEN
+         ! CARE: Assumed to go on to r -> infinity
+         rstar = p1
+         normalisation = 4.*(pi**(3./2.))*rstar
+      ELSE IF (irho == 10 .AND. (rmin /= 0)) THEN
          ! Ejected gas profile from Schneider & Teyssier (2015)
-         ! Assumed to go on to r -> infinity
-         IF (rmin .NE. 0.) THEN
-            normalisation = winint(0., rmin, rmax, rv, rs, p1, p2, irho, imeth_win)
-         ELSE
-            ! Assumed to go on to r -> infinity
-            re = p1
-            normalisation = 4.*pi*sqrt(pi/2.)*re**3
-         END IF
+         ! CARE: Assumed to go on to r -> infinity
+         re = p1
+         normalisation = 4.*pi*sqrt(pi/2.)*re**3
       ELSE IF (irho == 17) THEN
          ! Power-law profile
          beta = p1
@@ -7869,15 +7841,15 @@ CONTAINS
          normalisation = 4.*pi*log(rmax/rmin)
       ELSE IF (irho == 19) THEN
          ! Smooth profile, needs a normalisation because divided by
-         ! THIS CANNOT BE SET TO ZERO
+         ! CARE: This cannot be set to zero
          normalisation = 1.
-      ELSE IF (irho == 24) THEN
+      ELSE IF (irho == 24 .AND. (rv == rmax)) THEN
          ! Cored NFW profile
          rb = p1
          IF (rb == 0.) THEN
             ! This is then the standard NFW case
             c = rv/rs
-            normalisation = 4.*pi*(rs**3)*NFW_factor(c)
+            normalisation = norm_NFW(rs, c)
          ELSE
             ! Otherwise there is actually a core
             b = rv/rb
@@ -7891,14 +7863,24 @@ CONTAINS
       ELSE
          ! Otherwise need to do the integral numerically
          ! k=0 gives normalisation
-         normalisation = winint(0., rmin, rmax, rv, rs, p1, p2, irho, imeth_win)
+         normalisation = winint(zero, rmin, rmax, rv, rs, p1, p2, irho, imeth_win)
       END IF
 
    END FUNCTION normalisation
 
+   REAL FUNCTION norm_NFW(rs, c)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: rs
+      REAL, INTENT(IN) :: c
+
+      norm_NFW = 4.*pi*(rs**3)*NFW_factor(c)
+
+   END FUNCTION norm_NFW
+
    REAL FUNCTION win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)
 
-      ! This is an UNNORMALISED halo profile of any sort
+      ! Normalised halo window functions
 
       ! Types of profile
       ! ================
@@ -7973,7 +7955,7 @@ CONTAINS
             win_norm = f1/f2
             !win_norm=1./(1.+kstar**2) !bigRstar -> infinity limit (rmax >> rstar)
          ELSE IF (irho == 9) THEN
-            ! Only valid if rmin=0 and rmax=inf
+            ! Normalisation is only valid if rmin=0 and rmax=inf
             rstar = p1
             win_norm = (sqrt(pi)/2.)*erf(k*rstar)/(k*rstar)
          ELSE IF (irho == 10) THEN
@@ -8054,7 +8036,7 @@ CONTAINS
 
             IF (timing .EQV. .FALSE.) THEN
                outfile = number_file(base, imeth, ext)
-               WRITE (*, *) 'WININT_SPEED_TESTS: Writing data: ', TRIM(outfile)
+               WRITE (*, *) 'WININT_SPEED_TESTS: Writing data: ', trim(outfile)
                OPEN (7, file=outfile)
                n = 1
                IF (imeth == 1) CALL cpu_time(t1)
@@ -8080,7 +8062,7 @@ CONTAINS
                CLOSE (7)
                IF (imeth == 1) THEN
                   CALL cpu_time(t2)
-                  ntime = CEILING(winint_test_seconds/(t2-t1))
+                  ntime = ceiling(winint_test_seconds/(t2-t1))
                END IF
             ELSE
                CALL cpu_time(t2)
@@ -8379,7 +8361,7 @@ CONTAINS
       INTEGER :: i, n
 
       ! This MUST be set to zero for this routine
-      IF (rmin .NE. 0.) STOP 'WININT_BUMPS: Error, rmin must be zero'
+      IF (rmin /= 0.) STOP 'WININT_BUMPS: Error, rmin must be zero'
 
       ! Calculate the number of nodes of sinc(k*rmax) for 0<=r<=rmax
       n = FLOOR(k*rmax/pi)
@@ -8573,6 +8555,7 @@ CONTAINS
       REAL :: c, ks
       REAL :: p1, p2, p3
       REAL :: rmin, rmax
+      INTEGER, PARAMETER :: irho = 4
 
       c = rv/rs
       ks = k*rv/c
@@ -8583,7 +8566,8 @@ CONTAINS
 
       rmin = 0.
       rmax = rv
-      win_NFW = 4.*pi*(rs**3)*(p1+p2-p3)/normalisation(rmin, rmax, rv, rs, zero, zero, 4)
+      !win_NFW = 4.*pi*(rs**3)*(p1+p2-p3)/normalisation(rmin, rmax, rv, rs, zero, zero, irho)
+      win_NFW = 4.*pi*(rs**3)*(p1+p2-p3)/norm_NFW(rs, c)
 
    END FUNCTION win_NFW
 
@@ -8595,6 +8579,7 @@ CONTAINS
       REAL, INTENT(IN) :: k, rv, rs, rb
       REAL :: b, c
       REAL :: rmin, rmax
+      INTEGER, PARAMETER :: irho = 24
 
       b = rv/rb
       c = rv/rs
@@ -8605,7 +8590,7 @@ CONTAINS
       win_cored_NFW = NFW_factor(c)*win_NFW(k, rv, rs)
       win_cored_NFW = win_cored_NFW+(c/(b-c))*(1./(k*rs))*(G_NFW(k, rv, c)*cos(k*rs)-F_NFW(k, rv, c)*sin(k*rs))
       win_cored_NFW = win_cored_NFW-(c/(b-c))*(1./(k*rs))*(G_NFW(k, rv, b)*cos(k*rb)-F_NFW(k, rv, b)*sin(k*rb))
-      win_cored_NFW = 4.*pi*(rs**3)*(b/(b-c))*win_cored_NFW/normalisation(rmin, rmax, rv, rs, rb, zero, 24)
+      win_cored_NFW = 4.*pi*(rs**3)*(b/(b-c))*win_cored_NFW/normalisation(rmin, rmax, rv, rs, rb, zero, irho)
 
    END FUNCTION win_cored_NFW
 
