@@ -504,6 +504,7 @@ CONTAINS
       names(79) = 'Power bump: A = 0.15; k = 0.05h/Mpc; sigma = 0.3'
       names(80) = 'Power bump: A = 0.15; k = 0.10h/Mpc; sigma = 0.3'
       names(81) = 'Power bump: A = 0.15; k = 1.00h/Mpc; sigma = 0.3'
+      names(82) = 'Harrison-Zeldovich'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1203,6 +1204,10 @@ CONTAINS
          IF (icosmo == 79) cosm%m_nu = 0.12
          IF (icosmo == 80) cosm%m_nu = 0.24
          IF (icosmo == 81) cosm%m_nu = 0.48
+      ELSE IF (icosmo == 82) THEN
+         ! Harrison - Zel'dovich
+         cosm%itk = itk_none
+         cosm%ns = 1.
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -3691,7 +3696,8 @@ CONTAINS
 
    REAL RECURSIVE FUNCTION growth_rate(a, cosm)
 
-      ! Growth rate: dln(g) / dln(a)
+      ! Growth rate: dln(g) / dln(a) ~ Omega_m(a)^0.55 for LCDM
+      ! Transitions from 1 at high z to zero at high z when DE stops growth
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
