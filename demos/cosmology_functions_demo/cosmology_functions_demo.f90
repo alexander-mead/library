@@ -143,14 +143,14 @@ PROGRAM cosmology_functions_demo
    ! Test power spectrum
    IF (test_power) THEN
       IF (verbose) WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing power spectrum'
-      crap = p_lin(0.1, 1., flag_power_total, cosm) ! Necessary to prevent function write
+      crap = plin(0.1, 1., flag_power_total, cosm) ! Necessary to prevent function write
       OPEN (10, file='data/power.dat')
       DO i = 1, nk
          k = progression_log(kmin, kmax, i, nk)
          WRITE (10, *) k, &
-               p_lin(k, 1., flag_power_total, cosm), &
-               p_lin(k, 1., flag_power_cold, cosm), &
-               p_lin(k, 1., flag_power_cold_unorm, cosm)
+               plin(k, 1., flag_power_total, cosm), &
+               plin(k, 1., flag_power_cold, cosm), &
+               plin(k, 1., flag_power_cold_unorm, cosm)
       END DO
       CLOSE (10)
       IF (verbose) THEN
@@ -167,7 +167,7 @@ PROGRAM cosmology_functions_demo
       DO i = 1, nk
          k = progression_log(kmin, kmax, i, nk)
          WRITE(10, *) k, &
-               p_lin(k, a, flag_power_total, cosm), &
+               plin(k, a, flag_power_total, cosm), &
                p_dewiggle(k, a, flag_power_total, sigv, cosm)
       END DO
       CLOSE(10)
