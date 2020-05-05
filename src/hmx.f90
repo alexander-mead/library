@@ -83,6 +83,7 @@ MODULE HMx
    PUBLIC :: HMcode2015_CAMB
    PUBLIC :: HMcode2016
    PUBLIC :: HMcode2016_CAMB
+   PUBLIC :: HMcode2016_neutrinofix
    PUBLIC :: HMcode2020
 
    ! HMx versions
@@ -508,6 +509,7 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2015_CAMB = 66 
    INTEGER, PARAMETER :: HMcode2016 = 1
    INTEGER, PARAMETER :: HMcode2016_CAMB = 51
+   INTEGER, PARAMETER :: HMcode2016_neutrinofix = 53
    INTEGER, PARAMETER :: HMcode2020 = 15
 
    ! HMx versions
@@ -1105,13 +1107,13 @@ CONTAINS
          !  1 - HMcode (2016)
          !  7 - HMcode (2015)
          ! 15 - HMcode (2020)
-         ! 28 - HMcode (2016 w/ one parameter baryon model)
-         ! 31 - HMcode (2016 w/ additional BAO damping)
-         ! 50 - HMcode (2016 w/ pow=1 bug in Dolag)
-         ! 51 - HMcode (2016) but with CAMB halo mass range and number of points
-         ! 53 - HMcode (2016) updated Nelder-Mead parameters
-         ! 64 - HMcode (2016) but with 2020 baryon recipe
-         ! 66 - HMcode (2015) but with CAMB halo mass range and number of mass points
+         ! 28 - HMcode (2016) w/ one parameter baryon model
+         ! 31 - HMcode (2016) w/ additional BAO damping
+         ! 50 - HMcode (2016) w/ pow=1 bug in Dolag that was present in CAMB
+         ! 51 - HMcode (2016) w/ CAMB halo mass range and number of mass points
+         ! 53 - HMcode (2016) w/ updated Nelder-Mead parameters and neutrino bug fix
+         ! 64 - HMcode (2016) w/ 2020 baryon recipe
+         ! 66 - HMcode (2015) w/ CAMB halo mass range and number of mass points
          hmod%ip2h = 1
          hmod%i1hdamp = 1
          hmod%iconc = 1
@@ -1166,7 +1168,6 @@ CONTAINS
             hmod%i2hdamp = 1 ! 1 - Change back to Mead (2015) model for two-halo damping
             hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
             hmod%zinf_Dolag = 100.
-            ! Nelder-Mead fitted parameters
             hmod%Dv0 = 411.
             hmod%Dv1 = -0.333
             hmod%dc0 = 1.631
@@ -1182,23 +1183,24 @@ CONTAINS
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
             hmod%DMONLY_neutrino_correction = .TRUE.
+            hmod%flag_sigma = flag_power_cold_unorm
          ELSE IF (ihm == 28) THEN
-            ! One-parameter baryon model
+            ! HMcode (2016) with one-parameter baryon model
             hmod%one_parameter_baryons = .TRUE.
             hmod%As = 3.13
          ELSE IF (ihm == 31) THEN
-            ! Damped BAO
+            ! HMcode (2016) with damped BAO
             hmod%ip2h = 3
          ELSE IF (ihm == 50) THEN
-            ! Bug present in CAMB when Dolag power is set to 1 rather than 1.5
+            ! HMcode (2016) with bug present in CAMB when Dolag power is set to 1 rather than 1.5
             hmod%iDolag = 1
          ELSE IF (ihm == 51) THEN
-            ! CAMB mass range and number of points
+            ! HMcode (2016) with CAMB mass range and number of points
             hmod%mmin = 1e0  ! Lower mass limit for integration [Msun/h]
             hmod%mmax = 1e18 ! Upper mass limit for integration [Msun/h]
             hmod%n = 256     ! Number of points in halo mass
          ELSE IF (ihm == 53) THEN
-            ! HMcode (2016) with improved fitted parameters
+            ! HMcode (2016) with improved fitted parameters and neutrino bug fix
             hmod%Dv0 = 416.
             hmod%Dv1 = -0.346
             hmod%dc0 = 1.661
@@ -1211,15 +1213,18 @@ CONTAINS
             hmod%As = 3.09
             hmod%alp0 = 3.11
             hmod%alp1 = 1.91
-            hmod%Dvnu = 0.
-            hmod%dcnu = 0.
+            hmod%Dvnu = 0. ! Set to zero because not necessary after bug fix
+            hmod%dcnu = 0. ! Set to zero because not necessary after bug fix
+            hmod%DMONLY_neutrino_correction = .TRUE.
          ELSE IF (ihm == 64) THEN
             ! 64 - HMcode 2016 but with 2020 baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
             !hmod%sbar = 1e-3
          END IF
       ELSE IF (ihm == 2) THEN
-         ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686))
+         ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686)
+         ! This is what the original HMcode model was based off
+         ! Note that Delta_v = 200 is not consistent with the ST mass function
          hmod%ip2h = 1
          hmod%idc = 1
          hmod%iDv = 1
@@ -2705,13 +2710,31 @@ CONTAINS
          ihm = version
       END IF
 
-      IF(.NOT. is_in_array(ihm, [HMcode2015, HMcode2015_CAMB, HMcode2016, HMcode2016_CAMB, HMcode2020])) THEN
-         STOP 'CALCULATE_HMCODE: Error, you have asked for an HMcode version that is not supported'
-      END IF
+      IF(.NOT. is_HMcode(ihm)) STOP 'CALCULATE_HMCODE_FULL: Error, your HMcode version is not recognized'   
 
       CALL calculate_halomod_full(k, a, pow_li, pow_2h, pow_1h, pow_hm, nk, na, cosm, ihm)
 
    END SUBROUTINE calculate_HMcode_full
+
+   LOGICAL FUNCTION is_HMcode(i)
+
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: i
+
+      IF(is_in_array(i, [&
+         HMcode2015, &
+         HMcode2015_CAMB, &
+         HMcode2016, &
+         HMcode2016_CAMB, &
+         HMcode2016_neutrinofix, &
+         HMcode2020&
+         ])) THEN
+            is_HMcode = .TRUE.
+         ELSE
+            is_HMcode = .FALSE.
+      END IF
+
+   END FUNCTION is_HMcode
 
    SUBROUTINE calculate_halomod(k, a, Pk, nk, na, cosm, ihm)
 
