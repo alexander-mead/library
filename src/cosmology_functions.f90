@@ -4361,17 +4361,23 @@ CONTAINS
       INTERFACE
 
          !fx is what x' is equal to
-         FUNCTION fx(x, v, k, t, cosm)
+         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x, v, k, t
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION fx
 
          ! fv is what v' is equal to
-         FUNCTION fv(x, v, k, t, cosm)
+         FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x, v, k, t
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION fv
 
       END INTERFACE
@@ -4447,17 +4453,23 @@ CONTAINS
       INTERFACE
 
          ! fx is what x' is equal to
-         FUNCTION fx(x, v, k, t, cosm)
+         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x, v, k, t
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION fx
 
          ! fv is what v' is equal to
-         FUNCTION fv(x, v, k, t, cosm)
+         FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x, v, k, t
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION fv
 
       END INTERFACE
@@ -4558,17 +4570,23 @@ CONTAINS
       INTERFACE
 
          ! fx is what x' is equal to
-         FUNCTION fx(x, v, k, t, cosm)
+         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x, v, k, t
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION fx
 
          ! fv is what v' is equal to
-         FUNCTION fv(x, v, k, t, cosm)
+         FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x, v, k, t
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION fv
 
       END INTERFACE
@@ -4645,10 +4663,10 @@ CONTAINS
       INTEGER, PARAMETER :: jmax = jmax_integration
 
       INTERFACE
-         FUNCTION f(x, cosm)
+         FUNCTION f(x_interface, cosm_interface)
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION f
       END INTERFACE
 
@@ -4755,11 +4773,11 @@ CONTAINS
       INTEGER, PARAMETER :: jmax = jmax_integration
 
       INTERFACE
-         FUNCTION f(x, y, cosm)
+         FUNCTION f(x_interface, y_interface, cosm_interface)
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x
-            REAL, INTENT(IN) :: y
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: y_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION f
       END INTERFACE
 
@@ -4867,12 +4885,12 @@ CONTAINS
       INTEGER, PARAMETER :: jmax = jmax_integration
 
       INTERFACE
-         FUNCTION f(x, y, z, cosm)
+         FUNCTION f(x_interface, y_interface, z_interface, cosm_interface)
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x
-            REAL, INTENT(IN) :: y
-            REAL, INTENT(IN) :: z
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: y_interface
+            REAL, INTENT(IN) :: z_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION f
       END INTERFACE
 
@@ -4981,13 +4999,13 @@ CONTAINS
       INTEGER, PARAMETER :: jmax = jmax_integration
 
       INTERFACE
-         FUNCTION f(x, y, z, flag, cosm)
+         FUNCTION f(x_interface, y_interface, z_interface, flag_interface, cosm_interface)
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x
-            REAL, INTENT(IN) :: y
-            REAL, INTENT(IN) :: z
-            INTEGER, INTENT(IN) :: flag
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: y_interface
+            REAL, INTENT(IN) :: z_interface
+            INTEGER, INTENT(IN) :: flag_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION f
       END INTERFACE
 
