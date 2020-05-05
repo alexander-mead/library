@@ -5384,11 +5384,11 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       INTERFACE
-         FUNCTION integrand(M, hmod, cosm)
+         FUNCTION integrand(M, hmod_interface, cosm_interface)
             IMPORT :: halomod, cosmology   
             REAL, INTENT(IN) :: M
-            TYPE(halomod), INTENT(INOUT) :: hmod
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            TYPE(halomod), INTENT(INOUT) :: hmod_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION integrand
       END INTERFACE
 
@@ -9675,10 +9675,10 @@ CONTAINS
       INTEGER, PARAMETER :: jmax = 30
 
       INTERFACE
-         FUNCTION f(x, hmod)
+         FUNCTION f(x_interface, hmod_interface)
             IMPORT :: halomod
-            REAL, INTENT(IN) :: x
-            TYPE(halomod), INTENT(INOUT) :: hmod
+            REAL, INTENT(IN) :: x_interface
+            TYPE(halomod), INTENT(INOUT) :: hmod_interface
          END FUNCTION f
       END INTERFACE
 
@@ -9786,12 +9786,12 @@ CONTAINS
       INTEGER, PARAMETER :: jmax = 30
 
       INTERFACE
-         FUNCTION f(x, hmod, cosm)
+         FUNCTION f(x_interface, hmod_interface, cosm_interface)
             IMPORT :: halomod
             IMPORT :: cosmology
-            REAL, INTENT(IN) :: x
-            TYPE(halomod), INTENT(INOUT) :: hmod
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            REAL, INTENT(IN) :: x_interface
+            TYPE(halomod), INTENT(INOUT) :: hmod_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION f
       END INTERFACE
 
@@ -9899,12 +9899,12 @@ CONTAINS
       INTEGER, PARAMETER :: jmax = 30
 
       INTERFACE
-         FUNCTION f(nu, hmod, cosm)
+         FUNCTION f(nu, hmod_interface, cosm_interface)
             IMPORT :: halomod
             IMPORT :: cosmology
             REAL, INTENT(IN) :: nu
-            TYPE(halomod), INTENT(INOUT) :: hmod
-            TYPE(cosmology), INTENT(INOUT) :: cosm
+            TYPE(halomod), INTENT(INOUT) :: hmod_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION f
       END INTERFACE
 
