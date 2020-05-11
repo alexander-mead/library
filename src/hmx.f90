@@ -618,6 +618,7 @@ CONTAINS
       names(86) = 'HMx2020: different Gammas; Model that fits stars-stars AGN 8.0'
       names(87) = 'Standard but with Despali et al. (2016) mass function'
       names(88) = 'Standard but with Child et al. (2018) concentration-mass relation'
+      names(89) = 'Standard but with all halo gas bound'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -735,17 +736,17 @@ CONTAINS
       ! 3 - My version of Dolag (2004) with some redshift dependence
       hmod%iDolag = 1
 
-      ! Halo gas fraction
+      ! Halo bound gas fraction
       ! 1 - Fedeli (2014a) bound gas model
       ! 2 - Schneider & Teyssier (2015) bound gas
       ! 3 - Universal baryon fraction
       hmod%frac_bound_gas = 2
 
-      ! Halo cold gas fraction
+      ! Halo cold-bound gas fraction
       ! 1 - Constant fraction of bound gas is cold gas
       hmod%frac_cold_bound_gas = 1
 
-      ! Halo hot gas fraction
+      ! Halo hot-bound gas fraction
       ! 1 - Constant fraction of bound gas is hot gas
       hmod%frac_hot_bound_gas = 1
 
@@ -1797,6 +1798,9 @@ CONTAINS
          hmod%iDv = 7 ! M200c definitions
          hmod%imf = 3 ! Tinker (for M200c)
          hmod%iconc = 9 ! Child et al.
+      ELSE IF (ihm == 89) THEN
+         ! All gas is bound gas
+         hmod%frac_bound_gas = 3
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
