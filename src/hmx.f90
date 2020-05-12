@@ -1034,18 +1034,18 @@ CONTAINS
       hmod%fhot = 0.0       
 
       ! Power-law for central galaxy mass fraction
-      hmod%eta = 0.0        
+      hmod%eta = 0.0
       hmod%etaz = 0.0
       hmod%eta_array = hmod%eta
       hmod%etaz_array = hmod%etaz
 
       ! Isothermal beta power index
-      hmod%ibeta = 2./3.    
-      hmod%ibetap = 0.0 
+      hmod%ibeta = 2./3.
+      hmod%ibetap = 0.0
       hmod%ibetaz = 0.0
 
       ! Gas fraction power-law
-      hmod%gbeta = 0.6      
+      hmod%gbeta = 0.6
       hmod%gbetaz = 0.0
 
       !!! !!!
@@ -2942,6 +2942,8 @@ CONTAINS
       LOGICAL, INTENT(IN) :: verbose
       REAL :: powg_2h(nk), powg_1h(nk), powg_hm(nk)
       REAL, ALLOCATABLE :: upow_2h(:, :, :), upow_1h(:, :, :), upow_hm(:, :, :)
+      REAL, ALLOCATABLE :: wk0(:, :)
+      REAL :: wk0_DMONLY(hmod%n, 1), wk0_HMcode(hmod%n, 1)
       REAL :: hmcode_2h(nk), hmcode_1h(nk), hmcode_hm(nk)
       INTEGER :: i, j, ii, jj, match(nf), nnf
       INTEGER, ALLOCATABLE :: iifield(:)
@@ -2968,10 +2970,17 @@ CONTAINS
       END IF
 
       ! Do an HMcode calculation for multiplying the response
+      ! Also calculate the k->0 window functions
       IF (hmod%response == 1 .OR. hmod%response == 2) THEN
          CALL assign_halomod(ihmcode, hmcode, verbose=.FALSE.)
          CALL init_halomod(hmod%a, hmcode, cosm, verbose=.FALSE.)
+         CALL init_windows(zero, dmonly, 1, wk0_DMONLY, hmod%n, hmod, cosm)
+         CALL init_windows(zero, dmonly, 1, wk0_HMcode, hmcode%n, hmcode, cosm)
       END IF
+
+      ! Get the k->0 window functions
+      ALLOCATE(wk0(hmod%n, nnf))
+      CALL init_windows(zero, ifield, nnf, wk0, hmod%n, hmod, cosm)
 
       ! Loop over k values
       ! TODO: add OMP support properly. What is private and what is shared? CHECK THIS!
@@ -2982,19 +2991,17 @@ CONTAINS
       DO i = 1, nk
 
          ! Get the linear power
-         !plin = p_lin(k(i), hmod%a, flag_power_total, cosm)
-         !pow_li(i) = plin
          pow_li(i) = plin(k(i), hmod%a, flag_power_total, cosm)
 
          ! Do the halo model calculation
          ! TODO: slow array accessing
-         CALL calculate_HMx_ka(iifield, nnf, k(i), pow_li(i), upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
+         CALL calculate_HMx_ka(iifield, wk0, nnf, k(i), pow_li(i), upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
 
          IF (hmod%response == 1 .OR. hmod%response == 2) THEN
 
-            ! If doing a response then calculate a DMONLY prediction too
-            CALL calculate_HMx_ka(dmonly, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
-            CALL calculate_HMx_ka(dmonly, 1, k(i), pow_li(i), hmcode_2h(i), hmcode_1h(i), hmcode_hm(i), hmcode, cosm)
+            ! If doing a response then calculate a DMONLY prediction for both the current halomodel and HMcode
+            CALL calculate_HMx_ka(dmonly, wk0_DMONLY, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
+            CALL calculate_HMx_ka(dmonly, wk0_HMcode, 1, k(i), pow_li(i), hmcode_2h(i), hmcode_1h(i), hmcode_hm(i), hmcode, cosm)
 
             IF (hmod%response == 1) THEN
 
@@ -3065,13 +3072,14 @@ CONTAINS
 
    END FUNCTION is_matter_field
 
-   SUBROUTINE calculate_HMx_ka(ifield, nf, k, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm)
+   SUBROUTINE calculate_HMx_ka(ifield, wk0, nf, k, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm)
 
       ! Gets the one- and two-halo terms and combines them
       ! TODO: Include scatter in two-halo term
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: nf
       INTEGER, INTENT(IN) :: ifield(nf)
+      REAL, INTENT(IN) :: wk0(:, :)
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: pow_li
       REAL, INTENT(OUT) :: pow_2h(nf, nf)
@@ -3108,15 +3116,16 @@ CONTAINS
             END DO
          END DO
 
-         ! If linear theory is used for two-halo term we must recalculate the window functions for the two-halo term with k=0 fixed
-         ! TODO: Given that this is evaluated at k=0. this could be evaluated only once, rather than for every k
+         ! If linear theory is used for two-halo term we must recalculate the window functions
+         ! For the two-halo term we need the k->0 limit
          IF (hmod%ip2h == 1 .OR. hmod%ip2h == 3) THEN
-            CALL init_windows(0., ifield, nf, wk, hmod%n, hmod, cosm)
+            !CALL init_windows(0., ifield, nf, wk, hmod%n, hmod, cosm)
+            wk = wk0
+         ELSE
+            ! If we are worrying about halo profiles that somehow change between one- and two-halo evaulations then we need this
+            ! This applies to ejected halo gas, but also to massive neutrinos and simple baryon feedback models
+            CALL add_smooth_component_to_windows(ifield, nf, wk, hmod%n, hmod, cosm)
          END IF
-
-         ! If we are worrying about halo profiles that somehow change between one- and two-halo evaulations then we need this
-         ! This applies to ejected halo gas, but also to massive neutrinos and simple baryon feedback models
-         CALL add_smooth_component_to_windows(ifield, nf, wk, hmod%n, hmod, cosm)
 
          ! Get the two-halo term
          DO i = 1, nf
@@ -3513,6 +3522,7 @@ CONTAINS
       END IF
 
       ! Get the normalisation correct for non-matter fields if you are using linear theory or damped BAO
+      ! TODO: Does not seem to work with smoothed components.
       IF (hmod%ip2h == 1 .OR. hmod%ip2h == 3) THEN
          DO j = 1, 2
             IF (ih(j) == field_dmonly .OR. ih(j) == field_matter) THEN
@@ -3594,7 +3604,7 @@ CONTAINS
             ! Add on the value of integral b(nu)*g(nu) assuming W(k)=1
             ! Advised by Yoo et al. (2006) and Cacciato et al. (2012)
             ! TODO: This will not work for fields that do not have mass fractions defined
-            ! TODO: Could make correct, see Appendix B of HMx paper
+            ! TODO: Could make this correct for fields with no mass fraction, see Appendix B of HMx paper
             int = int+hmod%gbmin*halo_fraction(ih, m, hmod, cosm)
          ELSE IF (hmod%i2hcor == 2) THEN
             ! Put the missing part of the integrand as a delta function at the low-mass limit of the integral
