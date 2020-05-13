@@ -105,6 +105,7 @@ MODULE cosmology_functions
    PUBLIC :: CAMB_nonlinear_HALOFIT_Takahashi 
    PUBLIC :: CAMB_nonlinear_HMcode2015
    PUBLIC :: CAMB_nonlinear_HMcode2016
+   PUBLIC :: CAMB_nonlinear_HMcode2016_neutrinofix
 
    ! HALOFIT
    PUBLIC :: calculate_HALOFIT_a
@@ -348,8 +349,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interpolation_sigma = 3 ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interpolation_sigma = 3  ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: imeth_interpolation_sigma = 2  ! Method for sigma(R) interpolation
-   INTEGER, PARAMETER :: sigma_cold_store = flag_power_cold_unorm ! Which version of the cold spectrum should be tabulated (can be 0 for none)
-   !INTEGER, PARAMETER :: sigma_cold_store = 0           ! Which version of the cold spectrum should be tabulated (can be 0 for none)
+   INTEGER, PARAMETER :: sigma_cold_store = flag_power_cold_unorm ! Which version of sigma should be tabulated (0 for none)
 
    ! sigma_v(R) integration
    REAL, PARAMETER :: alpha_sigmaV = 3.     ! Exponent to increase integration speed
@@ -400,6 +400,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4
    INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8
    INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016_neutrinofix = 9
 
    ! General integrations
    INTEGER, PARAMETER :: jmin_integration = 5
@@ -1182,6 +1183,8 @@ CONTAINS
          ! Boring cosmology but with exciting neutrino mass
          cosm%m_nu = 0.3
          cosm%itk = itk_CAMB
+         cosm%Om_w = cosm%Om_v
+         cosm%Om_v = 0.
       !ELSE IF (icosmo == 63 .OR. icosmo == 64 .OR. icosmo == 65) THEN
       ELSE IF (is_in_array(icosmo, [63, 64, 65, 79, 80, 81])) THEN
          ! 63 - Planck 2015 (BAHAMAS; Table 1 of 1712.02411)
@@ -3100,7 +3103,7 @@ CONTAINS
 
       ! Calculates the ratio of T(k) for cold vs. all matter
       ! Cold perturbation defined such that 1+delta = rho_cold/rho_matter
-      ! Uses approximations in Eisenstein & Hu (1999; arXiv 9710252)
+      ! Uses approximations in Eisenstein & Hu (1999; astro-ph/9710252)
       ! Note that this assumes that there are exactly 3 species of neutrinos
       ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
       IMPLICIT NONE
@@ -3131,9 +3134,9 @@ CONTAINS
          zeq = (2.5e4)*cosm%om_m*(cosm%h**2.)*(BigT**(-4.))
 
          ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
-         ! For my purpose (just the ratio) seems to work better using the EdS growth function result, \propto a .
-         ! In any case, can't use grow at the moment because that is normalised by default.
-         !D = (1.+zeq)/(1.+z) ! TODO: Could update this
+         ! For my purpose (just the ratio) seems to work better using the EdS growth function result: g(a) = a
+         ! NOTE: Using the two different options below gives per-cent level differences for CAMB vs HMx comparison
+         !D = (1.+zeq)/(1.+z)
          D = (1.+zeq)*ungrow(a, cosm)
 
          ! Wave number relative to the horizon scale at equality (equation 5)
