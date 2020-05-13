@@ -84,6 +84,7 @@ MODULE HMx
    PUBLIC :: HMcode2016
    PUBLIC :: HMcode2016_CAMB
    PUBLIC :: HMcode2016_neutrinofix
+   PUBLIC :: HMcode2019
    PUBLIC :: HMcode2020
 
    ! HMx versions
@@ -309,6 +310,7 @@ MODULE HMx
       INTEGER :: HMx_mode
 
       ! Mass function and bias parameters
+      REAL :: Tinker_bigA, Tinker_a, Tinker_b, Tinker_c
       REAL :: Tinker_alpha, Tinker_beta, Tinker_gamma, Tinker_phi, Tinker_eta
       REAL :: alpha_numu
       REAL :: ST_p, ST_q, ST_A, Amf
@@ -509,7 +511,8 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2015_CAMB = 66 
    INTEGER, PARAMETER :: HMcode2016 = 1
    INTEGER, PARAMETER :: HMcode2016_CAMB = 51
-   INTEGER, PARAMETER :: HMcode2016_neutrinofix = 53
+   INTEGER, PARAMETER :: HMcode2016_neutrinofix = 92
+   INTEGER, PARAMETER :: HMcode2019 = 53
    INTEGER, PARAMETER :: HMcode2020 = 15
 
    ! HMx versions
@@ -582,7 +585,7 @@ CONTAINS
       names(50) = 'HMcode (2016) with Dolag pow=1 bug'
       names(51) = 'HMcode (2016) with CAMB parameters'
       names(52) = 'Standard but with Mead (2017) spherical collapse'
-      names(53) = 'HMcode (2016) with Nelder-Mead parameters'
+      names(53) = 'HMcode (2019)'
       names(54) = 'Matter masquerading as DMONLY'
       names(55) = 'HMx2020: Baseline'
       names(56) = 'HMx2020: Model that fits stars-stars AGN 7.6'
@@ -619,6 +622,9 @@ CONTAINS
       names(87) = 'Standard but with Despali et al. (2016) mass function'
       names(88) = 'Standard but with Child et al. (2018) concentration-mass relation'
       names(89) = 'Standard but with all halo gas bound'
+      names(90) = 'Standard but with z-dependent Dolag correction'
+      names(91) = 'Standard but with Tinker (2008) mass function for virial haloes'
+      names(92) = 'HMcode (2016) with neutrino bug fix'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1104,7 +1110,7 @@ CONTAINS
          WRITE (*, *)
       END IF
 
-      IF (is_in_array(ihm, [1, 7, 15, 28, 31, 50, 51, 53, 64, 66])) THEN
+      IF (is_in_array(ihm, [1, 7, 15, 28, 31, 50, 51, 53, 64, 66, 92])) THEN
          !  1 - HMcode (2016)
          !  7 - HMcode (2015)
          ! 15 - HMcode (2020)
@@ -1112,9 +1118,10 @@ CONTAINS
          ! 31 - HMcode (2016) w/ additional BAO damping
          ! 50 - HMcode (2016) w/ pow=1 bug in Dolag that was present in CAMB
          ! 51 - HMcode (2016) w/ CAMB halo mass range and number of mass points
-         ! 53 - HMcode (2016) w/ updated Nelder-Mead parameters and neutrino bug fix
+         ! 53 - HMcode (2019)
          ! 64 - HMcode (2016) w/ 2020 baryon recipe
          ! 66 - HMcode (2015) w/ CAMB halo mass range and number of mass points
+         ! 92 - HMcode (2016) w/ neutrino bug fix
          hmod%ip2h = 1
          hmod%i1hdamp = 1
          hmod%iconc = 1
@@ -1183,8 +1190,7 @@ CONTAINS
             hmod%alp1 = 1.88
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
-            hmod%DMONLY_neutrino_correction = .TRUE.
-            hmod%flag_sigma = flag_power_cold_unorm
+            hmod%DMONLY_neutrino_correction = .TRUE. ! Neutrino bug fix
          ELSE IF (ihm == 28) THEN
             ! HMcode (2016) with one-parameter baryon model
             hmod%one_parameter_baryons = .TRUE.
@@ -1201,7 +1207,7 @@ CONTAINS
             hmod%mmax = 1e18 ! Upper mass limit for integration [Msun/h]
             hmod%n = 256     ! Number of points in halo mass
          ELSE IF (ihm == 53) THEN
-            ! HMcode (2016) with improved fitted parameters and neutrino bug fix
+            ! HMcode (2019) with improved fitted parameters and neutrino bug fix compared to 2016
             hmod%Dv0 = 416.
             hmod%Dv1 = -0.346
             hmod%dc0 = 1.661
@@ -1221,6 +1227,9 @@ CONTAINS
             ! 64 - HMcode 2016 but with 2020 baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
             !hmod%sbar = 1e-3
+         ELSE IF (ihm == 92) THEN
+            ! 92 - HMcode (2016) with neutrino bug fix
+            hmod%DMONLY_neutrino_correction = .TRUE. ! Neutrino bug fix
          END IF
       ELSE IF (ihm == 2) THEN
          ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686)
@@ -1730,7 +1739,7 @@ CONTAINS
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
          hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
          hmod%iconc = 1   ! 1 - Bullock c(M) relation   
-         hmod%iDolag = 2  ! 2 - Dolag c(M) correction with 1.5 power
+         hmod%iDolag = 1  ! 2 - Dolag c(M) correction
          hmod%iAs = 2     ! 1 - Vary c(M) relation prefactor
          hmod%ieta = 1    ! 0 - No eta change of Fourier halo profiles UNDO
          hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
@@ -1801,6 +1810,12 @@ CONTAINS
       ELSE IF (ihm == 89) THEN
          ! All gas is bound gas
          hmod%frac_bound_gas = 3
+      ELSE IF (ihm == 90) THEN
+         ! Redshift-dependent Dolag
+         hmod%iDolag = 3
+      ELSE IF (ihm == 91) THEN
+         ! Tinker (2008) mass function
+         hmod%imf = 7
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2091,6 +2106,7 @@ CONTAINS
          IF (hmod%imf == 4) WRITE (*, *) 'HALOMODEL: Delta function mass function'
          IF (hmod%imf == 5) WRITE (*, *) 'HALOMODEL: Jenkins et al. (2001) mass function'
          IF (hmod%imf == 6) WRITE (*, *) 'HALOMODEL: Despali et al. (2016) mass function'
+         IF (hmod%imf == 7) WRITE (*, *) 'HALOMODEL: Tinker et al. (2008) mass function'
 
          ! Concentration-mass relation
          IF (hmod%iconc == 1)  WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -2273,6 +2289,11 @@ CONTAINS
             WRITE (*, fmt=fmt) 'Tinker phi:', hmod%Tinker_phi
          ELSE IF (hmod%imf == 4) THEN
             WRITE (*, *) 'Halo mass log10(M) [Msun/h]:', log10(hmod%hmass)
+         ELSE IF (hmod%imf == 7) THEN
+            WRITE (*, fmt=fmt) 'Tinker A:', hmod%Tinker_bigA
+            WRITE (*, fmt=fmt) 'Tinker a:', hmod%Tinker_a
+            WRITE (*, fmt=fmt) 'Tinker b:', hmod%Tinker_b
+            WRITE (*, fmt=fmt) 'Tinker c:', hmod%Tinker_c
          END IF
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: Halo parameters'
@@ -2731,7 +2752,8 @@ CONTAINS
          HMcode2016, &
          HMcode2016_CAMB, &
          HMcode2016_neutrinofix, &
-         HMcode2020&
+         HMcode2019, &
+         HMcode2020 &
          ])) THEN
             is_HMcode = .TRUE.
          ELSE
@@ -3088,7 +3110,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: wk(hmod%n, nf), wk2(hmod%n, 2), wk_product(hmod%n)
-      INTEGER :: i, j, f1, f2, ih(2)
+      INTEGER :: f1, f2, ih(2)
 
       ! Calls expressions for two- and one-halo terms and then combines to form the full power spectrum
       IF (k == 0.) THEN
@@ -3128,31 +3150,31 @@ CONTAINS
          END IF
 
          ! Get the two-halo term
-         DO i = 1, nf
-            DO j = i, nf
-               ih(1) = ifield(i)
-               ih(2) = ifield(j)
-               wk2(:, 1) = wk(:, i)
-               wk2(:, 2) = wk(:, j)
-               pow_2h(i, j) = p_2h(ih, wk2, hmod%n, k, pow_li, hmod, cosm)
+         DO f1 = 1, nf
+            DO f2 = f1, nf
+               ih(1) = ifield(f1)
+               ih(2) = ifield(f2)
+               wk2(:, 1) = wk(:, f1)
+               wk2(:, 2) = wk(:, f2)
+               pow_2h(f1, f2) = p_2h(ih, wk2, hmod%n, k, pow_li, hmod, cosm)
             END DO
          END DO
 
       END IF
 
       ! Loop over fields and get the total halo-model power
-      DO i = 1, nf
-         DO j = i, nf
-            pow_hm(i, j) = p_hm(k, pow_2h(i, j), pow_1h(i, j), hmod)
+      DO f1 = 1, nf
+         DO f2 = f1, nf
+            pow_hm(f1, f2) = p_hm(k, pow_2h(f1, f2), pow_1h(f1, f2), hmod)
          END DO
       END DO
 
       ! Construct symmetric parts using ij=ji symmetry of spectra
-      DO i = 1, nf
-         DO j = i, nf
-            pow_1h(j, i) = pow_1h(i, j)
-            pow_2h(j, i) = pow_2h(i, j)
-            pow_hm(j, i) = pow_hm(i, j)
+      DO f1 = 1, nf
+         DO f2 = f1, nf
+            pow_1h(f2, f1) = pow_1h(f1, f2)
+            pow_2h(f2, f1) = pow_2h(f1, f2)
+            pow_hm(f2, f1) = pow_hm(f1, f2)
          END DO
       END DO
 
@@ -3435,9 +3457,7 @@ CONTAINS
             ! Second-order bias correction
             ! This needs to have the property that \int f(nu)b2(nu) du = 0
             ! This means it is hard to check that the normalisation is correct
-            ! e.g., how much do low mass haloes matter
-
-            ! ...otherwise we need to do an integral
+            ! e.g., how much doees the second-order bias of low mass haloes matter?
             DO j = 1, 2
                CALL I_2h(ih(j), I2h, wk(:, j), n, hmod, cosm, ibias=2)
                I2hs(j) = I2h
@@ -4368,7 +4388,8 @@ CONTAINS
          Delta_v = 1.
       ELSE IF (hmod%iDv == 7) THEN
          ! M200c
-         Delta_v = 200.*comoving_critical_density(a, cosm)/comoving_matter_density(cosm)
+         !Delta_v = 200.*comoving_critical_density(a, cosm)/comoving_matter_density(cosm)
+         Delta_v = 200./Omega_m(a, cosm)
       ELSE IF (hmod%iDv == 9) THEN
          ! 18pi^2 ~178
          Delta_v = Dv0
@@ -5976,6 +5997,7 @@ CONTAINS
    REAL FUNCTION conc_Child(m, mnl)
 
       ! Concentration-mass relation from Child et al. (2018; 1804.10199); equation (18)
+      ! Applicable for M200c
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       REAL, INTENT(IN) :: mnl
@@ -6010,6 +6032,9 @@ CONTAINS
       REAL, PARAMETER :: b1 = 1.82
       REAL, PARAMETER :: ca = 0.20
       INTEGER, PARAMETER :: flag_power = flag_power_total
+
+      ! Suppress warnings
+      alpha = nu
 
       n_eff = neff(kappa*r, a, flag_power, cosm)
 
@@ -8754,11 +8779,13 @@ CONTAINS
       ELSE IF (hmod%imf == 2 .OR. hmod%imf == 6) THEN
          b_nu = b_st(nu, hmod)
       ELSE IF (hmod%imf == 3) THEN
-         b_nu = b_Tinker(nu, hmod)
+         b_nu = b_Tinker2010(nu, hmod)
       ELSE IF (hmod%imf == 4) THEN
          b_nu = 1.
       ELSE IF (hmod%imf == 5) THEN
          b_nu = b_Jenkins(nu, hmod)
+      ELSE IF (hmod%imf == 7) THEN
+         b_nu = b_Tinker2008(nu, hmod)
       ELSE
          STOP 'B_NU: Error, imf not specified correctly'
       END IF
@@ -8804,7 +8831,31 @@ CONTAINS
 
    END FUNCTION b_st
 
-   REAL FUNCTION b_Tinker(nu, hmod)
+   REAL FUNCTION b_Tinker2008(nu, hmod)
+
+      ! Peak-background split applied to Tinker et al. (2008) mass function
+      ! Note that the 2008 mass function is not normalised correctly, so this will not have the integral constraint
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: dc, bdash, cdash
+      REAL :: bigA, a, b, c
+
+      bigA = hmod%Tinker_bigA
+      a = hmod%Tinker_a
+      b = hmod%Tinker_b
+      c = hmod%Tinker_c
+
+      dc = hmod%dc
+
+      bdash = b/dc
+      cdash = c/dc**2
+
+      b_Tinker2008 = 1.-(a*(bdash*nu)**a/((bdash*nu)**a+1.)-2.*cdash*nu**2)/dc
+
+   END FUNCTION b_Tinker2008
+
+   REAL FUNCTION b_Tinker2010(nu, hmod)
 
       ! Tinker et al. (2010; 1001.3162) halo bias
       IMPLICIT NONE
@@ -8820,9 +8871,9 @@ CONTAINS
 
       dc = hmod%dc
 
-      b_Tinker = 1.+(gamma*nu**2-(1.+2.*eta))/dc+(2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
+      b_Tinker2010 = 1.+(gamma*nu**2-(1.+2.*eta))/dc+(2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
 
-   END FUNCTION b_Tinker
+   END FUNCTION b_Tinker2010
 
    REAL FUNCTION b_Jenkins(nu, hmod)
 
@@ -8930,11 +8981,13 @@ CONTAINS
       ELSE IF (hmod%imf == 2 .OR. hmod%imf == 6) THEN
          g_nu = g_st(nu, hmod)
       ELSE IF (hmod%imf == 3) THEN
-         g_nu = g_Tinker(nu, hmod)
+         g_nu = g_Tinker2010(nu, hmod)
       ELSE IF (hmod%imf == 4) THEN
          STOP 'G_NU: Error, this function should not be used for delta-mass-function'
       ELSE IF (hmod%imf == 5) THEN
          g_nu = g_Jenkins(nu, hmod)
+      ELSE IF (hmod%imf == 7) THEN
+         g_nu = g_Tinker2008(nu, hmod)
       ELSE
          STOP 'G_NU: Error, imf specified incorrectly'
       END IF
@@ -9008,9 +9061,29 @@ CONTAINS
 
    END FUNCTION g_st
 
-   REAL FUNCTION g_Tinker(nu, hmod)
+   REAL FUNCTION g_Tinker2008(nu, hmod)
 
-      ! Tinker et al. (2010; 1001.3162) mass function (also 2008; xxxx.xxxx)
+      ! Tinker et al. (2008; 0803.2706) mass function
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: bigA, a, b, c, sigma
+
+      bigA = hmod%Tinker_bigA
+      a = hmod%Tinker_a
+      b = hmod%Tinker_b
+      c = hmod%Tinker_c
+
+      sigma = dc0/nu
+
+      ! The actual mass function
+      g_Tinker2008 = (bigA/nu)*((sigma/b)**(-a)+1.)*exp(-c/sigma**2)
+
+   END FUNCTION g_Tinker2008
+
+   REAL FUNCTION g_Tinker2010(nu, hmod)
+
+      ! Tinker et al. (2010; 1001.3162) mass function
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -9023,9 +9096,9 @@ CONTAINS
       eta = hmod%Tinker_eta
 
       ! The actual mass function
-      g_Tinker = alpha*(1.+(beta*nu)**(-2.*phi))*nu**(2.*eta)*exp(-0.5*gamma*nu**2)
+      g_Tinker2010 = alpha*(1.+(beta*nu)**(-2.*phi))*nu**(2.*eta)*exp(-0.5*gamma*nu**2)
 
-   END FUNCTION g_Tinker
+   END FUNCTION g_Tinker2010
 
    REAL FUNCTION g_Jenkins(nu, hmod)
 
@@ -9056,7 +9129,9 @@ CONTAINS
       ELSE IF (hmod%imf == 2) THEN
          CALL init_ST(hmod)
       ELSE IF (hmod%imf == 3) THEN
-         CALL init_Tinker(hmod)
+         CALL init_Tinker2010(hmod)
+      ELSE IF (hmod%imf == 7) THEN
+         CALL init_Tinker2008(hmod)
       ELSE
          STOP 'INIT_MASS_FUNCTION: Error, something went wrong'
       END IF
@@ -9083,7 +9158,59 @@ CONTAINS
 
    END SUBROUTINE init_ST
 
-   SUBROUTINE init_Tinker(hmod)
+   SUBROUTINE init_Tinker2008(hmod)
+
+      ! Initialise the parameters of the Tinker et al. (2010) mass function and bias
+      IMPLICIT NONE
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: bigA, a, b, c
+      REAL :: z, log_Dv, alpha
+
+      ! Parameter arrays from Tinker (2008): Table 2
+      INTEGER, PARAMETER :: n = 9 ! Number of entries in parameter lists
+      REAL, PARAMETER :: log_Deltav(n) = log([200., 300., 400., 600., 800., 1200., 1600., 2400., 3200.])
+      REAL, PARAMETER :: bigAs(n)= [0.186, 0.200, 0.212, 0.218, 0.248, 0.255, 0.260, 0.260, 0.260]
+      REAL, PARAMETER :: as(n) = [1.47, 1.52, 1.56, 1.61, 1.87, 2.13, 2.30, 2.53, 2.66]
+      REAL, PARAMETER :: bs(n) = [2.57, 2.25, 2.05, 1.87, 1.59, 1.51, 1.46, 1.44, 1.41]
+      REAL, PARAMETER :: cs(n) = [1.19, 1.27, 1.34, 1.45, 1.58, 1.80, 1.97, 2.24, 2.44]
+      REAL, PARAMETER :: bigA_z_exp = -0.14
+      REAL, PARAMETER :: a_z_exp = -0.06
+
+      INTEGER, PARAMETER :: iorder = 1 ! Order for interpolation
+      INTEGER, PARAMETER :: ifind = 3  ! Scheme for finding (3 - Mid-point splitting)
+      INTEGER, PARAMETER :: imeth = 2  ! Method for interpolation (2 - Lagrange polynomial)
+
+      LOGICAL, PARAMETER :: z_dependence = .TRUE. ! Do redshift dependence or not
+
+      ! Get these from the halo-model structure
+      z = hmod%z
+      log_Dv = log(hmod%Dv)
+
+      ! Delta_v dependence (changed to log Dv finding)
+      bigA = find(log_Dv, log_Deltav, bigAs, n, iorder, ifind, imeth)
+      a = find(log_Dv, log_Deltav, as, n, iorder, ifind, imeth)
+      b = find(log_Dv, log_Deltav, bs, n, iorder, ifind, imeth)
+      c = find(log_Dv, log_Deltav, cs, n, iorder, ifind, imeth)
+
+      ! Redshift dependence
+      IF (z_dependence) THEN
+         bigA = bigA*(1.+z)**bigA_z_exp ! Equation (5)
+         a = a*(1.+z)**a_z_exp          ! Equation (6)
+         alpha = 10**(-(0.75/log10(exp(log_Dv)/75.))**1.2) ! Equation (8)
+         b = b*(1.+z)**(-alpha)         ! Equation (7)
+      END IF
+
+      hmod%Tinker_bigA = bigA
+      hmod%Tinker_a = a
+      hmod%Tinker_b = b
+      hmod%Tinker_c = c
+
+      ! Set the flag
+      hmod%has_mass_function = .TRUE.
+
+   END SUBROUTINE init_Tinker2008
+
+   SUBROUTINE init_Tinker2010(hmod)
 
       ! Initialise the parameters of the Tinker et al. (2010) mass function and bias
       IMPLICIT NONE
@@ -9126,10 +9253,10 @@ CONTAINS
 
       ! Redshift dependence
       IF (z_dependence) THEN
-         beta = beta*(1.+z)**beta_z_exp     ! Equation (9)
-         gamma = gamma**(1.+z)**gamma_z_exp ! Equation (12)
-         phi = phi*(1.+z)**phi_z_exp        ! Equation (10)
-         eta = eta*(1.+z)**eta_z_exp        ! Equation (11)
+         beta = beta*(1.+z)**beta_z_exp    ! Equation (9)
+         gamma = gamma*(1.+z)**gamma_z_exp ! Equation (12)
+         phi = phi*(1.+z)**phi_z_exp       ! Equation (10)
+         eta = eta*(1.+z)**eta_z_exp       ! Equation (11)
       END IF
 
       ! Set the Tinker parameters
@@ -9151,7 +9278,7 @@ CONTAINS
          hmod%Tinker_alpha = hmod%Tinker_alpha/integrate_g_mu(hmod%small_nu, hmod%large_nu, hmod)
       END IF
 
-   END SUBROUTINE init_Tinker
+   END SUBROUTINE init_Tinker2010
 
    REAL FUNCTION gb_nu(nu, hmod)
 
