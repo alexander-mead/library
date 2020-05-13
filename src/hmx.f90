@@ -671,6 +671,10 @@ CONTAINS
       ! 3 - Tinker et al. (2010)
       ! 4 - Delta function in mass
       ! 5 - Jenkins et al. (2001)
+      ! 6 - Despali et al. (2016)
+      ! 7 - Tinker et al. (2008)
+      ! 8 - Warren et al. (2006; astro-ph/0506395)
+      ! 9 - Reed et al. (2007; astro-ph/0607150)
       hmod%imf = 2
 
       ! Concentration-mass relation
@@ -906,7 +910,7 @@ CONTAINS
       hmod%Ac = 0.
 
       ! ~infinite redshift for Dolag correction
-      hmod%zinf_Dolag = 100.
+      hmod%zinf_Dolag = 10.
 
       ! Baryon model (relates eta0 and A)
       hmod%one_parameter_baryons = .FALSE.
@@ -1174,8 +1178,7 @@ CONTAINS
             hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
             hmod%ip2h = 3    ! 3 - Linear theory with damped wiggles
             hmod%i2hdamp = 1 ! 1 - Change back to Mead (2015) model for two-halo damping
-            hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
-            hmod%zinf_Dolag = 100.
+            !hmod%zinf_Dolag = 100. ! Setting zinf = 100 messes things up for weird DE models
             hmod%Dv0 = 411.
             hmod%Dv1 = -0.333
             hmod%dc0 = 1.631
