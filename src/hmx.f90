@@ -2110,6 +2110,8 @@ CONTAINS
          IF (hmod%imf == 5) WRITE (*, *) 'HALOMODEL: Jenkins et al. (2001) mass function'
          IF (hmod%imf == 6) WRITE (*, *) 'HALOMODEL: Despali et al. (2016) mass function'
          IF (hmod%imf == 7) WRITE (*, *) 'HALOMODEL: Tinker et al. (2008) mass function'
+         IF (hmod%imf == 8) WRITE (*, *) 'HALOMODEL: Warren et al. (2006) mass function'
+         IF (hmod%imf == 9) WRITE (*, *) 'HALOMODEL: Reed et al. (2007) mass function'
 
          ! Concentration-mass relation
          IF (hmod%iconc == 1)  WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -5657,7 +5659,7 @@ CONTAINS
 
    REAL FUNCTION effective_index(hmod, cosm)
 
-      ! Power spectrum effective slope a the non-linear scale
+      ! Power spectrum effective slope at the non-linear scale
       ! Defined as -3. + d ln sigma^2 / d ln r, so pertains to P(k) not Delta^2(k) in HMcode
       IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
@@ -5811,7 +5813,7 @@ CONTAINS
          ! Changed this to a power of 1.5 in HMcode 2016, produces more accurate results for extreme DE
          hmod%c = hmod%c*f**1.5
       ELSE IF (hmod%iDolag == 3) THEN
-         ! Correction with a sensible redshift dependence
+         ! Correction with a sensible redshift dependence, which is otherwise missing from Dolag
          a = hmod%a
          g_wCDM = grow(a, cosm)
          g_LCDM = grow_Linder(a, cosm_LCDM)
@@ -6039,6 +6041,7 @@ CONTAINS
       ! Suppress warnings
       alpha = nu
 
+      STOP 'CONC_DIEMER: Need to implement this effectively, need neff(M)'
       n_eff = neff(kappa*r, a, flag_power, cosm)
 
       bigA = a0*(1.+a1*(n_eff+3.))
@@ -6232,12 +6235,8 @@ CONTAINS
       ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
       ! TODO: Should this really be computed here?
       ! TODO: Think man, think!
-      IF (hmod%DMONLY_neutrino_correction) THEN
-         win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
-      END IF
-      IF (hmod%DMONLY_baryon_recipe) THEN
-         win_DMONLY = baryonify_wk(win_DMONLY, m, hmod, cosm)
-      END IF
+      IF (hmod%DMONLY_neutrino_correction) win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
+      IF (hmod%DMONLY_baryon_recipe)       win_DMONLY = baryonify_wk(win_DMONLY, m, hmod, cosm)
 
    END FUNCTION win_DMONLY
 
@@ -8789,6 +8788,10 @@ CONTAINS
          b_nu = b_Jenkins(nu, hmod)
       ELSE IF (hmod%imf == 7) THEN
          b_nu = b_Tinker2008(nu, hmod)
+      ELSE IF (hmod%imf == 8) THEN
+         b_nu = b_Warren(nu, hmod)
+      ELSE IF (hmod%imf == 9) THEN
+         b_nu = b_Reed(nu, hmod)
       ELSE
          STOP 'B_NU: Error, imf not specified correctly'
       END IF
@@ -8898,6 +8901,26 @@ CONTAINS
 
    END FUNCTION b_Jenkins
 
+   REAL FUNCTION b_Warren(nu, hmod)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+
+      b_Warren = 1.
+
+   END FUNCTION b_Warren
+
+   REAL FUNCTION b_Reed(nu, hmod)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+
+      b_Reed = 1.
+
+   END FUNCTION b_Reed
+
    REAL FUNCTION b2_nu(nu, hmod)
 
       ! Bias function selection
@@ -8991,6 +9014,10 @@ CONTAINS
          g_nu = g_Jenkins(nu, hmod)
       ELSE IF (hmod%imf == 7) THEN
          g_nu = g_Tinker2008(nu, hmod)
+      ELSE IF (hmod%imf == 8) THEN
+         g_nu = g_Warren(nu, hmod)
+      ELSE IF (hmod%imf == 9) THEN
+         g_nu = g_Reed(nu, hmod)
       ELSE
          STOP 'G_NU: Error, imf specified incorrectly'
       END IF
@@ -9070,17 +9097,17 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: bigA, a, b, c, sigma
+      REAL :: bigA, a, b, c, sig
 
       bigA = hmod%Tinker_bigA
       a = hmod%Tinker_a
       b = hmod%Tinker_b
       c = hmod%Tinker_c
 
-      sigma = dc0/nu
+      sig = hmod%dc/nu
 
       ! The actual mass function
-      g_Tinker2008 = (bigA/nu)*((sigma/b)**(-a)+1.)*exp(-c/sigma**2)
+      g_Tinker2008 = (bigA/nu)*((sig/b)**(-a)+1.)*exp(-c/sig**2)
 
    END FUNCTION g_Tinker2008
 
@@ -9121,23 +9148,74 @@ CONTAINS
 
    END FUNCTION g_Jenkins
 
+   REAL FUNCTION g_Warren(nu, hmod)
+
+      ! Warren et al. (2006; astro-ph/0506395) mass function for FoF = 0.2 haloes
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: sig
+      REAL, PARAMETER :: bigA = 0.7234 ! Parameters from Equation (8)
+      REAL, PARAMETER :: a = 1.625
+      REAL, PARAMETER :: b = 0.2538
+      REAL, PARAMETER :: c = 1.1982
+
+      sig = hmod%dc/nu
+
+      ! Equation (5), conversion from f(sigma) to g(nu)
+      g_Warren = (bigA/nu)*(sig**(-a)+b)*exp(-c/sig**2) 
+
+   END FUNCTION g_Warren
+
+   REAL FUNCTION g_Reed(nu, hmod)
+
+      ! Reed et al. (2007; astro-ph/0607150) mass function
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: omeg, sig, G1, G2, f1, f2, f3, ne
+      REAL, PARAMETER :: bigA = 0.310 ! Below equation (12)
+      REAL, PARAMETER :: c = 1.08     ! Below equation (11)
+      REAL, PARAMETER :: ca = 0.764   ! Below equation (12)
+      REAL, PARAMETER :: a = ca/c
+      REAL, PARAMETER :: p = 0.3      ! Below equation (5) from Sheth & Tormen
+
+      sig = hmod%dc/nu
+      omeg = sqrt(ca)*nu
+
+      ! Equation (12)
+      G1 = exp(-(log(omeg)-0.788)**2/(2.*0.6**2))
+      G2 = exp(-(log(omeg)-1.138)**2/(2.*0.2**2))
+
+      ! TODO: Implement this
+      STOP 'G_REED: Need to implement neff(M) here'
+      ne = 0. 
+
+      ! Equation (12)
+      ! Note that there are typos in the paper, see my emails
+      f1 = 1.+1.02*omeg**(-2.*p)+0.6*G1+0.4*G2 ! TYPO: 2p -> -2p
+      f2 = bigA*omeg*sqrt(2./pi)
+      f3 = exp(-omeg**2/2.-0.0325*omeg**p/(3.+ne)**2) ! TYPO: omega -> omega^2
+      
+      g_Reed = f1*f2*f3
+
+   END FUNCTION g_Reed
+
    SUBROUTINE init_mass_function(hmod)
 
       ! Initialise anything to do with the halo mass function
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      IF (hmod%imf == 1 .OR. hmod%imf == 4 .OR. hmod%imf == 5 .OR. hmod%imf == 6) THEN
-         hmod%has_mass_function = .TRUE.
-      ELSE IF (hmod%imf == 2) THEN
+      IF (hmod%imf == 2) THEN
          CALL init_ST(hmod)
       ELSE IF (hmod%imf == 3) THEN
          CALL init_Tinker2010(hmod)
       ELSE IF (hmod%imf == 7) THEN
          CALL init_Tinker2008(hmod)
-      ELSE
-         STOP 'INIT_MASS_FUNCTION: Error, something went wrong'
       END IF
+
+      hmod%has_mass_function = .TRUE.
 
    END SUBROUTINE init_mass_function
 
@@ -9155,9 +9233,6 @@ CONTAINS
       ! Normalisation of ST mass function (involves Gamma function)
       !hmod%ST_A = 1./(sqrt(pi/(2.*q))+(1./sqrt(q))*(2.**(-p-0.5))*Gamma(0.5-p))
       hmod%ST_A = sqrt(2.*q)/(sqrt(pi)+Gamma(0.5-p)/2**p)
-
-      ! Set the flag to true
-      hmod%has_mass_function = .TRUE.
 
    END SUBROUTINE init_ST
 
@@ -9207,9 +9282,6 @@ CONTAINS
       hmod%Tinker_a = a
       hmod%Tinker_b = b
       hmod%Tinker_c = c
-
-      ! Set the flag
-      hmod%has_mass_function = .TRUE.
 
    END SUBROUTINE init_Tinker2008
 
