@@ -84,6 +84,7 @@ MODULE HMx
    PUBLIC :: HMcode2016
    PUBLIC :: HMcode2016_CAMB
    PUBLIC :: HMcode2016_neutrinofix
+   PUBLIC :: HMcode2016_neutrinofix_CAMB
    PUBLIC :: HMcode2019
    PUBLIC :: HMcode2020
 
@@ -512,6 +513,7 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2016 = 1
    INTEGER, PARAMETER :: HMcode2016_CAMB = 51
    INTEGER, PARAMETER :: HMcode2016_neutrinofix = 92
+   INTEGER, PARAMETER :: HMcode2016_neutrinofix_CAMB = 95
    INTEGER, PARAMETER :: HMcode2019 = 53
    INTEGER, PARAMETER :: HMcode2020 = 15
 
@@ -625,6 +627,9 @@ CONTAINS
       names(90) = 'Standard but with z-dependent Dolag correction'
       names(91) = 'Standard but with Tinker (2008) mass function for virial haloes'
       names(92) = 'HMcode (2016) with neutrino bug fix'
+      names(93) = 'Standard but with Warren (2006) mass function'
+      names(94) = 'Standard but with Reed (2007) mass function'
+      names(95) = 'HMcode (2016) with neutrino bug fix and CAMB mass range'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1114,18 +1119,19 @@ CONTAINS
          WRITE (*, *)
       END IF
 
-      IF (is_in_array(ihm, [1, 7, 15, 28, 31, 50, 51, 53, 64, 66, 92])) THEN
+      IF (is_in_array(ihm, [1, 7, 15, 28, 31, 50, 51, 53, 64, 66, 92, 95])) THEN
          !  1 - HMcode (2016)
          !  7 - HMcode (2015)
          ! 15 - HMcode (2020)
          ! 28 - HMcode (2016) w/ one parameter baryon model
          ! 31 - HMcode (2016) w/ additional BAO damping
          ! 50 - HMcode (2016) w/ pow=1 bug in Dolag that was present in CAMB
-         ! 51 - HMcode (2016) w/ CAMB halo mass range and number of mass points
+         ! 51 - HMcode (2016) w/ CAMB mass range points
          ! 53 - HMcode (2019)
          ! 64 - HMcode (2016) w/ 2020 baryon recipe
-         ! 66 - HMcode (2015) w/ CAMB halo mass range and number of mass points
+         ! 66 - HMcode (2015) w/ CAMB mass range and points
          ! 92 - HMcode (2016) w/ neutrino bug fix
+         ! 95 - HMcode (2016) w/ neutrino bug fix and CAMB mass range and points
          hmod%ip2h = 1
          hmod%i1hdamp = 1
          hmod%iconc = 1
@@ -1230,9 +1236,15 @@ CONTAINS
             ! 64 - HMcode 2016 but with 2020 baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
             !hmod%sbar = 1e-3
-         ELSE IF (ihm == 92) THEN
+         ELSE IF (ihm == 92 .OR. ihm == 95) THEN
             ! 92 - HMcode (2016) with neutrino bug fix
             hmod%DMONLY_neutrino_correction = .TRUE. ! Neutrino bug fix
+            IF (ihm == 95) THEN
+               ! CAMB mass range
+               hmod%mmin = 1e0
+               hmod%mmax = 1e18
+               hmod%n = 256
+            END IF
          END IF
       ELSE IF (ihm == 2) THEN
          ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686)
@@ -1819,6 +1831,12 @@ CONTAINS
       ELSE IF (ihm == 91) THEN
          ! Tinker (2008) mass function
          hmod%imf = 7
+      ELSE IF (ihm == 93) THEN
+         ! Warren (2006) mass function
+         hmod%imf = 8
+      ELSE IF (ihm == 94) THEN
+         ! Reed (2007) mass function
+         hmod%imf = 9
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2757,6 +2775,7 @@ CONTAINS
          HMcode2016, &
          HMcode2016_CAMB, &
          HMcode2016_neutrinofix, &
+         HMcode2016_neutrinofix_CAMB, &
          HMcode2019, &
          HMcode2020 &
          ])) THEN
@@ -4337,6 +4356,7 @@ CONTAINS
          delta_c = dc_NakamuraSuto(a, cosm)
       ELSE IF (hmod%idc == 3 .OR. hmod%idc == 6) THEN
          ! From HMcode (2015)
+         ! TODO: It may be more logical to have a flag_power_cold dependence
          sig = sigma(8., a, flag_power_total, cosm)
          delta_c = hmod%dc0+hmod%dc1*log(sig)
          IF (hmod%idc == 3) THEN
@@ -9151,6 +9171,7 @@ CONTAINS
    REAL FUNCTION g_Warren(nu, hmod)
 
       ! Warren et al. (2006; astro-ph/0506395) mass function for FoF = 0.2 haloes
+      ! The paper claims that this relates to ~ 280x mean matter density haloes
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
@@ -9162,7 +9183,7 @@ CONTAINS
 
       sig = hmod%dc/nu
 
-      ! Equation (5), conversion from f(sigma) to g(nu)
+      ! Equation (5), conversion from f(sigma) to g(nu) via 1/nu factor
       g_Warren = (bigA/nu)*(sig**(-a)+b)*exp(-c/sig**2) 
 
    END FUNCTION g_Warren
@@ -9170,6 +9191,7 @@ CONTAINS
    REAL FUNCTION g_Reed(nu, hmod)
 
       ! Reed et al. (2007; astro-ph/0607150) mass function
+      ! NOTE: Paper contains typos in formulae in equations (10) and (12) be very careful
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
