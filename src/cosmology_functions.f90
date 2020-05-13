@@ -6263,6 +6263,7 @@ CONTAINS
          cosm%ns =  1.0060
          cosm%w = -0.9000
          cosm%wa = 0.43330
+         om_nu = 0.
       ELSE IF (node == 9) THEN
          ! M009
          om_m = 0.1394
