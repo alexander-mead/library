@@ -8926,6 +8926,11 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: crap
+
+      ! Suppress warnings
+      crap = nu
+      crap = hmod%a
 
       b_Warren = 1.
 
@@ -8936,6 +8941,11 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: crap
+
+      ! Suppress warnings
+      crap = nu
+      crap = hmod%a
 
       b_Reed = 1.
 
