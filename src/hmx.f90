@@ -85,6 +85,7 @@ MODULE HMx
    PUBLIC :: HMcode2016_CAMB
    PUBLIC :: HMcode2016_neutrinofix
    PUBLIC :: HMcode2016_neutrinofix_CAMB
+   PUBLIC :: HMcode2018
    PUBLIC :: HMcode2019
    PUBLIC :: HMcode2020
 
@@ -514,8 +515,9 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2016_CAMB = 51
    INTEGER, PARAMETER :: HMcode2016_neutrinofix = 92
    INTEGER, PARAMETER :: HMcode2016_neutrinofix_CAMB = 95
-   INTEGER, PARAMETER :: HMcode2019 = 53
-   INTEGER, PARAMETER :: HMcode2020 = 15
+   INTEGER, PARAMETER :: HMcode2018 = 53
+   INTEGER, PARAMETER :: HMcode2019 = 15
+   INTEGER, PARAMETER :: HMcode2020 = 79
 
    ! HMx versions
    INTEGER, PARAMETER :: HMx2020_matter_with_temperature_scaling = 60
@@ -549,7 +551,7 @@ CONTAINS
       names(12) = 'Spherical collapse used for Mead (2017) results'
       names(13) = 'Experimental sigmoid transition'
       names(14) = 'Experimental scale-dependent halo bias'
-      names(15) = 'HMcode (2020)'
+      names(15) = 'HMcode (2019)'
       names(16) = 'Halo-void model'
       names(17) = 'Tilman HMx - AGN 7.6'
       names(18) = 'Tilman HMx - AGN tuned'
@@ -587,7 +589,7 @@ CONTAINS
       names(50) = 'HMcode (2016) with Dolag pow=1 bug'
       names(51) = 'HMcode (2016) with CAMB parameters'
       names(52) = 'Standard but with Mead (2017) spherical collapse'
-      names(53) = 'HMcode (2019)'
+      names(53) = 'HMcode (2018)'
       names(54) = 'Matter masquerading as DMONLY'
       names(55) = 'HMx2020: Baseline'
       names(56) = 'HMx2020: Model that fits stars-stars AGN 7.6'
@@ -611,9 +613,9 @@ CONTAINS
       names(74) = 'Standard but with dc=1.686 fixed'
       names(75) = 'Standard but with dc from Mead (2017) fit'
       names(76) = 'Standard but with Dv from Mead (2017) fit'
-      names(77) = 'HMcode (test) unfitted'
-      names(78) = 'HMcode (test) fitted to Cosmic Emu k<1'
-      names(79) = 'HMcode (test) fitted'
+      names(77) = 'HMcode (2020) unfitted'
+      names(78) = 'HMcode (2020) fitted to Cosmic Emu k<1'
+      names(79) = 'HMcode (2020) fitted'
       names(80) = 'Standard but with Jenkins mass function' 
       names(81) = 'HMx2020: matter-only response; Model that fits stars-stars AGN 7.6'
       names(82) = 'HMx2020: matter-only response; Model that fits stars-stars AGN 7.8'
@@ -725,7 +727,7 @@ CONTAINS
       ! Concentration-mass rescaling
       ! 0 - No
       ! 1 - HMcode (2015, 2016)
-      ! 2 - HMcode (test) with sigma8 dependence
+      ! 2 - HMcode (2020) with sigma8 dependence
       hmod%iAs = 0
 
       ! Two-halo term damping
@@ -1122,12 +1124,12 @@ CONTAINS
       IF (is_in_array(ihm, [1, 7, 15, 28, 31, 50, 51, 53, 64, 66, 92, 95])) THEN
          !  1 - HMcode (2016)
          !  7 - HMcode (2015)
-         ! 15 - HMcode (2020)
+         ! 15 - HMcode (2019)
          ! 28 - HMcode (2016) w/ one parameter baryon model
          ! 31 - HMcode (2016) w/ additional BAO damping
          ! 50 - HMcode (2016) w/ pow=1 bug in Dolag that was present in CAMB
          ! 51 - HMcode (2016) w/ CAMB mass range points
-         ! 53 - HMcode (2019)
+         ! 53 - HMcode (2018)
          ! 64 - HMcode (2016) w/ 2020 baryon recipe
          ! 66 - HMcode (2015) w/ CAMB mass range and points
          ! 92 - HMcode (2016) w/ neutrino bug fix
@@ -1173,14 +1175,8 @@ CONTAINS
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
             hmod%flag_sigma = flag_power_total
-            IF (ihm == 66) THEN
-               ! 66 - HMcode (2015) but with CAMB halo mass range and number of mass points
-               hmod%mmin = 1e0  ! Lower mass limit for integration [Msun/h]
-               hmod%mmax = 1e18 ! Upper mass limit for integration [Msun/h]
-               hmod%n = 256     ! Number of points in halo mass
-            END IF
          ELSE IF (ihm == 15) THEN
-            ! HMcode (2020)
+            ! HMcode (2019)
             hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
             hmod%ip2h = 3    ! 3 - Linear theory with damped wiggles
             hmod%i2hdamp = 1 ! 1 - Change back to Mead (2015) model for two-halo damping
@@ -1210,13 +1206,8 @@ CONTAINS
          ELSE IF (ihm == 50) THEN
             ! HMcode (2016) with bug present in CAMB when Dolag power is set to 1 rather than 1.5
             hmod%iDolag = 1
-         ELSE IF (ihm == 51) THEN
-            ! HMcode (2016) with CAMB mass range and number of points
-            hmod%mmin = 1e0  ! Lower mass limit for integration [Msun/h]
-            hmod%mmax = 1e18 ! Upper mass limit for integration [Msun/h]
-            hmod%n = 256     ! Number of points in halo mass
          ELSE IF (ihm == 53) THEN
-            ! HMcode (2019) with improved fitted parameters and neutrino bug fix compared to 2016
+            ! HMcode (2018) with improved fitted parameters and neutrino bug fix compared to 2016
             hmod%Dv0 = 416.
             hmod%Dv1 = -0.346
             hmod%dc0 = 1.661
@@ -1237,14 +1228,14 @@ CONTAINS
             hmod%DMONLY_baryon_recipe = .TRUE.
             !hmod%sbar = 1e-3
          ELSE IF (ihm == 92 .OR. ihm == 95) THEN
-            ! 92 - HMcode (2016) with neutrino bug fix
+            ! 92, 95 - HMcode (2016) with neutrino bug fix
             hmod%DMONLY_neutrino_correction = .TRUE. ! Neutrino bug fix
-            IF (ihm == 95) THEN
-               ! CAMB mass range
-               hmod%mmin = 1e0
-               hmod%mmax = 1e18
-               hmod%n = 256
-            END IF
+         END IF
+         IF (ihm == 51 .OR. ihm == 66 .OR. ihm == 95) THEN
+            ! CAMB mass range
+            hmod%mmin = 1e0
+            hmod%mmax = 1e18
+            hmod%n = 256
          END IF
       ELSE IF (ihm == 2) THEN
          ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686)
@@ -1743,7 +1734,7 @@ CONTAINS
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
       ELSE IF (ihm == 77 .OR. ihm == 78 .OR. ihm == 79) THEN
-         ! HMcode (test)
+         ! HMcode (2020)
          ! 77 - Unfitted
          ! 78 - Fitted to Cosmic Emu for k<1
          ! 79 - Fitted
@@ -2776,6 +2767,7 @@ CONTAINS
          HMcode2016_CAMB, &
          HMcode2016_neutrinofix, &
          HMcode2016_neutrinofix_CAMB, &
+         HMcode2018, &
          HMcode2019, &
          HMcode2020 &
          ])) THEN
@@ -4578,7 +4570,7 @@ CONTAINS
          ! This is the 'A' halo-concentration parameter in HMcode(2015; 2016)
          HMcode_A = hmod%As
       ELSE IF (hmod%iAs == 2) THEN
-         ! HMcode (test)
+         ! HMcode (2020)
          sig = sigma(8., hmod%a, flag_power_total, cosm)
          HMcode_A = hmod%As*(sig/0.8)**hmod%Ap+hmod%Ac
       ELSE
