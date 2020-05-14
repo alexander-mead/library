@@ -3113,6 +3113,7 @@ CONTAINS
       REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
       REAL :: BigT
       INTEGER, PARAMETER :: N_massive_nu = 3
+      LOGICAL, PARAMETER :: wrong_growth = .FALSE.
 
       IF (cosm%f_nu == 0.) THEN
 
@@ -3133,11 +3134,14 @@ CONTAINS
          ! The matter-radiation equality redshift
          zeq = (2.5e4)*cosm%om_m*(cosm%h**2.)*(BigT**(-4.))
 
-         ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m \approx 1)
-         ! For my purpose (just the ratio) seems to work better using the EdS growth function result: g(a) = a
-         ! NOTE: Using the two different options below gives per-cent level differences for CAMB vs HMx comparison
-         !D = (1.+zeq)/(1.+z)
-         D = (1.+zeq)*ungrow(a, cosm)
+         ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m ~ 1)
+         ! Note that I previously used the 'wrong' growth rate below in that I took the EdS result
+         ! NOTE: The two different options below gives per-cent level differences for CAMB vs HMx comparison
+         IF (wrong_growth) THEN
+            D = (1.+zeq)/(1.+z)
+         ELSE
+            D = (1.+zeq)*ungrow(a, cosm)
+         END IF
 
          ! Wave number relative to the horizon scale at equality (equation 5)
          ! Extra factor of h becauase all my k are in units of h/Mpc
