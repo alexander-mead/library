@@ -3697,6 +3697,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
+      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
       ungrow = cosm%gnorm*grow(a, cosm)
 
    END FUNCTION ungrow
