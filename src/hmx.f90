@@ -1745,10 +1745,11 @@ CONTAINS
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
          hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
          hmod%iconc = 1   ! 1 - Bullock c(M) relation   
-         hmod%iDolag = 1  ! 2 - Dolag c(M) correction
-         hmod%iAs = 2     ! 1 - Vary c(M) relation prefactor
-         hmod%ieta = 1    ! 0 - No eta change of Fourier halo profiles UNDO
+         hmod%iDolag = 1  ! 1 - Dolag c(M) correction with no strange powers
+         hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
+         hmod%ieta = 1    ! 1 - Vary eta
          hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
+         hmod%DMONLY_neutrino_correction = .TRUE.
          IF (ihm == 78) THEN
             ! Model 1: 7.960e-3 for Cosmic Emu
             hmod%f0 = 0.2271961
@@ -2249,7 +2250,7 @@ CONTAINS
 
          ! eta for halo window function
          IF (hmod%ieta == 0) WRITE (*, *) 'HALOMODEL: eta = 0 fixed'
-         IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta from HMcode (2015, 2016) power spectrum fit'
+         IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta from HMcode power spectrum fit'
 
          ! Small-scale two-halo term damping coefficient
          IF (hmod%i2hdamp == 0) WRITE (*, *) 'HALOMODEL: No two-halo term damping at small scales'
@@ -2285,8 +2286,8 @@ CONTAINS
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'redshift:', hmod%z
          WRITE (*, fmt=fmt) 'scale factor:', hmod%a
-         WRITE (*, fmt=fmt) 'Dv:', Delta_v(hmod, cosm)
-         WRITE (*, fmt=fmt) 'dc:', delta_c(hmod, cosm)
+         WRITE (*, fmt=fmt) 'Dv:', hmod%Dv
+         WRITE (*, fmt=fmt) 'dc:', hmod%dc
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: Mass function parameters'
          WRITE (*, *) dashes
@@ -3585,7 +3586,7 @@ CONTAINS
          fdamp = hmod%HMcode_fdamp
          kdamp = hmod%kdamp!*hmod%knl
          ndamp = 2.
-         p_2h = p_2h*(1.-fdamp*((k/kdamp)**ndamp)/((k/kdamp)**ndamp+1.))
+         p_2h = p_2h*(1.-fdamp*((k/kdamp)**ndamp)/(1.+(k/kdamp)**ndamp))
       END IF
 
    END FUNCTION p_2h
@@ -4453,7 +4454,7 @@ CONTAINS
       IF (hmod%i2hdamp == 0) THEN
          ! Set to 0 for the standard linear theory two halo term
          HMcode_fdamp = 0.
-      ELSE IF (hmod%i2hdamp == 1 .OR. hmod%i2hdamp == 3) THEN
+      ELSE IF (hmod%i2hdamp == 1) THEN
          ! HMcode (2015)
          sig = sigma(8., hmod%a, flag_power_total, cosm)
          HMcode_fdamp = hmod%f0*sig**hmod%f1
@@ -4461,6 +4462,10 @@ CONTAINS
          ! HMcode (2016)
          sigv = sigmaV(100., hmod%a, flag_power_total, cosm)
          HMcode_fdamp = hmod%f0*sigv**hmod%f1
+      ELSE IF (hmod%i2hdamp == 3) THEN
+         ! HMcode (2020)
+         sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+         HMcode_fdamp = hmod%f0*sig**hmod%f1
       ELSE
          STOP 'FDAMP_HMcode: Error, i2hdamp defined incorrectly'
       END IF
@@ -4571,7 +4576,7 @@ CONTAINS
          HMcode_A = hmod%As
       ELSE IF (hmod%iAs == 2) THEN
          ! HMcode (2020)
-         sig = sigma(8., hmod%a, flag_power_total, cosm)
+         sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
          HMcode_A = hmod%As*(sig/0.8)**hmod%Ap+hmod%Ac
       ELSE
          STOP 'HMcode_A: Error, iAs defined incorrectly'
@@ -5327,7 +5332,8 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      nu_R = delta_c(hmod, cosm)/sigma(R, hmod%a, hmod%flag_sigma, cosm)
+      !nu_R = delta_c(hmod, cosm)/sigma(R, hmod%a, hmod%flag_sigma, cosm)
+      nu_R = hmod%dc/sigma(R, hmod%a, hmod%flag_sigma, cosm)
 
    END FUNCTION nu_R
 
@@ -8856,20 +8862,21 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: dc, bdash, cdash
-      REAL :: bigA, a, b, c
+      REAL :: dc, sig!, bdash, cdash
+      REAL :: a, b, c
 
-      bigA = hmod%Tinker_bigA
       a = hmod%Tinker_a
       b = hmod%Tinker_b
       c = hmod%Tinker_c
 
       dc = hmod%dc
+      sig = dc/nu
 
-      bdash = b/dc
-      cdash = c/dc**2
+      !bdash = b/dc
+      !cdash = c/dc**2
+      !b_Tinker2008 = 1.-(a*(bdash*nu)**a/((bdash*nu)**a+1.)-2.*cdash*nu**2)/dc
 
-      b_Tinker2008 = 1.-(a*(bdash*nu)**a/((bdash*nu)**a+1.)-2.*cdash*nu**2)/dc
+      b_Tinker2008 = 1.-(a*b**a/(sig**a+b**a)-2.*c/sig**2)/dc
 
    END FUNCTION b_Tinker2008
 

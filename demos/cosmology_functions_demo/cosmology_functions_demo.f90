@@ -15,7 +15,7 @@ PROGRAM cosmology_functions_demo
    CHARACTER(len=256) :: cosmo
 
    LOGICAL, PARAMETER :: test_background = .TRUE.
-   LOGICAL, PARAMETER :: test_spherical = .FALSE.
+   LOGICAL, PARAMETER :: test_spherical = .TRUE.
    LOGICAL, PARAMETER :: test_power = .TRUE.
    LOGICAL, PARAMETER :: test_dewiggle = .FALSE.
    LOGICAL, PARAMETER :: test_correlation = .FALSE.
