@@ -8926,13 +8926,14 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: crap
+      REAL :: sig, dc
+      REAL, PARAMETER :: b = 0.2538
+      REAL, PARAMETER :: c = 1.1982
 
-      ! Suppress warnings
-      crap = nu
-      crap = hmod%a
+      dc = hmod%dc
+      sig = dc/nu
 
-      b_Warren = 1.
+      b_Warren = 1.-(b/(1.+b*sig**b)-2.*c/sig**2)/dc
 
    END FUNCTION b_Warren
 
