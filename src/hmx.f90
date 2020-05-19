@@ -632,6 +632,7 @@ CONTAINS
       names(93) = 'Standard but with Warren (2006) mass function'
       names(94) = 'Standard but with Reed (2007) mass function'
       names(95) = 'HMcode (2016) with neutrino bug fix and CAMB mass range'
+      names(96) = 'Standard but with Bhattacharya (2011) mass function'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -642,6 +643,7 @@ CONTAINS
       hmod%acc = 1e-4  ! Accuracy for continuous integrals (1e-3 is okay, 1e-4 is better)
 
       ! Small and large values for nu (6 is okay, corrections are suppressed by exp(-large_nu^2)
+      ! TODO: It would be nice to be able to fix small_nu = 0.
       hmod%small_nu = 1e-6
       hmod%large_nu = 6.
 
@@ -672,16 +674,17 @@ CONTAINS
       ! 2 - HMcode (2020) k^4 at large scales
       hmod%i1hdamp = 0
 
-      ! Mass and halo bias function pair
-      ! 1 - Press & Schecter (1974)
-      ! 2 - Sheth & Tormen (1999)
-      ! 3 - Tinker et al. (2010)
-      ! 4 - Delta function in mass
-      ! 5 - Jenkins et al. (2001)
-      ! 6 - Despali et al. (2016)
-      ! 7 - Tinker et al. (2008)
-      ! 8 - Warren et al. (2006; astro-ph/0506395)
-      ! 9 - Reed et al. (2007; astro-ph/0607150)
+      ! Halo mass function and bias
+      !  1 - Press & Schecter (1974)
+      !  2 - Sheth & Tormen (1999)
+      !  3 - Tinker et al. (2010)
+      !  4 - Delta function in mass
+      !  5 - Jenkins et al. (2001)
+      !  6 - Despali et al. (2016)
+      !  7 - Tinker et al. (2008)
+      !  8 - Warren et al. (2006; astro-ph/0506395)
+      !  9 - Reed et al. (2007; astro-ph/0607150)
+      ! 10 - Bhattacharya et al. (2011; 1005.2239)
       hmod%imf = 2
 
       ! Concentration-mass relation
@@ -722,6 +725,7 @@ CONTAINS
       ! eta for halo window function
       ! 0 - No
       ! 1 - HMcode (2015, 2016)
+      ! 2 - Same as 1 but with sigma_cold dependence
       hmod%ieta = 1
 
       ! Concentration-mass rescaling
@@ -917,7 +921,7 @@ CONTAINS
       hmod%Ac = 0.
 
       ! ~infinite redshift for Dolag correction
-      hmod%zinf_Dolag = 10.
+      hmod%zinf_Dolag = 100.
 
       ! Baryon model (relates eta0 and A)
       hmod%one_parameter_baryons = .FALSE.
@@ -1180,7 +1184,6 @@ CONTAINS
             hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
             hmod%ip2h = 3    ! 3 - Linear theory with damped wiggles
             hmod%i2hdamp = 1 ! 1 - Change back to Mead (2015) model for two-halo damping
-            !hmod%zinf_Dolag = 100. ! Setting zinf = 100 messes things up for weird DE models
             hmod%Dv0 = 411.
             hmod%Dv1 = -0.333
             hmod%dc0 = 1.631
@@ -1747,9 +1750,10 @@ CONTAINS
          hmod%iconc = 1   ! 1 - Bullock c(M) relation   
          hmod%iDolag = 1  ! 1 - Dolag c(M) correction with no strange powers
          hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
-         hmod%ieta = 1    ! 1 - Vary eta
-         hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive neutrino results
+         hmod%ieta = 2    ! 2 - Eta with cold matter dependence
+         hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive-neutrino results
          hmod%DMONLY_neutrino_correction = .TRUE.
+         hmod%zinf_Dolag = 10. ! Why is 100 not better than 10? This is very strange
          IF (ihm == 78) THEN
             ! Model 1: 7.960e-3 for Cosmic Emu
             hmod%f0 = 0.2271961
@@ -1786,7 +1790,7 @@ CONTAINS
             !hmod%ST_p = 0.0100154
             !hmod%ST_q = 0.9968444
             !hmod%Ap = -0.0102720
-            ! Model 4: 0.0166 for Franken Emu
+            ! Model 4: 0.015... for Franken Emu
             hmod%f0 = 0.2385760
             hmod%f1 = 0.8145470
             hmod%ks = 0.1398440
@@ -1801,6 +1805,21 @@ CONTAINS
             hmod%ST_q = 0.8838104
             hmod%Ap = -0.0872705
             hmod%Ac = 1.7020399
+            ! Model 5: back to 2016 2-halo damping; 0.157 for FrankenEmu
+            !hmod%f0 = 0.0683904
+            !hmod%f1 = 0.4402321
+            !hmod%ks = 0.1618719
+            !hmod%kdamp = 0.1651048
+            !hmod%eta0 = 0.2626314
+            !hmod%eta1 = -0.0360766
+            !hmod%As = 3.4966088
+            !hmod%alp0 = 3.8400415
+            !hmod%alp1 = 2.1353277
+            !hmod%Amf = 1.2200579
+            !hmod%ST_p = 0.1586694
+            !hmod%ST_q = 0.8662489
+            !hmod%Ap = -0.0637969
+            !hmod%Ac = 0.1538453
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
@@ -1825,10 +1844,15 @@ CONTAINS
          hmod%imf = 7
       ELSE IF (ihm == 93) THEN
          ! Warren (2006) mass function
+         ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
          hmod%imf = 8
       ELSE IF (ihm == 94) THEN
          ! Reed (2007) mass function
          hmod%imf = 9
+      ELSE IF (ihm == 96) THEN
+         ! Bhattacharya (2011) mass function
+         ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
+         hmod%imf = 10
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -1994,7 +2018,7 @@ CONTAINS
 
       ! Calculate the effective spectral index at the collapse scale
       ! TODO: Not necessary for some halo models
-      hmod%neff = effective_index(hmod, cosm)
+      hmod%neff = effective_index(hmod%flag_sigma, hmod, cosm)
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Collapse n_eff:', REAL(hmod%neff)
 
       ! Calculate the amplitude of the the one-halo term
@@ -2113,15 +2137,16 @@ CONTAINS
          END IF
 
          ! Halo mass function
-         IF (hmod%imf == 1) WRITE (*, *) 'HALOMODEL: Press & Schecter (1974) mass function'
-         IF (hmod%imf == 2) WRITE (*, *) 'HALOMODEL: Sheth & Tormen (1999) mass function'
-         IF (hmod%imf == 3) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function'
-         IF (hmod%imf == 4) WRITE (*, *) 'HALOMODEL: Delta function mass function'
-         IF (hmod%imf == 5) WRITE (*, *) 'HALOMODEL: Jenkins et al. (2001) mass function'
-         IF (hmod%imf == 6) WRITE (*, *) 'HALOMODEL: Despali et al. (2016) mass function'
-         IF (hmod%imf == 7) WRITE (*, *) 'HALOMODEL: Tinker et al. (2008) mass function'
-         IF (hmod%imf == 8) WRITE (*, *) 'HALOMODEL: Warren et al. (2006) mass function'
-         IF (hmod%imf == 9) WRITE (*, *) 'HALOMODEL: Reed et al. (2007) mass function'
+         IF (hmod%imf == 1)  WRITE (*, *) 'HALOMODEL: Press & Schecter (1974) mass function'
+         IF (hmod%imf == 2)  WRITE (*, *) 'HALOMODEL: Sheth & Tormen (1999) mass function'
+         IF (hmod%imf == 3)  WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function'
+         IF (hmod%imf == 4)  WRITE (*, *) 'HALOMODEL: Delta function mass function'
+         IF (hmod%imf == 5)  WRITE (*, *) 'HALOMODEL: Jenkins et al. (2001) mass function'
+         IF (hmod%imf == 6)  WRITE (*, *) 'HALOMODEL: Despali et al. (2016) mass function'
+         IF (hmod%imf == 7)  WRITE (*, *) 'HALOMODEL: Tinker et al. (2008) mass function'
+         IF (hmod%imf == 8)  WRITE (*, *) 'HALOMODEL: Warren et al. (2006) mass function'
+         IF (hmod%imf == 9)  WRITE (*, *) 'HALOMODEL: Reed et al. (2007) mass function'
+         IF (hmod%imf == 10) WRITE (*, *) 'HALOMODEL: Bhattacharya et al. (2011) mass function'
 
          ! Concentration-mass relation
          IF (hmod%iconc == 1)  WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -2251,6 +2276,7 @@ CONTAINS
          ! eta for halo window function
          IF (hmod%ieta == 0) WRITE (*, *) 'HALOMODEL: eta = 0 fixed'
          IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta from HMcode power spectrum fit'
+         IF (hmod%ieta == 2) WRITE (*, *) 'HALOMODEL: eta from HMcode but with cold dependence'
 
          ! Small-scale two-halo term damping coefficient
          IF (hmod%i2hdamp == 0) WRITE (*, *) 'HALOMODEL: No two-halo term damping at small scales'
@@ -4491,7 +4517,6 @@ CONTAINS
       IF (hmod%itrans == 1) THEN
          ! From HMcode (2015, 2016)
          n_eff = hmod%neff
-         !n_eff = effective_index(hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0
          ELSE
@@ -4500,16 +4525,14 @@ CONTAINS
       ELSE IF (hmod%itrans == 2) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
          n_eff = hmod%neff
-         !n_eff = effective_index(hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**1.5
          ELSE
             HMcode_alpha = (hmod%alp0*hmod%alp1**n_eff)**1.5
          END IF
       ELSE IF (hmod%itrans == 3) THEN
-         ! Specially for HMx, exponentiated HMcode (2016) result
+         ! Exponentiated HMcode (2016) result
          n_eff = hmod%neff
-         !n_eff = effective_index(hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**2.5
          ELSE
@@ -4534,21 +4557,25 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: eta0, sig
-      REAL :: crap
-
-      ! To prevent compile-time warnings
-      crap = cosm%A
+      INTEGER :: flag
 
       IF (hmod%ieta == 0) THEN
          HMcode_eta = 0.
-      ELSE IF (hmod%ieta == 1) THEN
+      ELSE IF (hmod%ieta == 1 .OR. hmod%ieta == 2) THEN
          ! From HMcode(2015; arXiv 1505.07833, 2016)
          IF (hmod%one_parameter_baryons) THEN
             eta0 = 0.98-hmod%As*0.12
          ELSE
             eta0 = hmod%eta0
          END IF
-         sig = sigma(8., hmod%a, flag_power_total, cosm)
+         IF (hmod%ieta == 1) THEN
+            flag = flag_power_total
+         ELSE IF (hmod%ieta == 2) THEN
+            flag = flag_power_cold_unorm
+         ELSE
+            STOP 'HMcode_ETA: Error, ieta defined incorrectly'
+         END IF
+         sig = sigma(8., hmod%a, flag, cosm)
          HMcode_eta = eta0-hmod%eta1*sig
       ELSE
          STOP 'HMcode_ETA: Error, ieta defined incorrectly'
@@ -4576,6 +4603,7 @@ CONTAINS
          HMcode_A = hmod%As
       ELSE IF (hmod%iAs == 2) THEN
          ! HMcode (2020)
+         !sig = sigma(8., hmod%a, flag_power_total, cosm)
          sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
          HMcode_A = hmod%As*(sig/0.8)**hmod%Ap+hmod%Ac
       ELSE
@@ -5332,7 +5360,6 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      !nu_R = delta_c(hmod, cosm)/sigma(R, hmod%a, hmod%flag_sigma, cosm)
       nu_R = hmod%dc/sigma(R, hmod%a, hmod%flag_sigma, cosm)
 
    END FUNCTION nu_R
@@ -5675,16 +5702,17 @@ CONTAINS
 
    END FUNCTION virial_radius
 
-   REAL FUNCTION effective_index(hmod, cosm)
+   REAL FUNCTION effective_index(flag_sigma, hmod, cosm)
 
       ! Power spectrum effective slope at the non-linear scale
       ! Defined as -3. + d ln sigma^2 / d ln r, so pertains to P(k) not Delta^2(k) in HMcode
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: flag_sigma
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       
       ! Numerical differentiation to find effective index at collapse
-      effective_index = neff(hmod%rnl, hmod%a, hmod%flag_sigma, cosm)
+      effective_index = neff(hmod%rnl, hmod%a, flag_sigma, cosm)
 
       ! For some bizarre cosmologies r_nl is very small, so almost no collapse has occured
       ! In this case the n_eff calculation goes mad and needs to be fixed using this fudge.
@@ -5809,13 +5837,7 @@ CONTAINS
       ginf_wCDM = grow(ainf, cosm)
 
       ! Make a flat LCDM cosmology and calculate growth
-      cosm_LCDM = cosm
-      cosm_LCDM%iw = 1
-      cosm_LCDM%w = -1.
-      cosm_LCDM%wa = 0.
-      cosm_LCDM%Om_w = 0.
-      cosm_LCDM%Om_v = 1.-cosm%Om_m ! Added this so that 'making a LCDM cosmology' works for curved models.
-      cosm_LCDM%verbose = .FALSE.
+      cosm_LCDM = convert_to_flat_LCDM_cosmology(cosm, remove_neutrinos=.FALSE.)
       CALL init_cosmology(cosm_LCDM) ! This is **essential**
 
       ! Growth factor in LCDM at 'infinity' calculated using Linder approximation
@@ -5875,7 +5897,7 @@ CONTAINS
       IF (hmod%iconc == 1) THEN
          DO i = 1, hmod%n
             rf = hmod%rr(i)*f
-            sig = sigma(rf, a, hmod%flag_sigma, cosm) ! TODO: Add correction here for HMcode (2016)?
+            sig = sigma(rf, a, hmod%flag_sigma, cosm)
             hmod%sigf(i) = sig
          END DO   
       ELSE
@@ -8810,6 +8832,8 @@ CONTAINS
          b_nu = b_Warren(nu, hmod)
       ELSE IF (hmod%imf == 9) THEN
          b_nu = b_Reed(nu, hmod)
+      ELSE IF (hmod%imf == 10) THEN
+         b_nu = b_Bhattacharya(nu, hmod)
       ELSE
          STOP 'B_NU: Error, imf not specified correctly'
       END IF
@@ -8951,6 +8975,27 @@ CONTAINS
 
    END FUNCTION b_Reed
 
+   REAL FUNCTION b_Bhattacharya(nu, hmod)
+
+      ! Bhattacharya et al. (2011; 1005.2239) mass function for FoF b = 0.2 haloes
+      ! Bias derived using the peak-background split
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: f1, f2, f3, dc
+      REAL, PARAMETER :: a = 0.774
+      REAL, PARAMETER :: p = 0.637
+      REAL, PARAMETER :: q = 1.663
+
+      f1 = a*nu**2
+      f2 = 2*p/(1.+(a*nu**2)**p)
+      f3 = q
+      dc = hmod%dc
+
+      b_Bhattacharya = (f1-f2+f3)/dc
+
+   END FUNCTION b_Bhattacharya
+
    REAL FUNCTION b2_nu(nu, hmod)
 
       ! Bias function selection
@@ -9048,6 +9093,8 @@ CONTAINS
          g_nu = g_Warren(nu, hmod)
       ELSE IF (hmod%imf == 9) THEN
          g_nu = g_Reed(nu, hmod)
+      ELSE IF (hmod%imf == 10) THEN
+         g_nu = g_Bhattacharya(nu, hmod)
       ELSE
          STOP 'G_NU: Error, imf specified incorrectly'
       END IF
@@ -9232,6 +9279,30 @@ CONTAINS
       g_Reed = f1*f2*f3
 
    END FUNCTION g_Reed
+
+   REAL FUNCTION g_Bhattacharya(nu, hmod)
+
+      ! Bhattacharya et al. (2011; 1005.2239) mass function for FoF b = 0.2 haloes
+      ! Normalised such that all mass is in haloes
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: f1, f2, f3, crap
+      REAL, PARAMETER :: bigA = 0.33873
+      REAL, PARAMETER :: a = 0.774
+      REAL, PARAMETER :: p = 0.637
+      REAL, PARAMETER :: q = 1.663
+
+      ! Prevent compile-time warnings
+      crap = hmod%A
+
+      f1 = bigA*sqrt(2./pi)*exp(-a*nu**2/2.)
+      f2 = 1.+(a*nu**2)**(-p)
+      f3 = (a*nu**2)**(q/2.)
+      
+      g_Bhattacharya = f1*f2*f3/nu
+
+   END FUNCTION g_Bhattacharya
 
    SUBROUTINE init_mass_function(hmod)
 
