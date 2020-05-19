@@ -17,6 +17,7 @@ MODULE cosmology_functions
    PUBLIC :: init_cosmology
    PUBLIC :: print_cosmology
    PUBLIC :: assign_init_cosmology
+   PUBLIC :: convert_to_flat_LCDM_cosmology
 
    ! Scale factor and z
    PUBLIC :: scale_factor_z
@@ -2022,18 +2023,18 @@ CONTAINS
 
    END FUNCTION Omega_m
 
-   REAL FUNCTION Omega_cold_norad(a, cosm)
+   REAL FUNCTION Omega_m_norad(a, cosm)
 
-      ! This calculates Omega_cold variations with scale factor, but ignoring photon and neutrino components
+      ! This calculates Omega_m variations with scale factor, but ignoring photon contribution
       ! This ensures that Omega_m_norad(a->0) -> 1
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_COLD_NORAD: Error, cosmology is not initialised'
-      Omega_cold_norad = (cosm%Om_c*X_c(a)+cosm%Om_b*X_b(a))/Hubble2_norad(a, cosm)
+      Omega_m_norad = cosm%Om_m*X_m(a)/Hubble2_norad(a, cosm)
 
-   END FUNCTION Omega_cold_norad
+   END FUNCTION Omega_m_norad
 
    REAL FUNCTION Omega_c(a, cosm)
 
@@ -2046,6 +2047,19 @@ CONTAINS
       Omega_c = cosm%Om_c*X_c(a)/Hubble2(a, cosm)
 
    END FUNCTION Omega_c
+
+   REAL FUNCTION Omega_cold_norad(a, cosm)
+
+      ! This calculates Omega_cold variations with scale factor, but ignoring photon and neutrino components
+      ! This ensures that Omega_m_norad(a->0) -> 1
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_COLD_NORAD: Error, cosmology is not initialised'
+      Omega_cold_norad = (cosm%Om_c*X_c(a)+cosm%Om_b*X_b(a))/Hubble2_norad(a, cosm)
+
+   END FUNCTION Omega_cold_norad
 
    REAL FUNCTION Omega_b(a, cosm)
 
@@ -2445,7 +2459,7 @@ CONTAINS
 
       Xde_integral = (a**(-3))*exp(3.*integrate_cosm(a, 1., integrand_de, cosm, acc, iorder))
 
-   END FUNCTION
+   END FUNCTION Xde_integral
 
    REAL FUNCTION integrand_de(a, cosm)
 
@@ -2457,6 +2471,30 @@ CONTAINS
       integrand_de = w_de(a, cosm)/a
 
    END FUNCTION integrand_de
+
+   TYPE(cosmology) FUNCTION convert_to_flat_LCDM_cosmology(cosm, remove_neutrinos)
+
+      ! Make a vanilla LCDM version of an input cosmology
+      ! This will be a flat cosmology with standard Lambda dark energy
+      ! It will also have zero neutrino mass
+      USE basic_operations
+      IMPLICIT NONE
+      TYPE(cosmology), INTENT(IN) :: cosm
+      LOGICAL, OPTIONAL, INTENT(IN) :: remove_neutrinos
+
+      ! Make a flat LCDM cosmology and calculate growth
+      convert_to_flat_LCDM_cosmology = cosm
+      convert_to_flat_LCDM_cosmology%iw = iw_LCDM
+      convert_to_flat_LCDM_cosmology%w = -1.
+      convert_to_flat_LCDM_cosmology%wa = 0.
+      IF(present_and_correct(remove_neutrinos)) THEN
+         convert_to_flat_LCDM_cosmology%m_nu = 0. ! Remove the massive neutrinos
+      END IF
+      convert_to_flat_LCDM_cosmology%Om_w = 0.
+      convert_to_flat_LCDM_cosmology%Om_v = 1.-cosm%Om_m ! Added this so that 'making a LCDM cosmology' works for curved models.     
+      convert_to_flat_LCDM_cosmology%verbose = .FALSE.
+
+   END FUNCTION convert_to_flat_LCDM_cosmology
 
    ELEMENTAL REAL FUNCTION scale_factor_z(z)
 
@@ -4060,6 +4098,7 @@ CONTAINS
       lg = ungrow(a, cosm)
       bG = acc_growth(a, cosm)
       Om_m = Omega_cold_norad(a, cosm)
+      !Om_m = Omega_m_norad(a, cosm)
 
       dc_Mead = 1.
       dc_Mead = dc_Mead+f_Mead(lg/a, bG/a, p10, p11, p12, p13)*log10(Om_m)**a1
@@ -4091,6 +4130,7 @@ CONTAINS
       lg = ungrow(a, cosm)
       bG = acc_growth(a, cosm)
       Om_m = Omega_cold_norad(a, cosm)
+      !Om_m = Omega_m_norad(a, cosm)
 
       Dv_Mead = 1.
       Dv_Mead = Dv_Mead+f_Mead(lg/a, bG/a, p30, p31, p32, p33)*log10(Om_m)**a3
@@ -5684,7 +5724,7 @@ CONTAINS
       CALL random_wCDM_cosmology(cosm)
       cosm%m_nu = 0.
       cosm%w = -1.
-      cosm%iw = iw_LCDM ! Fix iw = 1 for LCDM
+      cosm%iw = iw_LCDM
 
    END SUBROUTINE random_LCDM_cosmology
 
@@ -5696,7 +5736,7 @@ CONTAINS
       CALL random_cosmology(cosm)
       cosm%w = -1.
       cosm%wa = 0.
-      cosm%iw = iw_LCDM ! Fix iw = 1 for LCDM
+      cosm%iw = iw_LCDM
 
    END SUBROUTINE random_nuLCDM_cosmology
 
