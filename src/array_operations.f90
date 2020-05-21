@@ -51,10 +51,6 @@ MODULE array_operations
    PUBLIC :: number_of_appearances
    PUBLIC :: remove_repeated_array_elements
    PUBLIC :: remove_repeated_two_array_elements
-   PUBLIC :: progression
-   PUBLIC :: progression_double
-   PUBLIC :: progression_log
-   PUBLIC :: progression_log_double
    PUBLIC :: fill_array
    PUBLIC :: fill_array_double
    PUBLIC :: fill_array_log
@@ -157,6 +153,17 @@ CONTAINS
       ALLOCATE(x(n))
 
    END SUBROUTINE safe_allocate_real
+
+   ! SUBROUTINE safe_allocate_double(x, n)
+
+   !    IMPLICIT NONE
+   !    DOUBLE PRECISION, ALLOCATABLE, INTENT(INOUT) :: x(:)
+   !    INTEGER, INTENT(IN) :: n
+
+   !    CALL if_allocated_deallocate(x)
+   !    ALLOCATE(x(n))
+
+   ! END SUBROUTINE safe_allocate_double
 
    SUBROUTINE safe_allocate_integer(i, n)
 
@@ -858,6 +865,7 @@ CONTAINS
       ! Fills array 'arr' in linearly spaced intervals
       ! e.g., 4 values between 0 and 1 would be 0, 1/3, 2/3, and 1
       ! This means that min and max are included in the array
+      USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: min ! Minimum value for array
       REAL, INTENT(IN) :: max ! Maximum value for array
@@ -866,8 +874,9 @@ CONTAINS
       INTEGER :: i
 
       ! Allocate the array, and deallocate it if it is full
-      IF (ALLOCATED(arr)) DEALLOCATE (arr)
-      ALLOCATE (arr(n))
+      !IF (ALLOCATED(arr)) DEALLOCATE (arr)
+      !ALLOCATE (arr(n))'
+      CALL safe_allocate(arr, n)
       arr = 0.
 
       IF (n == 1) THEN
@@ -879,6 +888,33 @@ CONTAINS
       END IF
 
    END SUBROUTINE fill_array
+
+   SUBROUTINE fill_array_double(min, max, arr, n)
+
+      ! Fills array 'arr' in equally spaced intervals
+      ! TODO: Not sure if inputting an array like this is okay
+      USE basic_operations
+      IMPLICIT NONE
+      DOUBLE PRECISION, INTENT(IN) :: min, max
+      DOUBLE PRECISION, ALLOCATABLE, INTENT(INOUT) :: arr(:)
+      INTEGER, INTENT(IN) :: n
+      INTEGER :: i
+
+      ! Allocate the array, and deallocate it if it is full
+      !IF (ALLOCATED(arr)) DEALLOCATE (arr)
+      !ALLOCATE (arr(n))
+      CALL safe_allocate(arr, n)
+      arr = 0.d0
+
+      IF (n == 1) THEN
+         arr(1) = min
+      ELSE IF (n > 1) THEN
+         DO i = 1, n
+            arr(i) = progression_double(min, max, i, n)
+         END DO
+      END IF
+
+   END SUBROUTINE fill_array_double
 
    SUBROUTINE fill_array_log(xmin, xmax, x, nx)
 
@@ -913,7 +949,7 @@ CONTAINS
          is(j) = i
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE integer_sequence
 
    SUBROUTINE fill_pixels(min, max, arr, n)
 
@@ -934,82 +970,6 @@ CONTAINS
       CALL fill_array(mmin, mmax, arr, n) ! Linearly fill array
 
    END SUBROUTINE fill_pixels
-
-   SUBROUTINE fill_array_double(min, max, arr, n)
-
-      ! Fills array 'arr' in equally spaced intervals
-      ! TODO: Not sure if inputting an array like this is okay
-      IMPLICIT NONE
-      DOUBLE PRECISION, INTENT(IN) :: min, max
-      DOUBLE PRECISION, ALLOCATABLE, INTENT(INOUT) :: arr(:)
-      INTEGER, INTENT(IN) :: n
-      INTEGER :: i
-
-      ! Allocate the array, and deallocate it if it is full
-      IF (ALLOCATED(arr)) DEALLOCATE (arr)
-      ALLOCATE (arr(n))
-      arr = 0.d0
-
-      IF (n == 1) THEN
-         arr(1) = min
-      ELSE IF (n > 1) THEN
-         DO i = 1, n
-            arr(i) = progression_double(min, max, i, n)
-         END DO
-      END IF
-
-   END SUBROUTINE fill_array_double
-
-   REAL FUNCTION progression(xmin, xmax, i, n)
-
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: xmin, xmax
-      INTEGER, INTENT(IN) :: i, n
-
-      IF (n == 1) THEN
-         progression = xmin
-      ELSE
-         progression = xmin+(xmax-xmin)*real(i-1)/real(n-1)
-      END IF
-
-   END FUNCTION progression
-
-   DOUBLE PRECISION FUNCTION progression_double(xmin, xmax, i, n)
-
-      ! TODO: Delete
-      IMPLICIT NONE
-      DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
-      INTEGER, INTENT(IN) :: i, n
-
-      IF (n == 1) THEN
-         progression_double = xmin
-      ELSE
-         progression_double = xmin+(xmax-xmin)*dble(i-1)/dble(n-1)
-      END IF
-
-   END FUNCTION progression_double
-
-   REAL FUNCTION progression_log(xmin, xmax, i, n)
-
-      ! TODO: Delete
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: xmin, xmax
-      INTEGER, INTENT(IN) :: i, n
-
-      progression_log = exp(progression(log(xmin), log(xmax), i, n))
-
-   END FUNCTION progression_log
-
-   DOUBLE PRECISION FUNCTION progression_log_double(xmin, xmax, i, n)
-
-      ! TODO: Delete
-      IMPLICIT NONE
-      DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
-      INTEGER, INTENT(IN) :: i, n
-
-      progression_log_double = exp(progression_double(log(xmin), log(xmax), i, n))
-
-   END FUNCTION progression_log_double
 
    REAL FUNCTION maximum(x, y, n)
 

@@ -6,6 +6,10 @@ MODULE basic_operations
  
    PRIVATE
 
+   PUBLIC :: progression
+   PUBLIC :: progression_double
+   PUBLIC :: progression_log
+   PUBLIC :: progression_log_double
    PUBLIC :: fix_minimum
    PUBLIC :: fix_maximum
    PUBLIC :: read_command_argument
@@ -37,6 +41,57 @@ MODULE basic_operations
    END INTERFACE increment
 
 CONTAINS
+
+   REAL FUNCTION progression(xmin, xmax, i, n)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: xmin, xmax
+      INTEGER, INTENT(IN) :: i, n
+
+      IF (n == 1) THEN
+         progression = xmin
+      ELSE
+         progression = xmin+(xmax-xmin)*real(i-1)/real(n-1)
+      END IF
+
+   END FUNCTION progression
+
+   DOUBLE PRECISION FUNCTION progression_double(xmin, xmax, i, n)
+
+   ! TODO: Delete
+   IMPLICIT NONE
+   DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
+   INTEGER, INTENT(IN) :: i, n
+
+   IF (n == 1) THEN
+      progression_double = xmin
+   ELSE
+      progression_double = xmin+(xmax-xmin)*dble(i-1)/dble(n-1)
+   END IF
+
+END FUNCTION progression_double
+
+REAL FUNCTION progression_log(xmin, xmax, i, n)
+
+   ! TODO: Delete
+   IMPLICIT NONE
+   REAL, INTENT(IN) :: xmin, xmax
+   INTEGER, INTENT(IN) :: i, n
+
+   progression_log = exp(progression(log(xmin), log(xmax), i, n))
+
+END FUNCTION progression_log
+
+DOUBLE PRECISION FUNCTION progression_log_double(xmin, xmax, i, n)
+
+   ! TODO: Delete
+   IMPLICIT NONE
+   DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
+   INTEGER, INTENT(IN) :: i, n
+
+   progression_log_double = exp(progression_double(log(xmin), log(xmax), i, n))
+
+END FUNCTION progression_log_double
 
    SUBROUTINE increment_real(x, y)
 

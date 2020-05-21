@@ -1,7 +1,5 @@
 MODULE calculus
 
-   USE array_operations
-
    IMPLICIT NONE
 
    PRIVATE
@@ -149,6 +147,7 @@ CONTAINS
    REAL FUNCTION integrate_basic(a, b, f, n, iorder)
 
       ! Integrates between a and b with n points; not adaptive so no error control
+      USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: a ! Integration limits
       REAL, INTENT(IN) :: b ! Integration limits
@@ -228,6 +227,7 @@ CONTAINS
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
+      USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b

@@ -253,7 +253,7 @@ MODULE minimization
 
    SUBROUTINE adaptive_minimization_1D(xmin, func, min, max, ref, ngrid, nref)
 
-      USE array_operations
+      USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(OUT) :: xmin
       REAL, EXTERNAL :: func
@@ -316,7 +316,7 @@ MODULE minimization
 
    SUBROUTINE adaptive_minimization_3D(xmin, func, min, max, ref, ngrid, nref)
 
-      USE array_operations
+      USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(OUT) :: xmin(3)
       REAL, INTENT(IN) :: min(3), max(3), ref(3)
@@ -393,7 +393,7 @@ MODULE minimization
    SUBROUTINE grid_minimization_1D(Amin, Amax, Asteps, x, y)
 
       !This fits a one parameter model
-      USE array_operations
+      USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: Amin, Amax
       REAL, INTENT(IN) :: x(:), y(:)

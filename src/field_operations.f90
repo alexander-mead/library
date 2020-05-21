@@ -1844,7 +1844,7 @@ CONTAINS
    SUBROUTINE compute_power_spectrum_pole(d, m, L, ipole, iz, kmin, kmax, nk, kval, pow, nmodes)
 
       USE constants
-      USE array_operations
+      USE basic_operations
       USE special_functions
       USE fft
       IMPLICIT NONE
@@ -1962,7 +1962,7 @@ CONTAINS
 
       USE constants
       USE fft
-      USE array_operations
+      USE basic_operations
       IMPLICIT NONE
       INTEGER :: i, j, k, m, ii, jj, nk, iz
       REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, mus
@@ -2091,7 +2091,7 @@ CONTAINS
 
       USE constants
       USE fft
-      USE array_operations
+      USE basic_operations
       IMPLICIT NONE
       INTEGER :: i, j, k, m, ii, jj, nk, iz
       REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, kpers, kpars

@@ -626,6 +626,7 @@ CONTAINS
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
+      USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: theta
       INTEGER, INTENT(IN) :: nbessel
@@ -1432,6 +1433,7 @@ CONTAINS
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
       ! TODO: This could be changed to a general integrate_proj_cosm routine
+      USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
@@ -1561,6 +1563,7 @@ CONTAINS
    FUNCTION integrate_Limber(l, a, b, logktab, logatab, logptab, nk, na, acc, iorder, proj, cosm)
 
       ! Integrates between a and b until desired accuracy is reached
+      USE basic_operations
       IMPLICIT NONE
       REAL :: integrate_Limber
       REAL, INTENT(IN) :: a, b, acc
@@ -1701,7 +1704,7 @@ CONTAINS
 
    SUBROUTINE Limber_contribution(l, r1, r2, logktab, logatab, logptab, nk, na, proj, cosm, outfile)
 
-      USE array_operations
+      USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: l, r1, r2
       REAL, INTENT(IN) :: logktab(nk), logatab(na), logptab(nk, na)
