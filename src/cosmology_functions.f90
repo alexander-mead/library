@@ -17,7 +17,7 @@ MODULE cosmology_functions
    PUBLIC :: init_cosmology
    PUBLIC :: print_cosmology
    PUBLIC :: assign_init_cosmology
-   PUBLIC :: convert_to_flat_LCDM_cosmology
+   PUBLIC :: convert_cosmology
 
    ! Scale factor and z
    PUBLIC :: scale_factor_z
@@ -507,6 +507,7 @@ CONTAINS
       names(80) = 'Power bump: A = 0.15; k = 0.10h/Mpc; sigma = 0.3'
       names(81) = 'Power bump: A = 0.15; k = 1.00h/Mpc; sigma = 0.3'
       names(82) = 'Harrison-Zeldovich'
+      names(83) = 'Boring but with some CDM replaced with 1.00eV neutrinos'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1186,7 +1187,6 @@ CONTAINS
          cosm%itk = itk_CAMB
          cosm%Om_w = cosm%Om_v
          cosm%Om_v = 0.
-      !ELSE IF (icosmo == 63 .OR. icosmo == 64 .OR. icosmo == 65) THEN
       ELSE IF (is_in_array(icosmo, [63, 64, 65, 79, 80, 81])) THEN
          ! 63 - Planck 2015 (BAHAMAS; Table 1 of 1712.02411)
          ! 64 - Planck 2015 but with 10^7.6 AGN temperature
@@ -1212,6 +1212,12 @@ CONTAINS
          ! Harrison - Zel'dovich
          cosm%itk = itk_none
          cosm%ns = 1.
+      ELSE IF (icosmo == 83) THEN
+         ! Boring cosmology but with very exciting neutrino mass
+         cosm%m_nu = 1.0
+         cosm%itk = itk_CAMB
+         cosm%Om_w = cosm%Om_v
+         cosm%Om_v = 0.
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1307,9 +1313,6 @@ CONTAINS
          WRITE (*, *) 'INIT_COSMOLOGY: a_nu:', cosm%a_nu
          WRITE (*, *) 'INIT_COSMOLOGY: z_nu:', cosm%z_nu
          WRITE (*, *) 'INIT_COSMOLOGY: f_nu:', cosm%f_nu
-      END IF
-      IF ((cosm%m_nu .NE. 0) .AND. is_in_array(cosm%itk, [itk_none, itk_DEFW, itk_EH])) THEN
-         STOP 'INIT_COSMOLOGY: You cannot use a linear power fitting function for massive neutrino cosmologies'
       END IF
 
       ! Check neutrino mass fraction is not too high
@@ -1575,7 +1578,7 @@ CONTAINS
             WRITE(*,*) 'COSMOLOGY: Linear: CAMB'
          ELSE IF(cosm%itk == itk_DEFW) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: DEFW'
-         ELSE IF(cosm%itk == 4) THEN
+         ELSE IF(cosm%itk == itk_external) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: External'
          ELSE
             STOP 'COSMOLOGY: Error, itk not set properly'
@@ -1766,7 +1769,12 @@ CONTAINS
 
       ! Normalise the power spectrum using whatever scheme you choose to do this with
       IMPLICIT NONE
-      TYPE(cosmology), INTENT(INOUT) :: cosm  
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      ! Check that something insane is not happening
+      IF ((cosm%m_nu .NE. 0) .AND. is_in_array(cosm%itk, [itk_none, itk_DEFW, itk_EH])) THEN
+         STOP 'INIT_COSMOLOGY: You cannot use a linear power fitting function for massive neutrino cosmologies'
+      END IF
 
       ! Get the CAMB power if necessary
       IF (cosm%itk == itk_CAMB)     CALL init_CAMB_linear(cosm)
@@ -2002,6 +2010,7 @@ CONTAINS
    REAL FUNCTION AH_norad(a, cosm)
 
       ! Acceleration function without the radiation contribution
+      ! NOTE: It is correct that we should add Om_r*a^-4 here because of the -(1/2) factor in AH
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -2472,7 +2481,7 @@ CONTAINS
 
    END FUNCTION integrand_de
 
-   TYPE(cosmology) FUNCTION convert_to_flat_LCDM_cosmology(cosm, remove_neutrinos)
+   TYPE(cosmology) FUNCTION convert_cosmology(cosm, make_lambda, make_flat, remove_neutrinos)
 
       ! Make a vanilla LCDM version of an input cosmology
       ! This will be a flat cosmology with standard Lambda dark energy
@@ -2480,21 +2489,39 @@ CONTAINS
       USE basic_operations
       IMPLICIT NONE
       TYPE(cosmology), INTENT(IN) :: cosm
-      LOGICAL, OPTIONAL, INTENT(IN) :: remove_neutrinos
+      LOGICAL, INTENT(IN) :: make_lambda
+      LOGICAL, INTENT(IN) :: make_flat
+      LOGICAL, INTENT(IN) :: remove_neutrinos
 
-      ! Make a flat LCDM cosmology and calculate growth
-      convert_to_flat_LCDM_cosmology = cosm
-      convert_to_flat_LCDM_cosmology%iw = iw_LCDM
-      convert_to_flat_LCDM_cosmology%w = -1.
-      convert_to_flat_LCDM_cosmology%wa = 0.
-      IF(present_and_correct(remove_neutrinos)) THEN
-         convert_to_flat_LCDM_cosmology%m_nu = 0. ! Remove the massive neutrinos
+      ! Initially set the new cosmology to the input cosmology
+      convert_cosmology = cosm
+
+      ! Remove dark energy
+      IF (make_lambda) THEN
+         convert_cosmology%iw = iw_LCDM
+         convert_cosmology%w = -1.
+         convert_cosmology%wa = 0.
+         convert_cosmology%Om_w = 0.
+         convert_cosmology%Om_v = cosm%Om_v+cosm%Om_w
       END IF
-      convert_to_flat_LCDM_cosmology%Om_w = 0.
-      convert_to_flat_LCDM_cosmology%Om_v = 1.-cosm%Om_m ! Added this so that 'making a LCDM cosmology' works for curved models.     
-      convert_to_flat_LCDM_cosmology%verbose = .FALSE.
 
-   END FUNCTION convert_to_flat_LCDM_cosmology
+      ! Flatten
+      IF (make_flat) THEN
+         convert_cosmology%Om_v = 1.-cosm%Om_m
+      END IF
+
+      ! Remove neutrinos
+      IF (remove_neutrinos) THEN
+         convert_cosmology%m_nu = 0.
+      END IF
+    
+      ! Ensure the new cosmology is not verbose
+      convert_cosmology%verbose = .FALSE.
+
+      ! Initialise
+      CALL init_cosmology(convert_cosmology)
+
+   END FUNCTION convert_cosmology
 
    ELEMENTAL REAL FUNCTION scale_factor_z(z)
 
@@ -3244,8 +3271,7 @@ CONTAINS
       !IF(cosm%has_power .EQV. .FALSE.) CALL init_power(cosm)
 
       ! This line generates a recursion
-      IF (.NOT. cosm%is_normalised) THEN
-         !cosm%is_normalised = .TRUE. ! TODO: Is this line necessary?         
+      IF (.NOT. cosm%is_normalised) THEN        
          CALL normalise_power(cosm)
       END IF
 
@@ -3849,9 +3875,11 @@ CONTAINS
 
    SUBROUTINE init_growth(cosm)
 
-      ! Fills a table of the growth function vs. a
+      ! Fills look-up tables for scale-dependent growth: a vs. g(a), f(a) and G(a)
       ! TODO: Figure out why if I set amax=10, rather than amax=1, I start getting weird f(a) around a=0.001
-      ! TODO: Should look-up tables be stored log or lin? Currently stored log but not even log spacing in a
+      ! TODO: Should look-up tables be stored log or linear? Currently stored log but uneven log spacing in a
+      ! TODO: How best to calculate all of these for massive neutrino cosmologies with scale-dependent growth?
+      USE basic_operations
       USE calculus_table
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -3873,6 +3901,7 @@ CONTAINS
       !! First do growth factor and growth rate !!
 
       ! Set the initial conditions to be in the cold matter growing mode
+      ! Note that for massive neutrinos there is no asymptotic g(a) ~ a limit
       dinit = ainit**(1.-3.*cosm%f_nu/5.)
       vinit = (1.-3.*cosm%f_nu/5.)*ainit**(-3.*cosm%f_nu/5.)
 
@@ -3886,7 +3915,7 @@ CONTAINS
          WRITE (*, *) 'INIT_GROWTH: Number of points for look-up tables:', ng
       END IF
 
-      ! Solve the ODE
+      ! Solve the growth ODE
       CALL ODE_adaptive_cosmology(d_tab, v_tab, 0., a_tab, cosm, ainit, amax, &
          dinit, vinit, ddda, dvda, acc_ODE, imeth_ODE, .FALSE.)
       IF (cosm%verbose) WRITE (*, *) 'INIT_GROWTH: ODE done'
@@ -3895,20 +3924,21 @@ CONTAINS
       ! Convert dv/da to f = dlng/dlna for later, so v_tab should really be f_tab from now on
       v_tab = v_tab*a_tab/d_tab
 
-      ! Normalise so that g(z=0)=1
+      ! Normalise so that g(z=0)=1 and store the normalising factor
       cosm%gnorm = find(1., a_tab, d_tab, na, iorder_int, ifind_int, imeth_int)
-      IF (cosm%verbose) WRITE (*, *) 'INIT_GROWTH: unnormalised growth at z=0:', real(cosm%gnorm)
+      IF (cosm%verbose) WRITE (*, *) 'INIT_GROWTH: Unnormalised growth at z=0:', real(cosm%gnorm)
       d_tab = d_tab/cosm%gnorm
 
       ! Allocate arrays
-      IF (ALLOCATED(cosm%log_a_growth)) DEALLOCATE (cosm%log_a_growth)
-      IF (ALLOCATED(cosm%log_growth)) DEALLOCATE (cosm%log_growth)
-      IF (ALLOCATED(cosm%growth_rate)) DEALLOCATE (cosm%growth_rate)
+      IF (ALLOCATED(cosm%log_a_growth))   DEALLOCATE (cosm%log_a_growth)
+      IF (ALLOCATED(cosm%log_growth))     DEALLOCATE (cosm%log_growth)
+      IF (ALLOCATED(cosm%growth_rate))    DEALLOCATE (cosm%growth_rate)
       IF (ALLOCATED(cosm%log_acc_growth)) DEALLOCATE (cosm%log_acc_growth)
       cosm%n_growth = ng
 
-      ! This downsamples the tables that come out of the ODE solver (which can be a bit long)
+      ! Downsample the tables that come out of the ODE solver (which can be a bit long)
       ! Could use some table-interpolation routine here to save time
+      ! Note that none of the quantities here are actually log, the logs are taken later
       ALLOCATE (cosm%log_a_growth(ng))
       ALLOCATE (cosm%log_growth(ng))
       ALLOCATE (cosm%growth_rate(ng))
@@ -3934,7 +3964,8 @@ CONTAINS
 
          ! Do the integral using the arrays
          IF (i > 1) THEN
-            cosm%log_acc_growth(i) = integrate_table(cosm%log_a_growth, cosm%gnorm*cosm%log_growth/cosm%log_a_growth, &
+            cosm%log_acc_growth(i) = integrate_table(cosm%log_a_growth, &
+               cosm%gnorm*cosm%log_growth/cosm%log_a_growth, &
                ng, 1, i, iorder_agrow)
          END IF
 
@@ -3947,6 +3978,7 @@ CONTAINS
       !! !!
 
       ! Make the some of the tables log for easier interpolation
+      ! Only here are the logarithms actually taken
       cosm%log_a_growth = log(cosm%log_a_growth)
       cosm%log_growth = log(cosm%log_growth)
       cosm%log_acc_growth = log(cosm%log_acc_growth)
@@ -3955,16 +3987,14 @@ CONTAINS
       cosm%has_growth = .TRUE.
 
       ! Write stuff about growth parameter at a=1 to the screen
+      ! Note that has_growth = .TRUE. must have been set before to avoid a recursion
       IF (cosm%verbose) THEN
          g0 = grow(1., cosm)
          f0 = growth_rate(1., cosm)
          bigG0 = acc_growth(1., cosm)
-         WRITE (*, *) 'INIT_GROWTH: normalised growth at z=0:', g0
-         WRITE (*, *) 'INIT_GROWTH: growth rate at z=0:', f0
-         WRITE (*, *) 'INIT_GROWTH: integrated growth at z=0:', bigG0
-      END IF
-
-      IF (cosm%verbose) THEN
+         WRITE (*, *) 'INIT_GROWTH: Normalised growth at z=0:', g0
+         WRITE (*, *) 'INIT_GROWTH: Growth rate at z=0:', f0
+         WRITE (*, *) 'INIT_GROWTH: Integrated growth at z=0:', bigG0
          WRITE (*, *) 'INIT_GROWTH: Done'
          WRITE (*, *)
       END IF
@@ -4009,8 +4039,8 @@ CONTAINS
       ! TODO: prevent compile-time warning
       crap = k
 
-      f1 = 1.5*Omega_cold_norad(a, cosm)*d/(a**2)
-      f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*(v/a)
+      f1 = 1.5*Omega_cold_norad(a, cosm)*d/a**2
+      f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*v/a
       dvda = f1+f2
 
    END FUNCTION dvda
@@ -4030,9 +4060,9 @@ CONTAINS
       ! TODO: prevent compile-time warning
       crap = k
 
-      f1 = 1.5*Omega_cold_norad(a, cosm)*d*(1.+d)/(a**2)
-      f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*(v/a)
-      f3 = 4.*(v**2)/(3.*(1.+d))
+      f1 = 1.5*Omega_cold_norad(a, cosm)*d*(1.+d)/a**2
+      f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*v/a
+      f3 = (4./3.)*(v**2)/(1.+d)
 
       dvdanl = f1+f2+f3
 
@@ -4081,7 +4111,8 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a ! scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: lg, bG, Om_m
+      REAL :: lg, bG, Om_m, ai
+      TYPE(cosmology) :: cosm_LCDM
 
       ! See Appendix A of Mead (2017) for naming convention
       REAL, PARAMETER :: p10 = -0.0069
@@ -4095,15 +4126,21 @@ CONTAINS
       REAL, PARAMETER :: p23 = 0.0646
       INTEGER, PARAMETER :: a2 = 0
 
-      lg = ungrow(a, cosm)
-      bG = acc_growth(a, cosm)
-      Om_m = Omega_cold_norad(a, cosm)
-      !Om_m = Omega_m_norad(a, cosm)
+      IF(cosm%m_nu .NE. 0) THEN
+         cosm_LCDM = convert_cosmology(cosm, make_lambda=.FALSE., make_flat=.FALSE., remove_neutrinos=.TRUE.)
+      ELSE
+         cosm_LCDM = cosm
+      END IF
 
-      dc_Mead = 1.
-      dc_Mead = dc_Mead+f_Mead(lg/a, bG/a, p10, p11, p12, p13)*log10(Om_m)**a1
-      dc_Mead = dc_Mead+f_Mead(lg/a, bG/a, p20, p21, p22, p23)
-      dc_Mead = dc_Mead*dc0
+      lg = ungrow(a, cosm_LCDM)
+      bG = acc_growth(a, cosm_LCDM)
+      Om_m = Omega_m_norad(a, cosm_LCDM)
+      ai = a
+ 
+      dc_Mead = 1.  
+      dc_Mead = dc_Mead+f_Mead(lg/ai, bG/ai, p10, p11, p12, p13)*log10(Om_m)**a1
+      dc_Mead = dc_Mead+f_Mead(lg/ai, bG/ai, p20, p21, p22, p23)
+      dc_Mead = dc_Mead*dc0*(1.-0.041*cosm%f_nu)
 
    END FUNCTION dc_Mead
 
@@ -4113,7 +4150,8 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a !scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: lg, bG, Om_m
+      REAL :: lg, bG, Om_m, ai
+      TYPE(cosmology) :: cosm_LCDM
 
       ! See Appendix A of Mead (2017) for naming convention
       REAL, PARAMETER :: p30 = -0.79
@@ -4127,15 +4165,21 @@ CONTAINS
       REAL, PARAMETER :: p43 = -15.87
       INTEGER, PARAMETER :: a4 = 2
 
-      lg = ungrow(a, cosm)
-      bG = acc_growth(a, cosm)
-      Om_m = Omega_cold_norad(a, cosm)
-      !Om_m = Omega_m_norad(a, cosm)
+      IF (cosm%m_nu .NE. 0) THEN
+         cosm_LCDM = convert_cosmology(cosm, make_lambda=.FALSE., make_flat=.FALSE., remove_neutrinos=.TRUE.)
+      ELSE
+         cosm_LCDM = cosm
+      END IF
 
-      Dv_Mead = 1.
-      Dv_Mead = Dv_Mead+f_Mead(lg/a, bG/a, p30, p31, p32, p33)*log10(Om_m)**a3
-      Dv_Mead = Dv_Mead+f_Mead(lg/a, bG/a, p40, p41, p42, p43)*log10(Om_m)**a4
-      Dv_Mead = Dv_Mead*Dv0
+      lg = ungrow(a, cosm_LCDM)
+      bG = acc_growth(a, cosm_LCDM)
+      Om_m = Omega_m_norad(a, cosm_LCDM)
+      ai = a
+
+      Dv_Mead = 1.    
+      Dv_Mead = Dv_Mead+f_Mead(lg/ai, bG/ai, p30, p31, p32, p33)*log10(Om_m)**a3
+      Dv_Mead = Dv_Mead+f_Mead(lg/ai, bG/ai, p40, p41, p42, p43)*log10(Om_m)**a4
+      Dv_Mead = Dv_Mead*Dv0*(1.+0.763*cosm%f_nu)
 
    END FUNCTION Dv_Mead
 
@@ -4193,6 +4237,7 @@ CONTAINS
    SUBROUTINE init_spherical_collapse(cosm)
 
       ! Initialise the spherical-collapse calculation
+      USE basic_operations
       USE table_integer
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm

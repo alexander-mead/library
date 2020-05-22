@@ -203,9 +203,11 @@ MODULE HMx
    PUBLIC :: param_HMcode_sbar
    PUBLIC :: param_HMcode_STp
    PUBLIC :: param_HMcode_STq
-   PUBLIC :: param_HMcode_kdamp
+   PUBLIC :: param_HMcode_kd
    PUBLIC :: param_HMcode_Ap
    PUBLIC :: param_HMcode_Ac
+   PUBLIC :: param_HMcode_kp
+   PUBLIC :: param_HMcode_kdp
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -215,7 +217,7 @@ MODULE HMx
 
       ! Switches
       INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, i2hcor
-      INTEGER :: idc, iDv, ieta, i2hdamp, i1hdamp, itrans
+      INTEGER :: idc, iDv, ieta, i2hdamp, i1hdamp, itrans, ikdamp
       
       ! Flags for sigma 
       INTEGER :: flag_sigma
@@ -285,11 +287,11 @@ MODULE HMx
 
       ! HMcode parameters
       REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1, Dvnu, dcnu
-      REAL :: HMcode_kstar, HMcode_fdamp, HMcode_alpha, HMcode_eta, HMcode_A
+      REAL :: HMcode_kstar, HMcode_fdamp, HMcode_kdamp, HMcode_alpha, HMcode_eta, HMcode_A
       LOGICAL :: DMONLY_baryon_recipe, DMONLY_neutrino_correction
 
       ! HMcode (2020) parameters
-      REAL :: kdamp, Ap, Ac
+      REAL :: kd, kdp, Ap, Ac, kp
       REAL :: mbar, nbar, sbar
 
       ! Halo types
@@ -298,6 +300,7 @@ MODULE HMx
       INTEGER :: halo_void, halo_compensated_void, electron_pressure
 
       ! Halo components
+      INTEGER :: normalise_baryons
       INTEGER :: frac_central_stars, frac_stars, frac_HI
       INTEGER :: frac_bound_gas, frac_cold_bound_gas, frac_hot_bound_gas
 
@@ -355,7 +358,7 @@ MODULE HMx
    INTEGER, PARAMETER :: iorder_integration = 3          ! Order for standard integration
    INTEGER, PARAMETER :: iorder_2halo_integration = 3    ! Order for 2-halo integration
    INTEGER, PARAMETER :: iorder_1halo_integration = 1    ! Order for 1-halo integration (basic because of wiggles)
-   LOGICAL, PARAMETER :: calculate_Omega_stars = .FALSE. ! Calculate Omega_* in halomod_initt
+   LOGICAL, PARAMETER :: calculate_Omega_stars = .FALSE. ! Calculate Omega_* in halomod_init
 
    ! Voids
    REAL, PARAMETER :: void_underdensity = -1.      ! Void underdensity
@@ -503,10 +506,12 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_sbar = 55
    INTEGER, PARAMETER :: param_HMcode_STp = 56
    INTEGER, PARAMETER :: param_HMcode_STq = 57
-   INTEGER, PARAMETER :: param_HMcode_kdamp = 58
+   INTEGER, PARAMETER :: param_HMcode_kd = 58
    INTEGER, PARAMETER :: param_HMcode_Ap = 59
    INTEGER, PARAMETER :: param_HMcode_Ac = 60
-   INTEGER, PARAMETER :: param_n = 60
+   INTEGER, PARAMETER :: param_HMcode_kp = 61
+   INTEGER, PARAMETER :: param_HMcode_kdp = 62
+   INTEGER, PARAMETER :: param_n = 62
 
    ! HMcode versions
    INTEGER, PARAMETER :: HMcode2015 = 7
@@ -670,8 +675,9 @@ CONTAINS
 
       ! One-halo term large-scale damping
       ! 0 - No damping
-      ! 1 - HMcode (2015, 2016)
-      ! 2 - HMcode (2020) k^4 at large scales
+      ! 1 - HMcode (2015, 2016) exponential damping
+      ! 2 - k^4 at large scales
+      ! 3 - HMcode (2020) k^4 at large scales with sigma8 dependence on wavenumber
       hmod%i1hdamp = 0
 
       ! Halo mass function and bias
@@ -756,6 +762,12 @@ CONTAINS
       ! 2 - As in Dolag et al. (2004) but with a ^1.5 power
       ! 3 - My version of Dolag (2004) with some redshift dependence
       hmod%iDolag = 1
+
+      ! How to ensure that we do not have more baryons than Om_b
+      ! 1 - Remove excess mass from stars
+      ! 2 - Limit baryon reserves for gas (Arico et al. 2020; 1911.08471)
+      ! 3 - Remove excess mass from bound gas
+      hmod%normalise_baryons = 1
 
       ! Halo bound gas fraction
       ! 1 - Fedeli (2014a) bound gas model
@@ -916,7 +928,9 @@ CONTAINS
       hmod%mbar = 1e14
       hmod%nbar = 1.
       hmod%sbar = 0.
-      hmod%kdamp = 1e-2
+      hmod%kd = 1e-2
+      hmod%kp = 0.
+      hmod%kp = 0.
       hmod%Ap = 0.
       hmod%Ac = 0.
 
@@ -1184,6 +1198,9 @@ CONTAINS
             hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
             hmod%ip2h = 3    ! 3 - Linear theory with damped wiggles
             hmod%i2hdamp = 1 ! 1 - Change back to Mead (2015) model for two-halo damping
+            !hmod%iDolag = 1  ! 4 - Dolag with neutrinos removed and z dependence
+            hmod%DMONLY_neutrino_correction = .TRUE. ! Neutrino bug fix
+            ! Model 1: Fits at 0.0196 to FrankenEmu nodes
             hmod%Dv0 = 411.
             hmod%Dv1 = -0.333
             hmod%dc0 = 1.631
@@ -1198,7 +1215,21 @@ CONTAINS
             hmod%alp1 = 1.88
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
-            hmod%DMONLY_neutrino_correction = .TRUE. ! Neutrino bug fix
+            ! Model 2: 0.0166 to FrankenEmu
+            !hmod%Dv0 = 445.6534069
+            !hmod%Dv1 = -0.4097628
+            !hmod%dc0 = 1.6362915
+            !hmod%dc1 = 0.0031873
+            !hmod%eta0 = 0.4362025
+            !hmod%eta1 = 0.0767330
+            !hmod%f0 = 0.0134360
+            !hmod%f1 = 0.9854991
+            !hmod%ks = 0.1874255
+            !hmod%As = 2.8860812
+            !hmod%alp0 = 2.6015748
+            !hmod%alp1 = 1.7420269
+            !hmod%Dvnu = 0.
+            !hmod%dcnu = 0.
          ELSE IF (ihm == 28) THEN
             ! HMcode (2016) with one-parameter baryon model
             hmod%one_parameter_baryons = .TRUE.
@@ -1742,28 +1773,37 @@ CONTAINS
          ! 78 - Fitted to Cosmic Emu for k<1
          ! 79 - Fitted
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
-         hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
+         hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - alpha smoothing
          hmod%i2hdamp = 3 ! 3 - fdamp for perturbation theory      
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
          hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
          hmod%iconc = 1   ! 1 - Bullock c(M) relation   
-         hmod%iDolag = 1  ! 1 - Dolag c(M) correction with no strange powers
+         hmod%iDolag = 1  ! 1 - Dolag c(M) correction
          hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
-         hmod%ieta = 2    ! 2 - Eta with cold matter dependence
-         hmod%flag_sigma = flag_power_cold_unorm ! This produces better massive-neutrino results
-         hmod%DMONLY_neutrino_correction = .TRUE.
+         hmod%ieta = 2    ! 2 - eta with cold matter dependence
+         hmod%flag_sigma = flag_power_cold_unorm  ! Cold un-normalised produces better massive-neutrino results
+         hmod%DMONLY_neutrino_correction = .TRUE. ! Correct haloes for missing neutrino mass
          hmod%zinf_Dolag = 10. ! Why is 100 not better than 10? This is very strange
          IF (ihm == 78) THEN
-            ! Model 1: 7.960e-3 for Cosmic Emu
-            hmod%f0 = 0.2271961
-            hmod%f1 = 0.5385409
-            hmod%ks = 0.1488894
-            hmod%alp0 = 2.2775044
-            hmod%alp1 = 1.7389202
-            hmod%kdamp = 0.1806523
+            ! Model 1: 0.00796 for Cosmic Emu
+            !hmod%f0 = 0.2271961
+            !hmod%f1 = 0.5385409
+            !hmod%ks = 0.1488894
+            !hmod%alp0 = 2.2775044
+            !hmod%alp1 = 1.7389202
+            !hmod%kdamp = 0.1806523
+            ! Model 2: 0.00745 for Cosmic Emu
+            hmod%f0 = 0.2259196
+            hmod%f1 = 0.7756314
+            hmod%ks = 0.0219584
+            hmod%kp = -0.4848748
+            hmod%alp0 = 2.1333320
+            hmod%alp1 = 1.6846223
+            hmod%kd = 0.0414575
+            hmod%kdp = -0.3542846
          ELSE IF (ihm == 79) THEN
-            ! Model 2: 0.0230 for Franken Emu
+            ! Model 1: 0.0230 for Franken Emu
             !hmod%f0 = 0.2271961    ! Fixed
             !hmod%f1 = 0.5385409    ! Fixed
             !hmod%ks = 0.1488894    ! Fixed
@@ -1776,7 +1816,7 @@ CONTAINS
             !hmod%ST_p = 0.0101010
             !hmod%ST_q = 0.8621307
             !hmod%Ap = -0.8937481
-            ! Model 3: 0.0181 for Franken Emu
+            ! Model 2: 0.0181 for Franken Emu
             !hmod%f0 = 0.2271961    ! Fixed
             !hmod%f1 = 0.5385409    ! Fixed
             !hmod%ks = 0.1488894    ! Fixed
@@ -1790,36 +1830,55 @@ CONTAINS
             !hmod%ST_p = 0.0100154
             !hmod%ST_q = 0.9968444
             !hmod%Ap = -0.0102720
-            ! Model 4: 0.015... for Franken Emu
-            hmod%f0 = 0.2385760
-            hmod%f1 = 0.8145470
-            hmod%ks = 0.1398440
-            hmod%kdamp = 0.1595842
-            hmod%eta0 = 0.2580939
-            hmod%eta1 = -0.0330454
-            hmod%As = 1.8618050
-            hmod%alp0 = 3.1508852
-            hmod%alp1 = 1.9979316
-            hmod%Amf = 1.2125096
-            hmod%ST_p = 0.1512131
-            hmod%ST_q = 0.8838104
-            hmod%Ap = -0.0872705
-            hmod%Ac = 1.7020399
-            ! Model 5: back to 2016 2-halo damping; 0.157 for FrankenEmu
-            !hmod%f0 = 0.0683904
-            !hmod%f1 = 0.4402321
-            !hmod%ks = 0.1618719
-            !hmod%kdamp = 0.1651048
-            !hmod%eta0 = 0.2626314
-            !hmod%eta1 = -0.0360766
-            !hmod%As = 3.4966088
-            !hmod%alp0 = 3.8400415
-            !hmod%alp1 = 2.1353277
-            !hmod%Amf = 1.2200579
-            !hmod%ST_p = 0.1586694
-            !hmod%ST_q = 0.8662489
-            !hmod%Ap = -0.0637969
-            !hmod%Ac = 0.1538453
+            ! Model 3: 0.015... for FrankenEmu
+            !hmod%f0 = 0.2385760
+            !hmod%f1 = 0.8145470
+            !hmod%ks = 0.1398440
+            !hmod%kdamp = 0.01595842
+            !hmod%eta0 = 0.2580939
+            !hmod%eta1 = -0.0330454         
+            !hmod%alp0 = 3.1508852
+            !hmod%alp1 = 1.9979316
+            !hmod%Amf = 1.2125096
+            !hmod%ST_p = 0.1512131
+            !hmod%ST_q = 0.8838104
+            !hmod%As = 1.8618050
+            !hmod%Ap = -0.0872705
+            !hmod%Ac = 1.7020399
+            ! Model 4: 0.0149 for FrankenEmu
+            !hmod%f0 = 0.2735763
+            !hmod%f1 = 0.9041968
+            !hmod%ks = 0.0194499
+            !hmod%kp = -0.9414753
+            !hmod%kd = 0.0422709
+            !hmod%kdp = -0.4968087
+            !hmod%eta0 = 0.1858773
+            !hmod%eta1 = -0.0482261
+            !hmod%alp0 = 2.3438441
+            !hmod%alp1 = 1.7869233
+            !hmod%Amf = 1.3295968
+            !hmod%ST_p = 0.2719308
+            !hmod%ST_q = 0.8395595
+            !hmod%As = 3.9239514
+            !hmod%Ap = 0.0636166
+            !hmod%Ac = 0.0134060
+            ! Model 5: 0.0146 for FrankenEmu
+            hmod%f0 = 0.2538956
+            hmod%f1 = 0.9909891
+            hmod%ks = 0.0246816 
+            hmod%kp = -0.2245492
+            hmod%kd = 0.0472928
+            hmod%kdp = -0.1131986
+            hmod%eta0 = 0.2625362
+            hmod%eta1 = 0.0504991
+            hmod%alp0 = 2.5374596
+            hmod%alp1 = 1.8214684
+            hmod%Amf = 1.3388167
+            hmod%ST_p = 0.2805521
+            hmod%ST_q = 0.8121307
+            hmod%As = 3.6774614
+            hmod%Ap = -0.1209546
+            hmod%Ac = 0.2772131
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
@@ -2042,12 +2101,14 @@ CONTAINS
       ! TODO: Not necessary for some halo models
       hmod%HMcode_kstar = HMcode_kstar(hmod, cosm)
       hmod%HMcode_fdamp = HMcode_fdamp(hmod, cosm)
+      hmod%HMcode_kdamp = HMcode_kdamp(hmod, cosm)
       hmod%HMcode_alpha = HMcode_alpha(hmod, cosm)
       hmod%HMcode_eta = HMcode_eta(hmod, cosm)
       hmod%HMcode_A = HMcode_A(hmod, cosm)
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: HMcode: k*:', hmod%HMcode_kstar
          WRITE (*, *) 'INIT_HALOMOD: HMcode: fdamp:', hmod%HMcode_fdamp
+         WRITE (*, *) 'INIT_HALOMOD: HMcode: kdamp [h/Mpc]:', hmod%HMcode_kdamp
          WRITE (*, *) 'INIT_HALOMOD: HMcode: alpha:', hmod%HMcode_alpha
          WRITE (*, *) 'INIT_HALOMOD: HMcode: eta:', hmod%HMcode_eta
          WRITE (*, *) 'INIT_HALOMOD: HMcode: A:', hmod%HMcode_A
@@ -2162,9 +2223,10 @@ CONTAINS
 
          ! Concentration-mass relation correction
          IF (hmod%iDolag == 0) WRITE (*, *) 'HALOMODEL: No concentration-mass correction for dark energy'
-         IF (hmod%iDolag == 1) WRITE (*, *) 'HALOMODEL: Dolag (2004) dark energy concentration correction'
-         IF (hmod%iDolag == 2) WRITE (*, *) 'HALOMODEL: Dolag (2004) dark energy concentration correction with 1.5 exponent'
-         IF (hmod%iDolag == 3) WRITE (*, *) 'HALOMODEL: Dolag (2004) dark energy concentration correction with redshift dependence'
+         IF (hmod%iDolag == 1) WRITE (*, *) 'HALOMODEL: Dolag (2004) concentration correction'
+         IF (hmod%iDolag == 2) WRITE (*, *) 'HALOMODEL: Dolag (2004) concentration correction with 1.5 exponent'
+         IF (hmod%iDolag == 3) WRITE (*, *) 'HALOMODEL: Dolag (2004) concentration correction with z dependence'
+         IF (hmod%iDolag == 4) WRITE (*, *) 'HALOMODEL: Dolag (2004) concentration correction with neutrinos removed and z dependence'
 
          ! Bound gas fraction
          IF (hmod%frac_bound_gas == 1) WRITE (*, *) 'HALOMODEL: Halo bound gas fraction: Fedeli (2014)'
@@ -2275,7 +2337,7 @@ CONTAINS
 
          ! eta for halo window function
          IF (hmod%ieta == 0) WRITE (*, *) 'HALOMODEL: eta = 0 fixed'
-         IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta from HMcode power spectrum fit'
+         IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta from HMcode (2015, 2016) power spectrum fit'
          IF (hmod%ieta == 2) WRITE (*, *) 'HALOMODEL: eta from HMcode but with cold dependence'
 
          ! Small-scale two-halo term damping coefficient
@@ -2288,6 +2350,7 @@ CONTAINS
          IF (hmod%i1hdamp == 0) WRITE (*, *) 'HALOMODEL: No damping in one-halo term at large scales'
          IF (hmod%i1hdamp == 1) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping via an exponential'
          IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping like Delta^2 ~ k^7'
+         IF (hmod%i1hdamp == 3) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping like P(k) ~ k^4'
 
          ! Concentration-mass scaling
          IF (hmod%iAs == 0) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
@@ -2351,9 +2414,8 @@ CONTAINS
          WRITE (*, fmt=fmt) 'eta1:', hmod%eta1
          WRITE (*, fmt=fmt) 'f0:', hmod%f0
          WRITE (*, fmt=fmt) 'f1:', hmod%f1
-         !WRITE (*, fmt=fmt) 'g0:', hmod%g0
-         !WRITE (*, fmt=fmt) 'g1:', hmod%g1
          WRITE (*, fmt=fmt) 'ks:', hmod%ks
+         WRITE (*, fmt=fmt) 'kp:', hmod%kp
          WRITE (*, fmt=fmt) 'As:', hmod%As
          WRITE (*, fmt=fmt) 'alpha0:', hmod%alp0
          WRITE (*, fmt=fmt) 'alpha1:', hmod%alp1
@@ -2370,6 +2432,7 @@ CONTAINS
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'k*:', hmod%HMcode_kstar
          WRITE (*, fmt=fmt) 'fdamp:', hmod%HMcode_fdamp
+         WRITE (*, fmt=fmt) 'kdamp:', hmod%HMcode_kdamp
          WRITE (*, fmt=fmt) 'alpha:', hmod%HMcode_alpha
          WRITE (*, fmt=fmt) 'eta:', hmod%HMcode_eta
          WRITE (*, fmt=fmt) 'A:', hmod%HMcode_A
@@ -3610,7 +3673,7 @@ CONTAINS
          END IF
       ELSE IF (hmod%i2hdamp == 3) THEN
          fdamp = hmod%HMcode_fdamp
-         kdamp = hmod%kdamp!*hmod%knl
+         kdamp = hmod%HMcode_kdamp
          ndamp = 2.
          p_2h = p_2h*(1.-fdamp*((k/kdamp)**ndamp)/(1.+(k/kdamp)**ndamp))
       END IF
@@ -3739,7 +3802,7 @@ CONTAINS
             fac = exp(-((k/ks)**2))
          END IF
          p_1h = p_1h*(1.-fac)
-      ELSE IF (hmod%i1hdamp == 2) THEN
+      ELSE IF (hmod%i1hdamp == 2 .OR. hmod%i1hdamp == 3) THEN
          ! Note that the power here should be 4 because it multiplies Delta^2(k) ~ k^3 at low k (NOT 7)
          ! Want f(k<<ks) ~ k^4; f(k>>ks) = 1
          ks = hmod%HMcode_kstar
@@ -4445,22 +4508,29 @@ CONTAINS
 
    REAL FUNCTION HMcode_kstar(hmod, cosm)
 
-      ! Calculates the one-halo damping wave number
+      ! Calculates the one-halo damping wave number [h/Mpc]
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: sigv
+      REAL :: sigv, sig8
       REAL :: crap
 
       ! To prevent compile-time warnings
       crap = cosm%A
 
-      IF (hmod%i1hdamp == 1) THEN
+      IF (hmod%i1hdamp == 0) THEN
+         HMcode_kstar = 0.
+      ELSE IF (hmod%i1hdamp == 1) THEN
          !sigv = sigmaV(0., hmod%a, flag_power_total, cosm)
          sigv = hmod%sigv
          HMcode_kstar = hmod%ks/sigv
+      ELSE IF(hmod%i1hdamp == 2) THEN
+         HMcode_kstar = hmod%ks
+      ELSE IF (hmod%i1hdamp == 3) THEN
+         sig8 = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+         HMcode_kstar = hmod%ks*sig8**hmod%kp
       ELSE
-         HMcode_kstar = hmod%ks!*hmod%knl
+         STOP 'HMCODE_KSTAR: Error, i1hdamp  specified incorrectly'
       END IF
 
    END FUNCTION HMcode_kstar
@@ -4493,7 +4563,7 @@ CONTAINS
          sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
          HMcode_fdamp = hmod%f0*sig**hmod%f1
       ELSE
-         STOP 'FDAMP_HMcode: Error, i2hdamp defined incorrectly'
+         STOP 'HMcode_FDAMP: Error, i2hdamp defined incorrectly'
       END IF
 
       ! Catches extreme values of fdamp that occur for ridiculous cosmologies
@@ -4501,6 +4571,19 @@ CONTAINS
       IF (HMcode_fdamp > HMcode_fdamp_max) HMcode_fdamp = HMcode_fdamp_max
 
    END FUNCTION HMcode_fdamp
+
+   REAL FUNCTION HMcode_kdamp(hmod, cosm)
+
+      ! 2-halo term damping wavenumber
+      IMPLICIT NONE
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: sig8
+
+      sig8 = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+      HMcode_kdamp = hmod%kd*sig8**hmod%kdp
+
+   END FUNCTION HMcode_kdamp
 
    REAL FUNCTION HMcode_alpha(hmod, cosm)
 
@@ -5822,13 +5905,16 @@ CONTAINS
 
    SUBROUTINE Dolag_correction(hmod, cosm)
 
-      ! Applies the Dolag et al. (2004) correction to concentration-mass relation
+      ! Applies the Dolag et al. (2004; astro-ph/0309771) correction to concentration-mass relation
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: g_LCDM, g_wCDM, g, a
       REAL :: ginf_LCDM, ginf_wCDM, ainf, f
       TYPE(cosmology) :: cosm_LCDM
+      LOGICAL :: remove_neutrinos
+      LOGICAL, PARAMETER :: make_lambda = .TRUE.
+      LOGICAL, PARAMETER :: make_flat = .TRUE.
 
       ! The 'infinite' scale factor
       ainf = scale_factor_z(hmod%zinf_Dolag)
@@ -5837,8 +5923,14 @@ CONTAINS
       ginf_wCDM = grow(ainf, cosm)
 
       ! Make a flat LCDM cosmology and calculate growth
-      cosm_LCDM = convert_to_flat_LCDM_cosmology(cosm, remove_neutrinos=.FALSE.)
-      CALL init_cosmology(cosm_LCDM) ! This is **essential**
+      IF (hmod%iDolag == 1 .OR. hmod%iDolag == 2 .OR. hmod%iDolag == 3) THEN
+         remove_neutrinos = .FALSE.
+      ELSE IF (hmod%iDolag == 4) THEN
+         remove_neutrinos = .TRUE.
+      ELSE
+         STOP 'DOLAG_CORRECTION: Error, iDolag not specified correctly'
+      END IF
+      cosm_LCDM = convert_cosmology(cosm, make_lambda, make_flat, remove_neutrinos)
 
       ! Growth factor in LCDM at 'infinity' calculated using Linder approximation
       ginf_LCDM = grow_Linder(ainf, cosm_LCDM)
@@ -5852,7 +5944,7 @@ CONTAINS
       ELSE IF (hmod%iDolag == 2) THEN
          ! Changed this to a power of 1.5 in HMcode 2016, produces more accurate results for extreme DE
          hmod%c = hmod%c*f**1.5
-      ELSE IF (hmod%iDolag == 3) THEN
+      ELSE IF (hmod%iDolag == 3 .OR. hmod%iDolag == 4) THEN
          ! Correction with a sensible redshift dependence, which is otherwise missing from Dolag
          a = hmod%a
          g_wCDM = grow(a, cosm)
@@ -9652,12 +9744,21 @@ CONTAINS
    REAL FUNCTION halo_bound_gas_fraction(m, hmod, cosm)
 
       ! Mass fraction of a halo in bound gas
-      ! This fucntion should NOT reference halo_star_fraction()
+      ! This function should NOT reference halo_star_fraction() otherwise infinite recursion generated
+      ! TODO: may be wise to have the prefactor in all of these equations be: (Om_b/Om_m - f_*)
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: m0, sig, beta
+      REAL :: m0, sig, beta, x, maxgas, f_star, f_total
+
+      IF (hmod%normalise_baryons == 1 .OR. hmod%normalise_baryons == 3) THEN
+         maxgas = cosm%om_b/cosm%om_m
+      ELSE IF (hmod%normalise_baryons == 2) THEN
+         maxgas = cosm%om_b/cosm%om_m - halo_star_fraction(m, hmod, cosm)
+      ELSE
+         STOP 'HALO_BOUND_GAS_FRACTION: Error, normalise_baryons not specified correctly'
+      END IF
 
       IF (hmod%frac_bound_gas == 1) THEN
          ! From Fedeli (2014a)
@@ -9666,26 +9767,36 @@ CONTAINS
          IF (m < m0) THEN
             halo_bound_gas_fraction = 0.
          ELSE
-            halo_bound_gas_fraction = erf(log10(m/m0)/sig)*cosm%om_b/cosm%om_m
+            halo_bound_gas_fraction = erf(log10(m/m0)/sig)*maxgas
          END IF
       ELSE IF (hmod%frac_bound_gas == 2) THEN
          ! From Schneider & Teyssier (2015)
          M0 = HMx_M0(hmod, cosm)
-         !beta = 0.6
          beta = HMx_gbeta(hmod, cosm)
-         halo_bound_gas_fraction = (cosm%om_b/cosm%om_m)/(1.+(m/M0)**(-beta))
+         !halo_bound_gas_fraction = (cosm%om_b/cosm%om_m)/(1.+(m/M0)**(-beta))
+         x = (m/M0)**beta
+         halo_bound_gas_fraction = maxgas*x/(1.+x)
       ELSE IF (hmod%frac_bound_gas == 3) THEN
          ! Universal baryon fraction model
          ! Be *very* careful with generating an infinite recursion here
          ! DO NOT ACCOUNT FOR STAR FRACTION HERE DUE TO INFINITE RECURSION
          ! Stars are subtracted from elsewhere if this is a problem
          !halo_bound_gas_fraction = cosm%om_b/cosm%om_m-halo_star_fraction(m, hmod, cosm) ! ABSOLUTELY DO NOT DO THIS
-         halo_bound_gas_fraction = cosm%om_b/cosm%om_m
+         halo_bound_gas_fraction = maxgas
       ELSE
          STOP 'HALO_BOUND_GAS_FRACTION: Error, frac_bound_gas not specified correctly'
       END IF
 
-      IF(halo_bound_gas_fraction < frac_min .OR. halo_bound_gas_fraction > frac_max) THEN
+      ! Remove bound gas if the total gas+star fraction would be greater than universal baryon fraction
+      IF (hmod%normalise_baryons == 3) THEN
+         f_star = halo_star_fraction(m, hmod, cosm) ! Star fraction in halo
+         f_total = f_star+halo_bound_gas_fraction   ! Total baryon content inside halo
+         IF(f_total > maxgas) THEN
+            halo_bound_gas_fraction = halo_bound_gas_fraction-(f_total-maxgas)
+         END IF
+      END IF
+
+      IF (halo_bound_gas_fraction < frac_min .OR. halo_bound_gas_fraction > frac_max) THEN
          WRITE(*, *) 'HALO_BOUND_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_BOUND_GAS_FRACTION:', halo_bound_gas_fraction
          STOP 'HALO_BOUND_GAS_FRACTION: Error, halo bound gas fraction is outside sensible range'
@@ -9793,6 +9904,7 @@ CONTAINS
 
       ! Mass fraction of a halo in stars
       ! This fucntion can reference halo_bound_gas_fraction()
+      ! TODO: Remove calls to halo_bound_gas fraction to remove infinite recursions
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -9823,10 +9935,13 @@ CONTAINS
 
       ! Take away from the stars if the sum of bound gas and stars in the halo would be greater than universal baryon fraction
       ! Be careful with generating an infinite recursion here
-      f_bound = halo_bound_gas_fraction(m, hmod, cosm) ! Bound gas in halo
-      f_total = f_bound+halo_star_fraction             ! Total baryon content inside halo
-      IF(f_total > cosm%om_b/cosm%om_m) THEN
-         halo_star_fraction = halo_star_fraction-(f_total-cosm%om_b/cosm%om_m)
+      ! TODO: Could remove this an subtract excess stars from prefactor in bound gas
+      IF (hmod%normalise_baryons == 1) THEN
+         f_bound = halo_bound_gas_fraction(m, hmod, cosm) ! Bound gas in halo
+         f_total = f_bound+halo_star_fraction             ! Total baryon content inside halo
+         IF(f_total > cosm%om_b/cosm%om_m) THEN
+            halo_star_fraction = halo_star_fraction-(f_total-cosm%om_b/cosm%om_m)
+         END IF
       END IF
 
       IF(halo_star_fraction < frac_min .OR. halo_star_fraction > frac_max) THEN
