@@ -141,7 +141,7 @@ END FUNCTION progression_log_double
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       REAL, INTENT(OUT) :: x               ! Real number to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
-      REAL, INTENT(IN), OPTIONAL :: def
+      REAL, INTENT(IN), OPTIONAL :: def    ! Default value
       CHARACTER(len=256) :: word
 
       CALL get_command_argument(i, word)
@@ -165,7 +165,7 @@ END FUNCTION progression_log_double
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       INTEGER, INTENT(OUT) :: x            ! Real number to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
-      INTEGER, INTENT(IN), OPTIONAL :: def
+      INTEGER, INTENT(IN), OPTIONAL :: def ! Default value
       CHARACTER(len=256) :: word
 
       CALL get_command_argument(i, word)
@@ -189,7 +189,7 @@ END FUNCTION progression_log_double
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       LOGICAL, INTENT(OUT) :: x            ! Real number to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
-      LOGICAL, INTENT(IN), OPTIONAL :: def
+      LOGICAL, INTENT(IN), OPTIONAL :: def ! Default value
       CHARACTER(len=256) :: word
 
       CALL get_command_argument(i, word)
@@ -216,10 +216,10 @@ END FUNCTION progression_log_double
    SUBROUTINE read_command_argument_character(i, x, desc, def)
 
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: i             ! Position of command-line argument
-      CHARACTER(len=*), INTENT(OUT) :: x ! String to be assigned command-line argument
-      CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
-      CHARACTER(len=*), INTENT(IN), OPTIONAL :: def
+      INTEGER, INTENT(IN) :: i                      ! Position of command-line argument
+      CHARACTER(len=*), INTENT(OUT) :: x            ! String to be assigned command-line argument
+      CHARACTER(len=*), INTENT(IN) :: desc          ! Description of command-line argument
+      CHARACTER(len=*), INTENT(IN), OPTIONAL :: def ! Default value
       CHARACTER(len=256) :: word
 
       CALL get_command_argument(i, word)
