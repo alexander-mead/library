@@ -52,7 +52,7 @@ MODULE array_operations
    PUBLIC :: remove_repeated_array_elements
    PUBLIC :: remove_repeated_two_array_elements
    PUBLIC :: fill_array
-   PUBLIC :: fill_array_double
+   !PUBLIC :: fill_array_double ! TODO: Delete
    PUBLIC :: fill_array_log
 
    INTERFACE is_in_array
@@ -889,32 +889,33 @@ CONTAINS
 
    END SUBROUTINE fill_array
 
-   SUBROUTINE fill_array_double(min, max, arr, n)
+   ! SUBROUTINE fill_array_double(min, max, arr, n)
 
-      ! Fills array 'arr' in equally spaced intervals
-      ! TODO: Not sure if inputting an array like this is okay
-      USE basic_operations
-      IMPLICIT NONE
-      DOUBLE PRECISION, INTENT(IN) :: min, max
-      DOUBLE PRECISION, ALLOCATABLE, INTENT(INOUT) :: arr(:)
-      INTEGER, INTENT(IN) :: n
-      INTEGER :: i
+   !    ! Fills array 'arr' in equally spaced intervals
+   !    ! TODO: Not sure if inputting an array like this is okay
+   !    ! TODO: Delete
+   !    USE basic_operations
+   !    IMPLICIT NONE
+   !    DOUBLE PRECISION, INTENT(IN) :: min, max
+   !    DOUBLE PRECISION, ALLOCATABLE, INTENT(INOUT) :: arr(:)
+   !    INTEGER, INTENT(IN) :: n
+   !    INTEGER :: i
 
-      ! Allocate the array, and deallocate it if it is full
-      !IF (ALLOCATED(arr)) DEALLOCATE (arr)
-      !ALLOCATE (arr(n))
-      CALL safe_allocate(arr, n)
-      arr = 0.d0
+   !    ! Allocate the array, and deallocate it if it is full
+   !    !IF (ALLOCATED(arr)) DEALLOCATE (arr)
+   !    !ALLOCATE (arr(n))
+   !    CALL safe_allocate(arr, n)
+   !    arr = 0.d0
 
-      IF (n == 1) THEN
-         arr(1) = min
-      ELSE IF (n > 1) THEN
-         DO i = 1, n
-            arr(i) = progression_double(min, max, i, n)
-         END DO
-      END IF
+   !    IF (n == 1) THEN
+   !       arr(1) = min
+   !    ELSE IF (n > 1) THEN
+   !       DO i = 1, n
+   !          arr(i) = progression_double(min, max, i, n)
+   !       END DO
+   !    END IF
 
-   END SUBROUTINE fill_array_double
+   ! END SUBROUTINE fill_array_double
 
    SUBROUTINE fill_array_log(xmin, xmax, x, nx)
 

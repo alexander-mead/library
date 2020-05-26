@@ -4489,10 +4489,9 @@ CONTAINS
 
       ! Fill time array
       IF (ilog) THEN
-         CALL fill_array_double(dble(log(ti)), dble(log(tf)), t8, n)
-         t8 = exp(t8)
+         CALL fill_array_log(ti, tf, t8, n)
       ELSE
-         CALL fill_array_double(dble(ti), dble(tf), t8, n)
+         CALL fill_array(ti, tf, t8, n)
       END IF
 
       DO i = 1, n-1
@@ -4583,10 +4582,9 @@ CONTAINS
 
          ! Fill time array
          IF (ilog) THEN
-            CALL fill_array_double(dble(log(ti)), dble(log(tf)), t8, n)
-            t8 = exp(t8)
+            CALL fill_array_log(ti, tf, t8, n)
          ELSE
-            CALL fill_array_double(dble(ti), dble(tf), t8, n)
+            CALL fill_array(ti, tf, t8, n)
          END IF
 
          ifail = 0
