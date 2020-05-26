@@ -1,15 +1,13 @@
 MODULE basic_operations
 
-   ! TODO: Rename basic_operations -> basic_operations
-
    IMPLICIT NONE
  
    PRIVATE
 
    PUBLIC :: progression
-   PUBLIC :: progression_double
+   !PUBLIC :: progression_double ! TODO: Delete
    PUBLIC :: progression_log
-   PUBLIC :: progression_log_double
+   !PUBLIC :: progression_log_double ! TODO: Delete
    PUBLIC :: fix_minimum
    PUBLIC :: fix_maximum
    PUBLIC :: read_command_argument
@@ -44,6 +42,7 @@ CONTAINS
 
    REAL FUNCTION progression(xmin, xmax, i, n)
 
+      ! Linear
       IMPLICIT NONE
       REAL, INTENT(IN) :: xmin, xmax
       INTEGER, INTENT(IN) :: i, n
@@ -56,48 +55,48 @@ CONTAINS
 
    END FUNCTION progression
 
-   DOUBLE PRECISION FUNCTION progression_double(xmin, xmax, i, n)
+   ! DOUBLE PRECISION FUNCTION progression_double(xmin, xmax, i, n)
 
-   ! TODO: Delete
-   IMPLICIT NONE
-   DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
-   INTEGER, INTENT(IN) :: i, n
+   !    ! TODO: Delete
+   !    IMPLICIT NONE
+   !    DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
+   !    INTEGER, INTENT(IN) :: i, n
 
-   IF (n == 1) THEN
-      progression_double = xmin
-   ELSE
-      progression_double = xmin+(xmax-xmin)*dble(i-1)/dble(n-1)
-   END IF
+   !    IF (n == 1) THEN
+   !       progression_double = xmin
+   !    ELSE
+   !       progression_double = xmin+(xmax-xmin)*dble(i-1)/dble(n-1)
+   !    END IF
 
-END FUNCTION progression_double
+   ! END FUNCTION progression_double
 
-REAL FUNCTION progression_log(xmin, xmax, i, n)
+   REAL FUNCTION progression_log(xmin, xmax, i, n)
 
-   ! TODO: Delete
-   IMPLICIT NONE
-   REAL, INTENT(IN) :: xmin, xmax
-   INTEGER, INTENT(IN) :: i, n
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: xmin, xmax
+      INTEGER, INTENT(IN) :: i, n
 
-   progression_log = exp(progression(log(xmin), log(xmax), i, n))
+      progression_log = exp(progression(log(xmin), log(xmax), i, n))
 
-END FUNCTION progression_log
+   END FUNCTION progression_log
 
-DOUBLE PRECISION FUNCTION progression_log_double(xmin, xmax, i, n)
+   ! DOUBLE PRECISION FUNCTION progression_log_double(xmin, xmax, i, n)
 
-   ! TODO: Delete
-   IMPLICIT NONE
-   DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
-   INTEGER, INTENT(IN) :: i, n
+   !    ! TODO: Delete
+   !    IMPLICIT NONE
+   !    DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
+   !    INTEGER, INTENT(IN) :: i, n
 
-   progression_log_double = exp(progression_double(log(xmin), log(xmax), i, n))
+   !    progression_log_double = exp(progression_double(log(xmin), log(xmax), i, n))
 
-END FUNCTION progression_log_double
+   ! END FUNCTION progression_log_double
 
    SUBROUTINE increment_real(x, y)
 
+      ! Adds the value of y to x: x -> x+y
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x
-      REAL, INTENT(IN) :: y
+      REAL, INTENT(INOUT) :: x ! Value to be added to
+      REAL, INTENT(IN) :: y    ! Value to add
 
       x = x+y
 
@@ -105,9 +104,10 @@ END FUNCTION progression_log_double
 
    SUBROUTINE increment_integer(x, y)
 
+      ! Adds the value of y to x: x -> x+y
       IMPLICIT NONE
-      INTEGER, INTENT(INOUT) :: x
-      INTEGER, INTENT(IN) :: y
+      INTEGER, INTENT(INOUT) :: x ! Value to be added to
+      INTEGER, INTENT(IN) :: y    ! Value to add
 
       x = x+y
 
@@ -137,6 +137,7 @@ END FUNCTION progression_log_double
 
    SUBROUTINE read_command_argument_real(i, x, desc, def)
 
+      ! Read command-line argument i and use to to fill variable x
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       REAL, INTENT(OUT) :: x               ! Real number to be assigned command-line argument
@@ -161,6 +162,7 @@ END FUNCTION progression_log_double
 
    SUBROUTINE read_command_argument_integer(i, x, desc, def)
 
+      ! Read command-line argument i and use to to fill variable x
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       INTEGER, INTENT(OUT) :: x            ! Real number to be assigned command-line argument
@@ -185,6 +187,7 @@ END FUNCTION progression_log_double
 
    SUBROUTINE read_command_argument_logical(i, x, desc, def)
 
+      ! Read command-line argument i and use to to fill variable x
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       LOGICAL, INTENT(OUT) :: x            ! Real number to be assigned command-line argument
@@ -215,6 +218,7 @@ END FUNCTION progression_log_double
 
    SUBROUTINE read_command_argument_character(i, x, desc, def)
 
+      ! Read command-line argument i and use to to fill variable x
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i                      ! Position of command-line argument
       CHARACTER(len=*), INTENT(OUT) :: x            ! String to be assigned command-line argument
@@ -240,7 +244,7 @@ END FUNCTION progression_log_double
    LOGICAL FUNCTION positive(x)
 
       ! Logical function that returns .TRUE. if x>=0.
-      ! If x=0. then it will return true
+      ! If x=0. will return true
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
 
@@ -328,6 +332,7 @@ END FUNCTION progression_log_double
 
    LOGICAL FUNCTION present_and_correct(x)
 
+      ! Returns true if an optional argument is both present and true
       IMPLICIT NONE
       LOGICAL, OPTIONAL, INTENT(IN) :: x
 
@@ -345,6 +350,7 @@ END FUNCTION progression_log_double
 
    INTEGER FUNCTION first_digit(x)
 
+      ! Returns the first non-zero digit of a real number
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL :: y
