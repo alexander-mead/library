@@ -41,9 +41,9 @@ MODULE minimization
       INTEGER :: i, j
 
       INTERFACE
-         FUNCTION f(x, n)
-            REAL, INTENT(IN) :: x(n)
-            INTEGER, INTENT(IN) :: n
+         FUNCTION f(xin, nin)
+            INTEGER, INTENT(IN) :: nin
+            REAL, INTENT(IN) :: xin(nin)           
          END FUNCTION f
       END INTERFACE
 
@@ -92,9 +92,9 @@ MODULE minimization
       REAL, PARAMETER :: sigma = sigma_Nelder_Mead  ! Shrink coefficient (standard sigma = 0.5)
 
       INTERFACE
-         FUNCTION f(x, n)
-            REAL, INTENT(IN) :: x(n)
-            INTEGER, INTENT(IN) :: n
+         FUNCTION f(xin, nin)
+            INTEGER, INTENT(IN) :: nin
+            REAL, INTENT(IN) :: xin(nin)           
          END FUNCTION f
       END INTERFACE
 
@@ -267,8 +267,8 @@ MODULE minimization
       INTEGER :: i, j, imin
 
       INTERFACE
-         FUNCTION func(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION func(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION func
       END INTERFACE
 
@@ -576,8 +576,8 @@ MODULE minimization
       REAL, PARAMETER :: fac = 1e3
 
       INTERFACE
-         FUNCTION f(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION f(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION f
       END INTERFACE
 
@@ -622,8 +622,9 @@ MODULE minimization
       INTEGER :: i
 
       INTERFACE
-         FUNCTION f(x, y)
-            REAL, INTENT(IN) :: x, y
+         FUNCTION f(xin, yin)
+            REAL, INTENT(IN) :: xin
+            REAL, INTENT(IN) :: yin
          END FUNCTION f
       END INTERFACE
 

@@ -31,8 +31,8 @@ CONTAINS
       INTEGER, PARAMETER :: n = 100 ! Maximum number of iterations
 
       INTERFACE
-         FUNCTION f(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION f(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION f
       END INTERFACE
 
@@ -72,8 +72,8 @@ CONTAINS
       INTEGER, PARAMETER :: n = 100
 
       INTERFACE
-         FUNCTION f(x, y)
-            REAL, INTENT(IN) :: x, y
+         FUNCTION f(xin, yin)
+            REAL, INTENT(IN) :: xin, yin
          END FUNCTION f
       END INTERFACE
 
@@ -116,8 +116,8 @@ CONTAINS
       INTEGER, PARAMETER :: n = 100
 
       INTERFACE
-         FUNCTION f(x, y)
-            REAL, INTENT(IN) :: x, y
+         FUNCTION f(xin, yin)
+            REAL, INTENT(IN) :: xin, yin
          END FUNCTION f
       END INTERFACE
 
@@ -159,8 +159,8 @@ CONTAINS
       DOUBLE PRECISION :: sum
 
       INTERFACE
-         FUNCTION f(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION f(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION f
       END INTERFACE
 
@@ -245,8 +245,8 @@ CONTAINS
       INTEGER, PARAMETER :: jmax = 30
 
       INTERFACE
-         FUNCTION f(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION f(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION f
       END INTERFACE
 
@@ -351,8 +351,8 @@ CONTAINS
       INTEGER, PARAMETER :: ninit = 8
 
       INTERFACE
-         FUNCTION f(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION f(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION f
       END INTERFACE
 
@@ -583,17 +583,17 @@ CONTAINS
       INTEGER, PARAMETER :: ninit = 8
 
       INTERFACE
-         FUNCTION f(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION f(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION f
-         FUNCTION g(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION g(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION g
-         FUNCTION gi(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION gi(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION gi
-         FUNCTION dg(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION dg(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION dg
       END INTERFACE
 
@@ -699,8 +699,8 @@ CONTAINS
       DOUBLE PRECISION :: sum
 
       INTERFACE
-         FUNCTION f(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION f(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION f
       END INTERFACE
 
