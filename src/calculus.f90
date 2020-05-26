@@ -73,7 +73,8 @@ CONTAINS
 
       INTERFACE
          FUNCTION f(xin, yin)
-            REAL, INTENT(IN) :: xin, yin
+            REAL, INTENT(IN) :: xin
+            REAL, INTENT(IN) :: yin
          END FUNCTION f
       END INTERFACE
 
@@ -117,7 +118,8 @@ CONTAINS
 
       INTERFACE
          FUNCTION f(xin, yin)
-            REAL, INTENT(IN) :: xin, yin
+            REAL, INTENT(IN) :: xin
+            REAL, INTENT(IN) :: yin
          END FUNCTION f
       END INTERFACE
 
