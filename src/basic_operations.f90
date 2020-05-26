@@ -42,7 +42,8 @@ CONTAINS
 
    REAL FUNCTION progression(xmin, xmax, i, n)
 
-      ! Linear
+      ! Split the region xmin -> xmax into n linearly spaced increments (including both xmin and xmax)
+      ! Returns the value at the i-th point
       IMPLICIT NONE
       REAL, INTENT(IN) :: xmin, xmax
       INTEGER, INTENT(IN) :: i, n
@@ -72,6 +73,8 @@ CONTAINS
 
    REAL FUNCTION progression_log(xmin, xmax, i, n)
 
+      ! Split the region xmin -> xmax into n log-spaced increments (including both xmin and xmax)
+      ! Returns the value at the i-th point, not the logarithm of the value
       IMPLICIT NONE
       REAL, INTENT(IN) :: xmin, xmax
       INTEGER, INTENT(IN) :: i, n

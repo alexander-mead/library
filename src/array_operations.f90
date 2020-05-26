@@ -105,6 +105,7 @@ CONTAINS
 
    LOGICAL FUNCTION greater_than_any(x, array, n)
 
+      ! Returns TRUE if x is greater than any one of the values in array
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
@@ -125,6 +126,7 @@ CONTAINS
 
    LOGICAL FUNCTION greater_than_all(x, array, n)
 
+      ! Returns TRUE if x is greater than all of the values in array
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
@@ -145,6 +147,7 @@ CONTAINS
 
    SUBROUTINE safe_allocate_real(x, n)
 
+      ! Checks array for allocation status, deallocates if necessary, then allocates
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
       INTEGER, INTENT(IN) :: n
@@ -167,6 +170,7 @@ CONTAINS
 
    SUBROUTINE safe_allocate_integer(i, n)
 
+      ! Checks array for allocation status, deallocates if necessary, then allocates
       IMPLICIT NONE
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: i(:)
       INTEGER, INTENT(IN) :: n
@@ -178,6 +182,7 @@ CONTAINS
 
    SUBROUTINE safe_allocate_logical(l, n)
 
+      ! Checks array for allocation status, deallocates if necessary, then allocates
       IMPLICIT NONE
       LOGICAL, ALLOCATABLE, INTENT(INOUT) :: l(:)
       INTEGER, INTENT(IN) :: n
@@ -189,6 +194,7 @@ CONTAINS
 
    SUBROUTINE safe_allocate_character(c, n)
 
+      ! Checks array for allocation status, deallocates if necessary, then allocates
       IMPLICIT NONE
       CHARACTER(len=*), ALLOCATABLE, INTENT(INOUT) :: c(:)
       INTEGER, INTENT(IN) :: n
@@ -200,6 +206,7 @@ CONTAINS
 
    SUBROUTINE if_allocated_deallocate_real_1D(x)
 
+      ! Deallocates an array if it is already allocated
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
 
@@ -209,6 +216,7 @@ CONTAINS
 
    SUBROUTINE if_allocated_deallocate_real_2D(x)
 
+      ! Deallocates an array if it is already allocated
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:)
 
@@ -218,6 +226,7 @@ CONTAINS
 
    SUBROUTINE if_allocated_deallocate_real_3D(x)
 
+      ! Deallocates an array if it is already allocated
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:,:)
 
@@ -227,6 +236,7 @@ CONTAINS
 
    SUBROUTINE if_allocated_deallocate_integer_1D(i)
 
+      ! Deallocates an array if it is already allocated
       IMPLICIT NONE
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: i(:)
 
@@ -236,6 +246,7 @@ CONTAINS
 
    SUBROUTINE if_allocated_deallocate_logical_1D(l)
 
+      ! Deallocates an array if it is already allocated
       IMPLICIT NONE
       LOGICAL, ALLOCATABLE, INTENT(INOUT) :: l(:)
 
@@ -245,6 +256,7 @@ CONTAINS
 
    SUBROUTINE if_allocated_deallocate_character_1D(c)
 
+      ! Deallocates an array if it is already allocated
       IMPLICIT NONE
       CHARACTER(len=*), ALLOCATABLE, INTENT(INOUT) :: c(:)
 
@@ -329,7 +341,7 @@ CONTAINS
 
    SUBROUTINE append(a, n, b)
 
-      ! Append b to array a(n) to make a new array a(n+1)
+      ! Append b to the end of array a(n) to make a new array a(n+1)
       IMPLICIT NONE
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: a(:)
       INTEGER, INTENT(IN) :: n
@@ -607,7 +619,7 @@ CONTAINS
 
    SUBROUTINE remove_array_element(a, n, i)
 
-      ! Remove element i from array a(n)
+      ! Remove element i from array a(n) returning an array of size n-1
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Input array
       INTEGER, INTENT(IN) :: n                 ! Original length of array, it will change to n-1
@@ -691,6 +703,7 @@ CONTAINS
 
    SUBROUTINE write_array_list_real(a, n)
 
+      ! Write out a list of array elements in a neat way
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: a(n)
@@ -707,6 +720,7 @@ CONTAINS
 
    SUBROUTINE write_array_list_int(a, n)
 
+      ! Write out a list of array elements in a neat way
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: a(n)
@@ -723,7 +737,7 @@ CONTAINS
 
    FUNCTION splay_2D(a, n1, n2)
 
-      ! This splays out a 3d array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
+      ! This splays out a 2D array 'a' into a 1d array 'b' of the same size (n1*n2)
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n1, n2
       REAL :: splay_2D(n1*n2)
@@ -744,7 +758,7 @@ CONTAINS
 
    FUNCTION splay_3D(a, n1, n2, n3)
 
-      ! This splays out a 3d array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
+      ! This splays out a 3D array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
       ! TODO: Should i, j, k order of loops be reversed?
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n1, n2, n3
@@ -919,6 +933,7 @@ CONTAINS
 
    SUBROUTINE fill_array_log(xmin, xmax, x, nx)
 
+      ! Fill an array x in n log-space intervals between xmin and xmax (inclusive)
       IMPLICIT NONE
       REAL, INTENT(IN) :: xmin
       REAL, INTENT(IN) :: xmax
@@ -932,6 +947,7 @@ CONTAINS
 
    SUBROUTINE integer_sequence(is, i1, i2, n)
 
+      ! Reutrns an array of all the integers between i1 and i2 (inclusive)
       IMPLICIT NONE
       INTEGER, ALLOCATABLE, INTENT(OUT) :: is(:)
       INTEGER, INTENT(IN) :: i1
@@ -975,7 +991,6 @@ CONTAINS
    REAL FUNCTION maximum(x, y, n)
 
       ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
-      !USE fix_polynomial
       USE special_functions
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
