@@ -6,10 +6,32 @@ MODULE solve_equations
 
    PRIVATE
 
+   PUBLIC :: solve_quadratic
    PUBLIC :: find_solve
    PUBLIC :: bisect_solve
 
 CONTAINS
+
+   FUNCTION solve_quadratic(a, b, c)
+
+      IMPLICIT NONE
+      REAL :: solve_quadratic(2)
+      REAL, INTENT(IN) :: a
+      REAL, INTENT(IN) :: b
+      REAL, INTENT(IN) :: c
+      REAL :: disc, root
+
+      disc = b**2-4.*a*c
+      IF(disc > 0.) THEN
+         root = sqrt(disc)
+      ELSE
+         STOP 'SOLVE_QUADRATIC: Error, your quadratic has imaginary solutions'
+      END IF
+
+      solve_quadratic(1) = (root-b)/(2.*a)
+      solve_quadratic(2) = (-root-b)/(2.*a)
+
+   END FUNCTION solve_quadratic
 
    REAL FUNCTION find_solve(xtab, ytab, n)
 
