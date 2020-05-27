@@ -111,7 +111,7 @@ CONTAINS
       REAL, INTENT(IN) :: a(:)
       INTEGER :: i, n
 
-      n = size(array)
+      n = size(a)
 
       STOP 'GREATER_THAN_ANY: Test this'
 
