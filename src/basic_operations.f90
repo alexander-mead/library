@@ -45,7 +45,8 @@ CONTAINS
       ! Split the region xmin -> xmax into n linearly spaced increments (including both xmin and xmax)
       ! Returns the value at the i-th point
       IMPLICIT NONE
-      REAL, INTENT(IN) :: xmin, xmax
+      REAL, INTENT(IN) :: xmin
+      REAL, INTENT(IN) :: xmax
       INTEGER, INTENT(IN) :: i, n
 
       IF (n == 1) THEN
@@ -76,7 +77,8 @@ CONTAINS
       ! Split the region xmin -> xmax into n log-spaced increments (including both xmin and xmax)
       ! Returns the value at the i-th point, not the logarithm of the value
       IMPLICIT NONE
-      REAL, INTENT(IN) :: xmin, xmax
+      REAL, INTENT(IN) :: xmin
+      REAL, INTENT(IN) :: xmax
       INTEGER, INTENT(IN) :: i, n
 
       progression_log = exp(progression(log(xmin), log(xmax), i, n))
@@ -307,7 +309,8 @@ CONTAINS
       ! If they are, then they should be considered equal
       ! Adapted from https://stackoverflow.com/questions/4915462/how-should-i-do-floating-point-comparison/4915891#4915891
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x, y
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: y
       REAL, INTENT(IN) :: eps
       REAL :: absx, absy, diff
 
@@ -380,7 +383,8 @@ CONTAINS
 
       ! Swaps the values of variables a and b
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: a, b
+      REAL, INTENT(INOUT) :: a
+      REAL, INTENT(INOUT) :: b
       REAL :: c
 
       c = a
