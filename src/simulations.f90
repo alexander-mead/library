@@ -828,21 +828,21 @@ CONTAINS
          ! Do nothing here
       ELSE IF (type == 2) THEN
          IF (present_and_correct(verbose)) WRITE (*, *) 'RANDOM_ROTATION: Doing 132'
-         CALL swap_arrays(x(2, :), x(3, :), n) ! Swap 2<->3 (123 -> 132)
+         CALL swap_arrays(x(2, :), x(3, :)) ! Swap 2<->3 (123 -> 132)
       ELSE IF (type == 3) THEN
          IF (present_and_correct(verbose)) WRITE (*, *) 'RANDOM_ROTATION: Doing 213'
-         CALL swap_arrays(x(1, :), x(2, :), n) ! Swap 1<->2 (123 -> 213)
+         CALL swap_arrays(x(1, :), x(2, :)) ! Swap 1<->2 (123 -> 213)
       ELSE IF (type == 4) THEN
          IF (present_and_correct(verbose)) WRITE (*, *) 'RANDOM_ROTATION: Doing 231'
-         CALL swap_arrays(x(1, :), x(2, :), n) ! Swap 1<->2 (123 -> 213)
-         CALL swap_arrays(x(2, :), x(3, :), n) ! Swap 2<->3 (213 -> 231)
+         CALL swap_arrays(x(1, :), x(2, :)) ! Swap 1<->2 (123 -> 213)
+         CALL swap_arrays(x(2, :), x(3, :)) ! Swap 2<->3 (213 -> 231)
       ELSE IF (type == 5) THEN
          IF (present_and_correct(verbose)) WRITE (*, *) 'RANDOM_ROTATION: Doing 312'
-         CALL swap_arrays(x(2, :), x(3, :), n) ! Swap 1<->2 (123 -> 132)
-         CALL swap_arrays(x(1, :), x(2, :), n) ! Swap 2<->3 (132 -> 312)
+         CALL swap_arrays(x(2, :), x(3, :)) ! Swap 1<->2 (123 -> 132)
+         CALL swap_arrays(x(1, :), x(2, :)) ! Swap 2<->3 (132 -> 312)
       ELSE IF (type == 6) THEN
          IF (present_and_correct(verbose)) WRITE (*, *) 'RANDOM_ROTATION: Doing 321'
-         CALL swap_arrays(x(1, :), x(3, :), n) ! Swap 1<->3 (123 -> 321)
+         CALL swap_arrays(x(1, :), x(3, :)) ! Swap 1<->3 (123 -> 321)
       ELSE
          STOP 'RANDOM_ROTATION: Error, something went very wrong'
       END IF
@@ -1616,7 +1616,7 @@ CONTAINS
       REAL, INTENT(IN) :: L          ! Box size [Mpc/h]
 
       ! Do the sum of the two fields, making sure to use doubles
-      shot_noise = sum_double(u*v, n)
+      shot_noise = sum_double(u*v)
 
       ! Multiply through by factors of volume and mesh
       shot_noise = (L**3)*shot_noise
@@ -1634,7 +1634,7 @@ CONTAINS
       REAL :: Nbar
 
       ! Calculate the effective mean number of tracers
-      Nbar = sum_double(m, n)**2/sum_double(m**2, n)
+      Nbar = sum_double(m)**2/sum_double(m**2)
 
       ! Calculate number density, this makes units of P(k) [(Mpc/h)^3]
       shot_noise_mass = L**3/Nbar

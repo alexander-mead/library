@@ -4311,10 +4311,10 @@ CONTAINS
             END DO
 
             ! Cut away parts of the arrays for a>ac
-            CALL amputate_array(a, n, 1, k)
-            CALL amputate_array(d, n, 1, k)
-            CALL amputate_array(dnl, n, 1, k)
-            CALL amputate_array(rnl, n, 1, k)
+            CALL amputate_array(a, 1, k)
+            CALL amputate_array(d, 1, k)
+            CALL amputate_array(dnl, 1, k)
+            CALL amputate_array(rnl, 1, k)
 
             ! Collapse has occured so use previous a as ac and d as dc
             ac = a(k)
@@ -4325,7 +4325,7 @@ CONTAINS
             !! Now to Delta_v calculation !!
 
             ! Find the a values when the perturbation is maximum size
-            a_rmax = maximum(a, rnl, k)
+            a_rmax = maximum(a, rnl)
 
             ! Find the over-density at this point
             d_rmax = exp(find(log(a_rmax), log(a), log(dnl), SIZE(a), &
@@ -4385,9 +4385,9 @@ CONTAINS
       IF (cosm%verbose) WRITE (*, *) 'SPHERICAL COLLAPSE: calculation complete'
 
       ! Reverse the arrays so that they run lowest a to highest a
-      CALL reverse_array(cosm%log_a_dcDv, m)
-      CALL reverse_array(cosm%dc, m)
-      CALL reverse_array(cosm%Dv, m)
+      CALL reverse_array(cosm%log_a_dcDv)
+      CALL reverse_array(cosm%dc)
+      CALL reverse_array(cosm%Dv)
 
       IF (cosm%verbose) THEN
          WRITE (*, *) '===================================='
@@ -4412,9 +4412,9 @@ CONTAINS
       END IF
 
       ! Remove bits of the array that are unnecessary
-      CALL amputate_array(cosm%log_a_dcDv, m, 1, cosm%n_dcDv)
-      CALL amputate_array(cosm%dc, m, 1, cosm%n_dcDv)
-      CALL amputate_array(cosm%Dv, m, 1, cosm%n_dcDv)
+      CALL amputate_array(cosm%log_a_dcDv, 1, cosm%n_dcDv)
+      CALL amputate_array(cosm%dc, 1, cosm%n_dcDv)
+      CALL amputate_array(cosm%Dv, 1, cosm%n_dcDv)
 
       ! Take a logarithm
       cosm%log_a_dcDv = log(cosm%log_a_dcDv)
@@ -7046,7 +7046,7 @@ CONTAINS
 
          ALLOCATE (logPk_smooth(nk))
          logPk_smooth = logPk
-         CALL smooth_array(logPk_smooth, nk, ns)
+         CALL smooth_array(logPk_smooth, ns)
          Pk_smooth = exp(logPk_smooth)
 
       ELSE

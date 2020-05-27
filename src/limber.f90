@@ -446,7 +446,7 @@ CONTAINS
 
       IF (method == 4) THEN
          ! Need to precompute C(l) at each integer l for this method
-         IF (regular_spacing(logl, nl)) THEN
+         IF (regular_spacing(logl)) THEN
             ifind = 1 ! Array is linearly spaced
          ELSE
             ifind = 3 ! Mid-point method
@@ -560,7 +560,7 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = 3  ! Order for interpolation to find C(l) (3 - cubic)
       INTEGER, PARAMETER :: imeth = 2   ! Interpolation polynomial (2 - Lagrange polynomial)
 
-      IF (regular_spacing(logl, nl)) THEN
+      IF (regular_spacing(logl)) THEN
          ifind = 1 ! Array is linearly spaced
       ELSE
          ifind = 3 ! Mid-point method

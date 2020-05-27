@@ -46,14 +46,14 @@ CONTAINS
 
     IF(verbose) THEN
        WRITE(*,*) 'TEST_REVERSE_ARRAY: Original array:'
-       CALL write_array_list(a,n)
+       CALL write_array_list(a)
     END IF
 
-    CALL reverse_array(a,n)
+    CALL reverse_array(a)
 
     IF(verbose) THEN
        WRITE(*,*) 'TEST_REVERSE_ARRAY: Reversed array:'
-       CALL write_array_list(a,n)
+       CALL write_array_list(a)
     END IF
 
     fail=.FALSE.
@@ -89,7 +89,7 @@ CONTAINS
 
     IF(verbose) THEN
        WRITE(*,*) 'TEST_SWAP_ARRAYS: Array a'
-       CALL write_array_list(a,n)
+       CALL write_array_list(a)
     END IF
 
     b(1)=4.
@@ -98,11 +98,11 @@ CONTAINS
 
     IF(verbose) THEN
        WRITE(*,*) 'TEST_SWAP_ARRAYS: Array b'
-       CALL write_array_list(b,n)
+       CALL write_array_list(b)
     END IF
 
     IF(verbose) WRITE(*,*) 'TEST_SWAP_ARRAYS: Swapping arrays'
-    CALL swap_arrays(a,b,n)
+    CALL swap_arrays(a,b)
     IF(verbose) THEN
        WRITE(*,*) 'TEST_SWAP_ARRAYS: Arrays swapped'
        WRITE(*,*)
@@ -110,12 +110,12 @@ CONTAINS
 
     IF(verbose) THEN
        WRITE(*,*) 'TEST_SWAP_ARRAYS: Array a'
-       CALL write_array_list(a,n)
+       CALL write_array_list(a)
     END IF
 
     IF(verbose) THEN
        WRITE(*,*) 'TEST_SWAP_ARRAYS: Array b'
-       CALL write_array_list(b,n)
+       CALL write_array_list(b)
     END IF
 
     fail=.FALSE.
@@ -157,15 +157,15 @@ CONTAINS
     a(8)=6.
     a(9)=6.
 
-    IF(verbose) CALL write_array_list(a,n)
+    IF(verbose) CALL write_array_list(a)
 
-    CALL remove_repeated_array_elements(a,n,m)
+    CALL remove_repeated_array_elements(a, m)
     IF(verbose) THEN
        WRITE(*,*) 'TEST_REMOVE_REPEATED_ENTRIES: Removed repeated entries'
        WRITE(*,*)
     END IF
 
-    IF(verbose) CALL write_array_list(a,m)
+    IF(verbose) CALL write_array_list(a)
 
     fail=.FALSE.
     IF(m .NE. 6) fail=.TRUE.
@@ -201,16 +201,16 @@ CONTAINS
     a(2)=3.
     a(3)=4.
 
-    IF(verbose) CALL write_array_list(a,n)
+    IF(verbose) CALL write_array_list(a)
 
-    CALL remove_array_element(a,n,2)
+    CALL remove_array_element(a,2)
     n=n-1
     IF(verbose) THEN
        WRITE(*,*) 'TEST_REMOVE_ARRAY_ELEMENT: Removed second element'
        WRITE(*,*)
     END IF
 
-    IF(verbose) CALL write_array_list(a,n)
+    IF(verbose) CALL write_array_list(a)
 
     fail=.FALSE.
     IF(size(a) .NE. 2) fail=.TRUE.
@@ -254,13 +254,13 @@ CONTAINS
        END IF
 
        IF(verbose) THEN
-          CALL write_array_list(i,n)            
+          CALL write_array_list(i)            
        END IF
 
        IF(j==1) THEN
-          IF(repeated_entries(i,n)) fail=.TRUE.
+          IF(repeated_entries(i)) fail=.TRUE.
        ELSE IF(j==2) THEN
-          IF(.NOT. repeated_entries(i,n)) fail=.TRUE.
+          IF(.NOT. repeated_entries(i)) fail=.TRUE.
        ELSE
           STOP 'TEST_REPEATED_ENTIRES: Error, something went wrong'
        END IF
@@ -305,7 +305,7 @@ CONTAINS
        END IF
 
        IF(verbose) THEN
-          CALL write_array_list(i,n)        
+          CALL write_array_list(i)        
        END IF
 
        IF(verbose) THEN
@@ -313,13 +313,13 @@ CONTAINS
        END IF
 
        IF(j==1) THEN
-          IF(number_of_appearances(1,i,n) .NE. 1) fail=.TRUE.
-          IF(number_of_appearances(2,i,n) .NE. 1) fail=.TRUE.
-          IF(number_of_appearances(3,i,n) .NE. 1) fail=.TRUE.
+          IF(number_of_appearances(1,i) .NE. 1) fail=.TRUE.
+          IF(number_of_appearances(2,i) .NE. 1) fail=.TRUE.
+          IF(number_of_appearances(3,i) .NE. 1) fail=.TRUE.
        ELSE IF(j==2) THEN
-          IF(number_of_appearances(1,i,n) .NE. 0) fail=.TRUE.
-          IF(number_of_appearances(2,i,n) .NE. 2) fail=.TRUE.
-          IF(number_of_appearances(3,i,n) .NE. 1) fail=.TRUE.
+          IF(number_of_appearances(1,i) .NE. 0) fail=.TRUE.
+          IF(number_of_appearances(2,i) .NE. 2) fail=.TRUE.
+          IF(number_of_appearances(3,i) .NE. 1) fail=.TRUE.
        ELSE
           STOP 'TEST_NUMBER_OF_APPEARANCES: Error, something went wrong'
        END IF
@@ -365,10 +365,10 @@ CONTAINS
           STOP 'TEST_ARRAY_POSITIONS: Error, something went wrong'
        END IF
 
-       CALL array_positions(2,i,n,loc,m)
+       CALL array_positions(2,i,loc,m)
 
        IF(verbose) THEN
-          CALL write_array_list(i,n)   
+          CALL write_array_list(i)   
           WRITE(*,*) 'TEST_ARRAY_POSITIONS: Subtest:', j
           WRITE(*,*) 'TEST_ARRAY_POSITIONS: Locations of ''2'':', (loc(k),k=1,m)
           WRITE(*,*)
@@ -441,17 +441,17 @@ CONTAINS
        END IF
 
        IF(verbose) THEN
-          CALL write_array_list(i,n)
-          WRITE(*,*) 'TEST_UNIQUE_ENTRIES: Unique entries:', unique_entries(i,n)
+          CALL write_array_list(i)
+          WRITE(*,*) 'TEST_UNIQUE_ENTRIES: Unique entries:', unique_entries(i)
           WRITE(*,*)
        END IF
 
        IF(j==1) THEN
-          IF(unique_entries(i,n) .NE. 5) fail=.TRUE.
+          IF(unique_entries(i) .NE. 5) fail=.TRUE.
        ELSE IF(j==2) THEN
-          IF(unique_entries(i,n) .NE. 3) fail=.TRUE.
+          IF(unique_entries(i) .NE. 3) fail=.TRUE.
        ELSE IF(j==3) THEN
-          IF(unique_entries(i,n) .NE. 1) fail=.TRUE.
+          IF(unique_entries(i) .NE. 1) fail=.TRUE.
        ELSE
           STOP 'TEST_UNIQUE_ENTRIES: Error, something went wrong'
        END IF
@@ -485,11 +485,11 @@ CONTAINS
     a(4)=4.
     a(5)=5.
 
-    IF(verbose) CALL write_array_list(a,n)
+    IF(verbose) CALL write_array_list(a)
 
-    CALL amputate_array(a,n,2,4)
+    CALL amputate_array(a,2,4)
 
-    IF(verbose) CALL write_array_list(a,size(a))
+    IF(verbose) CALL write_array_list(a)
 
     fail=.FALSE.
     IF(size(a) .NE. 3) fail=.TRUE.
@@ -526,11 +526,11 @@ CONTAINS
 
     IF(verbose) THEN
        WRITE(*,*) 'Original array'
-       CALL write_array_list(i,n)
+       CALL write_array_list(i)
        WRITE(*,*) 'Unique array'
-       CALL write_array_list(unique,m)
+       CALL write_array_list(unique)
        WRITE(*,*) 'Matching indices'
-       CALL write_array_list(match,n)
+       CALL write_array_list(match)
     END IF
 
     fail=.FALSE.
@@ -572,7 +572,7 @@ CONTAINS
     n=10
     CALL fill_array(min,max,a,n)
 
-    IF(verbose) CALL write_array_list(a,n)
+    IF(verbose) CALL write_array_list(a)
 
     fail=.FALSE.
     IF(.NOT. requal(a(1),min,eps))  fail=.TRUE.
@@ -624,7 +624,7 @@ CONTAINS
 
     IF(verbose) THEN
        WRITE(*,*) 'Splayed result'
-       CALL write_array_list(a,n*n*n)
+       CALL write_array_list(a)
     END IF
 
     fail=.FALSE.
@@ -658,14 +658,14 @@ CONTAINS
 
     IF(verbose) THEN
        WRITE(*,*) 'Original'
-       CALL write_array_list(a,n)
+       CALL write_array_list(a)
     END IF
 
-    CALL reduce_array(a,n,b,m)
+    CALL reduce_array(a,b,m)
 
     IF(verbose) THEN
        WRITE(*,*) 'Reduced'
-       CALL write_array_list(b,m)
+       CALL write_array_list(b)
     END IF
 
     fail=.FALSE.
@@ -715,7 +715,7 @@ CONTAINS
          STOP 'TEST_REGULAR_SPACING: Error, itest specified incorrecly'
       END IF
 
-      IF(result .NEQV. regular_spacing(a,n)) THEN
+      IF(result .NEQV. regular_spacing(a)) THEN
          WRITE(*,*) 'TEST_REGULAR_SPACING: Array:', a
          WRITE(*,*) 'TEST_REGULAR_SPACING: Expected result:', result 
          fail=.TRUE.

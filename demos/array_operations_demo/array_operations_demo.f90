@@ -1,7 +1,7 @@
 PROGRAM array_operations_test
 
+   USE basic_operations
   USE array_operations
-  USE logical_operations
 
   IMPLICIT NONE
   REAL, ALLOCATABLE :: a(:), b(:), c(:,:,:), d(:)
@@ -31,7 +31,7 @@ PROGRAM array_operations_test
      WRITE(*,*) ' 6 - Test amputate'
      WRITE(*,*) ' 7 - Test unique index'
      WRITE(*,*) ' 8 - Test unique entries'
-     WRITE(*,*) ' 9 - Test repeated entries'
+     WRITE(*,*) ' 9 - '
      WRITE(*,*) '10 - Test number of appearances, repeated entries, and locations'
      WRITE(*,*) '11 - Test remove array element'
      WRITE(*,*) '12 - Test remove repeated array elements'
@@ -53,7 +53,7 @@ PROGRAM array_operations_test
         WRITE(*,*) a(i)
      END DO
 
-     CALL reverse_array(a,na)
+     CALL reverse_array(a)
 
      WRITE(*,*) 'Reversed'
      DO i=1,na
@@ -75,7 +75,7 @@ PROGRAM array_operations_test
         WRITE(*,*) a(i)
      END DO
 
-     CALL reduce_array(a,na,b,nb)
+     CALL reduce_array(a,b,nb)
 
      WRITE(*,*) 'Reduced'
      DO i=1,nb
@@ -122,7 +122,8 @@ PROGRAM array_operations_test
      WRITE(*,*) 'Number of bins:'
      READ(*,*) n
 
-     CALL binning(a,MINVAL(a),MAXVAL(a),n,b,d,0)
+     ALLOCATE(b(n), d(n))
+     CALL binning(a, minval(a), maxval(a), b, d, ilog=0)
 
      DO i=1,n
         WRITE(*,*) b(i), d(i)
@@ -165,9 +166,9 @@ PROGRAM array_operations_test
      END DO
 
      m=5
-     CALL amputate_array(a,n,1,m)
+     CALL amputate_array(a,1,m)
 
-     DO i=1,n
+     DO i=1, m
         WRITE(*,*) i, a(i)
      END DO
 
@@ -235,14 +236,14 @@ PROGRAM array_operations_test
         DO i=1,n
            WRITE(*,*) idx(i)
         END DO
-        WRITE(*,*) 'Unique entries:', unique_entries(idx,n)
+        WRITE(*,*) 'Unique entries:', unique_entries(idx)
         WRITE(*,*)
 
         DEALLOCATE(idx)
 
      END DO
 
-  ELSE IF(itest==9) THEN
+  ELSE IF(itest==10) THEN
 
      DO j=1,2
 
@@ -264,9 +265,9 @@ PROGRAM array_operations_test
         DO i=1,n
            WRITE(*,*) idx(i)
         END DO
-        WRITE(*,*) 'Repeated entries:', repeated_entries(idx,n)
-        WRITE(*,*) 'Number of apperances of ''2'':', number_of_appearances(2,idx,n)
-        CALL array_positions(2,idx,n,loc,m)
+        WRITE(*,*) 'Repeated entries:', repeated_entries(idx)
+        WRITE(*,*) 'Number of apperances of ''2'':', number_of_appearances(2,idx)
+        CALL array_positions(2,idx,loc,m)
         WRITE(*,*) 'Locations of ''2'':', (loc(k),k=1,m)
         WRITE(*,*)
 
@@ -284,14 +285,14 @@ PROGRAM array_operations_test
      a(2)=3.
      a(3)=4.
 
-     CALL write_array_list(a,n)
+     CALL write_array_list(a)
 
-     CALL remove_array_element(a,n,2)
+     CALL remove_array_element(a,2)
      WRITE(*,*) 'Removed second element'
      WRITE(*,*)
      n=n-1
 
-     CALL write_array_list(a,n)
+     CALL write_array_list(a)
 
   ELSE IF(itest==12) THEN
 
@@ -308,13 +309,13 @@ PROGRAM array_operations_test
      a(8)=6.
      a(9)=6.
 
-     CALL write_array_list(a,n)
+     CALL write_array_list(a)
 
-     CALL remove_repeated_array_elements(a,n,m)
+     CALL remove_repeated_array_elements(a,m)
      WRITE(*,*) 'Removed repeated entries'
      WRITE(*,*)
 
-     CALL write_array_list(a,m)
+     CALL write_array_list(a)
 
   ELSE IF(itest==13) THEN
 
@@ -326,24 +327,24 @@ PROGRAM array_operations_test
      a(2)=2.
      a(3)=3.
      WRITE(*,*) 'Array a'
-     CALL write_array_list(a,n)
+     CALL write_array_list(a)
 
      b(1)=4.
      b(2)=5.
      b(3)=6.
      WRITE(*,*) 'Array b'
-     CALL write_array_list(b,n)
+     CALL write_array_list(b)
 
      WRITE(*,*) 'Swapping arrays'
-     CALL swap_arrays(a,b,n)
+     CALL swap_arrays(a,b)
      WRITE(*,*) 'Arrays swapped'
      WRITE(*,*)
 
      WRITE(*,*) 'Array a'
-     CALL write_array_list(a,n)
+     CALL write_array_list(a)
 
      WRITE(*,*) 'Array b'
-     CALL write_array_list(b,n)
+     CALL write_array_list(b)
 
   ELSE
 

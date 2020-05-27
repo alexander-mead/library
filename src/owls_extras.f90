@@ -313,9 +313,9 @@ CONTAINS
       END DO
 
       ! Cut arrays down to half-Nyquist
-      CALL amputate_array(k, nk, 1, i)
-      CALL amputate_array(Pk, nk, 1, i)
-      CALL amputate_array(Er, nk, 1, i)
+      CALL amputate_array(k, 1, i)
+      CALL amputate_array(Pk, 1, i)
+      CALL amputate_array(Er, 1, i)
       nk = i
 
       ! Write to screen
@@ -346,9 +346,9 @@ CONTAINS
          END IF
       END DO
       IF (j .NE. 0) THEN
-         CALL amputate_array(k, nk, j, nk)
-         CALL amputate_array(Pk, nk, j, nk)
-         CALL amputate_array(Er, nk, j, nk)
+         CALL amputate_array(k, j, nk)
+         CALL amputate_array(Pk, j, nk)
+         CALL amputate_array(Er, j, nk)
          nk = nk-j+1
       END IF
       IF (present_and_correct(verbose)) THEN
@@ -379,9 +379,9 @@ CONTAINS
          END IF
       END DO
       IF (j .NE. nk) THEN
-         CALL amputate_array(k, nk, 1, j)
-         CALL amputate_array(Pk, nk, 1, j)
-         CALL amputate_array(Er, nk, 1, j)
+         CALL amputate_array(k, 1, j)
+         CALL amputate_array(Pk, 1, j)
+         CALL amputate_array(Er, 1, j)
          nk = j
       END IF
       IF (present_and_correct(verbose)) THEN
@@ -478,7 +478,7 @@ CONTAINS
 
       CALL VD20_read_power(k, zs, Pks, nk, nz, name)
 
-      iz = array_position(z, zs, nz, eps)
+      iz = array_position(z, zs, eps)
       ALLOCATE(Pk(nk))
       Pk = Pks(:, iz)
 

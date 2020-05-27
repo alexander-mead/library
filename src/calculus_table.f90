@@ -50,8 +50,8 @@ CONTAINS
 
       IF (xtab(1) > xtab(n)) THEN
          ! Reverse the arrays in this case
-         CALL reverse_array(xtab, n)
-         CALL reverse_array(ytab, n)
+         CALL reverse_array(xtab)
+         CALL reverse_array(ytab)
       END IF
 
       IF (iorder == 1) THEN

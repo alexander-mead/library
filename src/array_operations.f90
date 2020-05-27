@@ -103,20 +103,21 @@ MODULE array_operations
 
 CONTAINS
 
-   LOGICAL FUNCTION greater_than_any(x, array, n)
+   LOGICAL FUNCTION greater_than_any(x, a)
 
       ! Returns TRUE if x is greater than any one of the values in array
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: array(n)
-      INTEGER :: i
+      REAL, INTENT(IN) :: a(:)
+      INTEGER :: i, n
+
+      n = size(array)
 
       STOP 'GREATER_THAN_ANY: Test this'
 
       greater_than_any = .FALSE.
       DO i = 1, n
-         IF(x > array(i)) THEN
+         IF(x > a(i)) THEN
             greater_than_any = .TRUE.
             EXIT
          END IF
@@ -124,20 +125,19 @@ CONTAINS
 
    END FUNCTION greater_than_any
 
-   LOGICAL FUNCTION greater_than_all(x, array, n)
+   LOGICAL FUNCTION greater_than_all(x, a)
 
       ! Returns TRUE if x is greater than all of the values in array
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: array(n)
-      INTEGER :: i
+      REAL, INTENT(IN) :: a(:)
+      INTEGER :: i, n
 
       STOP 'GREATER_THAN_ALL: Test this'
 
       greater_than_all = .TRUE.
       DO i = 1, n
-         IF(x <= array(i)) THEN
+         IF(x <= a(i)) THEN
             greater_than_all = .FALSE.
             EXIT
          END IF
@@ -264,17 +264,19 @@ CONTAINS
 
    END SUBROUTINE if_allocated_deallocate_character_1D
 
-   SUBROUTINE smooth_array(x, n, m)
+   SUBROUTINE smooth_array(x, m)
 
       ! Take an array and smooth it by taking the over a fixed number of values in each direction
       ! For example, if m = 2 then poisition i in the smoothed array is the average over i-2, i-1, i, i+1, i+2 in the old array
       ! It probably only makes sense to do this if x(t) is a function and the t are uniformally distributed
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n    ! Size of array
-      REAL, INTENT(INOUT) :: x(n) ! Array to smooth
-      INTEGER, INTENT(IN) :: m    ! Number of entries to smooth over in one direction
-      INTEGER :: i, iup, idn, j, mm
-      REAL :: x_save(n)
+      REAL, INTENT(INOUT) :: x(:) ! Array to smooth
+      INTEGER, INTENT(IN) :: m    ! Number of entries to smooth over
+      INTEGER :: i, iup, idn, j, mm, n
+      REAL, ALLOCATABLE :: x_save(:)
+
+      n = size(x)
+      ALLOCATE(x_save(n))
 
       ! Save the original input array
       x_save = x
@@ -303,13 +305,15 @@ CONTAINS
 
    END SUBROUTINE smooth_array
 
-   LOGICAL FUNCTION within_array(x, a, n)
+   LOGICAL FUNCTION within_array(x, a)
 
       ! Checks to see if x falls within the range of values in array a
       IMPLICIT NONE
       REAL, INTENT(IN) :: x    ! Value to check
-      INTEGER, INTENT(IN) :: n ! Size of array
-      REAL, INTENT(IN) :: a(n) ! Array (of x values, presumably)
+      REAL, INTENT(IN) :: a(:) ! Array (of x values, presumably)
+      INTEGER :: n
+
+      n = size(a)
 
       IF (x >= minval(a) .AND. x <= maxval(a)) THEN
          within_array = .TRUE.
@@ -319,16 +323,18 @@ CONTAINS
 
    END FUNCTION within_array
 
-   SUBROUTINE swap_arrays(x, y, n)
+   SUBROUTINE swap_arrays(x, y)
 
       ! Swap arrays x<->y in a memory-efficient way
       ! Only one excess real number is ever stored
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n    ! Size of arrays
-      REAL, INTENT(INOUT) :: x(n) ! Array 1
-      REAL, INTENT(INOUT) :: y(n) ! Array 2
-      INTEGER :: i
+      REAL, INTENT(INOUT) :: x(:) ! Array 1
+      REAL, INTENT(INOUT) :: y(:) ! Array 2
+      INTEGER :: i, n
       REAL :: h
+
+      n = size(x)
+      IF (n /= size(y)) STOP 'SWAP_ARRAYS: Error, input arrays are different sizes'
 
       ! Loop over array and swap element by element
       DO i = 1, n
@@ -339,15 +345,17 @@ CONTAINS
 
    END SUBROUTINE swap_arrays
 
-   SUBROUTINE append(a, n, b)
+   SUBROUTINE append(a, b)
 
-      ! Append b to the end of array a(n) to make a new array a(n+1)
+      ! Append value b to the end of array a(n) to make a new array a(n+1)
       IMPLICIT NONE
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: a(:)
-      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: b
-      INTEGER :: hold(n)
-      INTEGER :: i
+      INTEGER, ALLOCATABLE :: hold(:)
+      INTEGER :: i, n
+
+      n = size(a)
+      ALLOCATE(hold(n))
 
       hold = a
       DEALLOCATE (a)
@@ -410,15 +418,16 @@ CONTAINS
 
    END SUBROUTINE add_to_array_3D
 
-   INTEGER FUNCTION array_position_int(x, a, n)
+   INTEGER FUNCTION array_position_int(x, a)
 
       ! Returns the location in a(n) of value x
       ! If x is not in array then returns zero
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: x    ! Value to check if it is in array
-      INTEGER, INTENT(IN) :: n    ! Size of array
-      INTEGER, INTENT(IN) :: a(n) ! Array to check
-      INTEGER :: i
+      INTEGER, INTENT(IN) :: a(:) ! Array to check
+      INTEGER :: i, n
+
+      n = size(a)
 
       array_position_int = 0
 
@@ -431,17 +440,18 @@ CONTAINS
 
    END FUNCTION array_position_int
 
-   INTEGER FUNCTION array_position_real(x, a, n, eps)
+   INTEGER FUNCTION array_position_real(x, a, eps)
 
       ! Returns the location in a(n) of value x
       ! If x is not in array then returns zero
       USE basic_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: x    ! Value to check if it is in array
-      INTEGER, INTENT(IN) :: n ! Size of array
-      REAL, INTENT(IN) :: a(n) ! Array to check
+      REAL, INTENT(IN) :: a(:) ! Array to check
       REAL, INTENT(IN) :: eps  ! Difference to tolerate
-      INTEGER :: i
+      INTEGER :: i, n
+
+      n = size(a)
 
       array_position_real = 0
 
@@ -454,15 +464,16 @@ CONTAINS
 
    END FUNCTION array_position_real
 
-   INTEGER FUNCTION number_of_appearances(x, a, n)
+   INTEGER FUNCTION number_of_appearances(x, a)
 
       ! Returns the number of appearances in a(n) of value x
       ! If x is not in a(n) then returns zero
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: x    ! Value to check if it is in array
-      INTEGER, INTENT(IN) :: n    ! Size of array
-      INTEGER, INTENT(IN) :: a(n) ! Array to check
-      INTEGER :: i
+      INTEGER, INTENT(IN) :: a(:) ! Array to check
+      INTEGER :: i, n
+
+      n = size(a)
 
       number_of_appearances = 0
 
@@ -474,19 +485,20 @@ CONTAINS
 
    END FUNCTION number_of_appearances
 
-   SUBROUTINE array_positions(x, a, n, b, m)
+   SUBROUTINE array_positions(x, a, b, m)
 
-      ! Returns the location in the array of value x
+      ! Returns the locations in the array of integer value x
       ! If x is not in array then returns zero
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: x    ! Value to check if it is in array
-      INTEGER, INTENT(IN) :: n    ! Size of array
-      INTEGER, INTENT(IN) :: a(n) ! Array to check
+      INTEGER, INTENT(IN) :: a(:) ! Array to check
       INTEGER, ALLOCATABLE, INTENT(OUT) :: b(:)
       INTEGER, INTENT(OUT) :: m
-      INTEGER :: i, p
+      INTEGER :: i, p, n
 
-      m = number_of_appearances(x, a, n)
+      n = size(a)
+
+      m = number_of_appearances(x, a)
       ALLOCATE (b(m))
 
       p = 0
@@ -499,15 +511,15 @@ CONTAINS
 
    END SUBROUTINE array_positions
 
-   FUNCTION sum_double(a, n)
+   REAL FUNCTION sum_double(a)
 
       ! Sum using double precision, which is necessary for many array elements
       IMPLICIT NONE
-      REAL :: sum_double
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: a(n)
+      REAL, INTENT(IN) :: a(:)
       DOUBLE PRECISION :: sum
-      INTEGER :: i
+      INTEGER :: i, n
+
+      n = size(a)
 
       sum = 0.d0
 
@@ -519,16 +531,19 @@ CONTAINS
 
    END FUNCTION sum_double
 
-   SUBROUTINE amputate_array(a, n, i1, i2)
+   SUBROUTINE amputate_array(a, i1, i2)
 
       ! Chop an array of size a(n) down to a smaller size demarked by indices i1, i2
       ! If i1=1 and i2=n then this does nothing
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: i1, i2
+      INTEGER, INTENT(IN) :: i1
+      INTEGER, INTENT(IN) :: i2
       REAL, ALLOCATABLE :: b(:)
-      INTEGER :: i, m
+      INTEGER :: i, m, n
+
+      IF (.NOT. allocated(a)) STOP 'AMPUTATE_ARRAY: Error, array a must be initially allocated'
+      n = size(a)
 
       IF (i2 < i1) THEN
          STOP 'AMPUTATE: Error, i2 should be greater than i1'
@@ -557,19 +572,22 @@ CONTAINS
 
    END SUBROUTINE amputate_array
 
-   SUBROUTINE reduce_array(arr1, n1, arr2, n2)
+   SUBROUTINE reduce_array(a1, a2, n2)
 
       ! Reduces the size of array1 to the size of array2
       ! This will not preserve the spacing of entries in array1 and might be a terrible idea in many cases
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n1, n2
-      REAL, INTENT(IN) :: arr1(n1)
-      REAL, INTENT(OUT) :: arr2(n2)
-      INTEGER :: i, j
+      ! TODO: Remove this
+      IMPLICIT NONE   
+      REAL, INTENT(IN) :: a1(:)
+      REAL, INTENT(OUT) :: a2(n2)
+      INTEGER, INTENT(IN) :: n2
+      INTEGER :: i, j, n1
+
+      n1 = size(a1)
 
       DO i = 1, n2
          j = 1+ceiling(real((n1-1)*(i-1))/real(n2-1))
-         arr2(i) = arr1(j)
+         a2(i) = a1(j)
       END DO
 
    END SUBROUTINE reduce_array
@@ -600,32 +618,34 @@ CONTAINS
 !!$
 !!$  END SUBROUTINE reduceto
 
-   SUBROUTINE reverse_array(arry, n)
+   SUBROUTINE reverse_array(a)
 
-      ! Reverses the contents of arry
+      ! Reverses the contents of array
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(INOUT) :: arry(n)
-      INTEGER :: i
-      REAL :: hold(n)
+      REAL, INTENT(INOUT) :: a(:)
+      INTEGER :: i, n
+      REAL :: hold(size(a))
 
-      hold = arry
+      n = size(a)
+
+      hold = a
 
       DO i = 1, n
-         arry(i) = hold(n-i+1)
+         a(i) = hold(n-i+1)
       END DO
 
    END SUBROUTINE reverse_array
 
-   SUBROUTINE remove_array_element(a, n, i)
+   SUBROUTINE remove_array_element(a, i)
 
       ! Remove element i from array a(n) returning an array of size n-1
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Input array
-      INTEGER, INTENT(IN) :: n                 ! Original length of array, it will change to n-1
       INTEGER, INTENT(IN) :: i                 ! Element to remove
-      REAL :: b(n-1)
-      INTEGER :: j, jj
+      REAL :: b(size(a)-1)
+      INTEGER :: j, jj, n
+
+      n = size(a)
 
       IF (i < 1 .OR. i > n) THEN
          WRITE (*, *) 'Array size:', n
@@ -649,16 +669,17 @@ CONTAINS
 
    END SUBROUTINE remove_array_element
 
-   SUBROUTINE remove_repeated_array_elements(a, n, m)
+   SUBROUTINE remove_repeated_array_elements(a, m)
 
       ! Remove any repeated entries from the array
       ! Assumes the array is sorted
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Array to consider
-      INTEGER, INTENT(IN) :: n                 ! Orignal size of array
       INTEGER, INTENT(OUT) :: m                ! Final size of array
-      INTEGER :: i
-      LOGICAL :: remove(n)
+      INTEGER :: i, n
+      LOGICAL :: remove(size(a))
+
+      n = size(a)
 
       remove = .FALSE.
 
@@ -670,21 +691,23 @@ CONTAINS
          END IF
       END DO
 
-      a = PACK(a,.NOT. remove)
+      a = PACK(a, .NOT. remove)
 
    END SUBROUTINE remove_repeated_array_elements
 
-   SUBROUTINE remove_repeated_two_array_elements(a, b, n, m)
+   SUBROUTINE remove_repeated_two_array_elements(a, b, m)
 
       ! Remove any repeated entries in the array a from both a and b
       ! Assumes the array a is sorted
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: b(:)
-      INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(OUT) :: m
-      INTEGER :: i
-      LOGICAL :: remove(n)
+      INTEGER :: i, n
+      LOGICAL :: remove(size(a))
+
+      n = size(a)
+      IF (n /= size(b)) STOP 'REMOVE_REPEATED_TWO_ARRAY_ELEMENTS: Error, arrays a and b are differnt sizes'
 
       remove = .FALSE.
 
@@ -701,13 +724,14 @@ CONTAINS
 
    END SUBROUTINE remove_repeated_two_array_elements
 
-   SUBROUTINE write_array_list_real(a, n)
+   SUBROUTINE write_array_list_real(a)
 
       ! Write out a list of array elements in a neat way
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: a(n)
-      INTEGER :: i
+      REAL, INTENT(IN) :: a(:)
+      INTEGER :: i, n
+
+      n = size(a)
 
       WRITE (*, *) 'WRITE_ARRAY_LIST: Writing array'
       DO i = 1, n
@@ -718,13 +742,14 @@ CONTAINS
 
    END SUBROUTINE write_array_list_real
 
-   SUBROUTINE write_array_list_int(a, n)
+   SUBROUTINE write_array_list_int(a)
 
       ! Write out a list of array elements in a neat way
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: a(n)
-      INTEGER :: i
+      INTEGER, INTENT(IN) :: a(:)
+      INTEGER :: i, n
+
+      n = size(a)
 
       WRITE (*, *) 'WRITE_ARRAY_LIST: Writing array'
       DO i = 1, n
@@ -780,15 +805,18 @@ CONTAINS
 
    END FUNCTION splay_3D
 
-   SUBROUTINE binning(a, a1, a2, n, b, c, ilog)
+   SUBROUTINE binning(a, a1, a2, b, c, ilog)
 
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n, ilog
       REAL, INTENT(IN) :: a(:)
-      REAL, INTENT(OUT) :: b(n), c(n)
+      REAL, INTENT(OUT) :: b(:)
+      REAL, INTENT(OUT) :: c(:)
+      INTEGER, INTENT(IN) :: ilog
       REAL :: a1, a2, min, max
       REAL, ALLOCATABLE :: binlim(:)
-      INTEGER :: i, j
+      INTEGER :: i, j, n
+
+      n = size(b)
 
       min = a1
       max = a2
@@ -817,7 +845,7 @@ CONTAINS
 
       c = 0.
 
-      DO i = 1, SIZE(a)
+      DO i = 1, size(a)
          DO j = 1, n
             IF (a(i) >= binlim(j) .AND. a(i) <= binlim(j+1)) THEN
                c(j) = c(j)+1.
@@ -830,16 +858,18 @@ CONTAINS
 
    END SUBROUTINE binning
 
-   SUBROUTINE merge_arrays(a, na, b, nb, c, nc)
+   SUBROUTINE merge_arrays(a, b, c, nc)
 
       ! Takes arrays a and b and merges them together to make c with length SIZE(a)+SIZE(b)
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: na, nb
-      REAL, INTENT(IN) :: a(na), b(nb)
+      REAL, INTENT(IN) :: a(:)
+      REAL, INTENT(IN) :: b(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: c(:)
       INTEGER, INTENT(OUT) :: nc
-      INTEGER :: i
+      INTEGER :: i, na, nb
 
+      na = size(a)
+      nb = size(b)
       nc = na+nb
 
       IF (ALLOCATED(c)) DEALLOCATE (c)
@@ -855,14 +885,18 @@ CONTAINS
 
    END SUBROUTINE merge_arrays
 
-   FUNCTION concatenate_arrays(a, na, b, nb)
+   FUNCTION concatenate_arrays(a, b)
 
       ! Concatenate arrays a and b to form new array with length SIZE(a)+SIZE(b)
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: na, nb
-      REAL :: concatenate_arrays(na+nb)
-      REAL, INTENT(IN) :: a(na), b(nb)
-      INTEGER :: i
+      ! TODO: Ugly definition for type of function
+      IMPLICIT NONE   
+      REAL, INTENT(IN) :: a(:)
+      REAL, INTENT(IN) :: b(:)
+      REAL :: concatenate_arrays(size(a)+size(b))
+      INTEGER :: i, na, nb
+
+      na = size(a)
+      nb = size(b)
 
       DO i = 1, na
          concatenate_arrays(i) = a(i)
@@ -988,16 +1022,18 @@ CONTAINS
 
    END SUBROUTINE fill_pixels
 
-   REAL FUNCTION maximum(x, y, n)
+   REAL FUNCTION maximum(x, y)
 
       ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
       USE special_functions
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: x(n)
-      REAL, INTENT(IN) :: y(n)
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: y(:)
       REAL :: x1, x2, x3, y1, y2, y3, a, b, c
-      INTEGER :: imax(1), i
+      INTEGER :: imax(1), i, n
+
+      n = size(x)
+      IF(n /= size(y)) STOP 'MAXIMUM: Error, x and y must be the same size'
 
       ! Need this to stop a compile-time warning
       maximum = 0.
@@ -1170,13 +1206,14 @@ CONTAINS
 
    END SUBROUTINE apply_mask_2D
 
-   INTEGER FUNCTION unique_entries(a, n)
+   INTEGER FUNCTION unique_entries(a)
 
       ! Counts the total number of unique entries in array 'a'
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n    ! Size of input array
-      INTEGER, INTENT(IN) :: a(n) ! Input array
-      INTEGER :: i, j
+      INTEGER, INTENT(IN) :: a(:) ! Input array
+      INTEGER :: i, j, n
+
+      n = size(a)
 
       ! Initially assume all entries are unique
       unique_entries = n
@@ -1205,7 +1242,7 @@ CONTAINS
       LOGICAL :: increment
 
       ! First count the number of unique entries
-      m = unique_entries(array, n)
+      m = unique_entries(array)
       ALLOCATE (unique(m))
 
       ! Set the first unique entry to be the first entry
@@ -1274,13 +1311,14 @@ CONTAINS
 
    END FUNCTION is_in_array_character
 
-   LOGICAL FUNCTION repeated_entries(a, n)
+   LOGICAL FUNCTION repeated_entries(a)
 
       ! Checks for repeated entries in a(n)
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: a(n)
-      INTEGER :: i, j
+      INTEGER, INTENT(IN) :: a(:)
+      INTEGER :: i, j, n
+
+      n = size(a)
 
       repeated_entries = .FALSE.
 
@@ -1296,16 +1334,17 @@ CONTAINS
 
    END FUNCTION repeated_entries
 
-   LOGICAL FUNCTION regular_spacing(a, n)
+   LOGICAL FUNCTION regular_spacing(a)
 
       ! Returns true if array a is regularly spaced
       USE basic_operations
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: a(n)
+      REAL, INTENT(IN) :: a(:)
       REAL :: amin, amax, b
-      INTEGER :: i
+      INTEGER :: i, n
       REAL, PARAMETER :: eps = 1e-5
+
+      n = size(a)
 
       amin = a(1)
       amax = a(n)
