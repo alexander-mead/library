@@ -5,9 +5,6 @@ MODULE calculus
    PRIVATE
 
    PUBLIC :: derivative
-   PUBLIC :: derivative_x
-   PUBLIC :: derivative_y
-
    PUBLIC :: integrate
    PUBLIC :: integrate_basic
    PUBLIC :: integrate_log
@@ -15,9 +12,14 @@ MODULE calculus
    PUBLIC :: integrate_jac
    PUBLIC :: integrate_monte_carlo
 
+   INTERFACE derivative
+      MODULE PROCEDURE derivative_1D
+      MODULE PROCEDURE derivative_2D
+   END INTERFACE derivative
+
 CONTAINS
 
-   REAL FUNCTION derivative(f, x, acc)
+   REAL FUNCTION derivative_1D(f, x, acc)
 
       ! Calculates the derivative of a function 'f' at the point x to accuracy acc!
       IMPLICIT NONE
@@ -54,19 +56,20 @@ CONTAINS
 
       END DO
 
-      derivative = dnew
+      derivative_1D = dnew
 
-   END FUNCTION derivative
+   END FUNCTION derivative_1D
 
-   REAL FUNCTION derivative_x(f, x, y, acc)
+   REAL FUNCTION derivative_2D(f, x, y, acc, dim)
 
-      ! Calculates the derivative of a function 'f' at the point x to accuracy acc!
+      ! Calculates the derivative of a function 'f' at the point x, y along dimension dim to accuracy acc!
       IMPLICIT NONE
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: y
       REAL, INTENT(IN) :: acc
-      REAL :: dnew, dold, dx
+      INTEGER, INTENT(IN) :: dim
+      REAL :: dnew, dold, dx, dy
       INTEGER :: i
 
       INTEGER, PARAMETER :: n = 100
@@ -80,28 +83,47 @@ CONTAINS
 
       dold = 0.
       dx = 4.
+      dy = 4.
 
       DO i = 1, n
 
-         dnew = (f(x+dx, y)-f(x, y))/dx
+         IF (dim == 1) THEN
 
-         !WRITE(*,*) i, dx, dnew, dold
+            dnew = (f(x+dx, y)-f(x, y))/dx
 
-         IF (i > 1 .AND. abs(dnew/dold-1.) < acc) THEN
-            !derivative_x=dnew
-            EXIT
-         ELSE IF (i == n) THEN
-            STOP 'DERIVATIVE_X: Error, maximum number of iterations exceeded'
+            IF (i > 1 .AND. abs(dnew/dold-1.) < acc) THEN
+               EXIT
+            ELSE IF (i == n) THEN
+               STOP 'DERIVATIVE_X: Error, maximum number of iterations exceeded'
+            ELSE
+               dold = dnew
+               dx = dx/2.
+            END IF
+
+         ELSE IF (dim == 2) THEN
+
+            dnew = (f(x, y+dy)-f(x, y))/dy
+
+            IF (i > 1 .AND. abs(dnew/dold-1.) < acc) THEN
+               EXIT
+            ELSE IF (i == n) THEN
+               STOP 'DERIVATIVE_Y: Error, maximum number of iterations exceeded'
+            ELSE
+               dold = dnew
+               dy = dy/2.
+            END IF
+
          ELSE
-            dold = dnew
-            dx = dx/2.
+
+            STOP 'DERIVATIVE_2D: Error, dim specified incorrectly'
+
          END IF
 
       END DO
 
-      derivative_x = dnew
+      derivative_2D = dnew
 
-   END FUNCTION derivative_x
+   END FUNCTION derivative_2D
 
    REAL FUNCTION derivative_y(f, x, y, acc)
 

@@ -24,20 +24,21 @@ MODULE cosmic_emu_stuff
 
 CONTAINS
 
-   SUBROUTINE get_emulator_power(k, a, Pk, nk, na, cosm, rebin, emulator_version)
+   SUBROUTINE get_emulator_power(k, a, Pk, nk, cosm, rebin, emulator_version)
 
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
-      REAL, INTENT(IN) :: a(na)
+      REAL, INTENT(IN) :: a(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
       INTEGER, INTENT(OUT) :: nk
-      INTEGER, INTENT(IN) :: na
       TYPE(cosmology), INTENT(IN) :: cosm
       LOGICAL, INTENT(IN) :: rebin
       INTEGER, INTENT(IN) :: emulator_version
-      INTEGER :: ia
+      INTEGER :: ia, na
       REAL :: z
       REAL, ALLOCATABLE :: k_emu(:), Pk_emu(:)
+
+      na = size(a)
 
       DO ia = 1, na
 

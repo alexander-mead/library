@@ -193,9 +193,9 @@ CONTAINS
       INTEGER :: i
 
       INTERFACE
-         FUNCTION model(x, p)
+         FUNCTION model(x, pin)
             REAL, INTENT(IN) :: x
-            REAL, INTENT(IN) :: p
+            REAL, INTENT(IN) :: pin
          END FUNCTION model
       END INTERFACE
 

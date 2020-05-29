@@ -635,8 +635,8 @@ MODULE minimization
 
       DO i = 1, 1000
 
-         dfx = derivative_x(f, xold, yold, acc/100.)
-         dfy = derivative_y(f, xold, yold, acc/100.)
+         dfx = derivative(f, xold, yold, acc/100., dim=1)
+         dfy = derivative(f, xold, yold, acc/100., dim=2)
 
          xnew = xold-dfx*acc*100.
          ynew = yold-dfy*acc*100.
