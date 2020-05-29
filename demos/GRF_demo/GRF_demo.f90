@@ -17,7 +17,7 @@ PROGRAM GRF_test
   CHARACTER(len=256) :: infile, outfile
 
   !Parameters
-  INTEGER, PARAMETER :: iseed=2 ! Seed for random numbers (seed 1 is weird)
+  INTEGER, PARAMETER :: iseed=0 ! Seed for random numbers (seed 1 is weird)
   INTEGER, PARAMETER :: m=128 ! Mesh size for field
   REAL, PARAMETER :: L=1000. ! Length for box
   REAL, PARAMETER :: shot=0. ! Shot noise is zero because there are no particles
@@ -38,7 +38,8 @@ PROGRAM GRF_test
   WRITE(*,*)
 
   ! Set the random-number generator
-  CALL RNG_set(iseed)
+  !CALL RNG_set(iseed)
+  CALL RNG_seed(iseed)
 
   ! Read in a CAMB power spectrum
   infile='LCDM_matterpower.txt'

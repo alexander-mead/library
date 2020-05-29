@@ -570,18 +570,20 @@ CONTAINS
 
    END SUBROUTINE amputate_array
 
-   SUBROUTINE reduce_array(a1, a2, n2)
+   SUBROUTINE reduce_array(a1, a2)
 
       ! Reduces the size of array1 to the size of array2
       ! This will not preserve the spacing of entries in array1 and might be a terrible idea in many cases
       ! TODO: Remove this
       IMPLICIT NONE   
       REAL, INTENT(IN) :: a1(:)
-      REAL, INTENT(OUT) :: a2(n2)
-      INTEGER, INTENT(IN) :: n2
-      INTEGER :: i, j, n1
+      REAL, INTENT(OUT) :: a2(:)
+      INTEGER :: i, j, n1, n2
 
       n1 = size(a1)
+      n2 = size(a2)
+
+      IF (n2 > n1) STOP 'REDUCE_ARRAY: Error, n2 > n1'
 
       DO i = 1, n2
          j = 1+ceiling(real((n1-1)*(i-1))/real(n2-1))

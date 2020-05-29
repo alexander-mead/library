@@ -8,13 +8,16 @@ MODULE fitting
 
 CONTAINS
 
-   REAL FUNCTION fit_constant(data, weight, n)
+   REAL FUNCTION fit_constant(data, weight)
 
       IMPLICIT NONE
-      REAL :: data(n)
-      REAL :: weight(n)
+      REAL, INTENT(IN) :: data(:)
+      REAL, INTENT(IN) :: weight(:)
       INTEGER :: n
       REAL :: total_weight
+
+      n = size(data)
+      IF (n /= size(weight)) STOP 'FIT_CONSTANT: Error, data and weight must be the same size'
 
       total_weight = sum(weight)
       IF (total_weight == 0.) THEN

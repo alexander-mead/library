@@ -261,7 +261,7 @@ MODULE HMx
 
       ! Look-up tables
       REAL :: mmin, mmax
-      REAL, ALLOCATABLE :: c(:), rv(:), nu(:), sig(:), zc(:), m(:), rr(:), sigf(:), log_m(:)
+      REAL, ALLOCATABLE :: c(:), rv(:), nu(:), sig(:), zc(:), m(:), rr(:), sigf(:), log_m(:)!, mr(:)
       REAL, ALLOCATABLE :: r500(:), m500(:), c500(:), r200(:), m200(:), c200(:)
       REAL, ALLOCATABLE :: r500c(:), m500c(:), c500c(:), r200c(:), m200c(:), c200c(:)
       INTEGER :: n
@@ -288,7 +288,8 @@ MODULE HMx
       ! HMcode parameters
       REAL :: Dv0, Dv1, dc0, dc1, eta0, eta1, f0, f1, ks, As, alp0, alp1, Dvnu, dcnu
       REAL :: HMcode_kstar, HMcode_fdamp, HMcode_kdamp, HMcode_alpha, HMcode_eta, HMcode_A
-      LOGICAL :: DMONLY_baryon_recipe, DMONLY_neutrino_correction
+      LOGICAL :: DMONLY_baryon_recipe, DMONLY_neutrino_halo_mass_correction
+      LOGICAL :: DMONLY_neutrinos_affect_virial_radius
 
       ! HMcode (2020) parameters
       REAL :: kd, kdp, Ap, Ac, kp
@@ -641,6 +642,7 @@ CONTAINS
       names(97) = 'Standard but with sigma calculated for all matter'
       names(98) = 'Standard but with no DMONLY correction for neutrinos'
       names(99) = 'Standard but with sigma calculated for normalised cold matter'
+      names(100) = 'Standard but massive neutrinos affect virial radius'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -910,8 +912,9 @@ CONTAINS
       hmod%dcnu = 0.
 
       ! HMcode (2020) additional parameters
-      hmod%DMONLY_neutrino_correction = .TRUE.
+      hmod%DMONLY_neutrino_halo_mass_correction = .TRUE.
       hmod%DMONLY_baryon_recipe = .FALSE.
+      hmod%DMONLY_neutrinos_affect_virial_radius = .FALSE.
       hmod%mbar = 1e14
       hmod%nbar = 1.
       hmod%sbar = 0.
@@ -1151,7 +1154,7 @@ CONTAINS
          hmod%iDolag = 2
          hmod%zinf_Dolag = 10.
          hmod%flag_sigma = flag_power_cold_unorm
-         hmod%DMONLY_neutrino_correction = .FALSE.
+         hmod%DMONLY_neutrino_halo_mass_correction = .FALSE.
          hmod%Dv0 = 418.
          hmod%Dv1 = -0.352
          hmod%dc0 = 1.59
@@ -1185,7 +1188,7 @@ CONTAINS
             hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
             hmod%ip2h = 3    ! 3 - Linear theory with damped wiggles
             hmod%i2hdamp = 1 ! 1 - Change back to Mead (2015) model for two-halo damping
-            hmod%DMONLY_neutrino_correction = .TRUE. ! Neutrino bug fix
+            hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Neutrino bug fix
             ! Model 1: Fits at 0.0196 to FrankenEmu nodes
             hmod%Dv0 = 411.
             hmod%Dv1 = -0.333
@@ -1242,14 +1245,14 @@ CONTAINS
             hmod%alp1 = 1.91
             hmod%Dvnu = 0. ! Set to zero because not necessary after bug fix
             hmod%dcnu = 0. ! Set to zero because not necessary after bug fix
-            hmod%DMONLY_neutrino_correction = .TRUE.
+            hmod%DMONLY_neutrino_halo_mass_correction = .TRUE.
          ELSE IF (ihm == 64) THEN
             ! 64 - HMcode 2016 but with 2020 baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
             !hmod%sbar = 1e-3
          ELSE IF (ihm == 92 .OR. ihm == 95) THEN
             ! 92, 95 - HMcode (2016) with neutrino bug fix
-            hmod%DMONLY_neutrino_correction = .TRUE. ! Neutrino bug fix
+            hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Neutrino bug fix
          END IF
          IF (ihm == 51 .OR. ihm == 66 .OR. ihm == 95) THEN
             ! CAMB mass range
@@ -1769,7 +1772,7 @@ CONTAINS
          hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
          hmod%ieta = 2    ! 2 - eta with cold matter dependence
          hmod%flag_sigma = flag_power_cold_unorm  ! Cold un-normalised produces better massive-neutrino results
-         hmod%DMONLY_neutrino_correction = .TRUE. ! Correct haloes for missing neutrino mass
+         hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
          hmod%zinf_Dolag = 10. ! Why is 100 not better than 10? This is very strange!
          IF (ihm == 78) THEN
             ! Model 1: 0.00796 for Cosmic Emu
@@ -1941,10 +1944,13 @@ CONTAINS
          hmod%flag_sigma = flag_power_total
       ELSE IF (ihm == 98) THEN
          ! No correction for neutrino mass applied to DMONLY haloes
-         hmod%DMONLY_neutrino_correction = .FALSE.        
+         hmod%DMONLY_neutrino_halo_mass_correction = .FALSE.        
       ELSE IF (ihm == 99) THEN
          ! Cold sigma calculated using 1+delta_c = rho_c/mean_rho_m
          hmod%flag_sigma = flag_power_cold
+      ELSE IF (ihm == 100) THEN
+         ! Massive neutrinos affect the calculation of the virial radius
+         hmod%DMONLY_neutrinos_affect_virial_radius = .TRUE.
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2022,11 +2028,15 @@ CONTAINS
          log_m = progression(log(hmod%mmin), log(hmod%mmax), i, hmod%n)
          m = exp(log_m)
          R = radius_m(m, cosm)
+         IF (hmod%DMONLY_neutrinos_affect_virial_radius) THEN
+            R = R*(1.-cosm%f_nu)**(1./3.)
+         END IF
          sig = sigma(R, a, hmod%flag_sigma, cosm)
          nu = hmod%dc/sig
 
          hmod%log_m(i) = log_m
          hmod%m(i) = m
+         !hmod%mr(i) = m*(1.-cosm%f_nu)*(1.-halo_ejected_gas_fraction(hmod%m(i), hmod, cosm))
          hmod%rr(i) = R
          hmod%sig(i) = sig
          hmod%nu(i) = nu
@@ -3422,8 +3432,8 @@ CONTAINS
       IF (repeated_entries(fields)) STOP 'ADD_SMOOTH_COMPONENT_TO_WINDOWS: Error, repeated fields'
 
       ! Add in neutrinos
-      ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
-      IF (cosm%f_nu /= 0. .AND. hmod%halo_neutrino == 1) THEN
+      ! TODO: This is a bit of a fudge. Probably DMONLY should not be considered compatible with neutrinos
+      IF (hmod%DMONLY_neutrino_halo_mass_correction .AND. cosm%f_nu /= 0. .AND. hmod%halo_neutrino == 1) THEN
          i_dmonly = array_position(field_dmonly, fields)
          i_matter = array_position(field_matter, fields)
          i_neutrino = array_position(field_neutrino, fields)
@@ -5361,7 +5371,7 @@ CONTAINS
       n = hmod%n
 
       ALLOCATE (hmod%log_m(n))
-      ALLOCATE (hmod%zc(n), hmod%m(n), hmod%c(n), hmod%rv(n))
+      ALLOCATE (hmod%zc(n), hmod%m(n), hmod%c(n), hmod%rv(n))!, hmod%mr(n))
       ALLOCATE (hmod%nu(n), hmod%rr(n), hmod%sigf(n), hmod%sig(n))
       ALLOCATE (hmod%m500(n), hmod%r500(n), hmod%c500(n))
       ALLOCATE (hmod%m500c(n), hmod%r500c(n), hmod%c500c(n))
@@ -5404,7 +5414,7 @@ CONTAINS
 
       ! Deallocates look-up tables
       DEALLOCATE (hmod%log_m)
-      DEALLOCATE (hmod%zc, hmod%m, hmod%c, hmod%rv)
+      DEALLOCATE (hmod%zc, hmod%m, hmod%c, hmod%rv)!, hmod%mr)
       DEALLOCATE (hmod%nu, hmod%rr, hmod%sigf, hmod%sig)
       DEALLOCATE (hmod%m500, hmod%r500, hmod%c500, hmod%m500c, hmod%r500c, hmod%c500c)
       DEALLOCATE (hmod%m200, hmod%r200, hmod%c200, hmod%m200c, hmod%r200c, hmod%c200c)
@@ -6408,8 +6418,8 @@ CONTAINS
       ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
       ! TODO: Should this really be computed here?
       ! TODO: Think man, think!
-      IF (hmod%DMONLY_neutrino_correction) win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
-      IF (hmod%DMONLY_baryon_recipe)       win_DMONLY = baryonify_wk(win_DMONLY, m, hmod, cosm)
+      IF (hmod%DMONLY_neutrino_halo_mass_correction) win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
+      IF (hmod%DMONLY_baryon_recipe)                 win_DMONLY = baryonify_wk(win_DMONLY, m, hmod, cosm)
 
    END FUNCTION win_DMONLY
 

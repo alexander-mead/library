@@ -99,9 +99,9 @@ CONTAINS
 
       ! Write a particle data file using McCarthy format
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(3, n)
       REAL, INTENT(IN) :: m(n)
-      INTEGER, INTENT(IN) :: n
       CHARACTER(len=*), INTENT(IN) :: outfile
 
       WRITE (*, *) 'WRITE_MCCARTHY: Outputting binary file: ', trim(outfile)
@@ -209,10 +209,10 @@ CONTAINS
       ! CARE: I removed factors of 'm', pressure is now contribution to entire volume, rather than the contribution per mesh cell
       USE constants
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n     ! total number of particles
       REAL, INTENT(INOUT) :: kT(n) ! particle internal energy [eV], output as electron pressure [eV/cm^3]
       REAL, INTENT(IN) :: rho(n)   ! physical gas particle SPH density [mp/cm^3]
-      REAL, INTENT(IN) :: m(n)     ! hydrodynamic particle mass [Msun/h]
-      INTEGER, INTENT(IN) :: n     ! total number of particles
+      REAL, INTENT(IN) :: m(n)     ! hydrodynamic particle mass [Msun/h] 
       REAL, INTENT(IN) :: L        ! box size [Mpc/h]
       REAL, INTENT(IN) :: h        ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors)
       REAL :: V
@@ -292,10 +292,10 @@ CONTAINS
 
       ! Set the gas particle internal energy to zero for high-density particles that have nh > nhcut
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n      ! Total number of particles
       REAL, INTENT(IN) :: nhcut     ! Cut to impose on hydrogen number density [#/cm^3]
       REAL, INTENT(INOUT) :: kT(n)  ! Gas particle internal energy [eV]
       REAL, INTENT(IN) :: rho(n)    ! Gap particle SPH density [mp/cm^3]
-      INTEGER, INTENT(IN) :: n      ! Total number of particles
       INTEGER :: i
       REAL :: rhocut
 

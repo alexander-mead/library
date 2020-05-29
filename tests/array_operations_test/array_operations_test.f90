@@ -661,7 +661,7 @@ CONTAINS
          CALL write_array_list(a)
       END IF
 
-      CALL reduce_array(a, b, m)
+      CALL reduce_array(a, b)
 
       IF (verbose) THEN
          WRITE (*, *) 'Reduced'

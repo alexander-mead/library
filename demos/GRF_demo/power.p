@@ -1,7 +1,7 @@
 reset
 
 CAMB_file='LCDM_matterpower.txt'
-GRF_power='power.dat'
+GRF_power='data/power.dat'
 
 kmin=0.03
 kmax=1.

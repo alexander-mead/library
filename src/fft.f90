@@ -1,7 +1,12 @@
 MODULE fft
 
+   ! TODO: Re-enable single and double precision versions of functions
+   ! TODO: Remove unnecessary array-size arguments from functions
+   ! TODO: Clean up
+
    !USE iso_c_binding ! This use statement seems not to be necessary any more, not sure why
    USE basic_operations
+   USE precision
 
    IMPLICIT NONE
 
@@ -89,10 +94,14 @@ CONTAINS
 
       ! Wrapper for the 1D FFTW
       IMPLICIT NONE
-      DOUBLE COMPLEX, INTENT(IN) :: in(n)
-      DOUBLE COMPLEX, INTENT(OUT) :: out(n)
-      INTEGER, INTENT(IN) :: ifb, n
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: n
+      !DOUBLE COMPLEX, INTENT(IN) :: in(n)
+      COMPLEX(dp), INTENT(IN) :: in(n)
+      !DOUBLE COMPLEX, INTENT(OUT) :: out(n)  
+      COMPLEX(dp), INTENT(OUT) :: out(n)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(n)) STOP 'FFT1_COMPLEX_DOUBLE Error, the array should be even'
@@ -125,10 +134,14 @@ CONTAINS
 
       ! Wrapper for the 1D FFTW
       IMPLICIT NONE
-      COMPLEX, INTENT(IN) :: in(n)
-      COMPLEX, INTENT(OUT) :: out(n)
-      INTEGER, INTENT(IN) :: ifb, n
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: n
+      !COMPLEX, INTENT(IN) :: in(n)
+      COMPLEX(sp), INTENT(IN) :: in(n)
+      !COMPLEX, INTENT(OUT) :: out(n)
+      COMPLEX(sp), INTENT(OUT) :: out(n)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(n)) STOP 'FFT1_COMPELX_SINGLE: Error, the array should be even'
@@ -161,10 +174,14 @@ CONTAINS
 
       ! Wrapper for the real 1D FFTW
       IMPLICIT NONE
-      DOUBLE PRECISION, INTENT(INOUT) :: rspace(n)
-      DOUBLE COMPLEX, INTENT(INOUT) :: fspace(n/2+1)
-      INTEGER, INTENT(IN) :: n, ifb
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: n
+      !DOUBLE PRECISION, INTENT(INOUT) :: rspace(n)
+      REAL(dp), INTENT(INOUT) :: rspace(n)
+      !DOUBLE COMPLEX, INTENT(INOUT) :: fspace(n/2+1)
+      COMPLEX(dp), INTENT(INOUT) :: fspace(n/2+1)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
 
       IF (odd(n)) STOP 'FFT1_REAL_DOUBLE: Error, the array should be even'
 
@@ -186,10 +203,14 @@ CONTAINS
 
       ! Wrapper for the real 1D FFTW
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: rspace(n)
-      COMPLEX, INTENT(INOUT) :: fspace(n/2+1)
-      INTEGER, INTENT(IN) :: n, ifb
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: n
+      !REAL, INTENT(INOUT) :: rspace(n)
+      REAL(sp), INTENT(INOUT) :: rspace(n)
+      !COMPLEX, INTENT(INOUT) :: fspace(n/2+1)    
+      COMPLEX(sp), INTENT(INOUT) :: fspace(n/2+1)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
 
       IF (odd(n)) STOP 'FFT1_REAL_SINGLE: Error, the array should be even'
 
@@ -211,10 +232,14 @@ CONTAINS
 
       ! Wrapper for the 2D FFTW
       IMPLICIT NONE
-      DOUBLE COMPLEX, INTENT(IN) :: in(nx, ny)
-      DOUBLE COMPLEX, INTENT(OUT) :: out(nx, ny)
-      INTEGER, INTENT(IN) :: ifb, nx, ny
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: nx, ny
+      !DOUBLE COMPLEX, INTENT(IN) :: in(nx, ny)
+      COMPLEX(dp), INTENT(IN) :: in(nx, ny)
+      !DOUBLE COMPLEX, INTENT(OUT) :: out(nx, ny)
+      COMPLEX(dp), INTENT(OUT) :: out(nx, ny)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT2_COMPLEX_DOUBLE: Error, the array should be even'
@@ -248,10 +273,14 @@ CONTAINS
 
       ! Wrapper for the 2D FFTW
       IMPLICIT NONE
-      COMPLEX, INTENT(IN) :: in(nx, ny)
-      COMPLEX, INTENT(OUT) :: out(nx, ny)
-      INTEGER, INTENT(IN) :: ifb, nx, ny
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: nx, ny
+      !COMPLEX, INTENT(IN) :: in(nx, ny)
+      COMPLEX(sp), INTENT(IN) :: in(nx, ny)
+      !COMPLEX, INTENT(OUT) :: out(nx, ny)
+      COMPLEX(sp), INTENT(OUT) :: out(nx, ny)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT2_COMPLEX_SINGLE: Error, the array should be even'
@@ -285,10 +314,14 @@ CONTAINS
 
       ! Wrapper for the real 3D FFTW
       IMPLICIT NONE
-      DOUBLE PRECISION, INTENT(INOUT)  :: rspace(nx, ny)
-      DOUBLE COMPLEX, INTENT(INOUT) :: fspace(nx/2+1, ny)
-      INTEGER, INTENT(IN) :: nx, ny, ifb
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: nx, ny
+      !DOUBLE PRECISION, INTENT(INOUT)  :: rspace(nx, ny)
+      REAL(dp), INTENT(INOUT)  :: rspace(nx, ny)
+      !DOUBLE COMPLEX, INTENT(INOUT) :: fspace(nx/2+1, ny)
+      COMPLEX(dp), INTENT(INOUT) :: fspace(nx/2+1, ny)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT2_REAL_DOUBLE: Error, the array should be even'
@@ -319,10 +352,14 @@ CONTAINS
 
       ! Wrapper for the real 3D FFTW
       IMPLICIT NONE
-      REAL, INTENT(INOUT)  :: rspace(nx, ny)
-      COMPLEX, INTENT(INOUT) :: fspace(nx/2+1, ny)
-      INTEGER, INTENT(IN) :: nx, ny, ifb
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: nx, ny
+      !REAL, INTENT(INOUT)  :: rspace(nx, ny)
+      REAL(sp), INTENT(INOUT)  :: rspace(nx, ny)
+      !COMPLEX, INTENT(INOUT) :: fspace(nx/2+1, ny)
+      COMPLEX(sp), INTENT(INOUT) :: fspace(nx/2+1, ny)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT2_REAL_SINGLE: Error, the array should be even'
@@ -353,10 +390,14 @@ CONTAINS
 
       ! Wrapper for the 3D FFTW
       IMPLICIT NONE
-      DOUBLE COMPLEX, INTENT(IN)  :: in(nx, ny, nz)
-      DOUBLE COMPLEX, INTENT(OUT) :: out(nx, ny, nz)
-      INTEGER, INTENT(IN) :: nx, ny, nz, ifb
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: nx, ny, nz
+      !DOUBLE COMPLEX, INTENT(IN)  :: in(nx, ny, nz)
+      COMPLEX(dp), INTENT(IN)  :: in(nx, ny, nz)
+      !DOUBLE COMPLEX, INTENT(OUT) :: out(nx, ny, nz)
+      COMPLEX(dp), INTENT(OUT) :: out(nx, ny, nz)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT3_COMPLEX_DOUBLE: Error, the array should be even'
@@ -391,10 +432,14 @@ CONTAINS
 
       ! Wrapper for the 3D FFTW
       IMPLICIT NONE
-      COMPLEX, INTENT(IN)  :: in(nx, ny, nz)
-      COMPLEX, INTENT(OUT) :: out(nx, ny, nz)
-      INTEGER, INTENT(IN) :: nx, ny, nz, ifb
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: nx, ny, nz
+      !COMPLEX, INTENT(IN)  :: in(nx, ny, nz)
+      COMPLEX(sp), INTENT(IN)  :: in(nx, ny, nz)
+      !COMPLEX, INTENT(OUT) :: out(nx, ny, nz)
+      COMPLEX(sp), INTENT(OUT) :: out(nx, ny, nz)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT3_COMPLEX_SINGLE: Error, the array should be even'
@@ -429,10 +474,14 @@ CONTAINS
 
       ! Wrapper for the real 3D FFTW
       IMPLICIT NONE
-      DOUBLE PRECISION, INTENT(INOUT)  :: rspace(nx, ny, nz)
-      DOUBLE COMPLEX, INTENT(INOUT) :: fspace(nx/2+1, ny, nz)
-      INTEGER, INTENT(IN) :: nx, ny, nz, ifb
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: nx, ny, nz
+      !DOUBLE PRECISION, INTENT(INOUT)  :: rspace(nx, ny, nz)
+      REAL(dp), INTENT(INOUT)  :: rspace(nx, ny, nz)
+      !DOUBLE COMPLEX, INTENT(INOUT) :: fspace(nx/2+1, ny, nz)
+      COMPLEX(dp), INTENT(INOUT) :: fspace(nx/2+1, ny, nz)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT3_REAL_DOUBLE: Error, the array should be even'
@@ -464,10 +513,14 @@ CONTAINS
 
       ! Wrapper for the real 3D FFTW
       IMPLICIT NONE
-      REAL, INTENT(INOUT)  :: rspace(nx, ny, nz)
-      COMPLEX, INTENT(INOUT) :: fspace(nx/2+1, ny, nz)
-      INTEGER, INTENT(IN) :: nx, ny, nz, ifb
-      INTEGER*8 :: plan
+      INTEGER, INTENT(IN) :: nx, ny, nz
+      !REAL, INTENT(INOUT)  :: rspace(nx, ny, nz)
+      REAL(sp), INTENT(INOUT)  :: rspace(nx, ny, nz)
+      !COMPLEX, INTENT(INOUT) :: fspace(nx/2+1, ny, nz)
+      COMPLEX(sp), INTENT(INOUT) :: fspace(nx/2+1, ny, nz)
+      INTEGER, INTENT(IN) :: ifb
+      !INTEGER*8 :: plan
+      INTEGER(i8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT3_REAL_SINGLE: Error, the array should be even'

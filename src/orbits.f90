@@ -125,7 +125,7 @@ CONTAINS
       REAL, INTENT(IN) :: v(3) ! Orbit velocity []
       REAL, INTENT(IN) :: M    ! Central mass [Msun]
 
-      reduced_energy = 0.5*dot_product(v, v)-G_orbit*M/modulus(x, 3)
+      reduced_energy = 0.5*dot_product(v, v)-G_orbit*M/modulus(x)
 
    END FUNCTION reduced_energy
 
@@ -138,7 +138,7 @@ CONTAINS
       REAL :: h(3)
 
       h = cross_product(x, v)
-      reduced_angular_momentum = modulus(h, 3)
+      reduced_angular_momentum = modulus(h)
 
    END FUNCTION reduced_angular_momentum
 
@@ -153,7 +153,7 @@ CONTAINS
       REAL :: h(3)
 
       h = cross_product(x, v)
-      Laplace_Runge_Lenz = cross_product(v, h)/(G_orbit*M)-x/modulus(x, 3)
+      Laplace_Runge_Lenz = cross_product(v, h)/(G_orbit*M)-x/modulus(x)
 
    END FUNCTION Laplace_Runge_Lenz
 
@@ -210,7 +210,7 @@ CONTAINS
 
       e = Laplace_Runge_Lenz(x, v, M)
 
-      eccentricity = modulus(e, 3)
+      eccentricity = modulus(e)
 
    END FUNCTION eccentricity
 

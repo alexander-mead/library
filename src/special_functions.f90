@@ -160,9 +160,9 @@ CONTAINS
       ! f(0)=1 is not provided
       ! f(1)=1, f(2)=2, f(3)=6, f(4)=24, ..., f(n)=n*f(n-1)
       ! TODO: Should this really be INT8 here?
-      IMPLICIT NONE
+      IMPLICIT NONE     
+      INTEGER(kind=8), INTENT(OUT) :: f(:)
       INTEGER, INTENT(IN) :: n
-      INTEGER(kind=8), INTENT(OUT) :: f(n)
       INTEGER :: i
 
       IF (n <= 0) THEN

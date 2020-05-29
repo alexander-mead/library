@@ -23,22 +23,22 @@ MODULE minimization
 
    CONTAINS
 
-   SUBROUTINE Nelder_Mead_multiple(x, xmin, xmax, dx, n, fom, m, f, tol, verbose)
+   SUBROUTINE Nelder_Mead_multiple(x, xmin, xmax, dx, fom, m, f, tol, verbose)
 
       USE random_numbers
       IMPLICIT NONE
-      REAL, INTENT(OUT) :: x(n)
-      REAL, INTENT(IN) :: xmin(n)
-      REAL, INTENT(IN) :: xmax(n)
-      REAL, INTENT(IN) :: dx(n)
-      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(OUT) :: x(:)
+      REAL, INTENT(IN) :: xmin(:)
+      REAL, INTENT(IN) :: xmax(:)
+      REAL, INTENT(IN) :: dx(:)
       REAL, INTENT(OUT) :: fom
       INTEGER, INTENT(IN) :: m
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: tol
       LOGICAL, INTENT(IN) :: verbose
-      REAL :: y(n), fy
-      INTEGER :: i, j
+      REAL :: fy
+      REAL, ALLOCATABLE :: y(:)
+      INTEGER :: i, j, n
 
       INTERFACE
          FUNCTION f(xin, nin)
@@ -47,6 +47,12 @@ MODULE minimization
          END FUNCTION f
       END INTERFACE
 
+      n = size(x)
+      IF (n /= size(xmin) .OR. n /= size(xmax) .OR. n /= size(dx)) THEN
+         STOP 'NELDER_MEAD_MULTIPLE: Error; x, xmin, xmax, dx should all be the same size'
+      END IF
+      ALLOCATE(y(n))
+
       fom = HUGE(fom)
       DO i = 1, m
 
@@ -54,7 +60,7 @@ MODULE minimization
             y(j) = random_uniform(xmin(j), xmax(j))
          END DO
 
-         CALL Nelder_Mead(y, dx, n, fy, f, tol, verbose)
+         CALL Nelder_Mead(y, dx, fy, f, tol, verbose)
 
          IF (fy < fom) THEN
             x = y
@@ -69,22 +75,21 @@ MODULE minimization
 
    END SUBROUTINE Nelder_Mead_multiple
 
-   SUBROUTINE Nelder_Mead(x, dx, n, fom, f, tol, verbose)
+   SUBROUTINE Nelder_Mead(x, dx, fom, f, tol, verbose)
 
       ! Nelder-Mead simplex for fiding minima of a function
       ! Coded up using https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x(n)
-      REAL, INTENT(IN) :: dx(n)
-      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(INOUT) :: x(:)
+      REAL, INTENT(IN) :: dx(:)
       REAL, INTENT(OUT) :: fom
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: tol
       LOGICAL, INTENT(IN) :: verbose
-      REAL :: xx(n+1, n), ff(n+1)
-      REAL :: xo(n), xr(n), xe(n), xc(n)
+      REAL, ALLOCATABLE :: xx(:, :), ff(:)
+      REAL, ALLOCATABLE :: xo(:), xr(:), xe(:), xc(:)
       REAL :: fr, fe, fc
-      INTEGER :: i, j, ii
+      INTEGER :: i, j, ii, n
       CHARACTER(len=256) :: operation, nstring
       REAL, PARAMETER :: alpha = alpha_Nelder_Mead  ! Reflection coefficient (alpha > 0; standard alpha = 1)
       REAL, PARAMETER :: gamma = gamma_Nelder_Mead  ! Expansion coefficient (gamma > 1; standard gamma = 2)
@@ -97,6 +102,11 @@ MODULE minimization
             REAL, INTENT(IN) :: xin(nin)           
          END FUNCTION f
       END INTERFACE
+
+      n = size(x)
+      IF (n /= size(dx)) STOP 'NELDER_MEAD: Error, x and dx must be the same size'
+      ALLOCATE(xx(n+1, n), ff(n+1))
+      ALLOCATE(xo(n), xr(n), xe(n), xc(n))
 
       ! Set initial test points
       DO i = 1, n+1
@@ -120,12 +130,12 @@ MODULE minimization
          ii = ii+1
 
          ! Sort the points from best to worst
-         CALL Nelder_Mead_sort(xx, ff, n)
+         CALL Nelder_Mead_sort(xx, ff)
          
          IF (verbose) WRITE(*, '(A16,I10,'//trim(nstring)//'F15.7)') TRIM(operation), ii, ff(1), (xx(1, i), i = 1, n)
 
          ! Decide on convergence
-         IF (Nelder_Mead_termination(ff, n, tol)) THEN
+         IF (Nelder_Mead_termination(ff, tol)) THEN
             DO i = 1, n
                x(i) = xx(1, i)
             END DO
@@ -133,7 +143,7 @@ MODULE minimization
          END IF
 
          ! Calculate centroid of 1...n (not n+1; the worst point) through which to reflect the worst point
-         xo = Nelder_Mead_centroid(xx, n)
+         xo = Nelder_Mead_centroid(xx)
 
          ! Calculate the reflected point of n+1 about the centroid
          xr = xo+alpha*(xo-xx(n+1, :))
@@ -197,14 +207,16 @@ MODULE minimization
 
    END SUBROUTINE Nelder_Mead
 
-   FUNCTION Nelder_Mead_centroid(x, n)
+   FUNCTION Nelder_Mead_centroid(x)
 
       ! Calculate the centroid of all points except n+1
       IMPLICIT NONE
-      REAL :: Nelder_Mead_centroid(n)
-      REAL, INTENT(IN) :: x(n+1, n)
-      INTEGER, INTENT(IN) :: n
-      INTEGER :: i
+      REAL, INTENT(IN) :: x(:, :)
+      REAL :: Nelder_Mead_centroid(size(x, 2))
+      INTEGER :: i, n
+
+      n = size(x, 2)
+      IF(n+1 /= size(x, 1)) STOP 'NELDER_MEAD_CENTROID: Error array x is wrong'
 
       DO i = 1, n
          Nelder_Mead_centroid(i) = mean(x(:,i), n)
@@ -212,15 +224,21 @@ MODULE minimization
 
    END FUNCTION Nelder_Mead_centroid
 
-   SUBROUTINE Nelder_Mead_sort(x, f, n)
+   SUBROUTINE Nelder_Mead_sort(x, f)
 
       ! Sort the points into order from best to worst
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x(n+1, n)
-      REAL, INTENT(INOUT) :: f(n+1)
-      INTEGER, INTENT(IN) :: n
-      INTEGER :: i, j(n+1)
+      REAL, INTENT(INOUT) :: x(:, :)
+      REAL, INTENT(INOUT) :: f(:)
+      INTEGER :: i, n
+      INTEGER, ALLOCATABLE :: j(:)
       INTEGER, PARAMETER :: isort = isort_Nelder_Mead
+
+      n = size(x, 2)
+      IF (n+1 /= size(x, 1) .OR. n+1 /= size(f)) THEN
+         STOP 'NELDER_MEAD_SORT: Error, arrays are the wrong size'
+      END IF
+      ALLOCATE(j(n+1))
 
       CALL index(f, j, n+1, isort)
       CALL reindex(f, j, n+1)
@@ -230,14 +248,16 @@ MODULE minimization
 
    END SUBROUTINE Nelder_Mead_sort
 
-   LOGICAL FUNCTION Nelder_Mead_termination(f, n, tol)
+   LOGICAL FUNCTION Nelder_Mead_termination(f, tol)
 
       ! Determine if the minimization has converged
       IMPLICIT NONE
-      REAL, INTENT(IN) :: f(n+1)
-      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: f(:)
       REAL, INTENT(IN) :: tol
       REAL :: sigma
+      INTEGER :: n
+
+      n = size(f)-1
 
       ! Calculate the standard deviation of all points
       sigma = standard_deviation(f, n+1)

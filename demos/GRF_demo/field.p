@@ -1,6 +1,6 @@
 reset
 
-field='field_slice.dat'
+field='data/field_slice.dat'
 
 set size square
 

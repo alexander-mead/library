@@ -81,14 +81,14 @@ CONTAINS
       USE table_integer
       USE constants
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n1, n2            ! Total numbers of particles
+      INTEGER, INTENT(IN) :: nr                ! Required number of log-spaced bins
       REAL, INTENT(IN) :: rmin, rmax           ! Maximum and maximum distances to calculate xi for [Mpc/h]
       REAL, INTENT(OUT) :: r(nr)               ! Output array of r [Mpc/h]
       REAL, INTENT(OUT) :: xi(nr)              ! Output array of xi
-      INTEGER, INTENT(OUT) :: n(nr)            ! Output array of number of pairs in bin
-      INTEGER, INTENT(IN) :: nr                ! Required number of log-spaced bins
+      INTEGER, INTENT(OUT) :: n(nr)            ! Output array of number of pairs in bin     
       REAL, INTENT(IN) :: x1(3, n1), x2(3, n2) ! Particle position arrays [Mpc/h]
-      REAL, INTENT(IN) :: w1(n1), w2(n2)       ! Particle weight arrays
-      INTEGER, INTENT(IN) :: n1, n2            ! Total numbers of particles
+      REAL, INTENT(IN) :: w1(n1), w2(n2)       ! Particle weight arrays     
       REAL, INTENT(IN) :: L                    ! Periodic box size [Mpc/h]
       INTEGER :: i, i1, i2
       REAL, ALLOCATABLE :: rbin(:)
@@ -171,10 +171,10 @@ CONTAINS
 
       USE statistics
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n_haloes                    ! Total number of haloes
       REAL, INTENT(IN) :: mmin                           ! Minimum halo mass for the mass function [Msun/h]
       REAL, INTENT(IN) :: mmax                           ! Maximum halo mass for the mass function [Msun/h]
-      REAL, INTENT(IN) :: halo_masses(n_haloes)          ! Array of halo masses [Msun/h]
-      INTEGER, INTENT(IN) :: n_haloes                    ! Total number of haloes
+      REAL, INTENT(IN) :: halo_masses(n_haloes)          ! Array of halo masses [Msun/h] 
       REAL, ALLOCATABLE, INTENT(OUT) :: mass_bins(:)     ! Mass function bin values [Msun/h]
       REAL, ALLOCATABLE, INTENT(OUT) :: mass_function(:) ! Mass function
       INTEGER, INTENT(IN) :: n_bins                      ! Number of bins in mass function
@@ -252,10 +252,10 @@ CONTAINS
 
       ! Set the weight, w(i), to one if the halo is in the mass range, zero otherwise
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: mmin, mmax
       REAL, INTENT(IN) :: m(n)
-      REAL, INTENT(OUT) :: w(n)
-      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(OUT) :: w(n)    
       INTEGER :: i
 
       w = 0.
@@ -269,8 +269,8 @@ CONTAINS
 
       ! Write the power spectrum out in some standard format
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: x(3, n)    
       REAL, INTENT(IN) :: L
       INTEGER, INTENT(IN) :: m
       INTEGER, INTENT(IN) :: nk
@@ -288,7 +288,7 @@ CONTAINS
       WRITE (*, *) 'WRITE_POWER_SPECTRUM: Outfile: ', trim(outfile)
 
       ! Compute the shot noise assuming all particles have equal mass
-      shot = shot_noise_simple(L, INT8(n))
+      shot = shot_noise_simple(L, n)
 
       ! Write to file in standard format
       OPEN (7, file=outfile)
@@ -308,11 +308,13 @@ CONTAINS
 
       USE constants
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(3, n), L
-      INTEGER, INTENT(IN) :: n, m, nk
+      INTEGER, INTENT(IN) :: m, nk
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:), Pk(:), sig(:)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
-      DOUBLE COMPLEX :: dk(m, m, m)
+      !DOUBLE COMPLEX :: dk(m, m, m)
+      COMPLEX :: dk(m, m, m)
       REAL :: kmin, kmax
 
       ! Convert the particle positions into a density field
@@ -331,12 +333,14 @@ CONTAINS
       ! Bin particles and create the Fourier modes with appropriate sharpening for the binning strategy
       USE fft
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n), L
       INTEGER, INTENT(IN) :: n, m
-      DOUBLE COMPLEX, INTENT(OUT) :: dk(m, m, m)
+      REAL, INTENT(IN) :: x(3, n), L
+      !DOUBLE COMPLEX, INTENT(OUT) :: dk(m, m, m)
+      COMPLEX, INTENT(OUT) :: dk(m, m, m)
       REAL :: w(n), dbar
       REAL :: d(m, m, m)
-      DOUBLE COMPLEX :: dk_out(m, m, m)
+      !DOUBLE COMPLEX :: dk_out(m, m, m)
+      COMPLEX :: dk_out(m, m, m)
       INTEGER, PARAMETER :: ibin = 2 ! 2 - CIC binning
 
       ! Bin the particles with equal weight to create the particle-number field in cells [dimensionless]
@@ -363,8 +367,8 @@ CONTAINS
 
       ! Write out a slice of density field
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n) ! Particle positions
       INTEGER, INTENT(IN) :: n   ! Number of particles
+      REAL, INTENT(IN) :: x(3, n) ! Particle positions  
       REAL, INTENT(IN) :: z1     ! Starting point for slab
       REAL, INTENT(IN) :: z2     ! Starting point for slab
       REAL, INTENT(IN) :: L      ! Simulation box size
@@ -403,13 +407,13 @@ CONTAINS
 
       ! Write out a slice of density field
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n) ! Particle positions
+      INTEGER, INTENT(IN) :: m ! Mesh
       INTEGER, INTENT(IN) :: n ! Number of particles
+      REAL, INTENT(IN) :: x(3, n) ! Particle positions   
       REAL, INTENT(IN) :: z1 ! Starting z for slab
       REAL, INTENT(IN) :: z2 ! Finishing z for slab
       REAL, INTENT(IN) :: L  ! Length of simulation
-      REAL, INTENT(OUT) :: d(m, m) ! Projected density field
-      INTEGER, INTENT(IN) :: m ! Mesh
+      REAL, INTENT(OUT) :: d(m, m) ! Projected density field   
       REAL :: vfac, dbar
       REAL, ALLOCATABLE :: x2D(:, :), w2D(:)
       INTEGER :: i, i2D, n2D
@@ -454,9 +458,9 @@ CONTAINS
 
       ! Generate Zeldovich displacement fields and move particles
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x(3, n), v(3, n)
-      REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L, vfac
       INTEGER, INTENT(IN) :: n, m, nk
+      REAL, INTENT(INOUT) :: x(3, n), v(3, n)
+      REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L, vfac    
       LOGICAL, INTENT(IN) :: use_average
       REAL :: f(3, m, m, m), ips, maxf
 
@@ -486,9 +490,9 @@ CONTAINS
 
       ! Displace particles using the Zeldovich approximation given a displacement field
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x(3, n)
-      REAL, INTENT(IN) :: s(3, m, m, m), L
       INTEGER, INTENT(IN) :: n, m
+      REAL, INTENT(INOUT) :: x(3, n)
+      REAL, INTENT(IN) :: s(3, m, m, m), L  
       INTEGER :: i, j, ix(3)
 
       WRITE (*, *) 'ZELDOVICH_DISPLACEMENT: Displacing particles'
@@ -512,9 +516,9 @@ CONTAINS
 
       ! Give particles velocities from a velocity field
       IMPLICIT NONE
-      REAL, INTENT(OUT) :: v(3, n)
-      REAL, INTENT(IN) :: x(3, n), s(3, m, m, m), L
       INTEGER, INTENT(IN) :: n, m
+      REAL, INTENT(OUT) :: v(3, n)
+      REAL, INTENT(IN) :: x(3, n), s(3, m, m, m), L   
       INTEGER :: i, j, ix(3)
 
       WRITE (*, *) 'ZELDOVICH_VELOCITY: Assigining particle velocties'
@@ -541,9 +545,9 @@ CONTAINS
       ! Generate random x,y,z positions in a cube of size L^3
       USE random_numbers
       IMPLICIT NONE
-      REAL, INTENT(OUT) :: x(3, n)
-      REAL, INTENT(IN) :: L
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(OUT) :: x(3, n)
+      REAL, INTENT(IN) :: L   
       INTEGER :: i, j
       REAL :: dx
       REAL, PARAMETER :: eps = 1e-6
@@ -572,9 +576,9 @@ CONTAINS
 
       ! Generate a grid of positions in a cube of size L^3
       IMPLICIT NONE
-      REAL, INTENT(OUT) :: x(3, n)
-      REAL, INTENT(IN) :: L
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(OUT) :: x(3, n)
+      REAL, INTENT(IN) :: L    
       INTEGER :: ix, iy, iz, i, m
 
       ! Check that the particle number is cubic
@@ -610,8 +614,8 @@ CONTAINS
       ! Generate a poor man's glass in a cube of size L^3
       USE random_numbers
       IMPLICIT NONE
-      REAL, INTENT(OUT) :: x(3, n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(OUT) :: x(3, n) 
       REAL, INTENT(IN) :: L
       INTEGER :: i, j, m
       REAL :: dx
@@ -711,8 +715,8 @@ CONTAINS
       ! Ensures/enforces periodicity by cycling particles round that may have strayed
       ! This forces all particles to be 0<=x<L, so they cannot be exactly at x=L
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x(3, n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(INOUT) :: x(3, n)    
       REAL, INTENT(IN) :: L
       LOGICAL, OPTIONAL :: verbose
       INTEGER :: i, j
@@ -745,8 +749,8 @@ CONTAINS
 
       USE random_numbers
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x(3, n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(INOUT) :: x(3, n)    
       REAL, INTENT(IN) :: L
       LOGICAL, OPTIONAL :: verbose
       INTEGER :: i
@@ -778,8 +782,8 @@ CONTAINS
 
       USE random_numbers
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x(3, n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(INOUT) :: x(3, n)
       REAL, INTENT(IN) :: L
       LOGICAL, OPTIONAL :: verbose
       INTEGER :: i
@@ -812,8 +816,8 @@ CONTAINS
       USE random_numbers
       USE array_operations
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x(3, n)
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(INOUT) :: x(3, n)  
       LOGICAL, OPTIONAL :: verbose
       INTEGER :: type
 
@@ -859,12 +863,12 @@ CONTAINS
       ! Bin particle properties onto a mesh, summing as you go
       ! TODO: Adapt for different lengths and different meshes in x,y
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(2, n)       ! 2D particle positions
       INTEGER, INTENT(IN) :: n         ! Total number of particles
+      INTEGER, INTENT(IN) :: m         ! Mesh size for density field
+      REAL, INTENT(IN) :: x(2, n)       ! 2D particle positions    
       REAL, INTENT(IN) :: L            ! Area side length
       REAL, INTENT(IN) :: w(n)         ! Weight array for each particle
       REAL, INTENT(OUT) :: d(m, m)      ! Output of eventual 2D density field
-      INTEGER, INTENT(IN) :: m         ! Mesh size for density field
       INTEGER, INTENT(IN) :: ibin      ! Binning strategy
       LOGICAL, INTENT(IN) :: all       ! Should all particles be contributing to the binning?
       LOGICAL, INTENT(IN) :: periodic  ! Is the volume periodic?
@@ -886,12 +890,12 @@ CONTAINS
 
       !Bin particle properties onto a mesh, summing as you go
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n)      ! 3D particle positions
       INTEGER, INTENT(IN) :: n        ! Total number of particles
+      INTEGER, INTENT(IN) :: m        ! Mesh size for density field
+      REAL, INTENT(IN) :: x(3, n)      ! 3D particle positions  
       REAL, INTENT(IN) :: L           ! Volume side length
       REAL, INTENT(IN) :: w(n)        ! Weight array for each particle
       REAL, INTENT(INOUT) :: d(m, m, m) ! Output of eventual 3D density field
-      INTEGER, INTENT(IN) :: m        ! Mesh size for density field
       INTEGER, INTENT(IN) :: ibin     ! Binning strategy
       LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
       LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
@@ -914,12 +918,11 @@ CONTAINS
       ! Bin particle properties onto a mesh, averaging properties over cells
       ! TODO: This should probably not be used if there are any empty cells
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n)
-      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: n, m
+      REAL, INTENT(IN) :: x(3, n)    
       REAL, INTENT(IN) :: L
       REAL, INTENT(IN) :: w(n)
-      REAL, INTENT(OUT) :: d(m, m, m)
-      INTEGER, INTENT(IN) :: m
+      REAL, INTENT(OUT) :: d(m, m, m)  
       INTEGER, INTENT(IN) :: ibin
       LOGICAL, INTENT(IN) :: all
       LOGICAL, INTENT(IN) :: periodic
@@ -972,12 +975,12 @@ CONTAINS
       ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
       !USE statistics
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(2, n)     ! particle positions
       INTEGER, INTENT(IN) :: n       ! Total number of particles in area
+      INTEGER, INTENT(IN) :: m       ! Mesh size for density field
+      REAL, INTENT(IN) :: x(2, n)     ! particle positions     
       REAL, INTENT(IN) :: L          ! Area side length
       REAL, INTENT(IN) :: w(n)       ! Weight array
-      REAL, INTENT(INOUT) :: d(m, m)  ! Output of eventual 2D density field
-      INTEGER, INTENT(IN) :: m       ! Mesh size for density field
+      REAL, INTENT(INOUT) :: d(m, m)  ! Output of eventual 2D density field  
       LOGICAL, INTENT(IN) :: all     ! Should all particles be contributing to the binning?
       LOGICAL, INTENT(IN) :: verbose ! Verbose
       INTEGER :: i, j, ix(2)
@@ -1034,12 +1037,11 @@ CONTAINS
       ! Nearest-grid-point binning routine
       ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n)      ! particle positions
-      INTEGER, INTENT(IN) :: n        ! Total number of particles in area
+      INTEGER, INTENT(IN) :: n, m        ! Total number of particles in area
+      REAL, INTENT(IN) :: x(3, n)      ! particle positions    
       REAL, INTENT(IN) :: L           ! Area side length
       REAL, INTENT(IN) :: w(n)        ! Weight array
-      REAL, INTENT(INOUT) :: d(m, m, m) ! Output of eventual 2D density field
-      INTEGER, INTENT(IN) :: m        ! Mesh size for density field
+      REAL, INTENT(INOUT) :: d(m, m, m) ! Output of eventual 2D density field    
       LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
       LOGICAL, INTENT(IN) :: verbose  ! Verbose
       INTEGER :: i, j, ix(3)
@@ -1097,12 +1099,11 @@ CONTAINS
       ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
       USE array_operations
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(2, n)      ! 2D particle positions
-      INTEGER, INTENT(IN) :: n        ! Total number of particles in area
+      INTEGER, INTENT(IN) :: n, m        ! Total number of particles in area
+      REAL, INTENT(IN) :: x(2, n)      ! 2D particle positions     
       REAL, INTENT(IN) :: L           ! Area side length
       REAL, INTENT(IN) :: w(n)        ! Weight array
       REAL, INTENT(INOUT) :: d(m, m)   ! Output of eventual 2D density field
-      INTEGER, INTENT(IN) :: m        ! Mesh size for density field
       LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
       LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
       LOGICAL, INTENT(IN) :: verbose  ! Verbose
@@ -1218,12 +1219,11 @@ CONTAINS
       ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
       USE array_operations
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n)      ! 3D particle positions
-      INTEGER, INTENT(IN) :: n        ! Total number of particles in area
+      INTEGER, INTENT(IN) :: n, m        ! Total number of particles in area
+      REAL, INTENT(IN) :: x(3, n)      ! 3D particle positions    
       REAL, INTENT(IN) :: L           ! Area side length
       REAL, INTENT(IN) :: w(n)        ! Weight array
       REAL, INTENT(INOUT) :: d(m, m, m) ! Output of eventual 2D density field
-      INTEGER, INTENT(IN) :: m        ! Mesh size for density field
       LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
       LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
       LOGICAL, INTENT(IN) :: verbose  ! Verbose
@@ -1362,12 +1362,11 @@ CONTAINS
 
       ! Spherical density routine
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n)
-      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: n, m
+      REAL, INTENT(IN) :: x(3, n)   
       REAL, INTENT(IN) :: L
       REAL, INTENT(IN) :: w(n)
       REAL, INTENT(OUT) :: d(m, m, m)
-      INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: Rs
       !LOGICAL, INTENT(IN) :: all
       !LOGICAL, INTENT(IN) :: periodic
@@ -1489,10 +1488,10 @@ CONTAINS
    SUBROUTINE find_pairs(x, okay, n, rmin, rmax, L, outfile)
 
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(3, n)
       LOGICAL, INTENT(IN) :: okay(n)
       REAL, INTENT(IN) :: rmin, rmax, L
-      INTEGER, INTENT(IN) :: n
       CHARACTER(len=*), INTENT(IN) :: outfile
       INTEGER :: i, j, np
       REAL :: r
@@ -1529,9 +1528,9 @@ CONTAINS
 
       ! Shift particles to redshift space
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: x(3, n) ! Particle positions [Mpc/h]
-      REAL, INTENT(IN) :: v(3, n)    ! Particle velocities [km/s]
       INTEGER, INTENT(IN) :: n       ! Total number of particles
+      REAL, INTENT(INOUT) :: x(3, n) ! Particle positions [Mpc/h]
+      REAL, INTENT(IN) :: v(3, n)    ! Particle velocities [km/s] 
       REAL, INTENT(IN) :: Om_m, Om_v ! Cosmological parameters
       REAL, INTENT(IN) :: z          ! Redshift
       INTEGER, INTENT(IN) :: iz      ! Dimension along which to shift (1,2,3 for x,y,z)
@@ -1572,8 +1571,8 @@ CONTAINS
    SUBROUTINE write_slice_ascii(x, n, x1, x2, y1, y2, z1, z2, outfile)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n) ! Particle positions [Mpc/h]
       INTEGER, INTENT(IN) :: n ! Total number of particles
+      REAL, INTENT(IN) :: x(3, n) ! Particle positions [Mpc/h]   
       REAL, INTENT(IN) :: x1, x2, y1, y2, z1, z2 ! Limits of the slice [Mpc/h]
       CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
       INTEGER :: i
@@ -1595,9 +1594,11 @@ CONTAINS
    REAL FUNCTION shot_noise_simple(L, n)
 
       !Calculate simulation shot noise for equal mass matter particlers [(Mpc/h)^3]
+      USE precision
       IMPLICIT NONE
       REAL, INTENT(IN) :: L ! Box size [Mpc/h]
-      INTEGER*8, INTENT(IN) :: n ! Total number of particles
+      !INTEGER*8, INTENT(IN) :: n ! Total number of particles
+      INTEGER(i8), INTENT(IN) :: n ! Total number of particles
 
       !Calculate number density
       shot_noise_simple = L**3/real(n)
@@ -1611,9 +1612,10 @@ CONTAINS
       ! Note if this is for mass then u = v = particle_mass/total_mass
       USE array_operations
       IMPLICIT NONE
-      REAL, INTENT(IN) :: u(n), v(n) ! Contributions to the total field u and v per particle
-      INTEGER, INTENT(IN) :: n       ! Number of particles
-      REAL, INTENT(IN) :: L          ! Box size [Mpc/h]
+      INTEGER, INTENT(IN) :: n ! Number of particles
+      REAL, INTENT(IN) :: u(n) ! Contributions to the total field u and v per particle  
+      REAL, INTENT(IN) :: v(n) ! Contributions to the total field u and v per particle  
+      REAL, INTENT(IN) :: L    ! Box size [Mpc/h]
 
       ! Do the sum of the two fields, making sure to use doubles
       shot_noise = sum_double(u*v)
@@ -1628,9 +1630,9 @@ CONTAINS
       ! Calculate simulation shot noise constant P(k) for different-mass tracers [(Mpc/h)^3]
       USE array_operations
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n ! Number of particles
       REAL, INTENT(IN) :: L    ! Box size [Mpc/h]
       REAL, INTENT(IN) :: m(n) ! Array of particle masses
-      INTEGER, INTENT(IN) :: n ! Number of particles
       REAL :: Nbar
 
       ! Calculate the effective mean number of tracers

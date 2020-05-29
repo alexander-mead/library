@@ -12,7 +12,7 @@ PROGRAM accept_reject_demo
   INTEGER, PARAMETER :: iseed=0
 
   ! Set random number generator
-  CALL RNG_set(iseed)
+  CALL RNG_seed(iseed)
 
   ! Allocate array for draws
   ALLOCATE(x(n))

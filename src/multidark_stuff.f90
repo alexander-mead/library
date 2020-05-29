@@ -193,11 +193,11 @@ CONTAINS
    SUBROUTINE write_multidark_halo_catalogue(outfile, x, m, idx, n)
 
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n
       CHARACTER(len=*), INTENT(IN) :: outfile
       REAL, INTENT(IN) :: x(3, n)
       REAL, INTENT(IN) :: m(6, n)
-      INTEGER, INTENT(IN) :: idx(n)
-      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: idx(n)  
       INTEGER :: i, j
 
       ! Write out the little catalogue

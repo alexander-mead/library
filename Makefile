@@ -16,7 +16,7 @@ LIB_DEBUG = libmead_debug.a
 FLAGS = \
 	-fPIC \
 	-fimplicit-none \
-	-std=gnu \
+	-std=f2008 \
 	-lgfortran \
 	-fmax-errors=4 \
 	-fdefault-real-8 \

@@ -75,7 +75,7 @@ PROGRAM array_operations_test
          WRITE (*, *) a(i)
       END DO
 
-      CALL reduce_array(a, b, nb)
+      CALL reduce_array(a, b)
 
       WRITE (*, *) 'Reduced'
       DO i = 1, nb

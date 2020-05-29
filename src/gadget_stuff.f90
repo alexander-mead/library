@@ -18,17 +18,20 @@ MODULE gadget_stuff
 
 CONTAINS
 
-   SUBROUTINE write_gadget_simulation_format_Pk(k, Pk, nk, outfile, verbose)
+   SUBROUTINE write_gadget_simulation_format_Pk(k, Pk, outfile, verbose)
 
       ! Converts a CAMB P(k) file to a Gadget format P(k) file 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: k(nk)  ! Input k [h/Mpc]
-      REAL, INTENT(IN) :: Pk(nk) ! Input dimensionless Delta^2(k)
-      INTEGER, INTENT(IN) :: nk  ! Number of points in k
+      REAL, INTENT(IN) :: k(:)  ! Input k [h/Mpc]
+      REAL, INTENT(IN) :: Pk(:) ! Input dimensionless Delta^2(k)
       CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
       LOGICAL, INTENT(IN) :: verbose ! Verbose or not
-      INTEGER :: i
-      REAL :: Gadget_k(nk), Gadget_Pk(nk)
+      INTEGER :: i, nk
+      REAL, ALLOCATABLE :: Gadget_k(:), Gadget_Pk(:)
+
+      nk = size(k)
+      IF (nk /= size(Pk)) STOP 'WRITE_GADGET_SIMULATION_FORMAT: Error, k and Pk must be the same size'
+      ALLOCATE(Gadget_k(nk), Gadget_Pk(nk))
 
       IF(verbose) WRITE(*, *) 'WRITE_GADGET_INPUT_POWER: Converting units to Gadget format'
 
@@ -51,6 +54,7 @@ CONTAINS
    SUBROUTINE read_gadget(x, v, id, L, Om_m, Om_v, h, m, a, z, n, infile)
 
       ! Read in particle data from a Gadget formatted binary file
+      USE precision
       IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
       REAL, ALLOCATABLE, INTENT(OUT) :: v(:, :)
@@ -64,8 +68,8 @@ CONTAINS
       REAL, INTENT(OUT) :: z
       INTEGER, INTENT(OUT) :: n
       CHARACTER(len=*), INTENT(IN) :: infile
-      REAL*8 :: mass_in(6), L_in, Om_m_in, Om_v_in, h_in, a_in, z_in
-      REAL*4, ALLOCATABLE :: x_in(:, :), v_in(:, :)
+      REAL(dp) :: mass_in(6), L_in, Om_m_in, Om_v_in, h_in, a_in, z_in
+      REAL(sp), ALLOCATABLE :: x_in(:, :), v_in(:, :)
       INTEGER :: np(6), craps(6), crap
       LOGICAL :: lexist
 
@@ -132,26 +136,31 @@ CONTAINS
 
    END SUBROUTINE read_gadget
 
-   SUBROUTINE write_gadget(x, v, id, L, Om_m, Om_v, h, m, a, z, n, outfile)
+   SUBROUTINE write_gadget(x, v, id, L, Om_m, Om_v, h, m, a, z, outfile)
 
       ! Write particle data to a Gadget formatted particle file
       IMPLICIT NONE
-      REAL*4, INTENT(IN) :: x(3, n)
-      REAL*4, INTENT(IN) :: v(3, n)
-      INTEGER, INTENT(IN) :: id(n)
-      REAL*8, INTENT(IN) :: L
-      REAL*8, INTENT(IN) :: Om_m
-      REAL*8, INTENT(IN) :: Om_v
-      REAL*8, INTENT(IN) :: h
-      REAL*8, INTENT(IN) :: m
-      REAL*8, INTENT(IN) :: a
-      REAL*8, INTENT(IN) :: z
-      INTEGER, INTENT(IN) :: n
+      REAL(sp), INTENT(IN) :: x(:, :)
+      REAL(sp), INTENT(IN) :: v(:, :)
+      INTEGER, INTENT(IN) :: id(:)
+      REAL(dp), INTENT(IN) :: L
+      REAL(dp), INTENT(IN) :: Om_m
+      REAL(dp), INTENT(IN) :: Om_v
+      REAL(dp), INTENT(IN) :: h
+      REAL(dp), INTENT(IN) :: m
+      REAL(dp), INTENT(IN) :: a
+      REAL(dp), INTENT(IN) :: z
       CHARACTER(len=*), INTENT(IN) :: outfile
-      REAL*8 :: mass(6), crap(12)
-      INTEGER :: np(6), crapi
+      REAL(dp) :: mass(6), crap(12)
+      INTEGER :: np(6), crapi, n
 
       STOP 'WRITE_GADGET: CHECK THIS CAREFULLY, IT SHOULD BE MODIFIED TO MAKE REAL*4 DATA FILE'
+
+      IF(size(x,1) /= 3 .OR. size(v,1) /= 3 ) STOP 'WRITE_GADGET: Error, input x, v arrays should be 3D'
+      n = size(x,2)
+      IF (n /= size(x,2) .OR. n /= size(v,2) .OR. n /= size(id)) THEN
+         STOP 'WRITE_GADGET: Error, x, v, id do not have the same number of entries'
+      END IF
 
       WRITE (*, *) 'WRITE_GADGET: Outputting particle data in Gadget2 format: ', trim(outfile)
 
@@ -194,9 +203,9 @@ CONTAINS
 
       USE file_info
       IMPLICIT NONE
-      REAL*4, ALLOCATABLE, INTENT(OUT) :: x(:, :)
-      REAL*4, ALLOCATABLE, INTENT(OUT) :: v(:, :)
-      REAL*4, ALLOCATABLE, INTENT(OUT) :: m(:)
+      REAL(sp), ALLOCATABLE, INTENT(OUT) :: x(:, :)
+      REAL(sp), ALLOCATABLE, INTENT(OUT) :: v(:, :)
+      REAL(sp), ALLOCATABLE, INTENT(OUT) :: m(:)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: npart(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: disp(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: c(:)
@@ -238,25 +247,31 @@ CONTAINS
 
    END SUBROUTINE read_catalogue
 
-   SUBROUTINE write_catalogue(x, v, m, npart, disp, c, env, Dv, rmax, avg_r, rms_r, n, outfile)
+   SUBROUTINE write_catalogue(x, v, m, npart, disp, c, env, Dv, rmax, avg_r, rms_r, outfile)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(3, n)
-      REAL, INTENT(IN) :: v(3, n)
-      REAL, INTENT(IN) :: m(n)
-      INTEGER, INTENT(IN) :: npart(n)
-      REAL, INTENT(IN) :: disp(n)
-      REAL, INTENT(IN) :: c(n)
-      REAL, INTENT(IN) :: env(n)
-      REAL, INTENT(IN) :: Dv(n)
-      REAL, INTENT(IN) :: rmax(n)
-      REAL, INTENT(IN) :: avg_r(n)
-      REAL, INTENT(IN) :: rms_r(n)
-      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: x(:, :)
+      REAL, INTENT(IN) :: v(:, :)
+      REAL, INTENT(IN) :: m(:)
+      INTEGER, INTENT(IN) :: npart(:)
+      REAL, INTENT(IN) :: disp(:)
+      REAL, INTENT(IN) :: c(:)
+      REAL, INTENT(IN) :: env(:)
+      REAL, INTENT(IN) :: Dv(:)
+      REAL, INTENT(IN) :: rmax(:)
+      REAL, INTENT(IN) :: avg_r(:)
+      REAL, INTENT(IN) :: rms_r(:)
       CHARACTER(len=*), INTENT(IN) :: outfile
-      INTEGER :: i
+      INTEGER :: i, n
 
-      STOP 'WRITE_CATALOGUE: need to change this for single/double precision'
+      STOP 'WRITE_CATALOGUE: Need to change this for single/double precision'
+      STOP 'WRITE_CATALOGUE: Add checks that sizes of catalogue entries are all the same size'
+
+      IF(size(x,1) /= 3 .OR. size(v,1) /= 3 ) STOP 'WRITE_CATALOGUE: Error, input x, v arrays should be 3D'
+      n = size(x,2)
+      IF (n /= size(x,2) .OR. n /= size(v,2)) THEN
+         STOP 'WRITE_CATALOGUE: Error, x, v, id do not have the same number of entries'
+      END IF
 
       WRITE (*, *) 'WRITE_CATALOGUE: Outputting catalogue'
 

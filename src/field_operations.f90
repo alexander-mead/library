@@ -129,20 +129,24 @@ CONTAINS
 
    END FUNCTION cell_position
 
-   REAL FUNCTION random_mode_amplitude(k, L, logk_tab, logPk_tab, nk, use_average)
+   REAL FUNCTION random_mode_amplitude(k, L, logk_tab, logPk_tab, use_average)
 
       ! This calculates the Fourier amplitudes of the density field
       USE interpolate
       USE constants
       USE random_numbers
       IMPLICIT NONE
-      REAL, INTENT(IN) :: k, L, logk_tab(nk), logPk_tab(nk)
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: L
+      REAL, INTENT(IN) :: logk_tab(:)
+      REAL, INTENT(IN) :: logPk_tab(:)
       LOGICAL, INTENT(IN) :: use_average
-      INTEGER, INTENT(IN) :: nk
       REAL :: sigma
+      INTEGER :: nk
+      LOGICAL, PARAMETER :: fudge = .TRUE. !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
 
-      !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
-      LOGICAL, PARAMETER :: fudge = .TRUE.
+      nk = size(logk_tab)
+      IF (nk /= size(logPk_tab)) STOP 'RANDOM_MODE_AMPLITUDE: Error, arrays must be the same size'
 
       ! Sigma parameter in the Rayleigh distribution
       sigma = sqrt(exp(find(log(k), logk_tab, logPk_tab, nk, 3, 3, 2))/(4.*pi*(L*k/twopi)**3))
@@ -182,9 +186,13 @@ CONTAINS
       USE fft
       USE random_numbers
       IMPLICIT NONE
-      DOUBLE COMPLEX, INTENT(OUT) :: dk(m, m, m)
-      REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L
-      INTEGER, INTENT(IN) :: m, nk
+      !DOUBLE COMPLEX, INTENT(OUT) :: dk(m, m, m)
+      INTEGER, INTENT(IN) :: m
+      COMPLEX, INTENT(OUT) :: dk(m, m, m)
+      INTEGER, INTENT(IN) :: nk
+      REAL, INTENT(IN) :: L
+      REAL, INTENT(IN) :: logk_tab(nk)
+      REAL, INTENT(IN) :: logPk_tab(nk)
       LOGICAL, INTENT(IN) :: use_average
       INTEGER :: ix, iy, iz, ixx, iyy, izz
       REAL :: kx, ky, kz, k
@@ -221,7 +229,7 @@ CONTAINS
                ELSE
 
                   ! Get mode amplitudes and phases
-                  amp = random_mode_amplitude(k, L, logk_tab, logPk_tab, nk, use_average)
+                  amp = random_mode_amplitude(k, L, logk_tab, logPk_tab, use_average)
                   rot = random_complex_phase()
 
                   ! Assign values to the density field
@@ -270,11 +278,14 @@ CONTAINS
       USE fft
       USE random_numbers
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: m
       REAL, INTENT(OUT) :: d(m, m, m)
-      DOUBLE COMPLEX :: dk(m, m, m), dk_new(m, m, m)
-      REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L
-      INTEGER, INTENT(IN) :: m, nk
+      REAL, INTENT(IN) :: L
+      INTEGER, INTENT(IN) :: nk
+      REAL, INTENT(IN) :: logk_tab(nk)
+      REAL, INTENT(IN) :: logPk_tab(nk)
       LOGICAL, INTENT(IN) :: use_average
+      COMPLEX :: dk(m, m, m), dk_new(m, m, m)
 
       CALL make_Gaussian_random_modes(dk, m, L, logk_tab, logPk_tab, nk, use_average)
 
@@ -295,11 +306,14 @@ CONTAINS
       USE fft
       USE array_operations
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: m
       REAL, INTENT(OUT) :: f(3, m, m, m)
-      INTEGER, INTENT(IN) :: m, nk
-      REAL, INTENT(IN) :: L, logk_tab(nk), logPk_tab(nk)
+      REAL, INTENT(IN) :: L
+      INTEGER, INTENT(IN) :: nk
+      REAL, INTENT(IN) :: logk_tab(nk)
+      REAL, INTENT(IN) :: logPk_tab(nk)
       LOGICAL, INTENT(IN) :: use_average
-      DOUBLE COMPLEX :: d(m, m, m), dk(m, m, m), fk(3, m, m, m)
+      COMPLEX :: d(m, m, m), dk(m, m, m), fk(3, m, m, m)
       INTEGER :: i, ix, iy, iz
       REAL :: kx, ky, kz, k
 
@@ -473,8 +487,8 @@ CONTAINS
 
       ! Write out a binary 'field' file
       IMPLICIT NONE
-      REAL, INTENT(IN) :: d(m, m)
       INTEGER, INTENT(IN) :: m
+      REAL, INTENT(IN) :: d(m, m)
       REAL, INTENT(IN) :: L
       CHARACTER(len=*), INTENT(IN) :: outfile
 
@@ -499,8 +513,8 @@ CONTAINS
 
       ! Write out a binary 'field' file
       IMPLICIT NONE
-      REAL, INTENT(IN) :: d(m, m, m)
       INTEGER, INTENT(IN) :: m
+      REAL, INTENT(IN) :: d(m, m, m) 
       REAL, INTENT(IN) :: L
       CHARACTER(len=*), INTENT(IN) :: outfile
 
@@ -524,8 +538,8 @@ CONTAINS
    SUBROUTINE write_field_ascii_2D(d, m, L, outfile)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: d(m, m), L
       INTEGER, INTENT(IN) :: m
+      REAL, INTENT(IN) :: d(m, m), L   
       CHARACTER(len=*), INTENT(IN) :: outfile
       INTEGER :: i, j
       REAL :: x, y
@@ -558,8 +572,10 @@ CONTAINS
    SUBROUTINE write_3D_field_projection_ascii(d, m, L, nz, outfile)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: d(m, m, m), L
-      INTEGER, INTENT(IN) :: m, nz
+      INTEGER, INTENT(IN) :: m
+      REAL, INTENT(IN) :: d(m, m, m)
+      REAL, INTENT(IN) :: L
+      INTEGER, INTENT(IN) :: nz
       CHARACTER(len=*), INTENT(IN) :: outfile
       INTEGER :: i, j, k
       REAL :: x, y
@@ -632,12 +648,12 @@ CONTAINS
 
       ! Sharpen a 3D configuration-space array to account for the binning
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: d(m, m)
       INTEGER, INTENT(IN) :: m
+      REAL, INTENT(INOUT) :: d(m, m)  
       INTEGER, INTENT(IN) :: ibin
-      DOUBLE COMPLEX, ALLOCATABLE :: dk(:, :)
-      DOUBLE COMPLEX :: dkout(m, m)
-      DOUBLE PRECISION :: dc(m, m)
+      COMPLEX, ALLOCATABLE :: dk(:, :)
+      COMPLEX :: dkout(m, m)
+      REAL :: dc(m, m)
       INTEGER :: mn
 
       ! TODO: Test real version
@@ -689,12 +705,15 @@ CONTAINS
 
       ! Sharpen a 3D configuration-space array to account for the binning
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: d(m, m, m)
       INTEGER, INTENT(IN) :: m
+      REAL, INTENT(INOUT) :: d(m, m, m)
       INTEGER, INTENT(IN) :: ibin
-      DOUBLE COMPLEX, ALLOCATABLE :: dk(:, :, :)
-      DOUBLE COMPLEX :: dkout(m, m, m)
-      DOUBLE PRECISION :: dc(m, m, m)
+      !DOUBLE COMPLEX, ALLOCATABLE :: dk(:, :, :)
+      !DOUBLE COMPLEX :: dkout(m, m, m)
+      !DOUBLE PRECISION :: dc(m, m, m)
+      COMPLEX, ALLOCATABLE :: dk(:, :, :)
+      COMPLEX :: dkout(m, m, m)
+      REAL :: dc(m, m, m)
       INTEGER :: mn
 
       ! TODO: Test real version
@@ -747,9 +766,10 @@ CONTAINS
 
       ! Sharpens a 3D Fourier array to account for the binning
       IMPLICIT NONE
-      DOUBLE COMPLEX, INTENT(INOUT) :: dk(mn, m)
       INTEGER, INTENT(IN) :: mn
       INTEGER, INTENT(IN) :: m
+      !DOUBLE COMPLEX, INTENT(INOUT) :: dk(mn, m)
+      COMPLEX, INTENT(INOUT) :: dk(mn, m)
       INTEGER, INTENT(IN) :: ibin
       INTEGER :: i, j
       REAL :: kx, ky, kmod
@@ -803,9 +823,10 @@ CONTAINS
 
       ! Sharpens a 3D array to account for the binning
       IMPLICIT NONE
-      DOUBLE COMPLEX, INTENT(INOUT) :: dk(mn, m, m)
       INTEGER, INTENT(IN) :: mn
       INTEGER, INTENT(IN) :: m
+      !DOUBLE COMPLEX, INTENT(INOUT) :: dk(mn, m, m)
+      COMPLEX, INTENT(INOUT) :: dk(mn, m, m)    
       INTEGER, INTENT(IN) :: ibin
       INTEGER :: i, j, k
       REAL :: kx, ky, kz, kmod
@@ -862,13 +883,17 @@ CONTAINS
       !L: box size in Mpc/h
       USE fft
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: d(m, m)
-      REAL, INTENT(IN) :: r, L
       INTEGER, INTENT(IN) :: m
+      REAL, INTENT(INOUT) :: d(m, m)
+      REAL, INTENT(IN) :: r
+      REAL, INTENT(IN) :: L
       REAL :: kx, ky, kz, k
-      DOUBLE COMPLEX, ALLOCATABLE :: dk(:, :)
-      DOUBLE COMPLEX :: dkout(m, m)
-      DOUBLE PRECISION :: dc(m, m)
+      !DOUBLE COMPLEX, ALLOCATABLE :: dk(:, :)
+      !DOUBLE COMPLEX :: dkout(m, m)
+      !DOUBLE PRECISION :: dc(m, m)
+      COMPLEX, ALLOCATABLE :: dk(:, :)
+      COMPLEX :: dkout(m, m)
+      REAL :: dc(m, m)
       INTEGER :: i, j, mn
 
       ! TODO: Test real version
@@ -997,13 +1022,17 @@ CONTAINS
       !USE special_functions
 
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: d(m, m, m)
-      REAL, INTENT(IN) :: r, L
       INTEGER, INTENT(IN) :: m
+      REAL, INTENT(INOUT) :: d(m, m, m)
+      REAL, INTENT(IN) :: r
+      REAL, INTENT(IN) :: L
       REAL :: kx, ky, kz, kmod
-      DOUBLE COMPLEX, ALLOCATABLE :: dk(:, :, :)
-      DOUBLE COMPLEX :: dkout(m, m, m)
-      DOUBLE PRECISION :: dc(m, m, m)
+      !DOUBLE COMPLEX, ALLOCATABLE :: dk(:, :, :)
+      !DOUBLE COMPLEX :: dkout(m, m, m)
+      !DOUBLE PRECISION :: dc(m, m, m)
+      COMPLEX, ALLOCATABLE :: dk(:, :, :)
+      COMPLEX :: dkout(m, m, m)
+      REAL :: dc(m/2+1, m, m)
       INTEGER :: i, j, k, mn
 
       ! TODO: Test real version
@@ -1119,8 +1148,8 @@ CONTAINS
    SUBROUTINE project_3D_to_2D(d3d, d2d, m)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: d3d(m, m, m)
       INTEGER, INTENT(IN) :: m
+      REAL, INTENT(IN) :: d3d(m, m, m) 
       REAL, INTENT(OUT) :: d2d(m, m)
       INTEGER :: i, j, k
 
@@ -1201,8 +1230,8 @@ CONTAINS
       USE statistics
       USE array_operations
       IMPLICIT NONE
-      REAL, INTENT(INOUT) :: d(m1, m2, m3)
       INTEGER, INTENT(IN) :: m1, m2, m3
+      REAL, INTENT(INOUT) :: d(m1, m2, m3) 
       REAL, INTENT(IN) :: d0
       LOGICAL, INTENT(IN) :: verbose
       REAL :: var1, av1, min1, var2, av2, min2
@@ -1253,10 +1282,12 @@ CONTAINS
 
    INTEGER FUNCTION count_empty_cells(d, m)
 
+      USE precision
       IMPLICIT NONE
-      REAL, INTENT(IN) :: d(m, m, m)
       INTEGER, INTENT(IN) :: m
-      INTEGER*8 :: sum
+      REAL, INTENT(IN) :: d(m, m, m)  
+      !INTEGER*8 :: sum
+      INTEGER(i8) :: sum
       INTEGER :: i, j, k
 
       sum = 0
@@ -1276,8 +1307,9 @@ CONTAINS
 
    SUBROUTINE compute_power_spectrum_2D(dk1, dk2, m, L, kmin, kmax, nk, k, pow, nmodes, sigma, linear_k_range)
 
-      USE table_integer
+      USE precision
       USE constants
+      USE table_integer 
       USE array_operations
       USE fft
       USE basic_operations
@@ -1285,8 +1317,10 @@ CONTAINS
       ! Takes in a dk(m,m) array and computes the power spectrum
       ! NOTE: Leave the double complex as it allows the running to determine complex vs real
       IMPLICIT NONE
-      DOUBLE COMPLEX, INTENT(IN) :: dk1(:, :) ! Fourier components of field 1
-      DOUBLE COMPLEX, INTENT(IN) :: dk2(:, :) ! Fourier components of field 2
+      !DOUBLE COMPLEX, INTENT(IN) :: dk1(:, :) ! Fourier components of field 1
+      !DOUBLE COMPLEX, INTENT(IN) :: dk2(:, :) ! Fourier components of field 2
+      COMPLEX, INTENT(IN) :: dk1(:, :) ! Fourier components of field 1
+      COMPLEX, INTENT(IN) :: dk2(:, :) ! Fourier components of field 2
       INTEGER, INTENT(IN) :: m  ! mesh size for fields
       REAL, INTENT(IN) :: L     ! box size [Mpc/h]
       REAL, INTENT(IN) :: kmin  ! minimum and maximum wavenumber [h/Mpc]
@@ -1301,7 +1335,8 @@ CONTAINS
       REAL :: kx, ky, kmod, Dk, crap
       REAL, ALLOCATABLE :: kbin(:)
       DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f
-      INTEGER*8 :: nmodes8(nk)
+      !INTEGER*8 :: nmodes8(nk)
+      INTEGER(i8) :: nmodes8(nk)
 
       REAL, PARAMETER :: dbin = 1e-3 ! Bin slop parameter for first and last bin edges
       LOGICAL, PARAMETER :: logmeank = .FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
@@ -1417,8 +1452,9 @@ CONTAINS
    SUBROUTINE compute_power_spectrum_3D(dk1, dk2, m, L, kmin, kmax, nk, k, pow, nmodes, sigma, linear_k_range)
 
       ! Takes in a dk(m,m,m) array and computes the power spectrum
-      USE table_integer
+      USE precision
       USE constants
+      USE table_integer
       USE array_operations
       USE fft
       USE basic_operations
@@ -1426,8 +1462,10 @@ CONTAINS
       ! Takes in a dk(m,m) array and computes the power spectrum
       ! NOTE: Leave the double complex as it allows the running to determine complex vs real
       IMPLICIT NONE
-      DOUBLE COMPLEX, INTENT(IN) :: dk1(:, :, :) ! Fourier components of field 1
-      DOUBLE COMPLEX, INTENT(IN) :: dk2(:, :, :) ! Fourier components of field 2
+      !DOUBLE COMPLEX, INTENT(IN) :: dk1(:, :, :) ! Fourier components of field 1
+      !DOUBLE COMPLEX, INTENT(IN) :: dk2(:, :, :) ! Fourier components of field 2
+      COMPLEX, INTENT(IN) :: dk1(:, :, :) ! Fourier components of field 1
+      COMPLEX, INTENT(IN) :: dk2(:, :, :) ! Fourier components of field 2
       INTEGER, INTENT(IN) :: m  ! mesh size for fields
       REAL, INTENT(IN) :: L     ! box size [Mpc/h]
       REAL, INTENT(IN) :: kmin  ! minimum and maximum wavenumber [h/Mpc]
@@ -1442,7 +1480,8 @@ CONTAINS
       REAL :: kx, ky, kz, kmod, Dk
       REAL, ALLOCATABLE :: kbin(:)
       DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f
-      INTEGER*8 :: nmodes8(nk)
+      !INTEGER*8 :: nmodes8(nk)
+      INTEGER(i8) :: nmodes8(nk)
 
       REAL, PARAMETER :: dbin = 1e-3 ! Bin slop parameter for first and last bin edges
       LOGICAL, PARAMETER :: logmeank = .FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
@@ -1843,21 +1882,25 @@ CONTAINS
 
    SUBROUTINE compute_power_spectrum_pole(d, m, L, ipole, iz, kmin, kmax, nk, kval, pow, nmodes)
 
+      USE precision
       USE constants
       USE basic_operations
       USE special_functions
       USE fft
       IMPLICIT NONE
-      DOUBLE COMPLEX, INTENT(IN) :: d(m, m, m)
+      INTEGER, INTENT(IN) :: m
+      !DOUBLE COMPLEX, INTENT(IN) :: d(m, m, m)
+      COMPLEX, INTENT(IN) :: d(m, m, m)
       REAL, INTENT(IN) :: kmin, kmax, L
-      INTEGER, INTENT(IN) :: iz, ipole, nk, m
+      INTEGER, INTENT(IN) :: iz, ipole, nk
       REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:), kval(:)
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:)
       INTEGER :: i, j, k, n
       REAL :: kx, ky, kz, kmod, mu
       REAL :: kbin(nk+1)
       DOUBLE PRECISION :: pow8(nk), kval8(nk)
-      INTEGER*8 :: nmodes8(nk)
+      !INTEGER*8 :: nmodes8(nk)
+      INTEGER(i8) :: nmodes8(nk)
 
       STOP 'COMPUTE_POWER_SPECTRUM_POLE: Check this very carefully'
 
@@ -1960,6 +2003,7 @@ CONTAINS
 
    SUBROUTINE compute_power_spectrum_rsd(d, L, kmin, kmax, nk, kv, mu, pow, nmodes, iz)
 
+      USE precision
       USE constants
       USE fft
       USE basic_operations
@@ -1969,8 +2013,10 @@ CONTAINS
       REAL :: pow(nk, nk), kv(nk), kbin(nk+1), mu(nk), mubin(nk+1)
       DOUBLE PRECISION :: pow8(nk, nk)
       INTEGER :: nmodes(nk, nk)
-      INTEGER*8 :: nmodes8(nk, nk)
-      DOUBLE COMPLEX :: d(:, :, :)
+      !INTEGER*8 :: nmodes8(nk, nk)
+      INTEGER(i8) :: nmodes8(nk, nk)
+      !DOUBLE COMPLEX :: d(:, :, :)
+      COMPLEX :: d(:, :, :)
 
       STOP 'COMPUTE_POWER_SPECTRUM_RSD: Check this very carefully'
 
@@ -2089,6 +2135,7 @@ CONTAINS
 
    SUBROUTINE compute_power_spectrum_rsd2(d, L, kmin, kmax, nk, kpar, kper, pow, nmodes, iz)
 
+      USE precision
       USE constants
       USE fft
       USE basic_operations
@@ -2096,10 +2143,13 @@ CONTAINS
       INTEGER :: i, j, k, m, ii, jj, nk, iz
       REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, kpers, kpars
       REAL :: pow(nk, nk), kpar(nk), kparbin(nk+1), kper(nk), kperbin(nk+1)
-      DOUBLE PRECISION :: pow8(nk, nk)
+      !DOUBLE PRECISION :: pow8(nk, nk)
+      REAL :: pow8(nk, nk)
       INTEGER :: nmodes(nk, nk)
-      INTEGER*8 :: nmodes8(nk, nk)
-      DOUBLE COMPLEX :: d(:, :, :)
+      !INTEGER*8 :: nmodes8(nk, nk)
+      INTEGER(i8) :: nmodes8(nk, nk)
+      !DOUBLE COMPLEX :: d(:, :, :)
+      COMPLEX :: d(:, :, :)
 
       STOP 'COMPUTE_POWER_SPECTRUM_RSD2: Check this very carefully'
 
@@ -2216,12 +2266,12 @@ CONTAINS
 
    END SUBROUTINE compute_power_spectrum_rsd2
 
-   FUNCTION box_mode_power(dk, m)
+   REAL FUNCTION box_mode_power(dk, m)
 
       IMPLICIT NONE
-      REAL :: box_mode_power
-      DOUBLE COMPLEX, INTENT(IN) :: dk(m, m, m)
       INTEGER, INTENT(IN) :: m
+      !DOUBLE COMPLEX, INTENT(IN) :: dk(m, m, m)
+      COMPLEX, INTENT(IN) :: dk(m, m, m)    
 
       box_mode_power = real(abs(dk(2, 1, 1))**2.+abs(dk(1, 2, 1))**2.+abs(dk(1, 1, 2))**2.)/3.
 
@@ -2276,12 +2326,14 @@ CONTAINS
 
    SUBROUTINE field_correlation_function(r_array, xi_array, n_array, n, d, m, L)
 
+      USE precision
       USE table_integer
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m
       REAL, INTENT(OUT) :: xi_array(n)
       REAL, INTENT(IN) :: L, d(m, m, m), r_array(n)
-      INTEGER*8, INTENT(OUT) :: n_array(n)
+      !INTEGER*8, INTENT(OUT) :: n_array(n)
+      INTEGER(i8), INTENT(OUT) :: n_array(n)
       REAL:: rmin, rmax
       DOUBLE PRECISION :: xi8_array(n)
       INTEGER :: i1, i2, i3, j1, j2, j3, i(3), j(3), k, dim
@@ -2353,10 +2405,12 @@ CONTAINS
 
    INTEGER FUNCTION empty_cells_3D(d, m)
 
+      USE precision
       IMPLICIT NONE
-      REAL, INTENT(IN) :: d(m, m, m)
       INTEGER, INTENT(IN) :: m
-      INTEGER*8 :: sum
+      REAL, INTENT(IN) :: d(m, m, m)   
+      !INTEGER*8 :: sum
+      INTEGER(i8) :: sum
       INTEGER :: i, j, k
 
       sum = 0

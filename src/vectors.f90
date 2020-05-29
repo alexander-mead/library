@@ -38,24 +38,22 @@ CONTAINS
 
    END FUNCTION shift_angle_to_circle
 
-   FUNCTION unit(x, n)
+   FUNCTION unit(x)
 
       ! Returns the unit vector of 'x'
-      IMPLICIT NONE
-      REAL :: unit(n)
-      REAL, INTENT(IN) :: x(n)
-      INTEGER, INTENT(IN) :: n
+      IMPLICIT NONE 
+      REAL, INTENT(IN) :: x(:)
+      REAL :: unit(size(x))
 
-      unit = x/modulus(x, n)
+      unit = x/modulus(x)
 
    END FUNCTION unit
 
-   REAL FUNCTION modulus(x, n)
+   REAL FUNCTION modulus(x)
 
       ! Returns the modulus of vector 'x'
       IMPLICIT NONE
-      REAL, INTENT(IN) :: x(n)
-      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: x(:)
 
       modulus = sqrt(sum(x**2))
 
@@ -140,39 +138,42 @@ CONTAINS
 
    END FUNCTION matrix_multiply
 
-   FUNCTION matrix_vector(A, b, n)
+   FUNCTION matrix_vector(A, b)
 
       ! Multiplies matrix a and vector b (c=A*b)
-      IMPLICIT NONE
-      REAL :: matrix_vector(n)
-      REAL, INTENT(IN) :: A(n, n)
-      REAL, INTENT(IN) :: b(n)
-      INTEGER, INTENT(IN) :: n
-      REAL :: c(n)
-      INTEGER :: i, j
+      IMPLICIT NONE    
+      REAL, INTENT(IN) :: A(:, :)
+      REAL, INTENT(IN) :: b(:)  
+      REAL :: matrix_vector(size(A, 1))
+      INTEGER :: ix, iy, nx, ny
+
+      nx = size(A, 1)
+      ny = size(A, 2)
+      IF (nx /= size(matrix_vector) .OR. ny /= size(b)) THEN
+         STOP 'MATRIX_VECTOR: Error, array wrong sizes'
+      END IF
 
       ! Fix this 'sum' variable to zero
-      c = 0.
+      matrix_vector = 0.
 
-      DO i = 1, n
-         DO j = 1, n
-            c(i) = c(i)+A(i, j)*b(j)
+      DO ix = 1, nx
+         DO iy = 1, ny
+            matrix_vector(ix) = matrix_vector(ix)+A(ix, iy)*b(iy)
          END DO
       END DO
 
-      matrix_vector = c
-
    END FUNCTION matrix_vector
 
-   FUNCTION distance(x1, x2, n)
+   REAL FUNCTION distance(x1, x2)
 
       ! Calculates the distance between n-vectors x1 and x2
       IMPLICIT NONE
-      REAL :: distance
-      REAL, INTENT(IN) :: x1(n)
-      REAL, INTENT(IN) :: x2(n)
-      INTEGER, INTENT(IN) :: n
-      INTEGER :: i
+      REAL, INTENT(IN) :: x1(:)
+      REAL, INTENT(IN) :: x2(:)
+      INTEGER :: i, n
+
+      n = size(x1)
+      IF (n /= size(x2)) STOP 'DISTANCE: Error, x1 and x2 must be the same size'
 
       ! Fix this 'sum' variable to zero
       distance = 0.
@@ -202,7 +203,7 @@ CONTAINS
       R = rotation(k, theta)
 
       ! Perform the rotation
-      rotate_vector = matrix_vector(R, v, 3)
+      rotate_vector = matrix_vector(R, v)
 
    END FUNCTION rotate_vector
 

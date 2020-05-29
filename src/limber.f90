@@ -299,12 +299,11 @@ CONTAINS
       ! Calculates C(l) using the Limber approximation
       ! Note that using Limber and flat-sky for sensible results limits lmin to ell~10
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nl, nk, na ! Number of ell values
       REAL, INTENT(IN) :: r1, r2 ! Maximum and minimum comoving distances for integration
       REAL, INTENT(IN) :: ell(nl) ! Input array of desired ell values for C(ell)
-      REAL, INTENT(OUT) :: Cell(nl) ! Output array for C(ell) values
-      INTEGER, INTENT(IN) :: nl ! Number of ell values
-      REAL, INTENT(IN) :: k(nk), a(na), pow(nk, na) ! Input k, a and P(k,a) arrays
-      INTEGER, INTENT(IN) :: nk, na ! Number of k and a values
+      REAL, INTENT(OUT) :: Cell(nl) ! Output array for C(ell) values  
+      REAL, INTENT(IN) :: k(nk), a(na), pow(nk, na) ! Input k, a and P(k,a) arrays    
       TYPE(projection), INTENT(IN) :: proj(2) ! Projection kernels for the Limber integration
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: logk(nk), loga(na), logpow(nk, na)
@@ -350,9 +349,9 @@ CONTAINS
       ! Note that using Limber and flat-sky for sensible results limits lmin to ~10
       USE string_operations
       IMPLICIT NONE
-      REAL, INTENT(IN) :: r1, r2 ! Integration range
-      REAL, INTENT(IN) :: k(nk), a(na), pow(nk, na) ! Input arrays of k, a and P(k,a)
       INTEGER, INTENT(IN) :: nk, na ! Number of entries in k and a
+      REAL, INTENT(IN) :: r1, r2 ! Integration range
+      REAL, INTENT(IN) :: k(nk), a(na), pow(nk, na) ! Input arrays of k, a and P(k,a) 
       TYPE(projection), INTENT(IN) :: proj(2) ! Projection kernels
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       CHARACTER(len=*), INTENT(IN) :: fbase
@@ -417,14 +416,12 @@ CONTAINS
       ! TODO: Can I bunch together ell in the sum when ell is high?
       USE basic_operations
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: ibessel(m) ! Bessel functions to use
-      INTEGER, INTENT(IN) :: m          ! Number of Bessel function transforms
+      INTEGER, INTENT(IN) :: m, n, nl   ! Number of Bessel function transforms
+      INTEGER, INTENT(IN) :: ibessel(m) ! Bessel functions to use   
       REAL, INTENT(IN) :: th_tab(n)     ! Angles for correlation function [degrees]
-      REAL, INTENT(OUT) :: xi_tab(m, n) ! Correlation function
-      INTEGER, INTENT(IN) :: n          ! Number of angles to compute
+      REAL, INTENT(OUT) :: xi_tab(m, n) ! Correlation function    
       REAL, INTENT(IN) :: l_tab(nl)     ! Array of ell
       REAL, INTENT(IN) :: cl_tab(nl)    ! Array of C(ell)
-      INTEGER, INTENT(IN) :: nl         ! Number of ell
       INTEGER, INTENT(IN) :: lmax       ! Maximum ell to go to in summation
       INTEGER :: i, j, l
       INTEGER :: ifind
@@ -500,11 +497,11 @@ CONTAINS
       ! TODO: Probably remove this, although I am not sure why it is so bad
       USE special_functions
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nl       ! Number of entries in l-Cl arrays
       REAL, INTENT(IN) :: theta       ! Angle [rad]
       INTEGER, INTENT(IN) :: nbessel  ! Order form Bessel functions to use
       REAL, INTENT(IN) :: logl(nl)    ! Array of log l
-      REAL, INTENT(IN) :: logCl(nl)   ! Array of log Cl
-      INTEGER, INTENT(IN) :: nl       ! Number of entries in l-Cl arrays
+      REAL, INTENT(IN) :: logCl(nl)   ! Array of log Cl  
       INTEGER, INTENT(IN) :: lmax     ! Maximum number of l to sum
       REAL, INTENT(IN) :: acc         ! Accuracy
       INTEGER :: l
@@ -545,13 +542,12 @@ CONTAINS
       USE special_functions
       USE basic_operations
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n, nl          ! Number of Bessel functions to use
       REAL :: angular_xi_summation(n)
       REAL, INTENT(IN) :: theta         ! Angle [rad]
-      INTEGER, INTENT(IN) :: ibessel(n) ! Order form Bessel functions to use
-      INTEGER, INTENT(IN) :: n          ! Number of Bessel functions to use
+      INTEGER, INTENT(IN) :: ibessel(n) ! Order form Bessel functions to use    
       REAL, INTENT(IN) :: logl(nl)      ! Array of log l
-      REAL, INTENT(IN) :: logCl(nl)     ! Array of log Cl
-      INTEGER, INTENT(IN) :: nl         ! Number of entries in l-Cl arrays
+      REAL, INTENT(IN) :: logCl(nl)     ! Array of log Cl  
       INTEGER, INTENT(IN) :: lmax       ! Maximum number of l to sum
       INTEGER :: l, i
       REAL :: Cl, xi(n)
@@ -593,12 +589,11 @@ CONTAINS
       USE special_functions
       USE basic_operations
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: n, nl          ! Number of Bessel functions to use
       REAL :: angular_xi_summation_precompute(n)
       REAL, INTENT(IN) :: theta         ! Angle [rad]
-      INTEGER, INTENT(IN) :: ibessel(n) ! Order form Bessel functions to use
-      INTEGER, INTENT(IN) :: n          ! Number of Bessel functions to use
-      REAL, INTENT(IN) :: Cl(nl)     ! Array of log Cl
-      INTEGER, INTENT(IN) :: nl         ! Number of entries in l-Cl arrays
+      INTEGER, INTENT(IN) :: ibessel(n) ! Order form Bessel functions to use 
+      REAL, INTENT(IN) :: Cl(nl)     ! Array of log Cl 
       INTEGER :: l, i
       REAL :: xi(n)
       DOUBLE PRECISION :: sum(n)
@@ -628,11 +623,11 @@ CONTAINS
       ! Stores information to reduce function calls
       USE basic_operations
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nl
       REAL, INTENT(IN) :: theta
       INTEGER, INTENT(IN) :: nbessel
       REAL, INTENT(IN) :: logl(nl)
       REAL, INTENT(IN) :: logCl(nl)
-      INTEGER, INTENT(IN) :: nl
       REAL, INTENT(IN) :: acc
       INTEGER :: i, j
       INTEGER :: n
@@ -731,12 +726,12 @@ CONTAINS
       ! TODO: Write integration routine for this
       USE special_functions
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nl       ! Number of entries in l-Cl arrays
       REAL, INTENT(IN) :: t           ! Integration variable: 1+l = 1/t
       REAL, INTENT(IN) :: theta       ! Angle [rad]
       INTEGER, INTENT(IN) :: nbessel  ! Order of Bessel functions to use
       REAL, INTENT(IN) :: logl(nl)    ! Array of log l
-      REAL, INTENT(IN) :: logCl(nl)   ! Array of log Cl
-      INTEGER, INTENT(IN) :: nl       ! Number of entries in l-Cl arrays
+      REAL, INTENT(IN) :: logCl(nl)   ! Array of log Cl  
       REAL :: l, Cl
       INTEGER, PARAMETER :: iorder = 3 ! Order for interpolation to find C(l) (3 - cubic)
       INTEGER, PARAMETER :: ifind = 3  ! Finding scheme for interpolation of C(l) (3 - mid-point)
@@ -763,10 +758,9 @@ CONTAINS
       ! Write angular correlation functions to disk
       ! TODO: Is this a bit absurd?
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nb, nth          ! Number of theta values
       REAL, INTENT(IN) :: th_tab(nth)     ! Array of theta values [probably degress]
       REAL, INTENT(IN) :: xi_tab(nb, nth) ! Correlation functions
-      INTEGER, INTENT(IN) :: nb           ! Number of Bessel functions used
-      INTEGER, INTENT(IN) :: nth          ! Number of theta values
       CHARACTER(len=256), INTENT(IN) :: outfile ! Output file
       INTEGER :: i, j
 
@@ -1560,17 +1554,16 @@ CONTAINS
 
    END FUNCTION q_integrand
 
-   FUNCTION integrate_Limber(l, a, b, logktab, logatab, logptab, nk, na, acc, iorder, proj, cosm)
+   REAL FUNCTION integrate_Limber(l, a, b, logktab, logatab, logptab, nk, na, acc, iorder, proj, cosm)
 
       ! Integrates between a and b until desired accuracy is reached
       USE basic_operations
       IMPLICIT NONE
-      REAL :: integrate_Limber
+      INTEGER, INTENT(IN) :: nk, na
       REAL, INTENT(IN) :: a, b, acc
       INTEGER, INTENT(IN) :: iorder
       REAL, INTENT(IN) :: l
-      REAL, INTENT(IN) :: logktab(nk), logatab(na), logptab(nk, na)
-      INTEGER, INTENT(IN) :: nk, na
+      REAL, INTENT(IN) :: logktab(nk), logatab(na), logptab(nk, na)  
       TYPE(projection), INTENT(IN) :: proj(2)
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: i, j
@@ -1663,14 +1656,14 @@ CONTAINS
 
    END FUNCTION integrate_Limber
 
-   FUNCTION Limber_integrand(r, l, logktab, logatab, logptab, nk, na, proj, cosm)
+   REAL FUNCTION Limber_integrand(r, l, logktab, logatab, logptab, nk, na, proj, cosm)
 
       ! The integrand for the Limber integral
       IMPLICIT NONE
-      REAL :: Limber_integrand
+      INTEGER, INTENT(IN) :: nk, na
       REAL, INTENT(IN) :: r, l
       REAL, INTENT(IN) :: logktab(nk), logatab(na), logptab(nk, na)
-      INTEGER, INTENT(IN) :: nk, na
+      
       TYPE(cosmology), INTENT(INOUT) :: cosm
       TYPE(projection), INTENT(IN) :: proj(2)
       REAL :: z, a, k, X(2)
@@ -1706,9 +1699,9 @@ CONTAINS
 
       USE basic_operations
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk, na
       REAL, INTENT(IN) :: l, r1, r2
       REAL, INTENT(IN) :: logktab(nk), logatab(na), logptab(nk, na)
-      INTEGER, INTENT(IN) :: nk, na
       TYPE(cosmology), INTENT(INOUT) :: cosm
       TYPE(projection), INTENT(IN) :: proj(2)
       CHARACTER(len=256), INTENT(IN) :: outfile
@@ -1780,15 +1773,13 @@ CONTAINS
       ! Calculates the C(l) for the cross correlation of fields ix(1) and ix(2) given P(k,a)
       ! TODO: Change to take in ix(n)?
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk, na, nl
       INTEGER, INTENT(INOUT) :: ix(2)
       REAL, INTENT(IN) :: ell(nl)
-      REAL, INTENT(OUT) :: Cl(nl)
-      INTEGER, INTENT(IN) :: nl
+      REAL, INTENT(OUT) :: Cl(nl)    
       REAL, INTENT(IN) :: k(nk)
       REAL, INTENT(IN) :: a(na)
       REAL, INTENT(IN) :: pow(nk, na)
-      INTEGER, INTENT(IN) :: nk
-      INTEGER, INTENT(IN) :: na
       TYPE(cosmology), INTENT(INOUT) :: cosm
       TYPE(projection) :: proj(2)
       REAL :: r1, r2
@@ -1811,12 +1802,11 @@ CONTAINS
       ! Calculates the C(l) for the cross correlation of fields ix(1) and ix(2) given P(k,a)
       ! TODO: Change to take in ix(n)?
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk, na
       INTEGER, INTENT(INOUT) :: ix(2)
       REAL, INTENT(IN) :: k(nk)
       REAL, INTENT(IN) :: a(na)
       REAL, INTENT(IN) :: pow(nk, na)
-      INTEGER, INTENT(IN) :: nk
-      INTEGER, INTENT(IN) :: na
       TYPE(cosmology), INTENT(INOUT) :: cosm
       CHARACTER(len=*), INTENT(IN) :: fbase
       CHARACTER(len=*), INTENT(IN) :: fext
@@ -1842,11 +1832,10 @@ CONTAINS
       ! TODO: Move this because it requires HMx?
       USE HMx
       IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nx, nl
       INTEGER, INTENT(INOUT) :: ix(nx)
-      INTEGER, INTENT(IN) :: nx
       REAL, INTENT(IN) :: ell(nl)
       REAL, INTENT(OUT) :: Cl(nl, nx, nx)
-      INTEGER, INTENT(IN) :: nl
       !TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER, INTENT(INOUT) :: ihm

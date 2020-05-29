@@ -8,7 +8,7 @@ MODULE random_numbers
    PRIVATE
 
    ! Setting routine
-   PUBLIC :: RNG_set
+   PUBLIC :: RNG_seed
 
    ! Integer distributions
    PUBLIC :: random_integer
@@ -68,6 +68,30 @@ CONTAINS
 
    END SUBROUTINE RNG_set
 
+   SUBROUTINE RNG_seed(seed, verbose)
+
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: seed
+      LOGICAL, OPTIONAL, INTENT(IN) :: verbose
+
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'RNG_SEED: Initialising random number generator'
+         IF(seed .NE. 0) WRITE (*, *) 'RNG_SET: Seed:', seed
+      END IF
+
+      IF (seed == 0) THEN
+         CALL random_seed()
+      ELSE
+         STOP 'RNG_SEED: Error, this does not work for non-zero seeds'
+      END IF
+
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'RNG_SEED: Done'
+         WRITE (*, *)
+      END IF
+
+   END SUBROUTINE RNG_seed
+
    INTEGER FUNCTION random_integer(i1, i2)
 
       ! Picks an integer with uniform random probability between i1 and i2 spaced with 1
@@ -75,10 +99,11 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i1 ! Lower bound
       INTEGER, INTENT(IN) :: i2 ! Upper bound
-      REAL(kind=4) :: rand            ! Necessary to define for ifort and the *4 is necessary
+      !REAL(kind=4) :: rand            ! Necessary to define for ifort and the *4 is necessary
       INTEGER, PARAMETER :: seed = 0
 
-      random_integer = i1-1+ceiling(rand(seed)*real(1+i2-i1))
+      !random_integer = i1-1+ceiling(rand(seed)*real(1+i2-i1))
+      random_integer = i1-1+ceiling(random_unit()*real(1+i2-i1))
       IF (random_integer == i1-1) random_integer = i1
 
    END FUNCTION random_integer
@@ -111,18 +136,19 @@ CONTAINS
 
    END FUNCTION random_sign
 
-   REAL FUNCTION random_number()
+   REAL FUNCTION random_unit()
 
-      ! Produces a uniform random number between 0 and 1
+      ! Produces a uniform-random number between 0 and 1
       ! TODO: Retire rand, replace with random_number inbuilt function
       IMPLICIT NONE
-      REAL(kind=4) :: rand ! Necessary for ifort and the *4 is necessary
-      INTEGER, PARAMETER :: seed = 0
+      !REAL(kind=4) :: rand ! Necessary for ifort and the *4 is necessary
+      !INTEGER, PARAMETER :: seed = 0
 
       ! rand is some inbuilt function
-      random_number = rand(seed)
+      !random_number = rand(seed)
+      CALL random_number(random_unit)
 
-   END FUNCTION random_number
+   END FUNCTION random_unit
 
    REAL FUNCTION random_uniform(x1, x2)
 
@@ -131,7 +157,7 @@ CONTAINS
       REAL, INTENT(IN) :: x1 ! Lower bound
       REAL, INTENT(IN) :: x2 ! Upper bound
 
-      random_uniform = x1+(x2-x1)*random_number()
+      random_uniform = x1+(x2-x1)*random_unit()
 
    END FUNCTION random_uniform
 
