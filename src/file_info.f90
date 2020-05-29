@@ -14,7 +14,6 @@ CONTAINS
 
       ! Get the number of lines in the file
       USE basic_operations
-      IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: file_name
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       INTEGER :: n
@@ -52,7 +51,6 @@ CONTAINS
    INTEGER FUNCTION count_number_of_lines(filename)
 
       ! Tilman's version of file_length (nice because no GOTO)
-      IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: filename
       INTEGER :: n, file_unit, iostat
       CHARACTER :: c
@@ -92,7 +90,6 @@ CONTAINS
 
    SUBROUTINE check_file_exists(file)
 
-      IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: file
 
       ! Check file exists
@@ -106,7 +103,6 @@ CONTAINS
    LOGICAL FUNCTION file_exists(file)
 
       ! Returns true if a file exists, or false otherwise
-      IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: file
 
       INQUIRE (file=file, exist=file_exists)

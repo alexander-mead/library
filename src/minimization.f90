@@ -2,6 +2,7 @@ MODULE minimization
 
    USE sorting
    USE statistics
+
    IMPLICIT NONE
 
    PRIVATE
@@ -26,7 +27,6 @@ MODULE minimization
    SUBROUTINE Nelder_Mead_multiple(x, xmin, xmax, dx, fom, m, f, tol, verbose)
 
       USE random_numbers
-      IMPLICIT NONE
       REAL, INTENT(OUT) :: x(:)
       REAL, INTENT(IN) :: xmin(:)
       REAL, INTENT(IN) :: xmax(:)
@@ -79,7 +79,6 @@ MODULE minimization
 
       ! Nelder-Mead simplex for fiding minima of a function
       ! Coded up using https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: x(:)
       REAL, INTENT(IN) :: dx(:)
       REAL, INTENT(OUT) :: fom
@@ -210,7 +209,6 @@ MODULE minimization
    FUNCTION Nelder_Mead_centroid(x)
 
       ! Calculate the centroid of all points except n+1
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(:, :)
       REAL :: Nelder_Mead_centroid(size(x, 2))
       INTEGER :: i, n
@@ -227,7 +225,6 @@ MODULE minimization
    SUBROUTINE Nelder_Mead_sort(x, f)
 
       ! Sort the points into order from best to worst
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: x(:, :)
       REAL, INTENT(INOUT) :: f(:)
       INTEGER :: i, n
@@ -251,7 +248,6 @@ MODULE minimization
    LOGICAL FUNCTION Nelder_Mead_termination(f, tol)
 
       ! Determine if the minimization has converged
-      IMPLICIT NONE
       REAL, INTENT(IN) :: f(:)
       REAL, INTENT(IN) :: tol
       REAL :: sigma
@@ -274,7 +270,6 @@ MODULE minimization
    SUBROUTINE adaptive_minimization_1D(xmin, func, min, max, ref, ngrid, nref)
 
       USE basic_operations
-      IMPLICIT NONE
       REAL, INTENT(OUT) :: xmin
       REAL, EXTERNAL :: func
       REAL, INTENT(IN) :: min
@@ -337,7 +332,6 @@ MODULE minimization
    SUBROUTINE adaptive_minimization_3D(xmin, func, min, max, ref, ngrid, nref)
 
       USE basic_operations
-      IMPLICIT NONE
       REAL, INTENT(OUT) :: xmin(3)
       REAL, INTENT(IN) :: min(3), max(3), ref(3)
       INTEGER, INTENT(IN) :: ngrid(3), nref
@@ -414,7 +408,6 @@ MODULE minimization
 
       !This fits a one parameter model
       USE basic_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: Amin, Amax
       REAL, INTENT(IN) :: x(:), y(:)
       INTEGER, INTENT(IN) :: Asteps
@@ -585,7 +578,6 @@ MODULE minimization
 
       ! Finds the minimum of the function 'f' starting at value x0 with accuracy acc!
       USE calculus
-      IMPLICIT NONE
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: acc
@@ -632,7 +624,6 @@ MODULE minimization
 
       ! Finds the minimum of the function 'f' starting at value x0 with accuracy acc
       USE calculus
-      IMPLICIT NONE
       REAL :: gradient_minimization_2D(2)
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: x
@@ -679,7 +670,6 @@ MODULE minimization
       ! This calculates the extrema of a function under the assumption that it is quadratic
       ! Takes 3 points to form a quadratic and then read off minimum
       USE special_functions
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x1, x2, x3, y1, y2, y3
       REAL :: a, b, c
 

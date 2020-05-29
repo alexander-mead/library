@@ -10,7 +10,6 @@ CONTAINS
 
    REAL FUNCTION fit_constant(data, weight)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: data(:)
       REAL, INTENT(IN) :: weight(:)
       INTEGER :: n

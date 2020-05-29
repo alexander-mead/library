@@ -26,7 +26,6 @@ CONTAINS
 
    SUBROUTINE get_emulator_power(k, a, Pk, nk, cosm, rebin, emulator_version)
 
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, INTENT(IN) :: a(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
@@ -66,7 +65,6 @@ CONTAINS
 
    SUBROUTINE get_CosmicEmu_power_z(k, P, n, z, cosm, rebin)
     
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: P(:)
       INTEGER, INTENT(OUT) :: n
@@ -154,7 +152,6 @@ CONTAINS
 
    SUBROUTINE get_FrankenEmu_power_z(k, P, n, z, cosm, rebin)
 
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: P(:)
       INTEGER, INTENT(OUT) :: n
@@ -233,7 +230,6 @@ CONTAINS
    SUBROUTINE get_MiraTitan_power_z(k, P, n, z, cosm, rebin)
 
       USE constants
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: P(:)
       INTEGER, INTENT(OUT) :: n

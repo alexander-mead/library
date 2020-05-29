@@ -21,7 +21,6 @@ CONTAINS
    SUBROUTINE write_gadget_simulation_format_Pk(k, Pk, outfile, verbose)
 
       ! Converts a CAMB P(k) file to a Gadget format P(k) file 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: k(:)  ! Input k [h/Mpc]
       REAL, INTENT(IN) :: Pk(:) ! Input dimensionless Delta^2(k)
       CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
@@ -55,7 +54,6 @@ CONTAINS
 
       ! Read in particle data from a Gadget formatted binary file
       USE precision
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
       REAL, ALLOCATABLE, INTENT(OUT) :: v(:, :)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: id(:)
@@ -139,7 +137,6 @@ CONTAINS
    SUBROUTINE write_gadget(x, v, id, L, Om_m, Om_v, h, m, a, z, outfile)
 
       ! Write particle data to a Gadget formatted particle file
-      IMPLICIT NONE
       REAL(sp), INTENT(IN) :: x(:, :)
       REAL(sp), INTENT(IN) :: v(:, :)
       INTEGER, INTENT(IN) :: id(:)
@@ -202,7 +199,6 @@ CONTAINS
    SUBROUTINE read_catalogue(x, v, m, npart, disp, c, env, Dv, rmax, avg_r, rms_r, n, infile)
 
       USE file_info
-      IMPLICIT NONE
       REAL(sp), ALLOCATABLE, INTENT(OUT) :: x(:, :)
       REAL(sp), ALLOCATABLE, INTENT(OUT) :: v(:, :)
       REAL(sp), ALLOCATABLE, INTENT(OUT) :: m(:)
@@ -249,7 +245,6 @@ CONTAINS
 
    SUBROUTINE write_catalogue(x, v, m, npart, disp, c, env, Dv, rmax, avg_r, rms_r, outfile)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(:, :)
       REAL, INTENT(IN) :: v(:, :)
       REAL, INTENT(IN) :: m(:)

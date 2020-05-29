@@ -11,7 +11,6 @@ MODULE io
    SUBROUTINE VD20_read_power(k, z, Pk, nk, nz, name)
 
       USE file_info
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: z(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)

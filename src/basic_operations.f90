@@ -44,7 +44,6 @@ CONTAINS
 
       ! Split the region xmin -> xmax into n linearly spaced increments (including both xmin and xmax)
       ! Returns the value at the i-th point
-      IMPLICIT NONE
       REAL, INTENT(IN) :: xmin
       REAL, INTENT(IN) :: xmax
       INTEGER, INTENT(IN) :: i, n
@@ -76,7 +75,6 @@ CONTAINS
 
       ! Split the region xmin -> xmax into n log-spaced increments (including both xmin and xmax)
       ! Returns the value at the i-th point, not the logarithm of the value
-      IMPLICIT NONE
       REAL, INTENT(IN) :: xmin
       REAL, INTENT(IN) :: xmax
       INTEGER, INTENT(IN) :: i, n
@@ -99,7 +97,6 @@ CONTAINS
    SUBROUTINE increment_real(x, y)
 
       ! Adds the value of y to x: x -> x+y
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: x ! Value to be added to
       REAL, INTENT(IN) :: y    ! Value to add
 
@@ -110,7 +107,6 @@ CONTAINS
    SUBROUTINE increment_integer(x, y)
 
       ! Adds the value of y to x: x -> x+y
-      IMPLICIT NONE
       INTEGER, INTENT(INOUT) :: x ! Value to be added to
       INTEGER, INTENT(IN) :: y    ! Value to add
 
@@ -121,7 +117,6 @@ CONTAINS
    SUBROUTINE fix_minimum(x, xmin)
 
       ! If x is below xmin then set to xmin
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: x ! Value to fix
       REAL, INTENT(IN) :: xmin ! Minimum value for x
 
@@ -132,7 +127,6 @@ CONTAINS
    SUBROUTINE fix_maximum(x, xmax)
 
       ! If x is above xmax then set to xmax
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: x ! Value to fix
       REAL, INTENT(IN) :: xmax ! Maximum value for x
 
@@ -143,7 +137,6 @@ CONTAINS
    SUBROUTINE read_command_argument_real(i, x, desc, def)
 
       ! Read command-line argument i and use to to fill variable x
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       REAL, INTENT(OUT) :: x               ! Real number to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
@@ -168,7 +161,6 @@ CONTAINS
    SUBROUTINE read_command_argument_integer(i, x, desc, def)
 
       ! Read command-line argument i and use to to fill variable x
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       INTEGER, INTENT(OUT) :: x            ! Real number to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
@@ -193,7 +185,6 @@ CONTAINS
    SUBROUTINE read_command_argument_logical(i, x, desc, def)
 
       ! Read command-line argument i and use to to fill variable x
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i             ! Position of command-line argument
       LOGICAL, INTENT(OUT) :: x            ! Real number to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc ! Description of command-line argument
@@ -224,7 +215,6 @@ CONTAINS
    SUBROUTINE read_command_argument_character(i, x, desc, def)
 
       ! Read command-line argument i and use to to fill variable x
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i                      ! Position of command-line argument
       CHARACTER(len=*), INTENT(OUT) :: x            ! String to be assigned command-line argument
       CHARACTER(len=*), INTENT(IN) :: desc          ! Description of command-line argument
@@ -250,7 +240,6 @@ CONTAINS
 
       ! Logical function that returns .TRUE. if x>=0.
       ! If x=0. will return true
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
 
       IF (x < 0.) THEN
@@ -264,7 +253,6 @@ CONTAINS
    LOGICAL FUNCTION negative(x)
 
       ! Returns true if argument is negative
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
 
       IF (positive(x)) THEN
@@ -278,7 +266,6 @@ CONTAINS
    LOGICAL FUNCTION even(i)
 
       ! Tests for i being even, returns true if even
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i
 
       IF (mod(i, 2) == 0) THEN
@@ -292,7 +279,6 @@ CONTAINS
    LOGICAL FUNCTION odd(i)
 
       ! Tests for i being odd, returns true if odd
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i
 
       IF (even(i)) THEN
@@ -308,7 +294,6 @@ CONTAINS
       ! Tests if two REAL numbers are within some tolerance of each other
       ! If they are, then they should be considered equal
       ! Adapted from https://stackoverflow.com/questions/4915462/how-should-i-do-floating-point-comparison/4915891#4915891
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: y
       REAL, INTENT(IN) :: eps
@@ -339,7 +324,6 @@ CONTAINS
    LOGICAL FUNCTION present_and_correct(x)
 
       ! Returns true if an optional argument is both present and true
-      IMPLICIT NONE
       LOGICAL, OPTIONAL, INTENT(IN) :: x
 
       IF (present(x)) THEN
@@ -357,7 +341,6 @@ CONTAINS
    INTEGER FUNCTION first_digit(x)
 
       ! Returns the first non-zero digit of a real number
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL :: y
 
@@ -382,7 +365,6 @@ CONTAINS
    SUBROUTINE swap_real(a, b)
 
       ! Swaps the values of variables a and b
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: a
       REAL, INTENT(INOUT) :: b
       REAL :: c
@@ -396,7 +378,6 @@ CONTAINS
    SUBROUTINE swap_int(n, m)
 
       ! Swap integers n and m in the most memory-efficient way possible
-      IMPLICIT NONE
       INTEGER, INTENT(INOUT) :: n
       INTEGER, INTENT(INOUT) :: m
 

@@ -28,12 +28,12 @@ PROGRAM accept_reject_demo
   
 CONTAINS
 
-  REAL FUNCTION f(x)
+  REAL FUNCTION f(xx)
 
     IMPLICIT NONE
-    REAL, INTENT(IN) :: x
+    REAL, INTENT(IN) :: xx
 
-    f=x**2
+    f=xx**2
 
   END FUNCTION f
 

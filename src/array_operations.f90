@@ -1,21 +1,5 @@
 MODULE array_operations
 
-   ! These interfaces did not work if -fdefault-real-8 and -fdefault-real-8 were set
-!!$  INTERFACE fill_array
-!!$     MODULE PROCEDURE fill_array_single
-!!$     MODULE PROCEDURE fill_array_double
-!!$  END INTERFACE fill_array
-!!$
-!!$  INTERFACE progression
-!!$     MODULE PROCEDURE progression_single
-!!$     MODULE PROCEDURE progression_double
-!!$  END INTERFACE progression
-!!$
-!!$  INTERFACE progression_log
-!!$     MODULE PROCEDURE progression_log_single
-!!$     MODULE PROCEDURE progression_log_double
-!!$  END INTERFACE progression_log
-
    IMPLICIT NONE
 
    PRIVATE
@@ -56,6 +40,22 @@ MODULE array_operations
    PUBLIC :: fill_array
    !PUBLIC :: fill_array_double ! TODO: Delete
    PUBLIC :: fill_array_log
+
+!!$  ! These interfaces did not work if -fdefault-real-8 and -fdefault-real-8 were set
+!!$  INTERFACE fill_array
+!!$     MODULE PROCEDURE fill_array_single
+!!$     MODULE PROCEDURE fill_array_double
+!!$  END INTERFACE fill_array
+!!$
+!!$  INTERFACE progression
+!!$     MODULE PROCEDURE progression_single
+!!$     MODULE PROCEDURE progression_double
+!!$  END INTERFACE progression
+!!$
+!!$  INTERFACE progression_log
+!!$     MODULE PROCEDURE progression_log_single
+!!$     MODULE PROCEDURE progression_log_double
+!!$  END INTERFACE progression_log
 
    INTERFACE is_in_array
       MODULE PROCEDURE is_in_array_integer

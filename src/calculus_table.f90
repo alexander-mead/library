@@ -20,7 +20,6 @@ CONTAINS
       USE table_integer
       USE special_functions
       USE array_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xin(:)
       REAL, INTENT(IN) :: yin(:)
@@ -209,7 +208,6 @@ CONTAINS
       
       ! Integrates tables y(x)dx
       USE special_functions
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: y(:)
       INTEGER, INTENT(IN) :: n1
@@ -359,7 +357,6 @@ CONTAINS
    REAL FUNCTION integrate_table_2D(x, y, F)
 
       ! A crude integration scheme for tabulated 2D functions
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: y(:)
       REAL, INTENT(IN) :: F(:, :)

@@ -277,8 +277,8 @@ CONTAINS
       REAL :: x, y, f
 
       INTERFACE
-         FUNCTION func(x)
-            REAL, INTENT(IN) :: x
+         FUNCTION func(xin)
+            REAL, INTENT(IN) :: xin
          END FUNCTION func
       END INTERFACE
 

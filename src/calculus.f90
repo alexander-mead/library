@@ -22,7 +22,6 @@ CONTAINS
    REAL FUNCTION derivative_1D(f, x, acc)
 
       ! Calculates the derivative of a function 'f' at the point x to accuracy acc!
-      IMPLICIT NONE
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: acc
@@ -63,7 +62,6 @@ CONTAINS
    REAL FUNCTION derivative_2D(f, x, y, acc, dim)
 
       ! Calculates the derivative of a function 'f' at the point x, y along dimension dim to accuracy acc!
-      IMPLICIT NONE
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: y
@@ -128,7 +126,6 @@ CONTAINS
    REAL FUNCTION derivative_y(f, x, y, acc)
 
       ! Calculates the derivative of a function 'f' at the point x to accuracy acc!
-      IMPLICIT NONE
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: y
@@ -172,7 +169,6 @@ CONTAINS
 
       ! Integrates between a and b with n points; not adaptive so no error control
       USE basic_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a ! Integration limits
       REAL, INTENT(IN) :: b ! Integration limits
       REAL, EXTERNAL :: f
@@ -252,7 +248,6 @@ CONTAINS
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
       USE basic_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
       REAL, EXTERNAL :: f
@@ -357,8 +352,7 @@ CONTAINS
 
    REAL FUNCTION integrate_log(a, b, f, acc, iorder, ilog)
 
-      ! Integrates between a and b until desired accuracy is reached!
-      IMPLICIT NONE
+      ! Integrates between a and b until desired accuracy is reached
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
       REAL, EXTERNAL :: f
@@ -487,7 +481,6 @@ CONTAINS
       ! Fits a cubic between successive 4 points
       ! Only useful if points are not eqaully spaced, thus this routine is probably redundant
       USE special_functions
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
       REAL, EXTERNAL :: f
@@ -587,7 +580,6 @@ CONTAINS
 
       ! Integrates between a and b until desired accuracy is reached
       ! Uses a Jacobian to speed up the integration
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
       REAL, EXTERNAL :: f
@@ -713,7 +705,6 @@ CONTAINS
 
       ! Integrates between a and b with n points; not adaptive so no error control
       USE random_numbers
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a ! Integration limits
       REAL, INTENT(IN) :: b ! Integration limits
       REAL, EXTERNAL :: f

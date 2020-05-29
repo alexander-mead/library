@@ -34,7 +34,6 @@ CONTAINS
       USE file_info
       USE constants
       USE basic_operations
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
       INTEGER, INTENT(OUT) :: nk
@@ -78,7 +77,6 @@ CONTAINS
       ! Note that this assumes there is one comment line
       USE file_info
       USE basic_operations
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Tk(:,:)
       INTEGER, INTENT(OUT) :: nk
