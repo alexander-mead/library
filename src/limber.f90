@@ -1263,7 +1263,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(projection), INTENT(INOUT) :: proj
 
-      integrate_nz = integrate_table(proj%z_nz, proj%nz, proj%nnz, 1, proj%nnz, proj%order_nz)
+      integrate_nz = integrate_table(proj%z_nz, proj%nz, 1, proj%nnz, proj%order_nz)
 
    END FUNCTION integrate_nz
 

@@ -14,7 +14,7 @@ MODULE calculus_table
 
 CONTAINS
 
-   REAL FUNCTION derivative_table(x, xin, yin, n, iorder, ifind)
+   REAL FUNCTION derivative_table(x, xin, yin, iorder, ifind)
 
       ! Given two arrays x and y such that y=y(x) this uses interpolation to calculate the derivative y'(x_i) at position x_i
       USE table_integer
@@ -22,16 +22,15 @@ CONTAINS
       USE array_operations
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: xin(n)
-      REAL, INTENT(IN) :: yin(n)
+      REAL, INTENT(IN) :: xin(:)
+      REAL, INTENT(IN) :: yin(:)
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
-      REAL ::  xtab(n), ytab(n)
+      REAL, ALLOCATABLE ::  xtab(:), ytab(:)
       REAL :: a, b, c, d
       REAL :: x1, x2, x3, x4
       REAL :: y1, y2, y3, y4
-      INTEGER :: i 
+      INTEGER :: i, n
 
       ! This version interpolates if the value is off either end of the array!
       ! Care should be chosen to insert x, xtab, ytab as log if this might give better!
@@ -44,6 +43,10 @@ CONTAINS
       ! iorder = 1 => linear interpolation
       ! iorder = 2 => quadratic interpolation
       ! iorder = 3 => cubic interpolation
+
+      n = size(xin)
+      IF (n /= size(yin)) STOP 'DERIVATIVE_TABLE: Input x and y arrays should be of the same size'
+      ALLOCATE(xtab(n), ytab(n))
 
       xtab = xin
       ytab = yin
@@ -202,14 +205,13 @@ CONTAINS
 
    END FUNCTION derivative_table
 
-   REAL FUNCTION integrate_table_1D(x, y, n, n1, n2, iorder)
+   REAL FUNCTION integrate_table_1D(x, y, n1, n2, iorder)
       
       ! Integrates tables y(x)dx
       USE special_functions
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: x(n)
-      REAL, INTENT(IN) :: y(n)
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: y(:)
       INTEGER, INTENT(IN) :: n1
       INTEGER, INTENT(IN) :: n2
       INTEGER, INTENT(IN) :: iorder
@@ -217,14 +219,24 @@ CONTAINS
       REAL :: q1, q2, q3, qi, qf
       REAL :: x1, x2, x3, x4, y1, y2, y3, y4, xi, xf
       DOUBLE PRECISION :: sum
-      INTEGER :: i, i1, i2, i3, i4
+      INTEGER :: i, i1, i2, i3, i4, n
+
+      n = size(x)
+      IF (n /= size(y)) STOP 'INTEGRATE_TABLE_1D: Error, x and y should be the same size'
+      IF (n1 < 1) STOP 'INTEGRATE_TABLE_1D: Error, n1 cannot be less than 1'
+      IF (n2 > n) STOP 'INTEGRATE_TABLE_1D: Error, n2 cannot be greater than n'
+      IF (n2 < n1) STOP 'INTEGRATE_TABLE_1D: Error, n2 cannot be less than n1'
 
       sum = 0.d0
 
       ! I think if n1=n2 then the result will just be zero anyway
       !IF(n2<=n1) STOP 'INTEGRATE_TABLE: Error n2 must be greater than n1'
 
-      IF(iorder==0) THEN
+      IF (n1 == n2) THEN
+
+         integrate_table_1D = 0.
+
+      ELSE IF(iorder==0) THEN
 
          ! Data must be evenly spaced for zeroth order to work
          ! x coordinates must represent bin centres
@@ -344,18 +356,21 @@ CONTAINS
 
    END FUNCTION integrate_table_1D
 
-   REAL FUNCTION integrate_table_2D(x, y, F, nx, ny)
+   REAL FUNCTION integrate_table_2D(x, y, F)
 
       ! A crude integration scheme for tabulated 2D functions
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: nx
-      INTEGER, INTENT(IN) :: ny
-      REAL, INTENT(IN) :: x(nx)
-      REAL, INTENT(IN) :: y(ny)
-      REAL, INTENT(IN) :: F(nx, ny)
-      INTEGER :: ix, iy
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: y(:)
+      REAL, INTENT(IN) :: F(:, :)
+      INTEGER :: ix, iy, nx, ny
       DOUBLE PRECISION :: sum
       REAL :: dx, dy
+
+      nx = size(x)
+      ny = size(y)
+      IF (nx /= size(F, 1)) STOP 'INTEGRATE_TABLE_2D: Size of x must be the same size as the first dimension of F'
+      IF (ny /= size(F, 2)) STOP 'INTEGRATE_TABLE_2D: Size of y must be the same size as the second dimension of F'
 
       ! Set the sum variable to zero
       sum = 0.

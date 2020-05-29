@@ -120,13 +120,13 @@ CONTAINS
       INTEGER :: i
       INTEGER, PARAMETER :: iorder=0 ! Zeroth-order (histogram) integration and plenty of points are best here
 
-      norm=integrate_table(x, p, n, 1, n, iorder)
+      norm = integrate_table(x, p, 1, n, iorder)
 
-      DO i=1,n
-         c(i)=integrate_table(x, p, n, 1, i, iorder)
+      DO i = 1, n
+         c(i) = integrate_table(x, p, 1, i, iorder)
       END DO
 
-      c=c/norm
+      c = c/norm
 
    END SUBROUTINE cumulative_distribution
 

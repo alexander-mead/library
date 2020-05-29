@@ -638,6 +638,9 @@ CONTAINS
       names(94) = 'Standard but with Reed (2007) mass function'
       names(95) = 'HMcode (2016) with neutrino bug fix and CAMB mass range'
       names(96) = 'Standard but with Bhattacharya (2011) mass function'
+      names(97) = 'Standard but with sigma calculated for all matter'
+      names(98) = 'Standard but with no DMONLY correction for neutrinos'
+      names(99) = 'Standard but with sigma calculated for normalised cold matter'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -889,22 +892,6 @@ CONTAINS
 
       ! Safeguard against negative terms in cross correlations
       hmod%safe_negative = .FALSE.
-
-      ! HMcode (2016) parameters
-      !hmod%Dv0 = 418.
-      !hmod%Dv1 = -0.352
-      !hmod%dc0 = 1.59
-      !hmod%dc1 = 0.0314
-      !hmod%eta0 = 0.603
-      !hmod%eta1 = 0.300  
-      !hmod%f0 = 0.0095
-      !hmod%f1 = 1.37
-      !hmod%ks = 0.584
-      !hmod%As = 3.13
-      !hmod%alp0 = 3.24
-      !hmod%alp1 = 1.85
-      !hmod%Dvnu = 0.916
-      !hmod%dcnu = 0.262
 
       ! HMcode unfitted parameters
       hmod%Dv0 = 200.
@@ -1198,7 +1185,6 @@ CONTAINS
             hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
             hmod%ip2h = 3    ! 3 - Linear theory with damped wiggles
             hmod%i2hdamp = 1 ! 1 - Change back to Mead (2015) model for two-halo damping
-            !hmod%iDolag = 1  ! 4 - Dolag with neutrinos removed and z dependence
             hmod%DMONLY_neutrino_correction = .TRUE. ! Neutrino bug fix
             ! Model 1: Fits at 0.0196 to FrankenEmu nodes
             hmod%Dv0 = 411.
@@ -1779,12 +1765,12 @@ CONTAINS
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
          hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
          hmod%iconc = 1   ! 1 - Bullock c(M) relation   
-         hmod%iDolag = 1  ! 1 - Dolag c(M) correction
+         hmod%iDolag = 3  ! 3 - Dolag c(M) correction with sensible z evolution
          hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
          hmod%ieta = 2    ! 2 - eta with cold matter dependence
          hmod%flag_sigma = flag_power_cold_unorm  ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_correction = .TRUE. ! Correct haloes for missing neutrino mass
-         hmod%zinf_Dolag = 10. ! Why is 100 not better than 10? This is very strange
+         hmod%zinf_Dolag = 10. ! Why is 100 not better than 10? This is very strange!
          IF (ihm == 78) THEN
             ! Model 1: 0.00796 for Cosmic Emu
             !hmod%f0 = 0.2271961
@@ -1830,7 +1816,7 @@ CONTAINS
             !hmod%ST_p = 0.0100154
             !hmod%ST_q = 0.9968444
             !hmod%Ap = -0.0102720
-            ! Model 3: 0.015... for FrankenEmu
+            ! Model 3: 0.015... for Franken Emu
             !hmod%f0 = 0.2385760
             !hmod%f1 = 0.8145470
             !hmod%ks = 0.1398440
@@ -1845,7 +1831,7 @@ CONTAINS
             !hmod%As = 1.8618050
             !hmod%Ap = -0.0872705
             !hmod%Ac = 1.7020399
-            ! Model 4: 0.0149 for FrankenEmu
+            ! Model 4: 0.0149 for Franken Emu
             !hmod%f0 = 0.2735763
             !hmod%f1 = 0.9041968
             !hmod%ks = 0.0194499
@@ -1862,23 +1848,61 @@ CONTAINS
             !hmod%As = 3.9239514
             !hmod%Ap = 0.0636166
             !hmod%Ac = 0.0134060
-            ! Model 5: 0.0146 for FrankenEmu
-            hmod%f0 = 0.2538956
-            hmod%f1 = 0.9909891
-            hmod%ks = 0.0246816 
-            hmod%kp = -0.2245492
-            hmod%kd = 0.0472928
-            hmod%kdp = -0.1131986
-            hmod%eta0 = 0.2625362
-            hmod%eta1 = 0.0504991
-            hmod%alp0 = 2.5374596
-            hmod%alp1 = 1.8214684
-            hmod%Amf = 1.3388167
-            hmod%ST_p = 0.2805521
-            hmod%ST_q = 0.8121307
-            hmod%As = 3.6774614
-            hmod%Ap = -0.1209546
-            hmod%Ac = 0.2772131
+            ! Model 5: 0.0146 for Franken Emu
+            !hmod%f0 = 0.2538956
+            !hmod%f1 = 0.9909891
+            !hmod%ks = 0.0246816 
+            !hmod%kp = -0.2245492
+            !hmod%kd = 0.0472928
+            !hmod%kdp = -0.1131986
+            !hmod%eta0 = 0.2625362
+            !hmod%eta1 = 0.0504991
+            !hmod%alp0 = 2.5374596
+            !hmod%alp1 = 1.8214684
+            !hmod%Amf = 1.3388167
+            !hmod%ST_p = 0.2805521
+            !hmod%ST_q = 0.8121307
+            !hmod%As = 3.6774614
+            !hmod%Ap = -0.1209546
+            !hmod%Ac = 0.2772131
+            !hmod%dcnu = 0.2594089 ! Fitted separately to Mira Titan
+            !hmod%Dvnu = 0.4946688 ! Fitted separately to Mira Titan
+            ! Model 6: 0.0160 to both Franken Emu and Mira Titan
+            !hmod%f0 = 0.2990829
+            !hmod%f1 = 1.1481055
+            !hmod%ks = 0.0281139
+            !hmod%kp = -0.1769449
+            !hmod%kd = 0.0561848
+            !hmod%kdp = 0.0228758
+            !hmod%eta0 = 0.2265319
+            !hmod%eta1 = 0.0095795
+            !hmod%alp0 = 2.4050830
+            !hmod%alp1 = 1.7988408
+            !hmod%Amf = 1.3956430
+            !hmod%ST_p = 0.2867586
+            !hmod%ST_q = 0.8330417
+            !hmod%As = 3.8584895
+            !hmod%Ap = -0.0108849
+            !hmod%Ac = 0.0153846
+            !hmod%dcnu = 0.2452052
+            !hmod%Dvnu = 0.4495748
+            ! Model 7: 0.0177 to both Franken Emu and Mira Titan
+            hmod%f0 = 0.3132952
+            hmod%f1 = 1.5591001
+            hmod%ks = 0.1252834
+            hmod%kp = -0.4107868
+            hmod%kd = 0.1540913
+            hmod%kdp = -0.4937408
+            hmod%eta0 = 0.3030239
+            hmod%eta1 = 0.1771059
+            hmod%alp0 = 2.1154734
+            hmod%alp1 = 1.6505890
+            hmod%Amf = 1.0847464
+            hmod%As = 4.8750666
+            hmod%Ap = -0.1699759
+            hmod%Ac = 0.0268175
+            hmod%dcnu = 0.2925850
+            hmod%Dvnu = 0.2759674
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
@@ -1912,6 +1936,15 @@ CONTAINS
          ! Bhattacharya (2011) mass function
          ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
          hmod%imf = 10
+      ELSE IF (ihm == 97) THEN
+         ! Sigma calculated from total matter power
+         hmod%flag_sigma = flag_power_total
+      ELSE IF (ihm == 98) THEN
+         ! No correction for neutrino mass applied to DMONLY haloes
+         hmod%DMONLY_neutrino_correction = .FALSE.        
+      ELSE IF (ihm == 99) THEN
+         ! Cold sigma calculated using 1+delta_c = rho_c/mean_rho_m
+         hmod%flag_sigma = flag_power_cold
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -1956,10 +1989,11 @@ CONTAINS
       ! Calculate sigma_v
       ! TODO: This is really a 'cosmology' thing
       ! TODO: This is only necessary for some halo models
-      hmod%sigv = sigmaV(0., a, flag_power_total, cosm) 
+      hmod%sigv = sigmaV(0., a, flag_power_total, cosm)
+      !hmod%sigv = sigmaV(0., a, flag_power_cold_unorm, cosm) 
 
       ! Calcuate delta_c and Delta_v
-      ! Sometimes these calculations rely on the sigma that should be calculated before this
+      ! Sometimes these calculations rely on the sigmas that should be calculated before this
       hmod%dc = delta_c(hmod, cosm)
       hmod%Dv = Delta_v(hmod, cosm)
 
@@ -2348,9 +2382,9 @@ CONTAINS
 
          ! Large-scale one-halo term damping function
          IF (hmod%i1hdamp == 0) WRITE (*, *) 'HALOMODEL: No damping in one-halo term at large scales'
-         IF (hmod%i1hdamp == 1) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping via an exponential'
-         IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping like Delta^2 ~ k^7'
-         IF (hmod%i1hdamp == 3) WRITE (*, *) 'HALOMODEL: One-halo term large-scale damping like P(k) ~ k^4'
+         IF (hmod%i1hdamp == 1) WRITE (*, *) 'HALOMODEL: One-halo large-scale damping via an exponential'
+         IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo large-scale damping P(k) ~ k^4 with simple k'
+         IF (hmod%i1hdamp == 3) WRITE (*, *) 'HALOMODEL: One-halo large-scale damping P(k) ~ k^4 with complex k'
 
          ! Concentration-mass scaling
          IF (hmod%iAs == 0) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
@@ -2416,7 +2450,11 @@ CONTAINS
          WRITE (*, fmt=fmt) 'f1:', hmod%f1
          WRITE (*, fmt=fmt) 'ks:', hmod%ks
          WRITE (*, fmt=fmt) 'kp:', hmod%kp
+         WRITE (*, fmt=fmt) 'kd:', hmod%kd
+         WRITE (*, fmt=fmt) 'kdp:', hmod%kdp
          WRITE (*, fmt=fmt) 'As:', hmod%As
+         WRITE (*, fmt=fmt) 'Ap:', hmod%Ap
+         WRITE (*, fmt=fmt) 'Ac:', hmod%Ac
          WRITE (*, fmt=fmt) 'alpha0:', hmod%alp0
          WRITE (*, fmt=fmt) 'alpha1:', hmod%alp1
          WRITE (*, fmt=fmt) 'Dvnu:', hmod%Dvnu
@@ -3309,14 +3347,14 @@ CONTAINS
 
       IF (use_quick_matter) THEN
 
-         IF (repeated_entries(fields, nf)) STOP 'INIT_WINDOWS: Error, repeated fields'
+         IF (repeated_entries(fields)) STOP 'INIT_WINDOWS: Error, repeated fields'
 
          ! Get the array positions corresponding to all, cdm, gas, stars, (neutrinos) if they exist
-         i_all = array_position(field_matter, fields, nf)
-         i_cdm = array_position(field_cdm, fields, nf)
-         i_gas = array_position(field_gas, fields, nf)
-         i_sta = array_position(field_stars, fields, nf)
-         i_neu = array_position(field_neutrino, fields, nf)
+         i_all = array_position(field_matter, fields)
+         i_cdm = array_position(field_cdm, fields)
+         i_gas = array_position(field_gas, fields)
+         i_sta = array_position(field_stars, fields)
+         i_neu = array_position(field_neutrino, fields)
 
          ! If all, cdm, gas and stars exist then activate the quick-matter mode
          IF (cosm%f_nu == 0.) THEN
@@ -3381,14 +3419,14 @@ CONTAINS
       INTEGER :: i, i_matter, i_gas, i_freegas, i_pressure, i_dmonly, i_neutrino
 
       ! Check for repeated fields
-      IF (repeated_entries(fields, nf)) STOP 'ADD_SMOOTH_COMPONENT_TO_WINDOWS: Error, repeated fields'
+      IF (repeated_entries(fields)) STOP 'ADD_SMOOTH_COMPONENT_TO_WINDOWS: Error, repeated fields'
 
       ! Add in neutrinos
       ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
       IF (cosm%f_nu /= 0. .AND. hmod%halo_neutrino == 1) THEN
-         i_dmonly = array_position(field_dmonly, fields, nf)
-         i_matter = array_position(field_matter, fields, nf)
-         i_neutrino = array_position(field_neutrino, fields, nf)
+         i_dmonly = array_position(field_dmonly, fields)
+         i_matter = array_position(field_matter, fields)
+         i_neutrino = array_position(field_neutrino, fields)
          IF (i_matter == 0 .AND. i_dmonly == 0 .AND. i_neutrino == 0) THEN
             ! Do nothing
          ELSE
@@ -3405,7 +3443,7 @@ CONTAINS
 
       ! Undo the simple baryon recipe
       IF (hmod%DMONLY_baryon_recipe) THEN
-         i_dmonly = array_position(field_dmonly, fields, nf)
+         i_dmonly = array_position(field_dmonly, fields)
          IF (i_dmonly /= 0) THEN
             DO i = 1, hmod%n
                wk(i, i_dmonly) = unbaryonify_wk(wk(i, i_dmonly), hmod%m(i), hmod, cosm)
@@ -3416,10 +3454,10 @@ CONTAINS
       IF (hmod%halo_ejected_gas == 7) THEN
 
          ! Get the array positions corresponding to all, gas, pressure if they exist
-         i_matter = array_position(field_matter, fields, nf)
-         i_gas = array_position(field_gas, fields, nf)
-         i_freegas = array_position(field_ejected_gas, fields, nf)
-         i_pressure = array_position(field_electron_pressure, fields, nf)
+         i_matter = array_position(field_matter, fields)
+         i_gas = array_position(field_gas, fields)
+         i_freegas = array_position(field_ejected_gas, fields)
+         i_pressure = array_position(field_electron_pressure, fields)
 
          IF (i_matter == 0 .AND. i_gas == 0 .AND. i_pressure == 0 .AND. i_freegas == 0) THEN
 
@@ -3619,9 +3657,9 @@ CONTAINS
             END DO
 
             Inl_11 = I_11*hmod%gbmin**2
-            Inl_12 = integrate_table(hmod%nu, I_12, n, 1, n, iorder=1)*hmod%gbmin*(wk(1, 1)*rhom/hmod%m(1))
-            Inl_21 = integrate_table(hmod%nu, I_21, n, 1, n, iorder=1)*hmod%gbmin*(wk(1, 2)*rhom/hmod%m(1))
-            Inl_22 = integrate_table(hmod%nu, hmod%nu, I_22, n, n)
+            Inl_12 = integrate_table(hmod%nu, I_12, 1, n, iorder=1)*hmod%gbmin*(wk(1, 1)*rhom/hmod%m(1))
+            Inl_21 = integrate_table(hmod%nu, I_21, 1, n, iorder=1)*hmod%gbmin*(wk(1, 2)*rhom/hmod%m(1))
+            Inl_22 = integrate_table(hmod%nu, hmod%nu, I_22)
 
             Inl = Inl_22
             IF (add_I_11)          Inl = Inl+Inl_11
@@ -3718,7 +3756,7 @@ CONTAINS
       END DO
 
       ! Evaluate these integrals from the tabulated values
-      int = integrate_table(hmod%nu, integrand, n, 1, n, iorder)
+      int = integrate_table(hmod%nu, integrand, 1, n, iorder)
 
       IF (ibias == 1) THEN
 
@@ -3783,7 +3821,7 @@ CONTAINS
          END DO
 
          ! Carries out the integration
-         p_1h = rhom*integrate_table(hmod%nu, integrand, n, 1, n, iorder_hm)
+         p_1h = rhom*integrate_table(hmod%nu, integrand, 1, n, iorder_hm)
 
       END IF
 
@@ -3933,7 +3971,7 @@ CONTAINS
       IF (simple) THEN
          p_1void = wk**2/V
       ELSE
-         p_1void = integrate_table(hmod%nu, integrand, n, 1, n, 1)
+         p_1void = integrate_table(hmod%nu, integrand, 1, n, 1)
       END IF
 
       p_1void = p_1void*(4.*pi)*(k/twopi)**3
@@ -4144,7 +4182,7 @@ CONTAINS
          END DO
 
          ! Carries out the integration
-         T_1h = integrate_table(hmod%nu, integrand, hmod%n, 1, hmod%n, iorder_hm)
+         T_1h = integrate_table(hmod%nu, integrand, 1, hmod%n, iorder_hm)
 
       END IF
 
@@ -4438,7 +4476,7 @@ CONTAINS
          delta_c = dc_NakamuraSuto(a, cosm)
       ELSE IF (hmod%idc == 3 .OR. hmod%idc == 6) THEN
          ! From HMcode (2015)
-         ! TODO: It may be more logical to have a flag_power_cold dependence
+         ! TODO: It may have been more logical to have a flag_power_cold dependence
          sig = sigma(8., a, flag_power_total, cosm)
          delta_c = hmod%dc0+hmod%dc1*log(sig)
          IF (hmod%idc == 3) THEN
@@ -4449,6 +4487,7 @@ CONTAINS
       ELSE IF (hmod%idc == 4) THEN
          ! From Mead (2017) fitting function
          delta_c = dc_Mead(a, cosm)
+         delta_c = delta_c*(1.+hmod%dcnu*cosm%f_nu)
       ELSE IF (hmod%idc == 5) THEN
          ! From spherical-collapse calculation
          delta_c = dc_spherical(a, cosm)
@@ -4487,6 +4526,7 @@ CONTAINS
       ELSE IF (hmod%iDv == 4) THEN
          ! From Mead (2017) fitting function
          Delta_v = Dv_Mead(a, cosm)
+         Delta_v = Delta_v*(1.+hmod%Dvnu*cosm%f_nu)
       ELSE IF (hmod%iDv == 5) THEN
          ! From spheircal-collapse calculation
          Delta_v = Dv_spherical(a, cosm)
@@ -4561,6 +4601,7 @@ CONTAINS
       ELSE IF (hmod%i2hdamp == 3) THEN
          ! HMcode (2020)
          sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+         !sig = sigma(8., hmod%a, flag_power_total, cosm)
          HMcode_fdamp = hmod%f0*sig**hmod%f1
       ELSE
          STOP 'HMcode_FDAMP: Error, i2hdamp defined incorrectly'
@@ -5585,7 +5626,7 @@ CONTAINS
             m = hmod%m(i)
             integrand(i) = g*m
          END DO
-         one_halo_amplitude = integrate_table(hmod%nu, integrand, hmod%n, 1, hmod%n, 1)
+         one_halo_amplitude = integrate_table(hmod%nu, integrand, 1, hmod%n, 1)
       END IF
 
       one_halo_amplitude = one_halo_amplitude/comoving_matter_density(cosm)
@@ -5624,7 +5665,7 @@ CONTAINS
          multiplicity_function = 0.
       ELSE
          nu = nu_M(m, hmod, cosm)
-         dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, hmod%n, iorder, ifind)
+         dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, iorder, ifind)
          multiplicity_function = g_nu(nu, hmod)*dnu_dlnm
       END IF
 

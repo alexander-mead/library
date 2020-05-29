@@ -3966,7 +3966,7 @@ CONTAINS
          IF (i > 1) THEN
             cosm%log_acc_growth(i) = integrate_table(cosm%log_a_growth, &
                cosm%gnorm*cosm%log_growth/cosm%log_a_growth, &
-               ng, 1, i, iorder_agrow)
+               1, i, iorder_agrow)
          END IF
 
          ! Then add on the section that is missing from the beginning

@@ -8,8 +8,11 @@ MODULE interpolate
 
    PRIVATE
 
+   ! Functions
    PUBLIC :: find
    PUBLIC :: interpolate_array
+
+   ! Integers for interpolation polynomials
    PUBLIC :: iinterp_polynomial
    PUBLIC :: iinterp_Lagrange
 
