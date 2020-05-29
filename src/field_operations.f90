@@ -408,8 +408,8 @@ CONTAINS
       CLOSE (7)
       WRITE (*, *) 'READ_FIELD_BINARY_2D: Minimum field value:', minval(d)
       WRITE (*, *) 'READ_FIELD_BINARY_2D: Maximum field value:', maxval(d)
-      WRITE (*, *) 'READ_FIELD_BINARY_2D: Average:', mean(splay(d, m, m), m**2)
-      WRITE (*, *) 'READ_FIELD_BINARY_2D: Variance:', variance(splay(d, m, m), m**2)
+      WRITE (*, *) 'READ_FIELD_BINARY_2D: Average:', mean(splay(d, m, m))
+      WRITE (*, *) 'READ_FIELD_BINARY_2D: Variance:', variance(splay(d, m, m))
       WRITE (*, *) 'READ_FIELD_BINARY_2D: Done'
       WRITE (*, *)
 
@@ -450,8 +450,8 @@ CONTAINS
       CLOSE (7)
       WRITE (*, *) 'READ_FIELD_BINARY_3D: Minval:', minval(d)
       WRITE (*, *) 'READ_FIELD_BINARY_3D: Maxval:', maxval(d)
-      WRITE (*, *) 'READ_FIELD_BINARY_3D: Average:', mean(splay(d, m, m, m), m**3)
-      WRITE (*, *) 'READ_FIELD_BINARY_3D: Variance:', variance(splay(d, m, m, m), m**3)
+      WRITE (*, *) 'READ_FIELD_BINARY_3D: Average:', mean(splay(d, m, m, m))
+      WRITE (*, *) 'READ_FIELD_BINARY_3D: Variance:', variance(splay(d, m, m, m))
       WRITE (*, *) 'READ_FIELD_BINARY_3D: Done'
       WRITE (*, *)
 
@@ -1188,8 +1188,8 @@ CONTAINS
          WRITE (*, *) 'CLIP: Mesh:', m1, m2, m3
       END IF
 
-      av1 = mean(splay(d, m1, m2, m3), m1*m2*m3)
-      var1 = variance(splay(d, m1, m2, m3), m1*m2*m3)
+      av1 = mean(splay(d, m1, m2, m3))
+      var1 = variance(splay(d, m1, m2, m3))
       max1 = maxval(d)
 
       IF (verbose) THEN
@@ -1212,8 +1212,8 @@ CONTAINS
 
       IF (verbose) WRITE (*, *) 'CLIP: Density field clipped'
 
-      av2 = mean(splay(d, m1, m2, m3), m1*m2*m3)
-      var2 = variance(splay(d, m1, m2, m3), m1*m2*m3)
+      av2 = mean(splay(d, m1, m2, m3))
+      var2 = variance(splay(d, m1, m2, m3))
       max2 = maxval(d)
 
       IF (verbose) THEN
@@ -1243,8 +1243,8 @@ CONTAINS
          WRITE (*, *) 'Mesh:', m
       END IF
 
-      av1 = mean(splay(d, m1, m2, m3), m1*m2*m3)
-      var1 = variance(splay(d, m1, m2, m3), m1*m2*m3)
+      av1 = mean(splay(d, m1, m2, m3))
+      var1 = variance(splay(d, m1, m2, m3))
       min1 = minval(d)
 
       IF (verbose) THEN
@@ -1267,8 +1267,8 @@ CONTAINS
 
       IF (verbose) WRITE (*, *) 'Over-density field clipped'
 
-      av2 = mean(splay(d, m1, m2, m3), m1*m2*m3)
-      var2 = variance(splay(d, m1, m2, m3), m1*m2*m3)
+      av2 = mean(splay(d, m1, m2, m3))
+      var2 = variance(splay(d, m1, m2, m3))
       min2 = minval(d)
 
       IF (verbose) THEN

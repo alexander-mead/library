@@ -2,6 +2,8 @@ MODULE special_functions
 
    USE constants
 
+   IMPLICIT NONE
+
    PRIVATE
 
    ! Integer functions
@@ -48,9 +50,12 @@ CONTAINS
    SUBROUTINE fix_linear(a1, a0, x1, y1, x2, y2)
 
       ! Given xi, yi i=1,2 fits a line between these points
-      IMPLICIT NONE
-      REAL, INTENT(OUT) :: a0, a1
-      REAL, INTENT(IN) :: x1, y1, x2, y2
+      REAL, INTENT(OUT) :: a1
+      REAL, INTENT(OUT) :: a0 
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: y1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: y2
 
       a1 = (y2-y1)/(x2-x1)
       a0 = y1-a1*x1
@@ -60,9 +65,15 @@ CONTAINS
    SUBROUTINE fix_quadratic(a2, a1, a0, x1, y1, x2, y2, x3, y3)
 
       ! Given xi, yi i=1,2,3 fits a quadratic between these points
-      IMPLICIT NONE
-      REAL, INTENT(OUT) :: a0, a1, a2
-      REAL, INTENT(IN) :: x1, y1, x2, y2, x3, y3
+      REAL, INTENT(OUT) :: a2
+      REAL, INTENT(OUT) :: a1
+      REAL, INTENT(OUT) :: a0
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: y1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: y2
+      REAL, INTENT(IN) :: x3
+      REAL, INTENT(IN) :: y3
 
       a2 = ((y2-y1)/(x2-x1)-(y3-y1)/(x3-x1))/(x2-x3)
       a1 = (y2-y1)/(x2-x1)-a2*(x2+x1)
@@ -73,9 +84,18 @@ CONTAINS
    SUBROUTINE fix_cubic(a, b, c, d, x1, y1, x2, y2, x3, y3, x4, y4)
 
       ! Given xi, yi i=1,2,3,4 fits a cubic between these points
-      IMPLICIT NONE
-      REAL, INTENT(OUT) :: a, b, c, d
-      REAL, INTENT(IN) :: x1, y1, x2, y2, x3, y3, x4, y4
+      REAL, INTENT(OUT) :: a
+      REAL, INTENT(OUT) :: b
+      REAL, INTENT(OUT) :: c
+      REAL, INTENT(OUT) :: d
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: y1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: y2
+      REAL, INTENT(IN) :: x3
+      REAL, INTENT(IN) :: y3
+      REAL, INTENT(IN) :: x4
+      REAL, INTENT(IN) :: y4
       REAL :: f1, f2, f3
 
       f1 = (y4-y1)/((x4-x2)*(x4-x1)*(x4-x3))
@@ -104,7 +124,6 @@ CONTAINS
 
       ! Calculates the nth triangle number
       ! T(1) = 1, T(2) = 3, T(3) = 6, T(4) = 10, ..., T(n)=(1/2)*n*(n+1)
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
 
       triangle_number = n*(n+1)/2
@@ -116,10 +135,11 @@ CONTAINS
       ! Provides a sequence of the first n Fibonacci numbers
       ! F(0)=0 is not provided
       ! F(1)=1; F(2)=1; F(3)=2; F(4)=3; ...; F(n)=F(n-1)+F(n-2)
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(OUT) :: F(n)
+      INTEGER, INTENT(OUT) :: F(:)
+      INTEGER, INTENT(IN) :: n   
       INTEGER :: i
+
+      IF (size(F) /= n) STOP 'GET_FIBONACCIS: Error, F should be of size n'
 
       IF (n <= 0) THEN
          STOP 'GET_FIBONACCIS: Error, this cannot be called for n<=0'
@@ -139,7 +159,6 @@ CONTAINS
 
       ! Returns the nth Fibonacci number
       ! F(0)=0, F(1)=1, F(2)=1, F(3)=2, F(4)=3, ..., F(n)=F(n-1)+F(n-2)
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       INTEGER :: F(n)
 
@@ -159,11 +178,13 @@ CONTAINS
       ! Provides a sequence of factorial numbers up to n
       ! f(0)=1 is not provided
       ! f(1)=1, f(2)=2, f(3)=6, f(4)=24, ..., f(n)=n*f(n-1)
-      ! TODO: Should this really be INT8 here?
-      IMPLICIT NONE     
-      INTEGER(kind=8), INTENT(OUT) :: f(:)
+      ! TODO: Should this really be INT8 here?    
+      USE precision 
+      INTEGER(i8), INTENT(OUT) :: f(:)
       INTEGER, INTENT(IN) :: n
       INTEGER :: i
+
+      IF (size(f) /= n) STOP 'GET_FIBONACCIS: Error, F should be of size n'
 
       IF (n <= 0) THEN
          STOP 'GET_FACTORIALS: Error, this cannot be called for n<=0'
@@ -182,10 +203,9 @@ CONTAINS
    INTEGER(kind=8) FUNCTION factorial(n)
 
       ! Calculates the nth factorial number
-      ! TODO: Any way of avoiding the INT8 here?
-      IMPLICIT NONE
+      USE precision
       INTEGER, INTENT(IN) :: n
-      INTEGER(kind=8) :: f8(n)
+      INTEGER(i8) :: f8(n)
 
       IF (n < 0) THEN
          STOP 'FACTORIAL: Error, factorials not defined for n<0'
@@ -202,7 +222,6 @@ CONTAINS
    REAL FUNCTION sigmoid_tanh(x)
 
       ! A function that smoothly transitions from 0 to 1 around x
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
 
       sigmoid_tanh = 0.5*(1.+tanh(x))
@@ -212,7 +231,6 @@ CONTAINS
    REAL FUNCTION sigmoid_log(x, a)
 
       ! A function that smoothly transitions from 0 to 1 around x
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: a
       REAL :: xp, xm
@@ -227,7 +245,6 @@ CONTAINS
    REAL FUNCTION Legendre_Polynomial(n, x)
 
       ! Returns the nth order Legendre polynomail: P_n(x)
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
 
@@ -250,8 +267,6 @@ CONTAINS
    REAL FUNCTION Lagrange_polynomial(x, n, xv, yv)
 
       ! Computes the result of the nth order Lagrange polynomial at point x, L(x)
-      ! TODO: Move this to special functions?
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: xv(n+1)
@@ -288,7 +303,6 @@ CONTAINS
    REAL FUNCTION Lagrange_polynomial_1(x, xv, yv)
 
       ! Dedicated function for linear interpolation polynomial
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xv(2)
       REAL, INTENT(IN) :: yv(2)
@@ -311,7 +325,6 @@ CONTAINS
    REAL FUNCTION Lagrange_polynomial_2(x, xv, yv)
 
       ! Dedicated function for quadratic interpolation polynomial
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xv(3)
       REAL, INTENT(IN) :: yv(3)
@@ -338,7 +351,6 @@ CONTAINS
    REAL FUNCTION Lagrange_polynomial_3(x, xv, yv)
 
       ! Dedicated function for cubic interpolation polynomial
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xv(4)
       REAL, INTENT(IN) :: yv(4)
@@ -370,8 +382,7 @@ CONTAINS
    REAL FUNCTION sinc(x)
 
       ! sinc function: sin(x)/x
-      ! TODO: Is this unnecessary?
-      IMPLICIT NONE
+      ! TODO: Is the Taylor expansion here unnecessary?
       REAL, INTENT(IN) :: x
       REAL, PARAMETER :: dx = 1e-3 ! small |x| below which to use Taylor expansion
 
@@ -386,14 +397,10 @@ CONTAINS
    REAL FUNCTION wk_tophat(x)
 
       ! The normlaised Fourier Transform of a spherical top-hat
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, PARAMETER :: dx = 1e-3 ! Taylor expansion for |x|<dx
-      !REAL, PARAMETER :: mx = 1e12 ! Set to zero to avoid problems for |x|>mx
 
       ! Taylor expansion used for low x to avoid cancelation problems
-      !IF (abs(x) > mx) THEN
-      !   wk_tophat = 0. ! TODO: Is this necessary?
       IF (abs(x) < dx) THEN
          wk_tophat = 1.-x**2/10.
       ELSE
@@ -405,7 +412,6 @@ CONTAINS
    REAL FUNCTION wk_tophat_deriv(x)
 
       ! The derivative of a normlaised Fourier Transform of a spherical top-hat
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, PARAMETER :: dx = 1e-3 ! Taylor expansion for |x|<dx
 
@@ -421,7 +427,6 @@ CONTAINS
    REAL FUNCTION wk_tophat_dderiv(x)
 
       ! The second derivative of a normlaised Fourier Transform of a spherical top-hat
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, PARAMETER :: dx = 1e-3 ! Taylor expansion for |x|<dx
 
@@ -440,8 +445,10 @@ CONTAINS
       ! Goes to one smoothly at x1
       ! Goes to zero linearly at x2, so the gradient change is discontinous
       ! n govenrns the severity of the transition
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: x, x1, x2, n
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: n
 
       IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
 
@@ -461,9 +468,10 @@ CONTAINS
       ! Apodises a function between x1 and x2
       ! Goes to one smoothly at x1 and zero smoothly at x2
       ! n govenrns the severity of the transition
-      ! RENAME :: smoothapodise -> smooth_apodise
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: x, x1, x2, n
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: n
 
       IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
 
@@ -483,8 +491,10 @@ CONTAINS
       ! Makes a blob between x1 and x2, with zero elsewhere
       ! Blob goes to zero linearly at x1 and x2, so the gradient change is discontinous
       ! n governs the severity (blobiness) of the blob
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: x, x1, x2, n
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: n
 
       IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
 
@@ -504,9 +514,10 @@ CONTAINS
       ! Makes a blob between x1 and x2, with zero elsewhere
       ! Blob goes to zero smoothly at x1 and x2
       ! n governs the severity (blobiness) of the blob
-      ! RENAME :: smoothblob -> smooth_blob
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: x, x1, x2, n
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: n
 
       IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
 
@@ -524,10 +535,9 @@ CONTAINS
    REAL FUNCTION Si(x)
 
       ! Returns the 'sine integral' function: Si(x)=int_0^x sin(t)/t dt
-      IMPLICIT NONE
-
+      USE precision
       REAL, INTENT(IN) :: x
-      DOUBLE PRECISION :: x2, y, f, g, si8
+      REAL(dp) :: x2, y, f, g, si8
       REAL, PARAMETER :: x0 = 4. ! Transition between two different approximations
 
       ! Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
@@ -579,9 +589,9 @@ CONTAINS
    REAL FUNCTION Ci(x)
 
       ! Returns the 'cosine integral' function Ci(x): -int_x^inf cos(t)/t dt
-      IMPLICIT NONE
+      USE precision
       REAL, INTENT(IN) :: x
-      DOUBLE PRECISION :: x2, y, f, g, ci8
+      REAL(dp) :: x2, y, f, g, ci8
       REAL, PARAMETER :: x0 = 4. ! Transition between two different approximations
 
       ! Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
@@ -632,9 +642,8 @@ CONTAINS
 
       ! Returns the Bessel function of order 'n'
       ! Wraps the Fortran intrinsic functions
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: x  
       REAL, PARAMETER :: xlarge = 1e15 ! Set to zero for large values
 
       IF (x > xlarge) THEN
@@ -664,7 +673,6 @@ CONTAINS
    REAL FUNCTION Gaussian(x, mu, sigma)
 
       ! Returns the integral-normalised Gaussian
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x     ! [-inf:inf]
       REAL, INTENT(IN) :: mu    ! Mean value
       REAL, INTENT(IN) :: sigma ! Root-variance
@@ -680,7 +688,6 @@ CONTAINS
    REAL FUNCTION lognormal(x, mean_x, sigma_lnx)
 
       ! Returns integral-normalised lognormal distribution
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x         ! x [0,inf]
       REAL, INTENT(IN) :: mean_x    ! Mean value of x
       REAL, INTENT(IN) :: sigma_lnx ! Sigma for the value of ln(x) !IMPORTANT!
@@ -699,7 +706,6 @@ CONTAINS
    REAL FUNCTION uniform(x, x1, x2)
 
       ! Returns integral-normalised one-dimensional top-hat function between x1 and x2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: x1 ! Lower limit
       REAL, INTENT(IN) :: x2 ! Upper limit
@@ -715,7 +721,6 @@ CONTAINS
    REAL FUNCTION Rayleigh(x, sigma)
 
       ! Returns integral-normalised Rayleigh distribution
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x     ! [0:inf]
       REAL, INTENT(IN) :: sigma ! Sigma parameter (*not* root-variance for this distribution)
 
@@ -732,9 +737,8 @@ CONTAINS
    REAL FUNCTION Poisson(n, nbar)
 
       ! Normalised discrete Poisson probability distribution
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n  ! Number of events to evaluate P_n at, n>=0
-      REAL, INTENT(IN) :: nbar  ! Mean number of events >0
+      INTEGER, INTENT(IN) :: n ! Number of events to evaluate P_n at, n>=0
+      REAL, INTENT(IN) :: nbar ! Mean number of events >0
 
       Poisson = exp(-nbar)*(nbar**n)/int(factorial(n))
 
@@ -743,7 +747,6 @@ CONTAINS
    REAL FUNCTION exponential(x, mean)
 
       ! Returns integral-normalised exponential distribution
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: mean
 
@@ -754,7 +757,6 @@ CONTAINS
    REAL FUNCTION Lorentzian(x)
 
       ! Returns integral-normalised Lorentzian distribution
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
 
       Lorentzian = 2./(pi*(1.+x**2))
@@ -764,7 +766,6 @@ CONTAINS
    REAL FUNCTION polynomial(x, n)
 
       ! Returns integral-normalised polynomial distribution
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x ! x[0->1]
       REAL, INTENT(IN) :: n ! Polynomail order [n>-1]
 

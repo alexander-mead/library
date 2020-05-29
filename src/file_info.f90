@@ -48,11 +48,12 @@ CONTAINS
 
    END FUNCTION file_length
 
-   INTEGER FUNCTION count_number_of_lines(filename)
+   FUNCTION count_number_of_lines(filename) result(n)
 
       ! Tilman's version of file_length (nice because no GOTO)
       CHARACTER(len=*), INTENT(IN) :: filename
-      INTEGER :: n, file_unit, iostat
+      INTEGER :: n
+      INTEGER :: file_unit, iostat
       CHARACTER :: c
 
       OPEN (newunit=file_unit, file=filename, status='old', iostat=iostat)
@@ -83,8 +84,6 @@ CONTAINS
       END DO
 
       CLOSE (file_unit)
-
-      count_number_of_lines = n
 
    END FUNCTION count_number_of_lines
 

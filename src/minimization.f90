@@ -217,7 +217,7 @@ MODULE minimization
       IF(n+1 /= size(x, 1)) STOP 'NELDER_MEAD_CENTROID: Error array x is wrong'
 
       DO i = 1, n
-         Nelder_Mead_centroid(i) = mean(x(:,i), n)
+         Nelder_Mead_centroid(i) = mean(x(:,i))
       END DO
 
    END FUNCTION Nelder_Mead_centroid
@@ -237,10 +237,10 @@ MODULE minimization
       END IF
       ALLOCATE(j(n+1))
 
-      CALL index(f, j, n+1, isort)
-      CALL reindex(f, j, n+1)
+      CALL index(f, j, isort)
+      CALL reindex(f, j)
       DO i = 1, n
-         CALL reindex(x(:,i), j, n+1)
+         CALL reindex(x(:,i), j)
       END DO
 
    END SUBROUTINE Nelder_Mead_sort
@@ -251,12 +251,9 @@ MODULE minimization
       REAL, INTENT(IN) :: f(:)
       REAL, INTENT(IN) :: tol
       REAL :: sigma
-      INTEGER :: n
-
-      n = size(f)-1
 
       ! Calculate the standard deviation of all points
-      sigma = standard_deviation(f, n+1)
+      sigma = standard_deviation(f)
 
       ! Decide on termination
       IF(sigma <= tol) THEN

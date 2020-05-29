@@ -31,7 +31,6 @@ CONTAINS
       ! Changes an angle thetta [rad] to be in the interval [0:2pi]
       ! e.g., if t is -pi/2 it gets shifted to 3pi/2
       USE constants
-      IMPLICIT NONE
       REAL, INTENT(IN) :: theta
 
       shift_angle_to_circle = theta-twopi*floor(theta/twopi)
@@ -41,7 +40,6 @@ CONTAINS
    FUNCTION unit(x)
 
       ! Returns the unit vector of 'x'
-      IMPLICIT NONE 
       REAL, INTENT(IN) :: x(:)
       REAL :: unit(size(x))
 
@@ -52,7 +50,6 @@ CONTAINS
    REAL FUNCTION modulus(x)
 
       ! Returns the modulus of vector 'x'
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(:)
 
       modulus = sqrt(sum(x**2))
@@ -74,7 +71,6 @@ CONTAINS
    FUNCTION cross_product(x, y)
 
       ! Makes the cross produce of 3-vectors x nad y
-      IMPLICIT NONE
       REAL :: cross_product(3)
       REAL, INTENT(IN) :: x(3)
       REAL, INTENT(IN) :: y(3)
@@ -89,7 +85,6 @@ CONTAINS
 
       ! Creates a rotation matrix for rotation about vector 'u' by angle 't'
       ! u must be a unit vector
-      IMPLICIT NONE
       REAL :: rotation(3, 3)
       REAL, INTENT(IN) :: u(3)
       REAL, INTENT(IN) :: t
@@ -113,52 +108,51 @@ CONTAINS
 
    END FUNCTION rotation
 
-   FUNCTION matrix_multiply(A, B, n)
+   FUNCTION matrix_multiply(A, B) result(C)
 
       ! Multiplies matrices 'A' and 'B' C=A*B
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL :: matrix_multiply(n, n)
-      REAL, INTENT(IN) :: A(n, n), B(n, n)
-      REAL :: C(n, n)
-      INTEGER :: i, j, k
+      REAL, INTENT(IN) :: A(:, :), B(:, :)
+      REAL :: C(size(A, 1), size(B, 2))
+      INTEGER :: i, j, k, ni, nj, nk
+
+      ni = size(A, 1)
+      nj = size(B, 2)
+      nk = size(A, 2)
+      IF (nk /= size(B, 1)) STOP 'MATRIX_MULTIPLY: Error, you cannot multiply these matrices'
 
       ! Fix this 'sum' variable to zero
       C = 0.
 
-      DO i = 1, n
-         DO j = 1, n
-            DO k = 1, n
+      DO i = 1, ni
+         DO j = 1, nj
+            DO k = 1, nk
                C(i, j) = C(i, j)+A(i, k)*B(k, j)
             END DO
          END DO
       END DO
 
-      matrix_multiply = C
+      !matrix_multiply = C
 
    END FUNCTION matrix_multiply
 
-   FUNCTION matrix_vector(A, b)
+   FUNCTION matrix_vector(A, b) result(c)
 
-      ! Multiplies matrix a and vector b (c=A*b)
-      IMPLICIT NONE    
+      ! Multiplies matrix a and vector b (c=A*b) 
       REAL, INTENT(IN) :: A(:, :)
       REAL, INTENT(IN) :: b(:)  
-      REAL :: matrix_vector(size(A, 1))
+      REAL :: c(size(A, 1))
       INTEGER :: ix, iy, nx, ny
 
       nx = size(A, 1)
       ny = size(A, 2)
-      IF (nx /= size(matrix_vector) .OR. ny /= size(b)) THEN
-         STOP 'MATRIX_VECTOR: Error, array wrong sizes'
-      END IF
+      IF (ny /= size(b)) STOP 'MATRIX_VECTOR: Error, array wrong sizes'
 
       ! Fix this 'sum' variable to zero
-      matrix_vector = 0.
+      c = 0.
 
       DO ix = 1, nx
          DO iy = 1, ny
-            matrix_vector(ix) = matrix_vector(ix)+A(ix, iy)*b(iy)
+            c(ix) = c(ix)+A(ix, iy)*b(iy)
          END DO
       END DO
 
@@ -167,7 +161,6 @@ CONTAINS
    REAL FUNCTION distance(x1, x2)
 
       ! Calculates the distance between n-vectors x1 and x2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x1(:)
       REAL, INTENT(IN) :: x2(:)
       INTEGER :: i, n
@@ -189,7 +182,6 @@ CONTAINS
    FUNCTION rotate_vector(v, k, theta)
 
       ! Rotates vector 'v' about axis 'k' by angle 'theta'
-      IMPLICIT NONE
       REAL :: rotate_vector(3)
       REAL, INTENT(IN) :: v(3)
       REAL, INTENT(IN) :: k(3)
@@ -212,7 +204,6 @@ CONTAINS
       ! Rotates vector 'v' about axis 'k' by angle 'theta'
       ! Note that 'k' needs to be a unit vector
       ! See https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
-      IMPLICIT NONE
       REAL :: rotate_vector_fast(3)
       REAL, INTENT(IN) :: v(3)
       REAL, INTENT(IN) :: k(3)

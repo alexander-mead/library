@@ -13,71 +13,59 @@ MODULE statistics
 
 CONTAINS
 
-   REAL FUNCTION mean(x, n)
+   REAL FUNCTION mean(x)
 
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: x(n)
-      DOUBLE PRECISION :: sum
-      INTEGER :: i
+      REAL, INTENT(IN) :: x(:)
 
-      sum = 0.d0
-      DO i = 1, n
-         sum = sum+x(i)
-      END DO
-
-      mean = real(sum)/real(n)
+      mean = sum(x)/real(size(x))
 
    END FUNCTION mean
 
-   REAL FUNCTION variance(x, n)
+   REAL FUNCTION variance(x)
 
       ! Note that depending on the application one might want to use n-1 here
       ! Difference is between sample variance and population varaince
       ! See https://en.wikipedia.org/wiki/Bessel%27s_correction
       ! Sample is simply the variance of your sample 1/N
       ! However, if you are estimating the population variance then you need 1/(N-1)
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: x(n)
-      DOUBLE PRECISION :: sum
+      REAL, INTENT(IN) :: x(:)
+      !REAL :: sum
       REAL :: avg
-      INTEGER :: i
+      INTEGER :: i, n
 
-      avg = mean(x, n)
+      avg = mean(x)
+      n = size(x)
 
-      sum = 0.d0
-      DO i = 1, n
-         sum = sum+(x(i)-avg)**2
-      END DO
-
-      variance = real(sum)/real(n)
+      !sum = 0.d0
+      !DO i = 1, n
+      !   sum = sum+(x(i)-avg)**2
+      !END DO
+      !variance = real(sum)/real(n)
+      variance = sum((x-avg)**2)/real(n)
 
    END FUNCTION variance
 
-   REAL FUNCTION standard_deviation(x, n)
+   REAL FUNCTION standard_deviation(x)
 
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: x(n)
+      REAL, INTENT(IN) :: x(:)
 
-      standard_deviation = sqrt(variance(x, n))
+      standard_deviation = sqrt(variance(x))
 
    END FUNCTION standard_deviation
 
-   SUBROUTINE histogram(xmin, xmax, x, hist, n, data, m)
+   SUBROUTINE histogram(xmin, xmax, x, hist, n, data)
 
       USE table_integer
       USE array_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: xmin     ! Minimum x value
       REAL, INTENT(IN) :: xmax     ! Maximum x value
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:)       ! Output array of bin edges, size n+1
       INTEGER, ALLOCATABLE, INTENT(OUT) :: hist(:) ! Output integer array of bin counts, size n
       INTEGER, INTENT(IN) :: n     ! Number of bins
-      INTEGER, INTENT(IN) :: m     ! Number of points to be binned
-      REAL, INTENT(IN) :: data(m)  ! Data to be binned
-      INTEGER :: i, j
+      REAL, INTENT(IN) :: data(:)  ! Data to be binned
+      INTEGER :: i, j, m
+
+      m = size(data)
 
       WRITE (*, *) 'HISTOGRAM: Assiging arrays'
 
@@ -108,17 +96,18 @@ CONTAINS
 
    END SUBROUTINE histogram
 
-   SUBROUTINE cumulative_distribution(x, p, c, n)
+   SUBROUTINE cumulative_distribution(x, p, c)
 
       USE calculus_table
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: x(n)
-      REAL, INTENT(IN) :: p(n)
-      REAL, INTENT(OUT) :: c(n)
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: p(:)
+      REAL, INTENT(OUT) :: c(:)
       REAL :: norm
-      INTEGER :: i
+      INTEGER :: i, n
       INTEGER, PARAMETER :: iorder=0 ! Zeroth-order (histogram) integration and plenty of points are best here
+
+      n = size(x)
+      IF (n /= size(p) .OR. n /= size(c)) STOP 'CUMULATIVE_DISTRIBUTION: Error, x, p and c should be same size'
 
       norm = integrate_table(x, p, 1, n, iorder)
 
@@ -130,22 +119,25 @@ CONTAINS
 
    END SUBROUTINE cumulative_distribution
 
-   SUBROUTINE calculate_confidence(x, p, n, one_sigma, two_sigma)
+   SUBROUTINE calculate_confidence(x, p, one_sigma, two_sigma)
 
       USE interpolate
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: x(n)
-      REAL, INTENT(IN) :: p(n)
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: p(:)
       REAL, INTENT(OUT) :: one_sigma(2)
       REAL, INTENT(OUT) :: two_sigma(2)
-      REAL :: c(n), ans, ci
-      INTEGER :: i
+      REAL :: ans, ci
+      REAL, ALLOCATABLE :: c(:)
+      INTEGER :: i, n
       INTEGER, PARAMETER :: iorder=3
       INTEGER, PARAMETER :: ifind=3
       INTEGER, PARAMETER :: imeth=2
 
-      CALL cumulative_distribution(x, p, c, n)
+      n = size(x)
+      IF (n /= size(p)) STOP 'CALCULATE_CONFIDENCE: Error, x and p should be same size'
+      ALLOCATE(c(n))
+
+      CALL cumulative_distribution(x, p, c)
 
       DO i=1,4
 
@@ -179,18 +171,16 @@ CONTAINS
 
    END SUBROUTINE calculate_confidence
 
-   REAL FUNCTION parameter_probability(p, model, x_data, y_data, sigma_data, n)
+   REAL FUNCTION parameter_probability(p, model, x_data, y_data, sigma_data)
 
       ! Calculate the probability of parameter p in model fitting the data assuming data uncorrelated
-      IMPLICIT NONE
       REAL, INTENT(IN) :: p             ! Parameter value
       REAL, EXTERNAL :: model           ! Model function
-      INTEGER, INTENT(IN) :: n          ! Number of data points
-      REAL, INTENT(IN) :: x_data(n)     ! x values for data
-      REAL, INTENT(IN) :: y_data(n)     ! y values for data
-      REAL, INTENT(IN) :: sigma_data(n) ! Error bar for data
+      REAL, INTENT(IN) :: x_data(:)     ! x values for data
+      REAL, INTENT(IN) :: y_data(:)     ! y values for data
+      REAL, INTENT(IN) :: sigma_data(:) ! Error bar for data
       REAL :: y, chi2
-      INTEGER :: i
+      INTEGER :: i, n
 
       INTERFACE
          FUNCTION model(x, pin)
@@ -198,6 +188,11 @@ CONTAINS
             REAL, INTENT(IN) :: pin
          END FUNCTION model
       END INTERFACE
+
+      n = size(x_data)
+      IF (n /= size(y_data) .OR. n /= size(sigma_data)) THEN
+         STOP 'PARAMETER_PROBABILITY: Error, x_data, y_data and sigma_data should all be the same size'
+      END IF
 
       chi2=0.
       DO i=1,n

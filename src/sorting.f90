@@ -34,18 +34,17 @@ MODULE sorting
 
 CONTAINS
 
-   SUBROUTINE sort(a, n, isort)
+   SUBROUTINE sort(a, isort)
 
       ! Sort arrays in order from lowest to highest values
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(INOUT) :: a(n)
+      !INTEGER, INTENT(IN) :: n
+      REAL, INTENT(INOUT) :: a(:)
       INTEGER, INTENT(IN) :: isort
 
       IF (isort == isort_stupid) THEN
-         CALL stupid_sort(a, n)
+         CALL stupid_sort(a)
       ELSE IF (isort == isort_bubble) THEN
-         CALL bubble_sort(a, n)
+         CALL bubble_sort(a)
       ELSE IF (isort == isort_QsortC) THEN
          CALL QsortC(a)
       ELSE
@@ -54,15 +53,15 @@ CONTAINS
 
    END SUBROUTINE sort
 
-   SUBROUTINE bubble_sort(a, n)
+   SUBROUTINE bubble_sort(a)
 
       ! Bubble sort array 'a' into lowest to highest value
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(INOUT) :: a(n)
+      REAL, INTENT(INOUT) :: a(:)
       REAL :: hold
-      INTEGER :: i
+      INTEGER :: i, n
       LOGICAL :: sorted
+
+      n = size(a)
 
       DO
          sorted = .TRUE.
@@ -79,14 +78,14 @@ CONTAINS
 
    END SUBROUTINE bubble_sort
 
-   SUBROUTINE stupid_sort(a, n)
+   SUBROUTINE stupid_sort(a)
 
       ! I have no idea what this is
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(INOUT) :: a(n)
+      REAL, INTENT(INOUT) :: a(:)
       REAL :: hold, min
-      INTEGER :: i, j, minl
+      INTEGER :: i, j, minl, n
+
+      n = size(a)
 
       DO i = 1, n-1
          min = a(i)
@@ -107,7 +106,6 @@ CONTAINS
    RECURSIVE SUBROUTINE QsortC(A)
 
       ! Stolen from http://www.fortran.com/qsort_c.f95
-      IMPLICIT NONE
       REAL, INTENT(INOUT), DIMENSION(:) :: A
       INTEGER :: iq
 
@@ -122,9 +120,8 @@ CONTAINS
    SUBROUTINE Partition(A, marker)
 
       ! Stolen from http://www.fortran.com/qsort_c.f95
-      IMPLICIT NONE
-      REAL, INTENT(in out), DIMENSION(:) :: A
-      INTEGER, INTENT(out) :: marker
+      REAL, INTENT(INOUT), DIMENSION(:) :: A
+      INTEGER, INTENT(OUT) :: marker
       INTEGER :: i, j
       REAL :: temp
       REAL :: x      ! pivot point
@@ -160,52 +157,49 @@ CONTAINS
 
    END SUBROUTINE Partition
 
-   SUBROUTINE index_real(a, ind, n, isort)
+   SUBROUTINE index_real(a, ind, isort)
 
       ! Index the array 'a' from lowest to highest value
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: a(n)
-      INTEGER, INTENT(OUT) :: ind(n)
+      REAL, INTENT(IN) :: a(:)
+      INTEGER, INTENT(OUT) :: ind(:)
       INTEGER, INTENT(IN) :: isort
 
       IF (isort == isort_stupid) THEN
-         CALL stupid_index_real(a, ind, n)
+         CALL stupid_index_real(a, ind)
       ELSE IF (isort == isort_bubble) THEN
-         CALL bubble_index_real(a, ind, n)
+         CALL bubble_index_real(a, ind)
       ELSE
          STOP 'INDEX_REAL: Error, isort specified incorrectly'
       END IF
 
    END SUBROUTINE index_real
 
-   SUBROUTINE index_int(a, ind, n, isort)
+   SUBROUTINE index_int(a, ind, isort)
 
-      ! Index the array 'a' from lowest to highest value
-      IMPLICIT NONE      
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: a(n)
-      INTEGER, INTENT(OUT) :: ind(n)
+      ! Index the array 'a' from lowest to highest value  
+      INTEGER, INTENT(IN) :: a(:)
+      INTEGER, INTENT(OUT) :: ind(:)
       INTEGER, INTENT(IN) :: isort
       
       IF (isort == isort_stupid) THEN
-         CALL stupid_index_int(a, ind, n)
+         CALL stupid_index_int(a, ind)
       ELSE IF (isort == isort_bubble) THEN
-         CALL bubble_index_int(a, ind, n)
+         CALL bubble_index_int(a, ind)
       ELSE
          STOP 'INDEX_REAL: Error, isort specified incorrectly'
       END IF
 
    END SUBROUTINE index_int
 
-   SUBROUTINE bubble_index_real(a, ind, n)
+   SUBROUTINE bubble_index_real(a, ind)
 
       ! Create an index array for a(:) that indexes from smallest to largest value
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n 
-      REAL, INTENT(IN) :: a(n)
-      INTEGER, INTENT(OUT) :: ind(n)
-      INTEGER :: i, isort, hold
+      REAL, INTENT(IN) :: a(:)
+      INTEGER, INTENT(OUT) :: ind(:)
+      INTEGER :: i, isort, hold, n
+
+      n = size(a)
+      IF (n /= size(ind)) STOP 'BUBBLE_INDEX_REAL: Error, a and ind must have the same size'
 
       DO i = 1, n
          ind(i) = i
@@ -226,14 +220,15 @@ CONTAINS
 
    END SUBROUTINE bubble_index_real
 
-   SUBROUTINE bubble_index_int(a, ind, n)!,verbose)
+   SUBROUTINE bubble_index_int(a, ind)!,verbose)
 
       ! Create an index array for integer a(:) that indexes from smallest to largest value
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: a(n)
-      INTEGER, INTENT(OUT) :: ind(n)
-      INTEGER :: i, isort, hold
+      INTEGER, INTENT(IN) :: a(:)
+      INTEGER, INTENT(OUT) :: ind(:)
+      INTEGER :: i, isort, hold, n
+
+      n = size(a)
+      IF (n /= size(ind)) STOP 'BUBBLE_INDEX_INT: Error, a and ind must have the same size'
 
       DO i = 1, n
          ind(i) = i
@@ -254,14 +249,16 @@ CONTAINS
 
    END SUBROUTINE bubble_index_int
 
-   SUBROUTINE stupid_index_real(a, ind, n)
+   SUBROUTINE stupid_index_real(a, ind)
+  
+      REAL, INTENT(IN) :: a(:)
+      INTEGER, INTENT(OUT) :: ind(:)
+      INTEGER :: i, j, n
+      REAL, ALLOCATABLE :: b(:)
 
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n    
-      REAL, INTENT(IN) :: a(n)
-      INTEGER, INTENT(OUT) :: ind(n)
-      INTEGER :: i, j
-      REAL :: b(n)
+      n = size(a)
+      IF (n /= size(ind)) STOP 'STUPID_INDEX_REAL: Error, a and ind must have the same size'
+      ALLOCATE(b(n))
 
       b = a
 
@@ -274,13 +271,16 @@ CONTAINS
 
    END SUBROUTINE stupid_index_real
 
-   SUBROUTINE stupid_index_int(a, ind, n)
+   SUBROUTINE stupid_index_int(a, ind)
 
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: a(n)
-      INTEGER, INTENT(OUT) :: ind(n)
-      INTEGER :: i, j, b(n)
+      INTEGER, INTENT(IN) :: a(:)
+      INTEGER, INTENT(OUT) :: ind(:)
+      INTEGER :: i, j, n
+      INTEGER, ALLOCATABLE :: b(:)
+
+      n = size(a)
+      IF (n /= size(ind)) STOP 'STUPID_INDEX_INT: Error, a and ind must have the same size'
+      ALLOCATE(b(n))
 
       b = a
 
@@ -293,13 +293,13 @@ CONTAINS
 
    END SUBROUTINE stupid_index_int
 
-   LOGICAL FUNCTION check_sorted(a, n)
+   LOGICAL FUNCTION check_sorted(a)
 
       ! Checks if array 'a' is sorted from highest to lowest
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n ! Number of entried in array
-      REAL, INTENT(IN) :: a(n) ! Input array to check
-      INTEGER :: i
+      REAL, INTENT(IN) :: a(:) ! Input array to check
+      INTEGER :: i, n
+
+      n = size(a)
 
       check_sorted = .TRUE.
 
@@ -312,14 +312,15 @@ CONTAINS
 
    END FUNCTION check_sorted
 
-   LOGICAL FUNCTION check_sorted_index(a, j, n)
+   LOGICAL FUNCTION check_sorted_index(a, j)
 
       ! Checks if array indices for 'a' are sorted from highest to lowest
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n    ! Number of entried in array
-      REAL, INTENT(IN) :: a(n)    ! Input array to check
-      INTEGER, INTENT(IN) :: j(n) ! Input array indices to check
-      INTEGER :: i
+      REAL, INTENT(IN) :: a(:)    ! Input array to check
+      INTEGER, INTENT(IN) :: j(:) ! Input array indices to check
+      INTEGER :: i, n
+
+      n = size(a)
+      IF (n /= size(j)) STOP 'CHECK_SORTED_INDEX: Error a and j should be same size'
 
       check_sorted_index = .TRUE.
 
@@ -332,14 +333,17 @@ CONTAINS
 
    END FUNCTION check_sorted_index
 
-   SUBROUTINE reindex(a, j, n)
+   SUBROUTINE reindex(a, j)
 
       ! Reindex the array 'a' with the new indices 'j'
-      INTEGER, INTENT(IN) :: n    ! Number of entried in array
-      REAL, INTENT(INOUT) :: a(n) ! Input array to check
-      INTEGER, INTENT(IN) :: j(n) ! Input array indices to check
-      REAL :: b(n)
-      INTEGER :: i
+      REAL, INTENT(INOUT) :: a(:) ! Input array to check
+      INTEGER, INTENT(IN) :: j(:) ! Input array indices to check
+      REAL, ALLOCATABLE :: b(:)
+      INTEGER :: i, n
+
+      n = size(a)
+      IF (n /= size(j)) STOP 'REINDEX: Error, a and j must have the same size'
+      ALLOCATE(b(n))
 
       b = a ! Store the input array
 

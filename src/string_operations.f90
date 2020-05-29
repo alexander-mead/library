@@ -26,7 +26,6 @@ CONTAINS
 
    CHARACTER(len=8) FUNCTION integer_to_string(i)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i
       CHARACTER(len=8) :: fmt   
 
@@ -48,7 +47,6 @@ CONTAINS
 
    CHARACTER(len=8) FUNCTION real_to_string(x, pre_decimal, post_decimal)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: pre_decimal
       INTEGER, INTENT(IN) :: post_decimal
@@ -69,7 +67,6 @@ CONTAINS
 
    FUNCTION number_file(fbase, i, fext)
 
-      IMPLICIT NONE
       CHARACTER(len=256) :: number_file
       CHARACTER(len=*), INTENT(IN) :: fbase, fext
       INTEGER, INTENT(IN) :: i
@@ -82,7 +79,6 @@ CONTAINS
 
    FUNCTION number_file2(fbase, i1, mid, i2, fext)
 
-      IMPLICIT NONE
       CHARACTER(len=256) ::number_file2
       CHARACTER(len=*), INTENT(IN) :: fbase, fext, mid
       INTEGER, INTENT(IN) :: i1, i2
@@ -98,7 +94,6 @@ CONTAINS
 
       !Number a file with zero padding
       !Num specifies the number of digits
-      IMPLICIT NONE
       CHARACTER(len=256) :: number_file_zeroes
       CHARACTER(len=*), INTENT(IN) :: fbase, fext
       CHARACTER(len=4) :: num4

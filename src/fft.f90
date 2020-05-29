@@ -67,7 +67,6 @@ CONTAINS
 
       ! Finds the wavevector associated with the FFT cell
       USE constants
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix, iy, iz, m
       REAL, INTENT(IN) :: L
       REAL, INTENT(OUT) :: kx, ky, kz, kmod
@@ -93,7 +92,6 @@ CONTAINS
    SUBROUTINE FFT1_complex_double(in, out, n, ifb)
 
       ! Wrapper for the 1D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       !DOUBLE COMPLEX, INTENT(IN) :: in(n)
       COMPLEX(dp), INTENT(IN) :: in(n)
@@ -133,7 +131,6 @@ CONTAINS
    SUBROUTINE FFT1_complex_single(in, out, n, ifb)
 
       ! Wrapper for the 1D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       !COMPLEX, INTENT(IN) :: in(n)
       COMPLEX(sp), INTENT(IN) :: in(n)
@@ -173,7 +170,6 @@ CONTAINS
    SUBROUTINE FFT1_real_double(rspace, fspace, n, ifb)
 
       ! Wrapper for the real 1D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       !DOUBLE PRECISION, INTENT(INOUT) :: rspace(n)
       REAL(dp), INTENT(INOUT) :: rspace(n)
@@ -202,7 +198,6 @@ CONTAINS
    SUBROUTINE FFT1_real_single(rspace, fspace, n, ifb)
 
       ! Wrapper for the real 1D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       !REAL, INTENT(INOUT) :: rspace(n)
       REAL(sp), INTENT(INOUT) :: rspace(n)
@@ -231,7 +226,6 @@ CONTAINS
    SUBROUTINE FFT2_complex_double(in, out, nx, ny, ifb)
 
       ! Wrapper for the 2D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx, ny
       !DOUBLE COMPLEX, INTENT(IN) :: in(nx, ny)
       COMPLEX(dp), INTENT(IN) :: in(nx, ny)
@@ -272,7 +266,6 @@ CONTAINS
    SUBROUTINE FFT2_complex_single(in, out, nx, ny, ifb)
 
       ! Wrapper for the 2D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx, ny
       !COMPLEX, INTENT(IN) :: in(nx, ny)
       COMPLEX(sp), INTENT(IN) :: in(nx, ny)
@@ -313,7 +306,6 @@ CONTAINS
    SUBROUTINE FFT2_real_double(rspace, fspace, nx, ny, ifb)
 
       ! Wrapper for the real 3D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx, ny
       !DOUBLE PRECISION, INTENT(INOUT)  :: rspace(nx, ny)
       REAL(dp), INTENT(INOUT)  :: rspace(nx, ny)
@@ -351,7 +343,6 @@ CONTAINS
    SUBROUTINE FFT2_real_single(rspace, fspace, nx, ny, ifb)
 
       ! Wrapper for the real 3D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx, ny
       !REAL, INTENT(INOUT)  :: rspace(nx, ny)
       REAL(sp), INTENT(INOUT)  :: rspace(nx, ny)
@@ -389,7 +380,6 @@ CONTAINS
    SUBROUTINE FFT3_complex_double(in, out, nx, ny, nz, ifb)
 
       ! Wrapper for the 3D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx, ny, nz
       !DOUBLE COMPLEX, INTENT(IN)  :: in(nx, ny, nz)
       COMPLEX(dp), INTENT(IN)  :: in(nx, ny, nz)
@@ -431,7 +421,6 @@ CONTAINS
    SUBROUTINE FFT3_complex_single(in, out, nx, ny, nz, ifb)
 
       ! Wrapper for the 3D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx, ny, nz
       !COMPLEX, INTENT(IN)  :: in(nx, ny, nz)
       COMPLEX(sp), INTENT(IN)  :: in(nx, ny, nz)
@@ -473,7 +462,6 @@ CONTAINS
    SUBROUTINE FFT3_real_double(rspace, fspace, nx, ny, nz, ifb)
 
       ! Wrapper for the real 3D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx, ny, nz
       !DOUBLE PRECISION, INTENT(INOUT)  :: rspace(nx, ny, nz)
       REAL(dp), INTENT(INOUT)  :: rspace(nx, ny, nz)
@@ -512,7 +500,6 @@ CONTAINS
    SUBROUTINE FFT3_real_single(rspace, fspace, nx, ny, nz, ifb)
 
       ! Wrapper for the real 3D FFTW
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx, ny, nz
       !REAL, INTENT(INOUT)  :: rspace(nx, ny, nz)
       REAL(sp), INTENT(INOUT)  :: rspace(nx, ny, nz)

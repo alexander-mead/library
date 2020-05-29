@@ -183,7 +183,7 @@ CONTAINS
       REAL, ALLOCATABLE :: mass_bin_edges(:)
       INTEGER, ALLOCATABLE :: counts(:)
 
-      CALL histogram(log(mmin), log(mmax), mass_bin_edges, counts, n_bins, log(halo_masses), n_haloes)
+      CALL histogram(log(mmin), log(mmax), mass_bin_edges, counts, n_bins, log(halo_masses))
       mass_bin_edges = exp(mass_bin_edges)
 
       ALLOCATE (mass_bins(n_bins))

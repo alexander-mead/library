@@ -21,7 +21,6 @@ CONTAINS
       ! If x is within the table then the value returned will be between 1 and n-1
       ! If x is below the lower value of the array then 0 is returned (IMPORTANT)
       ! If x is above the upper value of the array then n is returned (IMPORTANT)
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xtab(:)
       INTEGER, INTENT(IN) :: ifind
@@ -53,7 +52,6 @@ CONTAINS
    INTEGER FUNCTION linear_table_integer(x, xtab)
 
       ! Assuming the table is exactly linear this gives you the integer position
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xtab(:)
       REAL :: x1, xn
@@ -70,7 +68,6 @@ CONTAINS
    INTEGER FUNCTION search_int(x, xtab)
 
       ! Does a stupid search through the table from beginning to end to find integer
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xtab(:)
       INTEGER :: i, n
@@ -90,7 +87,6 @@ CONTAINS
    INTEGER FUNCTION int_split(x, xtab)
 
       ! Finds the position of the value in the table by continually splitting it in half
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xtab(:)
       INTEGER :: i1, i2, imid, n
