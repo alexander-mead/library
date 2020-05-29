@@ -33,7 +33,6 @@ CONTAINS
       ! Care should be chosen to insert x, xtab, ytab as log if this might give beter results
       ! Extrapolates if the value is off either end of the array   
       ! If the value required is off the table edge the extrapolation is always linear
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: xin(n)
@@ -102,7 +101,7 @@ CONTAINS
                CALL fix_linear(a, b, x1, y1, x2, y2)
                find_1D = a*x+b
             ELSE IF (iinterp == iinterp_Lagrange) THEN
-               find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
+               find_1D = Lagrange_polynomial(x, 1, [x1, x2], [y1, y2])
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
             END IF
@@ -121,7 +120,7 @@ CONTAINS
                CALL fix_linear(a, b, x1, y1, x2, y2)
                find_1D = a*x+b
             ELSE IF (iinterp == iinterp_Lagrange) THEN
-               find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
+               find_1D = Lagrange_polynomial(x, 1, [x1, x2], [y1, y2])
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
             END IF
@@ -162,7 +161,7 @@ CONTAINS
                CALL fix_linear(a, b, x1, y1, x2, y2)
                find_1D = a*x+b
             ELSE IF (iinterp == iinterp_Lagrange) THEN
-               find_1D = Lagrange_polynomial(x, 1, (/x1, x2/), (/y1, y2/))
+               find_1D = Lagrange_polynomial(x, 1, [x1, x2], [y1, y2])
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
             END IF
@@ -199,7 +198,7 @@ CONTAINS
                   CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
                   find_1D = a*(x**2)+b*x+c
                ELSE IF (iinterp == iinterp_Lagrange) THEN
-                  find_1D = Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))
+                  find_1D = Lagrange_polynomial(x, 2, [x1, x2, x3], [y1, y2, y3])
                ELSE
                   STOP 'FIND_1D: Error, method not specified correctly'
                END IF
@@ -226,8 +225,8 @@ CONTAINS
                   find_1D = find_1D+(a*x**2+b*x+c)/2.
                ELSE IF (iinterp == iinterp_Lagrange) THEN
                   ! In this case take the average of two quadratic Lagrange polynomials
-                  L1 = Lagrange_polynomial(x, 2, (/x1, x2, x3/), (/y1, y2, y3/))
-                  L2 = Lagrange_polynomial(x, 2, (/x2, x3, x4/), (/y2, y3, y4/))
+                  L1 = Lagrange_polynomial(x, 2, [x1, x2, x3], [y1, y2, y3])
+                  L2 = Lagrange_polynomial(x, 2, [x2, x3, x4], [y2, y3, y4])
                   find_1D = (L1+L2)/2.
                ELSE
                   STOP 'FIND_1D: Error, method not specified correctly'
@@ -283,7 +282,7 @@ CONTAINS
                CALL fix_cubic(a, b, c, d, x1, y1, x2, y2, x3, y3, x4, y4)
                find_1D = a*x**3+b*x**2+c*x+d
             ELSE IF (iinterp == iinterp_Lagrange) THEN
-               find_1D = Lagrange_polynomial(x, 3, (/x1, x2, x3, x4/), (/y1, y2, y3, y4/))
+               find_1D = Lagrange_polynomial(x, 3, [x1, x2, x3, x4], [y1, y2, y3, y4])
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
             END IF
@@ -305,7 +304,6 @@ CONTAINS
       ! Extrapolates if the value is off either end of the array
       ! If the value required is off the table edge the extrapolation is always linear
       ! TODO: Loops over coordinates to avoid repetition?
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx
       INTEGER, INTENT(IN) :: ny
       REAL, INTENT(IN) :: x
@@ -659,7 +657,6 @@ CONTAINS
 
       ! A 3D interpolation routine to find value f(x,y,z) given a function evalated on arrays
       ! The linear version implemented here is also know as 'trilinear interpolation'
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx
       INTEGER, INTENT(IN) :: ny
       INTEGER, INTENT(IN) :: nz
@@ -809,7 +806,6 @@ CONTAINS
 
       ! Interpolates array 'x1-y1' onto new 'x' values x2 and output y2
       ! TODO: This could be more efficient because it currently does 'find integer' every time
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n1
       REAL, INTENT(IN) :: x1(n1)
       REAL, INTENT(IN) :: y1(n1)

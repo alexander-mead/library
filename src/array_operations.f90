@@ -16,6 +16,8 @@ MODULE array_operations
 !!$     MODULE PROCEDURE progression_log_double
 !!$  END INTERFACE progression_log
 
+   IMPLICIT NONE
+
    PRIVATE
 
    PUBLIC :: within_array
@@ -106,7 +108,6 @@ CONTAINS
    LOGICAL FUNCTION greater_than_any(x, a)
 
       ! Returns TRUE if x is greater than any one of the values in array
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: a(:)
       INTEGER :: i, n
@@ -128,7 +129,6 @@ CONTAINS
    LOGICAL FUNCTION greater_than_all(x, a)
 
       ! Returns TRUE if x is greater than all of the values in array
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: a(:)
       INTEGER :: i, n
@@ -148,7 +148,6 @@ CONTAINS
    SUBROUTINE safe_allocate_real(x, n)
 
       ! Checks array for allocation status, deallocates if necessary, then allocates
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
       INTEGER, INTENT(IN) :: n
 
@@ -171,7 +170,6 @@ CONTAINS
    SUBROUTINE safe_allocate_integer(i, n)
 
       ! Checks array for allocation status, deallocates if necessary, then allocates
-      IMPLICIT NONE
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: i(:)
       INTEGER, INTENT(IN) :: n
 
@@ -183,7 +181,6 @@ CONTAINS
    SUBROUTINE safe_allocate_logical(l, n)
 
       ! Checks array for allocation status, deallocates if necessary, then allocates
-      IMPLICIT NONE
       LOGICAL, ALLOCATABLE, INTENT(INOUT) :: l(:)
       INTEGER, INTENT(IN) :: n
 
@@ -195,7 +192,6 @@ CONTAINS
    SUBROUTINE safe_allocate_character(c, n)
 
       ! Checks array for allocation status, deallocates if necessary, then allocates
-      IMPLICIT NONE
       CHARACTER(len=*), ALLOCATABLE, INTENT(INOUT) :: c(:)
       INTEGER, INTENT(IN) :: n
 
@@ -207,7 +203,6 @@ CONTAINS
    SUBROUTINE if_allocated_deallocate_real_1D(x)
 
       ! Deallocates an array if it is already allocated
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
 
       IF(ALLOCATED(x)) DEALLOCATE(x)
@@ -217,7 +212,6 @@ CONTAINS
    SUBROUTINE if_allocated_deallocate_real_2D(x)
 
       ! Deallocates an array if it is already allocated
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:)
 
       IF(ALLOCATED(x)) DEALLOCATE(x)
@@ -227,7 +221,6 @@ CONTAINS
    SUBROUTINE if_allocated_deallocate_real_3D(x)
 
       ! Deallocates an array if it is already allocated
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:,:)
 
       IF(ALLOCATED(x)) DEALLOCATE(x)
@@ -237,7 +230,6 @@ CONTAINS
    SUBROUTINE if_allocated_deallocate_integer_1D(i)
 
       ! Deallocates an array if it is already allocated
-      IMPLICIT NONE
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: i(:)
 
       IF(ALLOCATED(i)) DEALLOCATE(i)
@@ -247,7 +239,6 @@ CONTAINS
    SUBROUTINE if_allocated_deallocate_logical_1D(l)
 
       ! Deallocates an array if it is already allocated
-      IMPLICIT NONE
       LOGICAL, ALLOCATABLE, INTENT(INOUT) :: l(:)
 
       IF(ALLOCATED(l)) DEALLOCATE(l)
@@ -257,7 +248,6 @@ CONTAINS
    SUBROUTINE if_allocated_deallocate_character_1D(c)
 
       ! Deallocates an array if it is already allocated
-      IMPLICIT NONE
       CHARACTER(len=*), ALLOCATABLE, INTENT(INOUT) :: c(:)
 
       IF(ALLOCATED(c)) DEALLOCATE(c)
@@ -269,7 +259,6 @@ CONTAINS
       ! Take an array and smooth it by taking the over a fixed number of values in each direction
       ! For example, if m = 2 then poisition i in the smoothed array is the average over i-2, i-1, i, i+1, i+2 in the old array
       ! It probably only makes sense to do this if x(t) is a function and the t are uniformally distributed
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: x(:) ! Array to smooth
       INTEGER, INTENT(IN) :: m    ! Number of entries to smooth over
       INTEGER :: i, iup, idn, j, mm, n
@@ -308,7 +297,6 @@ CONTAINS
    LOGICAL FUNCTION within_array(x, a)
 
       ! Checks to see if x falls within the range of values in array a
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x    ! Value to check
       REAL, INTENT(IN) :: a(:) ! Array (of x values, presumably)
       INTEGER :: n
@@ -327,7 +315,6 @@ CONTAINS
 
       ! Swap arrays x<->y in a memory-efficient way
       ! Only one excess real number is ever stored
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: x(:) ! Array 1
       REAL, INTENT(INOUT) :: y(:) ! Array 2
       INTEGER :: i, n
@@ -348,7 +335,6 @@ CONTAINS
    SUBROUTINE append(x, a)
 
       ! Append value b to the end of array a(n) to make a new array a(n+1)
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: x
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: a(:)    
       INTEGER, ALLOCATABLE :: hold(:)
@@ -372,7 +358,6 @@ CONTAINS
 
       ! Add value 'v' to array 'a' at location 'i' in array
       ! If 'i' is outside the array range then this routine does nothing
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: a(:, :) 
       REAL, INTENT(IN) :: v
       INTEGER, INTENT(IN) :: i(2)
@@ -396,7 +381,6 @@ CONTAINS
 
       ! Add value 'v' to array 'a' at location 'i' in array
       ! If 'i' is outside the array range then this routine does nothing
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: a(:, :, :)
       REAL, INTENT(IN) :: v
       INTEGER, INTENT(IN) :: i(3)
@@ -420,7 +404,6 @@ CONTAINS
 
       ! Returns the location in a(n) of value x
       ! If x is not in array then returns zero
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: x    ! Value to check if it is in array
       INTEGER, INTENT(IN) :: a(:) ! Array to check
       INTEGER :: i, n
@@ -443,7 +426,6 @@ CONTAINS
       ! Returns the location in a(n) of value x
       ! If x is not in array then returns zero
       USE basic_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x    ! Value to check if it is in array
       REAL, INTENT(IN) :: a(:) ! Array to check
       REAL, INTENT(IN) :: eps  ! Difference to tolerate
@@ -466,7 +448,6 @@ CONTAINS
 
       ! Returns the number of appearances in a(n) of value x
       ! If x is not in a(n) then returns zero
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: x    ! Value to check if it is in array
       INTEGER, INTENT(IN) :: a(:) ! Array to check
       INTEGER :: i, n
@@ -487,7 +468,6 @@ CONTAINS
 
       ! Returns the locations in the array of integer value x
       ! If x is not in array then returns zero
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: x    ! Value to check if it is in array
       INTEGER, INTENT(IN) :: a(:) ! Array to check
       INTEGER, ALLOCATABLE, INTENT(OUT) :: b(:)
@@ -512,7 +492,6 @@ CONTAINS
    REAL FUNCTION sum_double(a)
 
       ! Sum using double precision, which is necessary for many array elements
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a(:)
       DOUBLE PRECISION :: sum
       INTEGER :: i, n
@@ -533,7 +512,6 @@ CONTAINS
 
       ! Chop an array of size a(n) down to a smaller size demarked by indices i1, i2
       ! If i1=1 and i2=n then this does nothing
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
       INTEGER, INTENT(IN) :: i1
       INTEGER, INTENT(IN) :: i2
@@ -574,8 +552,7 @@ CONTAINS
 
       ! Reduces the size of array1 to the size of array2
       ! This will not preserve the spacing of entries in array1 and might be a terrible idea in many cases
-      ! TODO: Remove this
-      IMPLICIT NONE   
+      ! TODO: Remove this  
       REAL, INTENT(IN) :: a1(:)
       REAL, INTENT(OUT) :: a2(:)
       INTEGER :: i, j, n1, n2
@@ -621,7 +598,6 @@ CONTAINS
    SUBROUTINE reverse_array(a)
 
       ! Reverses the contents of array
-      IMPLICIT NONE
       REAL, INTENT(INOUT) :: a(:)
       INTEGER :: i, n
       REAL :: hold(size(a))
@@ -639,7 +615,6 @@ CONTAINS
    SUBROUTINE remove_array_element(i, a)
 
       ! Remove element i from array a(n) returning an array of size n-1
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i                 ! Element to remove
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Input array     
       REAL :: b(size(a)-1)
@@ -673,7 +648,6 @@ CONTAINS
 
       ! Remove any repeated entries from the array
       ! Assumes the array is sorted
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Array to consider
       INTEGER, INTENT(OUT) :: m                ! Final size of array
       INTEGER :: i, n
@@ -699,7 +673,6 @@ CONTAINS
 
       ! Remove any repeated entries in the array a from both a and b
       ! Assumes the array a is sorted
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: b(:)
       INTEGER, INTENT(OUT) :: m
@@ -727,7 +700,6 @@ CONTAINS
    SUBROUTINE write_array_list_real(a)
 
       ! Write out a list of array elements in a neat way
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a(:)
       INTEGER :: i, n
 
@@ -745,7 +717,6 @@ CONTAINS
    SUBROUTINE write_array_list_int(a)
 
       ! Write out a list of array elements in a neat way
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: a(:)
       INTEGER :: i, n
 
@@ -764,7 +735,6 @@ CONTAINS
 
       ! This splays out a 2D array 'a' into a 1d array 'b' of the same size (n1*n2)
       ! TODO: Ugly order of arguments
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n1, n2
       REAL :: splay_2D(n1*n2)
       REAL, INTENT(IN) :: a(n1, n2)
@@ -787,7 +757,6 @@ CONTAINS
       ! This splays out a 3D array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
       ! TODO: Should i, j, k order of loops be reversed?
       ! TODO: Ugly order of arguments
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n1, n2, n3
       REAL :: splay_3D(n1*n2*n3)
       REAL, INTENT(IN) :: a(n1, n2, n3)
@@ -809,7 +778,7 @@ CONTAINS
 
    SUBROUTINE binning(a, a1, a2, b, c, ilog)
 
-      IMPLICIT NONE
+      ! Bin numbers in array a in bins b with height c between a1 and a2
       REAL, INTENT(IN) :: a(:)
       REAL, INTENT(OUT) :: b(:)
       REAL, INTENT(OUT) :: c(:)
@@ -863,7 +832,6 @@ CONTAINS
    SUBROUTINE merge_arrays(a, b, c, nc)
 
       ! Takes arrays a and b and merges them together to make c with length SIZE(a)+SIZE(b)
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a(:)
       REAL, INTENT(IN) :: b(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: c(:)
@@ -890,8 +858,7 @@ CONTAINS
    FUNCTION concatenate_arrays(a, b)
 
       ! Concatenate arrays a and b to form new array with length SIZE(a)+SIZE(b)
-      ! TODO: Ugly definition for type of function
-      IMPLICIT NONE   
+      ! TODO: Ugly definition for type of function  
       REAL, INTENT(IN) :: a(:)
       REAL, INTENT(IN) :: b(:)
       REAL :: concatenate_arrays(size(a)+size(b))
@@ -916,7 +883,6 @@ CONTAINS
       ! e.g., 4 values between 0 and 1 would be 0, 1/3, 2/3, and 1
       ! This means that min and max are included in the array
       USE basic_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: min ! Minimum value for array
       REAL, INTENT(IN) :: max ! Maximum value for array
       REAL, ALLOCATABLE, INTENT(INOUT) :: arr(:) ! Output array
@@ -970,7 +936,6 @@ CONTAINS
    SUBROUTINE fill_array_log(xmin, xmax, x, nx)
 
       ! Fill an array x in n log-space intervals between xmin and xmax (inclusive)
-      IMPLICIT NONE
       REAL, INTENT(IN) :: xmin
       REAL, INTENT(IN) :: xmax
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
@@ -984,7 +949,6 @@ CONTAINS
    SUBROUTINE integer_sequence(is, i1, i2, n)
 
       ! Reutrns an array of all the integers between i1 and i2 (inclusive)
-      IMPLICIT NONE
       INTEGER, ALLOCATABLE, INTENT(OUT) :: is(:)
       INTEGER, INTENT(IN) :: i1
       INTEGER, INTENT(IN) :: i2
@@ -1009,7 +973,6 @@ CONTAINS
       ! Fill an array between min and max as if the values should correspond to central pixel values
       ! e.g., 3 pixel values between 0 and 1 would be 1/6, 1/2 and 5/6
       ! This means that min and max are not included in the array
-      IMPLICIT NONE
       REAL, INTENT(IN) :: min ! Minimum value bordering array
       REAL, INTENT(IN) :: max ! Maximum value bordering array
       REAL, ALLOCATABLE, INTENT(OUT) :: arr(:) ! Output array
@@ -1028,7 +991,6 @@ CONTAINS
 
       ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
       USE special_functions
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: y(:)
       REAL :: x1, x2, x3, y1, y2, y3, a, b, c
@@ -1073,7 +1035,6 @@ CONTAINS
    SUBROUTINE mask(okay, m, n, min, max)
 
       ! Flags objects that make the cut as 'okay'
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       LOGICAL, INTENT(OUT) :: okay(n)
       REAL, INTENT(IN) :: m(n)
@@ -1104,7 +1065,6 @@ CONTAINS
 
    SUBROUTINE apply_mask_1D(x, a, nx, xmask)
 
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
       INTEGER, INTENT(INOUT) :: nx
@@ -1145,7 +1105,6 @@ CONTAINS
 
    SUBROUTINE apply_mask_2D(x, y, a, nx, ny, xmask, ymask)
 
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: y(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:,:)
@@ -1211,7 +1170,6 @@ CONTAINS
    INTEGER FUNCTION unique_entries(a)
 
       ! Counts the total number of unique entries in array 'a'
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: a(:) ! Input array
       INTEGER :: i, j, n
 
@@ -1234,7 +1192,6 @@ CONTAINS
 
    SUBROUTINE unique_index(array, n, unique, m, match)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n                       ! Number of entries in input array
       INTEGER, INTENT(IN) :: array(n)                ! Array to find the unique indices of
       INTEGER, ALLOCATABLE, INTENT(OUT) :: unique(:) ! Output array of unique indices
@@ -1279,7 +1236,6 @@ CONTAINS
 
       ! Test to see if integer value x is in a(n)
       ! This is very useful in IF statements where otherwise there would be a long chain of .OR.s
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: a(:)
       INTEGER :: i
@@ -1298,7 +1254,6 @@ CONTAINS
 
       ! Test to see if integer value x is in a(n)
       ! This is very useful in IF statements where otherwise there would be a long chain of .OR.s
-      IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: x
       CHARACTER(len=*), INTENT(IN) :: a(:)
       INTEGER :: i
@@ -1316,7 +1271,6 @@ CONTAINS
    LOGICAL FUNCTION repeated_entries(a)
 
       ! Checks for repeated entries in a(n)
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: a(:)
       INTEGER :: i, j, n
 
@@ -1340,7 +1294,6 @@ CONTAINS
 
       ! Returns true if array a is regularly spaced
       USE basic_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a(:)
       REAL :: amin, amax, b
       INTEGER :: i, n
