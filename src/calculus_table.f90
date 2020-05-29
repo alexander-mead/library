@@ -76,7 +76,7 @@ CONTAINS
 
          ELSE
 
-            i = find_table_integer(x, xtab, n, ifind)
+            i = find_table_integer(x, xtab, ifind)
 
             x2 = xtab(i+1)
             x1 = xtab(i)
@@ -123,7 +123,7 @@ CONTAINS
 
          ELSE
 
-            i = find_table_integer(x, xtab, n, ifind)
+            i = find_table_integer(x, xtab, ifind)
 
             x1 = xtab(i-1)
             x2 = xtab(i)
@@ -177,7 +177,7 @@ CONTAINS
 
          ELSE
 
-            i = find_table_integer(x, xtab, n, ifind)
+            i = find_table_integer(x, xtab, ifind)
 
             x1 = xtab(i-1)
             x2 = xtab(i)

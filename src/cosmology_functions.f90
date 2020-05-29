@@ -4341,7 +4341,7 @@ CONTAINS
 
             ! Need to assign new arrays for the collapse branch of r such that it is monotonic
             !k2=int_split(d_rmax,dnl,k)
-            k2 = find_table_integer(d_rmax, dnl, k, ifind_split)
+            k2 = find_table_integer(d_rmax, dnl, ifind_split)
 
             ! Allocate collapse branch arrays
             ALLOCATE (a_coll(k-k2+1), r_coll(k-k2+1))

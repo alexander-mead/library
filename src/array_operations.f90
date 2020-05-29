@@ -761,6 +761,7 @@ CONTAINS
    FUNCTION splay_2D(a, n1, n2)
 
       ! This splays out a 2D array 'a' into a 1d array 'b' of the same size (n1*n2)
+      ! TODO: Ugly order of arguments
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n1, n2
       REAL :: splay_2D(n1*n2)
@@ -783,6 +784,7 @@ CONTAINS
 
       ! This splays out a 3D array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
       ! TODO: Should i, j, k order of loops be reversed?
+      ! TODO: Ugly order of arguments
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n1, n2, n3
       REAL :: splay_3D(n1*n2*n3)

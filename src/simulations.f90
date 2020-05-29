@@ -128,7 +128,7 @@ CONTAINS
             IF (rpair < rmin .OR. rpair > rmax) THEN
                CYCLE
             ELSE
-               i = find_table_integer(rpair, rbin, nr+1, ifind)
+               i = find_table_integer(rpair, rbin, ifind)
                r8(i) = r8(i)+rpair
                xi8(i) = xi8(i)+w1(i1)*w2(i2)
                n(i) = n(i)+1

@@ -15,7 +15,7 @@ MODULE table_integer
 
 CONTAINS
 
-   INTEGER FUNCTION find_table_integer(x, xtab, n, ifind)
+   INTEGER FUNCTION find_table_integer(x, xtab, ifind)
 
       ! Chooses between ways to find the integer location *below* some value in an array
       ! If x is within the table then the value returned will be between 1 and n-1
@@ -23,39 +23,43 @@ CONTAINS
       ! If x is above the upper value of the array then n is returned (IMPORTANT)
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: xtab(n)
+      REAL, INTENT(IN) :: xtab(:)
       INTEGER, INTENT(IN) :: ifind
+      INTEGER :: n
 
       ! Methods (ifind)
       ! 1 - Get integer assuming the array has linear spacing
       ! 2 - Search array from first entry to last entry (often a silly thing to do)
       ! 3 - Mid-point search method to find integer (efficient for 2^n)
 
+      n = size(xtab)
+
       IF (x < xtab(1)) THEN
          find_table_integer = 0
       ELSE IF (x > xtab(n)) THEN
          find_table_integer = n
       ELSE IF (ifind == ifind_linear) THEN
-         find_table_integer = linear_table_integer(x, xtab, n)
+         find_table_integer = linear_table_integer(x, xtab)
       ELSE IF (ifind == ifind_crude) THEN
-         find_table_integer = search_int(x, xtab, n)
+         find_table_integer = search_int(x, xtab)
       ELSE IF (ifind == ifind_split) THEN
-         find_table_integer = int_split(x, xtab, n)
+         find_table_integer = int_split(x, xtab)
       ELSE
          STOP 'TABLE INTEGER: Method specified incorrectly'
       END IF
 
    END FUNCTION find_table_integer
 
-   INTEGER FUNCTION linear_table_integer(x, xtab, n)
+   INTEGER FUNCTION linear_table_integer(x, xtab)
 
       ! Assuming the table is exactly linear this gives you the integer position
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: xtab(n)
+      REAL, INTENT(IN) :: xtab(:)
       REAL :: x1, xn
+      INTEGER :: n
+
+      n = size(xtab)
 
       x1 = xtab(1)
       xn = xtab(n)
@@ -63,14 +67,15 @@ CONTAINS
 
    END FUNCTION linear_table_integer
 
-   INTEGER FUNCTION search_int(x, xtab, n)
+   INTEGER FUNCTION search_int(x, xtab)
 
       ! Does a stupid search through the table from beginning to end to find integer
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: xtab(n)
-      INTEGER :: i
+      REAL, INTENT(IN) :: xtab(:)
+      INTEGER :: i, n
+
+      n = size(xtab)
 
       IF (xtab(1) > xtab(n)) STOP 'SEARCH_INT: table in wrong order'
 
@@ -82,14 +87,15 @@ CONTAINS
 
    END FUNCTION search_int
 
-   INTEGER FUNCTION int_split(x, xtab, n)
+   INTEGER FUNCTION int_split(x, xtab)
 
       ! Finds the position of the value in the table by continually splitting it in half
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: xtab(n)
-      INTEGER :: i1, i2, imid
+      REAL, INTENT(IN) :: xtab(:)
+      INTEGER :: i1, i2, imid, n
+
+      n = size(xtab)
 
       IF (xtab(1) > xtab(n)) STOP 'INT_SPLIT: table in wrong order'
 

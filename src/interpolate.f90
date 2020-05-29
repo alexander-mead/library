@@ -79,7 +79,7 @@ CONTAINS
             ! Outside upper boundary
             find_1D = 0.
          ELSE
-            i = find_table_integer(x, xtab, n, ifind)
+            i = find_table_integer(x, xtab, ifind)
             find_1D = ytab(i)
          END IF
 
@@ -145,7 +145,7 @@ CONTAINS
 
             ELSE
 
-               i = find_table_integer(x, xtab, n, ifind)
+               i = find_table_integer(x, xtab, ifind)
 
                x1 = xtab(i)
                x2 = xtab(i+1)
@@ -203,7 +203,7 @@ CONTAINS
 
             ELSE
 
-               i = find_table_integer(x, xtab, n, ifind)
+               i = find_table_integer(x, xtab, ifind)
 
                x1 = xtab(i-1)
                x2 = xtab(i)
@@ -262,7 +262,7 @@ CONTAINS
 
             ELSE
 
-               i = find_table_integer(x, xtab, n, ifind)
+               i = find_table_integer(x, xtab, ifind)
 
                x1 = xtab(i-1)
                x2 = xtab(i)
@@ -349,9 +349,9 @@ CONTAINS
 
       IF(iorder == 0) THEN
 
-         ix = find_table_integer(x, xin, nx, ifind)
+         ix = find_table_integer(x, xin, ifind)
          IF(ix == 0) ix = 1
-         iy = find_table_integer(y, yin, ny, ifind)
+         iy = find_table_integer(y, yin, ifind)
          IF(iy == 0) iy = 1
 
          find_2D = fin(ix, iy)
@@ -364,7 +364,7 @@ CONTAINS
          !! Get the x,y values !!
 
          ! Get the integer coordinates in the x direction
-         ix = find_table_integer(x, xin, nx, ifind)
+         ix = find_table_integer(x, xin, ifind)
          IF(ix==0) THEN
             ix=1
          ELSE IF(ix==nx) THEN
@@ -378,7 +378,7 @@ CONTAINS
          x2 = xin(ix2)
 
          ! Get the integer coordinates in the y direction
-         iy = find_table_integer(y, yin, ny, ifind)
+         iy = find_table_integer(y, yin, ifind)
          IF(iy==0) THEN
             iy=1
          ELSE IF(iy==ny) THEN
@@ -441,7 +441,7 @@ CONTAINS
             ELSE IF (y >= ytab(ny-3)) THEN
                j = ny-2
             ELSE
-               j = find_table_integer(y, ytab, ny, ifind)
+               j = find_table_integer(y, ytab, ifind)
             END IF
 
             j1 = j-1
@@ -493,7 +493,7 @@ CONTAINS
             ELSE IF (x >= xtab(nx-3)) THEN
                i = nx-2
             ELSE
-               i = find_table_integer(x, xtab, nx, ifind)
+               i = find_table_integer(x, xtab, ifind)
             END IF
 
             i1 = i-1
@@ -552,7 +552,7 @@ CONTAINS
             ELSE IF (x >= xtab(nx-3)) THEN
                i = nx-2
             ELSE
-               i = find_table_integer(x, xtab, nx, ifind)
+               i = find_table_integer(x, xtab, ifind)
             END IF
 
             i1 = i-1
@@ -570,7 +570,7 @@ CONTAINS
             ELSE IF (y >= ytab(ny-3)) THEN
                j = ny-2
             ELSE
-               j = find_table_integer(y, ytab, ny, ifind)
+               j = find_table_integer(y, ytab, ifind)
             END IF
 
             j1 = j-1
@@ -695,9 +695,9 @@ CONTAINS
       IF(iorder == 0) THEN
 
          DO d = 1, 3
-            IF(d==1) ix(d) = find_table_integer(x, xin, nx, ifind)
-            IF(d==2) ix(d) = find_table_integer(y, yin, ny, ifind)
-            IF(d==3) ix(d) = find_table_integer(z, zin, nz, ifind)
+            IF(d==1) ix(d) = find_table_integer(x, xin, ifind)
+            IF(d==2) ix(d) = find_table_integer(y, yin, ifind)
+            IF(d==3) ix(d) = find_table_integer(z, zin, ifind)
          END DO
 
          DO d = 1, 3
@@ -726,9 +726,9 @@ CONTAINS
          DO d = 1, 3
 
             ! Get the integer coordinates of the 'cube' corners that encompass the point in each dimensions
-            IF(d == 1) ix(1) = find_table_integer(x, xin, nx, ifind)
-            IF(d == 2) ix(2) = find_table_integer(y, yin, ny, ifind)
-            IF(d == 3) ix(3) = find_table_integer(z, zin, nz, ifind)
+            IF(d == 1) ix(1) = find_table_integer(x, xin, ifind)
+            IF(d == 2) ix(2) = find_table_integer(y, yin, ifind)
+            IF(d == 3) ix(3) = find_table_integer(z, zin, ifind)
 
             ! Correct for the case of these integers coordinates being at the edge of the box
             IF(ix(d) == 0) THEN

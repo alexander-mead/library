@@ -97,7 +97,7 @@ CONTAINS
             CYCLE
          ELSE
             ! TODO: Check ifind_linear is correct here
-            j = find_table_integer(data(i), x, n, ifind_linear)
+            j = find_table_integer(data(i), x, ifind_linear)
             hist(j) = hist(j)+1
          END IF
       END DO
