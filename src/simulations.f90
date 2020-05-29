@@ -1200,7 +1200,7 @@ CONTAINS
             ELSE
                STOP 'CIC_2D: Error, something went terribly wrong'
             END IF
-            CALL add_to_array(d, m, eps*w(i), ic)
+            CALL add_to_array(d, eps*w(i), ic)
          END DO
 
       END DO
@@ -1346,7 +1346,7 @@ CONTAINS
             ELSE
                STOP 'CIC_3D: Error, something went terribly wrong'
             END IF
-            CALL add_to_array(d, m, eps*w(i), ic)
+            CALL add_to_array(d, eps*w(i), ic)
          END DO
 
       END DO

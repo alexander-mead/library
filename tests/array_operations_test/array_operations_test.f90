@@ -187,7 +187,7 @@ CONTAINS
 
   END SUBROUTINE test_remove_repeated_entries
 
-  SUBROUTINE test_remove_array_element(fail,verbose)
+  SUBROUTINE test_remove_array_element(fail, verbose)
 
     IMPLICIT NONE
     LOGICAL, INTENT(OUT) :: fail
@@ -203,7 +203,7 @@ CONTAINS
 
     IF(verbose) CALL write_array_list(a)
 
-    CALL remove_array_element(a,2)
+    CALL remove_array_element(2,a)
     n=n-1
     IF(verbose) THEN
        WRITE(*,*) 'TEST_REMOVE_ARRAY_ELEMENT: Removed second element'

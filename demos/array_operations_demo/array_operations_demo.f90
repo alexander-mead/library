@@ -287,7 +287,7 @@ PROGRAM array_operations_test
 
      CALL write_array_list(a)
 
-     CALL remove_array_element(a,2)
+     CALL remove_array_element(2,a)
      WRITE(*,*) 'Removed second element'
      WRITE(*,*)
      n=n-1

@@ -345,12 +345,12 @@ CONTAINS
 
    END SUBROUTINE swap_arrays
 
-   SUBROUTINE append(a, b)
+   SUBROUTINE append(x, a)
 
       ! Append value b to the end of array a(n) to make a new array a(n+1)
       IMPLICIT NONE
-      INTEGER, ALLOCATABLE, INTENT(INOUT) :: a(:)
-      INTEGER, INTENT(IN) :: b
+      INTEGER, INTENT(IN) :: x
+      INTEGER, ALLOCATABLE, INTENT(INOUT) :: a(:)    
       INTEGER, ALLOCATABLE :: hold(:)
       INTEGER :: i, n
 
@@ -364,17 +364,16 @@ CONTAINS
       DO i = 1, n
          a(i) = hold(i)
       END DO
-      a(n+1) = b
+      a(n+1) = x
 
    END SUBROUTINE append
 
-   SUBROUTINE add_to_array_2D(a, m, v, i)
+   SUBROUTINE add_to_array_2D(a, v, i)
 
       ! Add value 'v' to array 'a' at location 'i' in array
       ! If 'i' is outside the array range then this routine does nothing
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: m
-      REAL, INTENT(INOUT) :: a(m, m)
+      REAL, INTENT(INOUT) :: a(:, :) 
       REAL, INTENT(IN) :: v
       INTEGER, INTENT(IN) :: i(2)
       INTEGER :: j
@@ -383,7 +382,7 @@ CONTAINS
 
       bin = .TRUE.
       DO j = 1, dim
-         IF (i(j) < 1 .OR. i(j) > m) THEN
+         IF (i(j) < 1 .OR. i(j) > size(a, j)) THEN
             bin = .FALSE.
             EXIT
          END IF
@@ -393,13 +392,12 @@ CONTAINS
 
    END SUBROUTINE add_to_array_2D
 
-   SUBROUTINE add_to_array_3D(a, m, v, i)
+   SUBROUTINE add_to_array_3D(a, v, i)
 
       ! Add value 'v' to array 'a' at location 'i' in array
       ! If 'i' is outside the array range then this routine does nothing
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: m
-      REAL, INTENT(INOUT) :: a(m, m, m)
+      REAL, INTENT(INOUT) :: a(:, :, :)
       REAL, INTENT(IN) :: v
       INTEGER, INTENT(IN) :: i(3)
       INTEGER :: j
@@ -408,7 +406,7 @@ CONTAINS
 
       bin = .TRUE.
       DO j = 1, dim
-         IF (i(j) < 1 .OR. i(j) > m) THEN
+         IF (i(j) < 1 .OR. i(j) > size(a, j)) THEN
             bin = .FALSE.
             EXIT
          END IF
@@ -636,12 +634,12 @@ CONTAINS
 
    END SUBROUTINE reverse_array
 
-   SUBROUTINE remove_array_element(a, i)
+   SUBROUTINE remove_array_element(i, a)
 
       ! Remove element i from array a(n) returning an array of size n-1
       IMPLICIT NONE
-      REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Input array
       INTEGER, INTENT(IN) :: i                 ! Element to remove
+      REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Input array     
       REAL :: b(size(a)-1)
       INTEGER :: j, jj, n
 
