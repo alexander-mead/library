@@ -422,22 +422,23 @@ CONTAINS
 
       ! Names of pre-defined cosmologies
       INTEGER, PARAMETER :: ncosmo = 337
-      CHARACTER(len=256) :: names(0:ncosmo)
+      CHARACTER(len=256) :: names(ncosmo)
+
       names = ''
-      names(0)  = 'User defined'
+      !names(0)  = 'User defined'
       names(1)  = 'Boring'
       names(2)  = 'WMAP7 (cosmo-OWLS)'
       names(3)  = 'Planck 2013 (cosmo-OWLS/BAHAMAS)'
       names(4)  = 'WMAP9 (BAHAMAS)'
       names(5)  = 'Open'
       names(6)  = 'Einstein-de Sitter'
-      names(7)  = 'IDE I (user)'
-      names(8)  = 'IDE II (user)'
-      names(9)  = 'IDE III (user)'
-      names(10) = 'IDE3'
-      names(11) = 'IDE10'
-      names(12) = 'LCDM (user)'
-      names(13) = 'w(a)CDM (user)'
+      names(7)  = 'IDE I'
+      names(8)  = 'IDE II'
+      names(9)  = 'IDE III'
+      names(10) = ''
+      names(11) = ''
+      names(12) = ''
+      names(13) = ''
       names(14) = 'WDM'
       names(15) = 'TCDM'
       names(16) = 'Boring: w = -0.7'
@@ -820,60 +821,47 @@ CONTAINS
       ELSE IF (icosmo == 7) THEN
          ! IDE I
          cosm%iw = iw_IDE1
-         WRITE (*, *) 'a*:'
-         READ (*, *) cosm%astar
-         WRITE (*, *) 'n*:'
-         READ (*, *) cosm%nstar
-         WRITE (*, *) 'Om_w(a*):'
-         READ (*, *) cosm%Om_ws
+         !WRITE (*, *) 'a*:'
+         !READ (*, *) cosm%astar
+         !WRITE (*, *) 'n*:'
+         !READ (*, *) cosm%nstar
+         !WRITE (*, *) 'Om_w(a*):'
+         !READ (*, *) cosm%Om_ws
+         cosm%astar = 0.1
+         cosm%nstar = 3.
+         cosm%Om_ws = 0.3
          cosm%Om_m = 0.3
          cosm%Om_v = 0.7
       ELSE IF (icosmo == 8) THEN
          ! IDE II model
          cosm%iw = iw_IDE2
-         WRITE (*, *) 'n*:'
-         READ (*, *) cosm%nstar
-         WRITE (*, *) 'a*:'
-         READ (*, *) cosm%astar
-         WRITE (*, *) 'Om_w(a*):'
-         READ (*, *) cosm%Om_ws
+         !WRITE (*, *) 'n*:'
+         !READ (*, *) cosm%nstar
+         !WRITE (*, *) 'a*:'
+         !READ (*, *) cosm%astar
+         !WRITE (*, *) 'Om_w(a*):'
+         !READ (*, *) cosm%Om_ws
+         cosm%astar = 0.1
+         cosm%nstar = 3.    
+         cosm%Om_ws = 0.3
          cosm%Om_m = 0.3
          cosm%Om_w = 0.7
          cosm%Om_v = 0. !No vacuum necessary here
       ELSE IF (icosmo == 9) THEN
          ! IDE III model
          cosm%iw = iw_IDE3
-         WRITE (*, *) 'a*:'
-         READ (*, *) cosm%astar
-         WRITE (*, *) 'Om_w(a*):'
-         READ (*, *) cosm%Om_ws
-         WRITE (*, *) 'w*:'
-         READ (*, *) cosm%ws
+         !WRITE (*, *) 'a*:'
+         !READ (*, *) cosm%astar
+         !WRITE (*, *) 'Om_w(a*):'
+         !READ (*, *) cosm%Om_ws
+         !WRITE (*, *) 'w*:'
+         !READ (*, *) cosm%ws
+         cosm%astar = 0.1
+         cosm%Om_ws = 0.3
+         cosm%ws = 0.5
          cosm%Om_m = 0.3
          cosm%Om_w = 0.7
          cosm%Om_v = 0.
-      ELSE IF (icosmo == 10 .OR. icosmo == 11) THEN
-         ! Fixed IDE II models
-         cosm%iw = iw_IDE2
-         cosm%Om_w = cosm%Om_v
-         cosm%Om_v = 0.
-         IF (icosmo == 10) cosm%nstar = 3.
-         IF (icosmo == 11) cosm%nstar = 10.
-         cosm%astar = 0.01
-         cosm%Om_ws = 0.2
-      ELSE IF (icosmo == 12) THEN
-         ! Curved
-         WRITE (*, *) 'Om_m:'
-         READ (*, *) cosm%Om_m
-         WRITE (*, *) 'Om_v:'
-         READ (*, *) cosm%Om_v
-      ELSE IF (icosmo == 13) THEN
-         ! w(a)CDM
-         cosm%iw = iw_waCDM
-         WRITE (*, *) 'w0:'
-         READ (*, *) cosm%w
-         WRITE (*, *) 'wa:'
-         READ (*, *) cosm%wa
       ELSE IF (icosmo == 14) THEN
          ! WDM
          cosm%warm = .TRUE.
@@ -5386,9 +5374,9 @@ CONTAINS
       CALL EXECUTE_COMMAND_LINE('rm -rf '//trim(transfer)//'*')
       CALL EXECUTE_COMMAND_LINE('rm -rf '//trim(matterpower)//'*')
       IF (cosm%verbose) THEN
-         CALL EXECUTE_COMMAND_LINE(trim(camb)//' '//trim(params)//' > /dev/null')
-      ELSE
          CALL EXECUTE_COMMAND_LINE(trim(camb)//' '//trim(params))
+      ELSE
+         CALL EXECUTE_COMMAND_LINE(trim(camb)//' '//trim(params)//' > /dev/null')
       END IF
       IF (cosm%verbose) WRITE (*, *) 'GET_CAMB_POWER: CAMB run complete'
 
