@@ -41,9 +41,8 @@ MODULE minimization
       INTEGER :: i, j, n
 
       INTERFACE
-         FUNCTION f(xin, nin)
-            INTEGER, INTENT(IN) :: nin
-            REAL, INTENT(IN) :: xin(nin)           
+         FUNCTION f(xin)
+            REAL, INTENT(IN) :: xin(:)           
          END FUNCTION f
       END INTERFACE
 
@@ -53,7 +52,7 @@ MODULE minimization
       END IF
       ALLOCATE(y(n))
 
-      fom = HUGE(fom)
+      fom = huge(fom)
       DO i = 1, m
 
          DO j = 1, n
@@ -79,6 +78,8 @@ MODULE minimization
 
       ! Nelder-Mead simplex for fiding minima of a function
       ! Coded up using https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
+      ! x should be x(n)
+      ! dx should be dx(n)
       REAL, INTENT(INOUT) :: x(:)
       REAL, INTENT(IN) :: dx(:)
       REAL, INTENT(OUT) :: fom
@@ -96,12 +97,12 @@ MODULE minimization
       REAL, PARAMETER :: sigma = sigma_Nelder_Mead  ! Shrink coefficient (standard sigma = 0.5)
 
       INTERFACE
-         FUNCTION f(xin, nin)
-            INTEGER, INTENT(IN) :: nin
-            REAL, INTENT(IN) :: xin(nin)           
+         FUNCTION f(xin)
+            REAL, INTENT(IN) :: xin(:)           
          END FUNCTION f
       END INTERFACE
 
+      ! Check array sizes
       n = size(x)
       IF (n /= size(dx)) STOP 'NELDER_MEAD: Error, x and dx must be the same size'
       ALLOCATE(xx(n+1, n), ff(n+1))
@@ -117,7 +118,7 @@ MODULE minimization
 
       ! Evaluate function at initial points
       DO i = 1, n+1
-         ff(i) = f(xx(i, :), n)
+         ff(i) = f(xx(i, :))
       END DO
 
       ! Start the minimization
@@ -146,12 +147,12 @@ MODULE minimization
 
          ! Calculate the reflected point of n+1 about the centroid
          xr = xo+alpha*(xo-xx(n+1, :))
-         fr = f(xr, n)
+         fr = f(xr)
 
          IF (fr < ff(1)) THEN
             ! if the reflected point is the best so far then calculate the expanded point 
             xe = xo+gamma*(xr-xo)
-            fe = f(xe, n)
+            fe = f(xe)
             IF(fe < fr) THEN
                ! Keep the expansed point if it is better than the reflected ...
                operation = 'Expanding'
@@ -174,7 +175,7 @@ MODULE minimization
             ! Here it is certain that the reflected point is at least as worse than the second worst point
             ! Calculate the contracted point
             xc = xo+rho*(xx(n+1, :)-xo)
-            fc = f(xc, n)
+            fc = f(xc)
             IF(fc < ff(n+1)) THEN
                ! Keep the contracted point if it is better than the worst point
                operation = 'Contracting'
@@ -187,7 +188,7 @@ MODULE minimization
                operation = 'Shrinking'
                DO i = 2, n+1
                   xx(i, :) = xx(1, :)+sigma*(xx(i, :)-xx(1, :))
-                  ff(i) = f(xx(i, :), n)
+                  ff(i) = f(xx(i, :))
                END DO
             END IF
          END IF
@@ -206,18 +207,29 @@ MODULE minimization
 
    END SUBROUTINE Nelder_Mead
 
-   FUNCTION Nelder_Mead_centroid(x)
+   FUNCTION Nelder_Mead_centroid(x) result(centroid)
 
-      ! Calculate the centroid of all points except n+1
+      ! Calculate the centroid of all points except the worst point, which is n+1
+      ! x Should be x(n+1, n)
+      ! Output should be centroid(n)
       REAL, INTENT(IN) :: x(:, :)
-      REAL :: Nelder_Mead_centroid(size(x, 2))
+      REAL :: centroid(size(x, 2))
+      REAL, ALLOCATABLE :: xx(:, :)
       INTEGER :: i, n
 
+      ! Check array sizes
       n = size(x, 2)
       IF(n+1 /= size(x, 1)) STOP 'NELDER_MEAD_CENTROID: Error array x is wrong'
 
+      ! This ugly stuff is needed because the final element is not counted in the mean
+      ALLOCATE(xx(n, n))
       DO i = 1, n
-         Nelder_Mead_centroid(i) = mean(x(:,i))
+         xx(i, :) = x(i, :)
+      END DO
+
+      ! Calculate the mean
+      DO i = 1, n
+         centroid(i) = mean(xx(:, i))
       END DO
 
    END FUNCTION Nelder_Mead_centroid
@@ -225,18 +237,21 @@ MODULE minimization
    SUBROUTINE Nelder_Mead_sort(x, f)
 
       ! Sort the points into order from best to worst
+      ! x should be x(n+1, n), f should be f(n+1)
       REAL, INTENT(INOUT) :: x(:, :)
       REAL, INTENT(INOUT) :: f(:)
       INTEGER :: i, n
       INTEGER, ALLOCATABLE :: j(:)
       INTEGER, PARAMETER :: isort = isort_Nelder_Mead
 
+      ! Check array sizes
       n = size(x, 2)
       IF (n+1 /= size(x, 1) .OR. n+1 /= size(f)) THEN
          STOP 'NELDER_MEAD_SORT: Error, arrays are the wrong size'
       END IF
       ALLOCATE(j(n+1))
 
+      ! Carry out the reindexing
       CALL index(f, j, isort)
       CALL reindex(f, j)
       DO i = 1, n
@@ -248,11 +263,12 @@ MODULE minimization
    LOGICAL FUNCTION Nelder_Mead_termination(f, tol)
 
       ! Determine if the minimization has converged
+      ! f should be f(n+1)
       REAL, INTENT(IN) :: f(:)
       REAL, INTENT(IN) :: tol
       REAL :: sigma
 
-      ! Calculate the standard deviation of all points
+      ! Calculate the standard deviation of all n+1 points
       sigma = standard_deviation(f)
 
       ! Decide on termination
