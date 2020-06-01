@@ -9,6 +9,9 @@ MODULE minimization
 
    PUBLIC :: Nelder_Mead
    PUBLIC :: Nelder_Mead_multiple
+   PUBLIC :: Nelder_Mead_centroid
+   PUBLIC :: Nelder_Mead_sort
+   PUBLIC :: Nelder_Mead_termination
    PUBLIC :: adaptive_minimization_1D
    PUBLIC :: adaptive_minimization_3D
    PUBLIC :: grid_minimization_1D
