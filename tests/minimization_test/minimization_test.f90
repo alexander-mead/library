@@ -10,12 +10,14 @@ PROGRAM minimization_test
    INTEGER, PARAMETER :: ntest = 2
    LOGICAL :: ifail
 
+   WRITE (*, *)
+
    DO imode = 1, ntest
 
       IF (imode == 1) THEN     
-         CALL minimization_examples_1D(verbose_tests, ifail)
+         CALL test_minimization_1D(verbose_tests, ifail)
       ELSE IF (imode == 2) THEN
-         CALL minimization_examples_2D(verbose_tests, ifail)
+         CALL test_minimization_2D(verbose_tests, ifail)
       ELSE
          STOP 'MINIMIZATION_DEMO: Error, imode not specified correctly'
       END IF
@@ -28,7 +30,7 @@ PROGRAM minimization_test
    
    CONTAINS
 
-   SUBROUTINE minimization_examples_1D(verbose, fail)
+   SUBROUTINE test_minimization_1D(verbose, fail)
 
       LOGICAL, INTENT(IN) :: verbose
       LOGICAL, INTENT(OUT) :: fail
@@ -48,28 +50,30 @@ PROGRAM minimization_test
       x(1) = 1.
       dx(1) = 1.
       IF (verbose) THEN
-         WRITE(*, *) 'Initial guess'
-         WRITE(*, *) 'x:', x(1)
+         WRITE(*, *) 'TEST_MINIMIZATION_1D: Initial guess'
+         WRITE(*, *) 'TEST_MINIMIZATION_1D: x:', x(1)
          WRITE(*, *)
       END IF
 
       CALL Nelder_Mead(x, dx, fom, func_1D, tol, verbose)
       IF (verbose) THEN
-         WRITE(*, *) 'Minimization found at'
-         WRITE(*, *) 'x:', x(1)
-         WRITE(*, *) 'Should be: ', xmin
+         WRITE(*, *) 'TEST_MINIMIZATION_1D: Minimization found at'
+         WRITE(*, *) 'TEST_MINIMIZATION_1D: x:', x(1)
+         WRITE(*, *) 'TEST_MINIMIZATION_1D: Should be: ', xmin
          WRITE(*, *)
       END IF
 
       IF (.NOT. requal(x(1), xmin, ttol)) fail = .TRUE.
 
       IF (fail) THEN
-         WRITE (*, *) 'MINIMIZATION_EXAMPLES_1D: Test failed'
+         WRITE (*, *) 'TEST_MINIMIZATION_1D: Fail'
+         STOP
       ELSE
-         WRITE (*, *) 'MINIMIZATION_EXAMPLES_1D: Test passed'
+         WRITE (*, *) 'TEST_MINIMIZATION_1D: Pass'
+         WRITE (*, *)
       END IF
 
-   END SUBROUTINE minimization_examples_1D
+   END SUBROUTINE test_minimization_1D
 
    REAL FUNCTION func_1D(x)
 
@@ -80,7 +84,7 @@ PROGRAM minimization_test
 
    END FUNCTION func_1D
 
-   SUBROUTINE minimization_examples_2D(verbose, fail)
+   SUBROUTINE test_minimization_2D(verbose, fail)
 
       LOGICAL, INTENT(IN) :: verbose
       LOGICAL, INTENT(OUT) :: fail
@@ -103,29 +107,31 @@ PROGRAM minimization_test
       dx(1) = 1.
       dx(2) = 1.
       IF (verbose) THEN
-         WRITE(*, *) 'Initial guess'
-         WRITE(*, *) 'x:', x(1)
-         WRITE(*, *) 'y:', x(2)
+         WRITE(*, *) 'TEST_MINIMIZATION_2D: Initial guess'
+         WRITE(*, *) 'TEST_MINIMIZATION_2D: x:', x(1)
+         WRITE(*, *) 'TEST_MINIMIZATION_2D: y:', x(2)
          WRITE(*, *)
       END IF
 
       CALL Nelder_Mead(x, dx, fom, func_2D, tol, verbose)
       IF (verbose) THEN
-         WRITE(*, *) 'Minimization found at'
-         WRITE(*, *) 'x:', x(1)
-         WRITE(*, *) 'y:', x(2)
+         WRITE(*, *) 'TEST_MINIMIZATION_2D: Minimization found at'
+         WRITE(*, *) 'TEST_MINIMIZATION_2D: x:', x(1)
+         WRITE(*, *) 'TEST_MINIMIZATION_2D: y:', x(2)
          WRITE(*, *)
       END IF
 
       IF ((.NOT. requal(x(1), xmin, ttol)) .OR. (.NOT. requal(x(2), ymin, ttol))) fail = .TRUE.
 
       IF (fail) THEN
-         WRITE (*, *) 'MINIMIZATION_EXAMPLES_2D: Test failed'
+         WRITE (*, *) 'TEST_MINIMIZATION_2D: Fail'
+         STOP
       ELSE
-         WRITE (*, *) 'MINIMIZATION_EXAMPLES_2D: Test passed'
+         WRITE (*, *) 'TEST_MINIMIZATION_2D: Pass'
+         WRITE (*, *)
       END IF
 
-   END SUBROUTINE minimization_examples_2D
+   END SUBROUTINE test_minimization_2D
 
    REAL FUNCTION func_2D(x)
 

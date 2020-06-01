@@ -7,11 +7,11 @@ PROGRAM sorting_test
 
    WRITE(*, *)
 
-   CALL sort_test(ifail)
+   CALL test_sort(ifail)
 
    CONTAINS
 
-   SUBROUTINE sort_test(fail)
+   SUBROUTINE test_sort(fail)
 
       LOGICAL, INTENT(OUT) :: fail
       REAL :: unsorted(10), input(10), sorted(10)
@@ -32,17 +32,17 @@ PROGRAM sorting_test
          IF (.NOT. all(unsorted == sorted)) fail = .TRUE.
 
          IF (fail) THEN
-            WRITE(*, *) 'Sort test failed', isort
+            WRITE(*, *) 'TEST_SORT: Sort test failed', isort
             EXIT
          END IF
 
       END DO
 
       IF (.NOT. fail) THEN
-         WRITE(*, *) 'SORT_TEST: Passed' 
+         WRITE(*, *) 'TEST_SORT: Passed' 
          WRITE(*, *)
       END IF
 
-   END SUBROUTINE sort_test
+   END SUBROUTINE test_sort
 
 END PROGRAM sorting_test

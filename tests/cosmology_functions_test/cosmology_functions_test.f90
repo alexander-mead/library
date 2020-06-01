@@ -80,9 +80,9 @@ CONTAINS
     END DO
 
     IF(fail) THEN
-       STOP 'TEST_EDS: Tests failed'
+       STOP 'TEST_EDS: Fail'
     ELSE
-       WRITE(*,*) 'TEST_EDS: Tests passed'
+       WRITE(*,*) 'TEST_EDS: Pass'
        WRITE(*,*)
     END IF
 
