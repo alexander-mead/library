@@ -49,7 +49,7 @@ CONTAINS
 
    SUBROUTINE fix_linear(a1, a0, x1, y1, x2, y2)
 
-      ! Given xi, yi i=1,2 fits a line between these points
+      ! Given xi, yi i=1,2 fixes a line between these points
       REAL, INTENT(OUT) :: a1
       REAL, INTENT(OUT) :: a0 
       REAL, INTENT(IN) :: x1
@@ -64,7 +64,7 @@ CONTAINS
 
    SUBROUTINE fix_quadratic(a2, a1, a0, x1, y1, x2, y2, x3, y3)
 
-      ! Given xi, yi i=1,2,3 fits a quadratic between these points
+      ! Given xi, yi i=1,2,3 fixes a quadratic between these points
       REAL, INTENT(OUT) :: a2
       REAL, INTENT(OUT) :: a1
       REAL, INTENT(OUT) :: a0
@@ -81,13 +81,13 @@ CONTAINS
 
    END SUBROUTINE fix_quadratic
 
-   SUBROUTINE fix_cubic(a, b, c, d, x1, y1, x2, y2, x3, y3, x4, y4)
+   SUBROUTINE fix_cubic(a3, a2, a1, a0, x1, y1, x2, y2, x3, y3, x4, y4)
 
-      ! Given xi, yi i=1,2,3,4 fits a cubic between these points
-      REAL, INTENT(OUT) :: a
-      REAL, INTENT(OUT) :: b
-      REAL, INTENT(OUT) :: c
-      REAL, INTENT(OUT) :: d
+      ! Given xi, yi i=1,2,3,4 fixes a cubic between these points
+      REAL, INTENT(OUT) :: a3
+      REAL, INTENT(OUT) :: a2
+      REAL, INTENT(OUT) :: a1
+      REAL, INTENT(OUT) :: a0
       REAL, INTENT(IN) :: x1
       REAL, INTENT(IN) :: y1
       REAL, INTENT(IN) :: x2
@@ -102,21 +102,21 @@ CONTAINS
       f2 = (y3-y1)/((x3-x2)*(x3-x1)*(x4-x3))
       f3 = (y2-y1)/((x2-x1)*(x4-x3))*(1./(x4-x2)-1./(x3-x2))
 
-      a = f1-f2-f3
+      a3 = f1-f2-f3
 
       f1 = (y3-y1)/((x3-x2)*(x3-x1))
       f2 = (y2-y1)/((x2-x1)*(x3-x2))
-      f3 = a*(x3+x2+x1)
+      f3 = a3*(x3+x2+x1)
 
-      b = f1-f2-f3
+      a2 = f1-f2-f3
 
       f1 = (y4-y1)/(x4-x1)
-      f2 = a*(x4**2.+x4*x1+x1**2.)
-      f3 = b*(x4+x1)
+      f2 = a3*(x4**2.+x4*x1+x1**2.)
+      f3 = a2*(x4+x1)
 
-      c = f1-f2-f3
+      a1 = f1-f2-f3
 
-      d = y1-a*x1**3.-b*x1**2.-c*x1
+      a0 = y1-a3*x1**3.-a2*x1**2.-a1*x1
 
    END SUBROUTINE fix_cubic
 
@@ -200,7 +200,7 @@ CONTAINS
 
    END SUBROUTINE get_factorials
 
-   INTEGER(kind=8) FUNCTION factorial(n)
+   INTEGER(i8) FUNCTION factorial(n)
 
       ! Calculates the nth factorial number
       USE precision
