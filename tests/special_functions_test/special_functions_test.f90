@@ -10,6 +10,10 @@ PROGRAM special_functions_test
 
    CALL test_fix_linear(ifail)
 
+   CALL test_fix_quadratic(ifail)
+
+   CALL test_fix_cubic(ifail)
+
    contains
 
    SUBROUTINE test_fix_linear(fail)
@@ -64,5 +68,111 @@ PROGRAM special_functions_test
       WRITE(*, *)
 
    END SUBROUTINE test_fix_linear
+
+   SUBROUTINE test_fix_quadratic(fail)
+
+      IMPLICIT NONE
+      LOGICAL, INTENT(INOUT) :: fail
+      REAL :: x1, y1, x2, y2, x3, y3
+      REAL :: a0, a1, b0, b1, a2, b2
+      INTEGER :: itest
+      INTEGER, PARAMETER :: ntest = 1
+      REAL, PARAMETER :: tol = 1e-6
+
+      fail = .FALSE.
+
+      DO itest = 1, ntest
+
+         IF (itest == 1) THEN
+            b2 = 4.
+            b1 = -3.
+            b0 = 0.
+            x1 = 0.
+            x2 = -3.
+            x3 = 1.
+         ELSE
+            STOP 'TEST_FIX_QUADRATIC: Something went wrong'
+         END IF
+
+         y1 = quadratic_polynomial(x1, b2, b1, b0)
+         y2 = quadratic_polynomial(x2, b2, b1, b0)
+         y3 = quadratic_polynomial(x3, b2, b1, b0)
+
+         CALL fix_quadratic(a2, a1, a0, x1, y1, x2, y2, x3, y3)
+
+         IF ((.NOT. requal(a2, b2, tol)) .OR. (.NOT. requal(a1, b1, tol)) .OR. (.NOT. requal(a0, b0, tol))) THEN
+            WRITE(*, *) 'TEST_FIX_QUADRATIC: Target a2:', b2
+            WRITE(*, *) 'TEST_FIX_QUADRATIC: Target a1:', b1
+            WRITE(*, *) 'TEST_FIX_QUADRATIC: Target a0:', b0
+            WRITE(*, *) 'TEST_FIX_QUADRATIC: Fix a2:', a2
+            WRITE(*, *) 'TEST_FIX_QUADRATIC: Fix a1:', a1
+            WRITE(*, *) 'TEST_FIX_QUADRATIC: Fix a0:', a0
+            STOP 'TEST_FIX_QUADRATIC: Fail'
+         END IF
+
+      END DO
+
+      WRITE(*, *) 'TEST_FIX_QUADRATIC: Pass'
+      WRITE(*, *)
+
+   END SUBROUTINE test_fix_quadratic
+
+   SUBROUTINE test_fix_cubic(fail)
+
+      IMPLICIT NONE
+      LOGICAL, INTENT(INOUT) :: fail
+      REAL :: x1, x2, x3, x4
+      REAL :: y1, y2, y3, y4
+      REAL :: a0, a1, a2, a3
+      REAL :: b0, b1, b2, b3
+      INTEGER :: itest
+      INTEGER, PARAMETER :: ntest = 1
+      REAL, PARAMETER :: tol = 1e-6
+
+      fail = .FALSE.
+
+      DO itest = 1, ntest
+
+         IF (itest == 1) THEN
+            b3 = -2.
+            b2 = 4.
+            b1 = -3.
+            b0 = 0.
+            x1 = 0.
+            x2 = -3.
+            x3 = 1.
+            x4 = 6.
+         ELSE
+            STOP 'TEST_FIX_CUBIC: Something went wrong'
+         END IF
+
+         y1 = cubic_polynomial(x1, b3, b2, b1, b0)
+         y2 = cubic_polynomial(x2, b3, b2, b1, b0)
+         y3 = cubic_polynomial(x3, b3, b2, b1, b0)
+         y4 = cubic_polynomial(x4, b3, b2, b1, b0)
+
+         CALL fix_cubic(a3, a2, a1, a0, x1, y1, x2, y2, x3, y3, x4, y4)
+
+         IF ((.NOT. requal(a3, b3, tol)) .OR. &
+            (.NOT. requal(a2, b2, tol)) .OR. &
+            (.NOT. requal(a1, b1, tol)) .OR. &
+            (.NOT. requal(a0, b0, tol))) THEN
+            WRITE(*, *) 'TEST_FIX_CUBIC: Target a3:', b3
+            WRITE(*, *) 'TEST_FIX_CUBIC: Target a2:', b2
+            WRITE(*, *) 'TEST_FIX_CUBIC: Target a1:', b1
+            WRITE(*, *) 'TEST_FIX_CUBIC: Target a0:', b0
+            WRITE(*, *) 'TEST_FIX_CUBIC: Fix a3:', a3
+            WRITE(*, *) 'TEST_FIX_CUBIC: Fix a2:', a2
+            WRITE(*, *) 'TEST_FIX_CUBIC: Fix a1:', a1
+            WRITE(*, *) 'TEST_FIX_CUBIC: Fix a0:', a0
+            STOP 'TEST_FIX_CUBIC: Fail'
+         END IF
+
+      END DO
+
+      WRITE(*, *) 'TEST_FIX_CUBIC: Pass'
+      WRITE(*, *)
+
+   END SUBROUTINE test_fix_cubic
 
 END PROGRAM special_functions_test

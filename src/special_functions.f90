@@ -14,6 +14,9 @@ MODULE special_functions
    PUBLIC :: get_Fibonaccis
 
    ! Real functions
+   PUBLIC :: linear_polynomial
+   PUBLIC :: quadratic_polynomial
+   PUBLIC :: cubic_polynomial
    PUBLIC :: fix_linear
    PUBLIC :: fix_quadratic
    PUBLIC :: fix_cubic
@@ -46,6 +49,42 @@ MODULE special_functions
    PUBLIC :: sigmoid_log
 
 CONTAINS
+
+   REAL FUNCTION linear_polynomial(x, a1, a0)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: a1
+      REAL, INTENT(IN) :: a0
+
+      linear_polynomial = a1*x + a0
+
+   END FUNCTION linear_polynomial
+
+   REAL FUNCTION quadratic_polynomial(x, a2, a1, a0)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: a2
+      REAL, INTENT(IN) :: a1
+      REAL, INTENT(IN) :: a0
+
+      quadratic_polynomial = a2*x**2 + a1*x + a0
+
+   END FUNCTION quadratic_polynomial
+
+   REAL FUNCTION cubic_polynomial(x, a3, a2, a1, a0)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: a3
+      REAL, INTENT(IN) :: a2
+      REAL, INTENT(IN) :: a1
+      REAL, INTENT(IN) :: a0
+
+      cubic_polynomial = a3*x**3 + a2*x**2 + a1*x + a0
+
+   END FUNCTION cubic_polynomial
 
    SUBROUTINE fix_linear(a1, a0, x1, y1, x2, y2)
 
