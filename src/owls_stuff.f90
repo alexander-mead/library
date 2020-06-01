@@ -1,4 +1,4 @@
-MODULE owls
+MODULE owls_stuff
 
    USE constants
 
@@ -425,4 +425,4 @@ CONTAINS
 
    END SUBROUTINE BAHAMAS_scale_factors
 
-END MODULE owls
+END MODULE owls_stuff

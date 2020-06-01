@@ -84,7 +84,7 @@ _OBJ = \
 	multidark_stuff.o \
 	hmx.o \
 	limber.o \
-	owls.o \
+	owls_stuff.o \
 	owls_extras
 
 # Default compile option

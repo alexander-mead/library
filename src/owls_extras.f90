@@ -1,6 +1,6 @@
 MODULE owls_extras
 
-   USE owls
+   USE owls_stuff
 
    IMPLICIT NONE
 
