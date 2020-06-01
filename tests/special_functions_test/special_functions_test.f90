@@ -52,7 +52,7 @@ PROGRAM special_functions_test
          y1 = b1*x1+b0
          y2 = b1*x2+b0
 
-         CALL fix_linear(a1, a0, x1, y1, x2, y2)
+         CALL fix_linear(a1, a0, [x1, x2], [y1, y2])
 
          IF ((.NOT. requal(a1, b1, tol)) .OR. (.NOT. requal(a0, b0, tol))) THEN
             WRITE(*, *) 'TEST_FIX_LINEAR: Target a1:', b1
@@ -98,7 +98,7 @@ PROGRAM special_functions_test
          y2 = quadratic_polynomial(x2, b2, b1, b0)
          y3 = quadratic_polynomial(x3, b2, b1, b0)
 
-         CALL fix_quadratic(a2, a1, a0, x1, y1, x2, y2, x3, y3)
+         CALL fix_quadratic(a2, a1, a0, [x1, x2, x3], [y1, y2, y3])
 
          IF ((.NOT. requal(a2, b2, tol)) .OR. (.NOT. requal(a1, b1, tol)) .OR. (.NOT. requal(a0, b0, tol))) THEN
             WRITE(*, *) 'TEST_FIX_QUADRATIC: Target a2:', b2
@@ -151,7 +151,7 @@ PROGRAM special_functions_test
          y3 = cubic_polynomial(x3, b3, b2, b1, b0)
          y4 = cubic_polynomial(x4, b3, b2, b1, b0)
 
-         CALL fix_cubic(a3, a2, a1, a0, x1, y1, x2, y2, x3, y3, x4, y4)
+         CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [y1, y2, y3, y4])
 
          IF ((.NOT. requal(a3, b3, tol)) .OR. &
             (.NOT. requal(a2, b2, tol)) .OR. &

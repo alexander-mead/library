@@ -8793,11 +8793,14 @@ CONTAINS
       IF (iorder == 0) THEN
          a0 = y0
       ELSE IF (iorder == 1) THEN
-         CALL fix_linear(a1, a0, x0, y0, x1, y1)
+         !CALL fix_linear(a1, a0, x0, y0, x1, y1)
+         CALL fix_linear(a1, a0, [x0, x1], [y0, y1])
       ELSE IF (iorder == 2) THEN
-         CALL fix_quadratic(a2, a1, a0, x0, y0, x1, y1, x2, y2)
+         !CALL fix_quadratic(a2, a1, a0, x0, y0, x1, y1, x2, y2)
+         CALL fix_quadratic(a2, a1, a0, [x0, x1, x2], [y0, y1, y2])
       ELSE IF (iorder == 3) THEN
-         CALL fix_cubic(a3, a2, a1, a0, x0, y0, x1, y1, x2, y2, x3, y3)
+         !CALL fix_cubic(a3, a2, a1, a0, x0, y0, x1, y1, x2, y2, x3, y3)
+         CALL fix_cubic(a3, a2, a1, a0, [x0, x1, x2, x3], [y0, y1, y2, y3])
       ELSE
          STOP 'WININT_APPROX: Error, iorder specified incorrectly'
       END IF
@@ -8846,7 +8849,8 @@ CONTAINS
       y2 = winint_integrand(x2, rmin, rmax, rv, rs, p1, p2, irho)/x2
       y3 = winint_integrand(x3, rmin, rmax, rv, rs, p1, p2, irho)/x3
 
-      CALL fix_cubic(a3, a2, a1, a0, x0, y0, x1, y1, x2, y2, x3, y3)
+      !CALL fix_cubic(a3, a2, a1, a0, x0, y0, x1, y1, x2, y2, x3, y3)
+      CALL fix_cubic(a3, a2, a1, a0, [x0, x1, x2, x3], [y0, y1, y2, y3])
 
       epsa0 = eps*a0
       IF (ABS(a3*rmid**3) < epsa0 .AND. ABS(a2*rmid**2) < epsa0 .AND. ABS(a1*rmid) < epsa0) THEN

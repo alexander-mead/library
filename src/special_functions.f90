@@ -50,7 +50,7 @@ MODULE special_functions
 
 CONTAINS
 
-   REAL FUNCTION linear_polynomial(x, a1, a0)
+   ELEMENTAL REAL FUNCTION linear_polynomial(x, a1, a0)
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
@@ -61,7 +61,7 @@ CONTAINS
 
    END FUNCTION linear_polynomial
 
-   REAL FUNCTION quadratic_polynomial(x, a2, a1, a0)
+   ELEMENTAL REAL FUNCTION quadratic_polynomial(x, a2, a1, a0)
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
@@ -73,7 +73,7 @@ CONTAINS
 
    END FUNCTION quadratic_polynomial
 
-   REAL FUNCTION cubic_polynomial(x, a3, a2, a1, a0)
+   ELEMENTAL REAL FUNCTION cubic_polynomial(x, a3, a2, a1, a0)
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: x
@@ -86,76 +86,64 @@ CONTAINS
 
    END FUNCTION cubic_polynomial
 
-   SUBROUTINE fix_linear(a1, a0, x1, y1, x2, y2)
+   SUBROUTINE fix_linear(a1, a0, x, y)
 
       ! Given xi, yi i=1,2 fixes a line between these points
       REAL, INTENT(OUT) :: a1
       REAL, INTENT(OUT) :: a0 
-      REAL, INTENT(IN) :: x1
-      REAL, INTENT(IN) :: y1
-      REAL, INTENT(IN) :: x2
-      REAL, INTENT(IN) :: y2
+      REAL, INTENT(IN) :: x(2)
+      REAL, INTENT(IN) :: y(2)
 
-      a1 = (y2-y1)/(x2-x1)
-      a0 = y1-a1*x1
+      a1 = (y(2)-y(1))/(x(2)-x(1))
+      a0 = y(1)-a1*x(1)
 
    END SUBROUTINE fix_linear
 
-   SUBROUTINE fix_quadratic(a2, a1, a0, x1, y1, x2, y2, x3, y3)
+   SUBROUTINE fix_quadratic(a2, a1, a0, x, y)
 
       ! Given xi, yi i=1,2,3 fixes a quadratic between these points
       REAL, INTENT(OUT) :: a2
       REAL, INTENT(OUT) :: a1
       REAL, INTENT(OUT) :: a0
-      REAL, INTENT(IN) :: x1
-      REAL, INTENT(IN) :: y1
-      REAL, INTENT(IN) :: x2
-      REAL, INTENT(IN) :: y2
-      REAL, INTENT(IN) :: x3
-      REAL, INTENT(IN) :: y3
+      REAL, INTENT(IN) :: x(3)
+      REAL, INTENT(IN) :: y(3)
 
-      a2 = ((y2-y1)/(x2-x1)-(y3-y1)/(x3-x1))/(x2-x3)
-      a1 = (y2-y1)/(x2-x1)-a2*(x2+x1)
-      a0 = y1-a2*(x1**2.)-a1*x1
+      a2 = ((y(2)-y(1))/(x(2)-x(1))-(y(3)-y(1))/(x(3)-x(1)))/(x(2)-x(3))
+      a1 = (y(2)-y(1))/(x(2)-x(1))-a2*(x(2)+x(1))
+      a0 = y(1)-a2*(x(1)**2)-a1*x(1)
 
    END SUBROUTINE fix_quadratic
 
-   SUBROUTINE fix_cubic(a3, a2, a1, a0, x1, y1, x2, y2, x3, y3, x4, y4)
+   SUBROUTINE fix_cubic(a3, a2, a1, a0, x, y)
 
       ! Given xi, yi i=1,2,3,4 fixes a cubic between these points
       REAL, INTENT(OUT) :: a3
       REAL, INTENT(OUT) :: a2
       REAL, INTENT(OUT) :: a1
       REAL, INTENT(OUT) :: a0
-      REAL, INTENT(IN) :: x1
-      REAL, INTENT(IN) :: y1
-      REAL, INTENT(IN) :: x2
-      REAL, INTENT(IN) :: y2
-      REAL, INTENT(IN) :: x3
-      REAL, INTENT(IN) :: y3
-      REAL, INTENT(IN) :: x4
-      REAL, INTENT(IN) :: y4
+      REAL, INTENT(IN) :: x(4)
+      REAL, INTENT(IN) :: y(4)
       REAL :: f1, f2, f3
 
-      f1 = (y4-y1)/((x4-x2)*(x4-x1)*(x4-x3))
-      f2 = (y3-y1)/((x3-x2)*(x3-x1)*(x4-x3))
-      f3 = (y2-y1)/((x2-x1)*(x4-x3))*(1./(x4-x2)-1./(x3-x2))
+      f1 = (y(4)-y(1))/((x(4)-x(2))*(x(4)-x(1))*(x(4)-x(3)))
+      f2 = (y(3)-y(1))/((x(3)-x(2))*(x(3)-x(1))*(x(4)-x(3)))
+      f3 = (y(2)-y(1))/((x(2)-x(1))*(x(4)-x(3)))*(1./(x(4)-x(2))-1./(x(3)-x(2)))
 
       a3 = f1-f2-f3
 
-      f1 = (y3-y1)/((x3-x2)*(x3-x1))
-      f2 = (y2-y1)/((x2-x1)*(x3-x2))
-      f3 = a3*(x3+x2+x1)
+      f1 = (y(3)-y(1))/((x(3)-x(2))*(x(3)-x(1)))
+      f2 = (y(2)-y(1))/((x(2)-x(1))*(x(3)-x(2)))
+      f3 = a3*(x(3)+x(2)+x(1))
 
       a2 = f1-f2-f3
 
-      f1 = (y4-y1)/(x4-x1)
-      f2 = a3*(x4**2.+x4*x1+x1**2.)
-      f3 = a2*(x4+x1)
+      f1 = (y(4)-y(1))/(x(4)-x(1))
+      f2 = a3*(x(4)**2+x(4)*x(1)+x(1)**2)
+      f3 = a2*(x(4)+x(1))
 
       a1 = f1-f2-f3
 
-      a0 = y1-a3*x1**3.-a2*x1**2.-a1*x1
+      a0 = y(1)-a3*x(1)**3-a2*x(1)**2-a1*x(1)
 
    END SUBROUTINE fix_cubic
 

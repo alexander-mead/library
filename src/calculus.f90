@@ -542,7 +542,8 @@ CONTAINS
                y3 = f(x3)
                y4 = f(x4)
 
-               CALL fix_cubic(a3, a2, a1, a0, x1, y1, x2, y2, x3, y3, x4, y4)
+               !CALL fix_cubic(a3, a2, a1, a0, x1, y1, x2, y2, x3, y3, x4, y4)
+               CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [y1, y2, y3, y4])
 
                ! Add the (analytical) intergal of a cubic between points x1 and x4 to the total
                sum_new = sum_new+(a3/4.)*(x4**4.-x1**4.)+(a2/3.)*(x4**3.-x1**3.)+(a1/2.)*(x4**2.-x1**2.)+a0*(x4-x1)

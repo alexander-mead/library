@@ -687,10 +687,11 @@ MODULE minimization
       ! Takes 3 points to form a quadratic and then read off minimum
       USE special_functions
       REAL, INTENT(IN) :: x1, x2, x3, y1, y2, y3
-      REAL :: a, b, c
+      REAL :: a2, a1, a0
 
-      CALL fix_quadratic(b, a, c, x1, y1, x2, y2, x3, y3)
-      quadratic_minimization_1D = -b/(2.*a)
+      !CALL fix_quadratic(b, a, c, x1, y1, x2, y2, x3, y3)
+      CALL fix_quadratic(a2, a1, a0, [x1, x2, x3], [y1, y2, y3])
+      quadratic_minimization_1D = -a1/(2.*a2)
 
    END FUNCTION quadratic_minimization_1D
 

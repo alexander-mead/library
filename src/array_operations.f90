@@ -1023,7 +1023,8 @@ CONTAINS
          y3 = y(i+1)
 
          ! Fix a parabola around the maximum
-         CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
+         !CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
+         CALL fix_quadratic(a, b, c, [x1, x2, x3], [y1, y2, y3])
 
          ! Read off the maximum from the parabola
          maximum = -b/(2.*a)

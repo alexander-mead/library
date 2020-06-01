@@ -98,8 +98,8 @@ CONTAINS
             y2 = ytab(2)
 
             IF (iinterp == iinterp_polynomial) THEN
-               CALL fix_linear(a1, a0, x1, y1, x2, y2)
-               find_1D = a1*x+a0
+               CALL fix_linear(a1, a0, [x1, x2], [y1, y2])        
+               find_1D = linear_polynomial(x, a1, a0)
             ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 1, [x1, x2], [y1, y2])
             ELSE
@@ -117,8 +117,8 @@ CONTAINS
             y2 = ytab(n)
 
             IF (iinterp == iinterp_polynomial) THEN
-               CALL fix_linear(a1, a0, x1, y1, x2, y2)
-               find_1D = a1*x+a0
+               CALL fix_linear(a1, a0, [x1, x2], [y1, y2])
+               find_1D = linear_polynomial(x, a1, a0)
             ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 1, [x1, x2], [y1, y2])
             ELSE
@@ -158,8 +158,8 @@ CONTAINS
             END IF
 
             IF (iinterp == iinterp_polynomial) THEN
-               CALL fix_linear(a1, a0, x1, y1, x2, y2)
-               find_1D = a1*x+a0
+               CALL fix_linear(a1, a0, [x1, x2], [y1, y2])  
+               find_1D = linear_polynomial(x, a1, a0)
             ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 1, [x1, x2], [y1, y2])
             ELSE
@@ -195,8 +195,8 @@ CONTAINS
                END IF
 
                IF (iinterp == iinterp_polynomial) THEN
-                  CALL fix_quadratic(a2, a1, a0, x1, y1, x2, y2, x3, y3)
-                  find_1D = a2*(x**2)+a1*x+a0
+                  CALL fix_quadratic(a2, a1, a0, [x1, x2, x3], [y1, y2, y3])
+                  find_1D = quadratic_polynomial(x, a2, a1, a0)
                ELSE IF (iinterp == iinterp_Lagrange) THEN
                   find_1D = Lagrange_polynomial(x, 2, [x1, x2, x3], [y1, y2, y3])
                ELSE
@@ -220,10 +220,10 @@ CONTAINS
                IF (iinterp == iinterp_polynomial) THEN
                   ! In this case take the average of two separate quadratic spline values
                   find_1D = 0.
-                  CALL fix_quadratic(a2, a1, a0, x1, y1, x2, y2, x3, y3)
-                  find_1D = find_1D+(a2*x**2+a1*x+a0)/2.
-                  CALL fix_quadratic(a2, a1, a0, x2, y2, x3, y3, x4, y4)
-                  find_1D = find_1D+(a2*x**2+a1*x+a0)/2.
+                  CALL fix_quadratic(a2, a1, a0, [x1, x2, x3], [y1, y2, y3])     
+                  find_1D = find_1D+quadratic_polynomial(x, a2, a1, a0)/2.
+                  CALL fix_quadratic(a2, a1, a0, [x2, x3, x4], [y2, y3, y4])
+                  find_1D = find_1D+quadratic_polynomial(x, a2, a1, a0)/2.
                ELSE IF (iinterp == iinterp_Lagrange) THEN
                   ! In this case take the average of two quadratic Lagrange polynomials
                   L1 = Lagrange_polynomial(x, 2, [x1, x2, x3], [y1, y2, y3])
@@ -280,8 +280,8 @@ CONTAINS
             END IF
 
             IF (iinterp == iinterp_polynomial) THEN
-               CALL fix_cubic(a3, a2, a1, a0, x1, y1, x2, y2, x3, y3, x4, y4)
-               find_1D = a3*x**3+a2*x**2+a1*x+a0
+               CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [y1, y2, y3, y4])
+               find_1D = cubic_polynomial(x, a3, a2, a1, a0)
             ELSE IF (iinterp == iinterp_Lagrange) THEN
                find_1D = Lagrange_polynomial(x, 3, [x1, x2, x3, x4], [y1, y2, y3, y4])
             ELSE
@@ -468,18 +468,18 @@ CONTAINS
 
             !! y interpolation
 
-            CALL fix_cubic(a3, a2, a1, a0, y1, f11, y2, f12, y3, f13, y4, f14)
-            f10 = a3*y**3+a2*y**2+a1*y+a0
+            CALL fix_cubic(a3, a2, a1, a0, [y1, y2, y3, y4], [f11, f12, f13, f14])
+            f10 = cubic_polynomial(y, a3, a2, a1, a0)
 
-            CALL fix_cubic(a3, a2, a1, a0, y1, f21, y2, f22, y3, f23, y4, f24)
-            f20 = a3*y**3+a2*y**2+a1*y+a0
+            CALL fix_cubic(a3, a2, a1, a0, [y1, y2, y3, y4], [f21, f22, f23, f24])      
+            f20 = cubic_polynomial(y, a3, a2, a1, a0)
 
             !!
 
             !! x interpolation
 
-            CALL fix_linear(a1, a0, x1, f10, x2, f20)
-            find_2D = a1*x+a0
+            CALL fix_linear(a1, a0, [x1, x2], [f10, f20])
+            find_2D = linear_polynomial(x, a1, a0)
 
             !!
 
@@ -531,16 +531,16 @@ CONTAINS
 
             ! x interpolation
 
-            CALL fix_cubic(a3, a2, a1, a0, x1, f11, x2, f21, x3, f31, x4, f41)
-            f01 = a3*x**3+a2*x**2+a1*x+a0
+            CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [f11, f21, f31, f41])
+            f01 = cubic_polynomial(x, a3, a2, a1, a0)
 
-            CALL fix_cubic(a3, a2, a1, a0, x1, f12, x2, f22, x3, f32, x4, f42)
-            f02 = a3*x**3+a2*x**2+a1*x+a0
+            CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [f12, f22, f32, f42])     
+            f02 = cubic_polynomial(x, a3, a2, a1, a0)
 
             ! y interpolation
 
-            CALL fix_linear(a1, a0, y1, f01, y2, f02)
-            find_2D = a1*y+a0
+            CALL fix_linear(a1, a0, [y1, y2], [f01, f02])
+            find_2D = linear_polynomial(y, a1, a0)
 
          ELSE
 
@@ -609,37 +609,37 @@ CONTAINS
 
             ! x interpolation
 
-            CALL fix_cubic(a3, a2, a1, a0, x1, f11, x2, f21, x3, f31, x4, f41)
-            f01 = a3*x**3+a2*x**2+a1*x+a0
+            CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [f11, f21, f31, f41])
+            f01 = cubic_polynomial(x, a3, a2, a1, a0)
 
-            CALL fix_cubic(a3, a2, a1, a0, x1, f12, x2, f22, x3, f32, x4, f42)
-            f02 = a3*x**3+a2*x**2+a1*x+a0
+            CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [f12, f22, f32, f42]) 
+            f02 = cubic_polynomial(x, a3, a2, a1, a0)
 
-            CALL fix_cubic(a3, a2, a1, a0, x1, f13, x2, f23, x3, f33, x4, f43)
-            f03 = a3*x**3+a2*x**2+a1*x+a0
+            CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [f13, f23, f33, f43])        
+            f03 = cubic_polynomial(x, a3, a2, a1, a0)
 
-            CALL fix_cubic(a3, a2, a1, a0, x1, f14, x2, f24, x3, f34, x4, f44)
-            f04 = a3*x**3+a2*x**2+a1*x+a0
-
-            CALL fix_cubic(a3, a2, a1, a0, y1, f01, y2, f02, y3, f03, y4, f04)
-            findy = a3*y**3+a2*y**2+a1*y+a0
-
+            CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [f14, f24, f34, f44])
+            f04 = cubic_polynomial(x, a3, a2, a1, a0)
+            
+            CALL fix_cubic(a3, a2, a1, a0, [y1, y2, y3, y4], [f01, f02, f03, f04])
+            findy = cubic_polynomial(y, a3, a2, a1, a0)
+            
             ! y interpolation
 
-            CALL fix_cubic(a3, a2, a1, a0, y1, f11, y2, f12, y3, f13, y4, f14)
-            f10 = a3*y**3+a2*y**2+a1*y+a0
+            CALL fix_cubic(a3, a2, a1, a0, [y1, y2, y3, y4], [f11, f12, f13, f14])
+            f10 = cubic_polynomial(y, a3, a2, a1, a0)
 
-            CALL fix_cubic(a3, a2, a1, a0, y1, f21, y2, f22, y3, f23, y4, f24)
-            f20 = a3*y**3+a2*y**2+a1*y+a0
+            CALL fix_cubic(a3, a2, a1, a0, [y1, y2, y3, y4], [f21, f22, f23, f24])
+            f20 = cubic_polynomial(y, a3, a2, a1, a0)
 
-            CALL fix_cubic(a3, a2, a1, a0, y1, f31, y2, f32, y3, f33, y4, f34)
-            f30 = a3*y**3+a2*y**2+a1*y+a0
+            CALL fix_cubic(a3, a2, a1, a0, [y1, y2, y3, y4], [f31, f32, f33, f34])
+            f30 = cubic_polynomial(y, a3, a2, a1, a0)
 
-            CALL fix_cubic(a3, a2, a1, a0, y1, f41, y2, f42, y3, f43, y4, f44)
-            f40 = a3*y**3+a2*y**2+a1*y+a0
+            CALL fix_cubic(a3, a2, a1, a0, [y1, y2, y3, y4], [f41, f42, f43, f44])
+            f40 = cubic_polynomial(y, a3, a2, a1, a0)
 
-            CALL fix_cubic(a3, a2, a1, a0, x1, f10, x2, f20, x3, f30, x4, f40)
-            findx = a3*x**3+a2*x**2+a1*x+a0
+            CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [f10, f20, f30, f40])
+            findx = cubic_polynomial(x, a3, a2, a1, a0)
 
             ! Final result is an average over each direction
             find_2D = (findx+findy)/2.
