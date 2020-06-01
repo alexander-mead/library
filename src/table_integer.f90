@@ -4,11 +4,15 @@ MODULE table_integer
 
    PRIVATE
 
+   ! Routines
    PUBLIC :: find_table_integer
+
+   ! Constants
    PUBLIC :: ifind_linear
    PUBLIC :: ifind_crude
    PUBLIC :: ifind_split
 
+   ! Constants
    INTEGER, PARAMETER :: ifind_linear = 1
    INTEGER, PARAMETER :: ifind_crude = 2
    INTEGER, PARAMETER :: ifind_split = 3

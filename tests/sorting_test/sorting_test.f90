@@ -39,7 +39,7 @@ PROGRAM sorting_test
       END DO
 
       IF (.NOT. fail) THEN
-         WRITE(*, *) 'TEST_SORT: Passed' 
+         WRITE(*, *) 'TEST_SORT: Pass' 
          WRITE(*, *)
       END IF
 
