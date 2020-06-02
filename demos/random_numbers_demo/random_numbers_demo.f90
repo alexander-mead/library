@@ -19,7 +19,8 @@ PROGRAM random_numbers_demo
   WRITE(*,*)
 
   !Set the random number generator
-  CALL RNG_set(iseed)
+  !CALL RNG_set(iseed)
+  CALL RNG_seed(iseed)
 
   WRITE(*,*) 'Select distribution'
   WRITE(*,*) '1 - Uniform distribution'
