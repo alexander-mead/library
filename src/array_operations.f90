@@ -4,6 +4,7 @@ MODULE array_operations
 
    PRIVATE
 
+   PUBLIC :: insert_in_array
    PUBLIC :: within_array
    PUBLIC :: swap_arrays
    PUBLIC :: append
@@ -104,6 +105,35 @@ MODULE array_operations
    END INTERFACE safe_allocate
 
 CONTAINS
+
+   SUBROUTINE insert_in_array(x, i, a)
+
+      REAL, INTENT(IN) :: x      ! Value to insert
+      INTEGER, INTENT(IN) :: i   ! Position to insert
+      REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Array in which to insert
+      REAL, ALLOCATABLE :: b(:)
+      INTEGER :: j, n
+      
+      n = size(a)
+      IF(i < 1 .OR. i > n) THEN
+         STOP 'INSERT_IN_ARRAY: Error, integer is outside array'
+      END IF
+      ALLOCATE(b(n))
+      b = a
+      DEALLOCATE(a)
+      ALLOCATE(a(n+1))
+
+      DO j = 1, n+1
+         IF (j < i) THEN
+            a(j) = b(j)
+         ELSE IF (j == i) THEN
+            a(j) = x
+         ELSE IF (j > i) THEN
+            a(j) = b(j-1)
+         END IF
+      END DO
+
+   END SUBROUTINE insert_in_array
 
    LOGICAL FUNCTION greater_than_any(x, a)
 
@@ -1023,7 +1053,6 @@ CONTAINS
          y3 = y(i+1)
 
          ! Fix a parabola around the maximum
-         !CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
          CALL fix_quadratic(a, b, c, [x1, x2, x3], [y1, y2, y3])
 
          ! Read off the maximum from the parabola
