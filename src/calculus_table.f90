@@ -118,6 +118,10 @@ CONTAINS
                y2 = ytab(n-1)
                y1 = ytab(n-2)
 
+            ELSE
+
+               STOP 'DERIVATIVE_TABLE: Error, something went wrong'
+
             END IF
 
             !CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)

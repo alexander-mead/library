@@ -29,18 +29,11 @@ CONTAINS
       ! Sample is simply the variance of your sample 1/N
       ! However, if you are estimating the population variance then you need 1/(N-1)
       REAL, INTENT(IN) :: x(:)
-      !REAL :: sum
       REAL :: avg
-      INTEGER :: i, n
+      INTEGER :: n
 
       avg = mean(x)
       n = size(x)
-
-      !sum = 0.d0
-      !DO i = 1, n
-      !   sum = sum+(x(i)-avg)**2
-      !END DO
-      !variance = real(sum)/real(n)
       variance = sum((x-avg)**2)/real(n)
 
    END FUNCTION variance

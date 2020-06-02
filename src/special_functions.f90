@@ -17,6 +17,9 @@ MODULE special_functions
    PUBLIC :: linear_polynomial
    PUBLIC :: quadratic_polynomial
    PUBLIC :: cubic_polynomial
+   PUBLIC :: centred_linear_polynomial
+   PUBLIC :: centred_quadratic_polynomial
+   PUBLIC :: centred_cubic_polynomial
    PUBLIC :: fix_linear
    PUBLIC :: fix_quadratic
    PUBLIC :: fix_cubic
@@ -57,7 +60,7 @@ CONTAINS
       REAL, INTENT(IN) :: a1
       REAL, INTENT(IN) :: a0
 
-      linear_polynomial = a1*x + a0
+      linear_polynomial = a1*x+a0
 
    END FUNCTION linear_polynomial
 
@@ -69,7 +72,7 @@ CONTAINS
       REAL, INTENT(IN) :: a1
       REAL, INTENT(IN) :: a0
 
-      quadratic_polynomial = a2*x**2 + a1*x + a0
+      quadratic_polynomial = a2*x**2+a1*x+a0
 
    END FUNCTION quadratic_polynomial
 
@@ -82,9 +85,54 @@ CONTAINS
       REAL, INTENT(IN) :: a1
       REAL, INTENT(IN) :: a0
 
-      cubic_polynomial = a3*x**3 + a2*x**2 + a1*x + a0
+      cubic_polynomial = a3*x**3+a2*x**2+a1*x+a0
 
    END FUNCTION cubic_polynomial
+
+   ELEMENTAL REAL FUNCTION centred_linear_polynomial(x, x0, a1, a0)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x0
+      REAL, INTENT(IN) :: a1
+      REAL, INTENT(IN) :: a0
+      REAL :: xx
+
+      xx = x-x0
+      centred_linear_polynomial = a1*x+a0
+
+   END FUNCTION centred_linear_polynomial
+
+   ELEMENTAL REAL FUNCTION centred_quadratic_polynomial(x, x0, a2, a1, a0)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x0
+      REAL, INTENT(IN) :: a2
+      REAL, INTENT(IN) :: a1
+      REAL, INTENT(IN) :: a0
+      REAL :: xx
+
+      xx = x-x0
+      centred_quadratic_polynomial = a2*xx**2+a1*xx+a0
+
+   END FUNCTION centred_quadratic_polynomial
+
+   ELEMENTAL REAL FUNCTION centred_cubic_polynomial(x, x0, a3, a2, a1, a0)
+
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x0
+      REAL, INTENT(IN) :: a3
+      REAL, INTENT(IN) :: a2
+      REAL, INTENT(IN) :: a1
+      REAL, INTENT(IN) :: a0
+      REAL :: xx
+
+      xx = x-x0
+      centred_cubic_polynomial = a3*xx**3+a2*xx**2+a1*xx+a0
+
+   END FUNCTION centred_cubic_polynomial
 
    SUBROUTINE fix_linear(a1, a0, x, y)
 
