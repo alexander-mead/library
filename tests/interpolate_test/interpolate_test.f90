@@ -1,5 +1,6 @@
 PROGRAM interpolate_test
 
+   USE constants
    USE basic_operations
    USE array_operations
    USE special_functions
@@ -11,6 +12,8 @@ PROGRAM interpolate_test
    WRITE(*, *)
 
    CALL test_interpolate_1D(ifail)
+   CALL test_interpolate_1D_function(ifail)
+   CALL test_interpolate_2D(ifail)
 
    CONTAINS
 
@@ -118,5 +121,213 @@ PROGRAM interpolate_test
       END IF
 
    END SUBROUTINE test_interpolate_1D
+
+   SUBROUTINE test_interpolate_1D_function(fail)
+
+      LOGICAL, INTENT(OUT) :: fail
+      REAL :: xmin, xmax
+      REAL :: a3, a2, a1, a0
+      REAL :: xv, yv, yt
+      REAL, ALLOCATABLE :: x(:), y(:)
+      INTEGER :: itest, i, j
+      INTEGER :: iorder, ifind, iinterp
+      INTEGER, PARAMETER :: n = 32
+      INTEGER, PARAMETER :: m = 128
+      REAL, PARAMETER :: tol = 1e-3
+      INTEGER, PARAMETER :: ntest = 2
+
+      fail = .FALSE.
+
+      DO itest = 1, ntest
+
+         IF (itest == 1) THEN
+            xmin = -1.
+            xmax = 2.
+            iorder = 3
+         ELSE IF (itest == 2) THEN
+            xmin = 0.
+            xmax = pi
+            iorder = 3
+         ELSE
+            STOP 'TEST_INTERPOLATE_1D_FUNCTION: Error, something went wrong'
+         END IF
+
+         CALL fill_array(xmin, xmax, x, n)
+         CALL safe_allocate(y, n)
+
+         IF (itest == 1) THEN
+            y = interpolate_test_cubic(x)
+         ELSE IF (itest == 2) THEN
+            y = interpolate_test_sin(x)
+         ELSE
+            STOP 'TEST_INTERPOLATE_1D_FUNCTION: Error, something went wrong'
+         END IF
+
+         DO ifind = 1, 3
+            DO iinterp = 1, 2
+
+               DO i = 1, m
+
+                  xv = progression(xmin-0.01, xmax+0.01, i, m)
+                  yv = find(xv, x, y, n, iorder, ifind, iinterp)
+
+                  IF (itest == 1) THEN
+                     yt = interpolate_test_cubic(xv)
+                  ELSE IF (itest == 2) THEN
+                     yt = interpolate_test_sin(xv)
+                  ELSE
+                     STOP 'TEST_INTERPOLATE_1D_FUNCTION: Error, something went wrong'
+                  END IF
+
+                  !WRITE(*, *) i, xv, yv/yt
+
+                  IF(.NOT. requal(yv, yt, tol)) THEN
+                     fail = .TRUE.
+                     WRITE(*, *) 'TEST_INTERPOLATE_1D_FUNCTION: Test failed:', itest
+                     WRITE(*, *) 'TEST_INTERPOLATE_1D_FUNCTION: Order:', iorder
+                     WRITE(*, *) 'TEST_INTERPOLATE_1D_FUNCTION: Find:', ifind
+                     WRITE(*, *) 'TEST_INTERPOLATE_1D_FUNCTION: iinterp:', iinterp
+                     WRITE(*, *) 'TEST_INTERPOLATE_1D_FUNCTION: i:', i
+                     WRITE(*, *) 'TEST_INTERPOLATE_1D_FUNCTION: x:', xv
+                     WRITE(*, *) 'TEST_INTERPOLATE_1D_FUNCTION: Interpolated y:', yv
+                     WRITE(*, *) 'TEST_INTERPOLATE_1D_FUNCTION: True y:', yt
+                     STOP
+                  END IF
+
+               END DO
+
+            END DO
+         END DO
+
+      END DO
+
+      IF (.NOT. fail) THEN
+         WRITE(*, *) 'TEST_INTERPOLATE_1D_FUNCTION: Pass'
+         WRITE(*, *)
+      END IF
+
+   END SUBROUTINE test_interpolate_1D_function
+
+   ELEMENTAL REAL FUNCTION interpolate_test_cubic(x)
+
+   REAL, INTENT(IN) :: x
+
+      IF (x < 0.) THEN
+         interpolate_test_cubic = 1.
+      ELSE
+         interpolate_test_cubic = x**3+1.
+      END IF
+
+   END FUNCTION interpolate_test_cubic
+
+   ELEMENTAL REAL FUNCTION interpolate_test_sin(x)
+
+      REAL, INTENT(IN) :: x
+
+      IF (x < 0.) THEN
+         interpolate_test_sin = x
+      ELSE IF (x > pi) THEN
+         interpolate_test_sin = pi-x
+      ELSE
+         interpolate_test_sin = sin(x)
+      END IF
+
+   END FUNCTION interpolate_test_sin
+
+   SUBROUTINE test_interpolate_2D(fail)
+
+      LOGICAL, INTENT(OUT) :: fail
+      REAL :: xmin, xmax, ymin, ymax
+      REAL :: a3, a2, a1, a0
+      REAL :: xv, yv, fv, ft
+      REAL, ALLOCATABLE :: x(:), y(:), f(:, :)
+      INTEGER :: itest, ix, iy
+      INTEGER :: iorder, ifind
+      INTEGER, PARAMETER :: ni = 8
+      INTEGER, PARAMETER :: nt = 64
+      REAL, PARAMETER :: tol = 1e-8
+      INTEGER, PARAMETER :: ntest = 1
+      INTEGER, PARAMETER :: iinterp = 1
+
+      fail = .FALSE.
+
+      DO itest = 1, ntest
+
+         IF (itest == 1) THEN
+            xmin = 0.
+            xmax = 4.
+            ymin = xmin
+            ymax = xmax
+            iorder = 3
+         ELSE
+            STOP 'TEST_INTERPOLATE_2D: Error, something went wrong'
+         END IF
+
+         CALL fill_array(xmin, xmax, x, ni)
+         CALL fill_array(ymin, ymax, y, ni)
+         ALLOCATE(f(ni, ni))
+
+         IF (itest == 1) THEN
+            DO ix = 1, ni
+               DO iy = 1, ni
+                  f(ix, iy) = interpolate_test_surface(x(ix), y(iy))
+               END DO
+            END DO
+         ELSE
+            STOP 'TEST_INTERPOLATE_2D: Error, something went wrong'
+         END IF
+
+
+         DO ifind = 1, 3
+
+               DO ix = 1, nt
+                  DO iy = 1, nt
+
+                     xv = progression(xmin, xmax, ix, nt)
+                     yv = progression(ymin, ymax, iy, nt)
+                     fv = find(xv, x, yv, y, f, ni, ni, iorder, ifind, iinterp)
+
+                     IF (itest == 1) THEN
+                        ft = interpolate_test_surface(xv, yv)
+                     ELSE
+                        STOP 'TEST_INTERPOLATE_2D: Error, something went wrong'
+                     END IF
+
+                     IF(.NOT. requal(fv, ft, tol)) THEN
+                        fail = .TRUE.
+                        WRITE(*, *) 'TEST_INTERPOLATE_2D: Test failed:', itest
+                        WRITE(*, *) 'TEST_INTERPOLATE_2D: Order:', iorder
+                        WRITE(*, *) 'TEST_INTERPOLATE_2D: Find:', ifind
+                        WRITE(*, *) 'TEST_INTERPOLATE_2D: iinterp:', iinterp
+                        WRITE(*, *) 'TEST_INTERPOLATE_2D: ix, iy:', ix, iy
+                        WRITE(*, *) 'TEST_INTERPOLATE_2D: x, y:', xv, yv
+                        WRITE(*, *) 'TEST_INTERPOLATE_2D: Interpolated f:', fv
+                        WRITE(*, *) 'TEST_INTERPOLATE_2D: True f:', ft
+                        STOP
+                     END IF
+
+                  END DO
+               END DO
+
+         END DO
+
+      END DO
+
+      IF (.NOT. fail) THEN
+         WRITE(*, *) 'TEST_INTERPOLATE_2D: Pass'
+         WRITE(*, *)
+      END IF
+
+   END SUBROUTINE test_interpolate_2D
+
+   ELEMENTAL REAL FUNCTION interpolate_test_surface(x, y)
+
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: y
+
+      interpolate_test_surface = (x-2.)**2+(y-2.)**2+8.
+      !interpolate_test_surface = x
+
+   END FUNCTION interpolate_test_surface
 
 END PROGRAM interpolate_test

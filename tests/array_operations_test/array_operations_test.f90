@@ -26,8 +26,49 @@ PROGRAM array_operations_test
    CALL test_splay(fail_main, verbose_main)
    CALL test_reduce_array(fail_main, verbose_main)
    CALL test_regular_spacing(fail_main)
+   CALL test_insert_in_array(fail_main)
 
 CONTAINS
+
+   SUBROUTINE test_insert_in_array(fail)
+
+      LOGICAL, INTENT(INOUT) :: fail
+      REAL, ALLOCATABLE :: a(:), b(:)
+      REAL :: x
+      INTEGER :: n
+
+      fail = .FALSE.
+
+      n = 3
+      ALLOCATE(a(n), b(n+1))
+      a(1) = 1.
+      a(2) = 1.2
+      a(3) = 2.
+
+      x = 1.1
+      CALL insert_in_array(x, 2, a)
+
+      b(1) = 1.
+      b(2) = 1.1
+      b(3) = 1.2
+      b(4) = 2.
+
+      IF(size(a) /= n+1) THEN
+         fail = .TRUE.
+         STOP 'TEST_INSERT_IN_ARRAY: Error output array is the wrong size'
+      END IF
+
+      IF(any(a /= b)) THEN
+         fail = .TRUE.
+         STOP 'TEST_INSERT_IN_ARRAY: Error output array is wrong'
+      END IF
+
+      IF(.NOT. fail) THEN
+         WRITE(*, *) 'TEST_INSERT_IN_ARRAY: Pass'
+         WRITE(*, *)
+      END IF
+
+   END SUBROUTINE test_insert_in_array
 
    SUBROUTINE test_reverse_array(fail, verbose)
 

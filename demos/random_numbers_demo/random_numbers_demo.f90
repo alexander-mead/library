@@ -1,4 +1,4 @@
-PROGRAM random_distributions_test
+PROGRAM random_numbers_demo
 
   USE constants
   USE random_numbers
@@ -166,4 +166,4 @@ PROGRAM random_distributions_test
   WRITE(*,*) 'Done'
   WRITE(*,*)
 
- END PROGRAM random_distributions_test
+ END PROGRAM random_numbers_demo

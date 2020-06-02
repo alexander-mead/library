@@ -9,10 +9,9 @@ PROGRAM special_functions_test
    WRITE(*, *)
 
    CALL test_fix_linear(ifail)
-
    CALL test_fix_quadratic(ifail)
-
    CALL test_fix_cubic(ifail)
+   CALL test_factorial(ifail)
 
    contains
 
@@ -174,5 +173,47 @@ PROGRAM special_functions_test
       WRITE(*, *)
 
    END SUBROUTINE test_fix_cubic
+
+   SUBROUTINE test_factorial(fail)
+
+      IMPLICIT NONE
+      LOGICAL, INTENT(OUT) :: fail
+      INTEGER :: itest
+      INTEGER :: n, ft, fv
+      INTEGER, PARAMETER :: ntest = 4
+
+      fail = .FALSE.
+
+      DO itest = 1, ntest
+
+         IF (itest == 1) THEN
+            n = 0
+            ft = 1
+         ELSE IF (itest == 2) THEN
+            n = 1
+            ft = 1
+         ELSE IF (itest == 3) THEN
+            n = 4
+            ft = 24
+         ELSE IF (itest == 4) THEN
+            n = 10
+            ft = 3628800
+         ELSE
+            STOP 'TEST_FACTORIAL: Error, test not specified correctly'
+         END IF
+
+         fv = factorial(n)
+
+         IF (ft .NE. fv) THEN
+            fail = .TRUE.
+            STOP 'TEST_FACTORIAL: Fail'
+         END IF
+
+      END DO
+
+      WRITE(*, *) 'TEST_FACTORIAL: Pass'
+      WRITE(*, *)
+
+   END SUBROUTINE test_factorial
 
 END PROGRAM special_functions_test

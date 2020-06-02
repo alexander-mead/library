@@ -11,10 +11,15 @@ MODULE interpolate
    ! Functions
    PUBLIC :: find
    PUBLIC :: interpolate_array
+   PUBLIC :: init_interpolator
+   PUBLIC :: evaluate_interpolator
 
    ! Integers for interpolation polynomials
    PUBLIC :: iinterp_polynomial
    PUBLIC :: iinterp_Lagrange
+
+   ! Types
+   PUBLIC :: interpolator
 
    INTEGER, PARAMETER :: iinterp_polynomial = 1
    INTEGER, PARAMETER :: iinterp_Lagrange = 2
@@ -24,6 +29,17 @@ MODULE interpolate
       MODULE PROCEDURE find_2D
       MODULE PROCEDURE find_3D
    END INTERFACE find
+
+   TYPE interpolator
+
+      REAL, ALLOCATABLE :: x(:)
+      REAL, ALLOCATABLE :: a0(:), a1(:), a2(:), a3(:)
+      INTEGER :: iorder, ifind
+      INTEGER :: n
+      LOGICAL :: logx, logf
+      LOGICAL :: extrap
+
+   END TYPE interpolator
 
 CONTAINS
 
@@ -191,6 +207,10 @@ CONTAINS
                   y1 = ytab(n-2)
                   y2 = ytab(n-1)
                   y3 = ytab(n)
+
+               ELSE
+
+                  STOP 'FIND_1D: Error, something went wrong'
 
                END IF
 
@@ -823,6 +843,195 @@ CONTAINS
       END DO
 
    END SUBROUTINE interpolate_array
+
+   SUBROUTINE init_interpolator(x, f, iorder, interp, extrap, logx, logf)
+
+      ! Initialise an interpolator
+      USE basic_operations
+      TYPE(interpolator), INTENT(OUT) :: interp
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: f(:)
+      INTEGER, INTENT(IN) :: iorder
+      LOGICAL, OPTIONAL, INTENT(IN) :: extrap
+      LOGICAL, OPTIONAL, INTENT(IN) :: logx
+      LOGICAL, OPTIONAL, INTENT(IN) :: logf
+      REAL, ALLOCATABLE :: xx(:), ff(:)
+      REAL :: a0, a1, a2, a3
+      REAL :: f1, f2, f3, f4
+      REAL :: x1, x2, x3, x4
+      INTEGER :: i, n
+      INTEGER :: i1, i2, i3, i4
+      INTEGER, PARAMETER :: ifind_default = ifind_split
+
+      ! Check the sizes of the input data arrays
+      n = size(x)
+      IF (n /= size(f)) STOP 'INIT_INTERPOLATOR: Error, input x and f data should be the same size'
+      interp%n = n
+      
+      ALLOCATE(xx(n), ff(n))
+
+      IF (present_and_correct(extrap)) THEN
+         interp%extrap = .TRUE.
+      ELSE
+         interp%extrap = .FALSE.
+      END IF
+
+      ! Sort out logs
+      IF(present_and_correct(logx)) THEN
+         xx = log(x)
+         interp%logx = .TRUE.
+      ELSE
+         xx = x
+         interp%logx = .FALSE.
+      END IF
+      IF(present_and_correct(logf)) THEN
+         ff = log(f)
+         interp%logf = .TRUE.
+      ELSE
+         ff = f
+         interp%logf = .FALSE.
+      END IF
+
+      ! Allocate arrays for the interpolator x data
+      ALLOCATE(interp%x(n))
+      interp%x = xx
+
+      ! Allocate arrays for the interpolator coefficients
+      ALLOCATE(interp%a0(n-1), interp%a1(n-1), interp%a2(n-1), interp%a3(n-1))
+      interp%a0 = 0.
+      interp%a1 = 0.
+      interp%a2 = 0.
+      interp%a3 = 0.
+
+      ! Set the interpolation order
+      interp%iorder = iorder
+
+      ! If the x data is regular spaced then remember this, otherwise default find
+      IF (regular_spacing(x)) THEN
+         interp%ifind = ifind_linear
+      ELSE
+         interp%ifind = ifind_default
+      END IF
+
+      ! Default values because a3, a2 will be zero for linear polynomials
+      a0 = 0.
+      a1 = 0.
+      a2 = 0.
+      a3 = 0.
+
+      ! Loop over all n-1 sections of the input data
+      DO i = 1, n-1
+
+         IF (iorder == 1) THEN
+
+            i1 = i
+            i2 = i+1
+
+            x1 = xx(i1)
+            x2 = xx(i2)
+
+            f1 = ff(i1)
+            f2 = ff(i2)
+
+            CALL fix_linear(a1, a0, [x1, x2], [f1, f2])
+
+         ELSE IF (iorder == 3) THEN
+
+            ! Deal with the indices for the first and last section and general case
+            IF (i == 1) THEN
+               i1 = 1
+               i2 = 2
+               i3 = 3
+               i4 = 4
+            ELSE IF (i == n-1) THEN
+               i1 = n-3
+               i2 = n-2
+               i3 = n-1
+               i4 = n
+            ELSE
+               i1 = i-1
+               i2 = i
+               i3 = i+1
+               i4 = i+2
+            END IF
+
+            x1 = xx(i1)
+            x2 = xx(i2)
+            x3 = xx(i3)
+            x4 = xx(i4)
+
+            f1 = ff(i1)
+            f2 = ff(i2)
+            f3 = ff(i3)
+            f4 = ff(i4)
+
+            CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [f1, f2, f3, f4])
+
+         ELSE
+
+            STOP 'INIT_INTERPOLATOR: Error, your order is not supported'
+
+         END IF
+
+         ! Fill the polynomial coefficients in the interpolation type
+         interp%a0(i) = a0
+         interp%a1(i) = a1
+         interp%a2(i) = a2
+         interp%a3(i) = a3
+
+      END DO
+
+   END SUBROUTINE init_interpolator
+
+   REAL FUNCTION evaluate_interpolator(x, interp)
+
+      ! Evaluates the value f(x) from the interpolator
+      REAL, INTENT(IN) :: x
+      TYPE(interpolator), INTENT(IN) :: interp
+      INTEGER :: i, n
+      REAL :: xx
+
+      ! Change input x to log if necessary
+      IF (interp%logx) THEN
+         xx = log(x)
+      ELSE
+         xx = x
+      END IF
+
+      n = interp%n
+
+      ! Calculate the index to use
+      IF (xx < interp%x(1)) THEN
+         IF(interp%extrap) THEN
+            i = 1
+         ELSE
+            STOP 'EVALUATE_INTERPOLATOR: Error, desired x value is below range'
+         END IF
+      ELSE IF (xx == interp%x(n)) THEN
+         i = n-1 ! Cannot use find_table_integer here because this would return 'n', rather than 'n-1'
+      ELSE IF (xx > interp%x(n)) THEN
+         IF (interp%extrap) THEN
+            i = n-1
+         ELSE
+            STOP 'EVALUATE_INTERPOLATOR: Error, desired x value is above range'
+         END IF
+      ELSE
+         i = find_table_integer(xx, interp%x, interp%ifind)
+      END IF
+
+      ! Evaluate the interpolation
+      IF (interp%iorder == 1) THEN
+         evaluate_interpolator = linear_polynomial(xx, interp%a1(i), interp%a0(i))
+      ELSE IF (interp%iorder == 3) THEN
+         evaluate_interpolator = cubic_polynomial(xx, interp%a3(i), interp%a2(i), interp%a1(i), interp%a0(i))
+      ELSE
+         STOP 'EVALUATE_INTERPOLATOR: Error, your polynomial order is not supported'
+      END IF
+
+      ! Exponentiate result if necessary
+      IF (interp%logf) evaluate_interpolator = exp(evaluate_interpolator)
+
+   END FUNCTION evaluate_interpolator
 
    ! SUBROUTINE rebin_interpolate(x, y, xmin, xmax, n1, n2)
 

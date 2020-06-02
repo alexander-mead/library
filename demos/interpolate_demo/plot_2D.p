@@ -60,3 +60,5 @@ splot file u 1:2:(column(c)/column(3)) w image
 set title 'Difference'
 set cbrange [difference_min:difference_max]
 splot file u 1:2:(column(c)-column(3)) w image
+
+unset multiplot

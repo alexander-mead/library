@@ -3,32 +3,81 @@ PROGRAM interpolate_demo
    USE interpolate
    USE constants
    USE random_numbers
+   USE basic_operations
    USE array_operations
    USE field_operations
 
    IMPLICIT NONE
-   REAL :: xmin, xmax, x, ymin, ymax, y, zmin, zmax, z
-   REAL, ALLOCATABLE :: xtab(:), ytab(:), ztab(:), f(:, :), g(:, :, :)
-   REAL :: f_int0, f_int1, f_int3, f_true
-   REAL :: lin, quad, cube, tru
-   REAL :: rlin, rquad, rcube
-   INTEGER :: i, j, n, m, nxtab, nytab
-   INTEGER :: ix, iy, iz, nx, ny, nz
-   INTEGER :: iexample, imeth, itest
+
+   INTEGER :: test
 
    WRITE (*, *)
    WRITE (*, *) 'Routines for interpolating from a table of data'
    WRITE (*, *)
 
-   WRITE (*, *) 'Choose test'
-   WRITE (*, *) '1 - 1D'
-   WRITE (*, *) '2 - 2D'
-   WRITE (*, *) '3 - 3D: Linear'
-   WRITE (*, *) '4 - 3D: Sine'
-   READ (*, *) itest
-   WRITE (*, *)
+   CALL read_command_argument(1, test, '', def=-1)
 
-   IF (itest == 1) THEN
+   IF (test == -1) THEN
+      WRITE (*, *) 'Choose test'
+      WRITE (*, *) '1 - Interpolate 1D'
+      WRITE (*, *) '2 - Interpolate 2D'
+      WRITE (*, *) '3 - Interpolate 3D: Linear'
+      WRITE (*, *) '4 - Interpolate 3D: Sine'
+      WRITE (*, *) '5 - Interpolator 1D'
+      READ (*, *) test
+      WRITE (*, *)
+   END IF
+
+   IF (test == 1) THEN
+      CALL interpolate_demo_1D()
+   ELSE IF (test == 2) THEN
+      CALL interpolate_demo_2D()
+   ELSE IF (test == 3) THEN
+      CALL interpolate_demo_3D(test)
+   ELSE IF (test == 4) THEN
+      CALL interpolate_demo_3D(test)
+   ELSE IF (test == 5) THEN
+      CALL interpolator_demo_1D
+   ELSE
+      STOP 'INTERPOLATE_DEMO: Error, demo specified incorrectly'
+   END IF
+
+   CONTAINS
+
+   SUBROUTINE interpolator_demo_1D()
+
+      TYPE(interpolator) :: interp
+      REAL, ALLOCATABLE :: x(:), f(:)
+      REAL :: xv, fv
+      INTEGER :: ix
+      REAL, PARAMETER :: xmin = 0.
+      REAL, PARAMETER :: xmax = pi
+      INTEGER, PARAMETER :: nx = 9
+      INTEGER, PARAMETER :: nnx = 10*nx
+      INTEGER, PARAMETER :: iorder = 3
+
+      CALL fill_array(xmin, xmax, x, nx)
+      f = sin(x)
+
+      CALL init_interpolator(x, f, iorder, interp)
+
+      DO ix = 1, nnx
+         xv = progression(xmin, xmax+.1, ix, nnx)
+         fv = evaluate_interpolator(xv, interp)
+         WRITE(*, *) ix, xv, fv, sin(xv)!, fv/sin(xv)
+      END DO
+
+   END SUBROUTINE interpolator_demo_1D
+
+   SUBROUTINE interpolate_demo_1D()
+
+      REAL, ALLOCATABLE :: xtab(:), ytab(:)
+      REAL :: lin, quad, cube
+      REAL :: rlin, rquad, rcube
+      REAL :: tru
+      REAL :: x, xmin, xmax
+      INTEGER :: i, m, n
+      INTEGER :: iexample, imeth
 
       WRITE (*, *) 'Number of points for tables (low is a good test):'
       READ (*, *) n
@@ -69,9 +118,10 @@ PROGRAM interpolate_demo
          STOP 'Error, example not specified correctly'
       END IF
 
-      DO i = 1, n
-         xtab(i) = xmin+(xmax-xmin)*float(i-1)/float(n-1)
-      END DO
+      !DO i = 1, n
+      !   xtab(i) = xmin+(xmax-xmin)*float(i-1)/float(n-1)
+      !END DO
+      CALL fill_array(xmin, xmax, xtab, n)
 
       IF (iexample == 0) ytab = xtab
       IF (iexample == 1) ytab = xtab**2
@@ -91,7 +141,8 @@ PROGRAM interpolate_demo
       OPEN (7, file='results.dat')
       OPEN (8, file='ratio.dat')
       DO i = 1, m
-         x = xmin+(xmax-xmin)*float(i-1)/float(m-1)
+         !x = xmin+(xmax-xmin)*float(i-1)/float(m-1)
+         x = progression(xmin, xmax, i, m)
          lin = find(x, xtab, ytab, n, 1, 2, imeth)
          quad = find(x, xtab, ytab, n, 2, 2, imeth)
          cube = find(x, xtab, ytab, n, 3, 2, imeth)
@@ -131,7 +182,17 @@ PROGRAM interpolate_demo
 
       WRITE (*, *)
 
-   ELSE IF (itest == 2) THEN
+   END SUBROUTINE interpolate_demo_1D
+   
+   SUBROUTINE interpolate_demo_2D()
+
+      REAL, ALLOCATABLE :: f(:, :)
+      REAL :: f_int0, f_int1, f_int3, f_true
+      REAL :: x, xmin, xmax
+      REAL :: y, ymin, ymax
+      REAL, ALLOCATABLE :: xtab(:), ytab(:)
+      INTEGER :: nxtab, nytab, nx, ny
+      INTEGER :: i, j
 
       ! x range for tabulated function to interpolate
       nxtab = 11
@@ -155,7 +216,8 @@ PROGRAM interpolate_demo
       END DO
 
       ! Random point to test
-      CALL RNG_set(seed=0)
+      !CALL RNG_set(seed=0)
+      CALL RNG_seed(seed=0)
       x = random_uniform(xmin, xmax)
       y = random_uniform(ymin, ymax)
       WRITE (*, *) 'x:', x
@@ -195,7 +257,20 @@ PROGRAM interpolate_demo
       END DO
       CLOSE (7)
 
-   ELSE IF (itest == 3 .OR. itest == 4) THEN
+   END SUBROUTINE interpolate_demo_2D
+
+   SUBROUTINE interpolate_demo_3D(itest)
+
+      INTEGER, INTENT(IN) :: itest
+      REAL, ALLOCATABLE :: g(:, :, :)
+      REAL :: f_int1, f_true
+      REAL :: x, xmin, xmax
+      REAL :: y, ymin, ymax
+      REAL :: z, zmin, zmax
+      REAL, ALLOCATABLE :: xtab(:), ytab(:), ztab(:)
+      INTEGER :: ix, iy, iz
+      INTEGER :: nx, ny, nz
+
 
       IF (itest == 3) THEN
 
@@ -271,13 +346,7 @@ PROGRAM interpolate_demo
       WRITE (*, *) 'Ratio:', f_true/f_int1
       WRITE (*, *)
 
-   ELSE
-
-      STOP 'INTERPOLATE_DEMO: Error, itest not specified correctly'
-
-   END IF
-
-CONTAINS
+   END SUBROUTINE interpolate_demo_3D
 
    FUNCTION truth(iexample, x)
 
