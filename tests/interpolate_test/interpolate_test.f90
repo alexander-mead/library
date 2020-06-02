@@ -14,8 +14,69 @@ PROGRAM interpolate_test
    CALL test_interpolate_1D(ifail)
    CALL test_interpolate_1D_function(ifail)
    CALL test_interpolate_2D(ifail)
+   CALL test_interpolator_1D(ifail)
 
    CONTAINS
+
+   SUBROUTINE test_interpolator_1D(fail)
+
+      LOGICAL, INTENT(OUT) :: fail
+      REAL, ALLOCATABLE :: x(:)
+      REAL, ALLOCATABLE :: f(:)
+      REAL :: xv, fv, ft
+      INTEGER :: i, itest
+      TYPE(interpolator) :: interp
+      LOGICAL :: logtest
+      REAL, PARAMETER :: xmin = 1e-3
+      REAL, PARAMETER :: xmax = 3.
+      INTEGER, PARAMETER :: n = 8
+      INTEGER, PARAMETER :: m = 128
+      INTEGER, PARAMETER :: iorder = 3
+      REAL, PARAMETER :: tol = 1e-8
+
+      fail = .FALSE.
+
+      DO itest = 1, 2
+
+         IF (itest == 1) THEN
+            logtest = .FALSE.
+         ELSE IF (itest == 2) THEN
+            logtest = .TRUE.
+         ELSE
+            STOP 'TEST_INTERPOLATOR_1D: Something went wrong'
+         END IF
+
+         CALL fill_array(xmin, xmax, x, n)
+         CALL safe_allocate(f, n)
+         f = x**3
+
+         CALL init_interpolator(x, f, iorder, interp, extrap=.FALSE., logx=logtest, logf=logtest)
+
+         DO i = 1, m
+            xv = progression(xmin, xmax, i, m)
+            fv = evaluate_interpolator(xv, interp)
+            ft = xv**3
+            IF(.NOT. requal(fv, ft, tol)) THEN
+               fail = .TRUE.
+               WRITE(*, *) 'TEST_INTERPOLATOR_1D: Fail'
+               WRITE(*, *) 'TEST_INTERPOLATOR_1D: itest:', itest
+               WRITE(*, *) 'TEST_INTERPOLATOR_1D: x:', xv
+               WRITE(*, *) 'TEST_INTERPOLATOR_1D: f true:', ft
+               WRITE(*, *) 'TEST_INTERPOLATOR_1D: f interp:', fv
+               STOP
+            END IF
+         END DO
+
+      END DO
+
+      IF (fail) THEN
+         WRITE(*, *) 'TEST_INTERPOLATOR_1D: Fail'
+      ELSE
+         WRITE(*, *) 'TEST_INTERPOLATOR_1D: Pass'
+         WRITE(*, *)
+      END IF
+
+   END SUBROUTINE test_interpolator_1D
 
    SUBROUTINE test_interpolate_1D(fail)
 

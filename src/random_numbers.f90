@@ -8,7 +8,7 @@ MODULE random_numbers
    PRIVATE
 
    ! Setting routine
-   PUBLIC :: RNG_seed
+   PUBLIC :: random_generator_seed
 
    ! Integer distributions
    PUBLIC :: random_integer
@@ -30,67 +30,67 @@ MODULE random_numbers
 
 CONTAINS
 
-   SUBROUTINE RNG_set(seed, verbose)
+   ! SUBROUTINE RNG_set(seed, verbose)
 
-      ! Seeds the RNG
-      ! TODO: Retire rand, replace with random_number
+   !    ! Seeds the RNG
+   !    ! TODO: Retire rand, replace with random_number
+   !    IMPLICIT NONE
+   !    INTEGER, INTENT(IN) :: seed
+   !    LOGICAL, OPTIONAL, INTENT(IN) :: verbose
+   !    INTEGER :: int, timearray(3)
+   !    REAL(kind=4) :: rand ! Necessary to define for ifort, also the *4 is necessary
+
+   !    IF (present_and_correct(verbose)) THEN
+   !       WRITE (*, *) 'RNG_SET: Initialising random number generator'
+   !       WRITE (*, *) 'RNG_SET: Seed:', seed
+   !    END IF
+
+   !    IF (seed == 0) THEN
+
+   !       ! This fills the time array using the system clock!
+   !       ! If called within the same second the numbers will be identical!
+   !       CALL itime(timeArray)
+
+   !       ! This then initialises the generator!
+   !       int = floor(rand(timeArray(1)+timeArray(2)+timeArray(3)))
+
+   !    ELSE
+
+   !       ! In this case you can keep track of the seed
+   !       int = floor(rand(seed))
+
+   !    END IF
+
+   !    IF (present_and_correct(verbose)) THEN
+   !       WRITE (*, *) 'RNG_SET: Done'
+   !       WRITE (*, *)
+   !    END IF
+
+   ! END SUBROUTINE RNG_set
+
+   SUBROUTINE random_generator_seed(seed, verbose)
+
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: seed
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
-      INTEGER :: int, timearray(3)
-      REAL(kind=4) :: rand ! Necessary to define for ifort, also the *4 is necessary
 
       IF (present_and_correct(verbose)) THEN
-         WRITE (*, *) 'RNG_SET: Initialising random number generator'
-         WRITE (*, *) 'RNG_SET: Seed:', seed
-      END IF
-
-      IF (seed == 0) THEN
-
-         ! This fills the time array using the system clock!
-         ! If called within the same second the numbers will be identical!
-         CALL itime(timeArray)
-
-         ! This then initialises the generator!
-         int = floor(rand(timeArray(1)+timeArray(2)+timeArray(3)))
-
-      ELSE
-
-         ! In this case you can keep track of the seed
-         int = floor(rand(seed))
-
-      END IF
-
-      IF (present_and_correct(verbose)) THEN
-         WRITE (*, *) 'RNG_SET: Done'
-         WRITE (*, *)
-      END IF
-
-   END SUBROUTINE RNG_set
-
-   SUBROUTINE RNG_seed(seed, verbose)
-
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: seed
-      LOGICAL, OPTIONAL, INTENT(IN) :: verbose
-
-      IF (present_and_correct(verbose)) THEN
-         WRITE (*, *) 'RNG_SEED: Initialising random number generator'
-         IF(seed .NE. 0) WRITE (*, *) 'RNG_SET: Seed:', seed
+         WRITE (*, *) 'RANDOM_GENERATOR_SEED: Initialising random number generator'
+         IF(seed .NE. 0) WRITE (*, *) 'RANDOM_GENERATOR_SEED: Seed:', seed
       END IF
 
       IF (seed == 0) THEN
          CALL random_seed()
       ELSE
-         STOP 'RNG_SEED: Error, this does not work for non-zero seeds'
+         STOP 'RANDOM_GENERATOR_SEED: Error, this does not work for non-zero seeds'
       END IF
 
       IF (present_and_correct(verbose)) THEN
-         WRITE (*, *) 'RNG_SEED: Done'
+         WRITE (*, *) 'RANDOM_GENERATOR_SEED: Done'
          WRITE (*, *)
       END IF
 
-   END SUBROUTINE RNG_seed
+   END SUBROUTINE random_generator_seed
 
    INTEGER FUNCTION random_integer(i1, i2)
 

@@ -183,7 +183,10 @@ MODULE cosmology_functions
       REAL :: amin_sigma, amax_sigma                                                               ! Ranges of arrays
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
       LOGICAL :: has_wiggle
-      LOGICAL :: is_init, is_normalised ! Flags to check if things have been done  
+      LOGICAL :: is_init, is_normalised ! Flags to check if things have been done 
+      
+      TYPE(interpolator) :: interp_sigma
+      LOGICAL :: use_sigma_interpolator
 
       ! For random cosmologies
       !LOGICAL :: seeded
@@ -631,7 +634,7 @@ CONTAINS
       IF (icosmo == -1) THEN
          WRITE (*, *) 'ASSIGN_COSMOLOGY: Choose cosmological model'
          WRITE (*, *) '==========================================='
-         DO i = 0, size(names)-1
+         DO i = 1, size(names)-1
             IF (i >= 100 .AND. i <= 136) THEN
                ! Do nothing
             ELSE IF (i >= 200 .AND. i <= 237) THEN
@@ -740,6 +743,9 @@ CONTAINS
       cosm%has_Xde = .FALSE.
       cosm%has_wiggle = .FALSE.
 
+      ! Use interpolator for sigma(R)
+      cosm%use_sigma_interpolator = .TRUE.
+
       ! For random cosmologies
       !cosm%seed = 0
       !cosm%seeded = .FALSE.
@@ -753,9 +759,7 @@ CONTAINS
       ! Gas options
       cosm%derive_gas_numbers = .TRUE.
 
-      IF (icosmo == 0) THEN
-         STOP 'TODO: implement user decision here'
-      ELSE IF (icosmo == 1) THEN
+      IF (icosmo == 1) THEN
          ! Boring - do nothing
       ELSE IF (icosmo == 2) THEN
          ! cosmo-OWLS - WMAP7 (1312.5462)
@@ -1316,6 +1320,10 @@ CONTAINS
       IF (cosm%m_nu .NE. 0.) THEN
          cosm%scale_dependent_growth = .TRUE.
          cosm%trivial_cold = .FALSE.
+      END IF
+
+      IF (cosm%scale_dependent_growth .AND. cosm%use_sigma_interpolator) THEN
+         STOP 'INIT_COSMOLOGY: Error, sigma interpolator is not supported with scale-dependent growth'
       END IF
 
       IF (cosm%verbose .AND. cosm%scale_dependent_growth) WRITE (*, *) 'INIT_COSMOLOGY: Scale-dependent growth'
@@ -3418,6 +3426,10 @@ CONTAINS
                END IF
             END DO
 
+            IF (cosm%use_sigma_interpolator) THEN
+               CALL init_interpolator(cosm%log_r_sigma, cosm%log_sigma, iorder_sigma, cosm%interp_sigma, extrap=.TRUE.)
+            END IF
+
          END IF
 
       END DO
@@ -3461,27 +3473,36 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = ifind_interpolation_sigma   ! Finding scheme in table
       INTEGER, PARAMETER :: imeth = imeth_interpolation_sigma   ! Method for polynomials
 
-      IF (cosm%scale_dependent_growth) THEN
-         IF (flag == flag_power_total) THEN
-            find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaa,&
-               cosm%nr_sigma, cosm%na_sigma, &
-               iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
-         ELSE IF (flag == sigma_cold_store) THEN
-            find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaca,&
-               cosm%nr_sigma, cosm%na_sigma, &
-               iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
-         ELSE
-            STOP 'FIND_SIGMA: Error, flag not specified correctly'
-         END IF
+      IF (cosm%use_sigma_interpolator) THEN
+
+         find_sigma = exp(evaluate_interpolator(log(R), cosm%interp_sigma))
+         find_sigma = find_sigma*grow(a, cosm)
+
       ELSE
-         IF (flag == flag_power_total) THEN
-            find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigma, cosm%nr_sigma, iorder, ifind, imeth))
-         ELSE IF (flag == sigma_cold_store) THEN
-            find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigmac, cosm%nr_sigma, iorder, ifind, imeth))
+
+         IF (cosm%scale_dependent_growth) THEN
+            IF (flag == flag_power_total) THEN
+               find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaa,&
+                  cosm%nr_sigma, cosm%na_sigma, &
+                  iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
+            ELSE IF (flag == sigma_cold_store) THEN
+               find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaca,&
+                  cosm%nr_sigma, cosm%na_sigma, &
+                  iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
+            ELSE
+               STOP 'FIND_SIGMA: Error, flag not specified correctly'
+            END IF
          ELSE
-            STOP 'FIND_SIGMA: Error, flag not specified correctly'
+            IF (flag == flag_power_total) THEN
+               find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigma, cosm%nr_sigma, iorder, ifind, imeth))
+            ELSE IF (flag == sigma_cold_store) THEN
+               find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigmac, cosm%nr_sigma, iorder, ifind, imeth))
+            ELSE
+               STOP 'FIND_SIGMA: Error, flag not specified correctly'
+            END IF
+            find_sigma = grow(a, cosm)*find_sigma
          END IF
-         find_sigma = grow(a, cosm)*find_sigma
+
       END IF
 
    END FUNCTION find_sigma

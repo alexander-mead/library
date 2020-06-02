@@ -23,6 +23,9 @@ MODULE special_functions
    PUBLIC :: fix_linear
    PUBLIC :: fix_quadratic
    PUBLIC :: fix_cubic
+   PUBLIC :: fix_centred_linear
+   PUBLIC :: fix_centred_quadratic
+   PUBLIC :: fix_centred_cubic
    PUBLIC :: Legendre_polynomial
    PUBLIC :: Lagrange_polynomial
    PUBLIC :: Si
@@ -99,7 +102,7 @@ CONTAINS
       REAL :: xx
 
       xx = x-x0
-      centred_linear_polynomial = a1*x+a0
+      centred_linear_polynomial = linear_polynomial(xx, a1, a0)
 
    END FUNCTION centred_linear_polynomial
 
@@ -114,7 +117,7 @@ CONTAINS
       REAL :: xx
 
       xx = x-x0
-      centred_quadratic_polynomial = a2*xx**2+a1*xx+a0
+      centred_quadratic_polynomial = quadratic_polynomial(xx, a2, a1, a0)
 
    END FUNCTION centred_quadratic_polynomial
 
@@ -130,7 +133,7 @@ CONTAINS
       REAL :: xx
 
       xx = x-x0
-      centred_cubic_polynomial = a3*xx**3+a2*xx**2+a1*xx+a0
+      centred_cubic_polynomial = cubic_polynomial(xx, a3, a2,  a1, a0)
 
    END FUNCTION centred_cubic_polynomial
 
@@ -158,7 +161,7 @@ CONTAINS
 
       a2 = ((y(2)-y(1))/(x(2)-x(1))-(y(3)-y(1))/(x(3)-x(1)))/(x(2)-x(3))
       a1 = (y(2)-y(1))/(x(2)-x(1))-a2*(x(2)+x(1))
-      a0 = y(1)-a2*(x(1)**2)-a1*x(1)
+      a0 = y(1)-a2*x(1)**2-a1*x(1)
 
    END SUBROUTINE fix_quadratic
 
@@ -194,6 +197,45 @@ CONTAINS
       a0 = y(1)-a3*x(1)**3-a2*x(1)**2-a1*x(1)
 
    END SUBROUTINE fix_cubic
+
+   SUBROUTINE fix_centred_linear(a1, a0, x0, x, y)
+
+      REAL, INTENT(OUT) :: a1
+      REAL, INTENT(OUT) :: a0
+      REAL, INTENT(IN) :: x0
+      REAL, INTENT(IN) :: x(2)
+      REAL, INTENT(IN) :: y(2)
+
+      CALL fix_linear(a1, a0, x-x0, y)
+
+   END SUBROUTINE fix_centred_linear
+
+   SUBROUTINE fix_centred_quadratic(a2, a1, a0, x0, x, y)
+
+      REAL, INTENT(OUT) :: a2
+      REAL, INTENT(OUT) :: a1
+      REAL, INTENT(OUT) :: a0
+      REAL, INTENT(IN) :: x0
+      REAL, INTENT(IN) :: x(3)
+      REAL, INTENT(IN) :: y(3)
+
+      CALL fix_quadratic(a2, a1, a0, x-x0, y)
+
+   END SUBROUTINE fix_centred_quadratic
+
+   SUBROUTINE fix_centred_cubic(a3, a2, a1, a0, x0, x, y)
+
+      REAL, INTENT(OUT) :: a3
+      REAL, INTENT(OUT) :: a2
+      REAL, INTENT(OUT) :: a1
+      REAL, INTENT(OUT) :: a0
+      REAL, INTENT(IN) :: x0
+      REAL, INTENT(IN) :: x(4)
+      REAL, INTENT(IN) :: y(4)
+
+      CALL fix_cubic(a3, a2, a1, a0, x-x0, y)
+
+   END SUBROUTINE fix_centred_cubic
 
    INTEGER FUNCTION triangle_number(n)
 
