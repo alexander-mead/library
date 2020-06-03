@@ -174,6 +174,7 @@ MODULE cosmology_functions
       REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)                           ! Arrays for cold T(k) and wiggle P(k)
       REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:)                                    ! Arrays for R and a for sigma(R, a)
       REAL, ALLOCATABLE :: log_sigma(:), log_sigmaa(:, :), log_sigmac(:), log_sigmaca(:,:)   ! Arrays for sigma(R, a)
+      TYPE(interpolator) :: interp_sigma                                                     ! Interpolator for sigma(R, a)
       REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
       REAL, ALLOCATABLE :: log_p(:), log_a_p(:)        ! Arrays for distance (particle horizon)
       REAL, ALLOCATABLE :: log_t(:), log_a_t(:)        ! Arrays for time
@@ -184,9 +185,6 @@ MODULE cosmology_functions
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
       LOGICAL :: has_wiggle
       LOGICAL :: is_init, is_normalised ! Flags to check if things have been done 
-      
-      TYPE(interpolator) :: interp_sigma
-      LOGICAL :: use_sigma_interpolator
 
       ! For random cosmologies
       !LOGICAL :: seeded
@@ -341,6 +339,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: alpha_sigma = 3.     ! Exponent to increase speed (1 is terrible, 2, 3, 4 all okay)
    REAL, PARAMETER :: acc_sigma = acc_cosm ! Accuracy parameter for sigma(R) integration
    INTEGER, PARAMETER :: iorder_sigma = 3  ! Polynomial order for sigma(R) integration
+   INTEGER, PARAMETER :: iextrap_sigma = iextrap_linear ! Extrapolation for sigma(R) interpolator
    
    ! sigma(R) tabulation and interpolation
    ! Changing to linear integer finding provides very little speed increase
@@ -354,6 +353,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: ifind_interpolation_sigma = 3  ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: imeth_interpolation_sigma = 2  ! Method for sigma(R) interpolation
    INTEGER, PARAMETER :: sigma_cold_store = flag_power_cold_unorm ! Which version of sigma should be tabulated (0 for none)
+   LOGICAL, PARAMETER :: use_sigma_interpolator = .FALSE. ! Use the interpolator structuree?
 
    ! sigma_v(R) integration
    REAL, PARAMETER :: alpha_sigmaV = 3.     ! Exponent to increase integration speed
@@ -742,9 +742,6 @@ CONTAINS
       cosm%has_time = .FALSE.
       cosm%has_Xde = .FALSE.
       cosm%has_wiggle = .FALSE.
-
-      ! Use interpolator for sigma(R)
-      cosm%use_sigma_interpolator = .TRUE.
 
       ! For random cosmologies
       !cosm%seed = 0
@@ -1322,7 +1319,7 @@ CONTAINS
          cosm%trivial_cold = .FALSE.
       END IF
 
-      IF (cosm%scale_dependent_growth .AND. cosm%use_sigma_interpolator) THEN
+      IF (cosm%scale_dependent_growth .AND. use_sigma_interpolator) THEN
          STOP 'INIT_COSMOLOGY: Error, sigma interpolator is not supported with scale-dependent growth'
       END IF
 
@@ -3426,8 +3423,8 @@ CONTAINS
                END IF
             END DO
 
-            IF (cosm%use_sigma_interpolator) THEN
-               CALL init_interpolator(cosm%log_r_sigma, cosm%log_sigma, iorder_sigma, cosm%interp_sigma, extrap=.TRUE.)
+            IF (use_sigma_interpolator) THEN
+               CALL init_interpolator(cosm%log_r_sigma, cosm%log_sigma, cosm%interp_sigma, iorder_sigma, iextrap_sigma)
             END IF
 
          END IF
@@ -3473,7 +3470,7 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = ifind_interpolation_sigma   ! Finding scheme in table
       INTEGER, PARAMETER :: imeth = imeth_interpolation_sigma   ! Method for polynomials
 
-      IF (cosm%use_sigma_interpolator) THEN
+      IF (use_sigma_interpolator) THEN
 
          find_sigma = exp(evaluate_interpolator(log(R), cosm%interp_sigma))
          find_sigma = find_sigma*grow(a, cosm)
