@@ -88,8 +88,7 @@ CONTAINS
 
          END IF
 
-         !CALL fix_linear(a, b, x1, y1, x2, y2)
-         CALL fix_linear(a, b, [x1, x2], [y1, y2])
+         CALL fix_polynomial(a, b, [x1, x2], [y1, y2])
          derivative_table = a
 
       ELSE IF (iorder == 2) THEN
@@ -124,8 +123,7 @@ CONTAINS
 
             END IF
 
-            !CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
-            CALL fix_quadratic(a, b, c, [x1, x2, x3], [y1, y2, y3])
+            CALL fix_polynomial(a, b, c, [x1, x2, x3], [y1, y2, y3])
 
             derivative_table = 2.*a*x+b
 
@@ -147,12 +145,10 @@ CONTAINS
 
             derivative_table = 0.
 
-            !CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
-            CALL fix_quadratic(a, b, c, [x1, x2, x3], [y1, y2, y3])
+            CALL fix_polynomial(a, b, c, [x1, x2, x3], [y1, y2, y3])
             derivative_table = derivative_table+(2.*a*x+b)/2.
 
-            !CALL fix_quadratic(a, b, c, x2, y2, x3, y3, x4, y4)
-            CALL fix_quadratic(a, b, c, [x2, x3, x4], [y2, y3, y4])
+            CALL fix_polynomial(a, b, c, [x2, x3, x4], [y2, y3, y4])
             derivative_table = derivative_table+(2.*a*x+b)/2.
 
          END IF
@@ -201,8 +197,7 @@ CONTAINS
 
          END IF
 
-         !CALL fix_cubic(a, b, c, d, x1, y1, x2, y2, x3, y3, x4, y4)
-         CALL fix_cubic(a, b, c, d, [x1, x2, x3, x4], [y1, y2, y3, y4])
+         CALL fix_polynomial(a, b, c, d, [x1, x2, x3, x4], [y1, y2, y3, y4])
          derivative_table = 3.*a*(x**2.)+2.*b*x+c
 
       ELSE
@@ -280,8 +275,7 @@ CONTAINS
             y2 = y(i+1)
             y3 = y(i+2)
 
-            !CALL fix_quadratic(a, b, c, x1, y1, x2, y2, x3, y3)
-            CALL fix_quadratic(a, b, c, [x1, x2, x3], [y1, y2, y3])
+            CALL fix_polynomial(a, b, c, [x1, x2, x3], [y1, y2, y3])
 
             q1 = a*(x1**3.)/3.+b*(x1**2.)/2.+c*x1
             q2 = a*(x2**3.)/3.+b*(x2**2.)/2.+c*x2
@@ -341,8 +335,7 @@ CONTAINS
             y3 = y(i3)
             y4 = y(i4)
 
-            !CALL fix_cubic(a, b, c, d, x1, y1, x2, y2, x3, y3, x4, y4)
-            CALL fix_cubic(a, b, c, d, [x1, x2, x3, x4], [y1, y2, y3, y4])
+            CALL fix_polynomial(a, b, c, d, [x1, x2, x3, x4], [y1, y2, y3, y4])
 
             ! These are the limits of the particular section of integral
             xi = x(i)

@@ -88,7 +88,7 @@ CONTAINS
             IF (test == 9) m = 2
             f = Bessel(m, x)
          ELSE IF (test == 10) THEN
-            f = Lognormal(x, mean, sigma)
+            f = Lognormal_distribution(x, mean, sigma)
          ELSE IF (test == 11) THEN
             f = Gamma(x)
          ELSE
@@ -193,7 +193,8 @@ CONTAINS
     
       END IF
     
-      CALL fix_cubic(a,b,c,d,x1,y1,x2,y2,x3,y3,x4,y4)
+      !CALL fix_cubic(a,b,c,d,x1,y1,x2,y2,x3,y3,x4,y4)
+      CALL fix_cubic(a, b, c, d, [x1, x2, x3, x4], [y1, y2, y3, y4])
     
       OPEN(7,file='points.dat')
       WRITE(7,*) x1, y1

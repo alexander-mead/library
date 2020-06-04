@@ -150,11 +150,11 @@ PROGRAM interpolate_test
          CALL safe_allocate(y, n)
 
          IF (itest == 1) THEN
-            y = linear_polynomial(x, a1, a0)
+            y = polynomial(x, a1, a0)
          ELSE IF (itest == 2) THEN
-            y = quadratic_polynomial(x, a2, a1, a0)
+            y = polynomial(x, a2, a1, a0)
          ELSE IF (itest == 3) THEN
-            y = cubic_polynomial(x, a3, a2, a1, a0)
+            y = polynomial(x, a3, a2, a1, a0)
          ELSE
             STOP 'TEST_INTERPOLATE_1D: Error, something went wrong'
          END IF
@@ -169,11 +169,11 @@ PROGRAM interpolate_test
                      yv = find(xv, x, y, n, iorder, ifind, iinterp)
 
                      IF(itest == 1) THEN
-                        yt = linear_polynomial(xv, a1, a0)
+                        yt = polynomial(xv, a1, a0)
                      ELSE IF (itest == 2) THEN
-                        yt = quadratic_polynomial(xv, a2, a1, a0)
+                        yt = polynomial(xv, a2, a1, a0)
                      ELSE IF (itest == 3) THEN
-                        yt = cubic_polynomial(xv, a3, a2, a1, a0)
+                        yt = polynomial(xv, a3, a2, a1, a0)
                      ELSE
                         STOP 'TEST_INTERPOLATE_1D: Error, something went wrong'
                      END IF

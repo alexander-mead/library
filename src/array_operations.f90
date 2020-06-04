@@ -11,7 +11,6 @@ MODULE array_operations
    PUBLIC :: add_to_array
    PUBLIC :: splay
    PUBLIC :: write_array_list
-   PUBLIC :: maximum
    PUBLIC :: sum_double
    PUBLIC :: repeated_entries
    PUBLIC :: array_position
@@ -1016,51 +1015,6 @@ CONTAINS
       CALL fill_array(mmin, mmax, arr, n) ! Linearly fill array
 
    END SUBROUTINE fill_pixels
-
-   REAL FUNCTION maximum(x, y)
-
-      ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
-      USE special_functions
-      REAL, INTENT(IN) :: x(:)
-      REAL, INTENT(IN) :: y(:)
-      REAL :: x1, x2, x3, y1, y2, y3, a, b, c
-      INTEGER :: imax(1), i, n
-
-      n = size(x)
-      IF(n /= size(y)) STOP 'MAXIMUM: Error, x and y must be the same size'
-
-      ! Need this to stop a compile-time warning
-      maximum = 0.
-
-      ! Integer maximum location
-      imax = maxloc(y)
-      i = imax(1)
-
-      IF (i == 1 .OR. i == n) THEN
-
-         STOP 'MAXIMUM: Error, maximum array value is at one end of the array'
-
-      ELSE
-
-         ! Get the x positions
-         x1 = x(i-1)
-         x2 = x(i)
-         x3 = x(i+1)
-
-         ! Get the y values
-         y1 = y(i-1)
-         y2 = y(i)
-         y3 = y(i+1)
-
-         ! Fix a parabola around the maximum
-         CALL fix_quadratic(a, b, c, [x1, x2, x3], [y1, y2, y3])
-
-         ! Read off the maximum from the parabola
-         maximum = -b/(2.*a)
-
-      END IF
-
-   END FUNCTION maximum
 
    SUBROUTINE mask(okay, m, n, min, max)
 

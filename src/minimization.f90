@@ -17,7 +17,8 @@ MODULE minimization
    PUBLIC :: grid_minimization_1D
    PUBLIC :: gradient_minimization_1D
    PUBLIC :: gradient_minimization_2D
-   PUBLIC :: quadratic_minimization_1D
+   PUBLIC :: quadratic_extremum_1D
+   PUBLIC :: find_array_maximum
 
    INTEGER, PARAMETER :: isort_Nelder_Mead = isort_bubble
    REAL, PARAMETER :: alpha_Nelder_Mead = 1.  ! Reflection coefficient (alpha > 0; standard alpha = 1)
@@ -681,7 +682,7 @@ MODULE minimization
 
    END FUNCTION gradient_minimization_2D
 
-   REAL FUNCTION quadratic_minimization_1D(x1, y1, x2, y2, x3, y3)
+   REAL FUNCTION quadratic_extremum_1D(x1, y1, x2, y2, x3, y3)
 
       ! This calculates the extrema of a function under the assumption that it is quadratic
       ! Takes 3 points to form a quadratic and then read off minimum
@@ -689,10 +690,50 @@ MODULE minimization
       REAL, INTENT(IN) :: x1, x2, x3, y1, y2, y3
       REAL :: a2, a1, a0
 
-      !CALL fix_quadratic(b, a, c, x1, y1, x2, y2, x3, y3)
-      CALL fix_quadratic(a2, a1, a0, [x1, x2, x3], [y1, y2, y3])
-      quadratic_minimization_1D = -a1/(2.*a2)
+      CALL fix_polynomial(a2, a1, a0, [x1, x2, x3], [y1, y2, y3])
+      quadratic_extremum_1D = -a1/(2.*a2)
 
-   END FUNCTION quadratic_minimization_1D
+   END FUNCTION quadratic_extremum_1D
+
+   REAL FUNCTION find_array_maximum(x, y)
+
+      ! From an array y(x) finds the x location of the maximum treating y(x) as a continuous function
+      USE special_functions
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: y(:)
+      REAL :: x1, x2, x3, y1, y2, y3, a, b, c
+      INTEGER :: imax(1), i, n
+
+      n = size(x)
+      IF(n /= size(y)) STOP 'MAXIMUM: Error, x and y must be the same size'
+
+      ! Need this to stop a compile-time warning
+      find_array_maximum = 0.
+
+      ! Integer maximum location
+      imax = maxloc(y)
+      i = imax(1)
+
+      IF (i == 1 .OR. i == n) THEN
+
+         STOP 'MAXIMUM: Error, maximum array value is at one end of the array'
+
+      ELSE
+
+         ! Get the x positions
+         x1 = x(i-1)
+         x2 = x(i)
+         x3 = x(i+1)
+
+         ! Get the y values
+         y1 = y(i-1)
+         y2 = y(i)
+         y3 = y(i+1)
+
+         find_array_maximum = quadratic_extremum_1D(x1, y1, x2, y2, x3, y3)
+
+      END IF
+
+   END FUNCTION find_array_maximum
 
 END MODULE minimization

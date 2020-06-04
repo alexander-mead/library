@@ -4264,6 +4264,7 @@ CONTAINS
       ! Initialise the spherical-collapse calculation
       USE basic_operations
       USE table_integer
+      USE minimization
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: dinit, ainit, vinit, ac, dc
@@ -4350,7 +4351,7 @@ CONTAINS
             !! Now to Delta_v calculation !!
 
             ! Find the a values when the perturbation is maximum size
-            a_rmax = maximum(a, rnl)
+            a_rmax = find_array_maximum(a, rnl)
 
             ! Find the over-density at this point
             d_rmax = exp(find(log(a_rmax), log(a), log(dnl), SIZE(a), &

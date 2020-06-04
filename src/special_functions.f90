@@ -14,18 +14,22 @@ MODULE special_functions
    PUBLIC :: get_Fibonaccis
 
    ! Real functions
-   PUBLIC :: linear_polynomial
-   PUBLIC :: quadratic_polynomial
-   PUBLIC :: cubic_polynomial
-   PUBLIC :: centred_linear_polynomial
-   PUBLIC :: centred_quadratic_polynomial
-   PUBLIC :: centred_cubic_polynomial
-   PUBLIC :: fix_linear
-   PUBLIC :: fix_quadratic
-   PUBLIC :: fix_cubic
-   PUBLIC :: fix_centred_linear
-   PUBLIC :: fix_centred_quadratic
-   PUBLIC :: fix_centred_cubic
+   !PUBLIC :: linear_polynomial
+   !PUBLIC :: quadratic_polynomial
+   !PUBLIC :: cubic_polynomial
+   !PUBLIC :: centred_linear_polynomial
+   !PUBLIC :: centred_quadratic_polynomial
+   !PUBLIC :: centred_cubic_polynomial
+   !PUBLIC :: fix_linear
+   !PUBLIC :: fix_quadratic
+   !PUBLIC :: fix_cubic
+   !PUBLIC :: fix_centred_linear
+   !PUBLIC :: fix_centred_quadratic
+   !PUBLIC :: fix_centred_cubic
+   PUBLIC :: polynomial
+   PUBLIC :: fix_polynomial
+   PUBLIC :: centred_polynomial
+   PUBLIC :: fix_centred_polynomial
    PUBLIC :: Legendre_polynomial
    PUBLIC :: Lagrange_polynomial
    PUBLIC :: Si
@@ -35,14 +39,14 @@ MODULE special_functions
    PUBLIC :: wk_tophat
    PUBLIC :: wk_tophat_deriv
    PUBLIC :: wk_tophat_dderiv
-   PUBLIC :: Gaussian
-   PUBLIC :: lognormal
-   PUBLIC :: uniform
-   PUBLIC :: Rayleigh
-   PUBLIC :: Poisson
-   PUBLIC :: exponential
-   PUBLIC :: Lorentzian
-   PUBLIC :: polynomial
+   PUBLIC :: Gaussian_distribution
+   PUBLIC :: lognormal_distribution
+   PUBLIC :: uniform_distribution
+   PUBLIC :: Rayleigh_distribution
+   PUBLIC :: Poisson_distribution
+   PUBLIC :: exponential_distribution
+   PUBLIC :: Lorentzian_distribution
+   PUBLIC :: polynomial_distribution
    PUBLIC :: Rosenbrock
    PUBLIC :: Himmelblau
 
@@ -53,6 +57,30 @@ MODULE special_functions
    PUBLIC :: smooth_blob
    PUBLIC :: sigmoid_tanh
    PUBLIC :: sigmoid_log
+
+   INTERFACE polynomial
+      MODULE PROCEDURE linear_polynomial
+      MODULE PROCEDURE quadratic_polynomial
+      MODULE PROCEDURE cubic_polynomial
+   END INTERFACE polynomial
+
+   INTERFACE centred_polynomial
+      MODULE PROCEDURE centred_linear_polynomial
+      MODULE PROCEDURE centred_quadratic_polynomial
+      MODULE PROCEDURE centred_cubic_polynomial
+   END INTERFACE centred_polynomial
+
+   INTERFACE fix_polynomial
+      MODULE PROCEDURE fix_linear_polynomial
+      MODULE PROCEDURE fix_quadratic_polynomial
+      MODULE PROCEDURE fix_cubic_polynomial
+   END INTERFACE fix_polynomial
+
+   INTERFACE fix_centred_polynomial
+      MODULE PROCEDURE fix_centred_linear_polynomial
+      MODULE PROCEDURE fix_centred_quadratic_polynomial
+      MODULE PROCEDURE fix_centred_cubic_polynomial
+   END INTERFACE fix_centred_polynomial
 
 CONTAINS
 
@@ -137,7 +165,7 @@ CONTAINS
 
    END FUNCTION centred_cubic_polynomial
 
-   SUBROUTINE fix_linear(a1, a0, x, y)
+   SUBROUTINE fix_linear_polynomial(a1, a0, x, y)
 
       ! Given xi, yi i=1,2 fixes a line between these points
       REAL, INTENT(OUT) :: a1
@@ -148,9 +176,9 @@ CONTAINS
       a1 = (y(2)-y(1))/(x(2)-x(1))
       a0 = y(1)-a1*x(1)
 
-   END SUBROUTINE fix_linear
+   END SUBROUTINE fix_linear_polynomial
 
-   SUBROUTINE fix_quadratic(a2, a1, a0, x, y)
+   SUBROUTINE fix_quadratic_polynomial(a2, a1, a0, x, y)
 
       ! Given xi, yi i=1,2,3 fixes a quadratic between these points
       REAL, INTENT(OUT) :: a2
@@ -163,9 +191,9 @@ CONTAINS
       a1 = (y(2)-y(1))/(x(2)-x(1))-a2*(x(2)+x(1))
       a0 = y(1)-a2*x(1)**2-a1*x(1)
 
-   END SUBROUTINE fix_quadratic
+   END SUBROUTINE fix_quadratic_polynomial
 
-   SUBROUTINE fix_cubic(a3, a2, a1, a0, x, y)
+   SUBROUTINE fix_cubic_polynomial(a3, a2, a1, a0, x, y)
 
       ! Given xi, yi i=1,2,3,4 fixes a cubic between these points
       REAL, INTENT(OUT) :: a3
@@ -196,9 +224,9 @@ CONTAINS
 
       a0 = y(1)-a3*x(1)**3-a2*x(1)**2-a1*x(1)
 
-   END SUBROUTINE fix_cubic
+   END SUBROUTINE fix_cubic_polynomial
 
-   SUBROUTINE fix_centred_linear(a1, a0, x0, x, y)
+   SUBROUTINE fix_centred_linear_polynomial(a1, a0, x0, x, y)
 
       REAL, INTENT(OUT) :: a1
       REAL, INTENT(OUT) :: a0
@@ -206,11 +234,11 @@ CONTAINS
       REAL, INTENT(IN) :: x(2)
       REAL, INTENT(IN) :: y(2)
 
-      CALL fix_linear(a1, a0, x-x0, y)
+      CALL fix_linear_polynomial(a1, a0, x-x0, y)
 
-   END SUBROUTINE fix_centred_linear
+   END SUBROUTINE fix_centred_linear_polynomial
 
-   SUBROUTINE fix_centred_quadratic(a2, a1, a0, x0, x, y)
+   SUBROUTINE fix_centred_quadratic_polynomial(a2, a1, a0, x0, x, y)
 
       REAL, INTENT(OUT) :: a2
       REAL, INTENT(OUT) :: a1
@@ -219,11 +247,11 @@ CONTAINS
       REAL, INTENT(IN) :: x(3)
       REAL, INTENT(IN) :: y(3)
 
-      CALL fix_quadratic(a2, a1, a0, x-x0, y)
+      CALL fix_quadratic_polynomial(a2, a1, a0, x-x0, y)
 
-   END SUBROUTINE fix_centred_quadratic
+   END SUBROUTINE fix_centred_quadratic_polynomial
 
-   SUBROUTINE fix_centred_cubic(a3, a2, a1, a0, x0, x, y)
+   SUBROUTINE fix_centred_cubic_polynomial(a3, a2, a1, a0, x0, x, y)
 
       REAL, INTENT(OUT) :: a3
       REAL, INTENT(OUT) :: a2
@@ -233,9 +261,9 @@ CONTAINS
       REAL, INTENT(IN) :: x(4)
       REAL, INTENT(IN) :: y(4)
 
-      CALL fix_cubic(a3, a2, a1, a0, x-x0, y)
+      CALL fix_cubic_polynomial(a3, a2, a1, a0, x-x0, y)
 
-   END SUBROUTINE fix_centred_cubic
+   END SUBROUTINE fix_centred_cubic_polynomial
 
    INTEGER FUNCTION triangle_number(n)
 
@@ -787,7 +815,7 @@ CONTAINS
 
    END FUNCTION Bessel
 
-   REAL FUNCTION Gaussian(x, mu, sigma)
+   REAL FUNCTION Gaussian_distribution(x, mu, sigma)
 
       ! Returns the integral-normalised Gaussian
       REAL, INTENT(IN) :: x     ! [-inf:inf]
@@ -798,11 +826,11 @@ CONTAINS
       f1 = exp(-((x-mu)**2)/(2.*sigma**2))
       f2 = sigma*sqrt(twopi)
 
-      Gaussian = f1/f2
+      Gaussian_distribution = f1/f2
 
-   END FUNCTION Gaussian
+   END FUNCTION Gaussian_distribution
 
-   REAL FUNCTION lognormal(x, mean_x, sigma_lnx)
+   REAL FUNCTION lognormal_distribution(x, mean_x, sigma_lnx)
 
       ! Returns integral-normalised lognormal distribution
       REAL, INTENT(IN) :: x         ! x [0,inf]
@@ -810,17 +838,17 @@ CONTAINS
       REAL, INTENT(IN) :: sigma_lnx ! Sigma for the value of ln(x) !IMPORTANT!
       REAL :: mu, sigma
 
-      IF (mean_x <= 0.) STOP 'LOGNORMAL: Error, mean_x cannot be less than or equal to zero'
-      IF (sigma_lnx < 0.) STOP 'LOGNORMAL: Error, sigma_lnx cannot be less than zero'
+      IF (mean_x <= 0.) STOP 'LOGNORMAL_DISTRIBUTION: Error, mean_x cannot be less than or equal to zero'
+      IF (sigma_lnx < 0.) STOP 'LOGNORMAL_DISTRIBUTION: Error, sigma_lnx cannot be less than zero'
 
       sigma = sigma_lnx
       mu = log(mean_x)-0.5*sigma**2
 
-      lognormal = Gaussian(log(x), mu, sigma)/x
+      lognormal_distribution = Gaussian_distribution(log(x), mu, sigma)/x
 
-   END FUNCTION lognormal
+   END FUNCTION lognormal_distribution
 
-   REAL FUNCTION uniform(x, x1, x2)
+   REAL FUNCTION uniform_distribution(x, x1, x2)
 
       ! Returns integral-normalised one-dimensional top-hat function between x1 and x2
       REAL, INTENT(IN) :: x
@@ -828,73 +856,73 @@ CONTAINS
       REAL, INTENT(IN) :: x2 ! Upper limit
 
       IF (x < x1 .OR. x > x2) THEN
-         uniform = 0.
+         uniform_distribution = 0.
       ELSE
-         uniform = 1./(x2-x1)
+         uniform_distribution = 1./(x2-x1)
       END IF
 
-   END FUNCTION uniform
+   END FUNCTION uniform_distribution
 
-   REAL FUNCTION Rayleigh(x, sigma)
+   REAL FUNCTION Rayleigh_distribution(x, sigma)
 
       ! Returns integral-normalised Rayleigh distribution
       REAL, INTENT(IN) :: x     ! [0:inf]
       REAL, INTENT(IN) :: sigma ! Sigma parameter (*not* root-variance for this distribution)
 
-      IF (sigma <= 0.) STOP 'RAYLEIGH: Error, sigma cannot be less than or equal to zero'
+      IF (sigma <= 0.) STOP 'RAYLEIGH_DISTRIBUTION: Error, sigma cannot be less than or equal to zero'
 
       IF (x < 0.) THEN
-         STOP 'RAYLEIGH: Error, x cannot be less than zero'
+         STOP 'RAYLEIGH_DISTRIBUTION: Error, x cannot be less than zero'
       ELSE
-         Rayleigh = x*exp(-(x**2)/(2.*(sigma**2)))/(sigma**2)
+         Rayleigh_distribution = x*exp(-(x**2)/(2.*(sigma**2)))/(sigma**2)
       END IF
 
-   END FUNCTION Rayleigh
+   END FUNCTION Rayleigh_distribution
 
-   REAL FUNCTION Poisson(n, nbar)
+   REAL FUNCTION Poisson_distribution(n, nbar)
 
       ! Normalised discrete Poisson probability distribution
       INTEGER, INTENT(IN) :: n ! Number of events to evaluate P_n at, n>=0
       REAL, INTENT(IN) :: nbar ! Mean number of events >0
 
-      Poisson = exp(-nbar)*(nbar**n)/int(factorial(n))
+      Poisson_distribution = exp(-nbar)*(nbar**n)/int(factorial(n))
 
-   END FUNCTION Poisson
+   END FUNCTION Poisson_distribution
 
-   REAL FUNCTION exponential(x, mean)
+   REAL FUNCTION exponential_distribution(x, mean)
 
       ! Returns integral-normalised exponential distribution
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: mean
 
-      exponential = exp(-x/mean)/mean
+      exponential_distribution = exp(-x/mean)/mean
 
-   END FUNCTION exponential
+   END FUNCTION exponential_distribution
 
-   REAL FUNCTION Lorentzian(x)
+   REAL FUNCTION Lorentzian_distribution(x)
 
       ! Returns integral-normalised Lorentzian distribution
       REAL, INTENT(IN) :: x
 
-      Lorentzian = 2./(pi*(1.+x**2))
+      Lorentzian_distribution = 2./(pi*(1.+x**2))
 
-   END FUNCTION Lorentzian
+   END FUNCTION Lorentzian_distribution
 
-   REAL FUNCTION polynomial(x, n)
+   REAL FUNCTION polynomial_distribution(x, n)
 
       ! Returns integral-normalised polynomial distribution
       REAL, INTENT(IN) :: x ! x[0->1]
       REAL, INTENT(IN) :: n ! Polynomail order [n>-1]
 
-      IF (n < -1) STOP 'POLYNOMIAL: Error, index is less than -1'
+      IF (n < -1) STOP 'POLYNOMIAL_DISTRIBUTION: Error, index is less than -1'
 
       IF (x < 0. .OR. x > 1.) THEN
-         STOP 'POLYNOMIAL: Error, x is outside range 0 to 1'
+         STOP 'POLYNOMIAL_DISTRIBUTION: Error, x is outside range 0 to 1'
       ELSE
-         polynomial = (n+1.)*x**n
+         polynomial_distribution = (n+1.)*x**n
       END IF
 
-   END FUNCTION polynomial
+   END FUNCTION polynomial_distribution
 
    REAL FUNCTION Rosenbrock(x, y)
 

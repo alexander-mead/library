@@ -5943,14 +5943,13 @@ CONTAINS
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: eps, gas_fraction, a, b
+      REAL :: gas_fraction, a, b
 
       ! Fraction of original gas content remaining in halo
       gas_fraction = halo_bound_gas_fraction(m, hmod, cosm)/(cosm%Om_b/cosm%Om_m)
-      eps = HMx_eps(hmod, cosm)
-      a = eps
-      b = HMx_eps2(hmod, cosm)
-      hydro_concentration_modification = 1.+a+gas_fraction*(b-a)
+      a = HMx_eps(hmod, cosm)  ! Low halo-mass limit c -> c*(1+a)
+      b = HMx_eps2(hmod, cosm) ! High halo-mass limit c -> c*(1+b)
+      hydro_concentration_modification = 1.+a+(b-a)*gas_fraction
 
    END FUNCTION hydro_concentration_modification
 
@@ -8794,16 +8793,16 @@ CONTAINS
          a0 = y0
       ELSE IF (iorder == 1) THEN
          y1 = winint_integrand(x1, rmin, rmax, rv, rs, p1, p2, irho)/x1
-         CALL fix_linear(a1, a0, [x0, x1], [y0, y1])
+         CALL fix_polynomial(a1, a0, [x0, x1], [y0, y1])
       ELSE IF (iorder == 2) THEN
          y1 = winint_integrand(x1, rmin, rmax, rv, rs, p1, p2, irho)/x1
          y2 = winint_integrand(x2, rmin, rmax, rv, rs, p1, p2, irho)/x2
-         CALL fix_quadratic(a2, a1, a0, [x0, x1, x2], [y0, y1, y2])
+         CALL fix_polynomial(a2, a1, a0, [x0, x1, x2], [y0, y1, y2])
       ELSE IF (iorder == 3) THEN
          y1 = winint_integrand(x1, rmin, rmax, rv, rs, p1, p2, irho)/x1
          y2 = winint_integrand(x2, rmin, rmax, rv, rs, p1, p2, irho)/x2
          y3 = winint_integrand(x3, rmin, rmax, rv, rs, p1, p2, irho)/x3
-         CALL fix_cubic(a3, a2, a1, a0, [x0, x1, x2, x3], [y0, y1, y2, y3])
+         CALL fix_polynomial(a3, a2, a1, a0, [x0, x1, x2, x3], [y0, y1, y2, y3])
       ELSE
          STOP 'WININT_APPROX: Error, iorder specified incorrectly'
       END IF
@@ -8852,8 +8851,7 @@ CONTAINS
       y2 = winint_integrand(x2, rmin, rmax, rv, rs, p1, p2, irho)/x2
       y3 = winint_integrand(x3, rmin, rmax, rv, rs, p1, p2, irho)/x3
 
-      !CALL fix_cubic(a3, a2, a1, a0, x0, y0, x1, y1, x2, y2, x3, y3)
-      CALL fix_cubic(a3, a2, a1, a0, [x0, x1, x2, x3], [y0, y1, y2, y3])
+      CALL fix_polynomial(a3, a2, a1, a0, [x0, x1, x2, x3], [y0, y1, y2, y3])
 
       epsa0 = eps*a0
       IF (ABS(a3*rmid**3) < epsa0 .AND. ABS(a2*rmid**2) < epsa0 .AND. ABS(a1*rmid) < epsa0) THEN
@@ -10609,16 +10607,16 @@ CONTAINS
       INTEGER :: j
       LOGICAL, PARAMETER :: real_space = .FALSE. ! Fourier profiles
 
-      !Halo profiles
+      ! Halo profiles
       DO j = 1, 2
          rs = rv/c
          wk(j) = win(real_space, ih(j), k, m, rv, rs, hmod, cosm)
       END DO
 
-      !Probability distribution
-      pc = lognormal(c, mean_c, sigma_lnc)
+      ! Probability distribution
+      pc = lognormal_distribution(c, mean_c, sigma_lnc)
 
-      !The full integrand
+      ! The full integrand
       scatter_integrand = wk(1)*wk(2)*pc
 
    END FUNCTION scatter_integrand

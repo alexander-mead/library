@@ -51,7 +51,7 @@ PROGRAM special_functions_test
          y1 = b1*x1+b0
          y2 = b1*x2+b0
 
-         CALL fix_linear(a1, a0, [x1, x2], [y1, y2])
+         CALL fix_polynomial(a1, a0, [x1, x2], [y1, y2])
 
          IF ((.NOT. requal(a1, b1, tol)) .OR. (.NOT. requal(a0, b0, tol))) THEN
             WRITE(*, *) 'TEST_FIX_LINEAR: Target a1:', b1
@@ -93,11 +93,11 @@ PROGRAM special_functions_test
             STOP 'TEST_FIX_QUADRATIC: Something went wrong'
          END IF
 
-         y1 = quadratic_polynomial(x1, b2, b1, b0)
-         y2 = quadratic_polynomial(x2, b2, b1, b0)
-         y3 = quadratic_polynomial(x3, b2, b1, b0)
+         y1 = polynomial(x1, b2, b1, b0)
+         y2 = polynomial(x2, b2, b1, b0)
+         y3 = polynomial(x3, b2, b1, b0)
 
-         CALL fix_quadratic(a2, a1, a0, [x1, x2, x3], [y1, y2, y3])
+         CALL fix_polynomial(a2, a1, a0, [x1, x2, x3], [y1, y2, y3])
 
          IF ((.NOT. requal(a2, b2, tol)) .OR. (.NOT. requal(a1, b1, tol)) .OR. (.NOT. requal(a0, b0, tol))) THEN
             WRITE(*, *) 'TEST_FIX_QUADRATIC: Target a2:', b2
@@ -145,12 +145,12 @@ PROGRAM special_functions_test
             STOP 'TEST_FIX_CUBIC: Something went wrong'
          END IF
 
-         y1 = cubic_polynomial(x1, b3, b2, b1, b0)
-         y2 = cubic_polynomial(x2, b3, b2, b1, b0)
-         y3 = cubic_polynomial(x3, b3, b2, b1, b0)
-         y4 = cubic_polynomial(x4, b3, b2, b1, b0)
+         y1 = polynomial(x1, b3, b2, b1, b0)
+         y2 = polynomial(x2, b3, b2, b1, b0)
+         y3 = polynomial(x3, b3, b2, b1, b0)
+         y4 = polynomial(x4, b3, b2, b1, b0)
 
-         CALL fix_cubic(a3, a2, a1, a0, [x1, x2, x3, x4], [y1, y2, y3, y4])
+         CALL fix_polynomial(a3, a2, a1, a0, [x1, x2, x3, x4], [y1, y2, y3, y4])
 
          IF ((.NOT. requal(a3, b3, tol)) .OR. &
             (.NOT. requal(a2, b2, tol)) .OR. &
