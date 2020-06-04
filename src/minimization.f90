@@ -701,7 +701,7 @@ MODULE minimization
       USE special_functions
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: y(:)
-      REAL :: x1, x2, x3, y1, y2, y3, a, b, c
+      REAL :: x1, x2, x3, y1, y2, y3
       INTEGER :: imax(1), i, n
 
       n = size(x)
