@@ -65,6 +65,7 @@ MODULE cosmology_functions
    PUBLIC :: grow_CPT
    PUBLIC :: grow_Linder
    PUBLIC :: growth_rate
+   PUBLIC :: growth_rate_index
    PUBlIC :: growth_rate_Linder
    PUBLIC :: acc_growth
 
@@ -3787,6 +3788,24 @@ CONTAINS
       growth_rate = find(log(a), cosm%log_a_growth, cosm%growth_rate, cosm%n_growth, iorder, ifind, imeth)
 
    END FUNCTION growth_rate
+
+   REAL RECURSIVE FUNCTION growth_rate_index(a, cosm)
+
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: Om_m
+      REAL, PARAMETER :: limit = 0.01
+      REAL, PARAMETER :: gamma_default = 6./11.
+
+      Om_m = Omega_cold_norad(a,cosm)
+
+      IF (abs(1.-Om_m) < limit) THEN
+         growth_rate_index = gamma_default
+      ELSE
+         growth_rate_index = log(growth_rate(a, cosm))/log(Om_m)
+      END IF
+
+   END FUNCTION growth_rate_index
 
    REAL RECURSIVE FUNCTION acc_growth(a, cosm)
 

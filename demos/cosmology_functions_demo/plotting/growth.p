@@ -6,6 +6,8 @@ if(print==0) set term qt dashed
 
 growth='data/growth.dat'
 
+gam = 6./11.
+
 set key bottom right
 
 #if(!exists('ilog')){ilog=0}
@@ -32,13 +34,15 @@ set yrange [gmin:gmax]
 if(ilog==1){unset key}
 
 plot x w l ls -1 noti,\
-     growth u 1:2 w l lc 1 dt 1 lw 2 ti 'Growth function',\
-     growth u 1:3 w l lc 2 dt 1 lw 2 ti 'Unnormalised growth',\
-     growth u 1:4 w l lc 3 dt 1 lw 2 ti 'Growth rate',\
-     growth u 1:5 w l lc 4 dt 1 lw 2 ti 'Accumulated growth',\
-     growth u 1:6 w l lc 1 dt 2 lw 3 ti 'Linder growth function approximation',\
-     growth u 1:7 w l lc 1 dt 3 lw 3 ti 'CPT growth function approximation',\
-     growth u 1:8 w l lc 3 dt 2 lw 3 ti 'Linder growth rate approximation'
+   gam w l lc 6 dt 2 noti,\
+   growth u 1:2 w l lc 1 dt 1 lw 2 ti 'Growth function',\
+   growth u 1:3 w l lc 2 dt 1 lw 2 ti 'Unnormalised growth',\
+   growth u 1:4 w l lc 3 dt 1 lw 2 ti 'Growth rate',\
+   growth u 1:5 w l lc 4 dt 1 lw 2 ti 'Accumulated growth',\
+   growth u 1:6 w l lc 1 dt 2 lw 3 ti 'Linder growth function approximation',\
+   growth u 1:7 w l lc 1 dt 3 lw 3 ti 'CPT growth function approximation',\
+   growth u 1:8 w l lc 3 dt 2 lw 3 ti 'Linder growth rate approximation',\
+   growth u 1:9 w l lc 6 dt 1 lw 2 ti 'Growth rate index'
 
 }
 

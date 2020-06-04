@@ -94,7 +94,8 @@ PROGRAM cosmology_functions_demo
             acc_growth(a, cosm), &
             grow_Linder(a, cosm), &
             grow_CPT(a, cosm), &
-            growth_rate_Linder(a, cosm)
+            growth_rate_Linder(a, cosm), &
+            growth_rate_index(a, cosm)
          WRITE (13, *) a, w_de(a, cosm), w_de_total(a, cosm), w_eff(a, cosm)
          WRITE (14, *) a, &
             comoving_distance(a, cosm), &
