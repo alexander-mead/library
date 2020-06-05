@@ -13,6 +13,7 @@ MODULE interpolate
    PUBLIC :: interpolate_array
    PUBLIC :: init_interpolator
    PUBLIC :: evaluate_interpolator
+   PUBLIC :: inverse_interpolator
 
    ! Switches for interpolation polynomials
    PUBLIC :: iinterp_polynomial
@@ -38,6 +39,9 @@ MODULE interpolate
    INTEGER, PARAMETER :: iextrap_none = 0
    INTEGER, PARAMETER :: iextrap_standard = 1
    INTEGER, PARAMETER :: iextrap_linear = 2
+
+   INTEGER, PARAMETER :: ifind_inverse_interpolator = ifind_split
+   INTEGER, PARAMETER :: iinterp_inverse_interpolator = iinterp_Lagrange
 
    INTERFACE find
       MODULE PROCEDURE find_1D
@@ -1212,9 +1216,11 @@ CONTAINS
       REAL, INTENT(IN) :: f
       TYPE(interpolator1D), INTENT(IN) :: interp
       REAL :: ff, x
+      INTEGER :: ifind = ifind_inverse_interpolator
+      INTEGER :: iinterp = iinterp_inverse_interpolator
 
       IF (interp%logf) ff = log(f)
-      x = find_1D(f, interp%f, interp%x, interp%n, interp%iorder, interp%ifind, iinterp_Lagrange)
+      x = find(ff, interp%f, interp%x, interp%n, interp%iorder, ifind, iinterp)
 
       IF(interp%logx) THEN
          inverse_interpolator_1D = exp(x)
