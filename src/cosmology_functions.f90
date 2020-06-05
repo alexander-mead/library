@@ -3889,10 +3889,9 @@ CONTAINS
 
       ! Downsample the tables that come out of the ODE solve, which are otherwise too long
       ! TODO: Use a better routine to interpolate a whole table?
-      ! TODO: Are logs necessary here?
       DO i = 1, ng
-         growth(i) = exp(find(log(a(i)), log(a_tab), log(d_tab), na, iorder_interp, ifind_interp, imeth_interp))
-         rate(i) = find(log(a(i)), log(a_tab), f_tab, na, iorder_interp, ifind_interp, imeth_interp)
+         growth(i) = find(a(i), a_tab, d_tab, na, iorder_interp, ifind_interp, imeth_interp)
+         rate(i) = find(a(i), a_tab, f_tab, na, iorder_interp, ifind_interp, imeth_interp)
       END DO
 
       CALL init_interpolator(a, growth, cosm%grow, &
