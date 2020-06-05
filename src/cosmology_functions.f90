@@ -172,15 +172,11 @@ MODULE cosmology_functions
       LOGICAL :: trivial_cold            ! Is the cold spectrum trivially related to the matter spectrum?    
       
       ! Look-up tables that are filled during a calculation
-      REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)     ! Arrays for input linear P(k)
-      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)                        ! Arrays for cold T(k) and wiggle P(k)
-      TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv        ! 1D interpolators
-      TYPE(interpolator2D) :: sigmaa                                               ! 2D interpolator 
-      REAL, ALLOCATABLE :: log_p(:), log_a_p(:)        ! Arrays for distance (particle horizon)
-      REAL, ALLOCATABLE :: log_t(:), log_a_t(:)        ! Arrays for time
-      !REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:) ! Arrays for spherical-collapse parameters
-      REAL, ALLOCATABLE :: log_a_Xde(:), log_Xde(:)    ! Arrays for dark-energy density
-      INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin, n_Xde ! Number of array entries
+      REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:) ! Arrays for input linear P(k)
+      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:)                                 ! Arrays for cold T(k) and wiggle P(k)
+      TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde, wiggle ! 1D interpolators
+      TYPE(interpolator2D) :: sigmaa ! 2D interpolators 
+      INTEGER :: nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin ! Number of array entries
       REAL :: amin_sigma, amax_sigma                                                               ! Ranges of arrays
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
       LOGICAL :: has_wiggle
@@ -221,9 +217,8 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: tabulate_Xde = .TRUE.       ! Tabulate Xde for interpolation
    REAL, PARAMETER :: acc_integration_Xde = acc_cosm ! Accuracy for direct integration of dark energy density
    INTEGER, PARAMETER :: iorder_integration_Xde = 3  ! Polynomial order for time integration
-   INTEGER, PARAMETER :: iorder_interp_Xde = 3 ! Polynomial order for time interpolation
-   INTEGER, PARAMETER :: ifind_interp_Xde = 3  ! Finding scheme for time interpolation
-   INTEGER, PARAMETER :: imeth_interp_Xde = 2  ! Method for time interpolation
+   INTEGER, PARAMETER :: iorder_interp_Xde = 3       ! Polynomial order for time interpolation
+   INTEGER, PARAMETER :: iextrap_Xde = iextrap_standard
 
    ! Distance
    ! Changing to linear integer finding provides very little speed increase
@@ -233,11 +228,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: atay_distance = 1e-5               ! Below this do a Taylor expansion to avoid divergence
    INTEGER, PARAMETER :: iorder_integration_distance = 3 ! Polynomial order for distance integration
    INTEGER, PARAMETER :: iorder_interp_distance = 3      ! Polynomial order for distance interpolation
-   INTEGER, PARAMETER :: ifind_interp_distance = 3       ! Finding scheme for distance interpolation
-   INTEGER, PARAMETER :: imeth_interp_distance = 2       ! Method for distance interpolation
-   INTEGER, PARAMETER :: iorder_inversion_distance = 3   ! Polynomial order for distance inversion
-   INTEGER, PARAMETER :: ifind_inversion_distance = 3    ! Finding scheme for distance inversion
-   INTEGER, PARAMETER :: imeth_inversion_distance = 2    ! Method for distance inversion
+   INTEGER, PARAMETER :: iextrap_distance = iextrap_standard
 
    ! Time
    ! Changing to linear integer finding provides very little speed increase
@@ -247,8 +238,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: atay_time = 1e-5               ! Below this do a Taylor expansion to avoid divergence
    INTEGER, PARAMETER :: iorder_integration_time = 3 ! Polynomial order for time integration
    INTEGER, PARAMETER :: iorder_interp_time = 3      ! Polynomial order for time interpolation
-   INTEGER, PARAMETER :: ifind_interp_time = 3       ! Finding scheme for time interpolation
-   INTEGER, PARAMETER :: imeth_interp_time = 2       ! Method for time interpolation
+   INTEGER, PARAMETER :: iextrap_time = iextrap_standard
 
    ! Power
    REAL, PARAMETER :: kmin_plin = 0.           ! Power below this wavenumber is set to zero [h/Mpc]
@@ -266,6 +256,12 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: flag_power_total = 1      ! Flag to get the total matter power spectrum
    INTEGER, PARAMETER :: flag_power_cold = 2       ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
    INTEGER, PARAMETER :: flag_power_cold_unorm = 3 ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
+
+   ! De-wiggle power
+   INTEGER, PARAMETER :: iorder_interp_pwiggle = 3
+   INTEGER, PARAMETER :: ifind_pwiggle = 3
+   INTEGER, PARAMETER :: iinterp_pwiggle = 2
+   INTEGER, PARAMETER :: iextrap_pwiggle = iextrap_linear
 
    ! Correlation function
    ! TODO: This works very poorly
@@ -739,10 +735,6 @@ CONTAINS
       cosm%has_Xde = .FALSE.
       cosm%has_wiggle = .FALSE.
 
-      ! For random cosmologies
-      !cosm%seed = 0
-      !cosm%seeded = .FALSE.
-
       ! Omegas for power spectrum if different from background cosmological parameters; false by default
       cosm%Om_m_pow = 0.
       cosm%Om_b_pow = 0.
@@ -818,12 +810,6 @@ CONTAINS
       ELSE IF (icosmo == 7) THEN
          ! IDE I
          cosm%iw = iw_IDE1
-         !WRITE (*, *) 'a*:'
-         !READ (*, *) cosm%astar
-         !WRITE (*, *) 'n*:'
-         !READ (*, *) cosm%nstar
-         !WRITE (*, *) 'Om_w(a*):'
-         !READ (*, *) cosm%Om_ws
          cosm%astar = 0.1
          cosm%nstar = 3.
          cosm%Om_ws = 0.3
@@ -832,12 +818,6 @@ CONTAINS
       ELSE IF (icosmo == 8) THEN
          ! IDE II model
          cosm%iw = iw_IDE2
-         !WRITE (*, *) 'n*:'
-         !READ (*, *) cosm%nstar
-         !WRITE (*, *) 'a*:'
-         !READ (*, *) cosm%astar
-         !WRITE (*, *) 'Om_w(a*):'
-         !READ (*, *) cosm%Om_ws
          cosm%astar = 0.1
          cosm%nstar = 3.    
          cosm%Om_ws = 0.3
@@ -847,12 +827,6 @@ CONTAINS
       ELSE IF (icosmo == 9) THEN
          ! IDE III model
          cosm%iw = iw_IDE3
-         !WRITE (*, *) 'a*:'
-         !READ (*, *) cosm%astar
-         !WRITE (*, *) 'Om_w(a*):'
-         !READ (*, *) cosm%Om_ws
-         !WRITE (*, *) 'w*:'
-         !READ (*, *) cosm%ws
          cosm%astar = 0.1
          cosm%Om_ws = 0.3
          cosm%ws = 0.5
@@ -1420,14 +1394,14 @@ CONTAINS
 
       ! Ensure deallocate distances
       cosm%has_distance = .FALSE.
-      CALL if_allocated_deallocate(cosm%log_p)
-      CALL if_allocated_deallocate(cosm%log_a_p)
+      !CALL if_allocated_deallocate(cosm%log_p)
+      !CALL if_allocated_deallocate(cosm%log_a_p)
       cosm%horizon = 0.
 
       ! Ensure deallocate time
       cosm%has_time = .FALSE.
-      CALL if_allocated_deallocate(cosm%log_t)
-      CALL if_allocated_deallocate(cosm%log_a_t)
+      !CALL if_allocated_deallocate(cosm%log_t)
+      !CALL if_allocated_deallocate(cosm%log_a_t)
       cosm%age = 0.
 
       ! Ensure deallocate growth
@@ -2351,8 +2325,6 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       DOUBLE PRECISION :: f1, f2, f3, f4
-      !REAL, PARAMETER :: acc = acc_Xde          ! Accuracy for direct integration
-      !INTEGER, PARAMETER :: iorder = iorder_Xde ! Order for direct integration
 
       IF (cosm%iw == iw_LCDM) THEN
          ! LCDM
@@ -2388,10 +2360,11 @@ CONTAINS
          ! Generally true, but this integration can make calculations very slow
          IF(tabulate_Xde) THEN
             IF(.NOT. cosm%has_Xde) CALL init_Xde(cosm)
-            X_de = exp(find(log(a), cosm%log_a_Xde, cosm%log_Xde, cosm%n_Xde, &
-               iorder_interp_Xde, &
-               ifind_interp_Xde, &
-               imeth_interp_Xde))
+            !X_de = exp(find(log(a), cosm%log_a_Xde, cosm%log_Xde, cosm%n_Xde, &
+            !   iorder_interp_Xde, &
+            !   ifind_interp_Xde, &
+            !   imeth_interp_Xde))
+            X_de = evaluate_interpolator(a, cosm%Xde)
          ELSE
             X_de = Xde_integral(a, cosm)
          END IF
@@ -2424,9 +2397,15 @@ CONTAINS
       WRITE(*, *) 'INIT_XDE: minimum X_de:', Xde(n)
       WRITE(*, *) 'INIT_XDE: maximum X_de:', Xde(1)
 
-      cosm%log_a_Xde = log(a)
-      cosm%log_Xde = log(Xde)
-      cosm%n_Xde = n
+      CALL init_interpolator(a, Xde, cosm%Xde, &
+         iorder_interp_Xde, &
+         iextrap_Xde, &
+         logx=.TRUE., &
+         logf=.TRUE.)
+
+      !cosm%log_a_Xde = log(a)
+      !cosm%log_Xde = log(Xde)
+      !cosm%n_Xde = n
       cosm%has_Xde = .TRUE.
 
       WRITE(*, *) 'INIT_XDE: Done'
@@ -2536,16 +2515,14 @@ CONTAINS
       REAL, INTENT(IN) :: r
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: p
-      INTEGER, PARAMETER :: iorder = iorder_inversion_distance
-      INTEGER, PARAMETER :: ifind = ifind_inversion_distance
-      INTEGER, PARAMETER :: imeth = imeth_inversion_distance
 
       IF (cosm%has_distance .EQV. .FALSE.) CALL init_distance(cosm)
       IF (r == 0.) THEN
          scale_factor_r = 1.
       ELSE
          p = cosm%horizon-r
-         scale_factor_r = exp(find(log(p), cosm%log_p, cosm%log_a_p, cosm%n_p, iorder, ifind, imeth))
+         !scale_factor_r = exp(find(log(p), cosm%log_p, cosm%log_a_p, cosm%n_p, iorder, ifind, imeth))
+         scale_factor_r = inverse_interpolator(p, cosm%dist)
       END IF
 
    END FUNCTION scale_factor_r
@@ -2608,9 +2585,6 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interp_distance
-      INTEGER, PARAMETER :: ifind = ifind_interp_distance
-      INTEGER, PARAMETER :: imeth = imeth_interp_distance
 
       IF (cosm%has_distance .EQV. .FALSE.) CALL init_distance(cosm)
 
@@ -2620,7 +2594,8 @@ CONTAINS
          WRITE (*, *) 'COMOVING_PARTICLE_HORIZON: a:', a
          STOP 'COMOVING_PARTICLE_HORIZON: Error, tried to calculate particle horizon in the future'
       ELSE
-         comoving_particle_horizon = exp(find(log(a), cosm%log_a_p, cosm%log_p, cosm%n_p, iorder, ifind, imeth))
+         !comoving_particle_horizon = exp(find(log(a), cosm%log_a_p, cosm%log_p, cosm%n_p, iorder, ifind, imeth))
+         comoving_particle_horizon = evaluate_interpolator(a, cosm%dist)
       END IF
 
    END FUNCTION comoving_particle_horizon
@@ -2702,14 +2677,13 @@ CONTAINS
       ! Fill up tables of a vs. p(a) (comoving particle horizon)
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: zmin, zmax, amin, amax, a, b, r
+      REAL :: zmin, zmax, b
+      REAL, ALLOCATABLE :: a(:), r(:)
       INTEGER :: i
+      REAL, PARAMETER :: amin = amin_distance
+      REAL, PARAMETER :: amax = amax_distance
       INTEGER, PARAMETER :: iorder = iorder_integration_distance ! Order for integration
-
-      ! Get from PARAMETERS
-      amin = amin_distance
-      amax = amax_distance
-      cosm%n_p = n_distance
+      INTEGER, PARAMETER :: n = n_distance
 
       ! Calculate redshifts
       zmin = redshift_a(amax)
@@ -2723,24 +2697,28 @@ CONTAINS
       END IF
 
       ! Fill array of 'a' in log space
-      CALL fill_array(log(amin), log(amax), cosm%log_a_p, cosm%n_p)
-      IF (ALLOCATED(cosm%log_p)) DEALLOCATE (cosm%log_p)
-      ALLOCATE (cosm%log_p(cosm%n_p))
+      CALL fill_array_log(amin, amax, a, n)
+      ALLOCATE(r(n))
 
       ! Now do the r(a) calculation
-      DO i = 1, cosm%n_p
-         a = exp(cosm%log_a_p(i))
-         b = sqrt(a) ! Parameter to make the integrand not diverge for small values (a=b^2)
-         r = integrate_cosm(0., b, distance_integrand, cosm, acc_cosm, iorder)
-         cosm%log_p(i) = log(r)
+      DO i = 1, n
+         b = sqrt(a(i)) ! Parameter to make the integrand not diverge for small values (a=b^2)
+         r(i) = integrate_cosm(0., b, distance_integrand, cosm, acc_cosm, iorder)
       END DO
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_DISTANCE: minimum r [Mpc/h]:', real(exp(cosm%log_p(1)))
-         WRITE (*, *) 'INIT_DISTANCE: maximum r [Mpc/h]:', real(exp(cosm%log_p(cosm%n_p)))
+         WRITE (*, *) 'INIT_DISTANCE: minimum r [Mpc/h]:', real(r(1))
+         WRITE (*, *) 'INIT_DISTANCE: maximum r [Mpc/h]:', real(r(n))
       END IF
 
+      CALL init_interpolator(a, r, cosm%dist, &
+                              iextrap = iextrap_distance, &
+                              iorder = iorder_interp_distance, &
+                              logx = .TRUE., &
+                              logf = .TRUE. &
+                              )
+
       ! Find the horizon distance in your cosmology
-      ! exp(log) ensures the value is exactly the same as what comes out of the (log) look-up tables
+      ! exp(log) ensures the value is exactly the same as what comes out of the (log) interpolator
       cosm%horizon = exp(log(integrate_cosm(0., 1., distance_integrand, cosm, acc_cosm, iorder)))
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_DISTANCE: Horizon distance [Mpc/h]:', real(cosm%horizon)
@@ -2783,16 +2761,14 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interp_time
-      INTEGER, PARAMETER :: ifind = ifind_interp_time
-      INTEGER, PARAMETER :: imeth = imeth_interp_time
 
       IF (.NOT. cosm%has_time) CALL init_time(cosm)
 
       IF (a == 0.) THEN
          cosmic_time = 0.
       ELSE
-         cosmic_time = exp(find(log(a), cosm%log_a_t, cosm%log_t, cosm%n_p, iorder, ifind, imeth))
+         !cosmic_time = exp(find(log(a), cosm%log_a_t, cosm%log_t, cosm%n_t, iorder, ifind, imeth))
+         cosmic_time = evaluate_interpolator(a, cosm%time)
       END IF
 
    END FUNCTION cosmic_time
@@ -2815,14 +2791,13 @@ CONTAINS
       ! Fill up tables of a vs. r(a) (comoving particle horizon)
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: zmin, zmax, amin, amax, a, t
+      REAL :: zmin, zmax
+      REAL, ALLOCATABLE :: a(:), t(:)
       INTEGER :: i
+      REAL, PARAMETER :: amin = amin_time
+      REAL, PARAMETER :: amax = amax_time
       INTEGER, PARAMETER :: iorder = iorder_integration_time
-
-      ! Get from PARAMETERS
-      amin = amin_time
-      amax = amax_time
-      cosm%n_t = n_time
+      INTEGER, PARAMETER :: n = n_time
 
       ! Calculate redshifts
       zmin = redshift_a(amax)
@@ -2836,20 +2811,26 @@ CONTAINS
       END IF
 
       ! Fill array of 'a' in log space
-      CALL fill_array(log(amin), log(amax), cosm%log_a_t, cosm%n_t)
-      IF (ALLOCATED(cosm%log_t)) DEALLOCATE (cosm%log_t)
-      ALLOCATE (cosm%log_t(cosm%n_t))
+      !CALL fill_array(log(amin), log(amax), cosm%log_a_t, cosm%n_t)
+      !IF (ALLOCATED(cosm%log_t)) DEALLOCATE (cosm%log_t)
+      !ALLOCATE (cosm%log_t(cosm%n_t))
+      CALL fill_array_log(amin, amax, a, n)
+      ALLOCATE(t(n))
 
-      ! Now do the r(a) calculation
-      DO i = 1, cosm%n_t
-         a = exp(cosm%log_a_t(i))
-         t = integrate_cosm(0., a, time_integrand, cosm, acc_cosm, iorder)
-         cosm%log_t(i) = log(t)
+      ! Now do the t(a) calculation
+      DO i = 1, n
+         t(i) = integrate_cosm(0., a(i), time_integrand, cosm, acc_cosm, iorder)
       END DO
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_TIME: minimum t [Gyr/h]:', real(exp(cosm%log_t(1)))
-         WRITE (*, *) 'INIT_TIME: maximum t [Gyr/h]:', real(exp(cosm%log_t(cosm%n_t)))
+         WRITE (*, *) 'INIT_TIME: minimum t [Gyr/h]:', real(t(1))
+         WRITE (*, *) 'INIT_TIME: maximum t [Gyr/h]:', real(t(n))
       END IF
+
+      CALL init_interpolator(a, t, cosm%time, &
+               iorder=iorder_interp_time, &
+               iextrap=iextrap_time, &
+               logx=.TRUE., &
+               logf=.TRUE.)
 
       ! Find the horizon distance in your cosmology
       ! exp(log) ensures the value is exactly the same as what comes out of the (log) look-up tables
@@ -3320,18 +3301,13 @@ CONTAINS
       REAL, ALLOCATABLE :: R(:), a(:), sig(:, :)
       INTEGER :: i, j
 
-      ! Deallocate tables if they are already allocated
-      !CALL if_allocated_deallocate(cosm%log_r_sigma)
-      !CALL if_allocated_deallocate(cosm%log_a_sigma)
-      !CALL if_allocated_deallocate(cosm%log_sigma)
-      !CALL if_allocated_deallocate(cosm%log_sigmaa)
-
-      ! Set nr_sigma, na_sigma, amin_sigma, and amax_sigma to defaults if not set by the user
+      ! TILMAN: Set nr_sigma, na_sigma, amin_sigma, and amax_sigma to defaults if not set by the user
       IF(cosm%nr_sigma == 0) cosm%nr_sigma = nr_sigma
       IF(cosm%na_sigma == 0) cosm%na_sigma = na_sigma
       IF(cosm%amin_sigma == 0.0) cosm%amin_sigma = amin_sigma
       IF(cosm%amax_sigma == 0.0) cosm%amax_sigma = amax_sigma
 
+      ! This does not need to be evaulated at multiple a unless growth is scale dependent
       IF(.NOT. cosm%scale_dependent_growth) cosm%na_sigma = 1
 
       ! Write to screen
@@ -3348,16 +3324,12 @@ CONTAINS
       ALLOCATE(sig(cosm%nr_sigma, cosm%na_sigma))
 
       ! Do the calculations to fill the look-up tables
-      ! Deal with scale-dependent/independent growth separately
       IF (cosm%scale_dependent_growth) THEN
 
          ! Loop over R and a and calculate sigma(R,a)
          DO j = 1, cosm%na_sigma
-            !a = exp(cosm%log_a_sigma(j))
             DO i = 1, cosm%nr_sigma
-               !R = exp(cosm%log_r_sigma(i))
                sig(i, j) = sigma_integral(R(i), a(j), sigma_store, cosm)
-               !cosm%log_sigmaa(i, j) = log(sig)
             END DO
          END DO
 
@@ -3371,8 +3343,7 @@ CONTAINS
 
       ELSE
 
-         ! Loop over R values and calculate sigma(R)
-         ! Fill this table at a=1
+         ! Loop over R values and calculate sigma(R, a=1)
          DO i = 1, cosm%nr_sigma
             sig(i, 1) = sigma_integral(R(i), 1., sigma_store, cosm)
          END DO
@@ -3807,8 +3778,6 @@ CONTAINS
 
       ! Fills look-up tables for scale-dependent growth: a vs. g(a), f(a) and G(a)
       ! TODO: Figure out why if I set amax=10, rather than amax=1, I start getting weird f(a) around a=0.001
-      ! TODO: Should look-up tables be stored log or linear? Currently stored log but uneven log spacing in a
-      ! TODO: How best to calculate all of these for massive neutrino cosmologies with scale-dependent growth?
       USE basic_operations
       USE calculus_table
       IMPLICIT NONE
@@ -3859,7 +3828,6 @@ CONTAINS
       d_tab = d_tab/cosm%gnorm
 
       ! Allocate arrays
-      cosm%n_growth = ng
       CALL fill_array_log(ainit, amax, a, ng)
       ALLOCATE(growth(ng), rate(ng), agrow(ng))
 
@@ -4170,7 +4138,7 @@ CONTAINS
       REAL, ALLOCATABLE :: d(:), a(:), v(:), dc(:), Dv(:), aa(:)
       REAL, ALLOCATABLE :: dnl(:), vnl(:), rnl(:)
       REAL, ALLOCATABLE :: a_coll(:), r_coll(:)
-      INTEGER :: i, j, k, k2
+      INTEGER :: i, j, k, k2, nn
       REAL, PARAMETER :: amax = amax_spherical
       INTEGER, PARAMETER :: imeth_ODE = imeth_ODE_spherical
       REAL, PARAMETER :: dmin = dmin_spherical
@@ -4179,17 +4147,6 @@ CONTAINS
       INTEGER, PARAMETER :: m = m_spherical
 
       IF (cosm%verbose) WRITE (*, *) 'SPHERICAL_COLLAPSE: Doing integration'
-
-      ! Allocate arrays
-      !IF (ALLOCATED(cosm%log_a_dcDv)) DEALLOCATE (cosm%log_a_dcDv)
-      !IF (ALLOCATED(cosm%dc)) DEALLOCATE (cosm%dc)
-      !IF (ALLOCATED(cosm%Dv)) DEALLOCATE (cosm%Dv)
-      !ALLOCATE (cosm%log_a_dcDv(m))
-      !ALLOCATE (cosm%dc(m))
-      !ALLOCATE (cosm%Dv(m))
-      !cosm%log_a_dcDv = 0.
-      !cosm%dc = 0.
-      !cosm%Dv = 0.
 
       IF (cosm%verbose) THEN
          WRITE (*, *) 'SPHERICAL_COLLAPSE: delta min', dmin
@@ -4330,17 +4287,17 @@ CONTAINS
       DO i = 1, m
          IF (a(i) == 0.) EXIT
       END DO
-      cosm%n_dcDv = i-1
+      nn = i-1
 
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'SPHERICAL_COLLAPSE: number of collapse points:', cosm%n_dcDv
+         WRITE (*, *) 'SPHERICAL_COLLAPSE: number of collapse points:', nn
          WRITE (*, *)
       END IF
 
       ! Remove bits of the array that are unnecessary
-      CALL amputate_array(a, 1, cosm%n_dcDv)
-      CALL amputate_array(dc, 1, cosm%n_dcDv)
-      CALL amputate_array(Dv, 1, cosm%n_dcDv)
+      CALL amputate_array(a, 1, nn)
+      CALL amputate_array(dc, 1, nn)
+      CALL amputate_array(Dv, 1, nn)
 
       CALL init_interpolator(a, dc, cosm%dc, &
          iorder = iorder_interp_dc, &
@@ -6930,9 +6887,9 @@ CONTAINS
       REAL, ALLOCATABLE :: Pk_smooth(:), logPk_smooth(:), Pk_wiggles(:)
       INTEGER :: i, nk
 
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: ifind = 3
-      INTEGER, PARAMETER :: imeth = 2
+      INTEGER, PARAMETER :: iorder = iorder_interp_pwiggle
+      INTEGER, PARAMETER :: ifind = ifind_pwiggle
+      INTEGER, PARAMETER :: imeth = iinterp_pwiggle
       INTEGER, PARAMETER :: wiggle_Lagrange = 1
       INTEGER, PARAMETER :: ns = 10
       INTEGER, PARAMETER :: wiggle_smooth = 2
@@ -6994,9 +6951,11 @@ CONTAINS
       ! It is difficult to make this operation (subtraction) fast given log arrays
       Pk_wiggles = Pk-Pk_smooth
 
-      CALL if_allocated_deallocate(cosm%p_wiggle)
-      ALLOCATE(cosm%p_wiggle(nk))
-      cosm%p_wiggle = Pk_wiggles
+      CALL init_interpolator(exp(logk), Pk_wiggles, cosm%wiggle, &
+         iorder=iorder_interp_pwiggle, &
+         iextrap=iextrap_pwiggle, &
+         logx=.TRUE., &
+         logf=.FALSE.)
 
       ! Set the flag
       cosm%has_wiggle = .TRUE.
@@ -7020,7 +6979,7 @@ CONTAINS
 
       p_linear = plin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle
       IF (.NOT. cosm%has_wiggle) CALL init_wiggle(cosm)
-      p_wiggle = find(log(k), cosm%log_k_plin, cosm%p_wiggle, cosm%nk_plin, iorder, ifind, imeth)
+      p_wiggle = evaluate_interpolator(k, cosm%wiggle)
       f = exp(-(k*sigv)**2)
       p_dewiggle = p_linear+(f-1.)*p_wiggle*grow(a, cosm)**2
 
