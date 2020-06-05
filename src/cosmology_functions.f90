@@ -174,7 +174,7 @@ MODULE cosmology_functions
       ! Look-up tables that are filled during a calculation
       REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)     ! Arrays for input linear P(k)
       REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)                        ! Arrays for cold T(k) and wiggle P(k)
-      REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:), log_sigma(:), log_sigmaa(:, :) ! Arrays for R and a for sigma(R, a)
+      !REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:), log_sigma(:), log_sigmaa(:, :) ! Arrays for R and a for sigma(R, a)
       TYPE(interpolator1D) :: interp_sigma                                                ! 1D interpolators
       TYPE(interpolator2D) :: interp_sigmaa                                               ! 2D interpolator 
       REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
@@ -1443,10 +1443,10 @@ CONTAINS
 
       ! Ensure deallocate sigma
       cosm%has_sigma = .FALSE.
-      CALL if_allocated_deallocate(cosm%log_r_sigma)
-      CALL if_allocated_deallocate(cosm%log_a_sigma)
-      CALL if_allocated_deallocate(cosm%log_sigma)
-      CALL if_allocated_deallocate(cosm%log_sigmaa)
+      !CALL if_allocated_deallocate(cosm%log_r_sigma)
+      !CALL if_allocated_deallocate(cosm%log_a_sigma)
+      !CALL if_allocated_deallocate(cosm%log_sigma)
+      !CALL if_allocated_deallocate(cosm%log_sigmaa)
 
       ! Switch for power?
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
@@ -3332,20 +3332,22 @@ CONTAINS
       ! This prevents a large number of calls to the sigma integration functions in HMx
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: R, a, sig
+      REAL, ALLOCATABLE :: R(:), a(:), sig(:, :)
       INTEGER :: i, j
 
       ! Deallocate tables if they are already allocated
-      CALL if_allocated_deallocate(cosm%log_r_sigma)
-      CALL if_allocated_deallocate(cosm%log_a_sigma)
-      CALL if_allocated_deallocate(cosm%log_sigma)
-      CALL if_allocated_deallocate(cosm%log_sigmaa)
+      !CALL if_allocated_deallocate(cosm%log_r_sigma)
+      !CALL if_allocated_deallocate(cosm%log_a_sigma)
+      !CALL if_allocated_deallocate(cosm%log_sigma)
+      !CALL if_allocated_deallocate(cosm%log_sigmaa)
 
       ! Set nr_sigma, na_sigma, amin_sigma, and amax_sigma to defaults if not set by the user
       IF(cosm%nr_sigma == 0) cosm%nr_sigma = nr_sigma
       IF(cosm%na_sigma == 0) cosm%na_sigma = na_sigma
       IF(cosm%amin_sigma == 0.0) cosm%amin_sigma = amin_sigma
       IF(cosm%amax_sigma == 0.0) cosm%amax_sigma = amax_sigma
+
+      IF(.NOT. cosm%scale_dependent_growth) cosm%na_sigma = 1
 
       ! Write to screen
       IF (cosm%verbose) THEN
@@ -3356,15 +3358,9 @@ CONTAINS
       END IF
 
       ! Allocate and fill array of R values
-      CALL fill_array(log(rmin_sigma), log(rmax_sigma), cosm%log_r_sigma, cosm%nr_sigma)
-
-      ! Allocate arrays
-      IF (cosm%scale_dependent_growth) THEN
-         CALL fill_array(log(cosm%amin_sigma), log(cosm%amax_sigma), cosm%log_a_sigma, cosm%na_sigma)
-         ALLOCATE (cosm%log_sigmaa(cosm%nr_sigma, cosm%na_sigma)) 
-      ELSE
-         ALLOCATE (cosm%log_sigma(cosm%nr_sigma))
-      END IF
+      CALL fill_array_log(rmin_sigma, rmax_sigma, R, cosm%nr_sigma)
+      IF (cosm%scale_dependent_growth) CALL fill_array_log(amin_sigma, amax_sigma, a, cosm%na_sigma)
+      ALLOCATE(sig(cosm%nr_sigma, cosm%na_sigma))
 
       ! Do the calculations to fill the look-up tables
       ! Deal with scale-dependent/independent growth separately
@@ -3372,55 +3368,43 @@ CONTAINS
 
          ! Loop over R and a and calculate sigma(R,a)
          DO j = 1, cosm%na_sigma
-            a = exp(cosm%log_a_sigma(j))
+            !a = exp(cosm%log_a_sigma(j))
             DO i = 1, cosm%nr_sigma
-               R = exp(cosm%log_r_sigma(i))
-               sig = sigma_integral(R, a, sigma_store, cosm)
-               cosm%log_sigmaa(i, j) = log(sig)
+               !R = exp(cosm%log_r_sigma(i))
+               sig(i, j) = sigma_integral(R(i), a(j), sigma_store, cosm)
+               !cosm%log_sigmaa(i, j) = log(sig)
             END DO
          END DO
 
-         IF (use_interpolators) THEN
-            CALL init_interpolator(exp(cosm%log_r_sigma), exp(cosm%log_a_sigma), exp(cosm%log_sigmaa), &
-               cosm%interp_sigmaa, &
-               iorder_interp_sigma, &
-               iextrap_sigma, &
-               logx = .TRUE., &
-               logy = .TRUE., &
-               logf = .TRUE. &
-               )
-         END IF
+         CALL init_interpolator(R, a, sig, cosm%interp_sigmaa, &
+            iorder_interp_sigma, &
+            iextrap_sigma, &
+            logx = .TRUE., &
+            logy = .TRUE., &
+            logf = .TRUE. &
+            )
 
       ELSE
 
          ! Loop over R values and calculate sigma(R)
-         a = 1. ! Fill this table at a=1
+         ! Fill this table at a=1
          DO i = 1, cosm%nr_sigma
-            R = exp(cosm%log_r_sigma(i))
-            sig = sigma_integral(R, a, sigma_store, cosm)
-            cosm%log_sigma(i) = log(sig)
+            sig(i, 1) = sigma_integral(R(i), 1., sigma_store, cosm)
          END DO
 
-         IF (use_interpolators) THEN
-            CALL init_interpolator(exp(cosm%log_r_sigma), exp(cosm%log_sigma), cosm%interp_sigma, &
-               iorder_interp_sigma, &
-               iextrap_sigma, &
-               logx = .TRUE., &
-               logf = .TRUE. &
-               )
-         END IF
+         CALL init_interpolator(R, sig(:, 1), cosm%interp_sigma, &
+            iorder_interp_sigma, &
+            iextrap_sigma, &
+            logx = .TRUE., &
+            logf = .TRUE. &
+            )
 
       END IF
 
       ! Write useful information to screen
       IF (cosm%verbose) THEN
-         IF (cosm%scale_dependent_growth) THEN
-            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigmaa(cosm%nr_sigma, cosm%na_sigma))
-            WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigmaa(1, cosm%na_sigma))
-         ELSE
-            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigma(cosm%nr_sigma))
-            WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigma(1))
-         END IF
+         WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', sig(1, cosm%na_sigma)
+         WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', sig(cosm%nr_sigma, cosm%na_sigma)
          WRITE (*, *) 'INIT_SIGMA: Done'
          WRITE (*, *)
       END IF
@@ -3441,26 +3425,11 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = ifind_interp_sigma   ! Finding scheme in table
       INTEGER, PARAMETER :: imeth = iinterp_sigma        ! Method for polynomials
 
-      IF (use_interpolators) THEN
-
-         IF (cosm%scale_dependent_growth) THEN
-            find_sigma = evaluate_interpolator(R, a, cosm%interp_sigmaa)
-         ELSE
-            find_sigma = evaluate_interpolator(R, cosm%interp_sigma)
-            find_sigma = grow(a, cosm)*find_sigma
-         END IF
-
+      IF (cosm%scale_dependent_growth) THEN
+         find_sigma = evaluate_interpolator(R, a, cosm%interp_sigmaa)
       ELSE
-
-         IF (cosm%scale_dependent_growth) THEN
-               find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaa,&
-                  cosm%nr_sigma, cosm%na_sigma, &
-                  iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
-         ELSE
-            find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigma, cosm%nr_sigma, iorder, ifind, imeth))
-            find_sigma = grow(a, cosm)*find_sigma
-         END IF
-
+         find_sigma = evaluate_interpolator(R, cosm%interp_sigma)
+         find_sigma = grow(a, cosm)*find_sigma
       END IF
 
    END FUNCTION find_sigma
