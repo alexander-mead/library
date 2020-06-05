@@ -921,9 +921,12 @@ CONTAINS
       INTEGER :: i1, i2, i3, i4
       INTEGER, PARAMETER :: ifind_default = ifind_interpolator_default
 
-      !IF (centred_interpolator .AND. iorder == 2) THEN
-      !   STOP 'INIT_INTERPOLATOR_1D: Interpolator cannot be centred and use quadratic polynomials'
-      !END IF
+      CALL if_allocated_deallocate(interp%x)
+      CALL if_allocated_deallocate(interp%xmid)
+      CALL if_allocated_deallocate(interp%a0)
+      CALL if_allocated_deallocate(interp%a1)
+      CALL if_allocated_deallocate(interp%a2)
+      CALL if_allocated_deallocate(interp%a3)
 
       ! Check the sizes of the input data arrays
       n = size(x)
@@ -1212,6 +1215,10 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: logf       ! Should interpolator take the logarithm of y?
       INTEGER :: nx, ny
       INTEGER, PARAMETER :: ifind_default = ifind_interpolator_default
+
+      CALL if_allocated_deallocate(interp%x)
+      CALL if_allocated_deallocate(interp%y)
+      CALL if_allocated_deallocate(interp%f)
 
       nx = size(x)
       IF(nx /= size(f, 1)) STOP 'INIT_INTERPOLATOR_2D: Error, x should be the same size as first dimension of f'
