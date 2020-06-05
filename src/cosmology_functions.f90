@@ -174,13 +174,11 @@ MODULE cosmology_functions
       ! Look-up tables that are filled during a calculation
       REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)     ! Arrays for input linear P(k)
       REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)                        ! Arrays for cold T(k) and wiggle P(k)
-      !REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:), log_sigma(:), log_sigmaa(:, :) ! Arrays for R and a for sigma(R, a)
-      TYPE(interpolator1D) :: sigma, grow, grate, agrow        ! 1D interpolators
+      TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv        ! 1D interpolators
       TYPE(interpolator2D) :: sigmaa                                               ! 2D interpolator 
-      !REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
       REAL, ALLOCATABLE :: log_p(:), log_a_p(:)        ! Arrays for distance (particle horizon)
       REAL, ALLOCATABLE :: log_t(:), log_a_t(:)        ! Arrays for time
-      REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:) ! Arrays for spherical-collapse parameters
+      !REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:) ! Arrays for spherical-collapse parameters
       REAL, ALLOCATABLE :: log_a_Xde(:), log_Xde(:)    ! Arrays for dark-energy density
       INTEGER :: n_growth, n_p, n_t, n_dcDv, nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin, n_Xde ! Number of array entries
       REAL :: amin_sigma, amax_sigma                                                               ! Ranges of arrays
@@ -315,14 +313,12 @@ MODULE cosmology_functions
    ! Growth interpolation
    ! Changing to linear integer finding is wrong because tables not stored lin-log
    INTEGER, PARAMETER :: iorder_interp_grow = 3 ! Polynomial order for growth interpolation
-   INTEGER, PARAMETER :: ifind_interp_grow = 3  ! Finding scheme for growth interpolation
-   INTEGER, PARAMETER :: imeth_interp_grow = 2  ! Method for growth interpolation
+   INTEGER, PARAMETER :: iextrap_grow = iextrap_linear
 
    ! Growth rate interpolation
    ! Changing to linear integer finding is wrong because tables not stored lin-log
    INTEGER, PARAMETER :: iorder_interp_rate = 3 ! Polynomial order for growth rate interpolation for ODE solution
-   INTEGER, PARAMETER :: ifind_interp_rate = 3  ! Finding scheme for growth rate interpolation
-   INTEGER, PARAMETER :: imeth_interp_rate = 2  ! Method for growth rate interpolation
+   INTEGER, PARAMETER :: iextrap_rate = iextrap_linear
 
    ! Accumulated growth integration
    INTEGER, PARAMETER :: iorder_integration_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
@@ -330,8 +326,7 @@ MODULE cosmology_functions
    ! Accumualted growth interpolation
    ! Changing to linear integer finding is wrong because tables not stored lin-log
    INTEGER, PARAMETER :: iorder_interp_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
-   INTEGER, PARAMETER :: ifind_interp_agrow = 3  ! Finding scheme for accumulated growth rate interpolation
-   INTEGER, PARAMETER :: imeth_interp_agrow = 2  ! Method for accumulated growth rate interpolation
+   INTEGER, PARAMETER :: iextrap_agrow = iextrap_linear
 
    ! sigma(R) integration
    REAL, PARAMETER :: alpha_sigma = 3.     ! Exponent to increase speed (1 is terrible, 2, 3, 4 all okay)
@@ -382,11 +377,13 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interp_dc = 3 ! Polynomial order for delta_c interpolation
    INTEGER, PARAMETER :: ifind_interp_dc = 3  ! Finding scheme for delta_c interpolation
    INTEGER, PARAMETER :: imeth_interp_dc = 2  ! Method for delta_c interpolation
+   INTEGER, PARAMETER :: iextrap_dc = iextrap_standard
 
    ! Delta_v
    INTEGER, PARAMETER :: iorder_interp_Dv = 3 ! Polynomial order for Delta_v interpolation
    INTEGER, PARAMETER :: ifind_interp_Dv = 3  ! Finding scheme for Delta_v interpolation
    INTEGER, PARAMETER :: imeth_interp_Dv = 2  ! Method for Delta_v interpolation
+   INTEGER, PARAMETER :: iextrap_Dv = iextrap_standard
 
    ! Halofit
    INTEGER, PARAMETER :: HALOFIT_Smith = 1       ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
@@ -1435,18 +1432,10 @@ CONTAINS
 
       ! Ensure deallocate growth
       cosm%has_growth = .FALSE.
-      !CALL if_allocated_deallocate(cosm%log_a_growth)
-      !CALL if_allocated_deallocate(cosm%log_growth)
-      !CALL if_allocated_deallocate(cosm%growth_rate)
-      !CALL if_allocated_deallocate(cosm%log_acc_growth)
       cosm%gnorm = 0.
 
       ! Ensure deallocate sigma
       cosm%has_sigma = .FALSE.
-      !CALL if_allocated_deallocate(cosm%log_r_sigma)
-      !CALL if_allocated_deallocate(cosm%log_a_sigma)
-      !CALL if_allocated_deallocate(cosm%log_sigma)
-      !CALL if_allocated_deallocate(cosm%log_sigmaa)
 
       ! Switch for power?
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
@@ -1474,9 +1463,9 @@ CONTAINS
 
       ! Ensure delloacte spherical-collapse arrays
       cosm%has_spherical = .FALSE.
-      CALL if_allocated_deallocate(cosm%log_a_dcDv)
-      CALL if_allocated_deallocate(cosm%dc)
-      CALL if_allocated_deallocate(cosm%Dv)
+      !CALL if_allocated_deallocate(cosm%log_a_dcDv)
+      !CALL if_allocated_deallocate(cosm%dc)
+      !CALL if_allocated_deallocate(cosm%Dv)
 
       ! Write finishing message to screen
       IF (cosm%verbose) THEN
@@ -3673,9 +3662,6 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interp_grow
-      INTEGER, PARAMETER :: ifind = ifind_interp_grow
-      INTEGER, PARAMETER :: imeth = imeth_interp_grow
 
       IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
       IF (a == 1.) THEN
@@ -3705,9 +3691,6 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interp_rate
-      INTEGER, PARAMETER :: ifind = ifind_interp_rate
-      INTEGER, PARAMETER :: imeth = imeth_interp_rate
 
       IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
       growth_rate = evaluate_interpolator(a, cosm%grate)
@@ -3738,9 +3721,6 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interp_agrow
-      INTEGER, PARAMETER :: ifind = ifind_interp_agrow
-      INTEGER, PARAMETER :: imeth = imeth_interp_agrow
 
       IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
       acc_growth = evaluate_interpolator(a, cosm%agrow)
@@ -3892,14 +3872,14 @@ CONTAINS
 
       CALL init_interpolator(a, growth, cosm%grow, &
          iorder = iorder_interp_grow, &
-         iextrap = iextrap_linear, &
+         iextrap = iextrap_grow, &
          logx = .TRUE., &
          logf = .TRUE. &
          )
 
       CALL init_interpolator(a, rate, cosm%grate, &
          iorder = iorder_interp_rate, &
-         iextrap = iextrap_linear, &
+         iextrap = iextrap_rate, &
          logx = .TRUE., &
          logf = .FALSE. &
          )
@@ -3921,7 +3901,7 @@ CONTAINS
 
       CALL init_interpolator(a, agrow, cosm%agrow, &
          iorder = iorder_interp_agrow, &
-         iextrap = iextrap_linear, &
+         iextrap = iextrap_agrow, &
          logx = .TRUE., &
          logf = .TRUE.  &
          )
@@ -4149,10 +4129,10 @@ CONTAINS
 
       IF (cosm%has_spherical .EQV. .FALSE.) CALL init_spherical_collapse(cosm)
 
-      IF (log(a) < cosm%log_a_dcDv(1)) THEN
+      IF (log(a) < cosm%dc%x(1)) THEN
          dc_spherical = dc0
       ELSE
-         dc_spherical = find(log(a), cosm%log_a_dcDv, cosm%dc, cosm%n_dcDv, iorder, ifind, imeth)
+         dc_spherical = evaluate_interpolator(a, cosm%dc)
       END IF
 
    END FUNCTION dc_spherical
@@ -4169,10 +4149,10 @@ CONTAINS
 
       IF (cosm%has_spherical .EQV. .FALSE.) CALL init_spherical_collapse(cosm)
 
-      IF (log(a) < cosm%log_a_dcDv(1)) THEN
+      IF (log(a) < cosm%Dv%x(1)) THEN
          Dv_spherical = Dv0
       ELSE
-         Dv_spherical = find(log(a), cosm%log_a_dcDv, cosm%Dv, cosm%n_dcDv, iorder, ifind, imeth)
+         Dv_spherical = evaluate_interpolator(a, cosm%Dv)
       END IF
 
    END FUNCTION Dv_spherical
@@ -4185,9 +4165,9 @@ CONTAINS
       USE minimization
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: dinit, ainit, vinit, ac, dc
-      REAL :: av, a_rmax, d_rmax, Dv, rmax, rv
-      REAL, ALLOCATABLE :: d(:), a(:), v(:)
+      REAL :: dinit, ainit, vinit, ac
+      REAL :: av, a_rmax, d_rmax, rmax, rv
+      REAL, ALLOCATABLE :: d(:), a(:), v(:), dc(:), Dv(:), aa(:)
       REAL, ALLOCATABLE :: dnl(:), vnl(:), rnl(:)
       REAL, ALLOCATABLE :: a_coll(:), r_coll(:)
       INTEGER :: i, j, k, k2
@@ -4201,21 +4181,25 @@ CONTAINS
       IF (cosm%verbose) WRITE (*, *) 'SPHERICAL_COLLAPSE: Doing integration'
 
       ! Allocate arrays
-      IF (ALLOCATED(cosm%log_a_dcDv)) DEALLOCATE (cosm%log_a_dcDv)
-      IF (ALLOCATED(cosm%dc)) DEALLOCATE (cosm%dc)
-      IF (ALLOCATED(cosm%Dv)) DEALLOCATE (cosm%Dv)
-      ALLOCATE (cosm%log_a_dcDv(m))
-      ALLOCATE (cosm%dc(m))
-      ALLOCATE (cosm%Dv(m))
-      cosm%log_a_dcDv = 0.
-      cosm%dc = 0.
-      cosm%Dv = 0.
+      !IF (ALLOCATED(cosm%log_a_dcDv)) DEALLOCATE (cosm%log_a_dcDv)
+      !IF (ALLOCATED(cosm%dc)) DEALLOCATE (cosm%dc)
+      !IF (ALLOCATED(cosm%Dv)) DEALLOCATE (cosm%Dv)
+      !ALLOCATE (cosm%log_a_dcDv(m))
+      !ALLOCATE (cosm%dc(m))
+      !ALLOCATE (cosm%Dv(m))
+      !cosm%log_a_dcDv = 0.
+      !cosm%dc = 0.
+      !cosm%Dv = 0.
 
       IF (cosm%verbose) THEN
          WRITE (*, *) 'SPHERICAL_COLLAPSE: delta min', dmin
          WRITE (*, *) 'SPHERICAL_COLLAPSE: delta max', dmax
          WRITE (*, *) 'SPHERICAL_COLLAPSE: number of collapse points attempted', m
       END IF
+      ALLOCATE(a(m), dc(m), Dv(m))
+      a = 0.
+      dc = 0.
+      Dv = 0.
 
       ! BCs for integration. Note ainit=dinit means that collapse should occur around a=1 for dmin
       ! amax should be slightly greater than 1 to ensure at least a few points for a>0.9 (i.e not to miss out a=1)
@@ -4230,9 +4214,9 @@ CONTAINS
 
          ! Do both with the same a1 and a2 and using the same number of time steps
          ! This means that arrays a, and anl will be identical, which simplifies calculation
-         CALL ODE_spherical(dnl, vnl, 0., a, cosm, ainit, amax, dinit, vinit, ddda, dvdanl, n, imeth_ODE, .TRUE.)
-         DEALLOCATE (a)
-         CALL ODE_spherical(d, v, 0., a, cosm, ainit, amax, dinit, vinit, ddda, dvda, n, imeth_ODE, .TRUE.)
+         CALL ODE_spherical(dnl, vnl, 0., aa, cosm, ainit, amax, dinit, vinit, ddda, dvdanl, n, imeth_ODE, .TRUE.)
+         DEALLOCATE (aa)
+         CALL ODE_spherical(d, v, 0., aa, cosm, ainit, amax, dinit, vinit, ddda, dvda, n, imeth_ODE, .TRUE.)
 
          ! If this condition is met then collapse occured some time a<amax
          IF (dnl(n) == 0.) THEN
@@ -4241,7 +4225,7 @@ CONTAINS
 
             ALLOCATE (rnl(n))
 
-            rnl = a*(1.+dnl)**(-1./3.)
+            rnl = aa*(1.+dnl)**(-1./3.)
 
             ! Find the collapse point (very crude)
             ! More accurate calculations seem to be worse
@@ -4255,28 +4239,28 @@ CONTAINS
             END DO
 
             ! Cut away parts of the arrays for a>ac
-            CALL amputate_array(a, 1, k)
+            CALL amputate_array(aa, 1, k)
             CALL amputate_array(d, 1, k)
             CALL amputate_array(dnl, 1, k)
             CALL amputate_array(rnl, 1, k)
 
             ! Collapse has occured so use previous a as ac and d as dc
-            ac = a(k)
-            dc = d(k)
+            ac = aa(k)
+            dc(j) = d(k)
 
             !! !!
 
             !! Now to Delta_v calculation !!
 
             ! Find the a values when the perturbation is maximum size
-            a_rmax = find_array_maximum(a, rnl)
+            a_rmax = find_array_maximum(aa, rnl)
 
             ! Find the over-density at this point
-            d_rmax = exp(find(log(a_rmax), log(a), log(dnl), SIZE(a), &
+            d_rmax = exp(find(log(a_rmax), log(aa), log(dnl), SIZE(aa), &
                iorder=1, ifind=ifind_split, iinterp=iinterp_Lagrange))
 
             ! Find the maximum radius
-            rmax = find(log(a_rmax), log(a), rnl, SIZE(a), &
+            rmax = find(log(a_rmax), log(aa), rnl, SIZE(aa), &
                iorder=1, ifind=ifind_split, iinterp=iinterp_Lagrange)
 
             ! The radius of the perturbation when it is virialised is half maximum
@@ -4292,7 +4276,7 @@ CONTAINS
 
             ! Fill collapse branch arrays
             DO i = k2, k
-               a_coll(i-k2+1) = a(i)
+               a_coll(i-k2+1) = aa(i)
                r_coll(i-k2+1) = rnl(i)
             END DO
 
@@ -4305,23 +4289,21 @@ CONTAINS
 
             ! Spherical model approximation is that perturbation is at virial radius when
             ! 'collapse' is considered to have occured, which has already been calculated
-            Dv = exp(find(log(av), log(a), log(dnl), SIZE(a), &
+            Dv(j) = exp(find(log(av), log(aa), log(dnl), SIZE(aa), &
                iorder=1, ifind=ifind_split, iinterp=iinterp_Lagrange))
-            Dv = Dv*(ac/av)**3
-            Dv = Dv+1.
+            Dv(j) = Dv(j)*(ac/av)**3
+            Dv(j) = Dv(j)+1.
 
             !!
 
-            cosm%log_a_dcDv(j) = ac
-            cosm%dc(j) = dc
-            cosm%Dv(j) = Dv
+            a(j) = ac
 
             DEALLOCATE (rnl)
 
          END IF
 
          ! Deallocate arrays ready for next calculation
-         DEALLOCATE (d, v, a)
+         DEALLOCATE (d, v, aa)
          DEALLOCATE (dnl, vnl)
 
       END DO
@@ -4329,24 +4311,24 @@ CONTAINS
       IF (cosm%verbose) WRITE (*, *) 'SPHERICAL COLLAPSE: calculation complete'
 
       ! Reverse the arrays so that they run lowest a to highest a
-      CALL reverse_array(cosm%log_a_dcDv)
-      CALL reverse_array(cosm%dc)
-      CALL reverse_array(cosm%Dv)
+      CALL reverse_array(a)
+      CALL reverse_array(dc)
+      CALL reverse_array(Dv)
 
       IF (cosm%verbose) THEN
          WRITE (*, *) '===================================='
          WRITE (*, *) 'Point  scalefactor  delta_c  Delta_v'
          WRITE (*, *) '===================================='
          DO i = 1, m
-            IF (cosm%log_a_dcDv(i) == 0.) EXIT
-            WRITE (*, fmt='(I5,F13.4,F9.4,F9.1)') i, cosm%log_a_dcDv(i), cosm%dc(i), cosm%Dv(i)
+            IF (a(i) == 0.) EXIT
+            WRITE (*, fmt='(I5,F13.4,F9.4,F9.1)') i, a(i), dc(i), Dv(i)
          END DO
          WRITE (*, *) '===================================='
       END IF
 
       ! Calculate the maximum sizes for these new arrays
       DO i = 1, m
-         IF (cosm%log_a_dcDv(i) == 0.) EXIT
+         IF (a(i) == 0.) EXIT
       END DO
       cosm%n_dcDv = i-1
 
@@ -4356,12 +4338,23 @@ CONTAINS
       END IF
 
       ! Remove bits of the array that are unnecessary
-      CALL amputate_array(cosm%log_a_dcDv, 1, cosm%n_dcDv)
-      CALL amputate_array(cosm%dc, 1, cosm%n_dcDv)
-      CALL amputate_array(cosm%Dv, 1, cosm%n_dcDv)
+      CALL amputate_array(a, 1, cosm%n_dcDv)
+      CALL amputate_array(dc, 1, cosm%n_dcDv)
+      CALL amputate_array(Dv, 1, cosm%n_dcDv)
 
-      ! Take a logarithm
-      cosm%log_a_dcDv = log(cosm%log_a_dcDv)
+      CALL init_interpolator(a, dc, cosm%dc, &
+         iorder = iorder_interp_dc, &
+         iextrap = iextrap_dc, &
+         logx = .TRUE., &
+         logf = .FALSE. &
+         )
+
+      CALL init_interpolator(a, Dv, cosm%Dv, &
+         iorder = iorder_interp_Dv, &
+         iextrap = iextrap_Dv, &
+         logx = .TRUE., &
+         logf = .FALSE. &
+         )
 
       ! Set the flag
       cosm%has_spherical = .TRUE.
