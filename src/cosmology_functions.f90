@@ -175,9 +175,9 @@ MODULE cosmology_functions
       REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)     ! Arrays for input linear P(k)
       REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)                        ! Arrays for cold T(k) and wiggle P(k)
       !REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:), log_sigma(:), log_sigmaa(:, :) ! Arrays for R and a for sigma(R, a)
-      TYPE(interpolator1D) :: interp_sigma                                                ! 1D interpolators
-      TYPE(interpolator2D) :: interp_sigmaa                                               ! 2D interpolator 
-      REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
+      TYPE(interpolator1D) :: sigma, grow, grate, agrow        ! 1D interpolators
+      TYPE(interpolator2D) :: sigmaa                                               ! 2D interpolator 
+      !REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
       REAL, ALLOCATABLE :: log_p(:), log_a_p(:)        ! Arrays for distance (particle horizon)
       REAL, ALLOCATABLE :: log_t(:), log_a_t(:)        ! Arrays for time
       REAL, ALLOCATABLE :: log_a_dcDv(:), dc(:), Dv(:) ! Arrays for spherical-collapse parameters
@@ -1435,10 +1435,10 @@ CONTAINS
 
       ! Ensure deallocate growth
       cosm%has_growth = .FALSE.
-      CALL if_allocated_deallocate(cosm%log_a_growth)
-      CALL if_allocated_deallocate(cosm%log_growth)
-      CALL if_allocated_deallocate(cosm%growth_rate)
-      CALL if_allocated_deallocate(cosm%log_acc_growth)
+      !CALL if_allocated_deallocate(cosm%log_a_growth)
+      !CALL if_allocated_deallocate(cosm%log_growth)
+      !CALL if_allocated_deallocate(cosm%growth_rate)
+      !CALL if_allocated_deallocate(cosm%log_acc_growth)
       cosm%gnorm = 0.
 
       ! Ensure deallocate sigma
@@ -3376,7 +3376,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL init_interpolator(R, a, sig, cosm%interp_sigmaa, &
+         CALL init_interpolator(R, a, sig, cosm%sigmaa, &
             iorder_interp_sigma, &
             iextrap_sigma, &
             logx = .TRUE., &
@@ -3392,7 +3392,7 @@ CONTAINS
             sig(i, 1) = sigma_integral(R(i), 1., sigma_store, cosm)
          END DO
 
-         CALL init_interpolator(R, sig(:, 1), cosm%interp_sigma, &
+         CALL init_interpolator(R, sig(:, 1), cosm%sigma, &
             iorder_interp_sigma, &
             iextrap_sigma, &
             logx = .TRUE., &
@@ -3426,9 +3426,9 @@ CONTAINS
       INTEGER, PARAMETER :: imeth = iinterp_sigma        ! Method for polynomials
 
       IF (cosm%scale_dependent_growth) THEN
-         find_sigma = evaluate_interpolator(R, a, cosm%interp_sigmaa)
+         find_sigma = evaluate_interpolator(R, a, cosm%sigmaa)
       ELSE
-         find_sigma = evaluate_interpolator(R, cosm%interp_sigma)
+         find_sigma = evaluate_interpolator(R, cosm%sigma)
          find_sigma = grow(a, cosm)*find_sigma
       END IF
 
@@ -3685,7 +3685,7 @@ CONTAINS
       IF (a == 1.) THEN
          grow = 1.
       ELSE
-         grow = exp(find(log(a), cosm%log_a_growth, cosm%log_growth, cosm%n_growth, iorder, ifind, imeth))
+         grow = evaluate_interpolator(a, cosm%grow)
       END IF
 
    END FUNCTION grow
@@ -3714,7 +3714,7 @@ CONTAINS
       INTEGER, PARAMETER :: imeth = imeth_interp_rate
 
       IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
-      growth_rate = find(log(a), cosm%log_a_growth, cosm%growth_rate, cosm%n_growth, iorder, ifind, imeth)
+      growth_rate = evaluate_interpolator(a, cosm%grate)
 
    END FUNCTION growth_rate
 
@@ -3747,7 +3747,7 @@ CONTAINS
       INTEGER, PARAMETER :: imeth = imeth_interp_agrow
 
       IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
-      acc_growth = exp(find(log(a), cosm%log_a_growth, cosm%log_acc_growth, cosm%n_growth, iorder, ifind, imeth))
+      acc_growth = evaluate_interpolator(a, cosm%agrow)
 
    END FUNCTION acc_growth
 
@@ -3838,8 +3838,8 @@ CONTAINS
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: i, na
-      REAL :: a
-      REAL, ALLOCATABLE :: d_tab(:), v_tab(:), a_tab(:)
+      REAL, ALLOCATABLE :: a(:), growth(:), rate(:), agrow(:)
+      REAL, ALLOCATABLE :: d_tab(:), v_tab(:), a_tab(:), f_tab(:)
       REAL :: dinit, vinit
       REAL :: g0, f0, bigG0
       REAL, PARAMETER :: ainit = ainit_growth
@@ -3847,12 +3847,10 @@ CONTAINS
       INTEGER, PARAMETER :: ng = n_growth
       REAL, PARAMETER :: acc_ODE = acc_ODE_growth
       INTEGER, PARAMETER :: imeth_ODE = imeth_ODE_growth
-      INTEGER, PARAMETER :: iorder_int = iorder_ODE_interpolation_growth
-      INTEGER, PARAMETER :: ifind_int = ifind_ODE_interpolation_growth
-      INTEGER, PARAMETER :: imeth_int = imeth_ODE_interpolation_growth
+      INTEGER, PARAMETER :: iorder_interp = iorder_ODE_interpolation_growth
+      INTEGER, PARAMETER :: ifind_interp = ifind_ODE_interpolation_growth
+      INTEGER, PARAMETER :: imeth_interp = imeth_ODE_interpolation_growth
       INTEGER, PARAMETER :: iorder_agrow = iorder_integration_agrow
-
-      !! First do growth factor and growth rate !!
 
       ! Set the initial conditions to be in the cold matter growing mode
       ! Note that for massive neutrinos there is no asymptotic g(a) ~ a limit
@@ -3875,67 +3873,63 @@ CONTAINS
       IF (cosm%verbose) WRITE (*, *) 'INIT_GROWTH: ODE done'
       na = SIZE(a_tab)
 
-      ! Convert dv/da to f = dlng/dlna for later, so v_tab should really be f_tab from now on
-      v_tab = v_tab*a_tab/d_tab
+      ! Convert dv/da to f = dlng/dlna for later
+      ALLOCATE(f_tab(na))
+      f_tab = v_tab*a_tab/d_tab
 
       ! Normalise so that g(z=0)=1 and store the normalising factor
-      cosm%gnorm = find(1., a_tab, d_tab, na, iorder_int, ifind_int, imeth_int)
+      cosm%gnorm = find(1., a_tab, d_tab, na, iorder_interp, ifind_interp, imeth_interp)
       IF (cosm%verbose) WRITE (*, *) 'INIT_GROWTH: Unnormalised growth at z=0:', real(cosm%gnorm)
       d_tab = d_tab/cosm%gnorm
 
       ! Allocate arrays
-      IF (ALLOCATED(cosm%log_a_growth))   DEALLOCATE (cosm%log_a_growth)
-      IF (ALLOCATED(cosm%log_growth))     DEALLOCATE (cosm%log_growth)
-      IF (ALLOCATED(cosm%growth_rate))    DEALLOCATE (cosm%growth_rate)
-      IF (ALLOCATED(cosm%log_acc_growth)) DEALLOCATE (cosm%log_acc_growth)
       cosm%n_growth = ng
+      CALL fill_array_log(ainit, amax, a, ng)
+      ALLOCATE(growth(ng), rate(ng), agrow(ng))
 
-      ! Downsample the tables that come out of the ODE solver (which can be a bit long)
-      ! Could use some table-interpolation routine here to save time
-      ! Note that none of the quantities here are actually log, the logs are taken later
-      ALLOCATE (cosm%log_a_growth(ng))
-      ALLOCATE (cosm%log_growth(ng))
-      ALLOCATE (cosm%growth_rate(ng))
+      ! Downsample the tables that come out of the ODE solve, which are otherwise too long
+      ! TODO: Use a better routine to interpolate a whole table?
+      ! TODO: Are logs necessary here?
       DO i = 1, ng
-         a = progression(ainit, amax, i, ng) ! TODO: Should this be log?
-         cosm%log_a_growth(i) = a
-         cosm%log_growth(i) = exp(find(log(a), log(a_tab), log(d_tab), na, iorder_int, ifind_int, imeth_int))
-         cosm%growth_rate(i) = find(log(a), log(a_tab), v_tab, na, iorder_int, ifind_int, imeth_int)
+         growth(i) = exp(find(log(a(i)), log(a_tab), log(d_tab), na, iorder_interp, ifind_interp, imeth_interp))
+         rate(i) = find(log(a(i)), log(a_tab), f_tab, na, iorder_interp, ifind_interp, imeth_interp)
       END DO
 
-      !! !!
+      CALL init_interpolator(a, growth, cosm%grow, &
+         iorder = iorder_interp_grow, &
+         iextrap = iextrap_linear, &
+         logx = .TRUE., &
+         logf = .TRUE. &
+         )
+
+      CALL init_interpolator(a, rate, cosm%grate, &
+         iorder = iorder_interp_rate, &
+         iextrap = iextrap_linear, &
+         logx = .TRUE., &
+         logf = .FALSE. &
+         )
 
       !! Table integration to calculate G(a)=int_0^a g(a')/a' da' !!
 
-      ! Allocate array
-      ALLOCATE (cosm%log_acc_growth(ng))
-
       ! Set to zero, because I have an x=x+y thing later on
-      cosm%log_acc_growth = 0.
+      agrow = 0.
 
       ! Do the integral up to table position i, which fills the accumulated growth table
       DO i = 1, ng
-
          ! Do the integral using the arrays
          IF (i > 1) THEN
-            cosm%log_acc_growth(i) = integrate_table(cosm%log_a_growth, &
-               cosm%gnorm*cosm%log_growth/cosm%log_a_growth, &
-               1, i, iorder_agrow)
+            agrow(i) = integrate_table(a, cosm%gnorm*growth/a, 1, i, iorder_agrow)
          END IF
-
-         ! Then add on the section that is missing from the beginning
-         ! NB. g(a=0)/0 = 1, so you just add on a rectangle of height g*a/a=g
-         cosm%log_acc_growth(i) = cosm%log_acc_growth(i)+cosm%gnorm*cosm%log_growth(1)
-
+         ! Add missing section; g(a=0)/0 = 1, so you just add on a rectangle of height g*a/a=g
+         agrow(i) = agrow(i)+cosm%gnorm*growth(1)
       END DO
 
-      !! !!
-
-      ! Make the some of the tables log for easier interpolation
-      ! Only here are the logarithms actually taken
-      cosm%log_a_growth = log(cosm%log_a_growth)
-      cosm%log_growth = log(cosm%log_growth)
-      cosm%log_acc_growth = log(cosm%log_acc_growth)
+      CALL init_interpolator(a, agrow, cosm%agrow, &
+         iorder = iorder_interp_agrow, &
+         iextrap = iextrap_linear, &
+         logx = .TRUE., &
+         logf = .TRUE.  &
+         )
 
       ! Set the flag to true so that this subroutine is only called once
       cosm%has_growth = .TRUE.

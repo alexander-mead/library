@@ -6064,7 +6064,7 @@ CONTAINS
             ! If the halo forms 'in the future' then set the formation z to the current z
             zf = z
          ELSE
-            af = exp(find(log(RHS), cosm%log_growth, cosm%log_a_growth, cosm%n_growth, &
+            af = exp(find(log(RHS), cosm%grow%f, cosm%grow%x, cosm%n_growth, &
                iorder, ifind, imeth))
             zf = redshift_a(af)
          END IF
