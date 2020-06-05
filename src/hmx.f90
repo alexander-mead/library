@@ -3011,11 +3011,12 @@ CONTAINS
 
       DO ia = 1, na
 
+         ! So as not to make it overly verbose
          IF (ia == na) THEN
             verbose = verbose_here
          ELSE
             verbose = .FALSE.
-         END IF   
+         END IF 
 
          CALL init_halomod(a(ia), hmod, cosm, verbose)
 

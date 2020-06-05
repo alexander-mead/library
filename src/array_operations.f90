@@ -98,6 +98,7 @@ MODULE array_operations
 
    INTERFACE safe_allocate
       PROCEDURE safe_allocate_real
+      PROCEDURE safe_allocate2_real
       PROCEDURE safe_allocate_integer
       PROCEDURE safe_allocate_logical
       PROCEDURE safe_allocate_character
@@ -184,6 +185,18 @@ CONTAINS
       ALLOCATE(x(n))
 
    END SUBROUTINE safe_allocate_real
+
+   SUBROUTINE safe_allocate2_real(x, nx, ny)
+
+      ! Checks array for allocation status, deallocates if necessary, then allocates
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :)
+      INTEGER, INTENT(IN) :: nx
+      INTEGER, INTENT(IN) :: ny
+
+      CALL if_allocated_deallocate(x)
+      ALLOCATE(x(nx, ny))
+
+   END SUBROUTINE safe_allocate2_real
 
    ! SUBROUTINE safe_allocate_double(x, n)
 

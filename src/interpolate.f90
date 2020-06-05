@@ -25,13 +25,15 @@ MODULE interpolate
    PUBLIC :: iextrap_linear
 
    ! Types
-   PUBLIC :: interpolator
+   PUBLIC :: interpolator1D
+   PUBLIC :: interpolator2D
 
    INTEGER, PARAMETER :: iinterp_polynomial = 1
    INTEGER, PARAMETER :: iinterp_Lagrange = 2
    INTEGER, PARAMETER :: iinterp_centred = 3
 
    LOGICAL, PARAMETER :: centred_interpolator = .FALSE.
+   INTEGER, PARAMETER :: ifind_interpolator_default = ifind_split
 
    INTEGER, PARAMETER :: iextrap_none = 0
    INTEGER, PARAMETER :: iextrap_standard = 1
@@ -45,28 +47,29 @@ MODULE interpolate
 
    INTERFACE init_interpolator
       MODULE PROCEDURE init_interpolator_1D
-      !MODULE PROCEDURE init_interpolator_2D
+      MODULE PROCEDURE init_interpolator_2D
    END INTERFACE init_interpolator
 
    INTERFACE evaluate_interpolator
       MODULE PROCEDURE evaluate_interpolator_1D
-      !MODULE PROCEDURE evaluate_interpolator_2D
+      MODULE PROCEDURE evaluate_interpolator_2D
    END INTERFACE evaluate_interpolator
 
-   TYPE interpolator
-
+   TYPE interpolator1D
       REAL, ALLOCATABLE :: x(:), xmid(:)
-      !REAL, ALLOCATABLE :: y(:), ymid(:)
       REAL, ALLOCATABLE :: a0(:), a1(:), a2(:), a3(:)
-      !REAL, ALLOCATABLE :: b0(:), b1(:), b2(:), b3(:)
-      INTEGER :: iorder, ifind
+      INTEGER :: iorder, ifind, iextrap
       INTEGER :: n
-      !INTEGER :: nx, ny
       LOGICAL :: logx, logf
-      !LOGICAL :: logy
-      INTEGER :: iextrap
+   END TYPE interpolator1D
 
-   END TYPE interpolator
+   TYPE interpolator2D
+      REAL, ALLOCATABLE :: x(:), y(:)
+      REAL, ALLOCATABLE :: f(:, :)
+      INTEGER :: iorder, ifind, iextrap
+      INTEGER :: nx, ny
+      LOGICAL :: logx, logy, logf
+   END TYPE interpolator2D
 
 CONTAINS
 
@@ -903,7 +906,7 @@ CONTAINS
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                  ! Input data x
       REAL, INTENT(IN) :: f(:)                  ! Input data f(x)
-      TYPE(interpolator), INTENT(OUT) :: interp ! Interpolator type
+      TYPE(interpolator1D), INTENT(OUT) :: interp ! Interpolator type
       INTEGER, INTENT(IN) :: iorder             ! Order at which to create interpolator   
       INTEGER, INTENT(IN) :: iextrap            ! Extrapolation scheme
       LOGICAL, OPTIONAL, INTENT(IN) :: logx     ! Should interpolator take the logarithm of x?
@@ -916,7 +919,7 @@ CONTAINS
       REAL :: xm
       INTEGER :: i, n, ii, nn
       INTEGER :: i1, i2, i3, i4
-      INTEGER, PARAMETER :: ifind_default = ifind_split
+      INTEGER, PARAMETER :: ifind_default = ifind_interpolator_default
 
       !IF (centred_interpolator .AND. iorder == 2) THEN
       !   STOP 'INIT_INTERPOLATOR_1D: Interpolator cannot be centred and use quadratic polynomials'
@@ -1126,17 +1129,14 @@ CONTAINS
 
       ! Evaluates the value f(x) from the interpolator
       REAL, INTENT(IN) :: x
-      TYPE(interpolator), INTENT(IN) :: interp
+      TYPE(interpolator1D), INTENT(IN) :: interp
       INTEGER :: i, n
       REAL :: xx
       LOGICAL, PARAMETER :: centred = .TRUE.
 
       ! Change input x to log if necessary
-      IF (interp%logx) THEN
-         xx = log(x)
-      ELSE
-         xx = x
-      END IF
+      xx = x
+      IF (interp%logx) xx = log(xx)
 
       n = interp%n
 
@@ -1197,223 +1197,87 @@ CONTAINS
 
    END FUNCTION evaluate_interpolator_1D
 
-   ! SUBROUTINE init_interpolator_2D(x, y, f, iorder, interp, extrap, logx, logf)
+   SUBROUTINE init_interpolator_2D(x, y, f, interp, iorder, iextrap, logx, logy, logf)
 
-   !    ! Initialise an interpolator
-   !    USE basic_operations
-   !    REAL, INTENT(IN) :: x(:)                  ! Input data x
-   !    REAL, INTENT(IN) :: y(:)                  ! Input data x
-   !    REAL, INTENT(IN) :: f(:, :)               ! Input data f(x,y)
-   !    INTEGER, INTENT(IN) :: iorder             ! Order at which to create interpolator
-   !    TYPE(interpolator), INTENT(OUT) :: interp ! Interpolator type
-   !    LOGICAL, OPTIONAL, INTENT(IN) :: extrap   ! Should interpolator extrapolate beyond x?
-   !    LOGICAL, OPTIONAL, INTENT(IN) :: logx     ! Should interpolator take the logarithm of x?
-   !    LOGICAL, OPTIONAL, INTENT(IN) :: logf     ! Should interpolator take the logarithm of y?
-   !    REAL, ALLOCATABLE :: xx(:), yy(:), ff(:, :)
-   !    REAL :: a0, a1, a2, a3
-   !    REAL :: b0, b1, b2, b3
-   !    REAL :: f11, f12, f21, f22
-   !    REAL :: f01, f10, f02, f20
-   !    REAL :: x1, x2, x3, x4
-   !    REAL :: xm, ym
-   !    INTEGER :: nx, ny
-   !    INTEGER :: ix1, ix2, ix3, ix4
-   !    INTEGER :: iy1, iy2, iy3, iy4
-   !    INTEGER, PARAMETER :: ifind_default = ifind_split
+      ! Initialise a 2D interpolator
+      USE basic_operations
+      REAL, INTENT(IN) :: x(:)                    ! Input data x
+      REAL, INTENT(IN) :: y(:)                    ! Input data x
+      REAL, INTENT(IN) :: f(:, :)                 ! Input data f(x,y)
+      TYPE(interpolator2D), INTENT(OUT) :: interp ! Interpolator type
+      INTEGER, INTENT(IN) :: iorder               ! Order at which to create interpolator     
+      INTEGER, INTENT(IN) :: iextrap              ! Should interpolator extrapolate beyond x and y?
+      LOGICAL, OPTIONAL, INTENT(IN) :: logx       ! Should interpolator take the logarithm of x?
+      LOGICAL, OPTIONAL, INTENT(IN) :: logy       ! Should interpolator take the logarithm of x?
+      LOGICAL, OPTIONAL, INTENT(IN) :: logf       ! Should interpolator take the logarithm of y?
+      INTEGER :: nx, ny
+      INTEGER, PARAMETER :: ifind_default = ifind_interpolator_default
 
-   !    ! Check the sizes of the input data arrays
-   !    nx = size(x)
-   !    ny = size(y)
-   !    IF (nx /= size(f,1) .OR. ny /= size(f,2)) THEN
-   !       STOP 'INIT_INTERPOLATOR: Error, input x, y and f(x,y) data should be the same size'
-   !    END IF
-   !    interp%nx = nx
-   !    interp%ny = ny
-      
-   !    ALLOCATE(xx(nx), yy(ny), ff(nx, ny))
+      nx = size(x)
+      IF(nx /= size(f, 1)) STOP 'INIT_INTERPOLATOR_2D: Error, x should be the same size as first dimension of f'
+      interp%nx = nx
+      ALLOCATE(interp%x(nx))
+      IF(present_and_correct(logx)) THEN
+         interp%x = log(x)
+         interp%logx = .TRUE.
+      ELSE
+         interp%x = x
+         interp%logx = .FALSE.
+      END IF
 
-   !    IF (present_and_correct(extrap)) THEN
-   !       interp%extrap = .TRUE.
-   !    ELSE
-   !       interp%extrap = .FALSE.
-   !    END IF
+      ny = size(y)
+      IF(ny /= size(f, 2)) STOP 'INIT_INTERPOLATOR_2D: Error, y should be the same size as second dimension of f'
+      interp%ny = ny
+      ALLOCATE(interp%y(ny))
+      IF(present_and_correct(logy)) THEN
+         interp%y = log(y)
+         interp%logy = .TRUE.
+      ELSE
+         interp%y = y
+         interp%logy = .FALSE.
+      END IF
 
-   !    ! Sort out logs
-   !    IF(present_and_correct(logx)) THEN
-   !       xx = log(x)
-   !       interp%logx = .TRUE.
-   !    ELSE
-   !       xx = x
-   !       interp%logx = .FALSE.
-   !    END IF
-   !    IF(present_and_correct(logf)) THEN
-   !       ff = log(f)
-   !       interp%logf = .TRUE.
-   !    ELSE
-   !       ff = f
-   !       interp%logf = .FALSE.
-   !    END IF
+      ALLOCATE(interp%f(nx, ny))
+      IF(present_and_correct(logf)) THEN
+         interp%f = log(f)
+         interp%logf = .TRUE.
+      ELSE
+         interp%f = f
+         interp%logf = .FALSE.
+      END IF
 
-   !    ! Allocate arrays for the interpolator x data
-   !    ALLOCATE(interp%x(nx))
-   !    interp%x = xx
+      IF(regular_spacing(interp%x) .AND. regular_spacing(interp%y)) THEN
+         interp%ifind = ifind_linear
+      ELSE
+         interp%ifind = ifind_default
+      END IF
 
-   !    IF (centred_interpolator) ALLOCATE(interp%xmid(nx-1))
+      interp%iorder = iorder
+      interp%iextrap = iextrap
 
-   !    ! Allocate arrays for the interpolator coefficients
-   !    ALLOCATE(interp%a0(nx-1), interp%a1(nx-1), interp%a2(nx-1), interp%a3(nx-1))
-   !    interp%a0 = 0.
-   !    interp%a1 = 0.
-   !    interp%a2 = 0.
-   !    interp%a3 = 0.
+   END SUBROUTINE init_interpolator_2D
 
-   !    ! Set the interpolation order
-   !    interp%iorder = iorder
+   REAL FUNCTION evaluate_interpolator_2D(x, y, interp)
 
-   !    ! If the x data is regular spaced then remember this, otherwise default find
-   !    IF (regular_spacing(x)) THEN
-   !       interp%ifind = ifind_linear
-   !    ELSE
-   !       interp%ifind = ifind_default
-   !    END IF
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: y
+      TYPE(interpolator2D), INTENT(IN) :: interp
+      INTEGER, PARAMETER :: iinterp = iinterp_polynomial ! No Lagrange polynomials in 2D
+      REAL :: xx, yy
 
-   !    ! Default values because a3, a2 will be zero for linear polynomials
-   !    a0 = 0.
-   !    a1 = 0.
-   !    a2 = 0.
-   !    a3 = 0.
+      xx = x
+      IF (interp%logx) xx = log(xx)
 
-   !    ! Loop over all (nx-1, ny-1) sections of the input data
-   !    DO ix = 1, nx-1
-   !       DO iy = 1, ny-1
+      yy = y
+      IF (interp%logy) yy = log(yy)
 
-   !          IF (iorder == 1) THEN
+      evaluate_interpolator_2D = find(xx, interp%x, yy, interp%y, interp%f, interp%nx, interp%ny, &
+                  interp%iorder, &
+                  interp%ifind, &
+                  iinterp)
 
-   !             ix1 = ix
-   !             ix2 = ix+1
+      IF (interp%logf) evaluate_interpolator_2D = exp(evaluate_interpolator_2D)
 
-   !             iy1 = iy
-   !             iy2 = iy+1
-
-   !             x1 = xx(ix1)
-   !             x2 = xx(ix2)
-
-   !             y1 = yy(iy1)
-   !             y2 = yy(iy2)
-
-   !             f11 = ff(ix1, iy1)
-   !             f12 = ff(ix1, iy2)
-   !             f21 = ff(ix2, iy1)
-   !             f22 = ff(ix2, iy2)
-
-   !             f01 = Lagrange_polynomial_1()
-   !             f02 =
-   !             f10 =
-   !             f20 =
-
-   !             CALL fix_linear(a1, a0, [x1, x2], [f10, f20])
-   !             CALL fix_linear(b1, b0, [y1, y2], [f01, f02])
-
-   !          ELSE
-
-   !             STOP 'INIT_INTERPOLATOR: Error, your order is not supported'
-
-   !          END IF
-
-   !          ! Fill the polynomial coefficients in the interpolation type
-   !          interp%a0(ix, iy) = a0
-   !          interp%a1(ix, iy) = a1
-   !          interp%b0(ix, iy) = b0
-   !          interp%b1(ix, iy) = b1
-
-   !       END DO
-   !    END DO
-
-   ! END SUBROUTINE init_interpolator_2D
-
-   ! REAL FUNCTION evaluate_interpolator_2D(x, y, interp)
-
-   !    ! Evaluates the value f(x) from the interpolator
-   !    REAL, INTENT(IN) :: x
-   !    REAL, INTENT(IN) :: y
-   !    TYPE(interpolator), INTENT(IN) :: interp
-   !    INTEGER :: ix, iy, nx, ny
-   !    REAL :: xx, yy, interp_x, interp_y
-   !    LOGICAL, PARAMETER :: centred = .TRUE.
-
-   !    ! Change input x to log if necessary
-   !    IF (interp%logx) THEN
-   !       xx = log(x)
-   !    ELSE
-   !       xx = x
-   !    END IF
-
-   !    ! Change input x to log if necessary
-   !    IF (interp%logy) THEN
-   !       yy = log(y)
-   !    ELSE
-   !       yy = y
-   !    END IF
-
-   !    nx = interp%nx
-   !    ny = interp%ny
-
-   !    ! Calculate the x index to use
-   !    IF (xx < interp%x(1)) THEN
-   !       IF(interp%extrap) THEN
-   !          ix = 1
-   !       ELSE
-   !          STOP 'EVALUATE_INTERPOLATOR_2D: Error, desired x value is below range'
-   !       END IF
-   !    ELSE IF (xx == interp%x(nx)) THEN
-   !       ix = nx-1 ! Cannot use find_table_integer here because this would return 'n', rather than 'n-1'
-   !    ELSE IF (xx > interp%x(nx)) THEN
-   !       IF (interp%extrap) THEN
-   !          ix = nx-1
-   !       ELSE
-   !          STOP 'EVALUATE_INTERPOLATOR_2D: Error, desired x value is above range'
-   !       END IF
-   !    ELSE
-   !       ix = find_table_integer(xx, interp%x, interp%ifind)
-   !    END IF
-
-   !    ! Calculate the y index to use
-   !    IF (yy < interp%y(1)) THEN
-   !       IF(interp%extrap) THEN
-   !          iy = 1
-   !       ELSE
-   !          STOP 'EVALUATE_INTERPOLATOR_2D: Error, desired x value is below range'
-   !       END IF
-   !    ELSE IF (yy == interp%y(ny)) THEN
-   !       iy = ny-1 ! Cannot use find_table_integer here because this would return 'n', rather than 'n-1'
-   !    ELSE IF (yy > interp%y(ny)) THEN
-   !       IF (interp%extrap) THEN
-   !          iy = ny-1
-   !       ELSE
-   !          STOP 'EVALUATE_INTERPOLATOR_2D: Error, desired x value is above range'
-   !       END IF
-   !    ELSE
-   !       iy = find_table_integer(yy, interp%y, interp%ifind)
-   !    END IF
-
-   !    ! Evaluate the interpolation
-   !    IF (interp%iorder == 1) THEN
-   !       IF (centred_interpolator) THEN
-   !          interp_x = centred_linear_polynomial(xx, interp%xmid(ix), interp%a1(ix), interp%a0(ix))
-   !          interp_y = centred_linear_polynomial(yy, interp%ymid(iy), interp%b1(iy), interp%b0(iy))
-   !       ELSE
-   !          interp_x = linear_polynomial(xx, interp%a1(ix), interp%a0(ix))
-   !          interp_y = linear_polynomial(yy, interp%b1(iy), interp%b0(iy))
-   !       END IF
-   !    ELSE
-   !       STOP 'EVALUATE_INTERPOLATOR_2D: Error, your polynomial order is not supported'
-   !    END IF
-
-   !    evaluate_interpolator_2D = (interp_x+interp_y)/2.
-
-   !    ! Exponentiate result if necessary
-   !    IF (interp%logf) evaluate_interpolator_2D = exp(evaluate_interpolator_2D)
-
-   ! END FUNCTION evaluate_interpolator_2D
+   END FUNCTION evaluate_interpolator_2D
 
 END MODULE interpolate

@@ -15,6 +15,7 @@ PROGRAM interpolate_test
    CALL test_interpolate_1D_function(ifail)
    CALL test_interpolate_2D(ifail)
    CALL test_interpolator_1D(ifail)
+   CALL test_interpolator_2D(ifail)
 
    CONTAINS
 
@@ -25,7 +26,7 @@ PROGRAM interpolate_test
       REAL, ALLOCATABLE :: f(:)
       REAL :: xv, fv, ft
       INTEGER :: i, itest
-      TYPE(interpolator) :: interp
+      TYPE(interpolator1D) :: interp
       INTEGER :: iextrap, iorder
       LOGICAL :: logtest
       REAL, PARAMETER :: xmin = 1e-3
@@ -100,6 +101,101 @@ PROGRAM interpolate_test
       END IF
 
    END SUBROUTINE test_interpolator_1D
+
+   SUBROUTINE test_interpolator_2D(fail)
+
+      LOGICAL, INTENT(OUT) :: fail
+      REAL, ALLOCATABLE :: x(:), y(:)
+      REAL, ALLOCATABLE :: f(:, :)
+      REAL :: xv, yv, fv, ft
+      INTEGER :: ix, iy, itest
+      TYPE(interpolator2D) :: interp
+      INTEGER :: iextrap, iorder
+      LOGICAL :: logtest
+      REAL, PARAMETER :: xmin = 1e-3
+      REAL, PARAMETER :: xmax = 3.
+      INTEGER, PARAMETER :: nx = 8
+      REAL, PARAMETER :: ymin = 1e-3
+      REAL, PARAMETER :: ymax = 5.
+      INTEGER, PARAMETER :: ny = 8
+      INTEGER, PARAMETER :: mx = 64
+      INTEGER, PARAMETER :: my = 64
+      REAL, PARAMETER :: tol = 1e-8
+      REAL, PARAMETER :: a = 2.
+      INTEGER, PARAMETER :: ntest = 2
+
+      fail = .FALSE.
+
+      DO itest = 1, ntest
+
+         IF (itest == 1) THEN
+            logtest = .FALSE.
+            iorder = 3
+            iextrap = iextrap_none
+         ELSE IF (itest == 2) THEN
+            logtest = .TRUE.
+            iorder = 3
+            iextrap = iextrap_none
+         ELSE
+            STOP 'TEST_INTERPOLATOR_2D: Something went wrong'
+         END IF
+
+         CALL fill_array(xmin, xmax, x, nx)
+         CALL fill_array(ymin, ymax, y, ny)
+         CALL safe_allocate(f, nx, ny)        
+         DO iy = 1, ny
+            DO ix = 1, nx
+               f(ix, iy) = test_function_2D(x(ix), y(iy), itest)
+            END DO
+         END DO
+
+         CALL init_interpolator(x, y, f, interp, iorder, iextrap, logx=logtest, logy=logtest, logf=logtest)
+
+         DO ix = 1, mx
+            DO iy = 1, my
+               xv = progression(xmin, xmax, ix, mx)
+               yv = progression(ymin, ymax, iy, my)
+               fv = evaluate_interpolator(xv, yv, interp)
+               ft = test_function_2D(xv, yv, itest)
+               IF(.NOT. requal(fv, ft, tol)) THEN
+                  fail = .TRUE.
+                  WRITE(*, *) 'TEST_INTERPOLATOR_2D: Fail'
+                  WRITE(*, *) 'TEST_INTERPOLATOR_2D: itest:', itest
+                  WRITE(*, *) 'TEST_INTERPOLATOR_2D: ix, iy:', ix, iy
+                  WRITE(*, *) 'TEST_INTERPOLATOR_2D: x, y:', xv, yv
+                  WRITE(*, *) 'TEST_INTERPOLATOR_2D: f true:', ft
+                  WRITE(*, *) 'TEST_INTERPOLATOR_2D: f interp:', fv
+                  STOP
+               END IF
+            END DO
+         END DO
+
+      END DO
+
+      IF (fail) THEN
+         WRITE(*, *) 'TEST_INTERPOLATOR_2D: Fail'
+      ELSE
+         WRITE(*, *) 'TEST_INTERPOLATOR_2D: Pass'
+         WRITE(*, *)
+      END IF
+
+   END SUBROUTINE test_interpolator_2D  
+
+   REAL FUNCTION test_function_2D(x, y, itest) RESULT(f)
+
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: y
+      INTEGER, INTENT(IN) :: itest
+
+      IF (itest == 1) THEN
+         f = x**2+2.*y**2*3.*x*y
+      ELSE IF (itest == 2) THEN
+         f = 12.*x*y
+      ELSE
+         STOP 'TEST_FUNCTION_2D: Error, itest specified incorrectly'
+      END IF
+
+   END FUNCTION test_function_2D
 
    SUBROUTINE test_interpolate_1D(fail)
 

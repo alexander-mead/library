@@ -4,6 +4,7 @@ MODULE cosmology_functions
    USE constants
    USE file_info
    USE array_operations
+   USE table_integer
 
    IMPLICIT NONE
 
@@ -175,7 +176,8 @@ MODULE cosmology_functions
       REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)                           ! Arrays for cold T(k) and wiggle P(k)
       REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:)                                    ! Arrays for R and a for sigma(R, a)
       REAL, ALLOCATABLE :: log_sigma(:), log_sigmaa(:, :), log_sigmac(:), log_sigmaca(:,:)   ! Arrays for sigma(R, a)
-      TYPE(interpolator) :: interp_sigma                                                     ! Interpolator for sigma(R, a)
+      TYPE(interpolator1D) :: interp_sigma, interp_sigmac                                    ! Interpolator for sigma(R, a)
+      TYPE(interpolator2D) :: interp_sigmaa, interp_sigmaca                                  ! Interpolator for sigma(R, a)
       REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
       REAL, ALLOCATABLE :: log_p(:), log_a_p(:)        ! Arrays for distance (particle horizon)
       REAL, ALLOCATABLE :: log_t(:), log_a_t(:)        ! Arrays for time
@@ -223,37 +225,37 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amin_Xde = 1e-4    ! Minimum scale factor for direction integration to get Xde
    REAL, PARAMETER :: amax_Xde = 1.      ! Maximum scale factor for direction integration to get Xde
    INTEGER, PARAMETER :: n_Xde = 128     ! Number of points for Xde interpolation
-   LOGICAL, PARAMETER :: tabulate_Xde = .TRUE.        ! Tabulate Xde for interpolation
-   REAL, PARAMETER :: acc_integration_Xde = acc_cosm  ! Accuracy for direct integration of dark energy density
-   INTEGER, PARAMETER :: iorder_integration_Xde = 3   ! Polynomial order for time integration
-   INTEGER, PARAMETER :: iorder_interpolation_Xde = 3 ! Polynomial order for time interpolation
-   INTEGER, PARAMETER :: ifind_interpolation_Xde = 3  ! Finding scheme for time interpolation
-   INTEGER, PARAMETER :: imeth_interpolation_Xde = 2  ! Method for time interpolation
+   LOGICAL, PARAMETER :: tabulate_Xde = .TRUE.       ! Tabulate Xde for interpolation
+   REAL, PARAMETER :: acc_integration_Xde = acc_cosm ! Accuracy for direct integration of dark energy density
+   INTEGER, PARAMETER :: iorder_integration_Xde = 3  ! Polynomial order for time integration
+   INTEGER, PARAMETER :: iorder_interp_Xde = 3 ! Polynomial order for time interpolation
+   INTEGER, PARAMETER :: ifind_interp_Xde = 3  ! Finding scheme for time interpolation
+   INTEGER, PARAMETER :: imeth_interp_Xde = 2  ! Method for time interpolation
 
    ! Distance
    ! Changing to linear integer finding provides very little speed increase
-   REAL, PARAMETER :: amin_distance = 1e-4                 ! Minimum scale factor in look-up table
-   REAL, PARAMETER :: amax_distance = 1.                   ! Maximum scale factor in look-up table
-   INTEGER, PARAMETER :: n_distance = 128                  ! Number of scale factor entries in look-up table
-   REAL, PARAMETER :: atay_distance = 1e-5                 ! Below this do a Taylor expansion to avoid divergence
-   INTEGER, PARAMETER :: iorder_integration_distance = 3   ! Polynomial order for distance integration
-   INTEGER, PARAMETER :: iorder_interpolation_distance = 3 ! Polynomial order for distance interpolation
-   INTEGER, PARAMETER :: ifind_interpolation_distance = 3  ! Finding scheme for distance interpolation
-   INTEGER, PARAMETER :: imeth_interpolation_distance = 2  ! Method for distance interpolation
-   INTEGER, PARAMETER :: iorder_inversion_distance = 3     ! Polynomial order for distance inversion
-   INTEGER, PARAMETER :: ifind_inversion_distance = 3      ! Finding scheme for distance inversion
-   INTEGER, PARAMETER :: imeth_inversion_distance = 2      ! Method for distance inversion
+   REAL, PARAMETER :: amin_distance = 1e-4               ! Minimum scale factor in look-up table
+   REAL, PARAMETER :: amax_distance = 1.                 ! Maximum scale factor in look-up table
+   INTEGER, PARAMETER :: n_distance = 128                ! Number of scale factor entries in look-up table
+   REAL, PARAMETER :: atay_distance = 1e-5               ! Below this do a Taylor expansion to avoid divergence
+   INTEGER, PARAMETER :: iorder_integration_distance = 3 ! Polynomial order for distance integration
+   INTEGER, PARAMETER :: iorder_interp_distance = 3      ! Polynomial order for distance interpolation
+   INTEGER, PARAMETER :: ifind_interp_distance = 3       ! Finding scheme for distance interpolation
+   INTEGER, PARAMETER :: imeth_interp_distance = 2       ! Method for distance interpolation
+   INTEGER, PARAMETER :: iorder_inversion_distance = 3   ! Polynomial order for distance inversion
+   INTEGER, PARAMETER :: ifind_inversion_distance = 3    ! Finding scheme for distance inversion
+   INTEGER, PARAMETER :: imeth_inversion_distance = 2    ! Method for distance inversion
 
    ! Time
    ! Changing to linear integer finding provides very little speed increase
-   REAL, PARAMETER :: amin_time = 1e-4                 ! Minimum scale factor in look-up table
-   REAL, PARAMETER :: amax_time = 1.                   ! Maximum scale factor in look-up table
-   INTEGER, PARAMETER :: n_time = 128                  ! Number of scale factor entries in look-up table
-   REAL, PARAMETER :: atay_time = 1e-5                 ! Below this do a Taylor expansion to avoid divergence
-   INTEGER, PARAMETER :: iorder_integration_time = 3   ! Polynomial order for time integration
-   INTEGER, PARAMETER :: iorder_interpolation_time = 3 ! Polynomial order for time interpolation
-   INTEGER, PARAMETER :: ifind_interpolation_time = 3  ! Finding scheme for time interpolation
-   INTEGER, PARAMETER :: imeth_interpolation_time = 2  ! Method for time interpolation
+   REAL, PARAMETER :: amin_time = 1e-4               ! Minimum scale factor in look-up table
+   REAL, PARAMETER :: amax_time = 1.                 ! Maximum scale factor in look-up table
+   INTEGER, PARAMETER :: n_time = 128                ! Number of scale factor entries in look-up table
+   REAL, PARAMETER :: atay_time = 1e-5               ! Below this do a Taylor expansion to avoid divergence
+   INTEGER, PARAMETER :: iorder_integration_time = 3 ! Polynomial order for time integration
+   INTEGER, PARAMETER :: iorder_interp_time = 3      ! Polynomial order for time interpolation
+   INTEGER, PARAMETER :: ifind_interp_time = 3       ! Finding scheme for time interpolation
+   INTEGER, PARAMETER :: imeth_interp_time = 2       ! Method for time interpolation
 
    ! Power
    REAL, PARAMETER :: kmin_plin = 0.           ! Power below this wavenumber is set to zero [h/Mpc]
@@ -297,9 +299,9 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: imeth_rebin_CAMB = 2  ! Method for interpolation on CAMB rebinning
 
    ! Linear power interpolation
-   INTEGER, PARAMETER :: iorder_interpolation_plin = 3 ! Order for interpolation
-   INTEGER, PARAMETER :: ifind_interpolation_plin = 3  ! Finding scheme in table (only linear if rebinning)
-   INTEGER, PARAMETER :: imeth_interpolation_plin = 2  ! Method for polynomials
+   INTEGER, PARAMETER :: iorder_interp_plin = 3 ! Order for interpolation
+   INTEGER, PARAMETER :: ifind_interp_plin = 3  ! Finding scheme in table (only linear if rebinning)
+   INTEGER, PARAMETER :: imeth_interp_plin = 2  ! Method for polynomials
 
    ! Growth ODE
    REAL, PARAMETER :: ainit_growth = 1e-3                    ! Starting value for growth integratiton (should start | Omega_m(a)=1)
@@ -317,24 +319,24 @@ MODULE cosmology_functions
 
    ! Growth interpolation
    ! Changing to linear integer finding is wrong because tables not stored lin-log
-   INTEGER, PARAMETER :: iorder_interpolation_grow = 3 ! Polynomial order for growth interpolation
-   INTEGER, PARAMETER :: ifind_interpolation_grow = 3  ! Finding scheme for growth interpolation
-   INTEGER, PARAMETER :: imeth_interpolation_grow = 2  ! Method for growth interpolation
+   INTEGER, PARAMETER :: iorder_interp_grow = 3 ! Polynomial order for growth interpolation
+   INTEGER, PARAMETER :: ifind_interp_grow = 3  ! Finding scheme for growth interpolation
+   INTEGER, PARAMETER :: imeth_interp_grow = 2  ! Method for growth interpolation
 
    ! Growth rate interpolation
    ! Changing to linear integer finding is wrong because tables not stored lin-log
-   INTEGER, PARAMETER :: iorder_interpolation_rate = 3 ! Polynomial order for growth rate interpolation for ODE solution
-   INTEGER, PARAMETER :: ifind_interpolation_rate = 3  ! Finding scheme for growth rate interpolation
-   INTEGER, PARAMETER :: imeth_interpolation_rate = 2  ! Method for growth rate interpolation
+   INTEGER, PARAMETER :: iorder_interp_rate = 3 ! Polynomial order for growth rate interpolation for ODE solution
+   INTEGER, PARAMETER :: ifind_interp_rate = 3  ! Finding scheme for growth rate interpolation
+   INTEGER, PARAMETER :: imeth_interp_rate = 2  ! Method for growth rate interpolation
 
    ! Accumulated growth integration
    INTEGER, PARAMETER :: iorder_integration_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
 
    ! Accumualted growth interpolation
    ! Changing to linear integer finding is wrong because tables not stored lin-log
-   INTEGER, PARAMETER :: iorder_interpolation_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
-   INTEGER, PARAMETER :: ifind_interpolation_agrow = 3  ! Finding scheme for accumulated growth rate interpolation
-   INTEGER, PARAMETER :: imeth_interpolation_agrow = 2  ! Method for accumulated growth rate interpolation
+   INTEGER, PARAMETER :: iorder_interp_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
+   INTEGER, PARAMETER :: ifind_interp_agrow = 3  ! Finding scheme for accumulated growth rate interpolation
+   INTEGER, PARAMETER :: imeth_interp_agrow = 2  ! Method for accumulated growth rate interpolation
 
    ! sigma(R) integration
    REAL, PARAMETER :: alpha_sigma = 3.     ! Exponent to increase speed (1 is terrible, 2, 3, 4 all okay)
@@ -343,18 +345,19 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iextrap_sigma = iextrap_linear ! Extrapolation for sigma(R) interpolator
    
    ! sigma(R) tabulation and interpolation
-   ! Changing to linear integer finding provides very little speed increase
-   REAL, PARAMETER :: rmin_sigma = 1e-4                 ! Minimum r value (NB. sigma(R) needs to be power-law below)
-   REAL, PARAMETER :: rmax_sigma = 1e3                  ! Maximum r value (NB. sigma(R) needs to be power-law above)
-   INTEGER, PARAMETER :: nr_sigma = 128                 ! Number of r entries for sigma(R) tables
-   REAL, PARAMETER :: amin_sigma = 0.1                  ! Minimum a value for sigma(R,a) tables when growth is scale dependent
-   REAL, PARAMETER :: amax_sigma = 1.0                  ! Maximum a value for sigma(R,a) tables when growth is scale dependent
-   INTEGER, PARAMETER :: na_sigma = 16                  ! Number of a values for sigma(R,a) tables
-   INTEGER, PARAMETER :: iorder_interpolation_sigma = 3 ! Polynomial order for sigma(R) interpolation 
-   INTEGER, PARAMETER :: ifind_interpolation_sigma = 3  ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
-   INTEGER, PARAMETER :: imeth_interpolation_sigma = 2  ! Method for sigma(R) interpolation
+   REAL, PARAMETER :: rmin_sigma = 1e-4          ! Minimum r value (NB. sigma(R) needs to be power-law below)
+   REAL, PARAMETER :: rmax_sigma = 1e3           ! Maximum r value (NB. sigma(R) needs to be power-law above)
+   INTEGER, PARAMETER :: nr_sigma = 128          ! Number of r entries for sigma(R) tables
+   REAL, PARAMETER :: amin_sigma = 0.1           ! Minimum a value for sigma(R,a) tables when growth is scale dependent
+   REAL, PARAMETER :: amax_sigma = 1.0           ! Maximum a value for sigma(R,a) tables when growth is scale dependent
+   INTEGER, PARAMETER :: na_sigma = 16           ! Number of a values for sigma(R,a) tables
+   INTEGER, PARAMETER :: iorder_interp_sigma = 3 ! Polynomial order for sigma(R) interpolation 
+   INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
+   INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange ! Method for sigma(R) interpolation
    INTEGER, PARAMETER :: sigma_cold_store = flag_power_cold_unorm ! Which version of sigma should be tabulated (0 for none)
-   LOGICAL, PARAMETER :: use_sigma_interpolator = .FALSE. ! Use the interpolator structuree?
+   
+   ! Use the interpolator structure?
+   LOGICAL, PARAMETER :: use_interpolators = .TRUE. 
 
    ! sigma_v(R) integration
    REAL, PARAMETER :: alpha_sigmaV = 3.     ! Exponent to increase integration speed
@@ -381,14 +384,14 @@ MODULE cosmology_functions
    REAL, PARAMETER :: dinf_spherical = 1e8       ! Value considered to be 'infinite' for the perturbation
 
    ! delta_c
-   INTEGER, PARAMETER :: iorder_interpolation_dc = 3 ! Polynomial order for delta_c interpolation
-   INTEGER, PARAMETER :: ifind_interpolation_dc = 3  ! Finding scheme for delta_c interpolation
-   INTEGER, PARAMETER :: imeth_interpolation_dc = 2  ! Method for delta_c interpolation
+   INTEGER, PARAMETER :: iorder_interp_dc = 3 ! Polynomial order for delta_c interpolation
+   INTEGER, PARAMETER :: ifind_interp_dc = 3  ! Finding scheme for delta_c interpolation
+   INTEGER, PARAMETER :: imeth_interp_dc = 2  ! Method for delta_c interpolation
 
    ! Delta_v
-   INTEGER, PARAMETER :: iorder_interpolation_Dv = 3 ! Polynomial order for Delta_v interpolation
-   INTEGER, PARAMETER :: ifind_interpolation_Dv = 3  ! Finding scheme for Delta_v interpolation
-   INTEGER, PARAMETER :: imeth_interpolation_Dv = 2  ! Method for Delta_v interpolation
+   INTEGER, PARAMETER :: iorder_interp_Dv = 3 ! Polynomial order for Delta_v interpolation
+   INTEGER, PARAMETER :: ifind_interp_Dv = 3  ! Finding scheme for Delta_v interpolation
+   INTEGER, PARAMETER :: imeth_interp_Dv = 2  ! Method for Delta_v interpolation
 
    ! Halofit
    INTEGER, PARAMETER :: HALOFIT_Smith = 1       ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
@@ -1318,10 +1321,6 @@ CONTAINS
       IF (cosm%m_nu .NE. 0.) THEN
          cosm%scale_dependent_growth = .TRUE.
          cosm%trivial_cold = .FALSE.
-      END IF
-
-      IF (cosm%scale_dependent_growth .AND. use_sigma_interpolator) THEN
-         STOP 'INIT_COSMOLOGY: Error, sigma interpolator is not supported with scale-dependent growth'
       END IF
 
       IF (cosm%verbose .AND. cosm%scale_dependent_growth) WRITE (*, *) 'INIT_COSMOLOGY: Scale-dependent growth'
@@ -2408,9 +2407,9 @@ CONTAINS
          IF(tabulate_Xde) THEN
             IF(.NOT. cosm%has_Xde) CALL init_Xde(cosm)
             X_de = exp(find(log(a), cosm%log_a_Xde, cosm%log_Xde, cosm%n_Xde, &
-               iorder_interpolation_Xde, &
-               ifind_interpolation_Xde, &
-               imeth_interpolation_Xde))
+               iorder_interp_Xde, &
+               ifind_interp_Xde, &
+               imeth_interp_Xde))
          ELSE
             X_de = Xde_integral(a, cosm)
          END IF
@@ -2626,9 +2625,9 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interpolation_distance
-      INTEGER, PARAMETER :: ifind = ifind_interpolation_distance
-      INTEGER, PARAMETER :: imeth = imeth_interpolation_distance
+      INTEGER, PARAMETER :: iorder = iorder_interp_distance
+      INTEGER, PARAMETER :: ifind = ifind_interp_distance
+      INTEGER, PARAMETER :: imeth = imeth_interp_distance
 
       IF (cosm%has_distance .EQV. .FALSE.) CALL init_distance(cosm)
 
@@ -2806,9 +2805,9 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interpolation_time
-      INTEGER, PARAMETER :: ifind = ifind_interpolation_time
-      INTEGER, PARAMETER :: imeth = imeth_interpolation_time
+      INTEGER, PARAMETER :: iorder = iorder_interp_time
+      INTEGER, PARAMETER :: ifind = ifind_interp_time
+      INTEGER, PARAMETER :: imeth = imeth_interp_time
 
       IF (.NOT. cosm%has_time) CALL init_time(cosm)
 
@@ -3132,8 +3131,8 @@ CONTAINS
       ELSE IF (method_cold == 4) THEN
          ! Use look-up tables from CAMB transfer functions
          Tcold = find(log(k), cosm%log_k_Tcold, log(a), cosm%log_a_plin, cosm%Tcold, cosm%nk_Tcold, cosm%na_plin, &
-            iorder = iorder_interpolation_plin, &
-            ifind = ifind_interpolation_plin, &
+            iorder = iorder_interp_plin, &
+            ifind = ifind_interp_plin, &
             iinterp = iinterp_polynomial) ! No Lagrange polynomials 
       ELSE
          STOP 'TCOLD: Error, method not specified correctly'
@@ -3257,9 +3256,9 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: kmax, pmax
       INTEGER :: nk
-      INTEGER, PARAMETER :: iorder = iorder_interpolation_plin ! Order for interpolation (3 - cubic)
-      INTEGER, PARAMETER :: ifind = ifind_interpolation_plin   ! Finding scheme in table (3 - Mid-point method)
-      INTEGER, PARAMETER :: imeth = imeth_interpolation_plin   ! Method for polynomials (2 - Lagrange polynomials)
+      INTEGER, PARAMETER :: iorder = iorder_interp_plin ! Order for interpolation (3 - cubic)
+      INTEGER, PARAMETER :: ifind = ifind_interp_plin   ! Finding scheme in table (3 - Mid-point method)
+      INTEGER, PARAMETER :: imeth = imeth_interp_plin   ! Method for polynomials (2 - Lagrange polynomials)
 
       ! Using init_power seems to provide no significant speed improvements to HMx
       !IF(cosm%has_power .EQV. .FALSE.) CALL init_power(cosm)
@@ -3341,6 +3340,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: R, a, sig
+      !REAL, ALLOCATABLE :: R(:), a(:), sig(:), siga(:, :)
       INTEGER :: i, j, iflag, ntype, flag
 
       ! Deallocate tables if they are already allocated
@@ -3368,11 +3368,11 @@ CONTAINS
       ! Allocate and fill array of R values
       CALL fill_array(log(rmin_sigma), log(rmax_sigma), cosm%log_r_sigma, cosm%nr_sigma)
 
-      ! Allocate carrays
+      ! Allocate arrays
       IF (cosm%scale_dependent_growth) THEN
          CALL fill_array(log(cosm%amin_sigma), log(cosm%amax_sigma), cosm%log_a_sigma, cosm%na_sigma)
          ALLOCATE (cosm%log_sigmaa(cosm%nr_sigma, cosm%na_sigma))
-         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmaca(nr_sigma, cosm%na_sigma))   
+         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmaca(cosm%nr_sigma, cosm%na_sigma))   
       ELSE
          ALLOCATE (cosm%log_sigma(cosm%nr_sigma))
          IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmac(cosm%nr_sigma))
@@ -3410,6 +3410,20 @@ CONTAINS
                END DO
             END DO
 
+            IF (use_interpolators) THEN
+               IF (flag == flag_power_total) THEN
+                  CALL init_interpolator(cosm%log_r_sigma, cosm%log_a_sigma, cosm%log_sigmaa, &
+                     cosm%interp_sigmaa, &
+                     iorder_interp_sigma, &
+                     iextrap_sigma)
+               ELSE IF (flag == sigma_cold_store) THEN
+                  CALL init_interpolator(cosm%log_r_sigma, cosm%log_a_sigma, cosm%log_sigmaca, &
+                     cosm%interp_sigmaca, &
+                     iorder_interp_sigma, &
+                     iextrap_sigma)
+               END IF
+            END IF
+
          ELSE
 
             ! Loop over R values and calculate sigma(R)
@@ -3424,8 +3438,16 @@ CONTAINS
                END IF
             END DO
 
-            IF (use_sigma_interpolator) THEN
-               CALL init_interpolator(cosm%log_r_sigma, cosm%log_sigma, cosm%interp_sigma, iorder_sigma, iextrap_sigma)
+            IF (use_interpolators) THEN
+               IF (flag == flag_power_total) THEN
+                  CALL init_interpolator(cosm%log_r_sigma, cosm%log_sigma, cosm%interp_sigma, &
+                     iorder_interp_sigma, &
+                     iextrap_sigma)
+               ELSE IF (flag == sigma_cold_store) THEN
+                  CALL init_interpolator(cosm%log_r_sigma, cosm%log_sigmac, cosm%interp_sigmac, &
+                     iorder_interp_sigma, &
+                     iextrap_sigma)
+               END IF
             END IF
 
          END IF
@@ -3436,16 +3458,18 @@ CONTAINS
       IF ((sigma_cold_store .NE. 0) .AND. cosm%trivial_cold) THEN
          IF (cosm%scale_dependent_growth) THEN
             cosm%log_sigmaca = cosm%log_sigmaa
+            IF (use_interpolators) cosm%interp_sigmaca = cosm%interp_sigmaa
          ELSE
             cosm%log_sigmac = cosm%log_sigma
+            IF (use_interpolators) cosm%interp_sigmac = cosm%interp_sigma
          END IF
       END IF
 
       ! Write useful information to screen
       IF (cosm%verbose) THEN
          IF (cosm%scale_dependent_growth) THEN
-            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigmaa(cosm%nr_sigma,cosm%na_sigma))
-            WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigmaa(1,cosm%na_sigma))
+            WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigmaa(cosm%nr_sigma, cosm%na_sigma))
+            WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigmaa(1, cosm%na_sigma))
          ELSE
             WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', exp(cosm%log_sigma(cosm%nr_sigma))
             WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', exp(cosm%log_sigma(1))
@@ -3467,14 +3491,30 @@ CONTAINS
       REAL, INTENT(IN) :: a ! Scale factor
       INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER, PARAMETER :: iorder = iorder_interpolation_sigma ! Order for interpolation 
-      INTEGER, PARAMETER :: ifind = ifind_interpolation_sigma   ! Finding scheme in table
-      INTEGER, PARAMETER :: imeth = imeth_interpolation_sigma   ! Method for polynomials
+      INTEGER, PARAMETER :: iorder = iorder_interp_sigma ! Order for interpolation 
+      INTEGER, PARAMETER :: ifind = ifind_interp_sigma   ! Finding scheme in table
+      INTEGER, PARAMETER :: imeth = iinterp_sigma        ! Method for polynomials
 
-      IF (use_sigma_interpolator) THEN
+      IF (use_interpolators) THEN
 
-         find_sigma = exp(evaluate_interpolator(log(R), cosm%interp_sigma))
-         find_sigma = find_sigma*grow(a, cosm)
+         IF (cosm%scale_dependent_growth) THEN
+            IF (flag == flag_power_total) THEN
+               find_sigma = exp(evaluate_interpolator(log(R), log(a), cosm%interp_sigmaa))
+            ELSE IF (flag == sigma_cold_store) THEN
+               find_sigma = exp(evaluate_interpolator(log(R), log(a), cosm%interp_sigmaca))
+            ELSE
+               STOP 'FIND_SIGMA: Error, something went very wrong with flag'
+            END IF
+         ELSE
+            IF (flag == flag_power_total) THEN
+               find_sigma = exp(evaluate_interpolator(log(R), cosm%interp_sigma))
+            ELSE IF (flag == sigma_cold_store) THEN
+               find_sigma = exp(evaluate_interpolator(log(R), cosm%interp_sigmac))
+            ELSE
+               STOP 'FIND_SIGMA: Error, something went very wrong with flag'
+            END IF
+            find_sigma = grow(a, cosm)*find_sigma
+         END IF
 
       ELSE
 
@@ -3488,7 +3528,7 @@ CONTAINS
                   cosm%nr_sigma, cosm%na_sigma, &
                   iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
             ELSE
-               STOP 'FIND_SIGMA: Error, flag not specified correctly'
+               STOP 'FIND_SIGMA: Error, something went very wrong with flag'
             END IF
          ELSE
             IF (flag == flag_power_total) THEN
@@ -3496,7 +3536,7 @@ CONTAINS
             ELSE IF (flag == sigma_cold_store) THEN
                find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigmac, cosm%nr_sigma, iorder, ifind, imeth))
             ELSE
-               STOP 'FIND_SIGMA: Error, flag not specified correctly'
+               STOP 'FIND_SIGMA: Error, something went very wrong with flag'
             END IF
             find_sigma = grow(a, cosm)*find_sigma
          END IF
@@ -3748,9 +3788,9 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interpolation_grow
-      INTEGER, PARAMETER :: ifind = ifind_interpolation_grow
-      INTEGER, PARAMETER :: imeth = imeth_interpolation_grow
+      INTEGER, PARAMETER :: iorder = iorder_interp_grow
+      INTEGER, PARAMETER :: ifind = ifind_interp_grow
+      INTEGER, PARAMETER :: imeth = imeth_interp_grow
 
       IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
       IF (a == 1.) THEN
@@ -3780,9 +3820,9 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interpolation_rate
-      INTEGER, PARAMETER :: ifind = ifind_interpolation_rate
-      INTEGER, PARAMETER :: imeth = imeth_interpolation_rate
+      INTEGER, PARAMETER :: iorder = iorder_interp_rate
+      INTEGER, PARAMETER :: ifind = ifind_interp_rate
+      INTEGER, PARAMETER :: imeth = imeth_interp_rate
 
       IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
       growth_rate = find(log(a), cosm%log_a_growth, cosm%growth_rate, cosm%n_growth, iorder, ifind, imeth)
@@ -3813,9 +3853,9 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interpolation_agrow
-      INTEGER, PARAMETER :: ifind = ifind_interpolation_agrow
-      INTEGER, PARAMETER :: imeth = imeth_interpolation_agrow
+      INTEGER, PARAMETER :: iorder = iorder_interp_agrow
+      INTEGER, PARAMETER :: ifind = ifind_interp_agrow
+      INTEGER, PARAMETER :: imeth = imeth_interp_agrow
 
       IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
       acc_growth = exp(find(log(a), cosm%log_a_growth, cosm%log_acc_growth, cosm%n_growth, iorder, ifind, imeth))
@@ -4225,9 +4265,9 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interpolation_dc
-      INTEGER, PARAMETER :: ifind = ifind_interpolation_dc
-      INTEGER, PARAMETER :: imeth = imeth_interpolation_dc
+      INTEGER, PARAMETER :: iorder = iorder_interp_dc
+      INTEGER, PARAMETER :: ifind = ifind_interp_dc
+      INTEGER, PARAMETER :: imeth = imeth_interp_dc
 
       IF (cosm%has_spherical .EQV. .FALSE.) CALL init_spherical_collapse(cosm)
 
@@ -4245,9 +4285,9 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER, PARAMETER :: iorder = iorder_interpolation_Dv
-      INTEGER, PARAMETER :: ifind = ifind_interpolation_Dv
-      INTEGER, PARAMETER :: imeth = imeth_interpolation_Dv
+      INTEGER, PARAMETER :: iorder = iorder_interp_Dv
+      INTEGER, PARAMETER :: ifind = ifind_interp_Dv
+      INTEGER, PARAMETER :: imeth = imeth_interp_Dv
 
       IF (cosm%has_spherical .EQV. .FALSE.) CALL init_spherical_collapse(cosm)
 
