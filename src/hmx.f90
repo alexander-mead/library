@@ -643,6 +643,7 @@ CONTAINS
       names(98) = 'Standard but with no DMONLY correction for neutrinos'
       names(99) = 'Standard but with sigma calculated for normalised cold matter'
       names(100) = 'Standard but massive neutrinos affect virial radius'
+      names(101) = 'Standard but with spherical collapse calculation'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1951,6 +1952,10 @@ CONTAINS
       ELSE IF (ihm == 100) THEN
          ! Massive neutrinos affect the calculation of the virial radius
          hmod%DMONLY_neutrinos_affect_virial_radius = .TRUE.
+      ELSE IF(ihm == 101) THEN
+         ! Standard halo model but with spherical-collapse calculation
+         hmod%idc = 5 ! Collapse calculation for delta_c
+         hmod%iDv = 5 ! Collapse calculation for Delta_v
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -6030,9 +6035,6 @@ CONTAINS
       REAL :: dc, af, zf, RHS, a, rf, sig, growz
       INTEGER :: i
       REAL, PARAMETER :: f = 0.01**(1./3.) ! This is the f=0.01 parameter in the Bullock realtion sigma(fM,z)
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: ifind = 3
-      INTEGER, PARAMETER :: imeth =2
 
       a = scale_factor_z(z)
 
@@ -6064,8 +6066,7 @@ CONTAINS
             ! If the halo forms 'in the future' then set the formation z to the current z
             zf = z
          ELSE
-            af = exp(find(log(RHS), cosm%grow%f, cosm%grow%x, cosm%n_growth, &
-               iorder, ifind, imeth))
+            af = inverse_interpolator(RHS, cosm%grow)
             zf = redshift_a(af)
          END IF
 
