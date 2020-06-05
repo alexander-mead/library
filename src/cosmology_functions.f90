@@ -172,12 +172,11 @@ MODULE cosmology_functions
       LOGICAL :: trivial_cold            ! Is the cold spectrum trivially related to the matter spectrum?    
       
       ! Look-up tables that are filled during a calculation
-      REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)        ! Arrays for input linear P(k)
-      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)                           ! Arrays for cold T(k) and wiggle P(k)
-      REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:)                                    ! Arrays for R and a for sigma(R, a)
-      REAL, ALLOCATABLE :: log_sigma(:), log_sigmaa(:, :), log_sigmac(:), log_sigmaca(:,:)   ! Arrays for sigma(R, a)
-      TYPE(interpolator1D) :: interp_sigma, interp_sigmac                                    ! Interpolator for sigma(R, a)
-      TYPE(interpolator2D) :: interp_sigmaa, interp_sigmaca                                  ! Interpolator for sigma(R, a)
+      REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:)     ! Arrays for input linear P(k)
+      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:), p_wiggle(:)                        ! Arrays for cold T(k) and wiggle P(k)
+      REAL, ALLOCATABLE :: log_r_sigma(:), log_a_sigma(:), log_sigma(:), log_sigmaa(:, :) ! Arrays for R and a for sigma(R, a)
+      TYPE(interpolator1D) :: interp_sigma                                                ! 1D interpolators
+      TYPE(interpolator2D) :: interp_sigmaa                                               ! 2D interpolator 
       REAL, ALLOCATABLE :: log_a_growth(:), log_growth(:), growth_rate(:), log_acc_growth(:) ! Arrays for growth
       REAL, ALLOCATABLE :: log_p(:), log_a_p(:)        ! Arrays for distance (particle horizon)
       REAL, ALLOCATABLE :: log_t(:), log_a_t(:)        ! Arrays for time
@@ -188,10 +187,6 @@ MODULE cosmology_functions
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
       LOGICAL :: has_wiggle
       LOGICAL :: is_init, is_normalised ! Flags to check if things have been done 
-
-      ! For random cosmologies
-      !LOGICAL :: seeded
-      !INTEGER :: iseed
 
       ! Verbose
       LOGICAL :: verbose
@@ -352,10 +347,10 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amax_sigma = 1.0           ! Maximum a value for sigma(R,a) tables when growth is scale dependent
    INTEGER, PARAMETER :: na_sigma = 16           ! Number of a values for sigma(R,a) tables
    INTEGER, PARAMETER :: iorder_interp_sigma = 3 ! Polynomial order for sigma(R) interpolation 
-   INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
-   INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange ! Method for sigma(R) interpolation
-   INTEGER, PARAMETER :: sigma_cold_store = flag_power_cold_unorm ! Which version of sigma should be tabulated (0 for none)
-   
+   INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split    ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
+   INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange    ! Method for sigma(R) interpolation
+   INTEGER, PARAMETER :: sigma_store = flag_power_cold_unorm ! Which version of sigma should be tabulated (0 for none)
+         
    ! Use the interpolator structure?
    LOGICAL, PARAMETER :: use_interpolators = .TRUE. 
 
@@ -1452,8 +1447,6 @@ CONTAINS
       CALL if_allocated_deallocate(cosm%log_a_sigma)
       CALL if_allocated_deallocate(cosm%log_sigma)
       CALL if_allocated_deallocate(cosm%log_sigmaa)
-      CALL if_allocated_deallocate(cosm%log_sigmac)
-      CALL if_allocated_deallocate(cosm%log_sigmaca)
 
       ! Switch for power?
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
@@ -3340,16 +3333,13 @@ CONTAINS
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: R, a, sig
-      !REAL, ALLOCATABLE :: R(:), a(:), sig(:), siga(:, :)
-      INTEGER :: i, j, iflag, ntype, flag
+      INTEGER :: i, j
 
       ! Deallocate tables if they are already allocated
       CALL if_allocated_deallocate(cosm%log_r_sigma)
       CALL if_allocated_deallocate(cosm%log_a_sigma)
       CALL if_allocated_deallocate(cosm%log_sigma)
-      CALL if_allocated_deallocate(cosm%log_sigmac)
       CALL if_allocated_deallocate(cosm%log_sigmaa)
-      CALL if_allocated_deallocate(cosm%log_sigmaca)
 
       ! Set nr_sigma, na_sigma, amin_sigma, and amax_sigma to defaults if not set by the user
       IF(cosm%nr_sigma == 0) cosm%nr_sigma = nr_sigma
@@ -3371,98 +3361,55 @@ CONTAINS
       ! Allocate arrays
       IF (cosm%scale_dependent_growth) THEN
          CALL fill_array(log(cosm%amin_sigma), log(cosm%amax_sigma), cosm%log_a_sigma, cosm%na_sigma)
-         ALLOCATE (cosm%log_sigmaa(cosm%nr_sigma, cosm%na_sigma))
-         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmaca(cosm%nr_sigma, cosm%na_sigma))   
+         ALLOCATE (cosm%log_sigmaa(cosm%nr_sigma, cosm%na_sigma)) 
       ELSE
          ALLOCATE (cosm%log_sigma(cosm%nr_sigma))
-         IF (sigma_cold_store .NE. 0) ALLOCATE (cosm%log_sigmac(cosm%nr_sigma))
       END IF
 
-      ! Do we need to loop over both matter and cold or not?
-      IF(cosm%trivial_cold) THEN
-         ntype = 1
-      ELSE
-         ntype = 2
-      END IF
+      ! Do the calculations to fill the look-up tables
+      ! Deal with scale-dependent/independent growth separately
+      IF (cosm%scale_dependent_growth) THEN
 
-      DO iflag = 1, ntype
-
-         IF (iflag == 1) flag = flag_power_total
-         IF (iflag == 2) flag = sigma_cold_store
-
-         IF (flag == 0) CYCLE
-
-         ! Do the calculations to fill the look-up tables
-         ! Deal with scale-dependent/independent growth separately
-         IF (cosm%scale_dependent_growth) THEN
-
-            ! Loop over R and a and calculate sigma(R,a)
-            DO j = 1, cosm%na_sigma
-               a = exp(cosm%log_a_sigma(j))
-               DO i = 1, cosm%nr_sigma
-                  R = exp(cosm%log_r_sigma(i))
-                  sig = sigma_integral(R, a, flag, cosm)
-                  IF (flag == flag_power_total) THEN
-                     cosm%log_sigmaa(i, j) = log(sig)
-                  ELSE IF (flag == sigma_cold_store) THEN
-                     cosm%log_sigmaca(i, j) = log(sig)
-                  END IF
-               END DO
-            END DO
-
-            IF (use_interpolators) THEN
-               IF (flag == flag_power_total) THEN
-                  CALL init_interpolator(cosm%log_r_sigma, cosm%log_a_sigma, cosm%log_sigmaa, &
-                     cosm%interp_sigmaa, &
-                     iorder_interp_sigma, &
-                     iextrap_sigma)
-               ELSE IF (flag == sigma_cold_store) THEN
-                  CALL init_interpolator(cosm%log_r_sigma, cosm%log_a_sigma, cosm%log_sigmaca, &
-                     cosm%interp_sigmaca, &
-                     iorder_interp_sigma, &
-                     iextrap_sigma)
-               END IF
-            END IF
-
-         ELSE
-
-            ! Loop over R values and calculate sigma(R)
-            a = 1. ! Fill this table at a=1
+         ! Loop over R and a and calculate sigma(R,a)
+         DO j = 1, cosm%na_sigma
+            a = exp(cosm%log_a_sigma(j))
             DO i = 1, cosm%nr_sigma
                R = exp(cosm%log_r_sigma(i))
-               sig = sigma_integral(R, a, flag, cosm)
-               IF (flag == flag_power_total) THEN
-                  cosm%log_sigma(i) = log(sig)
-               ELSE IF (flag == sigma_cold_store) THEN
-                  cosm%log_sigmac(i) = log(sig)
-               END IF
+               sig = sigma_integral(R, a, sigma_store, cosm)
+               cosm%log_sigmaa(i, j) = log(sig)
             END DO
+         END DO
 
-            IF (use_interpolators) THEN
-               IF (flag == flag_power_total) THEN
-                  CALL init_interpolator(cosm%log_r_sigma, cosm%log_sigma, cosm%interp_sigma, &
-                     iorder_interp_sigma, &
-                     iextrap_sigma)
-               ELSE IF (flag == sigma_cold_store) THEN
-                  CALL init_interpolator(cosm%log_r_sigma, cosm%log_sigmac, cosm%interp_sigmac, &
-                     iorder_interp_sigma, &
-                     iextrap_sigma)
-               END IF
-            END IF
-
+         IF (use_interpolators) THEN
+            CALL init_interpolator(exp(cosm%log_r_sigma), exp(cosm%log_a_sigma), exp(cosm%log_sigmaa), &
+               cosm%interp_sigmaa, &
+               iorder_interp_sigma, &
+               iextrap_sigma, &
+               logx = .TRUE., &
+               logy = .TRUE., &
+               logf = .TRUE. &
+               )
          END IF
 
-      END DO
+      ELSE
 
-      ! If the cold spectrum is trivial then the cold sigma is equal to the matter sigma
-      IF ((sigma_cold_store .NE. 0) .AND. cosm%trivial_cold) THEN
-         IF (cosm%scale_dependent_growth) THEN
-            cosm%log_sigmaca = cosm%log_sigmaa
-            IF (use_interpolators) cosm%interp_sigmaca = cosm%interp_sigmaa
-         ELSE
-            cosm%log_sigmac = cosm%log_sigma
-            IF (use_interpolators) cosm%interp_sigmac = cosm%interp_sigma
+         ! Loop over R values and calculate sigma(R)
+         a = 1. ! Fill this table at a=1
+         DO i = 1, cosm%nr_sigma
+            R = exp(cosm%log_r_sigma(i))
+            sig = sigma_integral(R, a, sigma_store, cosm)
+            cosm%log_sigma(i) = log(sig)
+         END DO
+
+         IF (use_interpolators) THEN
+            CALL init_interpolator(exp(cosm%log_r_sigma), exp(cosm%log_sigma), cosm%interp_sigma, &
+               iorder_interp_sigma, &
+               iextrap_sigma, &
+               logx = .TRUE., &
+               logf = .TRUE. &
+               )
          END IF
+
       END IF
 
       ! Write useful information to screen
@@ -3483,13 +3430,12 @@ CONTAINS
 
    END SUBROUTINE init_sigma
 
-   REAL FUNCTION find_sigma(R, a, flag, cosm)
+   REAL FUNCTION find_sigma(R, a, cosm)
 
       ! Search look-up tables for sigma(R)
       IMPLICIT NONE
       REAL, INTENT(IN) :: R ! Smoothing scale to calculate sigma [Mpc/h]
       REAL, INTENT(IN) :: a ! Scale factor
-      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       INTEGER, PARAMETER :: iorder = iorder_interp_sigma ! Order for interpolation 
       INTEGER, PARAMETER :: ifind = ifind_interp_sigma   ! Finding scheme in table
@@ -3498,46 +3444,20 @@ CONTAINS
       IF (use_interpolators) THEN
 
          IF (cosm%scale_dependent_growth) THEN
-            IF (flag == flag_power_total) THEN
-               find_sigma = exp(evaluate_interpolator(log(R), log(a), cosm%interp_sigmaa))
-            ELSE IF (flag == sigma_cold_store) THEN
-               find_sigma = exp(evaluate_interpolator(log(R), log(a), cosm%interp_sigmaca))
-            ELSE
-               STOP 'FIND_SIGMA: Error, something went very wrong with flag'
-            END IF
+            find_sigma = evaluate_interpolator(R, a, cosm%interp_sigmaa)
          ELSE
-            IF (flag == flag_power_total) THEN
-               find_sigma = exp(evaluate_interpolator(log(R), cosm%interp_sigma))
-            ELSE IF (flag == sigma_cold_store) THEN
-               find_sigma = exp(evaluate_interpolator(log(R), cosm%interp_sigmac))
-            ELSE
-               STOP 'FIND_SIGMA: Error, something went very wrong with flag'
-            END IF
+            find_sigma = evaluate_interpolator(R, cosm%interp_sigma)
             find_sigma = grow(a, cosm)*find_sigma
          END IF
 
       ELSE
 
          IF (cosm%scale_dependent_growth) THEN
-            IF (flag == flag_power_total) THEN
                find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaa,&
                   cosm%nr_sigma, cosm%na_sigma, &
                   iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
-            ELSE IF (flag == sigma_cold_store) THEN
-               find_sigma = exp(find(log(R), cosm%log_r_sigma, log(a), cosm%log_a_sigma, cosm%log_sigmaca,&
-                  cosm%nr_sigma, cosm%na_sigma, &
-                  iorder, ifind, iinterp=iinterp_polynomial)) ! No Lagrange polynomials for 2D interpolation
-            ELSE
-               STOP 'FIND_SIGMA: Error, something went very wrong with flag'
-            END IF
          ELSE
-            IF (flag == flag_power_total) THEN
-               find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigma, cosm%nr_sigma, iorder, ifind, imeth))
-            ELSE IF (flag == sigma_cold_store) THEN
-               find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigmac, cosm%nr_sigma, iorder, ifind, imeth))
-            ELSE
-               STOP 'FIND_SIGMA: Error, something went very wrong with flag'
-            END IF
+            find_sigma = exp(find(log(R), cosm%log_r_sigma, cosm%log_sigma, cosm%nr_sigma, iorder, ifind, imeth))
             find_sigma = grow(a, cosm)*find_sigma
          END IF
 
@@ -3555,8 +3475,8 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
 
       IF (.NOT. cosm%has_sigma) CALL init_sigma(cosm)
-      IF(flag == flag_power_total .OR. flag == sigma_cold_store) THEN
-         sigma = find_sigma(R, a, flag, cosm)
+      IF(flag == sigma_store) THEN
+         sigma = find_sigma(R, a, cosm)
       ELSE
          sigma = sigma_integral(R, a, flag, cosm)
       END IF
