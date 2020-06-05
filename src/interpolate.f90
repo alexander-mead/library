@@ -57,6 +57,7 @@ MODULE interpolate
 
    TYPE interpolator1D
       REAL, ALLOCATABLE :: x(:), xmid(:)
+      REAL, ALLOCATABLE :: f(:)
       REAL, ALLOCATABLE :: a0(:), a1(:), a2(:), a3(:)
       INTEGER :: iorder, ifind, iextrap
       INTEGER :: n
@@ -932,7 +933,7 @@ CONTAINS
       n = size(x)
       IF (n /= size(f)) STOP 'INIT_INTERPOLATOR: Error, input x and f data should be the same size'
       interp%n = n
-      ALLOCATE(xx(n), ff(n), interp%x(n))
+      ALLOCATE(xx(n), ff(n), interp%x(n), interp%f(n))
 
       ! Set the internal variables
       interp%iextrap = iextrap
@@ -956,6 +957,7 @@ CONTAINS
          ff = f
          interp%logf = .FALSE.
       END IF
+      interp%f = ff
       
       ! If the x data is regular spaced then remember this, otherwise default find
       IF (regular_spacing(interp%x)) THEN
@@ -1004,7 +1006,7 @@ CONTAINS
       ! Loop over all n-1 sections of the input data
       DO i = 0, n
 
-         IF (i == 0 .OR. i == n .AND. iextrap /= iextrap_linear) CYCLE
+         IF ((i == 0 .OR. i == n) .AND. iextrap /= iextrap_linear) CYCLE
 
          IF (iorder == 1 .OR. ((i == 0 .OR. i == n) .AND. iextrap == iextrap_linear)) THEN
 
