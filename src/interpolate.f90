@@ -55,6 +55,10 @@ MODULE interpolate
       MODULE PROCEDURE evaluate_interpolator_2D
    END INTERFACE evaluate_interpolator
 
+   INTERFACE inverse_interpolator
+      MODULE PROCEDURE inverse_interpolator_1D
+   END INTERFACE inverse_interpolator
+
    TYPE interpolator1D
       REAL, ALLOCATABLE :: x(:), xmid(:)
       REAL, ALLOCATABLE :: f(:)
@@ -1201,6 +1205,24 @@ CONTAINS
       IF (interp%logf) evaluate_interpolator_1D = exp(evaluate_interpolator_1D)
 
    END FUNCTION evaluate_interpolator_1D
+
+   REAL FUNCTION inverse_interpolator_1D(f, interp)
+
+      ! If y = f(x) this returns x = f^-1(y), where y = f
+      REAL, INTENT(IN) :: f
+      TYPE(interpolator1D), INTENT(IN) :: interp
+      REAL :: ff, x
+
+      IF (interp%logf) ff = log(f)
+      x = find_1D(f, interp%f, interp%x, interp%n, interp%iorder, interp%ifind, iinterp_Lagrange)
+
+      IF(interp%logx) THEN
+         inverse_interpolator_1D = exp(x)
+      ELSE
+         inverse_interpolator_1D = x
+      END IF
+
+   END FUNCTION inverse_interpolator_1D
 
    SUBROUTINE init_interpolator_2D(x, y, f, interp, iorder, iextrap, logx, logy, logf)
 
