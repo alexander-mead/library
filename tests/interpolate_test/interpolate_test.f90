@@ -497,7 +497,7 @@ PROGRAM interpolate_test
 
                      xv = progression(xmin, xmax, ix, nt)
                      yv = progression(ymin, ymax, iy, nt)
-                     fv = find(xv, x, yv, y, f, ni, ni, iorder, ifind, iinterp)
+                     fv = find(xv, x, yv, y, f, ni, ni, iorder, ifind, ifind, iinterp)
 
                      IF (itest == 1) THEN
                         ft = interpolate_test_surface(xv, yv)

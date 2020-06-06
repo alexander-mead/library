@@ -1763,7 +1763,7 @@ CONTAINS
       ELSE IF (a < amin_pka .OR. a > amax_pka) THEN
          find_pka = 0.
       ELSE
-         find_pka = exp(find(logk, logktab, loga, logatab, logptab, nk, na, iorder, ifind, imeth))
+         find_pka = exp(find(logk, logktab, loga, logatab, logptab, nk, na, iorder, ifind, ifind, imeth))
       END IF
 
    END FUNCTION find_pka

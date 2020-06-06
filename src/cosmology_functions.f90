@@ -3091,7 +3091,8 @@ CONTAINS
          ! Use look-up tables from CAMB transfer functions
          Tcold = find(log(k), cosm%log_k_Tcold, log(a), cosm%log_a_plin, cosm%Tcold, cosm%nk_Tcold, cosm%na_plin, &
             iorder = iorder_interp_plin, &
-            ifind = ifind_interp_plin, &
+            ifindx = ifind_interp_plin, &
+            ifindy = ifind_interp_plin, &
             iinterp = iinterp_polynomial) ! No Lagrange polynomials 
       ELSE
          STOP 'TCOLD: Error, method not specified correctly'
@@ -3251,7 +3252,7 @@ CONTAINS
                   plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
                ELSE
                   plin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin,&
-                     cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, iinterp_polynomial))
+                     cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, ifind, iinterp_polynomial))
                END IF
             ELSE
                IF(plin_extrap .AND. k > kmax) THEN

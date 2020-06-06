@@ -387,7 +387,7 @@ CONTAINS
 
    END FUNCTION find_1D
 
-   REAL FUNCTION find_2D(x, xin, y, yin, fin, nx, ny, iorder, ifind, iinterp)
+   REAL FUNCTION find_2D(x, xin, y, yin, fin, nx, ny, iorder, ifindx, ifindy, iinterp)
 
       ! A 2D interpolation routine to find value f(x,y) at position x, y
       ! Care should be chosen to insert x, xtab, ytab as log if this might give better results
@@ -402,7 +402,8 @@ CONTAINS
       REAL, INTENT(IN) :: yin(ny)
       REAL, INTENT(IN) :: fin(nx, ny)
       INTEGER, INTENT(IN) :: iorder
-      INTEGER, INTENT(IN) :: ifind
+      INTEGER, INTENT(IN) :: ifindx
+      INTEGER, INTENT(IN) :: ifindy
       INTEGER, INTENT(IN) :: iinterp
       REAL ::  xtab(nx), ytab(ny), ftab(nx, ny)
       REAL :: a3, a2, a1, a0
@@ -418,6 +419,7 @@ CONTAINS
       INTEGER :: j1, j2, j3, j4
       REAL :: findx, findy, V(2,2)
       INTEGER :: i, j, ix, iy, ix1, ix2, iy1, iy2
+      LOGICAL, PARAMETER :: xycubic = .FALSE.
 
       ! iorder = 1 => linear interpolation
       ! iorder = 2 => quadratic interpolation
@@ -440,9 +442,9 @@ CONTAINS
 
       IF(iorder == 0) THEN
 
-         ix = find_table_integer(x, xin, ifind)
+         ix = find_table_integer(x, xin, ifindx)
          IF(ix == 0) ix = 1
-         iy = find_table_integer(y, yin, ifind)
+         iy = find_table_integer(y, yin, ifindy)
          IF(iy == 0) iy = 1
 
          find_2D = fin(ix, iy)
@@ -455,7 +457,7 @@ CONTAINS
          !! Get the x,y values !!
 
          ! Get the integer coordinates in the x direction
-         ix = find_table_integer(x, xin, ifind)
+         ix = find_table_integer(x, xin, ifindx)
          IF(ix==0) THEN
             ix=1
          ELSE IF(ix==nx) THEN
@@ -469,7 +471,7 @@ CONTAINS
          x2 = xin(ix2)
 
          ! Get the integer coordinates in the y direction
-         iy = find_table_integer(y, yin, ifind)
+         iy = find_table_integer(y, yin, ifindy)
          IF(iy==0) THEN
             iy=1
          ELSE IF(iy==ny) THEN
@@ -492,10 +494,6 @@ CONTAINS
          ! Normalisation
          find_2D = sum(V)/((x2-x1)*(y2-y1))
 
-      ELSE IF (iorder == 2) THEN
-
-         STOP 'FIND_2D: Quadratic 2D interpolation not implemented - also probably pointless'
-
       ELSE IF (iorder == 3) THEN
 
          ! No cubic extrapolation implemented if the desired point is outside x AND y array boundary corners
@@ -506,7 +504,7 @@ CONTAINS
             WRITE (*, *) 'FIND_2D: array ymin:', ytab(1)
             WRITE (*, *) 'FIND_2D: array ymax:', ytab(ny)
             WRITE (*, *) 'FIND_2D: requested y:', y
-            STOP 'FIND_2D: Desired point is outside x AND y array range'
+            STOP 'FIND_2D: Desired point is outside both x and y array range'
          END IF
 
          IF (x < xtab(1) .OR. x > xtab(nx)) THEN
@@ -532,7 +530,7 @@ CONTAINS
             ELSE IF (y >= ytab(ny-3)) THEN
                j = ny-2
             ELSE
-               j = find_table_integer(y, ytab, ifind)
+               j = find_table_integer(y, ytab, ifindy)
             END IF
 
             j1 = j-1
@@ -584,7 +582,7 @@ CONTAINS
             ELSE IF (x >= xtab(nx-3)) THEN
                i = nx-2
             ELSE
-               i = find_table_integer(x, xtab, ifind)
+               i = find_table_integer(x, xtab, ifindx)
             END IF
 
             i1 = i-1
@@ -643,7 +641,7 @@ CONTAINS
             ELSE IF (x >= xtab(nx-3)) THEN
                i = nx-2
             ELSE
-               i = find_table_integer(x, xtab, ifind)
+               i = find_table_integer(x, xtab, ifindx)
             END IF
 
             i1 = i-1
@@ -661,7 +659,7 @@ CONTAINS
             ELSE IF (y >= ytab(ny-3)) THEN
                j = ny-2
             ELSE
-               j = find_table_integer(y, ytab, ifind)
+               j = find_table_integer(y, ytab, ifindy)
             END IF
 
             j1 = j-1
@@ -712,32 +710,43 @@ CONTAINS
             
             CALL fix_polynomial(a3, a2, a1, a0, [y1, y2, y3, y4], [f01, f02, f03, f04])
             findy = polynomial(y, a3, a2, a1, a0)
+
+            IF(xycubic) THEN
             
-            ! y interpolation
+               ! y interpolation
 
-            CALL fix_polynomial(a3, a2, a1, a0, [y1, y2, y3, y4], [f11, f12, f13, f14])
-            f10 = polynomial(y, a3, a2, a1, a0)
+               CALL fix_polynomial(a3, a2, a1, a0, [y1, y2, y3, y4], [f11, f12, f13, f14])
+               f10 = polynomial(y, a3, a2, a1, a0)
 
-            CALL fix_polynomial(a3, a2, a1, a0, [y1, y2, y3, y4], [f21, f22, f23, f24])
-            f20 = polynomial(y, a3, a2, a1, a0)
+               CALL fix_polynomial(a3, a2, a1, a0, [y1, y2, y3, y4], [f21, f22, f23, f24])
+               f20 = polynomial(y, a3, a2, a1, a0)
 
-            CALL fix_polynomial(a3, a2, a1, a0, [y1, y2, y3, y4], [f31, f32, f33, f34])
-            f30 = polynomial(y, a3, a2, a1, a0)
+               CALL fix_polynomial(a3, a2, a1, a0, [y1, y2, y3, y4], [f31, f32, f33, f34])
+               f30 = polynomial(y, a3, a2, a1, a0)
 
-            CALL fix_polynomial(a3, a2, a1, a0, [y1, y2, y3, y4], [f41, f42, f43, f44])
-            f40 = polynomial(y, a3, a2, a1, a0)
+               CALL fix_polynomial(a3, a2, a1, a0, [y1, y2, y3, y4], [f41, f42, f43, f44])
+               f40 = polynomial(y, a3, a2, a1, a0)
 
-            CALL fix_polynomial(a3, a2, a1, a0, [x1, x2, x3, x4], [f10, f20, f30, f40])
-            findx = polynomial(x, a3, a2, a1, a0)
+               CALL fix_polynomial(a3, a2, a1, a0, [x1, x2, x3, x4], [f10, f20, f30, f40])
+               findx = polynomial(x, a3, a2, a1, a0)
 
-            ! Final result is an average over each direction
-            find_2D = (findx+findy)/2.
+               ! Final result is an average over each direction
+
+               find_2D = (findx+findy)/2.
+
+            ELSE
+
+               findx = 0.
+               find_2D = findy
+
+            END IF
 
          END IF
 
       ELSE
 
-         STOP 'FIND_2D: order for interpolation not specified correctly'
+         WRITE(*, *) 'FIND_2D: Order:', iorder
+         STOP 'FIND_2D: Order not supported'
 
       END IF
 
@@ -1324,7 +1333,6 @@ CONTAINS
       TYPE(interpolator2D), INTENT(IN) :: interp
       INTEGER, PARAMETER :: iinterp = iinterp_polynomial ! No Lagrange polynomials in 2D
       REAL :: xx, yy
-      INTEGER :: ifind
 
       xx = x
       IF (interp%logx) xx = log(xx)
@@ -1332,14 +1340,10 @@ CONTAINS
       yy = y
       IF (interp%logy) yy = log(yy)
 
-      IF (interp%ifindx == ifind_linear .AND. interp%ifindy == ifind_linear) THEN
-         ifind = ifind_linear
-      ELSE
-         ifind = ifind_interpolator_default
-      END IF
       evaluate_interpolator_2D = find(xx, interp%x, yy, interp%y, interp%f, interp%nx, interp%ny, &
                   interp%iorder, &
-                  ifind, &
+                  interp%ifindx, &
+                  interp%ifindy, &
                   iinterp)
 
       IF (interp%logf) evaluate_interpolator_2D = exp(evaluate_interpolator_2D)
