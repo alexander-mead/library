@@ -21,9 +21,11 @@ MODULE interpolate
    PUBLIC :: iinterp_centred
 
    ! Switches for extrapolation
-   PUBLIC :: iextrap_none
+   PUBLIC :: iextrap_no
    PUBLIC :: iextrap_standard
    PUBLIC :: iextrap_linear
+   PUBLIC :: iextrap_zero
+   PUBLIC :: iextrap_nearest
 
    ! Types
    PUBLIC :: interpolator1D
@@ -36,12 +38,16 @@ MODULE interpolate
    LOGICAL, PARAMETER :: centred_interpolator = .FALSE.
    INTEGER, PARAMETER :: ifind_interpolator_default = ifind_split
 
-   INTEGER, PARAMETER :: iextrap_none = 0
+   INTEGER, PARAMETER :: iextrap_no = 0
    INTEGER, PARAMETER :: iextrap_standard = 1
    INTEGER, PARAMETER :: iextrap_linear = 2
+   INTEGER, PARAMETER :: iextrap_zero = 3
+   INTEGER, PARAMETER :: iextrap_nearest = 4
 
    INTEGER, PARAMETER :: ifind_inverse_interpolator = ifind_split
    INTEGER, PARAMETER :: iinterp_inverse_interpolator = iinterp_Lagrange
+
+   LOGICAL, PARAMETER :: init2D = .TRUE.
 
    INTERFACE find
       MODULE PROCEDURE find_1D
@@ -64,7 +70,7 @@ MODULE interpolate
    END INTERFACE inverse_interpolator
 
    TYPE interpolator1D
-      REAL, ALLOCATABLE :: x(:), xmid(:)
+      REAL, ALLOCATABLE :: x(:), x0(:)
       REAL, ALLOCATABLE :: f(:)
       REAL, ALLOCATABLE :: a0(:), a1(:), a2(:), a3(:)
       INTEGER :: iorder, iextrap
@@ -76,8 +82,9 @@ MODULE interpolate
    TYPE interpolator2D
       REAL, ALLOCATABLE :: x(:), y(:)
       REAL, ALLOCATABLE :: f(:, :)
-      REAL, ALLOCATABLE :: ax0(:), ax1(:), ax2(:), ax3(:)
-      REAL, ALLOCATABLE :: ay0(:), ay1(:), ay2(:), ay3(:)
+      REAL, ALLOCATABLE :: x0(:, :), y0(:, :)
+      REAL, ALLOCATABLE :: ax0(:, :), ax1(:, :), ax2(:, :), ax3(:, :)
+      REAL, ALLOCATABLE :: ay0(:, :), ay1(:, :), ay2(:, :), ay3(:, :)
       INTEGER :: iorder, iextrap
       INTEGER :: ifindx, ifindy 
       INTEGER :: nx, ny
@@ -161,7 +168,7 @@ CONTAINS
                CALL fix_polynomial(a1, a0, [x1, x2], [y1, y2])        
                find_1D = polynomial(x, a1, a0)
             ELSE IF (iinterp == iinterp_Lagrange) THEN
-               find_1D = Lagrange_polynomial(x, 1, [x1, x2], [y1, y2])
+               find_1D = Lagrange_polynomial(x, [x1, x2], [y1, y2])
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
             END IF
@@ -184,7 +191,7 @@ CONTAINS
                CALL fix_centred_polynomial(a1, a0, x0, [x1, x2], [y1, y2])
                find_1D = centred_polynomial(x, x0, a1, a0)
             ELSE IF (iinterp == iinterp_Lagrange) THEN
-               find_1D = Lagrange_polynomial(x, 1, [x1, x2], [y1, y2])
+               find_1D = Lagrange_polynomial(x, [x1, x2], [y1, y2])
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
             END IF
@@ -229,7 +236,7 @@ CONTAINS
                CALL fix_centred_polynomial(a1, a0, x0, [x1, x2], [y1, y2])
                find_1D = centred_polynomial(x, x0, a1, a0)
             ELSE IF (iinterp == iinterp_Lagrange) THEN
-               find_1D = Lagrange_polynomial(x, 1, [x1, x2], [y1, y2])
+               find_1D = Lagrange_polynomial(x, [x1, x2], [y1, y2])
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
             END IF
@@ -274,7 +281,7 @@ CONTAINS
                   CALL fix_centred_polynomial(a2, a1, a0, x0, [x1, x2, x3], [y1, y2, y3])
                   find_1D = centred_polynomial(x, x0, a2, a1, a0)
                ELSE IF (iinterp == iinterp_Lagrange) THEN
-                  find_1D = Lagrange_polynomial(x, 2, [x1, x2, x3], [y1, y2, y3])
+                  find_1D = Lagrange_polynomial(x, [x1, x2, x3], [y1, y2, y3])
                ELSE
                   STOP 'FIND_1D: Error, method not specified correctly'
                END IF
@@ -311,8 +318,8 @@ CONTAINS
                   find_1D = find_1D+centred_polynomial(x, x0, a2, a1, a0)/2.
                ELSE IF (iinterp == iinterp_Lagrange) THEN
                   ! In this case take the average of two quadratic Lagrange polynomials
-                  L1 = Lagrange_polynomial(x, 2, [x1, x2, x3], [y1, y2, y3])
-                  L2 = Lagrange_polynomial(x, 2, [x2, x3, x4], [y2, y3, y4])
+                  L1 = Lagrange_polynomial(x, [x1, x2, x3], [y1, y2, y3])
+                  L2 = Lagrange_polynomial(x, [x2, x3, x4], [y2, y3, y4])
                   find_1D = (L1+L2)/2.
                ELSE
                   STOP 'FIND_1D: Error, method not specified correctly'
@@ -372,7 +379,7 @@ CONTAINS
                CALL fix_centred_polynomial(a3, a2, a1, a0, x0, [x1, x2, x3, x4], [y1, y2, y3, y4])
                find_1D = centred_polynomial(x, x0, a3, a2, a1, a0)
             ELSE IF (iinterp == iinterp_Lagrange) THEN
-               find_1D = Lagrange_polynomial(x, 3, [x1, x2, x3, x4], [y1, y2, y3, y4])
+               find_1D = Lagrange_polynomial(x, [x1, x2, x3, x4], [y1, y2, y3, y4])
             ELSE
                STOP 'FIND_1D: Error, method not specified correctly'
             END IF
@@ -944,7 +951,7 @@ CONTAINS
       INTEGER, PARAMETER :: ifind_default = ifind_interpolator_default
 
       CALL if_allocated_deallocate(interp%x)
-      CALL if_allocated_deallocate(interp%xmid)
+      CALL if_allocated_deallocate(interp%x0)
       CALL if_allocated_deallocate(interp%a0)
       CALL if_allocated_deallocate(interp%a1)
       CALL if_allocated_deallocate(interp%a2)
@@ -1004,7 +1011,7 @@ CONTAINS
          ALLOCATE(interp%a3(nn))
          interp%a3 = 0.
       END IF
-      IF (centred_interpolator) ALLOCATE(interp%xmid(nn))
+      IF (centred_interpolator) ALLOCATE(interp%x0(nn))
 
       ! Default values because a3, a2 will be zero for linear polynomials
       a0 = 0.
@@ -1141,7 +1148,7 @@ CONTAINS
          ELSE
             ii = i
          END IF
-         IF(centred_interpolator) interp%xmid(ii) = xm
+         IF(centred_interpolator) interp%x0(ii) = xm
          interp%a0(ii) = a0
          interp%a1(ii) = a1
          IF(iorder >= 2) interp%a2(ii) = a2
@@ -1168,7 +1175,7 @@ CONTAINS
 
       ! Calculate the index to use
       IF (xx < interp%x(1)) THEN
-         IF (interp%iextrap == iextrap_none) THEN
+         IF (interp%iextrap == iextrap_no) THEN
             STOP 'EVALUATE_INTERPOLATOR_1D: Error, desired x value is below range'
          ELSE IF(interp%iextrap == iextrap_standard) THEN
             i = 1
@@ -1180,7 +1187,7 @@ CONTAINS
       ELSE IF (xx == interp%x(n)) THEN
          i = n-1 ! Cannot use find_table_integer here because this would return 'n', rather than 'n-1'
       ELSE IF (xx > interp%x(n)) THEN
-         IF (interp%iextrap == iextrap_none) THEN
+         IF (interp%iextrap == iextrap_no) THEN
             STOP 'EVALUATE_INTERPOLATOR_1D: Error, desired x value is above range'
          ELSE IF (interp%iextrap == iextrap_standard) THEN
             i = n-1
@@ -1198,19 +1205,19 @@ CONTAINS
       ! Evaluate the interpolation
       IF (interp%iorder == 1) THEN
          IF (centred_interpolator) THEN
-            evaluate_interpolator_1D = centred_polynomial(xx, interp%xmid(i), interp%a1(i), interp%a0(i))
+            evaluate_interpolator_1D = centred_polynomial(xx, interp%x0(i), interp%a1(i), interp%a0(i))
          ELSE
             evaluate_interpolator_1D = polynomial(xx, interp%a1(i), interp%a0(i))
          END IF
       ELSE IF (interp%iorder == 2) THEN
          IF (centred_interpolator) THEN
-            evaluate_interpolator_1D = centred_polynomial(xx, interp%xmid(i), interp%a2(i), interp%a1(i), interp%a0(i))
+            evaluate_interpolator_1D = centred_polynomial(xx, interp%x0(i), interp%a2(i), interp%a1(i), interp%a0(i))
          ELSE
             evaluate_interpolator_1D = polynomial(xx, interp%a2(i), interp%a1(i), interp%a0(i))
          END IF
       ELSE IF (interp%iorder == 3) THEN
          IF (centred_interpolator) THEN
-            evaluate_interpolator_1D = centred_polynomial(xx, interp%xmid(i), interp%a3(i), interp%a2(i), interp%a1(i), interp%a0(i))
+            evaluate_interpolator_1D = centred_polynomial(xx, interp%x0(i), interp%a3(i), interp%a2(i), interp%a1(i), interp%a0(i))
          ELSE
             evaluate_interpolator_1D = polynomial(xx, interp%a3(i), interp%a2(i), interp%a1(i), interp%a0(i))
          END IF
@@ -1256,8 +1263,14 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: logx       ! Should interpolator take the logarithm of x?
       LOGICAL, OPTIONAL, INTENT(IN) :: logy       ! Should interpolator take the logarithm of x?
       LOGICAL, OPTIONAL, INTENT(IN) :: logf       ! Should interpolator take the logarithm of y?
-      INTEGER :: nx, ny
+      INTEGER :: ix, iy, nx, ny
+      INTEGER :: jx(4), jy(4)
+      INTEGER :: i
+      REAL :: xx(4), yy(4), fx(4), fy(4)
+      REAL :: x0, y0
+      REAL :: a0, a1, a2, a3
       INTEGER, PARAMETER :: ifind_default = ifind_interpolator_default
+      LOGICAL, PARAMETER :: initialise = init2D
 
       CALL if_allocated_deallocate(interp%x)
       CALL if_allocated_deallocate(interp%y)
@@ -1313,16 +1326,78 @@ CONTAINS
       interp%iorder = iorder
       interp%iextrap = iextrap
 
-      ! ALLOCATE(ax0(4), ax1(4), ax2(4), ax3(4))
-      ! ALLOCATE(ay0(4), ay1(4), ay2(4), ay3(4))
+      IF (initialise) THEN
 
-      ! DO iy = 1, ny
-      !    DO ix = 1, nx
+         IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
 
+            IF (interp%iextrap == iextrap_linear) STOP 'INIT_INTERPOLATOR_2D: Error, linear extrapolation not supported'
 
+            ALLOCATE(interp%x0(nx, ny), interp%ax0(nx, ny), interp%ax1(nx, ny), interp%ax2(nx, ny), interp%ax3(nx, ny))
+            ALLOCATE(interp%y0(nx, ny), interp%ay0(nx, ny), interp%ay1(nx, ny), interp%ay2(nx, ny), interp%ay3(nx, ny))
 
-      !    END DO
-      ! END DO     
+            DO iy = 1, ny
+               DO ix = 1, nx
+
+                  ! Indices run sequentially but must be within 1, nx
+                  DO i = 1, 4
+                     jx(i) = ix+(i-2)
+                  END DO
+                  IF (ix == 1)    jx = jx+1
+                  IF (ix == nx-1) jx = jx-1
+                  IF (ix == nx)   jx = jx-2
+
+                  ! Indices run sequentially but must be within 1, ny
+                  DO i = 1, 4
+                     jy(i) = iy+(i-2)
+                  END DO
+                  IF (iy == 1)    jy = jy+1
+                  IF (iy == ny-1) jy = jy-1
+                  IF (iy == ny)   jy = jy-2
+
+                  ! Get x values and function values running along x direction
+                  DO i = 1, 4
+                     xx(i) = interp%x(jx(i))
+                     fx(i) = interp%f(jx(i), iy)
+                  END DO
+
+                  ! Calculate the mid point for polynomial
+                  x0 = (xx(2)+xx(3))/2.
+                  interp%x0(ix, iy) = x0
+
+                  ! Fix polynomial along the x direction
+                  CALL fix_centred_polynomial(a3, a2, a1, a0, x0, xx, fx)
+                  interp%ax3(ix, iy) = a3
+                  interp%ax2(ix, iy) = a2
+                  interp%ax1(ix, iy) = a1
+                  interp%ax0(ix, iy) = a0
+
+                  ! Get y values and function values running along y direction
+                  DO i = 1, 4
+                     yy(i) = interp%y(jy(i))
+                     fy(i) = interp%f(ix, jy(i))
+                  END DO
+
+                  ! Calculate the mid point for polynomial
+                  y0 = (yy(2)+yy(3))/2.
+                  interp%y0(ix, iy) = y0
+
+                  ! Fix polynomial along the y direction
+                  CALL fix_centred_polynomial(a3, a2, a1, a0, y0, yy, fy)
+                  interp%ay3(ix, iy) = a3
+                  interp%ay2(ix, iy) = a2
+                  interp%ay1(ix, iy) = a1
+                  interp%ay0(ix, iy) = a0
+
+               END DO
+            END DO 
+
+         ELSE
+
+            STOP 'INIT_INTERPOLATOR_2D: Error, iorder not supported'
+
+         END IF
+         
+      END IF
 
    END SUBROUTINE init_interpolator_2D
 
@@ -1332,7 +1407,11 @@ CONTAINS
       REAL, INTENT(IN) :: y
       TYPE(interpolator2D), INTENT(IN) :: interp
       INTEGER, PARAMETER :: iinterp = iinterp_polynomial ! No Lagrange polynomials in 2D
-      REAL :: xx, yy
+      INTEGER :: ix, iy, nx, ny, i, j, m  
+      REAL :: xx, yy, ffx, ffy
+      INTEGER, ALLOCATABLE :: jx(:), jy(:)
+      REAL, ALLOCATABLE :: fx(:), fy(:), xxx(:), yyy(:)
+      LOGICAL, PARAMETER :: initialise = init2D
 
       xx = x
       IF (interp%logx) xx = log(xx)
@@ -1340,11 +1419,93 @@ CONTAINS
       yy = y
       IF (interp%logy) yy = log(yy)
 
-      evaluate_interpolator_2D = find(xx, interp%x, yy, interp%y, interp%f, interp%nx, interp%ny, &
-                  interp%iorder, &
-                  interp%ifindx, &
-                  interp%ifindy, &
-                  iinterp)
+      IF (initialise) THEN
+
+         IF (interp%iextrap == iextrap_no) THEN
+            IF (xx < interp%x(1) .OR. xx > interp%x(size(interp%x))) THEN
+               STOP 'EVALUATE_INTERPOLATOR_2D: Error, point is outside x range'
+            ELSE IF (yy < interp%y(1) .OR. yy > interp%y(size(interp%y))) THEN
+               STOP 'EVALUATE_INTERPOLATOR_2D: Error, point is outside y range'
+            END IF
+         END IF
+
+         IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
+
+            IF (interp%iorder == 2) THEN
+               m = 2
+            ELSE IF (interp%iorder == 3) THEN
+               m = 4
+            ELSE
+               STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
+            END IF
+            ALLOCATE(jx(m), jy(m))
+            ALLOCATE(fx(m), fy(m), xxx(m), yyy(m))
+
+            ix = find_table_integer(xx, interp%x, interp%ifindx)
+            nx = interp%nx    
+            IF (interp%iorder == 2) THEN
+               jx(1) = ix
+               jx(2) = ix+1
+               IF (ix == nx) jx = jx-1
+            ELSE IF (interp%iorder == 3) THEN
+               DO i = 1, m
+                  jx(i) = ix+(i-2)
+               END DO
+               IF (ix == 1)    jx = jx+1
+               IF (ix == nx-1) jx = jx-1
+               IF (ix == nx)   jx = jx-2   
+            ELSE
+               STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
+            END IF
+
+            iy = find_table_integer(yy, interp%y, interp%ifindy)
+            ny = interp%ny
+            IF (interp%iorder == 2) THEN
+               jy(1) = iy
+               jy(2) = iy+1
+               IF (iy == ny)   jy = jy-1
+            ELSE IF (interp%iorder == 3) THEN 
+               DO i = 1, m
+                  jy(i) = iy+(i-2)
+               END DO 
+               IF (iy == 1)    jy = jy+1
+               IF (iy == ny-1) jy = jy-1
+               IF (iy == ny)   jy = jy-2
+            ELSE
+               STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
+            END IF   
+            
+            DO i = 1, m
+               j = jx(i)
+               xxx(i) = interp%x(j)
+               fx(i) = centred_polynomial(yy, interp%y0(j, iy), interp%ay3(j, iy), interp%ay2(j, iy), interp%ay1(j, iy), interp%ay0(j, iy))
+            END DO
+
+            ffy = Lagrange_polynomial(xx, xxx, fx)
+
+            DO i = 1, m
+               j = jy(i)
+               yyy(i) = interp%y(j)
+               fy(i) = centred_polynomial(xx, interp%x0(ix, j), interp%ax3(ix, j), interp%ax2(ix, j), interp%ax1(ix, j), interp%ax0(ix, j))
+            END DO
+
+            ffx = Lagrange_polynomial(yy, yyy, fy)
+
+            evaluate_interpolator_2D = (ffx+ffy)/2.
+
+         ELSE
+            STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with the order'
+         END IF
+
+      ELSE
+
+         evaluate_interpolator_2D = find(xx, interp%x, yy, interp%y, interp%f, interp%nx, interp%ny, &
+                     interp%iorder, &
+                     interp%ifindx, &
+                     interp%ifindy, &
+                     iinterp)   
+
+      END IF
 
       IF (interp%logf) evaluate_interpolator_2D = exp(evaluate_interpolator_2D)
 

@@ -387,37 +387,40 @@ CONTAINS
 
    END FUNCTION sigmoid_log
 
-   REAL FUNCTION Legendre_Polynomial(n, x)
+   REAL FUNCTION Legendre_polynomial(n, x)
 
       ! Returns the nth order Legendre polynomail: P_n(x)
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
 
       IF (n == 0) THEN
-         Legendre_Polynomial = 1.
+         Legendre_polynomial = 1.
       ELSE IF (n == 1) THEN
-         Legendre_Polynomial = x
+         Legendre_polynomial = x
       ELSE IF (n == 2) THEN
-         Legendre_Polynomial = (3.*x**2-1.)/2.
+         Legendre_polynomial = (3.*x**2-1.)/2.
       ELSE IF (n == 3) THEN
-         Legendre_Polynomial = (5.*x**3-3.*x)/2.
+         Legendre_polynomial = (5.*x**3-3.*x)/2.
       ELSE IF (n == 4) THEN
-         Legendre_Polynomial = (35.*x**4-30.*x**2+3.)/8.
+         Legendre_polynomial = (35.*x**4-30.*x**2+3.)/8.
       ELSE
          STOP 'LEGENDRE_POLYNOMIAL: polynomial of this order not stored'
       END IF
 
-   END FUNCTION Legendre_Polynomial
+   END FUNCTION Legendre_polynomial
 
-   REAL FUNCTION Lagrange_polynomial(x, n, xv, yv)
+   REAL FUNCTION Lagrange_polynomial(x, xv, yv)
 
       ! Computes the result of the nth order Lagrange polynomial at point x, L(x)
       REAL, INTENT(IN) :: x
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: xv(n+1)
-      REAL, INTENT(IN) :: yv(n+1)
-      REAL :: l(n+1)     
-      INTEGER :: i, j
+      REAL, INTENT(IN) :: xv(:)
+      REAL, INTENT(IN) :: yv(:)
+      REAL :: l(size(xv))
+      INTEGER :: i, j, n
+
+      n = size(xv)
+      IF (n /= size(yv)) STOP 'LAGRANGE_POLYNOMIAL: Error, xv and yv should have the same size'
+      n = n-1
 
       IF (n == 0) THEN
          Lagrange_polynomial = yv(1)

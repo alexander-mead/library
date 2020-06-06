@@ -48,7 +48,7 @@ PROGRAM interpolate_test
             xxmax = xmax
             logtest = .FALSE.
             iorder = 3
-            iextrap = iextrap_none
+            iextrap = iextrap_no
          ELSE IF (itest == 2) THEN
             xmin = 1e-3
             xmax = 3.
@@ -56,7 +56,7 @@ PROGRAM interpolate_test
             xxmax = xmax
             logtest = .TRUE.
             iorder = 3
-            iextrap = iextrap_none
+            iextrap = iextrap_no
          ELSE IF (itest == 3) THEN
             xmin = 0.
             xmax = 3.
@@ -80,7 +80,7 @@ PROGRAM interpolate_test
             xxmax = xmax
             logtest = .FALSE.
             iorder = 2
-            iextrap = iextrap_none
+            iextrap = iextrap_no
          ELSE IF (itest == 6) THEN
             xmin = 0.
             xmax = 3.
@@ -88,7 +88,7 @@ PROGRAM interpolate_test
             xxmax = xmax
             logtest = .FALSE.
             iorder = 1
-            iextrap = iextrap_none
+            iextrap = iextrap_no
          ELSE IF (itest == 7) THEN
             xmin = 0.
             xmax = 3.
@@ -154,7 +154,7 @@ PROGRAM interpolate_test
       INTEGER, PARAMETER :: my = 64
       REAL, PARAMETER :: tol = 1e-8
       REAL, PARAMETER :: a = 2.
-      INTEGER, PARAMETER :: ntest = 2
+      INTEGER, PARAMETER :: ntest = 3
 
       fail = .FALSE.
 
@@ -163,11 +163,15 @@ PROGRAM interpolate_test
          IF (itest == 1) THEN
             logtest = .FALSE.
             iorder = 3
-            iextrap = iextrap_none
+            iextrap = iextrap_no
          ELSE IF (itest == 2) THEN
             logtest = .TRUE.
             iorder = 3
-            iextrap = iextrap_none
+            iextrap = iextrap_no
+         ELSE IF (itest == 3) THEN
+            logtest = .FALSE.
+            iorder = 2
+            iextrap = iextrap_no
          ELSE
             STOP 'TEST_INTERPOLATOR_2D: Something went wrong'
          END IF
@@ -223,6 +227,8 @@ PROGRAM interpolate_test
          f = x**2+2.*y**2*3.*x*y
       ELSE IF (itest == 2) THEN
          f = 12.*x*y
+      ELSE IF (itest == 3) THEN
+         f = x+3.*y+1.
       ELSE
          STOP 'TEST_FUNCTION_2D: Error, itest specified incorrectly'
       END IF

@@ -328,7 +328,6 @@ MODULE cosmology_functions
    REAL, PARAMETER :: alpha_sigma = 3.     ! Exponent to increase speed (1 is terrible, 2, 3, 4 all okay)
    REAL, PARAMETER :: acc_sigma = acc_cosm ! Accuracy parameter for sigma(R) integration
    INTEGER, PARAMETER :: iorder_sigma = 3  ! Polynomial order for sigma(R) integration
-   INTEGER, PARAMETER :: iextrap_sigma = iextrap_linear ! Extrapolation for sigma(R) interpolator
    
    ! sigma(R) tabulation and interpolation
    REAL, PARAMETER :: rmin_sigma = 1e-4          ! Minimum r value (NB. sigma(R) needs to be power-law below)
@@ -341,7 +340,8 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split    ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange    ! Method for sigma(R) interpolation
    INTEGER, PARAMETER :: sigma_store = flag_power_cold_unorm ! Which version of sigma should be tabulated (0 for none)
-         
+   INTEGER, PARAMETER :: iextrap_sigma = iextrap_standard    ! Extrapolation for sigma(R) interpolator      
+
    ! Use the interpolator structure?
    LOGICAL, PARAMETER :: use_interpolators = .TRUE. 
 
@@ -6933,7 +6933,7 @@ CONTAINS
             IF (logk(i) <= logkv(1) .OR. logk(i) >= logkv(4)) THEN
                Pk_smooth(i) = Pk(i)
             ELSE
-               Pk_smooth(i) = exp(Lagrange_polynomial(logk(i), 3, logkv, logpv))
+               Pk_smooth(i) = exp(Lagrange_polynomial(logk(i), logkv, logpv))
             END IF
          END DO
 
