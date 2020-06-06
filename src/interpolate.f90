@@ -67,7 +67,8 @@ MODULE interpolate
       REAL, ALLOCATABLE :: x(:), xmid(:)
       REAL, ALLOCATABLE :: f(:)
       REAL, ALLOCATABLE :: a0(:), a1(:), a2(:), a3(:)
-      INTEGER :: iorder, ifind, iextrap
+      INTEGER :: iorder, iextrap
+      INTEGER :: ifind
       INTEGER :: n
       LOGICAL :: logx, logf
    END TYPE interpolator1D
@@ -75,7 +76,10 @@ MODULE interpolate
    TYPE interpolator2D
       REAL, ALLOCATABLE :: x(:), y(:)
       REAL, ALLOCATABLE :: f(:, :)
-      INTEGER :: iorder, ifind, iextrap
+      REAL, ALLOCATABLE :: ax0(:), ax1(:), ax2(:), ax3(:)
+      REAL, ALLOCATABLE :: ay0(:), ay1(:), ay2(:), ay3(:)
+      INTEGER :: iorder, iextrap
+      INTEGER :: ifindx, ifindy 
       INTEGER :: nx, ny
       LOGICAL :: logx, logy, logf
    END TYPE interpolator2D
@@ -1250,6 +1254,7 @@ CONTAINS
       CALL if_allocated_deallocate(interp%y)
       CALL if_allocated_deallocate(interp%f)
 
+      ! Sort out x axis
       nx = size(x)
       IF(nx /= size(f, 1)) STOP 'INIT_INTERPOLATOR_2D: Error, x should be the same size as first dimension of f'
       interp%nx = nx
@@ -1261,7 +1266,13 @@ CONTAINS
          interp%x = x
          interp%logx = .FALSE.
       END IF
+      IF (regular_spacing(interp%x)) THEN
+         interp%ifindx = ifind_linear
+      ELSE
+         interp%ifindx = ifind_default
+      END IF
 
+      ! Sort out y axis
       ny = size(y)
       IF(ny /= size(f, 2)) STOP 'INIT_INTERPOLATOR_2D: Error, y should be the same size as second dimension of f'
       interp%ny = ny
@@ -1273,7 +1284,13 @@ CONTAINS
          interp%y = y
          interp%logy = .FALSE.
       END IF
+      IF (regular_spacing(interp%y)) THEN
+         interp%ifindy = ifind_linear
+      ELSE
+         interp%ifindy = ifind_default
+      END IF
 
+      ! Sort out f
       ALLOCATE(interp%f(nx, ny))
       IF(present_and_correct(logf)) THEN
          interp%f = log(f)
@@ -1283,14 +1300,20 @@ CONTAINS
          interp%logf = .FALSE.
       END IF
 
-      IF(regular_spacing(interp%x) .AND. regular_spacing(interp%y)) THEN
-         interp%ifind = ifind_linear
-      ELSE
-         interp%ifind = ifind_default
-      END IF
-
+      ! Set internal variables
       interp%iorder = iorder
       interp%iextrap = iextrap
+
+      ! ALLOCATE(ax0(4), ax1(4), ax2(4), ax3(4))
+      ! ALLOCATE(ay0(4), ay1(4), ay2(4), ay3(4))
+
+      ! DO iy = 1, ny
+      !    DO ix = 1, nx
+
+
+
+      !    END DO
+      ! END DO     
 
    END SUBROUTINE init_interpolator_2D
 
@@ -1301,6 +1324,7 @@ CONTAINS
       TYPE(interpolator2D), INTENT(IN) :: interp
       INTEGER, PARAMETER :: iinterp = iinterp_polynomial ! No Lagrange polynomials in 2D
       REAL :: xx, yy
+      INTEGER :: ifind
 
       xx = x
       IF (interp%logx) xx = log(xx)
@@ -1308,9 +1332,14 @@ CONTAINS
       yy = y
       IF (interp%logy) yy = log(yy)
 
+      IF (interp%ifindx == ifind_linear .AND. interp%ifindy == ifind_linear) THEN
+         ifind = ifind_linear
+      ELSE
+         ifind = ifind_interpolator_default
+      END IF
       evaluate_interpolator_2D = find(xx, interp%x, yy, interp%y, interp%f, interp%nx, interp%ny, &
                   interp%iorder, &
-                  interp%ifind, &
+                  ifind, &
                   iinterp)
 
       IF (interp%logf) evaluate_interpolator_2D = exp(evaluate_interpolator_2D)
