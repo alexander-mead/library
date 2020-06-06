@@ -7,8 +7,8 @@ MODULE precision
    PRIVATE
 
    ! Integer precision
-   PUBLIC :: i4
-   PUBLIC :: i8
+   PUBLIC :: int4
+   PUBLIC :: int8
 
    ! Real precision
    PUBLIC :: sp
@@ -16,8 +16,8 @@ MODULE precision
    PUBLIC :: qp
 
    ! Integer precision
-   INTEGER, PARAMETER :: i4 = selected_int_kind(4)
-   INTEGER, PARAMETER :: i8 = selected_int_kind(8)
+   INTEGER, PARAMETER :: int4 = selected_int_kind(4)
+   INTEGER, PARAMETER :: int8 = selected_int_kind(8)
 
    ! Hmmm....
    !INTEGER, PARAMETER :: sp = KIND(1.0)

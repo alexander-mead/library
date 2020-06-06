@@ -99,7 +99,7 @@ CONTAINS
       COMPLEX(dp), INTENT(OUT) :: out(n)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(n)) STOP 'FFT1_COMPLEX_DOUBLE Error, the array should be even'
@@ -138,7 +138,7 @@ CONTAINS
       COMPLEX(sp), INTENT(OUT) :: out(n)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(n)) STOP 'FFT1_COMPELX_SINGLE: Error, the array should be even'
@@ -177,7 +177,7 @@ CONTAINS
       COMPLEX(dp), INTENT(INOUT) :: fspace(n/2+1)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
 
       IF (odd(n)) STOP 'FFT1_REAL_DOUBLE: Error, the array should be even'
 
@@ -205,7 +205,7 @@ CONTAINS
       COMPLEX(sp), INTENT(INOUT) :: fspace(n/2+1)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
 
       IF (odd(n)) STOP 'FFT1_REAL_SINGLE: Error, the array should be even'
 
@@ -233,7 +233,7 @@ CONTAINS
       COMPLEX(dp), INTENT(OUT) :: out(nx, ny)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT2_COMPLEX_DOUBLE: Error, the array should be even'
@@ -273,7 +273,7 @@ CONTAINS
       COMPLEX(sp), INTENT(OUT) :: out(nx, ny)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT2_COMPLEX_SINGLE: Error, the array should be even'
@@ -313,7 +313,7 @@ CONTAINS
       COMPLEX(dp), INTENT(INOUT) :: fspace(nx/2+1, ny)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT2_REAL_DOUBLE: Error, the array should be even'
@@ -350,7 +350,7 @@ CONTAINS
       COMPLEX(sp), INTENT(INOUT) :: fspace(nx/2+1, ny)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT2_REAL_SINGLE: Error, the array should be even'
@@ -387,7 +387,7 @@ CONTAINS
       COMPLEX(dp), INTENT(OUT) :: out(nx, ny, nz)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT3_COMPLEX_DOUBLE: Error, the array should be even'
@@ -428,7 +428,7 @@ CONTAINS
       COMPLEX(sp), INTENT(OUT) :: out(nx, ny, nz)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT3_COMPLEX_SINGLE: Error, the array should be even'
@@ -469,7 +469,7 @@ CONTAINS
       COMPLEX(dp), INTENT(INOUT) :: fspace(nx/2+1, ny, nz)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT3_REAL_DOUBLE: Error, the array should be even'
@@ -507,7 +507,7 @@ CONTAINS
       COMPLEX(sp), INTENT(INOUT) :: fspace(nx/2+1, ny, nz)
       INTEGER, INTENT(IN) :: ifb
       !INTEGER*8 :: plan
-      INTEGER(i8) :: plan
+      INTEGER(int8) :: plan
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
       IF (odd(nx)) STOP 'FFT3_REAL_SINGLE: Error, the array should be even'

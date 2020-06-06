@@ -1287,7 +1287,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m, m)  
       !INTEGER*8 :: sum
-      INTEGER(i8) :: sum
+      INTEGER(int8) :: sum
       INTEGER :: i, j, k
 
       sum = 0
@@ -1336,7 +1336,7 @@ CONTAINS
       REAL, ALLOCATABLE :: kbin(:)
       DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f
       !INTEGER*8 :: nmodes8(nk)
-      INTEGER(i8) :: nmodes8(nk)
+      INTEGER(int8) :: nmodes8(nk)
 
       REAL, PARAMETER :: dbin = 1e-3 ! Bin slop parameter for first and last bin edges
       LOGICAL, PARAMETER :: logmeank = .FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
@@ -1481,7 +1481,7 @@ CONTAINS
       REAL, ALLOCATABLE :: kbin(:)
       DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f
       !INTEGER*8 :: nmodes8(nk)
-      INTEGER(i8) :: nmodes8(nk)
+      INTEGER(int8) :: nmodes8(nk)
 
       REAL, PARAMETER :: dbin = 1e-3 ! Bin slop parameter for first and last bin edges
       LOGICAL, PARAMETER :: logmeank = .FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
@@ -1900,7 +1900,7 @@ CONTAINS
       REAL :: kbin(nk+1)
       DOUBLE PRECISION :: pow8(nk), kval8(nk)
       !INTEGER*8 :: nmodes8(nk)
-      INTEGER(i8) :: nmodes8(nk)
+      INTEGER(int8) :: nmodes8(nk)
 
       STOP 'COMPUTE_POWER_SPECTRUM_POLE: Check this very carefully'
 
@@ -2014,7 +2014,7 @@ CONTAINS
       DOUBLE PRECISION :: pow8(nk, nk)
       INTEGER :: nmodes(nk, nk)
       !INTEGER*8 :: nmodes8(nk, nk)
-      INTEGER(i8) :: nmodes8(nk, nk)
+      INTEGER(int8) :: nmodes8(nk, nk)
       !DOUBLE COMPLEX :: d(:, :, :)
       COMPLEX :: d(:, :, :)
 
@@ -2147,7 +2147,7 @@ CONTAINS
       REAL :: pow8(nk, nk)
       INTEGER :: nmodes(nk, nk)
       !INTEGER*8 :: nmodes8(nk, nk)
-      INTEGER(i8) :: nmodes8(nk, nk)
+      INTEGER(int8) :: nmodes8(nk, nk)
       !DOUBLE COMPLEX :: d(:, :, :)
       COMPLEX :: d(:, :, :)
 
@@ -2333,7 +2333,7 @@ CONTAINS
       REAL, INTENT(OUT) :: xi_array(n)
       REAL, INTENT(IN) :: L, d(m, m, m), r_array(n)
       !INTEGER*8, INTENT(OUT) :: n_array(n)
-      INTEGER(i8), INTENT(OUT) :: n_array(n)
+      INTEGER(int8), INTENT(OUT) :: n_array(n)
       REAL:: rmin, rmax
       DOUBLE PRECISION :: xi8_array(n)
       INTEGER :: i1, i2, i3, j1, j2, j3, i(3), j(3), k, dim
@@ -2410,7 +2410,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m, m)   
       !INTEGER*8 :: sum
-      INTEGER(i8) :: sum
+      INTEGER(int8) :: sum
       INTEGER :: i, j, k
 
       sum = 0

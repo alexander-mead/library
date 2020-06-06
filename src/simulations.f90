@@ -1598,7 +1598,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: L ! Box size [Mpc/h]
       !INTEGER*8, INTENT(IN) :: n ! Total number of particles
-      INTEGER(i8), INTENT(IN) :: n ! Total number of particles
+      INTEGER(int8), INTENT(IN) :: n ! Total number of particles
 
       !Calculate number density
       shot_noise_simple = L**3/real(n)

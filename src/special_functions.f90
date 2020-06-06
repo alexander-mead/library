@@ -325,7 +325,7 @@ CONTAINS
       ! f(1)=1, f(2)=2, f(3)=6, f(4)=24, ..., f(n)=n*f(n-1)
       ! TODO: Should this really be INT8 here?    
       USE precision 
-      INTEGER(i8), INTENT(OUT) :: f(:)
+      INTEGER(int8), INTENT(OUT) :: f(:)
       INTEGER, INTENT(IN) :: n
       INTEGER :: i
 
@@ -345,12 +345,12 @@ CONTAINS
 
    END SUBROUTINE get_factorials
 
-   INTEGER(i8) FUNCTION factorial(n)
+   INTEGER(int8) FUNCTION factorial(n)
 
       ! Calculates the nth factorial number
       USE precision
       INTEGER, INTENT(IN) :: n
-      INTEGER(i8) :: f8(n)
+      INTEGER(int8) :: f8(n)
 
       IF (n < 0) THEN
          STOP 'FACTORIAL: Error, factorials not defined for n<0'
