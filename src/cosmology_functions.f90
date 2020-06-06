@@ -383,12 +383,12 @@ MODULE cosmology_functions
 
    ! Halofit
    INTEGER, PARAMETER :: HALOFIT_Smith = 1       ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
-   INTEGER, PARAMETER :: HALOFIT_Bird = 2        ! Bird et al. (2011; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: HALOFIT_Bird = 2        ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
    INTEGER, PARAMETER :: HALOFIT_Takahashi = 3   ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
    INTEGER, PARAMETER :: HALOFIT_CAMB = 4        ! Version as used in CAMB  (date; ???)
    INTEGER, PARAMETER :: HALOFIT_CLASS = 5       ! Version as used in CLASS (date; ???)
    INTEGER, PARAMETER :: HALOFIT_Smith_paper = 6 ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664)
-   INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. ()
+   INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
 
    ! CAMB non-linear
    INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1
