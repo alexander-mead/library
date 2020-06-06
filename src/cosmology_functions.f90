@@ -2400,6 +2400,7 @@ CONTAINS
       CALL init_interpolator(a, Xde, cosm%Xde, &
          iorder_interp_Xde, &
          iextrap_Xde, &
+         store=.TRUE., &
          logx=.TRUE., &
          logf=.TRUE.)
 
@@ -2713,6 +2714,7 @@ CONTAINS
       CALL init_interpolator(a, r, cosm%dist, &
                               iextrap = iextrap_distance, &
                               iorder = iorder_interp_distance, &
+                              store=.TRUE., &
                               logx = .TRUE., &
                               logf = .TRUE. &
                               )
@@ -2829,6 +2831,7 @@ CONTAINS
       CALL init_interpolator(a, t, cosm%time, &
                iorder=iorder_interp_time, &
                iextrap=iextrap_time, &
+               store=.TRUE., &
                logx=.TRUE., &
                logf=.TRUE.)
 
@@ -3337,6 +3340,7 @@ CONTAINS
          CALL init_interpolator(R, a, sig, cosm%sigmaa, &
             iorder_interp_sigma, &
             iextrap_sigma, &
+            store=.TRUE., &
             logx = .TRUE., &
             logy = .TRUE., &
             logf = .TRUE. &
@@ -3352,6 +3356,7 @@ CONTAINS
          CALL init_interpolator(R, sig(:, 1), cosm%sigma, &
             iorder_interp_sigma, &
             iextrap_sigma, &
+            store=.TRUE., &
             logx = .TRUE., &
             logf = .TRUE. &
             )
@@ -3842,6 +3847,7 @@ CONTAINS
       CALL init_interpolator(a, growth, cosm%grow, &
          iorder = iorder_interp_grow, &
          iextrap = iextrap_grow, &
+         store=.TRUE., &
          logx = .TRUE., &
          logf = .TRUE. &
          )
@@ -3849,6 +3855,7 @@ CONTAINS
       CALL init_interpolator(a, rate, cosm%grate, &
          iorder = iorder_interp_rate, &
          iextrap = iextrap_rate, &
+         store=.TRUE., &
          logx = .TRUE., &
          logf = .FALSE. &
          )
@@ -3871,6 +3878,7 @@ CONTAINS
       CALL init_interpolator(a, agrow, cosm%agrow, &
          iorder = iorder_interp_agrow, &
          iextrap = iextrap_agrow, &
+         store=.TRUE., &
          logx = .TRUE., &
          logf = .TRUE.  &
          )
@@ -4303,6 +4311,7 @@ CONTAINS
       CALL init_interpolator(a, dc, cosm%dc, &
          iorder = iorder_interp_dc, &
          iextrap = iextrap_dc, &
+         store=.TRUE., &
          logx = .TRUE., &
          logf = .FALSE. &
          )
@@ -4310,6 +4319,7 @@ CONTAINS
       CALL init_interpolator(a, Dv, cosm%Dv, &
          iorder = iorder_interp_Dv, &
          iextrap = iextrap_Dv, &
+         store=.TRUE., &
          logx = .TRUE., &
          logf = .FALSE. &
          )
@@ -6955,6 +6965,7 @@ CONTAINS
       CALL init_interpolator(exp(logk), Pk_wiggles, cosm%wiggle, &
          iorder=iorder_interp_pwiggle, &
          iextrap=iextrap_pwiggle, &
+         store=.TRUE., &
          logx=.TRUE., &
          logf=.FALSE.)
 

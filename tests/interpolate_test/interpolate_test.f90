@@ -28,20 +28,20 @@ PROGRAM interpolate_test
       INTEGER :: i, itest
       TYPE(interpolator1D) :: interp
       INTEGER :: iextrap, iorder
-      LOGICAL :: logtest
+      LOGICAL :: logtest, store
       REAL :: xmin, xmax
       REAL :: xxmin, xxmax
       INTEGER, PARAMETER :: n = 8
       INTEGER, PARAMETER :: m = 128
       REAL, PARAMETER :: tol = 1e-8
       REAL, PARAMETER :: a = 2.
-      INTEGER, PARAMETER :: ntest = 7
+      INTEGER, PARAMETER :: ntest = 8
 
       fail = .FALSE.
 
       DO itest = 1, ntest
 
-         IF (itest == 1) THEN
+         IF (itest == 1 .OR. itest == 8) THEN
             xmin = 0.
             xmax = 3.
             xxmin = xmin
@@ -49,6 +49,8 @@ PROGRAM interpolate_test
             logtest = .FALSE.
             iorder = 3
             iextrap = iextrap_no
+            IF(itest == 1) store = .TRUE.
+            IF(itest == 8) store = .FALSE.
          ELSE IF (itest == 2) THEN
             xmin = 1e-3
             xmax = 3.
@@ -57,6 +59,7 @@ PROGRAM interpolate_test
             logtest = .TRUE.
             iorder = 3
             iextrap = iextrap_no
+            store = .TRUE.
          ELSE IF (itest == 3) THEN
             xmin = 0.
             xmax = 3.
@@ -65,6 +68,7 @@ PROGRAM interpolate_test
             logtest = .FALSE.
             iorder = 3
             iextrap = iextrap_linear
+            store = .TRUE.
          ELSE IF (itest == 4) THEN
             xmin = 0.
             xmax = 3.
@@ -73,6 +77,7 @@ PROGRAM interpolate_test
             logtest = .FALSE.
             iorder = 3
             iextrap = iextrap_standard
+            store = .TRUE.
          ELSE IF (itest == 5) THEN
             xmin = 0.
             xmax = 3.
@@ -81,6 +86,7 @@ PROGRAM interpolate_test
             logtest = .FALSE.
             iorder = 2
             iextrap = iextrap_no
+            store = .TRUE.
          ELSE IF (itest == 6) THEN
             xmin = 0.
             xmax = 3.
@@ -89,6 +95,7 @@ PROGRAM interpolate_test
             logtest = .FALSE.
             iorder = 1
             iextrap = iextrap_no
+            store = .TRUE.
          ELSE IF (itest == 7) THEN
             xmin = 0.
             xmax = 3.
@@ -97,6 +104,7 @@ PROGRAM interpolate_test
             logtest = .FALSE.
             iorder = 1
             iextrap = iextrap_linear
+            store = .TRUE.
          ELSE
             STOP 'TEST_INTERPOLATOR_1D: Something went wrong'
          END IF
@@ -105,7 +113,7 @@ PROGRAM interpolate_test
          CALL safe_allocate(f, n)
          f = a*x**iorder
 
-         CALL init_interpolator(x, f, interp, iorder, iextrap, logx=logtest, logf=logtest)
+         CALL init_interpolator(x, f, interp, iorder, iextrap, store=store, logx=logtest, logf=logtest)
 
          DO i = 1, m
             xv = progression(xxmin, xxmax, i, m)
@@ -143,7 +151,7 @@ PROGRAM interpolate_test
       INTEGER :: ix, iy, itest
       TYPE(interpolator2D) :: interp
       INTEGER :: iextrap, iorder
-      LOGICAL :: logtest
+      LOGICAL :: logtest, store
       REAL, PARAMETER :: xmin = 1e-3
       REAL, PARAMETER :: xmax = 3.
       INTEGER, PARAMETER :: nx = 8
@@ -164,14 +172,17 @@ PROGRAM interpolate_test
             logtest = .FALSE.
             iorder = 3
             iextrap = iextrap_no
+            store = .TRUE.
          ELSE IF (itest == 2) THEN
             logtest = .TRUE.
             iorder = 3
             iextrap = iextrap_no
+            store = .TRUE.
          ELSE IF (itest == 3) THEN
             logtest = .FALSE.
             iorder = 2
             iextrap = iextrap_no
+            store = .TRUE.
          ELSE
             STOP 'TEST_INTERPOLATOR_2D: Something went wrong'
          END IF
@@ -185,7 +196,7 @@ PROGRAM interpolate_test
             END DO
          END DO
 
-         CALL init_interpolator(x, y, f, interp, iorder, iextrap, logx=logtest, logy=logtest, logf=logtest)
+         CALL init_interpolator(x, y, f, interp, iorder, iextrap, store=store, logx=logtest, logy=logtest, logf=logtest)
 
          DO ix = 1, mx
             DO iy = 1, my

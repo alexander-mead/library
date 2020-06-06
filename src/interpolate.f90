@@ -77,6 +77,7 @@ MODULE interpolate
       INTEGER :: ifind
       INTEGER :: n
       LOGICAL :: logx, logf
+      LOGICAL :: store
    END TYPE interpolator1D
 
    TYPE interpolator2D
@@ -89,6 +90,7 @@ MODULE interpolate
       INTEGER :: ifindx, ifindy 
       INTEGER :: nx, ny
       LOGICAL :: logx, logy, logf
+      LOGICAL :: store
    END TYPE interpolator2D
 
 CONTAINS
@@ -929,7 +931,7 @@ CONTAINS
 
    END SUBROUTINE interpolate_array
 
-   SUBROUTINE init_interpolator_1D(x, f, interp, iorder, iextrap, logx, logf)
+   SUBROUTINE init_interpolator_1D(x, f, interp, iorder, iextrap, store, logx, logf)
 
       ! Initialise an interpolator
       USE basic_operations
@@ -938,6 +940,7 @@ CONTAINS
       TYPE(interpolator1D), INTENT(OUT) :: interp ! Interpolator type
       INTEGER, INTENT(IN) :: iorder             ! Order at which to create interpolator   
       INTEGER, INTENT(IN) :: iextrap            ! Extrapolation scheme
+      LOGICAL, INTENT(IN) :: store              ! Do we store values
       LOGICAL, OPTIONAL, INTENT(IN) :: logx     ! Should interpolator take the logarithm of x?
       LOGICAL, OPTIONAL, INTENT(IN) :: logf     ! Should interpolator take the logarithm of y?
       REAL, ALLOCATABLE :: xx(:), ff(:)
@@ -992,169 +995,174 @@ CONTAINS
          interp%ifind = ifind_linear
       ELSE
          interp%ifind = ifind_default
-      END IF  
-
-      ! Allocate arrays for the interpolator coefficients
-      IF (iextrap == iextrap_linear) THEN
-         nn = n+1
-      ELSE
-         nn = n-1
       END IF
-      ALLOCATE(interp%a0(nn), interp%a1(nn))
-      interp%a0 = 0.
-      interp%a1 = 0.
-      IF (iorder >= 2) THEN
-         ALLOCATE(interp%a2(nn))
-         interp%a2 = 0.
-      END IF
-      IF (iorder >= 3) THEN
-         ALLOCATE(interp%a3(nn))
-         interp%a3 = 0.
-      END IF
-      IF (centred_interpolator) ALLOCATE(interp%x0(nn))
+      interp%store = store
 
-      ! Default values because a3, a2 will be zero for linear polynomials
-      a0 = 0.
-      a1 = 0.
-      a2 = 0.
-      a3 = 0.
+      IF (interp%store) THEN
 
-      ! Default values
-      x1 = 0.
-      x2 = 0.
-      x3 = 0.
-      x4 = 0.
-      
-      ! Default values
-      f1 = 0.
-      f2 = 0.
-      f3 = 0.
-      f4 = 0.
-
-      ! Loop over all n-1 sections of the input data
-      DO i = 0, n
-
-         IF ((i == 0 .OR. i == n) .AND. iextrap /= iextrap_linear) CYCLE
-
-         IF (iorder == 1 .OR. ((i == 0 .OR. i == n) .AND. iextrap == iextrap_linear)) THEN
-
-            IF (i == 0) THEN
-               i1 = 1
-               i2 = 2
-            ELSE IF (i == n) THEN
-               i1 = n-1
-               i2 = n
-            ELSE
-               i1 = i
-               i2 = i+1
-            END IF
-
-            x1 = xx(i1)
-            x2 = xx(i2)
-
-            f1 = ff(i1)
-            f2 = ff(i2)
-            
-            IF (centred_interpolator) THEN
-               xm = (x1+x2)/2.
-               CALL fix_centred_polynomial(a1, a0, xm, [x1, x2], [f1, f2])
-            ELSE
-               CALL fix_polynomial(a1, a0, [x1, x2], [f1, f2])
-            END IF
-
-         ELSE IF (iorder == 2) THEN
-
-            IF (i == 1) THEN
-               i1 = 1
-               i2 = 2
-               i3 = 3
-               i4 = 0 ! Set to zero so ignored later
-            ELSE IF (i == n-1) THEN
-               i1 = n-2
-               i2 = n-1
-               i3 = n
-               i4 = 0 ! Set to zero so ignored later
-            ELSE
-               i1 = i-1
-               i2 = i
-               i3 = i+1
-               i4 = i+2
-            END IF
-
-            x1 = xx(i1)
-            x2 = xx(i2)
-            x3 = xx(i3)
-            IF (i4 .NE. 0) x4 = xx(i4)
-
-            f1 = ff(i1)
-            f2 = ff(i2)
-            f3 = ff(i3)
-            IF (i4 .NE. 0) f4 = ff(i4)
-
-            CALL fix_polynomial(a2, a1, a0, [x1, x2, x3], [f1, f2, f3])
-            IF (i4 .NE. 0) THEN
-               CALL fix_polynomial(b2, b1, b0, [x2, x3, x4], [f2, f3, f4])
-               a2 = (a2+b2)/2.
-               a1 = (a1+b1)/2.
-               a0 = (a0+b0)/2.
-            END IF
-
-         ELSE IF (iorder == 3) THEN
-
-            ! Deal with the indices for the first and last section and general case
-            IF (i == 1) THEN
-               i1 = 1
-               i2 = 2
-               i3 = 3
-               i4 = 4
-            ELSE IF (i == n-1) THEN
-               i1 = n-3
-               i2 = n-2
-               i3 = n-1
-               i4 = n
-            ELSE
-               i1 = i-1
-               i2 = i
-               i3 = i+1
-               i4 = i+2
-            END IF          
-
-            x1 = xx(i1)
-            x2 = xx(i2)
-            x3 = xx(i3)
-            x4 = xx(i4)
-
-            f1 = ff(i1)
-            f2 = ff(i2)
-            f3 = ff(i3)
-            f4 = ff(i4)
-
-            IF (centred_interpolator) THEN
-               xm = (x1+x2)/2.
-               CALL fix_centred_cubic(a3, a2, a1, a0, xm, [x1, x2, x3, x4], [f1, f2, f3, f4])
-            ELSE
-               CALL fix_polynomial(a3, a2, a1, a0, [x1, x2, x3, x4], [f1, f2, f3, f4])
-            END IF          
-
-         ELSE
-
-            STOP 'INIT_INTERPOLATOR: Error, your order is not supported'
-
-         END IF
-
-         ! Fill the polynomial coefficients in the interpolation type
+         ! Allocate arrays for the interpolator coefficients
          IF (iextrap == iextrap_linear) THEN
-            ii = i+1
+            nn = n+1
          ELSE
-            ii = i
+            nn = n-1
          END IF
-         IF(centred_interpolator) interp%x0(ii) = xm
-         interp%a0(ii) = a0
-         interp%a1(ii) = a1
-         IF(iorder >= 2) interp%a2(ii) = a2
-         IF(iorder >= 3) interp%a3(ii) = a3
+         ALLOCATE(interp%a0(nn), interp%a1(nn))
+         interp%a0 = 0.
+         interp%a1 = 0.
+         IF (iorder >= 2) THEN
+            ALLOCATE(interp%a2(nn))
+            interp%a2 = 0.
+         END IF
+         IF (iorder >= 3) THEN
+            ALLOCATE(interp%a3(nn))
+            interp%a3 = 0.
+         END IF
+         IF (centred_interpolator) ALLOCATE(interp%x0(nn))
 
-      END DO
+         ! Default values because a3, a2 will be zero for linear polynomials
+         a0 = 0.
+         a1 = 0.
+         a2 = 0.
+         a3 = 0.
+
+         ! Default values
+         x1 = 0.
+         x2 = 0.
+         x3 = 0.
+         x4 = 0.
+         
+         ! Default values
+         f1 = 0.
+         f2 = 0.
+         f3 = 0.
+         f4 = 0.
+
+         ! Loop over all n-1 sections of the input data
+         DO i = 0, n
+
+            IF ((i == 0 .OR. i == n) .AND. iextrap /= iextrap_linear) CYCLE
+
+            IF (iorder == 1 .OR. ((i == 0 .OR. i == n) .AND. iextrap == iextrap_linear)) THEN
+
+               IF (i == 0) THEN
+                  i1 = 1
+                  i2 = 2
+               ELSE IF (i == n) THEN
+                  i1 = n-1
+                  i2 = n
+               ELSE
+                  i1 = i
+                  i2 = i+1
+               END IF
+
+               x1 = xx(i1)
+               x2 = xx(i2)
+
+               f1 = ff(i1)
+               f2 = ff(i2)
+               
+               IF (centred_interpolator) THEN
+                  xm = (x1+x2)/2.
+                  CALL fix_centred_polynomial(a1, a0, xm, [x1, x2], [f1, f2])
+               ELSE
+                  CALL fix_polynomial(a1, a0, [x1, x2], [f1, f2])
+               END IF
+
+            ELSE IF (iorder == 2) THEN
+
+               IF (i == 1) THEN
+                  i1 = 1
+                  i2 = 2
+                  i3 = 3
+                  i4 = 0 ! Set to zero so ignored later
+               ELSE IF (i == n-1) THEN
+                  i1 = n-2
+                  i2 = n-1
+                  i3 = n
+                  i4 = 0 ! Set to zero so ignored later
+               ELSE
+                  i1 = i-1
+                  i2 = i
+                  i3 = i+1
+                  i4 = i+2
+               END IF
+
+               x1 = xx(i1)
+               x2 = xx(i2)
+               x3 = xx(i3)
+               IF (i4 .NE. 0) x4 = xx(i4)
+
+               f1 = ff(i1)
+               f2 = ff(i2)
+               f3 = ff(i3)
+               IF (i4 .NE. 0) f4 = ff(i4)
+
+               CALL fix_polynomial(a2, a1, a0, [x1, x2, x3], [f1, f2, f3])
+               IF (i4 .NE. 0) THEN
+                  CALL fix_polynomial(b2, b1, b0, [x2, x3, x4], [f2, f3, f4])
+                  a2 = (a2+b2)/2.
+                  a1 = (a1+b1)/2.
+                  a0 = (a0+b0)/2.
+               END IF
+
+            ELSE IF (iorder == 3) THEN
+
+               ! Deal with the indices for the first and last section and general case
+               IF (i == 1) THEN
+                  i1 = 1
+                  i2 = 2
+                  i3 = 3
+                  i4 = 4
+               ELSE IF (i == n-1) THEN
+                  i1 = n-3
+                  i2 = n-2
+                  i3 = n-1
+                  i4 = n
+               ELSE
+                  i1 = i-1
+                  i2 = i
+                  i3 = i+1
+                  i4 = i+2
+               END IF          
+
+               x1 = xx(i1)
+               x2 = xx(i2)
+               x3 = xx(i3)
+               x4 = xx(i4)
+
+               f1 = ff(i1)
+               f2 = ff(i2)
+               f3 = ff(i3)
+               f4 = ff(i4)
+
+               IF (centred_interpolator) THEN
+                  xm = (x1+x2)/2.
+                  CALL fix_centred_cubic(a3, a2, a1, a0, xm, [x1, x2, x3, x4], [f1, f2, f3, f4])
+               ELSE
+                  CALL fix_polynomial(a3, a2, a1, a0, [x1, x2, x3, x4], [f1, f2, f3, f4])
+               END IF          
+
+            ELSE
+
+               STOP 'INIT_INTERPOLATOR: Error, your order is not supported'
+
+            END IF
+
+            ! Fill the polynomial coefficients in the interpolation type
+            IF (iextrap == iextrap_linear) THEN
+               ii = i+1
+            ELSE
+               ii = i
+            END IF
+            IF(centred_interpolator) interp%x0(ii) = xm
+            interp%a0(ii) = a0
+            interp%a1(ii) = a1
+            IF(iorder >= 2) interp%a2(ii) = a2
+            IF(iorder >= 3) interp%a3(ii) = a3
+
+         END DO
+
+      END IF
 
    END SUBROUTINE init_interpolator_1D
 
@@ -1173,56 +1181,62 @@ CONTAINS
 
       n = interp%n
 
-      ! Calculate the index to use
-      IF (xx < interp%x(1)) THEN
-         IF (interp%iextrap == iextrap_no) THEN
-            STOP 'EVALUATE_INTERPOLATOR_1D: Error, desired x value is below range'
-         ELSE IF(interp%iextrap == iextrap_standard) THEN
-            i = 1
-         ELSE IF (interp%iextrap == iextrap_linear) THEN
-            i = 0
-         ELSE
-            STOP 'EVALUATE_INTERPOLATOR_1D: Error, extrapolation scheme specified incorrectly'
-         END IF
-      ELSE IF (xx == interp%x(n)) THEN
-         i = n-1 ! Cannot use find_table_integer here because this would return 'n', rather than 'n-1'
-      ELSE IF (xx > interp%x(n)) THEN
-         IF (interp%iextrap == iextrap_no) THEN
-            STOP 'EVALUATE_INTERPOLATOR_1D: Error, desired x value is above range'
-         ELSE IF (interp%iextrap == iextrap_standard) THEN
-            i = n-1
-         ELSE IF(interp%iextrap == iextrap_linear) THEN
-            i = n
-         ELSE
-            STOP 'EVALUATE_INTERPOLATOR_1D: Error, extrapolation scheme specified incorrectly'
-         END IF
-      ELSE
-         i = find_table_integer(xx, interp%x, interp%ifind)
-      END IF
+      IF (interp%store) THEN
 
-      IF (interp%iextrap == iextrap_linear) i = i+1
+         ! Calculate the index to use
+         IF (xx < interp%x(1)) THEN
+            IF (interp%iextrap == iextrap_no) THEN
+               STOP 'EVALUATE_INTERPOLATOR_1D: Error, desired x value is below range'
+            ELSE IF(interp%iextrap == iextrap_standard) THEN
+               i = 1
+            ELSE IF (interp%iextrap == iextrap_linear) THEN
+               i = 0
+            ELSE
+               STOP 'EVALUATE_INTERPOLATOR_1D: Error, extrapolation scheme specified incorrectly'
+            END IF
+         ELSE IF (xx == interp%x(n)) THEN
+            i = n-1 ! Cannot use find_table_integer here because this would return 'n', rather than 'n-1'
+         ELSE IF (xx > interp%x(n)) THEN
+            IF (interp%iextrap == iextrap_no) THEN
+               STOP 'EVALUATE_INTERPOLATOR_1D: Error, desired x value is above range'
+            ELSE IF (interp%iextrap == iextrap_standard) THEN
+               i = n-1
+            ELSE IF(interp%iextrap == iextrap_linear) THEN
+               i = n
+            ELSE
+               STOP 'EVALUATE_INTERPOLATOR_1D: Error, extrapolation scheme specified incorrectly'
+            END IF
+         ELSE
+            i = find_table_integer(xx, interp%x, interp%ifind)
+         END IF
 
-      ! Evaluate the interpolation
-      IF (interp%iorder == 1) THEN
-         IF (centred_interpolator) THEN
-            evaluate_interpolator_1D = centred_polynomial(xx, interp%x0(i), interp%a1(i), interp%a0(i))
+         IF (interp%iextrap == iextrap_linear) i = i+1
+
+         ! Evaluate the interpolation
+         IF (interp%iorder == 1) THEN
+            IF (centred_interpolator) THEN
+               evaluate_interpolator_1D = centred_polynomial(xx, interp%x0(i), interp%a1(i), interp%a0(i))
+            ELSE
+               evaluate_interpolator_1D = polynomial(xx, interp%a1(i), interp%a0(i))
+            END IF
+         ELSE IF (interp%iorder == 2) THEN
+            IF (centred_interpolator) THEN
+               evaluate_interpolator_1D = centred_polynomial(xx, interp%x0(i), interp%a2(i), interp%a1(i), interp%a0(i))
+            ELSE
+               evaluate_interpolator_1D = polynomial(xx, interp%a2(i), interp%a1(i), interp%a0(i))
+            END IF
+         ELSE IF (interp%iorder == 3) THEN
+            IF (centred_interpolator) THEN
+               evaluate_interpolator_1D = centred_polynomial(xx, interp%x0(i), interp%a3(i), interp%a2(i), interp%a1(i), interp%a0(i))
+            ELSE
+               evaluate_interpolator_1D = polynomial(xx, interp%a3(i), interp%a2(i), interp%a1(i), interp%a0(i))
+            END IF
          ELSE
-            evaluate_interpolator_1D = polynomial(xx, interp%a1(i), interp%a0(i))
+            STOP 'EVALUATE_INTERPOLATOR_1D: Error, your polynomial order is not supported'
          END IF
-      ELSE IF (interp%iorder == 2) THEN
-         IF (centred_interpolator) THEN
-            evaluate_interpolator_1D = centred_polynomial(xx, interp%x0(i), interp%a2(i), interp%a1(i), interp%a0(i))
-         ELSE
-            evaluate_interpolator_1D = polynomial(xx, interp%a2(i), interp%a1(i), interp%a0(i))
-         END IF
-      ELSE IF (interp%iorder == 3) THEN
-         IF (centred_interpolator) THEN
-            evaluate_interpolator_1D = centred_polynomial(xx, interp%x0(i), interp%a3(i), interp%a2(i), interp%a1(i), interp%a0(i))
-         ELSE
-            evaluate_interpolator_1D = polynomial(xx, interp%a3(i), interp%a2(i), interp%a1(i), interp%a0(i))
-         END IF
+
       ELSE
-         STOP 'EVALUATE_INTERPOLATOR_1D: Error, your polynomial order is not supported'
+         evaluate_interpolator_1D = find(xx, interp%x, interp%f, interp%n, interp%iorder, interp%ifind, iinterp_Lagrange)
       END IF
 
       ! Exponentiate result if necessary
@@ -1250,7 +1264,7 @@ CONTAINS
 
    END FUNCTION inverse_interpolator_1D
 
-   SUBROUTINE init_interpolator_2D(x, y, f, interp, iorder, iextrap, logx, logy, logf)
+   SUBROUTINE init_interpolator_2D(x, y, f, interp, iorder, iextrap, store, logx, logy, logf)
 
       ! Initialise a 2D interpolator
       USE basic_operations
@@ -1260,6 +1274,7 @@ CONTAINS
       TYPE(interpolator2D), INTENT(OUT) :: interp ! Interpolator type
       INTEGER, INTENT(IN) :: iorder               ! Order at which to create interpolator     
       INTEGER, INTENT(IN) :: iextrap              ! Should interpolator extrapolate beyond x and y?
+      LOGICAL, INTENT(IN) :: store                ! Should we store polynomial coefficients?
       LOGICAL, OPTIONAL, INTENT(IN) :: logx       ! Should interpolator take the logarithm of x?
       LOGICAL, OPTIONAL, INTENT(IN) :: logy       ! Should interpolator take the logarithm of x?
       LOGICAL, OPTIONAL, INTENT(IN) :: logf       ! Should interpolator take the logarithm of y?
@@ -1325,8 +1340,9 @@ CONTAINS
       ! Set internal variables
       interp%iorder = iorder
       interp%iextrap = iextrap
+      interp%store = store
 
-      IF (initialise) THEN
+      IF (interp%store) THEN
 
          IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
 
