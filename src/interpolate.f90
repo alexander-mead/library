@@ -1,5 +1,11 @@
 MODULE interpolate
 
+   ! TODO: Combine the integer finding that is carried out separately in 'find' and 'evaluate_interpolator'
+   ! TODO: Combine the interpolation that is carried out separatly in 'find' and 'evaluate_interpolator'
+   ! TODO: Reverse array in init_interpolator
+   ! TODO: Linear extrapolation in 2D interpolator
+   ! TODO: Create 3D interpolator
+
    USE table_integer
    USE array_operations
    USE special_functions
@@ -738,14 +744,13 @@ CONTAINS
 
                ! Final result is an average over each direction
 
-               find_2D = (findx+findy)/2.
-
             ELSE
 
-               findx = 0.
-               find_2D = findy
+               findx = findy
 
             END IF
+
+            find_2D = (findx+findy)/2.
 
          END IF
 
@@ -813,13 +818,13 @@ CONTAINS
 
       ELSE IF (iorder == 1) THEN
 
-         xx(1)=x
-         xx(2)=y
-         xx(3)=z
+         xx(1) = x
+         xx(2) = y
+         xx(3) = z
 
-         nnx(1)=nx
-         nnx(2)=ny
-         nnx(3)=nz
+         nnx(1) = nx
+         nnx(2) = ny
+         nnx(3) = nz
 
          DO d = 1, 3
             IF (nnx(d) < 2) STOP 'FIND_3D: Not enough points in your array for linear interpolation'
@@ -1407,6 +1412,8 @@ CONTAINS
 
    REAL FUNCTION evaluate_interpolator_2D(x, y, interp)
 
+      ! TODO: Quadratics at end sections?
+      ! TODO: Implement linear interpolation
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: y
       TYPE(interpolator2D), INTENT(IN) :: interp
@@ -1415,6 +1422,7 @@ CONTAINS
       REAL :: xx, yy, ffx, ffy
       INTEGER, ALLOCATABLE :: jx(:), jy(:)
       REAL, ALLOCATABLE :: fx(:), fy(:), xxx(:), yyy(:)
+      LOGICAL, PARAMETER :: xycubic = .FALSE.
 
       xx = x
       IF (interp%logx) xx = log(xx)
@@ -1493,16 +1501,18 @@ CONTAINS
                xxx(i) = interp%x(j)
                fx(i) = centred_polynomial(yy, interp%y0(j, iy), interp%ay3(j, iy), interp%ay2(j, iy), interp%ay1(j, iy), interp%ay0(j, iy))
             END DO
-
             ffy = Lagrange_polynomial(xx, xxx, fx)
 
-            DO i = 1, m
-               j = jy(i)
-               yyy(i) = interp%y(j)
-               fy(i) = centred_polynomial(xx, interp%x0(ix, j), interp%ax3(ix, j), interp%ax2(ix, j), interp%ax1(ix, j), interp%ax0(ix, j))
-            END DO
-
-            ffx = Lagrange_polynomial(yy, yyy, fy)
+            IF (xycubic) THEN
+               DO i = 1, m
+                  j = jy(i)
+                  yyy(i) = interp%y(j)
+                  fy(i) = centred_polynomial(xx, interp%x0(ix, j), interp%ax3(ix, j), interp%ax2(ix, j), interp%ax1(ix, j), interp%ax0(ix, j))
+               END DO
+               ffx = Lagrange_polynomial(yy, yyy, fy)
+            ELSE
+               ffx = ffy               
+            END IF
 
             evaluate_interpolator_2D = (ffx+ffy)/2.
 
