@@ -978,7 +978,7 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: logx
       LOGICAL, OPTIONAL, INTENT(IN) :: logf
       REAL, ALLOCATABLE :: x_old(:), f_old(:)
-      INTEGER :: i, n_old
+      INTEGER :: n_old
 
       n_old = size(x)
       IF (n_old /= size(f, 1)) STOP 'REBIN_ARRAY: Error, x and f must be the same size'
