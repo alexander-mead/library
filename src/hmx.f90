@@ -1904,7 +1904,7 @@ CONTAINS
             hmod%Amf = 1.0847464
             hmod%As = 4.8750666
             hmod%Ap = -0.1699759
-            hmod%Ac = 0.0268175
+            hmod%Ac = 0.0268175 ! This cannot be necessary
             hmod%dcnu = 0.2925850
             hmod%Dvnu = 0.2759674
          END IF
@@ -2404,7 +2404,7 @@ CONTAINS
          ! Concentration-mass scaling
          IF (hmod%iAs == 0) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
          IF (hmod%iAs == 1) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled mass independently (HMcode 2015, 2016)'
-         IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled as function of sigma (HMcode test)'
+         IF (hmod%iAs == 2) WRITE (*, *) 'HALOMODEL: Concentration-mass rescaled as function of sigma (HMcode 2020)'
 
          ! Two- to one-halo transition region
          IF (hmod%itrans == 0) WRITE (*, *) 'HALOMODEL: Standard sum of two- and one-halo terms'
@@ -5949,13 +5949,15 @@ CONTAINS
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: gas_fraction, a, b
+      REAL :: gas_fraction, eps1, eps2
+      REAL, PARAMETER :: halo_conc_mod_min = 1e-2
 
       ! Fraction of original gas content remaining in halo
       gas_fraction = halo_bound_gas_fraction(m, hmod, cosm)/(cosm%Om_b/cosm%Om_m)
-      a = HMx_eps(hmod, cosm)  ! Low halo-mass limit c -> c*(1+a)
-      b = HMx_eps2(hmod, cosm) ! High halo-mass limit c -> c*(1+b)
-      hydro_concentration_modification = 1.+a+(b-a)*gas_fraction
+      eps1 = HMx_eps(hmod, cosm)  ! Gas-poor limit: c -> c*(1+e1)
+      eps2 = HMx_eps2(hmod, cosm) ! Gas-rich limit: c -> c*(1+e2)
+      hydro_concentration_modification = 1.+eps1+(eps2-eps1)*gas_fraction
+      CALL fix_minimum(hydro_concentration_modification, halo_conc_mod_min)
 
    END FUNCTION hydro_concentration_modification
 
