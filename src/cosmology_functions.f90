@@ -173,9 +173,10 @@ MODULE cosmology_functions
       
       ! Look-up tables that are filled during a calculation
       REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:) ! Arrays for input linear P(k)
-      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:,:)                                 ! Arrays for cold T(k) and wiggle P(k)
-      TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde, wiggle ! 1D interpolators
-      TYPE(interpolator2D) :: sigmaa ! 2D interpolators 
+      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:, :)                                 ! Arrays for cold T(k) and wiggle P(k)
+      TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde ! 1D interpolators
+      TYPE(interpolator1D) :: plin, wiggle
+      TYPE(interpolator2D) :: sigmaa, plina!, Tcold ! 2D interpolators 
       INTEGER :: nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin ! Number of array entries
       REAL :: amin_sigma, amax_sigma                                                               ! Ranges of arrays
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
@@ -284,14 +285,16 @@ MODULE cosmology_functions
    REAL, PARAMETER :: pk_min_CAMB = 1e-10      ! Minimum value of power at low k (remove k with less than this) 
    REAL, PARAMETER :: nmax_CAMB = 2.           ! How many times more to go than kmax due to inaccuracy near k limit
    LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.  ! Should we rebin CAMB or just use default k?
-   INTEGER, PARAMETER :: iorder_rebin_CAMB = 3 ! Polynomial order for interpolation on CAMB rebinning
-   INTEGER, PARAMETER :: ifind_rebin_CAMB = 3  ! Finding scheme for interpolation on CAMB rebinning (*definitely* not linear)
-   INTEGER, PARAMETER :: imeth_rebin_CAMB = 2  ! Method for interpolation on CAMB rebinning
+   INTEGER, PARAMETER :: iorder_rebin_CAMB = 3                 ! Polynomial order for interpolation on CAMB rebinning
+   INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation on CAMB rebinning (*definitely* not linear)
+   INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Method for interpolation on CAMB rebinning
 
    ! Linear power interpolation
-   INTEGER, PARAMETER :: iorder_interp_plin = 3 ! Order for interpolation
-   INTEGER, PARAMETER :: ifind_interp_plin = 3  ! Finding scheme in table (only linear if rebinning)
-   INTEGER, PARAMETER :: imeth_interp_plin = 2  ! Method for polynomials
+   LOGICAL, PARAMETER :: power_interpolator = .FALSE.    ! Use dedicated interpolator for power?
+   INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Order for interpolation
+   INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
+   INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
+   INTEGER, PARAMETER :: iextrap_plin = iextrap_standard ! Extrapolation scheme
 
    ! Growth ODE
    REAL, PARAMETER :: ainit_growth = 1e-3                    ! Starting value for growth integratiton (should start | Omega_m(a)=1)
@@ -1395,14 +1398,10 @@ CONTAINS
 
       ! Ensure deallocate distances
       cosm%has_distance = .FALSE.
-      !CALL if_allocated_deallocate(cosm%log_p)
-      !CALL if_allocated_deallocate(cosm%log_a_p)
       cosm%horizon = 0.
 
       ! Ensure deallocate time
       cosm%has_time = .FALSE.
-      !CALL if_allocated_deallocate(cosm%log_t)
-      !CALL if_allocated_deallocate(cosm%log_a_t)
       cosm%age = 0.
 
       ! Ensure deallocate growth
@@ -1438,9 +1437,6 @@ CONTAINS
 
       ! Ensure delloacte spherical-collapse arrays
       cosm%has_spherical = .FALSE.
-      !CALL if_allocated_deallocate(cosm%log_a_dcDv)
-      !CALL if_allocated_deallocate(cosm%dc)
-      !CALL if_allocated_deallocate(cosm%Dv)
 
       ! Write finishing message to screen
       IF (cosm%verbose) THEN
@@ -3222,7 +3218,7 @@ CONTAINS
       INTEGER :: nk
       INTEGER, PARAMETER :: iorder = iorder_interp_plin ! Order for interpolation (3 - cubic)
       INTEGER, PARAMETER :: ifind = ifind_interp_plin   ! Finding scheme in table (3 - Mid-point method)
-      INTEGER, PARAMETER :: imeth = imeth_interp_plin   ! Method for polynomials (2 - Lagrange polynomials)
+      INTEGER, PARAMETER :: iinterp = iinterp_plin      ! Method for polynomials (2 - Lagrange polynomials)
 
       ! This line generates a recursion
       IF (.NOT. cosm%is_normalised) THEN        
@@ -3248,19 +3244,35 @@ CONTAINS
             END IF
             IF (cosm%scale_dependent_growth) THEN
                IF(plin_extrap .AND. k > kmax) THEN
-                  pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk,:), cosm%na_plin, &
-                     iorder, ifind, imeth))
+                  IF(power_interpolator) THEN
+                     pmax = evaluate_interpolator(kmax, a, cosm%plina)
+                  ELSE
+                     pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk,:), cosm%na_plin, &
+                        iorder, ifind, iinterp))
+                  END IF
                   plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
                ELSE
-                  plin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin,&
-                     cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, ifind, iinterp_polynomial))
+                  IF (power_interpolator) THEN
+                     plin = evaluate_interpolator(k, a, cosm%plina)
+                  ELSE
+                     plin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin,&
+                        cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, ifind, iinterp_polynomial))
+                  END IF
                END IF
             ELSE
                IF(plin_extrap .AND. k > kmax) THEN
-                  pmax = exp(cosm%log_plin(nk))
+                  IF (power_interpolator) THEN
+                     pmax = evaluate_interpolator(kmax, cosm%plin)
+                  ELSE
+                     pmax = exp(cosm%log_plin(nk))
+                  END IF
                   plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
                ELSE
-                  plin = exp(find(log(k), cosm%log_k_plin, cosm%log_plin, cosm%nk_plin, iorder, ifind, imeth))
+                  IF (power_interpolator) THEN
+                     plin = evaluate_interpolator(k, cosm%plin)
+                  ELSE
+                     plin = exp(find(log(k), cosm%log_k_plin, cosm%log_plin, cosm%nk_plin, iorder, ifind, iinterp))
+                  END IF
                END IF
                plin = (grow(a, cosm)**2)*plin
             END IF
@@ -5398,9 +5410,9 @@ CONTAINS
       REAL, PARAMETER :: amin = amin_CAMB              ! Minimum scale factor to get from CAMB
       REAL, PARAMETER :: amax = amax_CAMB              ! Maximum scale factor to get from CAMB
       LOGICAL, PARAMETER :: rebin = rebin_CAMB         ! Should we rebin CAMB input P(k)?
-      INTEGER, PARAMETER :: iorder = iorder_rebin_CAMB ! Order for interpolation if rebinning
-      INTEGER, PARAMETER :: ifind = ifind_rebin_CAMB   ! Finding scheme for interpolation if rebinning
-      INTEGER, PARAMETER :: imeth = imeth_rebin_CAMB   ! Method for interpolation if rebinning
+      !INTEGER, PARAMETER :: iorder = iorder_rebin_CAMB ! Order for interpolation if rebinning
+      !INTEGER, PARAMETER :: ifind = ifind_rebin_CAMB   ! Finding scheme for interpolation if rebinning
+      !INTEGER, PARAMETER :: imeth = imeth_rebin_CAMB   ! Method for interpolation if rebinning
 
       IF (cosm%verbose) THEN
          WRITE(*,*) 'INIT_CAMB_LINEAR: Getting linear power from CAMB'
@@ -5468,7 +5480,10 @@ CONTAINS
         
          DO j = 1, na_CAMB
             DO i = 1, nk_CAMB
-               Pkk(i, j) = find(log(kkPk(i)), kPk, Pk(:,j), nPk, iorder, ifind, imeth)
+               Pkk(i, j) = find(log(kkPk(i)), kPk, Pk(:,j), nPk, &
+                  iorder_rebin_CAMB, &
+                  ifind_rebin_CAMB, &
+                  iinterp_rebin_CAMB)
             END DO
          END DO
 
@@ -5506,6 +5521,7 @@ CONTAINS
       REAL, INTENT(IN) :: Pk(:, :)
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: nk, na
+      LOGICAL, PARAMETER :: store = .TRUE.
 
       nk = size(k)
       IF (nk /= size(Pk, 1)) THEN
@@ -5520,6 +5536,27 @@ CONTAINS
          STOP 'INIT_PLIN: Error, a and Pk arrays are not the same size'
       END IF      
       cosm%na_plin = na
+
+      IF (power_interpolator) THEN
+
+         IF (na == 1) THEN
+            CALL init_interpolator(k, Pk(:, 1), cosm%plin, &
+               iorder_interp_plin, &
+               iextrap_plin, &
+               store, &
+               logx=.TRUE., &
+               logf=.TRUE.)
+         ELSE
+            CALL init_interpolator(k, a, Pk, cosm%plina, &
+               iorder_interp_plin, &
+               iextrap_plin, &
+               store, &
+               logx=.TRUE., &
+               logy=.TRUE., &
+               logf=.TRUE.)
+         END IF
+
+      END IF
 
       CALL safe_allocate(cosm%log_k_plin, nk)
       cosm%log_k_plin = log(k)
