@@ -1540,38 +1540,36 @@ CONTAINS
             ALLOCATE(fx(m), fy(m), xxx(m), yyy(m))
 
             ix = find_table_integer(xx, interp%x, interp%ifindx)
+            IF (ix == 0)  ix = 1
             IF (ix == nx) ix = nx-1
             IF (interp%iorder == 2) THEN
                jx(1) = ix
                jx(2) = ix+1
-               IF (ix == nx) jx = jx-1
             ELSE IF (interp%iorder == 3) THEN
                DO i = 1, m
                   jx(i) = ix+(i-2)
                END DO
                IF (ix == 1)    jx = jx+1
-               IF (ix == nx-1) jx = jx-1
-               IF (ix == nx)   jx = jx-2   
+               IF (ix == nx-1) jx = jx-1  
             ELSE
                STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
             END IF
 
             iy = find_table_integer(yy, interp%y, interp%ifindy)
+            IF (iy == 0)  iy = 1
             IF (iy == ny) iy = ny-1
             IF (interp%iorder == 2) THEN
                jy(1) = iy
                jy(2) = iy+1
-               IF (iy == ny)   jy = jy-1
             ELSE IF (interp%iorder == 3) THEN 
                DO i = 1, m
                   jy(i) = iy+(i-2)
                END DO 
                IF (iy == 1)    jy = jy+1
                IF (iy == ny-1) jy = jy-1
-               IF (iy == ny)   jy = jy-2
             ELSE
                STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
-            END IF   
+            END IF
             
             DO i = 1, m
                j = jx(i)
