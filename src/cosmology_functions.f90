@@ -258,10 +258,11 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: flag_power_cold_unorm = 3 ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
 
    ! De-wiggle power
+   INTEGER, PARAMETER :: wiggle_Lagrange = 1
+   INTEGER, PARAMETER :: wiggle_smooth = 2
+   INTEGER, PARAMETER :: imethod_pwiggle = wiggle_Lagrange
    INTEGER, PARAMETER :: iorder_interp_pwiggle = 3
-   INTEGER, PARAMETER :: ifind_pwiggle = 3
-   INTEGER, PARAMETER :: iinterp_pwiggle = 2
-   INTEGER, PARAMETER :: iextrap_pwiggle = iextrap_linear
+   INTEGER, PARAMETER :: iextrap_pwiggle = iextrap_zero
 
    ! Correlation function
    ! TODO: This works very poorly
@@ -6899,13 +6900,7 @@ CONTAINS
       INTEGER :: i, nk
 
       INTEGER, PARAMETER :: iorder = iorder_interp_pwiggle
-      INTEGER, PARAMETER :: ifind = ifind_pwiggle
-      INTEGER, PARAMETER :: imeth = iinterp_pwiggle
-      INTEGER, PARAMETER :: wiggle_Lagrange = 1
-      INTEGER, PARAMETER :: ns = 10
-      INTEGER, PARAMETER :: wiggle_smooth = 2
-      INTEGER :: wiggle_method = wiggle_Lagrange
-      !INTEGER :: wiggle_method = wiggle_smooth
+      INTEGER, PARAMETER :: nsmooth = 10    
 
       IF (.NOT. ALLOCATED(cosm%log_k_plin)) STOP 'WIGGLE_INIT: Error, P(k) needs to be tabulated for this to work'
 
@@ -6918,14 +6913,14 @@ CONTAINS
       ! Allocate the internal arrays from the cosmology arrays
       !k = exp(cosm%log_k_plin)
       IF(cosm%scale_dependent_growth) THEN
-         logPk = cosm%log_plina(:,cosm%na_plin)
+         logPk = cosm%log_plina(:, cosm%na_plin)
       ELSE
          logPk = cosm%log_plin
       END IF
       logk = cosm%log_k_plin
       Pk = exp(logPk)
 
-      IF(wiggle_method == wiggle_Lagrange) THEN
+      IF(imethod_pwiggle == wiggle_Lagrange) THEN
 
          ! Fixed k values - CAMB
          logkv(1) = log(0.008)
@@ -6935,7 +6930,7 @@ CONTAINS
 
          ! Fix p values
          DO i = 1, 4
-            logpv(i) = find(logkv(i), logk, logPk, nk, iorder, ifind, imeth)
+            logpv(i) = find(logkv(i), logk, logPk, nk, iorder=3, ifind=3, iinterp=2)
          END DO
 
          ! Create new smooth spectrum that has no wiggles
@@ -6947,11 +6942,11 @@ CONTAINS
             END IF
          END DO
 
-      ELSE IF (wiggle_method == wiggle_smooth) THEN
+      ELSE IF (imethod_pwiggle == wiggle_smooth) THEN
 
          ALLOCATE (logPk_smooth(nk))
          logPk_smooth = logPk
-         CALL smooth_array(logPk_smooth, ns)
+         CALL smooth_array(logPk_smooth, nsmooth)
          Pk_smooth = exp(logPk_smooth)
 
       ELSE
