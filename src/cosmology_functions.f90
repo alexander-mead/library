@@ -3224,9 +3224,6 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = ifind_interp_plin   ! Finding scheme in table (3 - Mid-point method)
       INTEGER, PARAMETER :: imeth = imeth_interp_plin   ! Method for polynomials (2 - Lagrange polynomials)
 
-      ! Using init_power seems to provide no significant speed improvements to HMx
-      !IF(cosm%has_power .EQV. .FALSE.) CALL init_power(cosm)
-
       ! This line generates a recursion
       IF (.NOT. cosm%is_normalised) THEN        
          CALL normalise_power(cosm)
@@ -5387,7 +5384,7 @@ CONTAINS
       USE array_operations
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, ALLOCATABLE :: a(:), kPk(:), Pk(:, :), kTc(:), Tc(:, :)
+      REAL, ALLOCATABLE :: a(:), kPk(:), Pk(:, :), kTc(:), Tc(:, :), kkPk(:), Pkk(:, :)
       REAL :: k, fac
       INTEGER :: i, j, na, nPk, nTc, ik
       CHARACTER(len=256), PARAMETER :: camb = 'camb'
@@ -5461,56 +5458,39 @@ CONTAINS
          WRITE(*,*) 'INIT_CAMB_LINEAR: Number of points in a:', na
       END IF
 
-      IF(rebin) THEN
+      IF (rebin) THEN
 
-         CALL fill_array(log(kmin_CAMB), log(kmax_CAMB), cosm%log_k_plin, nk_CAMB)
+         CALL fill_array_log(kmin_CAMB, kmax_CAMB, kkPk, nk_CAMB)
+         ALLOCATE(Pkk(nk_CAMB, na_CAMB))
 
-         IF(cosm%scale_dependent_growth) THEN         
-            IF(ALLOCATED(cosm%log_plina)) DEALLOCATE(cosm%log_plina)
-            ALLOCATE(cosm%log_plina(nk_CAMB, na))
-            DO j = 1, na
-               DO i= 1, nk_CAMB
-                  cosm%log_plina(i, j) = find(cosm%log_k_plin(i), log(kPk), log(Pk(:,j)), nPk, iorder, ifind, imeth)
-               END DO
-            END DO
-         ELSE
-            IF(ALLOCATED(cosm%log_plin)) DEALLOCATE(cosm%log_plin)
-            ALLOCATE(cosm%log_plin(nk_CAMB))
+         kPk = log(kPk)
+         Pk = log(Pk)
+        
+         DO j = 1, na_CAMB
             DO i = 1, nk_CAMB
-               cosm%log_plin(i) = find(cosm%log_k_plin(i), log(kPk), log(Pk(:,1)), nPk, iorder, ifind, imeth)
+               Pkk(i, j) = find(log(kkPk(i)), kPk, Pk(:,j), nPk, iorder, ifind, imeth)
             END DO
-         END IF
-         cosm%nk_plin = nk_CAMB
+         END DO
+
+         DEALLOCATE(kPk)
+         kPk = kkPk
+         DEALLOCATE(Pk)
+         Pk = exp(Pkk)
 
          IF (cosm%verbose) THEN
-            WRITE(*,*) 'INIT_CAMB_LINEAR: Rebinning kmin [h/Mpc]:', exp(cosm%log_k_plin(1))
-            WRITE(*,*) 'INIT_CAMB_LINEAR: Rebinning kmax [h/Mpc]:', exp(cosm%log_k_plin(cosm%nk_plin))
-            WRITE(*,*) 'INIT_CAMB_LINEAR: Number of rebinned points in k:', cosm%nk_plin
-         END IF
-
-      ELSE  
-
-         IF (ALLOCATED(cosm%log_k_plin)) DEALLOCATE (cosm%log_k_plin)
-         ALLOCATE (cosm%log_k_plin(nPk))
-         cosm%nk_plin = nPk
-         cosm%log_k_plin = log(kPk)
-
-         IF (cosm%scale_dependent_growth) THEN      
-            IF (ALLOCATED(cosm%log_plina))  DEALLOCATE (cosm%log_plina)
-            ALLOCATE (cosm%log_plina(nPk, na))
-            cosm%log_plina = log(Pk)
-         ELSE
-            IF (ALLOCATED(cosm%log_plin))   DEALLOCATE (cosm%log_plin)
-            ALLOCATE (cosm%log_plin(nPk))
-            cosm%log_plin = log(Pk(:,1))
+            WRITE(*,*) 'INIT_CAMB_LINEAR: Rebinning kmin [h/Mpc]:', kPk(1)
+            WRITE(*,*) 'INIT_CAMB_LINEAR: Rebinning kmax [h/Mpc]:', kPk(nk_CAMB)
+            WRITE(*,*) 'INIT_CAMB_LINEAR: Number of rebinned points in k:', nk_CAMB
          END IF
 
       END IF
 
-      DEALLOCATE(kPk, Pk)
+      CALL init_plin(kPk, a, Pk, cosm)
 
+      DEALLOCATE(kPk, Pk)     
+      
       ! Now the linear power arrays are filled
-      cosm%has_power = .TRUE.
+      !cosm%has_power = .TRUE.
 
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_CAMB_LINEAR: Done'
@@ -5519,7 +5499,59 @@ CONTAINS
 
    END SUBROUTINE init_CAMB_linear
 
+   SUBROUTINE init_plin(k, a, Pk, cosm)
+
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, INTENT(IN) :: Pk(:, :)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: nk, na
+
+      nk = size(k)
+      IF (nk /= size(Pk, 1)) THEN
+         WRITE(*, *) 'INIT_PLIN: Sizes', nk, size(Pk, 1)
+         STOP 'INIT_PLIN: Error, k and Pk arrays are not the same size'
+      END IF
+      cosm%nk_plin = nk
+
+      na = size(a)
+      IF (na /= size(Pk, 2)) THEN
+         WRITE(*, *) 'INIT_PLIN: Sizes', na, size(Pk, 2)
+         STOP 'INIT_PLIN: Error, a and Pk arrays are not the same size'
+      END IF      
+      cosm%na_plin = na
+
+      CALL safe_allocate(cosm%log_k_plin, nk)
+      cosm%log_k_plin = log(k)
+
+      IF (cosm%verbose) THEN
+         WRITE (*, *) 'INIT_PLIN: kmin [h/Mpc]:', k(1)
+         WRITE (*, *) 'INIT_PLIN: kmax [h/Mpc]:', k(nk)
+      END IF
+
+      IF (na == 1) THEN
+         CALL safe_allocate(cosm%log_plin, nk)
+         cosm%log_plin = log(Pk(:, 1))
+      ELSE
+         CALL safe_allocate(cosm%log_a_plin, na)
+         cosm%log_a_plin = log(a)
+         CALL safe_allocate(cosm%log_plina, nk, na)
+         cosm%log_plina = log(Pk)
+      END IF
+
+      IF (cosm%verbose) THEN
+         WRITE (*, *) 'INIT_PLIN: Done'
+         WRITE (*, *)
+      END IF
+
+      ! Now the linear power arrays are filled
+      cosm%has_power = .TRUE.
+
+   END SUBROUTINE init_plin
+
    SUBROUTINE init_external_linear(cosm)
+
+      ! TILMAN: Wrote this
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: nk, nk_plin, na, na_plin

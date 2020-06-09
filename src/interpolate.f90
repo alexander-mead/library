@@ -912,30 +912,102 @@ CONTAINS
 
    END FUNCTION find_3D
 
-   SUBROUTINE interpolate_array(x1, y1, n1, x2, y2, n2, iorder, ifind, iinterp)
+   SUBROUTINE interpolate_array(x_old, y_old, x_new, y_new, iorder, ifind, iinterp, logx, logy)
 
       ! Interpolates array 'x1-y1' onto new 'x' values x2 and output y2
       ! TODO: This could be more efficient because it currently does 'find integer' every time
-      INTEGER, INTENT(IN) :: n1
-      REAL, INTENT(IN) :: x1(n1)
-      REAL, INTENT(IN) :: y1(n1)
-      INTEGER, INTENT(IN) :: n2
-      REAL, INTENT(IN) :: x2(n2)
-      REAL, INTENT(OUT) :: y2(n2)
+      USE basic_operations
+      REAL, INTENT(IN) :: x_old(:)
+      REAL, INTENT(IN) :: y_old(:)
+      REAL, INTENT(IN) :: x_new(:)
+      REAL, INTENT(OUT) :: y_new(:)
       INTEGER, INTENT(IN) :: iorder
       INTEGER, INTENT(IN) :: ifind
       INTEGER, INTENT(IN) :: iinterp
-      INTEGER :: i
+      LOGICAL, OPTIONAL, INTENT(IN) :: logx
+      LOGICAL, OPTIONAL, INTENT(IN) :: logy
+      REAL, ALLOCATABLE :: xx_old(:), yy_old(:)
+      INTEGER :: i, n_old, n_new
+
+      n_old = size(x_old)
+      IF (n_old /= size(y_old)) STOP 'INTERPOLATE_ARRAY: error, x_old and y_old must be the same size'
+
+      n_new = size(x_new)
+      IF (n_new /= size(y_new)) STOP 'INTERPOLATE_ARRAY: error, x_new and y_new must be the same size'
+
+      IF (present_and_correct(logx)) THEN
+         xx_old = log(x_old)
+      ELSE
+         xx_old = x_old
+      END IF
+
+      IF (present_and_correct(logy)) THEN
+         yy_old = log(y_old)
+      ELSE
+         yy_old = y_old
+      END IF
     
-      DO i = 1, n2
-         y2(i) = find(x2(i), x1, y1, n1, iorder, ifind, iinterp)
+      DO i = 1, n_new
+         y_new(i) = find(x_new(i), xx_old, yy_old, n_old, iorder, ifind, iinterp)
       END DO
 
+      IF (present_and_correct(logy)) THEN
+         y_new = exp(y_new)
+      END IF
+
    END SUBROUTINE interpolate_array
+
+   SUBROUTINE rebin_array(xmin_new, xmax_new, n_new, x, f, iorder, ifind, iinterp, logx, logf)
+
+      USE basic_operations
+      REAL, INTENT(IN) :: xmin_new
+      REAL, INTENT(IN) :: xmax_new
+      INTEGER, INTENT(IN) :: n_new
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: f(:)
+      INTEGER, INTENT(IN) :: iorder
+      INTEGER, INTENT(IN) :: ifind
+      INTEGER, INTENT(IN) :: iinterp
+      LOGICAL, OPTIONAL, INTENT(IN) :: logx
+      LOGICAL, OPTIONAL, INTENT(IN) :: logf
+      REAL, ALLOCATABLE :: x_old(:), f_old(:)
+      INTEGER :: i, n_old
+
+      n_old = size(x)
+      IF (n_old /= size(f, 1)) STOP 'REBIN_ARRAY: Error, x and f must be the same size'
+
+      x_old = x
+      f_old = f
+
+      IF (present_and_correct(logx)) THEN
+         CALL fill_array_log(xmin_new, xmax_new, x, n_new)
+      ELSE
+         CALL fill_array(xmin_new, xmax_new, x, n_new)
+      END IF
+      DEALLOCATE(f)
+      ALLOCATE(f(n_new))
+
+      !IF (logx) x_old = log(x_old)
+      !IF (logf) f_old = log(f_old)
+
+      ! DO i = 1, n_new
+      !    IF (logx) THEN
+      !       f(i) = find(log(x(i)), x_old, f_old, n_old, iorder, ifind, iinterp)
+      !    ELSE
+      !       f(i) = find(x(i), x_old, f_old, n_old, iorder, ifind, iinterp)
+      !    END IF
+      ! END DO
+
+      ! IF (logf) f = exp(f) 
+
+      CALL interpolate_array(x_old, f_old, x, f, iorder, ifind, iinterp, logx, logf)
+
+   END SUBROUTINE rebin_array
 
    SUBROUTINE init_interpolator_1D(x, f, interp, iorder, iextrap, store, logx, logf)
 
       ! Initialise an interpolator
+      ! TODO: Should be loops and arrays rather than x1, x2, x3, x4 etc.
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                  ! Input data x
       REAL, INTENT(IN) :: f(:)                  ! Input data f(x)
@@ -954,6 +1026,9 @@ CONTAINS
       INTEGER :: i, n, ii, nn
       INTEGER :: i1, i2, i3, i4
       INTEGER, PARAMETER :: ifind_default = ifind_interpolator_default
+
+      ! Should the first and last sections of cubic interpolation be quadratic
+      LOGICAL, PARAMETER :: quadratic_end_cubic = .FALSE. 
 
       CALL if_allocated_deallocate(interp%x)
       CALL if_allocated_deallocate(interp%x0)
@@ -1068,21 +1143,20 @@ CONTAINS
 
             ELSE IF (iorder == 2) THEN
 
+               i1 = i-1
+               i2 = i
+               i3 = i+1
+               i4 = i+2
                IF (i == 1) THEN
-                  i1 = 1
-                  i2 = 2
-                  i3 = 3
-                  i4 = 0 ! Set to zero so ignored later
+                  i1 = i1+1
+                  i2 = i2+1
+                  i3 = i3+1
+                  i4 = 0
                ELSE IF (i == n-1) THEN
-                  i1 = n-2
-                  i2 = n-1
-                  i3 = n
-                  i4 = 0 ! Set to zero so ignored later
-               ELSE
-                  i1 = i-1
-                  i2 = i
-                  i3 = i+1
-                  i4 = i+2
+                  i1 = i1-1
+                  i2 = i2-1
+                  i3 = i3-1
+                  i4 = 0
                END IF
 
                x1 = xx(i1)
@@ -1106,22 +1180,23 @@ CONTAINS
             ELSE IF (iorder == 3) THEN
 
                ! Deal with the indices for the first and last section and general case
+               i1 = i-1
+               i2 = i
+               i3 = i+1
+               i4 = i+2
                IF (i == 1) THEN
-                  i1 = 1
-                  i2 = 2
-                  i3 = 3
-                  i4 = 4
+                  ! Should be 1, 2, 3, 4
+                  i1 = i1+1
+                  i2 = i2+1 
+                  i3 = i3+1 
+                  i4 = i4+1 
                ELSE IF (i == n-1) THEN
-                  i1 = n-3
-                  i2 = n-2
-                  i3 = n-1
-                  i4 = n
-               ELSE
-                  i1 = i-1
-                  i2 = i
-                  i3 = i+1
-                  i4 = i+2
-               END IF          
+                  ! Should be n-3, n-2, n-1, n
+                  i1 = i1-1
+                  i2 = i2-1
+                  i3 = i3-1
+                  i4 = i4-1
+               END IF
 
                x1 = xx(i1)
                x2 = xx(i2)
@@ -1133,8 +1208,16 @@ CONTAINS
                f3 = ff(i3)
                f4 = ff(i4)
 
-               xm = (x1+x2)/2.
-               CALL fix_centred_polynomial(a3, a2, a1, a0, xm, [x1, x2, x3, x4], [f1, f2, f3, f4])        
+               xm = (xx(i)+xx(i+1))/2.
+               IF (quadratic_end_cubic .AND. i == 1) THEN
+                  CALL fix_centred_polynomial(a2, a1, a0, xm, [x1, x2, x3], [f1, f2, f3]) 
+                  a3 = 0.
+               ELSE IF (quadratic_end_cubic .AND. i == n-1) THEN
+                  CALL fix_centred_polynomial(a2, a1, a0, xm, [x2, x3, x4], [f2, f3, f4]) 
+                  a3 = 0.
+               ELSE
+                  CALL fix_centred_polynomial(a3, a2, a1, a0, xm, [x1, x2, x3, x4], [f1, f2, f3, f4])  
+               END IF    
 
             ELSE
 

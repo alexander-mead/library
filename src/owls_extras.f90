@@ -449,7 +449,7 @@ CONTAINS
          END IF
          CALL fill_array_log(kmin, kmax, k2, nk_rebin)
          ALLOCATE (Pk2(nk_rebin))
-         CALL interpolate_array(log(k), log(Pk), nk, log(k2), Pk2, nk_rebin, iorder_rebin, ifind_rebin, iinterp_rebin)
+         CALL interpolate_array(log(k), log(Pk), log(k2), Pk2, iorder_rebin, ifind_rebin, iinterp_rebin)
          Pk2 = exp(Pk2)
          DEALLOCATE (k, Pk, Ek)
          nk = nk_rebin

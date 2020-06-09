@@ -46,7 +46,7 @@ PROGRAM interpolate_demo
 
    SUBROUTINE interpolator_demo_1D()
 
-      TYPE(interpolator) :: interp
+      TYPE(interpolator1D) :: interp
       REAL, ALLOCATABLE :: x(:), f(:)
       REAL :: xv, fv
       INTEGER :: ix
@@ -55,14 +55,15 @@ PROGRAM interpolate_demo
       INTEGER, PARAMETER :: nx = 9
       INTEGER, PARAMETER :: nnx = 10*nx
       INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: iextrap = iextrap_standard
 
       CALL fill_array(xmin, xmax, x, nx)
       f = sin(x)
 
-      CALL init_interpolator(x, f, iorder, interp)
+      CALL init_interpolator(x, f, interp, iorder, iextrap, store=.TRUE.)
 
       DO ix = 1, nnx
-         xv = progression(xmin, xmax+.1, ix, nnx)
+         xv = progression(xmin, xmax, ix, nnx)
          fv = evaluate_interpolator(xv, interp)
          WRITE(*, *) ix, xv, fv, sin(xv)!, fv/sin(xv)
       END DO
@@ -217,14 +218,14 @@ PROGRAM interpolate_demo
 
       ! Random point to test
       !CALL RNG_set(seed=0)
-      CALL RNG_seed(seed=0)
+      CALL random_generator_seed(seed=0)
       x = random_uniform(xmin, xmax)
       y = random_uniform(ymin, ymax)
       WRITE (*, *) 'x:', x
       WRITE (*, *) 'y:', y
-      WRITE (*, *) 'Constant interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 0, 3, 1)
-      WRITE (*, *) 'Linear interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 1, 3, 1)
-      WRITE (*, *) 'Cubic interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 3, 3, 1)
+      WRITE (*, *) 'Constant interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 0, 3, 3, 1)
+      WRITE (*, *) 'Linear interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 1, 3, 3, 1)
+      WRITE (*, *) 'Cubic interpolation:', find(x, xtab, y, ytab, f, nxtab, nytab, 3, 3, 3, 1)
       WRITE (*, *) 'Truth:', func(x, y)
       WRITE (*, *)
 
@@ -247,9 +248,9 @@ PROGRAM interpolate_demo
             y = cell_position(j, ymax-ymin, ny)+ymin
 
             f_true = func(x, y)
-            f_int0 = find(x, xtab, y, ytab, f, nxtab, nytab, 0, 3, 1)
-            f_int1 = find(x, xtab, y, ytab, f, nxtab, nytab, 1, 3, 1)
-            f_int3 = find(x, xtab, y, ytab, f, nxtab, nytab, 3, 3, 1)
+            f_int0 = find(x, xtab, y, ytab, f, nxtab, nytab, 0, 3, 3, 1)
+            f_int1 = find(x, xtab, y, ytab, f, nxtab, nytab, 1, 3, 3, 1)
+            f_int3 = find(x, xtab, y, ytab, f, nxtab, nytab, 3, 3, 3, 1)
 
             WRITE (7, *) x, y, f_true, f_int0, f_int1, f_int3
 
