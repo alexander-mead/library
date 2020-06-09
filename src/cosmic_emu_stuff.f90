@@ -72,7 +72,6 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       LOGICAL, INTENT(IN) :: rebin
       INTEGER :: i
-      REAL, ALLOCATABLE :: k2(:), P2(:)
       CHARACTER(len=256) :: crap
       REAL :: h
       REAL, PARAMETER :: kmin = 1e-2 ! Minimum k if rebinnning
@@ -129,19 +128,9 @@ CONTAINS
       !Convert k to k/h
       k = k/cosm%h
 
-      ! Rebin on a log-linear axis if desired
       IF (rebin) THEN
-         CALL fill_array(log(kmin), log(kmax), k2, nk)
-         k2 = exp(k2)
-         ALLOCATE (P2(nk))
-         CALL interpolate_array(log(k), log(P), log(k2), P2, 3, 3, 2)
-         P2 = exp(P2)
-         DEALLOCATE (k, P)
-         ALLOCATE (k(nk), P(nk))
-         k = k2
-         P = P2
+         CALL rebin_array(kmin, kmax, nk, k, P, 3, 3, 2, logx=.TRUE., logf=.TRUE.)
          n = nk
-         DEALLOCATE (k2, P2)
       END IF
 
       ! Done
@@ -159,7 +148,6 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       LOGICAL, INTENT(IN) :: rebin
       INTEGER :: i
-      REAL, ALLOCATABLE :: k2(:), P2(:)
       REAL, PARAMETER :: kmin = 1e-2 ! Minimum k if rebinnning
       REAL, PARAMETER :: kmax = 1e1  ! Maximum k if rebinnning
       INTEGER, PARAMETER :: nk = 128 ! Number of k values if rebinning
@@ -206,19 +194,9 @@ CONTAINS
       !Convert k to k/h
       k = k/cosm%h
 
-      ! Rebin on a log-linear axis if desired
       IF (rebin) THEN
-         CALL fill_array(log(kmin), log(kmax), k2, nk)
-         k2 = exp(k2)
-         ALLOCATE (P2(nk))
-         CALL interpolate_array(log(k), log(P), log(k2), P2, 3, 3, 2)
-         P2 = exp(P2)
-         DEALLOCATE (k, P)
-         ALLOCATE (k(nk), P(nk))
-         k = k2
-         P = P2
+         CALL rebin_array(kmin, kmax, nk, k, P, 3, 3, 2, logx=.TRUE., logf=.TRUE.)
          n = nk
-         DEALLOCATE (k2, P2)
       END IF
 
       ! Done
@@ -238,7 +216,7 @@ CONTAINS
       LOGICAL, INTENT(IN) :: rebin
       CHARACTER(len=256) :: output
       INTEGER :: i, nk
-      REAL, ALLOCATABLE :: k2(:), P2(:)
+      !REAL, ALLOCATABLE :: k2(:), P2(:)
       REAL :: kmin, kmax
       REAL, PARAMETER :: kmin_rebin = 1e-2
       REAL, PARAMETER :: kmax_rebin = 7.
@@ -279,22 +257,9 @@ CONTAINS
       !Convert k to k/h
       k = k/cosm%h
 
-      ! Rebin on a log-linear axis
       IF (rebin) THEN
-         kmin = kmin_rebin
-         kmax = kmax_rebin
-         nk = nk_rebin
-         CALL fill_array(log(kmin), log(kmax), k2, nk)
-         k2 = exp(k2)
-         ALLOCATE (P2(nk))
-         CALL interpolate_array(log(k), log(P), log(k2), P2, iorder_rebin, ifind_rebin, iinterp_rebin)
-         P2 = exp(P2)
-         DEALLOCATE (k, P)
-         ALLOCATE (k(nk), P(nk))
-         k = k2
-         P = P2
+         CALL rebin_array(kmin, kmax, nk, k, P, 3, 3, 2, logx=.TRUE., logf=.TRUE.)
          n = nk
-         DEALLOCATE (k2, P2)
       END IF
 
       WRITE (*, *) 'GET_MIRATITAN_POWER_Z: Done'

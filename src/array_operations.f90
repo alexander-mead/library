@@ -79,6 +79,7 @@ MODULE array_operations
 
    INTERFACE write_array_list
       PROCEDURE write_array_list_real
+      PROCEDURE write_2array_list_real
       PROCEDURE write_array_list_int
    END INTERFACE write_array_list
 
@@ -755,6 +756,25 @@ CONTAINS
       WRITE (*, *)
 
    END SUBROUTINE write_array_list_real
+
+   SUBROUTINE write_2array_list_real(a, b)
+
+      ! Write out a list of array elements in a neat way
+      REAL, INTENT(IN) :: a(:)
+      REAL, INTENT(IN) :: b(:)
+      INTEGER :: i, n
+
+      n = size(a)
+      IF (n /= size(b)) STOP 'Arrays must be the same size'
+
+      WRITE (*, *) 'WRITE_ARRAY_LIST: Writing array'
+      DO i = 1, n
+         WRITE (*, *) 'WRITE_ARRAY_LIST:', i, a(i), b(i)
+      END DO
+      WRITE (*, *) 'WRITE_ARRAY_LIST: Done'
+      WRITE (*, *)
+
+   END SUBROUTINE write_2array_list_real
 
    SUBROUTINE write_array_list_int(a)
 

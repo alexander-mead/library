@@ -17,6 +17,7 @@ MODULE interpolate
    ! Functions
    PUBLIC :: find
    PUBLIC :: interpolate_array
+   PUBLIC :: rebin_array
    PUBLIC :: init_interpolator
    PUBLIC :: evaluate_interpolator
    PUBLIC :: inverse_interpolator
@@ -927,6 +928,7 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: logx
       LOGICAL, OPTIONAL, INTENT(IN) :: logy
       REAL, ALLOCATABLE :: xx_old(:), yy_old(:)
+      REAL :: xx
       INTEGER :: i, n_old, n_new
 
       n_old = size(x_old)
@@ -948,7 +950,12 @@ CONTAINS
       END IF
     
       DO i = 1, n_new
-         y_new(i) = find(x_new(i), xx_old, yy_old, n_old, iorder, ifind, iinterp)
+         IF (present_and_correct(logx)) THEN
+            xx = log(x_new(i))
+         ELSE
+            xx = x_new(i)
+         END IF
+         y_new(i) = find(xx, xx_old, yy_old, n_old, iorder, ifind, iinterp)
       END DO
 
       IF (present_and_correct(logy)) THEN
@@ -986,19 +993,6 @@ CONTAINS
       END IF
       DEALLOCATE(f)
       ALLOCATE(f(n_new))
-
-      !IF (logx) x_old = log(x_old)
-      !IF (logf) f_old = log(f_old)
-
-      ! DO i = 1, n_new
-      !    IF (logx) THEN
-      !       f(i) = find(log(x(i)), x_old, f_old, n_old, iorder, ifind, iinterp)
-      !    ELSE
-      !       f(i) = find(x(i), x_old, f_old, n_old, iorder, ifind, iinterp)
-      !    END IF
-      ! END DO
-
-      ! IF (logf) f = exp(f) 
 
       CALL interpolate_array(x_old, f_old, x, f, iorder, ifind, iinterp, logx, logf)
 
