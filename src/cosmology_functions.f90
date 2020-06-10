@@ -178,7 +178,7 @@ MODULE cosmology_functions
       TYPE(interpolator1D) :: plin, wiggle
       TYPE(interpolator2D) :: sigmaa, plina!, Tcold ! 2D interpolators 
       INTEGER :: nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin ! Number of array entries
-      REAL :: amin_sigma, amax_sigma  ! Ranges of arrays   
+      REAL :: amin_sigma, amax_sigma  ! TILMAN: Ranges of arrays   
       LOGICAL :: analytical_power                                                          
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
       LOGICAL :: has_wiggle
@@ -1218,15 +1218,6 @@ CONTAINS
       REAL :: rho_g, Om_g_h2, rho_crit, f_nu_rad
       REAL, PARAMETER :: small = small_curve ! Some small number for writing curvature things
 
-      ! Interpolators
-      !cosm%has_distance = .FALSE.
-      !cosm%has_growth = .FALSE.
-      !cosm%has_sigma = .FALSE.
-      !cosm%has_spherical = .FALSE.
-      !cosm%has_power = .FALSE.
-      cosm%has_Xde = .FALSE.
-      cosm%has_wiggle = .FALSE.
-
       ! Is statements
       cosm%is_init = .FALSE.
       cosm%is_normalised = .FALSE.
@@ -1404,40 +1395,31 @@ CONTAINS
          cosm%a2 = cosm%astar*(f1/f2)**(1./(3.*(1.+cosm%ws)))
       END IF
 
-      ! Ensure deallocate distances
-      ! TODO: Move to top
-      cosm%has_distance = .FALSE.
+      ! Useful variables
+      cosm%age = 0.      
+      cosm%gnorm = 0.
       cosm%horizon = 0.
 
-      ! Ensure deallocate time
-      ! TODO: Move to top
+      ! Interpolators
       cosm%has_time = .FALSE.
-      cosm%age = 0.
-
-      ! Ensure deallocate growth
-      ! TODO: Move to top
       cosm%has_growth = .FALSE.
-      cosm%gnorm = 0.
-
-      ! Ensure deallocate sigma
-      ! TODO: Move to top
       cosm%has_sigma = .FALSE.
-
-      ! Switch for power
-      ! TODO: Move to top
-      IF (cosm%itk == itk_external) THEN
-         cosm%has_power = .TRUE.
-      ELSE
-         cosm%has_power = .FALSE.
-      END IF
+      cosm%has_distance = .FALSE.
+      cosm%has_spherical = .FALSE.
+      cosm%has_Xde = .FALSE.
+      cosm%has_wiggle = .FALSE.
+      cosm%has_power = .FALSE.
+      !IF (cosm%itk == itk_external) THEN
+      !   cosm%has_power = .TRUE.
+      !ELSE
+      !   cosm%has_power = .FALSE.
+      !END IF
 
       ! Switch analytical transfer function
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
          ! Default to use internal linear P(k) from Eisenstein & Hu
-         !cosm%has_power = .FALSE.
          cosm%analytical_power = .TRUE.
       ELSE
-         !cosm%has_power = .TRUE.
          cosm%analytical_power = .FALSE.
       END IF
 
@@ -1456,10 +1438,6 @@ CONTAINS
       ! TILMAN: Added these
       cosm%amin_sigma = 0.0
       cosm%amax_sigma = 0.0
-
-      ! Ensure delloacte spherical-collapse arrays
-      ! TODO: Move to top
-      cosm%has_spherical = .FALSE.
 
       ! Write finishing message to screen
       IF (cosm%verbose) THEN
