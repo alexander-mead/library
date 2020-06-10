@@ -3321,7 +3321,7 @@ CONTAINS
       !IF(cosm%amax_sigma == 0.0) cosm%amax_sigma = amax_sigma
 
       ! This does not need to be evaulated at multiple a unless growth is scale dependent
-      IF(.NOT. cosm%scale_dependent_growth) cosm%na_sigma = 1
+      IF (.NOT. cosm%scale_dependent_growth) cosm%na_sigma = 1
 
       ! Write to screen
       IF (cosm%verbose) THEN
@@ -3349,7 +3349,7 @@ CONTAINS
          CALL init_interpolator(R, a, sig, cosm%sigmaa, &
             iorder_interp_sigma, &
             iextrap_sigma, &
-            store=.TRUE., &
+            store = .FALSE., &
             logx = .TRUE., &
             logy = .TRUE., &
             logf = .TRUE. &
@@ -3365,7 +3365,7 @@ CONTAINS
          CALL init_interpolator(R, sig(:, 1), cosm%sigma, &
             iorder_interp_sigma, &
             iextrap_sigma, &
-            store=.TRUE., &
+            store = .TRUE., &
             logx = .TRUE., &
             logf = .TRUE. &
             )
@@ -3374,8 +3374,8 @@ CONTAINS
 
       ! Write useful information to screen
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', sig(1, cosm%na_sigma)
-         WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', sig(cosm%nr_sigma, cosm%na_sigma)
+         WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', sig(cosm%nr_sigma, cosm%na_sigma)
+         WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', sig(1, cosm%na_sigma)
          WRITE (*, *) 'INIT_SIGMA: Done'
          WRITE (*, *)
       END IF
