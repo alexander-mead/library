@@ -1985,10 +1985,16 @@ CONTAINS
       LOGICAL, PARAMETER :: check_mf = check_mass_function
       LOGICAL, PARAMETER :: calculate_stars = calculate_Omega_stars
 
+      IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Initialising calculation'
+
       ! Set the redshift (this routine needs to be called anew for each z)
       hmod%a = a
       z = redshift_a(a)
       hmod%z = z
+      IF (verbose) THEN  
+         WRITE (*, *) 'INIT_HALOMOD: Tables being filled at redshift:', REAL(z)
+         WRITE (*, *) 'INIT_HALOMOD: Tables being filled at scale-factor:', REAL(a)
+      END IF
 
       ! Reset flags to false
       hmod%has_galaxies = .FALSE.
@@ -2001,19 +2007,14 @@ CONTAINS
       ! TODO: This is really a 'cosmology' thing
       ! TODO: This is only necessary for some halo models
       hmod%sigv = sigmaV(0., a, flag_power_total, cosm)
-      !hmod%sigv = sigmaV(0., a, flag_power_cold_unorm, cosm) 
+      !hmod%sigv = sigmaV(0., a, flag_power_cold_unorm, cosm)      
+      IF (verbose) WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigv)
 
       ! Calcuate delta_c and Delta_v
       ! Sometimes these calculations rely on the sigmas that should be calculated before this
       hmod%dc = delta_c(hmod, cosm)
       hmod%Dv = Delta_v(hmod, cosm)
-
-      ! Write to screen
-      IF (verbose) THEN
-         WRITE (*, *) 'INIT_HALOMOD: Initialising calculation'
-         WRITE (*, *) 'INIT_HALOMOD: Tables being filled at redshift:', REAL(z)
-         WRITE (*, *) 'INIT_HALOMOD: Tables being filled at scale-factor:', REAL(a)
-         WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigv)
+      IF (verbose) THEN         
          WRITE (*, *) 'INIT_HALOMOD: Delta_v:', REAL(hmod%Dv)
          WRITE (*, *) 'INIT_HALOMOD: delta_c:', REAL(hmod%dc)
       END IF
