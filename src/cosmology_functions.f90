@@ -1426,13 +1426,15 @@ CONTAINS
          CALL if_allocated_deallocate(cosm%log_plina)
       ENDIF
 
-      ! TILMAN: Added these
-      cosm%nr_sigma = 0
-      cosm%na_sigma = 0
-
-      ! TILMAN: Added these
-      cosm%amin_sigma = 0.0
-      cosm%amax_sigma = 0.0
+      ! TILMAN: Added this
+      cosm%nr_sigma = nr_sigma
+      IF (cosm%itk == itk_external) THEN
+         CALL init_external_linear(cosm)
+      ELSE
+         cosm%na_sigma = na_sigma
+         cosm%amin_sigma = amin_sigma
+         cosm%amax_sigma = amax_sigma
+      END IF
 
       ! Write finishing message to screen
       IF (cosm%verbose) THEN
@@ -1720,7 +1722,7 @@ CONTAINS
 
       ! Get the CAMB power if necessary
       IF (cosm%itk == itk_CAMB)     CALL init_CAMB_linear(cosm)
-      IF (cosm%itk == itk_external) CALL init_external_linear(cosm)
+      !IF (cosm%itk == itk_external) CALL init_external_linear(cosm)
       !IF (cosm%analytical_power)    CALL init_analytical_linear(cosm)
 
       ! Change the flag *before* doing the normalisation calculation because it calls power
@@ -3313,10 +3315,10 @@ CONTAINS
       INTEGER :: i, j
 
       ! TILMAN: Set nr_sigma, na_sigma, amin_sigma, and amax_sigma to defaults if not set by the user
-      IF(cosm%nr_sigma == 0) cosm%nr_sigma = nr_sigma
-      IF(cosm%na_sigma == 0) cosm%na_sigma = na_sigma
-      IF(cosm%amin_sigma == 0.0) cosm%amin_sigma = amin_sigma
-      IF(cosm%amax_sigma == 0.0) cosm%amax_sigma = amax_sigma
+      !IF(cosm%nr_sigma == 0) cosm%nr_sigma = nr_sigma
+      !IF(cosm%na_sigma == 0) cosm%na_sigma = na_sigma
+      !IF(cosm%amin_sigma == 0.0) cosm%amin_sigma = amin_sigma
+      !IF(cosm%amax_sigma == 0.0) cosm%amax_sigma = amax_sigma
 
       ! This does not need to be evaulated at multiple a unless growth is scale dependent
       IF(.NOT. cosm%scale_dependent_growth) cosm%na_sigma = 1
@@ -5661,6 +5663,7 @@ CONTAINS
 
       cosm%amin_sigma = MINVAL(EXP(cosm%log_a_plin))
       cosm%amax_sigma = MAXVAL(EXP(cosm%log_a_plin))
+      cosm%na_sigma = na
 
       cosm%has_power = .TRUE.
 
