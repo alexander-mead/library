@@ -3358,7 +3358,7 @@ CONTAINS
 
       ! Allocate and fill array of R values
       CALL fill_array_log(rmin_sigma, rmax_sigma, R, cosm%nr_sigma)
-      IF (cosm%scale_dependent_growth) CALL fill_array_log(amin_sigma, amax_sigma, a, cosm%na_sigma)
+      IF (cosm%scale_dependent_growth) CALL fill_array_log(cosm%amin_sigma, cosm%amax_sigma, a, cosm%na_sigma)
       ALLOCATE(sig(cosm%nr_sigma, cosm%na_sigma))
 
       ! Do the calculations to fill the look-up tables
