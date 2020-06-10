@@ -1409,11 +1409,6 @@ CONTAINS
       cosm%has_Xde = .FALSE.
       cosm%has_wiggle = .FALSE.
       cosm%has_power = .FALSE.
-      !IF (cosm%itk == itk_external) THEN
-      !   cosm%has_power = .TRUE.
-      !ELSE
-      !   cosm%has_power = .FALSE.
-      !END IF
 
       ! Switch analytical transfer function
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
