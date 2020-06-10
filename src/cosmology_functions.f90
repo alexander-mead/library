@@ -178,7 +178,8 @@ MODULE cosmology_functions
       TYPE(interpolator1D) :: plin, wiggle
       TYPE(interpolator2D) :: sigmaa, plina!, Tcold ! 2D interpolators 
       INTEGER :: nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin ! Number of array entries
-      REAL :: amin_sigma, amax_sigma                                                               ! Ranges of arrays
+      REAL :: amin_sigma, amax_sigma  ! Ranges of arrays   
+      LOGICAL :: analytical_power                                                          
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
       LOGICAL :: has_wiggle
       LOGICAL :: is_init, is_normalised ! Flags to check if things have been done 
@@ -242,9 +243,9 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iextrap_time = iextrap_standard
 
    ! Power
-   REAL, PARAMETER :: kmin_plin = 0.           ! Power below this wavenumber is set to zero [h/Mpc]
-   REAL, PARAMETER :: kmax_plin = 1e8          ! Power above this wavenumber is set to zero [h/Mpc]
-   LOGICAL, PARAMETER :: plin_extrap = .FALSE. ! Extrapolate high-k power assumning P(k) ~ ln(k)^2 k^(n-3) (otherwise power law)?
+   REAL, PARAMETER :: kmin_abs_plin = 0.       ! Power below this wavenumber is set to zero [h/Mpc]
+   REAL, PARAMETER :: kmax_abs_plin = 1e8      ! Power above this wavenumber is set to zero [h/Mpc]
+   LOGICAL, PARAMETER :: plin_extrap = .FALSE. ! Extrapolate high-k power assuming P(k) ~ ln(k)^2 k^(n-3)?
    INTEGER, PARAMETER :: itk_none = 0          ! Pure power-law spectrum
    INTEGER, PARAMETER :: itk_EH = 1            ! Eisenstein and Hu linear spectrum
    INTEGER, PARAMETER :: itk_CAMB = 2          ! CAMB linear spectrum
@@ -276,9 +277,6 @@ MODULE cosmology_functions
    REAL, PARAMETER :: alpha_hi_xi = 1.5        ! High r value of alpha for conventional integration
 
    ! CAMB interface
-   REAL, PARAMETER :: kmin_CAMB = 1e-3         ! Minimum wavenumber to use if rebinning
-   REAL, PARAMETER :: kmax_CAMB = 1e2          ! Maximum wavenumber to get (also to use for rebinning)
-   INTEGER, PARAMETER :: nk_CAMB = 128         ! Number of k values to use if rebinning
    REAL, PARAMETER :: amin_CAMB = 0.1          ! Minimum a value for P(k,a) tables when linear growth is scale dependent
    REAL, PARAMETER :: amax_CAMB = 1.0          ! Maximum a value for P(k,a) tables when linear growth is scale dependent
    INTEGER, PARAMETER :: na_CAMB = 16          ! Number of a values for linear P(k,a) tables if growth is scale dependent
@@ -290,11 +288,14 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Method for interpolation on CAMB rebinning
 
    ! Linear power interpolation
+   REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used [h/Mpc]
+   REAL, PARAMETER :: kmax_plin = 1e2                    ! Maximum wavenumber used [h/Mpc]
+   INTEGER, PARAMETER :: nk_plin = 128                   ! Number of k to use
    LOGICAL, PARAMETER :: power_interpolator = .FALSE.    ! Use dedicated interpolator for power?
    INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Order for interpolation
    INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
    INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
-   INTEGER, PARAMETER :: iextrap_plin = iextrap_standard ! Extrapolation scheme
+   INTEGER, PARAMETER :: iextrap_plin = iextrap_linear   ! Extrapolation scheme
 
    ! Growth ODE
    REAL, PARAMETER :: ainit_growth = 1e-3                    ! Starting value for growth integratiton (should start | Omega_m(a)=1)
@@ -727,9 +728,12 @@ CONTAINS
       cosm%box = .FALSE.
       cosm%Lbox = 100. ! Box size [Mpc/h]
 
-      ! Set is/has flags to negative
+      ! Set is flags to negative
       cosm%is_init = .FALSE.
       cosm%is_normalised = .FALSE.
+      cosm%analytical_power = .FALSE.
+
+      ! Interpolators
       cosm%has_distance = .FALSE.
       cosm%has_growth = .FALSE.
       cosm%has_sigma = .FALSE.
@@ -1414,9 +1418,11 @@ CONTAINS
       ! Switch for power?
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
          ! Default to use internal linear P(k) from Eisenstein & Hu
-         cosm%has_power = .FALSE.
+         !cosm%has_power = .FALSE.
+         cosm%analytical_power = .TRUE.
       ELSE
-         cosm%has_power = .TRUE.
+         !cosm%has_power = .TRUE.
+         cosm%analytical_power = .FALSE.
       END IF
 
       IF (cosm%itk /= itk_external) THEN
@@ -1725,6 +1731,7 @@ CONTAINS
       ! Get the CAMB power if necessary
       IF (cosm%itk == itk_CAMB)     CALL init_CAMB_linear(cosm)
       IF (cosm%itk == itk_external) CALL init_external_linear(cosm)
+      !IF (cosm%analytical_power)    CALL init_analytical_linear(cosm)
 
       ! Change the flag *before* doing the normalisation calculation because it calls power
       cosm%is_normalised = .TRUE.
@@ -3225,11 +3232,11 @@ CONTAINS
          CALL normalise_power(cosm)
       END IF
 
-      IF (k <= kmin_plin) THEN
+      IF (k <= kmin_abs_plin) THEN
          ! If plin happens to be foolishly called for 0 mode
          ! This call should never happen, but may in integrals
          plin = 0.
-      ELSE IF (k > kmax_plin) THEN
+      ELSE IF (k > kmax_abs_plin) THEN
          ! Avoids some issues if plin is called for absurdly high k values
          ! For some reason crashes can occur if this is the case
          plin = 0.
@@ -5121,7 +5128,7 @@ CONTAINS
       REAL, ALLOCATABLE :: Pk_CAMB(:), Tk_CAMB(:,:)
       REAL :: Om_c, Om_b, Om_nu, h, ombh2, omch2, omnuh2
       CHARACTER(len=256) :: infile
-      REAL, PARAMETER :: kmax = kmax_CAMB ! Maximum wavenumber to get the power to
+      REAL, PARAMETER :: kmax = kmax_plin ! Maximum wavenumber to get the power to
       REAL, PARAMETER :: nmax = nmax_CAMB ! Multiplicative factor to go beyond kmax
       CHARACTER(len=256), PARAMETER :: camb = 'camb'
       CHARACTER(len=256), PARAMETER :: dir = '/Users/Mead/Physics/CAMB_files/tmp/'
@@ -5362,7 +5369,7 @@ CONTAINS
       INTEGER :: i, naa
       LOGICAL :: kkeep(nk), akeep(na)
       REAL, ALLOCATABLE :: aa(:)
-      REAL, PARAMETER :: kmax = kmax_CAMB     ! Maximum wavenumber to get the power to
+      REAL, PARAMETER :: kmax = kmax_plin     ! Maximum wavenumber to get the power to
       REAL, PARAMETER :: pk_min = pk_min_CAMB ! Minimum power to consider
 
       ! Initially assume everything is being kept
@@ -5407,6 +5414,9 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini'
       LOGICAL, PARAMETER :: non_linear = .FALSE.       ! Should not use non-linear when trying to get linear theory
       INTEGER, PARAMETER :: halofit_version = 0        ! Irrelevant here
+      REAL, PARAMETER :: kmin_rebin = kmin_plin
+      REAL, PARAMETER :: kmax_rebin = kmax_plin
+      INTEGER, PARAMETER :: nk = nk_plin
       REAL, PARAMETER :: amin = amin_CAMB              ! Minimum scale factor to get from CAMB
       REAL, PARAMETER :: amax = amax_CAMB              ! Maximum scale factor to get from CAMB
       LOGICAL, PARAMETER :: rebin = rebin_CAMB         ! Should we rebin CAMB input P(k)?
@@ -5472,15 +5482,15 @@ CONTAINS
 
       IF (rebin) THEN
 
-         CALL fill_array_log(kmin_CAMB, kmax_CAMB, kkPk, nk_CAMB)
-         ALLOCATE(Pkk(nk_CAMB, na_CAMB))
+         CALL fill_array_log(kmin_rebin, kmax_rebin, kkPk, nk)
+         ALLOCATE(Pkk(nk, na))
 
          kPk = log(kPk)
          Pk = log(Pk)
         
-         DO j = 1, na_CAMB
-            DO i = 1, nk_CAMB
-               Pkk(i, j) = find(log(kkPk(i)), kPk, Pk(:,j), nPk, &
+         DO j = 1, na
+            DO i = 1, nk
+               Pkk(i, j) = find(log(kkPk(i)), kPk, Pk(:, j), nPk, &
                   iorder_rebin_CAMB, &
                   ifind_rebin_CAMB, &
                   iinterp_rebin_CAMB)
@@ -5494,18 +5504,15 @@ CONTAINS
 
          IF (cosm%verbose) THEN
             WRITE(*,*) 'INIT_CAMB_LINEAR: Rebinning kmin [h/Mpc]:', kPk(1)
-            WRITE(*,*) 'INIT_CAMB_LINEAR: Rebinning kmax [h/Mpc]:', kPk(nk_CAMB)
-            WRITE(*,*) 'INIT_CAMB_LINEAR: Number of rebinned points in k:', nk_CAMB
+            WRITE(*,*) 'INIT_CAMB_LINEAR: Rebinning kmax [h/Mpc]:', kPk(nk)
+            WRITE(*,*) 'INIT_CAMB_LINEAR: Number of rebinned points in k:', nk
          END IF
 
       END IF
 
-      CALL init_plin(kPk, a, Pk, cosm)
+      CALL init_linear(kPk, a, Pk, cosm)
 
       DEALLOCATE(kPk, Pk)     
-      
-      ! Now the linear power arrays are filled
-      !cosm%has_power = .TRUE.
 
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_CAMB_LINEAR: Done'
@@ -5514,7 +5521,29 @@ CONTAINS
 
    END SUBROUTINE init_CAMB_linear
 
-   SUBROUTINE init_plin(k, a, Pk, cosm)
+   SUBROUTINE init_analytical_linear(cosm)
+
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, ALLOCATABLE :: k(:), a(:), Pk(:, :)
+      INTEGER :: i
+      REAL, PARAMETER :: kmin = kmin_plin
+      REAL, PARAMETER :: kmax = kmax_plin
+      INTEGER, PARAMETER :: nk = nk_plin
+      INTEGER, PARAMETER :: na = 1
+
+      CALL fill_array_log(kmin, kmax, k, nk)
+      ALLOCATE(a(na), Pk(nk, na))
+      a = 1.
+
+      DO i = 1, nk
+         Pk(i, 1) = plin(k(i), a(1), flag_power_total, cosm)
+      END DO
+      
+      CALL init_linear(k, a, Pk, cosm)
+
+   END SUBROUTINE init_analytical_linear
+
+   SUBROUTINE init_linear(k, a, Pk, cosm)
 
       REAL, INTENT(IN) :: k(:)
       REAL, INTENT(IN) :: a(:)
@@ -5525,15 +5554,15 @@ CONTAINS
 
       nk = size(k)
       IF (nk /= size(Pk, 1)) THEN
-         WRITE(*, *) 'INIT_PLIN: Sizes', nk, size(Pk, 1)
-         STOP 'INIT_PLIN: Error, k and Pk arrays are not the same size'
+         WRITE(*, *) 'INIT_LINEAR: Sizes', nk, size(Pk, 1)
+         STOP 'INIT_LINEAR: Error, k and Pk arrays are not the same size'
       END IF
       cosm%nk_plin = nk
 
       na = size(a)
       IF (na /= size(Pk, 2)) THEN
-         WRITE(*, *) 'INIT_PLIN: Sizes', na, size(Pk, 2)
-         STOP 'INIT_PLIN: Error, a and Pk arrays are not the same size'
+         WRITE(*, *) 'INIT_LINEAR: Sizes', na, size(Pk, 2)
+         STOP 'INIT_LINEAR: Error, a and Pk arrays are not the same size'
       END IF      
       cosm%na_plin = na
 
@@ -5562,8 +5591,9 @@ CONTAINS
       cosm%log_k_plin = log(k)
 
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_PLIN: kmin [h/Mpc]:', k(1)
-         WRITE (*, *) 'INIT_PLIN: kmax [h/Mpc]:', k(nk)
+         WRITE (*, *) 'INIT_LINEAR: kmin [h/Mpc]:', k(1)
+         WRITE (*, *) 'INIT_LINEAR: kmax [h/Mpc]:', k(nk)
+         WRITE (*, *) 'INIT_LINEAR: nk:', nk, na
       END IF
 
       IF (na == 1) THEN
@@ -5584,7 +5614,7 @@ CONTAINS
       ! Now the linear power arrays are filled
       cosm%has_power = .TRUE.
 
-   END SUBROUTINE init_plin
+   END SUBROUTINE init_linear
 
    SUBROUTINE init_external_linear(cosm)
 
@@ -6971,7 +7001,7 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = iorder_interp_pwiggle
       INTEGER, PARAMETER :: nsmooth = 10    
 
-      IF (.NOT. ALLOCATED(cosm%log_k_plin)) STOP 'WIGGLE_INIT: Error, P(k) needs to be tabulated for this to work'
+      IF (cosm%analytical_power) CALL init_analytical_linear(cosm)
 
       nk = cosm%nk_plin
 
@@ -6980,7 +7010,6 @@ CONTAINS
       ALLOCATE (Pk_wiggles(nk), Pk_smooth(nk))
 
       ! Allocate the internal arrays from the cosmology arrays
-      !k = exp(cosm%log_k_plin)
       IF(cosm%scale_dependent_growth) THEN
          logPk = cosm%log_plina(:, cosm%na_plin)
       ELSE
