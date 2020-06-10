@@ -1218,17 +1218,21 @@ CONTAINS
       REAL :: rho_g, Om_g_h2, rho_crit, f_nu_rad
       REAL, PARAMETER :: small = small_curve ! Some small number for writing curvature things
 
-      ! Set all 'has/is' to false
-      cosm%has_distance = .FALSE.
-      cosm%has_growth = .FALSE.
-      cosm%has_sigma = .FALSE.
-      cosm%has_spherical = .FALSE.
-      cosm%has_power = .FALSE.
+      ! Interpolators
+      !cosm%has_distance = .FALSE.
+      !cosm%has_growth = .FALSE.
+      !cosm%has_sigma = .FALSE.
+      !cosm%has_spherical = .FALSE.
+      !cosm%has_power = .FALSE.
       cosm%has_Xde = .FALSE.
+      cosm%has_wiggle = .FALSE.
+
+      ! Is statements
       cosm%is_init = .FALSE.
       cosm%is_normalised = .FALSE.
-      cosm%has_wiggle = .FALSE.
-      cosm%A = 1. ! Overall power normalisaiton, should always be unity
+      
+      ! Overall power normalisaiton, should always be unity
+      cosm%A = 1. 
 
       ! Things to do with finite box
       IF (cosm%box) cosm%kbox = twopi/cosm%Lbox
@@ -1401,21 +1405,33 @@ CONTAINS
       END IF
 
       ! Ensure deallocate distances
+      ! TODO: Move to top
       cosm%has_distance = .FALSE.
       cosm%horizon = 0.
 
       ! Ensure deallocate time
+      ! TODO: Move to top
       cosm%has_time = .FALSE.
       cosm%age = 0.
 
       ! Ensure deallocate growth
+      ! TODO: Move to top
       cosm%has_growth = .FALSE.
       cosm%gnorm = 0.
 
       ! Ensure deallocate sigma
+      ! TODO: Move to top
       cosm%has_sigma = .FALSE.
 
-      ! Switch for power?
+      ! Switch for power
+      ! TODO: Move to top
+      IF (cosm%itk == itk_external) THEN
+         cosm%has_power = .TRUE.
+      ELSE
+         cosm%has_power = .FALSE.
+      END IF
+
+      ! Switch analytical transfer function
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
          ! Default to use internal linear P(k) from Eisenstein & Hu
          !cosm%has_power = .FALSE.
@@ -1442,6 +1458,7 @@ CONTAINS
       cosm%amax_sigma = 0.0
 
       ! Ensure delloacte spherical-collapse arrays
+      ! TODO: Move to top
       cosm%has_spherical = .FALSE.
 
       ! Write finishing message to screen
@@ -3254,7 +3271,7 @@ CONTAINS
                   IF(power_interpolator) THEN
                      pmax = evaluate_interpolator(kmax, a, cosm%plina)
                   ELSE
-                     pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk,:), cosm%na_plin, &
+                     pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk, :), cosm%na_plin, &
                         iorder, ifind, iinterp))
                   END IF
                   plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
