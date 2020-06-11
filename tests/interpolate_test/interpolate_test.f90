@@ -35,15 +35,19 @@ PROGRAM interpolate_test
       INTEGER, PARAMETER :: m = 128
       REAL, PARAMETER :: tol = 1e-8
       REAL, PARAMETER :: a = 2.
-      INTEGER, PARAMETER :: ntest = 8
+      INTEGER, PARAMETER :: ntest = 9
 
       fail = .FALSE.
 
       DO itest = 1, ntest
 
-         IF (itest == 1 .OR. itest == 8) THEN
-            xmin = 0.
-            xmax = 3.
+         IF (itest == 1 .OR. itest == 8 .OR. itest == 9) THEN
+            xmin = 3.
+            xmax = 0.
+            IF (itest == 9) THEN
+               xmin = 3.
+               xmax = 0.
+            END IF
             xxmin = xmin
             xxmax = xmax
             logtest = .FALSE.
@@ -162,26 +166,26 @@ PROGRAM interpolate_test
       INTEGER, PARAMETER :: my = 64
       REAL, PARAMETER :: tol = 1e-8
       REAL, PARAMETER :: a = 2.
-      INTEGER, PARAMETER :: ntest = 3
+      INTEGER, PARAMETER :: ntest = 6
 
       fail = .FALSE.
 
       DO itest = 1, ntest
 
-         IF (itest == 1) THEN
+         IF (itest == 1 .OR. itest == 4 .OR. itest == 5 .OR. itest == 6) THEN
             logtest = .FALSE.
             iorder = 3
-            iextrap = iextrap_no
+            iextrap = iextrap_standard
             store = .TRUE.
          ELSE IF (itest == 2) THEN
             logtest = .TRUE.
             iorder = 3
-            iextrap = iextrap_no
+            iextrap = iextrap_standard
             store = .TRUE.
          ELSE IF (itest == 3) THEN
             logtest = .FALSE.
             iorder = 2
-            iextrap = iextrap_no
+            iextrap = iextrap_standard
             store = .TRUE.
          ELSE
             STOP 'TEST_INTERPOLATOR_2D: Something went wrong'
@@ -189,6 +193,11 @@ PROGRAM interpolate_test
 
          CALL fill_array(xmin, xmax, x, nx)
          CALL fill_array(ymin, ymax, y, ny)
+         IF (itest == 4 .OR. itest == 5) THEN
+            CALL reverse_array(x)
+         ELSE IF (itest == 4 .OR. itest ==6) THEN
+            CALL reverse_array(y)
+         END IF
          CALL safe_allocate(f, nx, ny)        
          DO iy = 1, ny
             DO ix = 1, nx
@@ -234,7 +243,7 @@ PROGRAM interpolate_test
       REAL, INTENT(IN) :: y
       INTEGER, INTENT(IN) :: itest
 
-      IF (itest == 1) THEN
+      IF (itest == 1 .OR. itest == 4 .OR. itest == 5 .OR. itest == 6) THEN
          f = x**2+2.*y**2*3.*x*y
       ELSE IF (itest == 2) THEN
          f = 12.*x*y
