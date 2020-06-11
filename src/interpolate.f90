@@ -1002,6 +1002,7 @@ CONTAINS
 
       ! Initialise an interpolator
       ! TODO: Should be loops and arrays rather than x1, x2, x3, x4 etc.
+      ! TODO: Catch for x being ordered high -> low
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                  ! Input data x
       REAL, INTENT(IN) :: f(:)                  ! Input data f(x)
@@ -1042,32 +1043,38 @@ CONTAINS
       interp%iorder = iorder
 
       ! Sort out logs and x arrays
-      IF(present_and_correct(logx)) THEN
+      IF (present_and_correct(logx)) THEN
          xx = log(x)
          interp%logx = .TRUE.
       ELSE
          xx = x
          interp%logx = .FALSE.
       END IF
-      interp%x = xx
 
       ! Sort out logs and f array
-      IF(present_and_correct(logf)) THEN
+      IF (present_and_correct(logf)) THEN
          ff = log(f)
          interp%logf = .TRUE.
       ELSE
          ff = f
          interp%logf = .FALSE.
       END IF
-      interp%f = ff
       
       ! If the x data is regular spaced then remember this, otherwise default find
-      IF (regular_spacing(interp%x)) THEN
+      IF (regular_spacing(xx)) THEN
          interp%ifind = ifind_linear
       ELSE
          interp%ifind = ifind_default
       END IF
       interp%store = store
+
+      IF (xx(1) > xx(n)) THEN
+         CALL reverse_array(xx)
+         CALL reverse_array(ff)
+      END IF
+
+      interp%x = xx
+      interp%f = ff
 
       IF (interp%store) THEN
 
@@ -1338,6 +1345,7 @@ CONTAINS
    SUBROUTINE init_interpolator_2D(x, y, f, interp, iorder, iextrap, store, logx, logy, logf)
 
       ! Initialise a 2D interpolator
+      ! TODO: Catch for x, y being ordered high -> low
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                    ! Input data x
       REAL, INTENT(IN) :: y(:)                    ! Input data x
@@ -1360,6 +1368,14 @@ CONTAINS
       CALL if_allocated_deallocate(interp%x)
       CALL if_allocated_deallocate(interp%y)
       CALL if_allocated_deallocate(interp%f)
+      CALL if_allocated_deallocate(interp%ax0)
+      CALL if_allocated_deallocate(interp%ax1)
+      CALL if_allocated_deallocate(interp%ax2)
+      CALL if_allocated_deallocate(interp%ax3)
+      CALL if_allocated_deallocate(interp%ay0)
+      CALL if_allocated_deallocate(interp%ay1)
+      CALL if_allocated_deallocate(interp%ay2)
+      CALL if_allocated_deallocate(interp%ay3)
 
       ! Sort out x axis
       nx = size(x)
@@ -1405,6 +1421,16 @@ CONTAINS
       ELSE
          interp%f = f
          interp%logf = .FALSE.
+      END IF
+
+      IF (interp%x(1) > interp%x(nx)) THEN
+         CALL reverse_array(interp%x)
+         CALL reverse_array(interp%f, 1)
+      END IF
+
+      IF (interp%y(1) > interp%y(ny)) THEN
+         CALL reverse_array(interp%y)
+         CALL reverse_array(interp%f, 2)
       END IF
 
       ! Set internal variables
