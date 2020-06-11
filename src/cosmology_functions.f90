@@ -172,12 +172,15 @@ MODULE cosmology_functions
       LOGICAL :: trivial_cold            ! Is the cold spectrum trivially related to the matter spectrum?    
       
       ! Look-up tables that are filled during a calculation
-      REAL, ALLOCATABLE :: log_plin(:), log_k_plin(:), log_plina(:, :), log_a_plin(:) ! Arrays for input linear P(k)
-      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:, :)                                 ! Arrays for cold T(k) and wiggle P(k)
+      REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:) ! Arrays for input linear P(k)
+      REAL, ALLOCATABLE :: log_a_plin(:), log_plina(:, :) ! Arrays for input linear P(k, a)
+      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:, :) ! Arrays for cold T(k) and wiggle P(k)
       TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde ! 1D interpolators
       TYPE(interpolator1D) :: plin, wiggle
       TYPE(interpolator2D) :: sigmaa, plina!, Tcold ! 2D interpolators 
-      INTEGER :: nr_sigma, na_sigma, nk_plin, nk_Tcold, na_plin ! Number of array entries
+      INTEGER :: nk_plin, na_plin ! Number of array entries
+      INTEGER :: nk_Tcold
+      INTEGER :: nr_sigma, na_sigma
       REAL :: amin_sigma, amax_sigma  ! TILMAN: Ranges of arrays   
       LOGICAL :: analytical_power                                                          
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
@@ -831,7 +834,7 @@ CONTAINS
          cosm%Om_ws = 0.3
          cosm%Om_m = 0.3
          cosm%Om_w = 0.7
-         cosm%Om_v = 0. !No vacuum necessary here
+         cosm%Om_v = 0. ! No vacuum necessary here
       ELSE IF (icosmo == 9) THEN
          ! IDE III model
          cosm%iw = iw_IDE3
@@ -1027,7 +1030,7 @@ CONTAINS
          ! CFHTLenS combined with WMAP7
          cosm%Om_m = 0.274
          cosm%Om_b = 0.0456
-         cosm%Om_v = 1.-cosm%om_m
+         cosm%Om_v = 1.-cosm%Om_m
          cosm%sig8 = 0.815
          cosm%ns =  0.966
          cosm%h = 0.702
@@ -1412,23 +1415,26 @@ CONTAINS
 
       ! Switch analytical transfer function
       IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
-         ! Default to use internal linear P(k) from Eisenstein & Hu
          cosm%analytical_power = .TRUE.
       ELSE
          cosm%analytical_power = .FALSE.
       END IF
 
+      ! TILMAN: Added this
+      ! Ensure deallocate linear-power tables if not using external tables
       IF (cosm%itk /= itk_external) THEN
-         ! Ensure deallocate linear-power tables if not using external tables
          CALL if_allocated_deallocate(cosm%log_k_plin)
          CALL if_allocated_deallocate(cosm%log_a_plin)
          CALL if_allocated_deallocate(cosm%log_plin)
          CALL if_allocated_deallocate(cosm%log_plina)
-      ENDIF
+      ELSE
+         cosm%has_power = .TRUE.
+      END IF
 
       ! TILMAN: Added this
       cosm%nr_sigma = nr_sigma
       IF (cosm%itk == itk_external) THEN
+         ! This would set has_power to .TRUE.
          CALL init_external_linear(cosm)
       ELSE
          cosm%na_sigma = na_sigma
@@ -1741,7 +1747,7 @@ CONTAINS
          STOP 'NORMALISE_POWER: Error, normalisation method not specified correctly'
       END IF
 
-      ! If normalisation is not done via sigma8 then calculate sigma8
+      ! If normalisation is not done via sigma8 then calculate the correct sigma8
       IF (cosm%norm_method .NE. norm_sigma8) THEN
          CALL reset_sigma8(cosm)
       END IF
@@ -1845,12 +1851,14 @@ CONTAINS
    RECURSIVE REAL FUNCTION sigma8(cosm)
 
       ! Calculate the value of sigma8 from the linear power spectrum
+      ! Seems to need to call sigma_intergral, rather than sigma, not sure why, maybe regression?
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: R = 8. ! Because we are doing sigma(R = 8 Mpc/h) normalisation
       REAL, PARAMETER :: a = 1. ! Because we are doing simga(R = 8 Mpc/h, a = 1) normalisation
 
       sigma8 = sigma_integral(R, a, flag_power_total, cosm)
+      !sigma8 = sigma(R, a, flag_power_total, cosm)
 
    END FUNCTION sigma8
 
@@ -3225,7 +3233,7 @@ CONTAINS
       END IF
 
       IF (k <= kmin_abs_plin) THEN
-         ! If plin happens to be foolishly called for 0 mode
+         ! If plin happens to be foolishly called for very low k
          ! This call should never happen, but may in integrals
          plin = 0.
       ELSE IF (k > kmax_abs_plin) THEN
@@ -3237,13 +3245,13 @@ CONTAINS
          plin = 0.
       ELSE
          IF (cosm%has_power) THEN
-            IF(plin_extrap) THEN
+            IF (plin_extrap) THEN
                nk = cosm%nk_plin
                kmax = exp(cosm%log_k_plin(nk))
             END IF
             IF (cosm%scale_dependent_growth) THEN
-               IF(plin_extrap .AND. k > kmax) THEN
-                  IF(power_interpolator) THEN
+               IF (plin_extrap .AND. k > kmax) THEN
+                  IF (power_interpolator) THEN
                      pmax = evaluate_interpolator(kmax, a, cosm%plina)
                   ELSE
                      pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk, :), cosm%na_plin, &
@@ -3349,7 +3357,7 @@ CONTAINS
          CALL init_interpolator(R, a, sig, cosm%sigmaa, &
             iorder_interp_sigma, &
             iextrap_sigma, &
-            store = .FALSE., &
+            store = .TRUE., &
             logx = .TRUE., &
             logy = .TRUE., &
             logf = .TRUE. &
@@ -5151,7 +5159,10 @@ CONTAINS
          h = cosm%h
       END IF
 
-      IF (cosm%Om_v .NE. 0) STOP 'GET_CAMB_POWER: Need to provide Omega_w to CAMB, not Omega_v'
+      IF (cosm%Om_v .NE. 0) THEN
+         WRITE(*, *) 'GET_CAMB_POWER: Omega_v:', cosm%Om_v
+         STOP 'GET_CAMB_POWER: Need to provide Omega_w to CAMB, not Omega_v'
+      END IF
 
       ! Physical density parameters that CAMB requires
       ombh2 = Om_b*h**2
@@ -5611,6 +5622,7 @@ CONTAINS
    SUBROUTINE init_external_linear(cosm)
 
       ! TILMAN: Wrote this
+      ! The purpose of this is *only* to set cosm%: amin_sigma, amax_sigma, na_sigma, has_power
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: nk, nk_plin, na, na_plin
