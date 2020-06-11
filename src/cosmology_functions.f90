@@ -3262,7 +3262,7 @@ CONTAINS
                   IF (power_interpolator) THEN
                      plin = evaluate_interpolator(k, a, cosm%plina)
                   ELSE
-                     plin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin,&
+                     plin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin, &
                         cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, ifind, iinterp_polynomial))
                   END IF
                END IF
