@@ -72,6 +72,11 @@ MODULE array_operations
       MODULE PROCEDURE add_to_array_3D
    END INTERFACE add_to_array
 
+   INTERFACE reverse_array
+      MODULE PROCEDURE reverse_array_1
+      MODULE PROCEDURE reverse_array_2
+   END INTERFACE reverse_array
+
    INTERFACE splay
       PROCEDURE splay_2D
       PROCEDURE splay_3D
@@ -638,12 +643,12 @@ CONTAINS
 !!$
 !!$  END SUBROUTINE reduceto
 
-   SUBROUTINE reverse_array(a)
+   SUBROUTINE reverse_array_1(a)
 
       ! Reverses the contents of array
       REAL, INTENT(INOUT) :: a(:)
       INTEGER :: i, n
-      REAL :: hold(size(a))
+      REAL, ALLOCATABLE :: hold(:)
 
       n = size(a)
 
@@ -653,7 +658,38 @@ CONTAINS
          a(i) = hold(n-i+1)
       END DO
 
-   END SUBROUTINE reverse_array
+   END SUBROUTINE reverse_array_1
+
+   SUBROUTINE reverse_array_2(a, dim)
+
+      ! Reverses the contents of array
+      REAL, INTENT(INOUT) :: a(:, :)
+      INTEGER, INTENT(IN) :: dim
+      INTEGER :: ix, iy, nx, ny
+      REAL, ALLOCATABLE :: b(:, :)
+
+      IF ((dim /= 1) .AND. (dim /= 2)) THEN
+         STOP 'REVERSE_ARRAY_2: Error, dim must be either 1 or 2'
+      END IF
+
+      b = a
+
+      nx = size(a, 1)
+      ny = size(a, 2)
+
+      DO iy = 1, ny
+         DO ix = 1, nx
+            IF (dim == 1) THEN
+               a(ix, iy) = b(nx-ix+1, iy)
+            ELSE IF (dim == 2) THEN
+               a(ix, iy) = b(ix, ny-iy+1)
+            ELSE
+               STOP 'REVERSE_ARRAY_2: Error, something went wrong'
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE reverse_array_2
 
    SUBROUTINE remove_array_element(i, a)
 
