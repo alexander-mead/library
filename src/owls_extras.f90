@@ -419,7 +419,7 @@ CONTAINS
       INTEGER, PARAMETER :: iorder_rebin = 3
       INTEGER, PARAMETER :: ifind_rebin = 3
       INTEGER, PARAMETER :: iinterp_rebin = 2
-      INTEGER, PARAMETER :: HMcode_version = HMcode2016 ! For response
+      INTEGER, PARAMETER :: HMcode_version = HMcode2020 ! For response
 
       IF (present_and_correct(response)) THEN
 

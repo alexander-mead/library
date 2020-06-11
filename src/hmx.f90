@@ -88,6 +88,7 @@ MODULE HMx
    PUBLIC :: HMcode2018
    PUBLIC :: HMcode2019
    PUBLIC :: HMcode2020
+   PUBLIC :: HMcode2020_baryons
 
    ! HMx versions
    PUBLIC :: HMx2020_matter_with_temperature_scaling
@@ -523,7 +524,8 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2016_neutrinofix_CAMB = 95
    INTEGER, PARAMETER :: HMcode2018 = 53
    INTEGER, PARAMETER :: HMcode2019 = 15
-   INTEGER, PARAMETER :: HMcode2020 = 79
+   INTEGER, PARAMETER :: HMcode2020 = 77
+   INTEGER, PARAMETER :: HMcode2020_baryons = 102
 
    ! HMx versions
    INTEGER, PARAMETER :: HMx2020_matter_with_temperature_scaling = 60
@@ -644,6 +646,7 @@ CONTAINS
       names(99) = 'Standard but with sigma calculated for normalised cold matter'
       names(100) = 'Standard but massive neutrinos affect virial radius'
       names(101) = 'Standard but with spherical collapse calculation'
+      names(102) = 'HMcode (2020)'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -914,16 +917,18 @@ CONTAINS
 
       ! HMcode (2020) additional parameters
       hmod%DMONLY_neutrino_halo_mass_correction = .TRUE.
-      hmod%DMONLY_baryon_recipe = .FALSE.
       hmod%DMONLY_neutrinos_affect_virial_radius = .FALSE.
-      hmod%mbar = 1e14
-      hmod%nbar = 2.
-      hmod%sbar = 0.
       hmod%kd = 1e-2
       hmod%kp = 0.
       hmod%kp = 0.
       hmod%Ap = 0.
       hmod%Ac = 0.
+
+      ! HMcode (2020) baryon recipe
+      hmod%DMONLY_baryon_recipe = .FALSE.     
+      hmod%mbar = 1e14
+      hmod%nbar = 2.
+      hmod%sbar = 0.
 
       ! ~infinite redshift for Dolag correction
       hmod%zinf_Dolag = 100.
@@ -1757,11 +1762,12 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
-      ELSE IF (ihm == 77 .OR. ihm == 78 .OR. ihm == 79) THEN
+      ELSE IF (ihm == 77 .OR. ihm == 78 .OR. ihm == 79 .OR. ihm == 102) THEN
          ! HMcode (2020)
          ! 77 - Unfitted
          ! 78 - Fitted to Cosmic Emu for k<1
          ! 79 - Fitted
+         ! 102 - with baryons
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - alpha smoothing
@@ -1776,14 +1782,7 @@ CONTAINS
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
          hmod%zinf_Dolag = 10. ! Why is 100 not better than 10? This is very strange!
          IF (ihm == 78) THEN
-            ! Model 1: 0.00796 for Cosmic Emu
-            !hmod%f0 = 0.2271961
-            !hmod%f1 = 0.5385409
-            !hmod%ks = 0.1488894
-            !hmod%alp0 = 2.2775044
-            !hmod%alp1 = 1.7389202
-            !hmod%kdamp = 0.1806523
-            ! Model 2: 0.00745 for Cosmic Emu
+            ! Model 1: 0.00745 for Cosmic Emu
             hmod%f0 = 0.2259196
             hmod%f1 = 0.7756314
             hmod%ks = 0.0219584
@@ -1792,7 +1791,8 @@ CONTAINS
             hmod%alp1 = 1.6846223
             hmod%kd = 0.0414575
             hmod%kdp = -0.3542846
-         ELSE IF (ihm == 79) THEN
+         ELSE IF (ihm == 79 .OR. ihm == 102) THEN
+            IF (ihm == 102) hmod%DMONLY_baryon_recipe = .TRUE.
             ! Model 1: 0.0230 for Franken Emu
             !hmod%f0 = 0.2271961    ! Fixed
             !hmod%f1 = 0.5385409    ! Fixed
@@ -2913,7 +2913,8 @@ CONTAINS
          HMcode2016_neutrinofix_CAMB, &
          HMcode2018, &
          HMcode2019, &
-         HMcode2020 &
+         HMcode2020, &
+         HMcode2020_baryons &
          ])) THEN
             is_HMcode = .TRUE.
          ELSE
