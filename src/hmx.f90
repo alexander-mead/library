@@ -1681,9 +1681,9 @@ CONTAINS
          ELSE IF (ihm == 59 &
                   .OR. ihm == HMx2020_matter_with_temperature_scaling &
                   .OR. ihm == HMx2020_matter_pressure_with_temperature_scaling) THEN      
-            ! 59 - HMx 2020 with temperature scaling that fits stars
-            ! 60 - HMx 2020 with temperature scaling that fits matter (stars fixed)
-            ! 61 - HMx 2020 with temperature scaling that fits matter, pressure (stars fixed)
+            ! 59 - HMx2020 with temperature scaling that fits stars
+            ! 60 - HMx2020 with temperature scaling that fits matter (stars fixed)
+            ! 61 - HMx2020 with temperature scaling that fits matter, pressure (stars fixed)
             hmod%fix_star_concentration = .TRUE.
             hmod%HMx_mode = 6 ! Scaling with temperature
             hmod%Astar_array = [0.0348, 0.0330, 0.0309]          
