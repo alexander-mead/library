@@ -204,11 +204,12 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: realisation_errors
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       REAL, ALLOCATABLE :: Pk_DM(:), crap(:), Pk_HMcode(:,:)
-      REAL :: a(1)
-      INTEGER, PARAMETER :: na=1
+      REAL :: a(1)  
       CHARACTER(len=256) :: infile, dmonly
+      INTEGER, PARAMETER :: na = 1
       INTEGER, PARAMETER :: field_all_matter(2) = field_matter
-      CHARACTER(len=256) :: response_infile = 'DMONLY_2fluid_nu0'
+      CHARACTER(len=256), PARAMETER :: response_infile = 'DMONLY_2fluid_nu0'
+      INTEGER, PARAMETER :: HMcode_version = HMcode2016 ! For response
       
       infile = BAHAMAS_power_file_name(name, mesh, z, field)
       CALL read_simulation_power_spectrum(k, Pk, Er, nk, infile, kmin, kmax, cut_nyquist, subtract_shot, verbose)
@@ -223,7 +224,7 @@ CONTAINS
          Pk = Pk/Pk_DM
          a = scale_factor_z(z)
          ALLOCATE (Pk_HMcode(nk, na))
-         CALL calculate_HMcode(k, a, Pk_HMcode, nk, na, cosm)
+         CALL calculate_HMcode(k, a, Pk_HMcode, nk, na, cosm, HMcode_version)
          Pk = Pk*Pk_HMcode(:,1)
       END IF
 
@@ -418,6 +419,7 @@ CONTAINS
       INTEGER, PARAMETER :: iorder_rebin = 3
       INTEGER, PARAMETER :: ifind_rebin = 3
       INTEGER, PARAMETER :: iinterp_rebin = 2
+      INTEGER, PARAMETER :: HMcode_version = HMcode2016 ! For response
 
       IF (present_and_correct(response)) THEN
 
@@ -427,7 +429,7 @@ CONTAINS
          ALLOCATE (a(na))
          a(1) = scale_factor_z(z)
 
-         CALL calculate_HMcode(k, a, Pk_HMcode, nk, na, cosm)
+         CALL calculate_HMcode(k, a, Pk_HMcode, nk, na, cosm, HMcode_version)
          Pk = Pk*Pk_HMcode(:, 1)
 
       ELSE
@@ -447,17 +449,28 @@ CONTAINS
          IF(.NOT. present(kmin) .OR. .NOT. present(kmax)) THEN
             STOP 'VD20_GET_MORE_POWER: Something went wroxng'
          END IF
-         CALL fill_array_log(kmin, kmax, k2, nk_rebin)
-         ALLOCATE (Pk2(nk_rebin))
-         CALL interpolate_array(log(k), log(Pk), log(k2), Pk2, iorder_rebin, ifind_rebin, iinterp_rebin)
-         Pk2 = exp(Pk2)
-         DEALLOCATE (k, Pk, Ek)
+         ! CALL fill_array_log(kmin, kmax, k2, nk_rebin)
+         ! ALLOCATE (Pk2(nk_rebin))
+         ! CALL interpolate_array(log(k), log(Pk), log(k2), Pk2, iorder_rebin, ifind_rebin, iinterp_rebin)
+         ! Pk2 = exp(Pk2)
+         ! DEALLOCATE (k, Pk, Ek)
+         ! nk = nk_rebin
+         ! ALLOCATE (k(nk), Pk(nk), Ek(nk))
+         ! k = k2
+         ! Pk = Pk2
+         ! Ek = 0.
+         ! DEALLOCATE (k2, Pk2)
          nk = nk_rebin
-         ALLOCATE (k(nk), Pk(nk), Ek(nk))
-         k = k2
-         Pk = Pk2
+         CALL rebin_array(kmin, kmax, nk, k, Pk, &
+            iorder_rebin, &
+            ifind_rebin, &
+            iinterp_rebin, &
+            logx=.TRUE., &
+            logf=.TRUE.&
+            )
+         DEALLOCATE(Ek)
+         Ek = Pk
          Ek = 0.
-         DEALLOCATE (k2, Pk2)
       END IF
 
    END SUBROUTINE VD20_get_more_power
