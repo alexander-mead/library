@@ -201,6 +201,7 @@ MODULE HMx
    PUBLIC :: param_HMcode_mbar
    PUBLIC :: param_HMcode_nbar
    PUBLIC :: param_HMcode_Amf
+   PUBLIC :: param_HMcode_Amfz
    PUBLIC :: param_HMcode_sbar
    PUBLIC :: param_HMcode_STp
    PUBLIC :: param_HMcode_STq
@@ -209,6 +210,8 @@ MODULE HMx
    PUBLIC :: param_HMcode_Ac
    PUBLIC :: param_HMcode_kp
    PUBLIC :: param_HMcode_kdp
+   PUBLIC :: param_HMcode_mbarz
+   PUBLIC :: param_HMcode_sbarz
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -294,7 +297,7 @@ MODULE HMx
 
       ! HMcode (2020) parameters
       REAL :: kd, kdp, Ap, Ac, kp
-      REAL :: mbar, nbar, sbar
+      REAL :: mbar, nbar, sbar, mbarz, sbarz
 
       ! Halo types
       INTEGER :: halo_DMONLY, halo_CDM, halo_normal_bound_gas, halo_cold_bound_gas, halo_hot_bound_gas, halo_ejected_gas
@@ -320,7 +323,7 @@ MODULE HMx
       REAL :: Tinker_bigA, Tinker_a, Tinker_b, Tinker_c
       REAL :: Tinker_alpha, Tinker_beta, Tinker_gamma, Tinker_phi, Tinker_eta
       REAL :: alpha_numu
-      REAL :: ST_p, ST_q, ST_A, Amf
+      REAL :: ST_p, ST_q, ST_A, Amf, Amfz
       LOGICAL :: has_mass_function
 
       ! Infinite redshift as far as the Dolag correction is concerned
@@ -513,7 +516,10 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_Ac = 60
    INTEGER, PARAMETER :: param_HMcode_kp = 61
    INTEGER, PARAMETER :: param_HMcode_kdp = 62
-   INTEGER, PARAMETER :: param_n = 62
+   INTEGER, PARAMETER :: param_HMcode_mbarz = 63
+   INTEGER, PARAMETER :: param_HMcode_sbarz = 64
+   INTEGER, PARAMETER :: param_HMcode_Amfz = 65
+   INTEGER, PARAMETER :: param_n = 65
 
    ! HMcode versions
    INTEGER, PARAMETER :: HMcode2015 = 7
@@ -524,7 +530,7 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2016_neutrinofix_CAMB = 95
    INTEGER, PARAMETER :: HMcode2018 = 53
    INTEGER, PARAMETER :: HMcode2019 = 15
-   INTEGER, PARAMETER :: HMcode2020 = 77
+   INTEGER, PARAMETER :: HMcode2020 = 79
    INTEGER, PARAMETER :: HMcode2020_baryons = 102
 
    ! HMx versions
@@ -929,6 +935,9 @@ CONTAINS
       hmod%mbar = 1e14
       hmod%nbar = 2.
       hmod%sbar = 0.
+      hmod%mbarz = 0.
+      hmod%sbarz = 0.
+      hmod%Amfz = 0.
 
       ! ~infinite redshift for Dolag correction
       hmod%zinf_Dolag = 100.
@@ -1792,85 +1801,17 @@ CONTAINS
             hmod%kd = 0.0414575
             hmod%kdp = -0.3542846
          ELSE IF (ihm == 79 .OR. ihm == 102) THEN
-            IF (ihm == 102) hmod%DMONLY_baryon_recipe = .TRUE.
-            ! Model 1: 0.0230 for Franken Emu
-            !hmod%f0 = 0.2271961    ! Fixed
-            !hmod%f1 = 0.5385409    ! Fixed
-            !hmod%ks = 0.1488894    ! Fixed
-            !hmod%kdamp = 0.1806523 ! Fixed
-            !hmod%eta0 = 0.7192406
-            !hmod%eta1 = 0.5736005
-            !hmod%As = 3.5018705
-            !hmod%alp0 = 4.3772702
-            !hmod%alp1 = 2.2858554
-            !hmod%ST_p = 0.0101010
-            !hmod%ST_q = 0.8621307
-            !hmod%Ap = -0.8937481
-            ! Model 2: 0.0181 for Franken Emu
-            !hmod%f0 = 0.2271961    ! Fixed
-            !hmod%f1 = 0.5385409    ! Fixed
-            !hmod%ks = 0.1488894    ! Fixed
-            !hmod%kdamp = 0.1806523 ! Fixed
-            !hmod%eta0 = 0.2792648
-            !hmod%eta1 = -0.1682227
-            !hmod%As = 2.9815926
-            !hmod%alp0 = 4.1557051
-            !hmod%alp1 = 2.2542386
-            !hmod%Amf = 1.3549046
-            !hmod%ST_p = 0.0100154
-            !hmod%ST_q = 0.9968444
-            !hmod%Ap = -0.0102720
-            ! Model 3: 0.015... for Franken Emu
-            !hmod%f0 = 0.2385760
-            !hmod%f1 = 0.8145470
-            !hmod%ks = 0.1398440
-            !hmod%kdamp = 0.01595842
-            !hmod%eta0 = 0.2580939
-            !hmod%eta1 = -0.0330454         
-            !hmod%alp0 = 3.1508852
-            !hmod%alp1 = 1.9979316
-            !hmod%Amf = 1.2125096
-            !hmod%ST_p = 0.1512131
-            !hmod%ST_q = 0.8838104
-            !hmod%As = 1.8618050
-            !hmod%Ap = -0.0872705
-            !hmod%Ac = 1.7020399
-            ! Model 4: 0.0149 for Franken Emu
-            !hmod%f0 = 0.2735763
-            !hmod%f1 = 0.9041968
-            !hmod%ks = 0.0194499
-            !hmod%kp = -0.9414753
-            !hmod%kd = 0.0422709
-            !hmod%kdp = -0.4968087
-            !hmod%eta0 = 0.1858773
-            !hmod%eta1 = -0.0482261
-            !hmod%alp0 = 2.3438441
-            !hmod%alp1 = 1.7869233
-            !hmod%Amf = 1.3295968
-            !hmod%ST_p = 0.2719308
-            !hmod%ST_q = 0.8395595
-            !hmod%As = 3.9239514
-            !hmod%Ap = 0.0636166
-            !hmod%Ac = 0.0134060
-            ! Model 5: 0.0146 for Franken Emu
-            !hmod%f0 = 0.2538956
-            !hmod%f1 = 0.9909891
-            !hmod%ks = 0.0246816 
-            !hmod%kp = -0.2245492
-            !hmod%kd = 0.0472928
-            !hmod%kdp = -0.1131986
-            !hmod%eta0 = 0.2625362
-            !hmod%eta1 = 0.0504991
-            !hmod%alp0 = 2.5374596
-            !hmod%alp1 = 1.8214684
-            !hmod%Amf = 1.3388167
-            !hmod%ST_p = 0.2805521
-            !hmod%ST_q = 0.8121307
-            !hmod%As = 3.6774614
-            !hmod%Ap = -0.1209546
-            !hmod%Ac = 0.2772131
-            !hmod%dcnu = 0.2594089 ! Fitted separately to Mira Titan
-            !hmod%Dvnu = 0.4946688 ! Fitted separately to Mira Titan
+            IF (ihm == 102) THEN
+               hmod%DMONLY_baryon_recipe = .TRUE.
+               hmod%mbar = 10**14.3
+               hmod%mbarz = -0.6
+               hmod%sbar = 0.005
+               hmod%sbarz = 2.5
+               hmod%Amf = 1.55
+               hmod%Amfz = -0.1
+            ELSE
+               hmod%Amf = 1.3956430
+            END IF
             ! Model 6: 0.0160 to both Franken Emu and Mira Titan
             hmod%f0 = 0.2990829
             hmod%f1 = 1.1481055
@@ -1881,8 +1822,7 @@ CONTAINS
             hmod%eta0 = 0.2265319
             hmod%eta1 = 0.0095795
             hmod%alp0 = 2.4050830
-            hmod%alp1 = 1.7988408
-            hmod%Amf = 1.3956430
+            hmod%alp1 = 1.7988408         
             hmod%ST_p = 0.2867586
             hmod%ST_q = 0.8330417
             hmod%As = 3.8584895
@@ -1890,23 +1830,6 @@ CONTAINS
             hmod%Ac = 0.0153846
             hmod%dcnu = 0.2452052
             hmod%Dvnu = 0.4495748
-            ! Model 7: 0.0177 to both Franken Emu and Mira Titan
-            !hmod%f0 = 0.3132952
-            !hmod%f1 = 1.5591001
-            !hmod%ks = 0.1252834
-            !hmod%kp = -0.4107868
-            !hmod%kd = 0.1540913
-            !hmod%kdp = -0.4937408
-            !hmod%eta0 = 0.3030239
-            !hmod%eta1 = 0.1771059
-            !hmod%alp0 = 2.1154734
-            !hmod%alp1 = 1.6505890
-            !hmod%Amf = 1.0847464
-            !hmod%As = 4.8750666
-            !hmod%Ap = -0.1699759
-            !hmod%Ac = 0.0268175 ! This cannot be necessary
-            !hmod%dcnu = 0.2925850
-            !hmod%Dvnu = 0.2759674
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
@@ -2431,6 +2354,7 @@ CONTAINS
          WRITE (*, *) 'HALOMODEL: Mass function parameters'
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'Amplitude:', hmod%Amf
+         WRITE (*, fmt=fmt) 'Amplitude z:', hmod%Amfz
          IF (hmod%imf == 2) THEN
             WRITE (*, fmt=fmt) 'Sheth & Tormen p:', hmod%ST_p
             WRITE (*, fmt=fmt) 'Sheth & Tormen q:', hmod%ST_q
@@ -2477,9 +2401,10 @@ CONTAINS
          WRITE (*, fmt=fmt) 'dcnu:', hmod%dcnu
          IF (hmod%DMONLY_baryon_recipe) THEN
             WRITE (*, fmt=fmt) 'log10(M_bar) [Msun/h]:', log10(hmod%mbar)
+            WRITE (*, fmt=fmt) 'm_bar z:', hmod%mbarz
             WRITE (*, fmt=fmt) 'n_bar:', hmod%nbar
-            !WRITE (*, fmt=fmt) 'a_bar:', hmod%abar
             WRITE (*, fmt=fmt) 's_bar:', hmod%sbar
+            WRITE (*, fmt=fmt) 's_bar z:', hmod%sbarz
          END IF
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMcode variables'
@@ -3259,7 +3184,7 @@ CONTAINS
    SUBROUTINE calculate_HMx_ka(ifield, wk0, nf, k, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm)
 
       ! Gets the one- and two-halo terms and combines them
-      ! TODO: Include scatter in two-halo term
+      ! TODO: Include profile scatter in two-halo term
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: nf
       INTEGER, INTENT(IN) :: ifield(nf)
@@ -4006,10 +3931,12 @@ CONTAINS
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: r, fc
+      REAL :: r, fc, mb, n
 
-      IF(hmod%DMONLY_baryon_recipe) THEN        
-         r = (m/hmod%mbar)**hmod%nbar                    ! If m>>m0 then r becomes large, if m<<m0 then r=0       
+      IF (hmod%DMONLY_baryon_recipe) THEN
+         mb = HMcode_mbar(hmod)
+         n = hmod%nbar   
+         r = (m/mb)**n                                   ! If m>>m0 then r becomes large, if m<<m0 then r=0       
          fc = cosm%Om_c/(cosm%Om_c+cosm%Om_b)            ! Halo fraction that is CDM (note that the denominator should exclude neutrinos)      
          DMONLY_halo_mass_fraction = fc+(1.-fc)*r/(1.+r) ! Remaining halo mass fraction
       ELSE
@@ -4018,6 +3945,14 @@ CONTAINS
       END IF
 
    END FUNCTION DMONLY_halo_mass_fraction
+
+   REAL FUNCTION HMcode_mbar(hmod)
+
+      TYPE(halomod) :: hmod
+
+      HMcode_mbar = hmod%mbar*10**(hmod%mbarz*hmod%z)
+
+   END FUNCTION HMcode_mbar
 
    REAL FUNCTION BNL(k, nu1, nu2, rv1, rv2, hmod)
 
@@ -6435,18 +6370,26 @@ CONTAINS
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: wkn
+      REAL :: wkn, sb
 
       !STOP 'BARYONIFY_WK: The star model is just plain wrong here'
 
       wkn = wk
       wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm)  ! Account for 'gas expulsion'
-      !wkn = wkn*hmod%abar                                 ! Multiplicative amplitude correction
-      wkn = wkn+hmod%sbar*m/comoving_matter_density(cosm) ! Add in 'stars'
+      sb = HMcode_sbar(hmod)
+      wkn = wkn+sb*m/comoving_matter_density(cosm) ! Add in 'stars'
 
       baryonify_wk = wkn
 
    END FUNCTION baryonify_wk
+
+   REAL FUNCTION HMcode_sbar(hmod)
+
+      TYPE(halomod), INTENT(IN) :: hmod
+
+      HMcode_sbar = hmod%sbar*(1.+hmod%sbarz*hmod%z**2)
+
+   END FUNCTION HMcode_sbar
 
    REAL FUNCTION unbaryonify_wk(wk, m, hmod, cosm)
 
@@ -6455,11 +6398,11 @@ CONTAINS
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: wko
+      REAL :: wko, sb
 
       wko = wk
-      wko = wko-hmod%sbar*m/comoving_matter_density(cosm) ! Subtract 'stars'
-      !wko = wko/hmod%abar                                 ! Divide out amplitude correction
+      sb = HMcode_sbar(hmod)
+      wko = wko-sb*m/comoving_matter_density(cosm) ! Subtract 'stars'
       wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm)  ! Remove 'gas expulsion'
 
       unbaryonify_wk = wko
@@ -9253,9 +9196,17 @@ CONTAINS
          STOP 'G_NU: Error, imf specified incorrectly'
       END IF
 
-      g_nu=g_nu*hmod%Amf
+      g_nu=g_nu*HMcode_AMF(hmod)
 
    END FUNCTION g_nu
+
+   REAL FUNCTION HMcode_AMF(hmod)
+
+      TYPE(halomod), INTENT(IN) :: hmod
+
+      HMcode_AMF = hmod%Amf+hmod%Amfz*hmod%z
+
+   END FUNCTION HMcode_AMF
 
    REAL FUNCTION g_mu(mu, hmod)
 
