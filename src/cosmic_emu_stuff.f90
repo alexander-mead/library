@@ -24,7 +24,7 @@ MODULE cosmic_emu_stuff
 
 CONTAINS
 
-   SUBROUTINE get_emulator_power(k, a, Pk, nk, cosm, rebin, emulator_version)
+   SUBROUTINE get_emulator_power(k, a, Pk, nk, cosm, rebin, emulator_version, verbose)
 
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, INTENT(IN) :: a(:)
@@ -33,6 +33,7 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       LOGICAL, INTENT(IN) :: rebin
       INTEGER, INTENT(IN) :: emulator_version
+      LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       INTEGER :: ia, na
       REAL :: z
       REAL, ALLOCATABLE :: k_emu(:), Pk_emu(:)
@@ -44,11 +45,11 @@ CONTAINS
          z = redshift_a(a(ia))
 
          IF (emulator_version == emulator_CosmicEmu) THEN
-            CALL get_CosmicEmu_power_z(k_emu, Pk_emu, nk, z, cosm, rebin)
+            CALL get_CosmicEmu_power_z(k_emu, Pk_emu, nk, z, cosm, rebin, verbose)
          ELSE IF (emulator_version == emulator_FrankenEmu) THEN
-            CALL get_FrankenEmu_power_z(k_emu, Pk_emu, nk, z, cosm, rebin)
+            CALL get_FrankenEmu_power_z(k_emu, Pk_emu, nk, z, cosm, rebin, verbose)
          ELSE IF (emulator_version == emulator_MiraTitan) THEN
-            CALL get_MiraTitan_power_z(k_emu, Pk_emu, nk, z, cosm, rebin)
+            CALL get_MiraTitan_power_z(k_emu, Pk_emu, nk, z, cosm, rebin, verbose)
          ELSE
             STOP 'GET_EMULATOR_POWER: Error, emulator_version not specified correctly'
          END IF
@@ -63,7 +64,7 @@ CONTAINS
 
    END SUBROUTINE get_emulator_power
 
-   SUBROUTINE get_CosmicEmu_power_z(k, P, n, z, cosm, rebin)
+   SUBROUTINE get_CosmicEmu_power_z(k, P, n, z, cosm, rebin, verbose)
     
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: P(:)
@@ -71,6 +72,7 @@ CONTAINS
       REAL, INTENT(IN) :: z
       TYPE(cosmology), INTENT(IN) :: cosm
       LOGICAL, INTENT(IN) :: rebin
+      LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       INTEGER :: i
       CHARACTER(len=256) :: crap
       REAL :: h
@@ -104,18 +106,22 @@ CONTAINS
       ALLOCATE (k(n), P(n))
 
       ! Write useful things to screen
-      WRITE (*, *) 'GET_COSMICEMU_POWER_Z: z:', z
-      WRITE (*, *) 'GET_COSMICEMU_POWER_Z: P(k) file length:', n
-      WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Reading in P(k): ', trim(output)
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'GET_COSMICEMU_POWER_Z: z:', z
+         WRITE (*, *) 'GET_COSMICEMU_POWER_Z: P(k) file length:', n
+         WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Reading in P(k): ', trim(output)
+      END IF
 
       ! Read in data file
       OPEN (7, file=output)
       DO i = 1-nh, n
          IF (i == h_li-nh) THEN
             READ (7, *) crap, crap, crap, crap, crap, crap, crap, crap, h
-            WRITE (*, *) 'GET_COSMICEMU_POWER_Z: CMB derived h:', h
-            WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Cosmology h:', cosm%h
-            WRITE (*, *) 'GET_COSMICEMU_POWER_Z: h ratio:', cosm%h/h
+            IF (present_and_correct(verbose)) THEN
+               WRITE (*, *) 'GET_COSMICEMU_POWER_Z: CMB derived h:', h
+               WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Cosmology h:', cosm%h
+               WRITE (*, *) 'GET_COSMICEMU_POWER_Z: h ratio:', cosm%h/h
+            END IF
             IF (.NOT. requal(h, cosm%h, eps_h)) STOP 'GET_COSMIC_EMU_POWER_Z: Error, h values differ'
          ELSE IF (i < 1) THEN
             READ (7, *)
@@ -128,7 +134,17 @@ CONTAINS
       !Convert k to k/h
       k = k/cosm%h
 
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'GET_MIRATITAN_POWER_Z: kmin [h/Mpc]:', k(1)
+         WRITE (*, *) 'GET_MIRATITAN_POWER_Z: kmax [h/Mpc]:', k(n)
+      END IF
+
       IF (rebin) THEN
+         IF (present_and_correct(verbose)) THEN
+            WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: Rebinnig'
+            WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: New kmin [h/Mpc]:', kmin
+            WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: New kmax [h/Mpc]:', kmax
+         END IF
          CALL rebin_array(kmin, kmax, nk, k, P, 3, 3, 2, logx=.TRUE., logf=.TRUE.)
          n = nk
       END IF
@@ -139,7 +155,7 @@ CONTAINS
 
    END SUBROUTINE get_CosmicEmu_power_z
 
-   SUBROUTINE get_FrankenEmu_power_z(k, P, n, z, cosm, rebin)
+   SUBROUTINE get_FrankenEmu_power_z(k, P, n, z, cosm, rebin, verbose)
 
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: P(:)
@@ -147,6 +163,7 @@ CONTAINS
       REAL, INTENT(IN) :: z
       TYPE(cosmology), INTENT(IN) :: cosm
       LOGICAL, INTENT(IN) :: rebin
+      LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       INTEGER :: i
       REAL, PARAMETER :: kmin = 1e-2 ! Minimum k if rebinnning
       REAL, PARAMETER :: kmax = 1e1  ! Maximum k if rebinnning
@@ -176,9 +193,11 @@ CONTAINS
       ALLOCATE (k(n), P(n))
 
       ! Write useful things to screen
-      WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: z:', z
-      WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: P(k) file length:', n
-      WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: Reading in P(k): ', trim(output)
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: z:', z
+         WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: P(k) file length:', n
+         WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: Reading in P(k): ', trim(output)
+      END IF
 
       ! Read in data file
       OPEN (7, file=output)
@@ -194,18 +213,30 @@ CONTAINS
       !Convert k to k/h
       k = k/cosm%h
 
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'GET_MIRATITAN_POWER_Z: kmin [h/Mpc]:', k(1)
+         WRITE (*, *) 'GET_MIRATITAN_POWER_Z: kmax [h/Mpc]:', k(n)
+      END IF
+
       IF (rebin) THEN
+         IF (present_and_correct(verbose)) THEN
+            WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: Rebinnig'
+            WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: kmin [h/Mpc]:', kmin
+            WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: kmax [h/Mpc]:', kmax
+         END IF
          CALL rebin_array(kmin, kmax, nk, k, P, 3, 3, 2, logx=.TRUE., logf=.TRUE.)
          n = nk
       END IF
 
       ! Done
-      WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: Done'
-      WRITE (*, *)
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: Done'
+         WRITE (*, *)
+      END IF
 
    END SUBROUTINE get_FrankenEmu_power_z
 
-   SUBROUTINE get_MiraTitan_power_z(k, P, n, z, cosm, rebin)
+   SUBROUTINE get_MiraTitan_power_z(k, P, n, z, cosm, rebin, verbose)
 
       USE constants
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
@@ -214,12 +245,11 @@ CONTAINS
       REAL, INTENT(IN) :: z
       TYPE(cosmology), INTENT(IN) :: cosm
       LOGICAL, INTENT(IN) :: rebin
+      LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       CHARACTER(len=256) :: output
       INTEGER :: i, nk
-      !REAL, ALLOCATABLE :: k2(:), P2(:)
-      REAL :: kmin, kmax
-      REAL, PARAMETER :: kmin_rebin = 1e-2
-      REAL, PARAMETER :: kmax_rebin = 7.
+      REAL, PARAMETER :: kmin = 1e-2
+      REAL, PARAMETER :: kmax = 7.
       INTEGER, PARAMETER :: nk_rebin = 128
       INTEGER, PARAMETER :: iorder_rebin = 3
       INTEGER, PARAMETER :: ifind_rebin = 3
@@ -241,9 +271,11 @@ CONTAINS
       IF (ALLOCATED(P)) DEALLOCATE (P)
       ALLOCATE (k(n), P(n))
 
-      WRITE (*, *) 'GET_MIRATITAN_POWER_Z: z:', z
-      WRITE (*, *) 'GET_MIRATITAN_POWER_Z: P(k) file length:', n
-      WRITE (*, *) 'GET_MIRATITAN_POWER_Z: Reading in P(k)'
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'GET_MIRATITAN_POWER_Z: z:', z
+         WRITE (*, *) 'GET_MIRATITAN_POWER_Z: P(k) file length:', n
+         WRITE (*, *) 'GET_MIRATITAN_POWER_Z: Reading in P(k)'
+      END IF
 
       OPEN (7, file=output)
       DO i = 1, n
@@ -257,13 +289,25 @@ CONTAINS
       !Convert k to k/h
       k = k/cosm%h
 
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'GET_MIRATITAN_POWER_Z: kmin [h/Mpc]:', k(1)
+         WRITE (*, *) 'GET_MIRATITAN_POWER_Z: kmax [h/Mpc]:', k(n)
+      END IF
+
       IF (rebin) THEN
+         IF (present_and_correct(verbose)) THEN
+            WRITE (*, *) 'GET_MIRATITAN_POWER_Z: Rebinnig'
+            WRITE (*, *) 'GET_MIRATITAN_POWER_Z: New kmin [h/Mpc]:', kmin
+            WRITE (*, *) 'GET_MIRATITAN_POWER_Z: New kmax [h/Mpc]:', kmax
+         END IF
          CALL rebin_array(kmin, kmax, nk, k, P, 3, 3, 2, logx=.TRUE., logf=.TRUE.)
          n = nk
       END IF
 
-      WRITE (*, *) 'GET_MIRATITAN_POWER_Z: Done'
-      WRITE (*, *)
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'GET_MIRATITAN_POWER_Z: Done'
+         WRITE (*, *)
+      END IF
 
    END SUBROUTINE get_MiraTitan_power_z
 
