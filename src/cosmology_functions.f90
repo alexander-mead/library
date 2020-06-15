@@ -41,6 +41,20 @@ MODULE cosmology_functions
    PUBLIC :: w_de_total
    PUBLIC :: w_eff
 
+   ! Dark energy models
+   PUBLIC :: iw_LCDM
+   PUBLIC :: iw_wCDM
+   PUBLIC :: iw_waCDM
+   PUBLIC :: iw_QUICC
+   PUBLIC :: iw_IDE1
+   PUBLIC :: iw_IDE2
+   PUBLIC :: iw_IDE3
+   PUBLIC :: iw_BDE
+
+   ! Modified gravity models
+   PUBLIC :: img_none
+   PUBLIC :: img_nDGP
+
    ! Distances and times
    PUBLIC :: f_k
    PUBLIC :: fdash_k
@@ -138,6 +152,7 @@ MODULE cosmology_functions
       REAL :: h, ns, w, wa, m_wdm, YH       ! Cosmological parameters
       REAL :: a1, a2, nstar, ws, am, dm, wm ! Dark-energy parameters
       REAL :: z_CMB, T_CMB, neff            ! CMB/radiation parameters
+      REAL :: H0rc                          ! Modified gravity parameters
       REAL :: Om_m_pow, Om_b_pow, h_pow     ! Cosmological parameters used for P(k) if different from background
       REAL :: b0, b1, b2, b3, b4            ! BDE parameters
       REAL :: A_bump, k_bump, sigma_bump    ! Power-spectrum bump   
@@ -146,6 +161,7 @@ MODULE cosmology_functions
       INTEGER :: bump                       ! Type of bump to add to P(k)
       INTEGER :: norm_method                ! Power normalisation scheme
       INTEGER :: iw                         ! Switch for dark-energy type
+      INTEGER :: img                        ! Switch for modified gravity
       INTEGER :: itk                        ! Switch for transfer function type
       LOGICAL :: box                        ! Constrain the calculation to take place in a box?    
       LOGICAL :: warm                       ! Is DM warm?
@@ -224,6 +240,10 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_integration_Xde = 3  ! Polynomial order for time integration
    INTEGER, PARAMETER :: iorder_interp_Xde = 3       ! Polynomial order for time interpolation
    INTEGER, PARAMETER :: iextrap_Xde = iextrap_standard
+
+   ! Modified gravity
+   INTEGER, PARAMETER :: img_none = 0
+   INTEGER, PARAMETER :: img_nDGP = 1
 
    ! Distance
    ! Changing to linear integer finding provides very little speed increase
@@ -438,10 +458,10 @@ CONTAINS
       names(7)  = 'IDE I'
       names(8)  = 'IDE II'
       names(9)  = 'IDE III'
-      names(10) = ''
-      names(11) = ''
-      names(12) = ''
-      names(13) = ''
+      names(10) = 'nDGP - LCDM'
+      names(11) = 'nDGP - Strong'
+      names(12) = 'nDGP - Medium'
+      names(13) = 'nDGP - Weak'
       names(14) = 'WDM'
       names(15) = 'TCDM'
       names(16) = 'Boring: w = -0.7'
@@ -677,7 +697,11 @@ CONTAINS
       cosm%YH = 0.76     ! Hydrogen mass fraction
 
       ! Dark energy
-      cosm%iw = iw_LCDM ! Default LCDM
+      cosm%iw = iw_LCDM
+
+      ! Modified gravity
+      cosm%img = img_none
+      cosm%H0rc = 0. ! Note that zero is very strong
 
       ! Warm dark matter
       cosm%warm = .FALSE.
@@ -844,6 +868,30 @@ CONTAINS
          cosm%Om_m = 0.3
          cosm%Om_w = 0.7
          cosm%Om_v = 0.
+      ELSE IF (icosmo == 10 .OR. icosmo == 11 .OR. icosmo == 12 .OR. icosmo == 13) THEN
+         ! nDGP - Barreira       
+         cosm%Om_m = 0.3132
+         cosm%Om_b = 0.049
+         cosm%ns = 0.9655
+         cosm%h = 0.6731
+         cosm%om_v = 1.-cosm%Om_m
+         cosm%sig8 = 0.767400759753/0.7428
+         IF (icosmo == 11) THEN
+            ! Strong
+            cosm%img = img_nDGP
+            cosm%H0rc = 0.1
+            cosm%sig8 = 1.0813979052
+         ELSE IF (icosmo == 12) THEN
+            ! Medium
+            cosm%img = img_nDGP
+            cosm%H0rc = 0.5
+            cosm%sig8 = 0.927171072956
+         ELSE IF (icosmo == 13) THEN
+            ! Weak
+            cosm%img = img_nDGP
+            cosm%H0rc = 2.0
+            cosm%sig8 = 0.861136740687
+         END IF
       ELSE IF (icosmo == 14) THEN
          ! WDM
          cosm%warm = .TRUE.
@@ -1520,6 +1568,13 @@ CONTAINS
             WRITE (*, fmt=format) 'COSMOLOGY:', 'b4:', cosm%b4
          END IF
          WRITE (*, *) dashes
+         IF (cosm%img .NE. img_none) THEN
+            IF(cosm%img == img_nDGP) THEN
+               WRITE(*, *) 'COSMOLOGY: nDGP with LCDM background'
+               WRITE(*, fmt=format) 'COSMOLOGY:', 'H0rc:', cosm%H0rc
+            END IF
+            WRITE (*, *) dashes
+         END IF        
          IF(cosm%itk == itk_none) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: Pure power law'
          ELSE IF(cosm%itk == itk_EH) THEN
@@ -3956,7 +4011,7 @@ CONTAINS
       ! TODO: prevent compile-time warning
       crap = k
 
-      f1 = 1.5*Omega_cold_norad(a, cosm)*d/a**2
+      f1 = 1.5*Omega_cold_norad(a, cosm)*G_lin(a, cosm)*d/a**2
       f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*v/a
       dvda = f1+f2
 
@@ -3977,13 +4032,93 @@ CONTAINS
       ! TODO: prevent compile-time warning
       crap = k
 
-      f1 = 1.5*Omega_cold_norad(a, cosm)*d*(1.+d)/a**2
+      f1 = 1.5*Omega_cold_norad(a, cosm)*G_nl(d, a, cosm)*d*(1.+d)/a**2
       f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*v/a
       f3 = (4./3.)*(v**2)/(1.+d)
 
       dvdanl = f1+f2+f3
 
    END FUNCTION dvdanl
+
+   REAL FUNCTION G_lin(a, cosm)
+
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      IF (cosm%img == img_none) THEN
+         G_lin = 1.
+      ELSE IF (cosm%img == img_nDGP) THEN
+         G_lin = 1.+1./(3.*beta_dgp(a, cosm))
+      ELSE
+         STOP 'G_LIN: Error, img not specified correctly'
+      END IF
+
+   END FUNCTION G_lin
+
+   REAL FUNCTION G_nl(d, a, cosm)
+
+      REAL, INTENT(IN) :: d
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      IF (cosm%img == img_none) THEN
+         G_nl = 1.
+      ELSE IF (cosm%img == img_nDGP) THEN  
+         G_nl = G_DGP(d, a, cosm)
+      ELSE
+         STOP 'G_NL: Error, img not specified correctly'
+      END IF
+
+   END FUNCTION G_nl
+
+   REAL FUNCTION G_DGP(d, a, cosm)
+
+      ! Non-linear effective gravitational constant for DGP models in spherical case
+      REAL, INTENT(IN) :: d
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: M, r, r3
+      REAL, PARAMETER :: eps = 1e-2
+
+      M = 1. ! Mass perturbation can be anything, it cancels out in the end  
+      r = (3.*M/(4.*pi*comoving_matter_density(cosm)*d))**(1./3.) ! Convert the mass perturbation to a comoving radius (M=4*pi*r^3*delta/3)    
+      r = r*a ! Convert comoving -> physical radius      
+      r3 = (r/r_vain_DGP(M, a, cosm))**3 ! G_nl depends on r3 only
+      IF((1./r3) < eps) THEN
+         ! High r3 expansion to avoid cancellation problems
+         G_DGP = 1.+(1./(3.*beta_dgp(a, cosm)))*(1.-1./(4.*r3))
+      ELSE
+         ! Standard formula
+         G_DGP = 1.+(2./(3.*beta_dgp(a, cosm)))*r3*(sqrt(1.+1./r3)-1.)
+      END IF
+
+   END FUNCTION G_DGP
+
+   REAL FUNCTION beta_DGP(a, cosm)
+
+      ! DGP beta function
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+  
+      beta_DGP = 1.+(2./3.)*sqrt(Hubble2(a, cosm))*cosm%H0rc*(2.+AH(a,cosm)/Hubble2(a, cosm))
+  
+   END FUNCTION beta_DGP
+
+   REAL FUNCTION r_vain_DGP(M, a, cosm)
+
+      ! nDGP Vainshtein radius in physical coordinates
+      ! This Vainshtein radius is in physical coordinates
+      ! M(r) is the mass *perturbation* interior to r
+      ! TODO: Relate GN to something in constants.f90
+      REAL, INTENT(IN) :: M
+      REAL, INTENT(IN) :: a 
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, PARAMETER :: GN = bigG_cos/100.**2 ! G/H0^2 in units (Mpc/h)^3 (M_sun/h)^-1
+      
+      r_vain_DGP = (16.*GN*M*cosm%H0rc**2)/(9.*beta_dgp(a, cosm)**2)
+      r_vain_DGP = r_vain_DGP**(1./3.)
+  
+    END FUNCTION r_vain_DGP
 
    REAL FUNCTION dc_NakamuraSuto(a, cosm)
 
@@ -6925,7 +7060,7 @@ CONTAINS
          fy = y/4.+y**2/8.                                    ! Smith (below C2)
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Smith (C4)
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Smith (C3)
-         pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)   ! Smith (C2)
+         pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)      ! Smith (C2)
       ELSE IF (ihf == HALOFIT_Bird .OR. ihf == HALOFIT_Bird_paper) THEN
          ! Bird et al. (2012)
          fy = y/4.+y**2/8.
@@ -6933,20 +7068,20 @@ CONTAINS
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Bird equation (A1)
          Q = fnu*(2.080-12.4*(Om_m-0.3))/(1.+(1.2e-3)*y**3)   ! Bird equation (A6)
          ph = ph*(1.+Q)                                       ! Bird equation (A7)
-         pq = pli*(1.+(26.3*fnu*rk**2.)/(1.+1.5*rk**2))      ! Bird equation (A9)
-         pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)       ! Bird equation (A8)
+         pq = pli*(1.+(26.3*fnu*rk**2.)/(1.+1.5*rk**2))       ! Bird equation (A9)
+         pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)        ! Bird equation (A8)
       ELSE IF (ihf == HALOFIT_Takahashi) THEN
          ! Takahashi et al. (2012)
          fy = y/4.+y**2/8.                                    ! Takahashi equation (below A2)
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Takahashi equation (A3ii)
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Takahashi equation (A3i)
-         pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)   ! Takahashi equation (A2)
+         pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)      ! Takahashi equation (A2)
       ELSE IF (ihf == HALOFIT_CAMB) THEN
          ! Unpublished CAMB stuff from halofit_ppf.f90
          fy = y/4.+y**2/8.
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam))
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))*(1.+fnu*0.977)    ! CAMB; halofit_ppf.f90; halofit
-         pq = pli*(1.+fnu*47.48*rk**2/(1.+1.5*rk**2))        ! CAMB; halofit_ppf.f90; halofit
+         pq = pli*(1.+fnu*47.48*rk**2/(1.+1.5*rk**2))         ! CAMB; halofit_ppf.f90; halofit
          pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)
       ELSE
          STOP 'HALOFIT: Error, ihf specified incorrectly'
