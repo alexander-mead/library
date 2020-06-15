@@ -50,16 +50,16 @@ MODULE constants
    REAL, PARAMETER :: Jansky = 1e-26_dp      ! [W m^-2 Hz^-1 / Jy]
 
    ! Derived astronomy constants
-   REAL, PARAMETER :: parsec = 60.*60.*180.*au/pi                          ! Parsec [m] ~3.086e16
-   REAL, PARAMETER :: kpc = parsec*1e3                                     ! kpc [m]
-   REAL, PARAMETER :: Mpc = kpc*1e3                                        ! Mpc [m]
-   REAL, PARAMETER :: Gpc = Mpc*1e3                                        ! Gpc [m]
-   REAL, PARAMETER :: H0 = H0_cos*1e3/Mpc                                  ! Hubble constant [s^-1] ~3.243e-18
-   REAL, PARAMETER :: bigG_cos = bigG*Msun/(1e6*Mpc)                       ! Gravitational constant [(Msun/h)^-1 (km/s)^2 (Mpc/h)]
-   REAL, PARAMETER :: critical_density = 3.*H0**2/(8.*pi*bigG)             ! Critical density [h^2 kg/m^3]
+   REAL, PARAMETER :: parsec = 60.*60.*180.*au/pi                          ! Parsec [m] ~3.086e16 m
+   REAL, PARAMETER :: kpc = parsec*1e3                                     ! kpc [m] ~3.086e19 m
+   REAL, PARAMETER :: Mpc = kpc*1e3                                        ! Mpc [m] ~3.086e22 m
+   REAL, PARAMETER :: Gpc = Mpc*1e3                                        ! Gpc [m] ~3.086e25 m
+   REAL, PARAMETER :: H0 = H0_cos*1e3/Mpc                                  ! Hubble constant [s^-1] ~3.241e-18 s^-1 (1e3 is km -> m)
+   REAL, PARAMETER :: bigG_cos = bigG*Msun/(Mpc*1e3**2)                    ! Gravitational constant [(Msun/h)^-1 (km/s)^2 (Mpc/h)] ~4.301e-9 (1e3**2 m -> km)
+   REAL, PARAMETER :: critical_density = 3.*H0**2/(8.*pi*bigG)             ! Critical density [h^2 kg/m^3] ~1.878e-26
    REAL, PARAMETER :: critical_density_cos = 3.*H0_cos**2/(8.*pi*bigG_cos) ! Universal critical density at (equal to 3*H0^2 / 8piG) [(M_sun/h)/(Mpc/h)^3] ~2.776e11
-   REAL, PARAMETER :: Hdist = c_light/(H0_cos*1e3)                         ! Hubble distance (c/H0) [Mpc/h] ~3000
-   REAL, PARAMETER :: Htime = 1./(H0*60.*60.*24.*365.25*1e9)               ! Hubble time (1/H0) [Gyrs/h]    ~9.78
+   REAL, PARAMETER :: Hdist = c_light/(H0_cos*1e3)                         ! Hubble distance (c/H0) [Mpc/h] ~3000 Mpc/h (1e3 km -> m)
+   REAL, PARAMETER :: Htime = 1./(H0*60.*60.*24.*365.25*1e9)               ! Hubble time (1/H0) [Gyr/h] ~9.78 Gyr/h
    REAL, PARAMETER :: yfac = sigma_T/(me*c_light**2)                       ! sigma_T/m_e*c^2 [kg^-1 s^2], prefactor of Compton-y integral over *pressure*
    REAL, PARAMETER :: dc0 = (3./20.)*(12.*pi)**(2./3.)                     ! Einstein-de Sitter linear collapse density ~1.686
    REAL, PARAMETER :: Dv0 = 18.*pi**2                                      ! Einsten-de Sitter virialised collapse threshold ~178
