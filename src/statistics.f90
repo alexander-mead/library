@@ -7,6 +7,7 @@ MODULE statistics
    PUBLIC :: mean
    PUBLIC :: variance
    PUBLIC :: standard_deviation
+   PUBLIC :: root_mean_square
    PUBLIC :: histogram
    PUBLIC :: calculate_confidence
    PUBLIC :: parameter_probability
@@ -30,11 +31,12 @@ CONTAINS
       ! However, if you are estimating the population variance then you need 1/(N-1)
       REAL, INTENT(IN) :: x(:)
       REAL :: avg
-      INTEGER :: n
+      !INTEGER :: n
 
       avg = mean(x)
-      n = size(x)
-      variance = sum((x-avg)**2)/real(n)
+      !n = size(x)
+      !variance = sum((x-avg)**2)/real(n)
+      variance = mean((x-avg)**2)
 
    END FUNCTION variance
 
@@ -45,6 +47,14 @@ CONTAINS
       standard_deviation = sqrt(variance(x))
 
    END FUNCTION standard_deviation
+
+   REAL FUNCTION root_mean_square(x)
+
+      REAL, INTENT(IN) :: x(:)
+
+      root_mean_square = sqrt(mean(x**2))
+
+   END FUNCTION root_mean_square
 
    SUBROUTINE histogram(xmin, xmax, x, hist, n, data)
 
