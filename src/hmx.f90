@@ -4414,7 +4414,6 @@ CONTAINS
    REAL FUNCTION delta_c(hmod, cosm)
 
       ! Linear collapse density
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: a, sig
@@ -4428,14 +4427,16 @@ CONTAINS
          ! From Nakamura & Suto (1997) LCDM fitting function
          delta_c = dc_NakamuraSuto(a, cosm)
       ELSE IF (hmod%idc == 3 .OR. hmod%idc == 6) THEN
-         ! From HMcode (2015)
-         ! TODO: It may have been more logical to have a flag_power_cold dependence
+         ! From HMcode (2015, 2016)
          sig = sigma(8., a, flag_power_total, cosm)
          delta_c = hmod%dc0+hmod%dc1*log(sig)
          IF (hmod%idc == 3) THEN
             ! HMcode(2016) addition of small cosmology and explicit neutrino dependence
             delta_c = delta_c*(1.+hmod%dcnu*cosm%f_nu)
             delta_c = delta_c*(dc_NakamuraSuto(a, cosm)/dc0)
+            IF (cosm%img == img_nDGP) THEN
+               delta_c = delta_c*(1.+0.008*sigmoid_tanh(log10(2.33*a*cosm%H0rc**(-0.65))/0.4))
+            END IF
          END IF
       ELSE IF (hmod%idc == 4) THEN
          ! From Mead (2017) fitting function
@@ -4470,11 +4471,11 @@ CONTAINS
       ELSE IF (hmod%iDv == 3 .OR. hmod%iDv == 8) THEN
          ! From HMcode(2015, 2016)
          ! This has Omega_m(a) dependence in HMcode (2016)
-         ! TODO: It may be more logical to have an Omega_cold(a) dependence
          Delta_v = hmod%Dv0*Omega_m(a, cosm)**hmod%Dv1
          IF (hmod%iDv == 3) THEN
-            ! HMcode(2016) neutrino addition
+            ! HMcode(2016) additions
             Delta_v = Delta_v*(1.+hmod%Dvnu*cosm%f_nu)
+            IF (cosm%img == img_nDGP) Delta_v = Delta_v*(1.-a*0.0388*cosm%H0rc**(-0.7))
          END IF
       ELSE IF (hmod%iDv == 4) THEN
          ! From Mead (2017) fitting function
