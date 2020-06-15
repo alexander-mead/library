@@ -30,18 +30,14 @@ CONTAINS
       ! Sample is simply the variance of your sample 1/N
       ! However, if you are estimating the population variance then you need 1/(N-1)
       REAL, INTENT(IN) :: x(:)
-      REAL :: avg
-      !INTEGER :: n
 
-      avg = mean(x)
-      !n = size(x)
-      !variance = sum((x-avg)**2)/real(n)
-      variance = mean((x-avg)**2)
+      variance = mean((x-mean(x))**2)
 
    END FUNCTION variance
 
    REAL FUNCTION standard_deviation(x)
 
+      ! Square root of variance
       REAL, INTENT(IN) :: x(:)
 
       standard_deviation = sqrt(variance(x))
@@ -50,6 +46,7 @@ CONTAINS
 
    REAL FUNCTION root_mean_square(x)
 
+      ! Same as the standard deviation if the mean is zero
       REAL, INTENT(IN) :: x(:)
 
       root_mean_square = sqrt(mean(x**2))
