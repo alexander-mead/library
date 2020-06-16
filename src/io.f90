@@ -25,13 +25,14 @@ MODULE io
       INTEGER, PARAMETER :: expected_number_of_lines = 5280
       INTEGER, PARAMETER :: nk_expected = 352
       INTEGER, PARAMETER :: nz_expected = 15
+      LOGICAL, PARAMETER :: verbose = .FALSE.
 
       ! Create the input file name
       infile = trim(dir)//'/'//trim(name)//'.dat'
       CALL check_file_exists(infile)
 
       ! Count the length of the file
-      n = file_length(infile, verbose=.TRUE.)
+      n = file_length(infile, verbose)
       n = n-header_size
 
       ! Check that the file length is consistent with expectations
