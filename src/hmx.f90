@@ -206,12 +206,14 @@ MODULE HMx
    PUBLIC :: param_HMcode_STp
    PUBLIC :: param_HMcode_STq
    PUBLIC :: param_HMcode_kd
+   PUBLIC :: param_HMcode_kdp
+   PUBLIC :: param_HMcode_nd
    PUBLIC :: param_HMcode_Ap
    PUBLIC :: param_HMcode_Ac
    PUBLIC :: param_HMcode_kp
-   PUBLIC :: param_HMcode_kdp
    PUBLIC :: param_HMcode_mbarz
    PUBLIC :: param_HMcode_sbarz
+   
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -296,7 +298,7 @@ MODULE HMx
       LOGICAL :: DMONLY_neutrinos_affect_virial_radius
 
       ! HMcode (2020) parameters
-      REAL :: kd, kdp, Ap, Ac, kp
+      REAL :: kd, kdp, Ap, Ac, kp, nd
       REAL :: mbar, nbar, sbar, mbarz, sbarz
 
       ! Halo types
@@ -519,7 +521,8 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_mbarz = 63
    INTEGER, PARAMETER :: param_HMcode_sbarz = 64
    INTEGER, PARAMETER :: param_HMcode_Amfz = 65
-   INTEGER, PARAMETER :: param_n = 65
+   INTEGER, PARAMETER :: param_HMcode_nd = 66
+   INTEGER, PARAMETER :: param_n = 66
 
    ! HMcode versions
    INTEGER, PARAMETER :: HMcode2015 = 7
@@ -747,6 +750,7 @@ CONTAINS
       ! 0 - No
       ! 1 - HMcode (2015, 2016)
       ! 2 - Same as 1 but with sigma_cold dependence
+      ! 3 - HMcode (2020)
       hmod%ieta = 1
 
       ! Concentration-mass rescaling
@@ -926,6 +930,7 @@ CONTAINS
       hmod%DMONLY_neutrinos_affect_virial_radius = .FALSE.
       hmod%kd = 1e-2
       hmod%kp = 0.
+      hmod%nd = 0.
       hmod%kp = 0.
       hmod%Ap = 0.
       hmod%Ac = 0.
@@ -934,7 +939,7 @@ CONTAINS
       hmod%DMONLY_baryon_recipe = .FALSE.     
       hmod%mbar = 1e14
       hmod%nbar = 2.
-      hmod%sbar = 0.
+      hmod%sbar = 1e-5 ! Problems with fitting if set to zero
       hmod%mbarz = 0.
       hmod%sbarz = 0.
       hmod%Amfz = 0.
@@ -1219,21 +1224,6 @@ CONTAINS
             hmod%alp1 = 1.88
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
-            ! Model 2: 0.0166 to FrankenEmu
-            !hmod%Dv0 = 445.6534069
-            !hmod%Dv1 = -0.4097628
-            !hmod%dc0 = 1.6362915
-            !hmod%dc1 = 0.0031873
-            !hmod%eta0 = 0.4362025
-            !hmod%eta1 = 0.0767330
-            !hmod%f0 = 0.0134360
-            !hmod%f1 = 0.9854991
-            !hmod%ks = 0.1874255
-            !hmod%As = 2.8860812
-            !hmod%alp0 = 2.6015748
-            !hmod%alp1 = 1.7420269
-            !hmod%Dvnu = 0.
-            !hmod%dcnu = 0.
          ELSE IF (ihm == 28) THEN
             ! HMcode (2016) with one-parameter baryon model
             hmod%one_parameter_baryons = .TRUE.
@@ -1786,7 +1776,7 @@ CONTAINS
          hmod%iconc = 1   ! 1 - Bullock c(M) relation   
          hmod%iDolag = 3  ! 3 - Dolag c(M) correction with sensible z evolution
          hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
-         hmod%ieta = 2    ! 2 - eta with cold matter dependence
+         hmod%ieta = 3    ! 2 - eta with cold matter dependence
          hmod%flag_sigma = flag_power_cold_unorm  ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
          hmod%zinf_Dolag = 10. ! Why is 100 not better than 10? This is very strange!
@@ -1800,7 +1790,66 @@ CONTAINS
             hmod%alp1 = 1.6846223
             hmod%kd = 0.0414575
             hmod%kdp = -0.3542846
+            hmod%nd = 2.
          ELSE IF (ihm == 79 .OR. ihm == 102) THEN
+            ! Model 1: 0.0160 to both Franken Emu and Mira Titan
+            !hmod%ieta = 2
+            !hmod%f0 = 0.2990829
+            !hmod%f1 = 1.1481055
+            !hmod%ks = 0.0281139
+            !hmod%kp = -0.1769449
+            !hmod%kd = 0.0561848
+            !hmod%kdp = 0.0228758
+            !hmod%eta0 = 0.2265319
+            !hmod%eta1 = 0.0095795
+            !hmod%alp0 = 2.4050830
+            !hmod%alp1 = 1.7988408 
+            !hmod%Amf = 1.3956430
+            !hmod%ST_p = 0.2867586
+            !hmod%ST_q = 0.8330417
+            !hmod%As = 3.8584895
+            !hmod%Ap = -0.0108849  ! Very tiny
+            !hmod%Ac = 0.0153846   ! Very tiny
+            !hmod%dcnu = 0.2452052
+            !hmod%Dvnu = 0.4495748
+            !hmod%nd = 2.
+            ! Model 2: 0.0160 to both Franken Emu and Mira Titan
+            !hmod%ieta = 2
+            !hmod%f0 = 0.2819368
+            !hmod%f1 = 0.9683412
+            !hmod%ks = 0.0988932
+            !hmod%kp = -0.7276630
+            !hmod%kd = 0.0934965
+            !hmod%kdp = -0.9014253
+            !hmod%nd = 3.2303373
+            !hmod%eta0 = 0.2231950
+            !hmod%eta1 = 0.0224848
+            !hmod%alp0 = 2.3387764
+            !hmod%alp1 = 1.7929939
+            !hmod%Amf = 1.3474791
+            !hmod%ST_p = 0.2836389
+            !hmod%ST_q = 0.8361781
+            !hmod%As = 3.9358818
+            !hmod%dcnu = 0.2552135
+            !hmod%Dvnu = 0.4843895
+            ! Model 3: 0.0155 to both Franken Emu and Mira Titan
+            hmod%f0 = 0.3029326
+            hmod%f1 = 0.9871813
+            hmod%ks = 0.1009522
+            hmod%kp = -0.6087461
+            hmod%kd = 0.0999463
+            hmod%kdp = -0.7043082
+            hmod%nd = 3.0978275
+            hmod%eta0 = 0.2076059
+            hmod%eta1 = -0.0395534
+            hmod%alp0 = 2.2627289
+            hmod%alp1 = 1.7735738
+            hmod%Amf = 1.3698191
+            hmod%ST_p = 0.2851119
+            hmod%ST_q = 0.8421921
+            hmod%As = 3.8870756
+            hmod%dcnu = 0.2551262
+            hmod%Dvnu = 0.5504368           
             IF (ihm == 102) THEN
                hmod%DMONLY_baryon_recipe = .TRUE.
                hmod%mbar = 10**14.3
@@ -1809,27 +1858,7 @@ CONTAINS
                hmod%sbarz = 2.5
                hmod%Amf = 1.55
                hmod%Amfz = -0.1
-            ELSE
-               hmod%Amf = 1.3956430
-            END IF
-            ! Model 6: 0.0160 to both Franken Emu and Mira Titan
-            hmod%f0 = 0.2990829
-            hmod%f1 = 1.1481055
-            hmod%ks = 0.0281139
-            hmod%kp = -0.1769449
-            hmod%kd = 0.0561848
-            hmod%kdp = 0.0228758
-            hmod%eta0 = 0.2265319
-            hmod%eta1 = 0.0095795
-            hmod%alp0 = 2.4050830
-            hmod%alp1 = 1.7988408         
-            hmod%ST_p = 0.2867586
-            hmod%ST_q = 0.8330417
-            hmod%As = 3.8584895
-            hmod%Ap = -0.0108849
-            hmod%Ac = 0.0153846
-            hmod%dcnu = 0.2452052
-            hmod%Dvnu = 0.4495748
+            END IF 
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
@@ -2311,7 +2340,8 @@ CONTAINS
          ! eta for halo window function
          IF (hmod%ieta == 0) WRITE (*, *) 'HALOMODEL: eta = 0 fixed'
          IF (hmod%ieta == 1) WRITE (*, *) 'HALOMODEL: eta from HMcode (2015, 2016) power spectrum fit'
-         IF (hmod%ieta == 2) WRITE (*, *) 'HALOMODEL: eta from HMcode but with cold dependence'
+         IF (hmod%ieta == 2) WRITE (*, *) 'HALOMODEL: eta from HMcode (2015, 2016) but with cold dependence'
+         IF (hmod%ieta == 3) WRITE (*, *) 'HALOMODEL: eta from HMcode (2020)'
 
          ! Small-scale two-halo term damping coefficient
          IF (hmod%i2hdamp == 0) WRITE (*, *) 'HALOMODEL: No two-halo term damping at small scales'
@@ -2392,6 +2422,7 @@ CONTAINS
          WRITE (*, fmt=fmt) 'kp:', hmod%kp
          WRITE (*, fmt=fmt) 'kd:', hmod%kd
          WRITE (*, fmt=fmt) 'kdp:', hmod%kdp
+         WRITE (*, fmt=fmt) 'nd:', hmod%nd
          WRITE (*, fmt=fmt) 'As:', hmod%As
          WRITE (*, fmt=fmt) 'Ap:', hmod%Ap
          WRITE (*, fmt=fmt) 'Ac:', hmod%Ac
@@ -3655,7 +3686,8 @@ CONTAINS
       ELSE IF (hmod%i2hdamp == 3) THEN
          fdamp = hmod%HMcode_fdamp
          kdamp = hmod%HMcode_kdamp
-         ndamp = 2.
+         !ndamp = 2.
+         ndamp = hmod%nd
          p_2h = p_2h*(1.-fdamp*((k/kdamp)**ndamp)/(1.+(k/kdamp)**ndamp))
       END IF
 
@@ -4639,22 +4671,21 @@ CONTAINS
 
       IF (hmod%ieta == 0) THEN
          HMcode_eta = 0.
-      ELSE IF (hmod%ieta == 1 .OR. hmod%ieta == 2) THEN
+      ELSE IF (hmod%ieta == 1) THEN
          ! From HMcode(2015; arXiv 1505.07833, 2016)
          IF (hmod%one_parameter_baryons) THEN
             eta0 = 0.98-hmod%As*0.12
          ELSE
             eta0 = hmod%eta0
          END IF
-         IF (hmod%ieta == 1) THEN
-            flag = flag_power_total
-         ELSE IF (hmod%ieta == 2) THEN
-            flag = flag_power_cold_unorm
-         ELSE
-            STOP 'HMcode_ETA: Error, ieta defined incorrectly'
-         END IF
-         sig = sigma(8., hmod%a, flag, cosm)
+         sig = sigma(8., hmod%a, flag_power_total, cosm)
          HMcode_eta = eta0-hmod%eta1*sig
+      ELSE IF (hmod%ieta == 2) THEN
+         sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+         HMcode_eta = hmod%eta0-hmod%eta1*sig
+      ELSE IF (hmod%ieta == 3) THEN
+         sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+         HMcode_eta = hmod%eta0*sig**hmod%eta1
       ELSE
          STOP 'HMcode_ETA: Error, ieta defined incorrectly'
       END IF
