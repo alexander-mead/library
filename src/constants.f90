@@ -24,7 +24,7 @@ MODULE constants
 
    !!
 
-   ! Physical constants
+   ! Physical constants in SI units
    REAL, PARAMETER :: kB = 1.38064852e-23_dp        ! Boltzmann constant [m^2 kg s^-2 K^-1]
    REAL, PARAMETER :: mp = 1.6726219e-27_dp         ! proton mass [kg]
    REAL, PARAMETER :: me = 9.10938356e-31_dp        ! electron mass [kg]
@@ -35,7 +35,7 @@ MODULE constants
    REAL, PARAMETER :: sigma_T = 6.6524587158e-29_dp ! Thompson-scatter cross section [m^2]
    REAL, PARAMETER :: h_Planck = 6.62607004e-34_dp  ! Planck constant [kg m^2/s]
 
-   ! Derived physical constants
+   ! Derived physical constants in eV units
    REAL, PARAMETER :: mp_eV = mp*(c_light)**2/eV ! Proton rest mass in eV [~938 MeV]
    REAL, PARAMETER :: me_eV = me*(c_light)**2/eV ! Electron rest mass in eV [~511 keV]
 
