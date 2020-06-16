@@ -152,7 +152,7 @@ MODULE cosmology_functions
       REAL :: h, ns, w, wa, m_wdm, YH       ! Cosmological parameters
       REAL :: a1, a2, nstar, ws, am, dm, wm ! Dark-energy parameters
       REAL :: z_CMB, T_CMB, neff            ! CMB/radiation parameters
-      REAL :: H0rc                          ! Modified gravity parameters
+      REAL :: H0rc, fr0, nfR                ! Modified gravity parameters
       REAL :: Om_m_pow, Om_b_pow, h_pow     ! Cosmological parameters used for P(k) if different from background
       REAL :: b0, b1, b2, b3, b4            ! BDE parameters
       REAL :: A_bump, k_bump, sigma_bump    ! Power-spectrum bump   
@@ -244,6 +244,7 @@ MODULE cosmology_functions
    ! Modified gravity
    INTEGER, PARAMETER :: img_none = 0
    INTEGER, PARAMETER :: img_nDGP = 1
+   INTEGER, PARAMETER :: img_fR = 2
 
    ! Distance
    ! Changing to linear integer finding provides very little speed increase
@@ -702,6 +703,8 @@ CONTAINS
       ! Modified gravity
       cosm%img = img_none
       cosm%H0rc = 0. ! Note that zero is very strong
+      cosm%fR0 = 0.
+      cosm%nfR = 0
 
       ! Warm dark matter
       cosm%warm = .FALSE.
@@ -1572,6 +1575,10 @@ CONTAINS
             IF(cosm%img == img_nDGP) THEN
                WRITE(*, *) 'COSMOLOGY: nDGP with LCDM background'
                WRITE(*, fmt=format) 'COSMOLOGY:', 'H0rc:', cosm%H0rc
+            ELSE IF (cosm%img == img_fR) THEN
+               WRITE(*, *) 'COSMOLOGY: f(R) with LCDM background'
+               WRITE(*, fmt=format) 'COSMOLOGY:', 'fR0:', cosm%fR0
+               WRITE(*, fmt=format) 'COSMOLOGY:', 'nfR:', cosm%nfR
             END IF
             WRITE (*, *) dashes
          END IF        
@@ -4008,10 +4015,7 @@ CONTAINS
       REAL :: f1, f2
       REAL :: crap
 
-      ! TODO: prevent compile-time warning
-      crap = k
-
-      f1 = 1.5*Omega_cold_norad(a, cosm)*G_lin(a, cosm)*d/a**2
+      f1 = 1.5*Omega_cold_norad(a, cosm)*G_lin(k, a, cosm)*d/a**2
       f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*v/a
       dvda = f1+f2
 
@@ -4040,8 +4044,10 @@ CONTAINS
 
    END FUNCTION dvdanl
 
-   REAL FUNCTION G_lin(a, cosm)
+   REAL FUNCTION G_lin(k, a, cosm)
 
+      ! Linear effective gravitational constant
+      REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -4049,14 +4055,64 @@ CONTAINS
          G_lin = 1.
       ELSE IF (cosm%img == img_nDGP) THEN
          G_lin = 1.+1./(3.*beta_dgp(a, cosm))
+      ELSE IF (cosm%img == img_fR) THEN
+         G_lin = 1.+mu_fR(k, a, cosm)
       ELSE
          STOP 'G_LIN: Error, img not specified correctly'
       END IF
 
    END FUNCTION G_lin
 
+   REAL FUNCTION beta_DGP(a, cosm)
+
+      ! DGP beta function
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+  
+      beta_DGP = 1.+(2./3.)*sqrt(Hubble2(a, cosm))*cosm%H0rc*(2.+AH(a,cosm)/Hubble2(a, cosm))
+  
+   END FUNCTION beta_DGP
+
+   REAL FUNCTION mu_fR(k, a, cosm)
+
+      ! Linear gravity modification for f(R)
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(IN) :: cosm
+  
+      mu_fR = 4.-1./(1.+Compton2(a, cosm)*(k/a)**2)
+      mu_fR = mu_fR/3.
+  
+   END FUNCTION mu_fR
+
+   REAL FUNCTION Compton2(a, cosm)
+
+      ! Squared Compton wavelength for f(R)
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: Rbar0
+
+      Rbar0 = Rbar(1., cosm)
+      !Compton2 = -3.*(cosm%nfR+1.)*(cosm%fR0/Rbar(1., cosm))*(Rbar(1., cosm)/Rbar(a, cosm))**(cosm%nfR+2.)
+      Compton2 = -3.*(cosm%nfR+1.)*(cosm%fR0/Rbar0)*(Rbar0/Rbar(a, cosm))**(cosm%nfR+2.)
+
+    END FUNCTION Compton2
+  
+   REAL FUNCTION Rbar(a, cosm)
+
+      ! Background R value for f(R)
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(IN) :: cosm
+
+      IF (cosm%Om_w .NE. 0) STOP 'RBAR: Error, f(R) not currently compatible with dark energy Omega_w'
+
+      Rbar=3.*(cosm%Om_m*(a**(-3))+4.*cosm%Om_v)/Hdist**2
+
+   END FUNCTION Rbar
+
    REAL FUNCTION G_nl(d, a, cosm)
 
+      ! Non-linear effective gravitational constant modification
       REAL, INTENT(IN) :: d
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4065,6 +4121,8 @@ CONTAINS
          G_nl = 1.
       ELSE IF (cosm%img == img_nDGP) THEN  
          G_nl = G_DGP(d, a, cosm)
+      ELSE IF (cosm%img == img_fR) THEN
+         STOP 'G_NL: Error, non-linear calculation not supported for f(R)'
       ELSE
          STOP 'G_NL: Error, img not specified correctly'
       END IF
@@ -4083,7 +4141,7 @@ CONTAINS
       M = 1. ! Mass perturbation can be anything, it cancels out in the end  
       r = (3.*M/(4.*pi*comoving_matter_density(cosm)*d))**(1./3.) ! Convert the mass perturbation to a comoving radius (M=4*pi*r^3*delta/3)    
       r = r*a ! Convert comoving -> physical radius      
-      r3 = (r/r_vain_DGP(M, a, cosm))**3 ! G_nl depends on r3 only
+      r3 = (r/r_Vainshtein_DGP(M, a, cosm))**3 ! G_nl depends on r3 only
       IF((1./r3) < eps) THEN
          ! High r3 expansion to avoid cancellation problems
          G_DGP = 1.+(1./(3.*beta_dgp(a, cosm)))*(1.-1./(4.*r3))
@@ -4094,17 +4152,7 @@ CONTAINS
 
    END FUNCTION G_DGP
 
-   REAL FUNCTION beta_DGP(a, cosm)
-
-      ! DGP beta function
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-  
-      beta_DGP = 1.+(2./3.)*sqrt(Hubble2(a, cosm))*cosm%H0rc*(2.+AH(a,cosm)/Hubble2(a, cosm))
-  
-   END FUNCTION beta_DGP
-
-   REAL FUNCTION r_vain_DGP(M, a, cosm)
+   REAL FUNCTION r_Vainshtein_DGP(M, a, cosm)
 
       ! nDGP Vainshtein radius in physical coordinates
       ! This Vainshtein radius is in physical coordinates
@@ -4113,12 +4161,12 @@ CONTAINS
       REAL, INTENT(IN) :: M
       REAL, INTENT(IN) :: a 
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, PARAMETER :: GN = bigG_cos/100.**2 ! G/H0^2 in units (Mpc/h)^3 (M_sun/h)^-1
+      REAL, PARAMETER :: GN = bigG_cos/H0_cos**2 ! G/H0^2 in units (Mpc/h)^3 (M_sun/h)^-1
       
-      r_vain_DGP = (16.*GN*M*cosm%H0rc**2)/(9.*beta_dgp(a, cosm)**2)
-      r_vain_DGP = r_vain_DGP**(1./3.)
+      r_Vainshtein_DGP = (16.*GN*M*cosm%H0rc**2)/(9.*beta_dgp(a, cosm)**2)
+      r_Vainshtein_DGP = r_Vainshtein_DGP**(1./3.)
   
-    END FUNCTION r_vain_DGP
+    END FUNCTION r_Vainshtein_DGP
 
    REAL FUNCTION dc_NakamuraSuto(a, cosm)
 
