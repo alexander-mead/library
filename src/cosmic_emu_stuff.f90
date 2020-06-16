@@ -24,39 +24,19 @@ MODULE cosmic_emu_stuff
 
 CONTAINS
 
-   SUBROUTINE get_emulator_power(k, a, Pk, nk, cosm, emulator_version, rebin, verbose)
+   SUBROUTINE get_emulator_power(k, a, Pk, nk, cosm, version, rebin, verbose)
 
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, INTENT(IN) :: a(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
       INTEGER, INTENT(OUT) :: nk
       TYPE(cosmology), INTENT(IN) :: cosm   
-      INTEGER, INTENT(IN) :: emulator_version
+      INTEGER, INTENT(IN) :: version
       LOGICAL, OPTIONAL, INTENT(IN) :: rebin
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       INTEGER :: ia, na
-      REAL :: z, kmax_rebin
+      REAL :: z
       REAL, ALLOCATABLE :: k_emu(:), Pk_emu(:)
-      REAL, PARAMETER :: kmin_rebin = 1e-2
-      REAL, PARAMETER :: kmax_CosmicEmu_rebin = 1.   ! Maximum k if rebinnning
-      REAL, PARAMETER :: kmax_FrankenEmu_rebin = 10. ! Maximum k if rebinnning
-      REAL, PARAMETER :: kmax_MiraTitan_rebin = 7.   ! Maximum k if rebinnning
-      INTEGER, PARAMETER :: nk_rebin = 128           ! Number of k points if rebinning
-      INTEGER, PARAMETER :: iorder_rebin = 3
-      INTEGER, PARAMETER :: ifind_rebin = 3
-      INTEGER, PARAMETER :: iinterp_rebin = 2
-
-      IF (present_and_correct(rebin)) THEN
-         IF (emulator_version == emulator_CosmicEmu) THEN
-            kmax_rebin = kmax_CosmicEmu_rebin
-         ELSE IF (emulator_version == emulator_FrankenEmu) THEN
-            kmax_rebin = kmax_FrankenEmu_rebin
-         ELSE IF (emulator_version == emulator_MiraTitan) THEN
-            kmax_rebin = kmax_MiraTitan_rebin
-         ELSE
-            STOP 'GET_EMULATOR_POWER: Error, emulator_version set incorrectly'
-         END IF
-      END IF
 
       na = size(a)
 
@@ -64,25 +44,14 @@ CONTAINS
 
          z = redshift_a(a(ia))
 
-         IF (emulator_version == emulator_CosmicEmu) THEN
-            CALL get_CosmicEmu_power_z(k_emu, Pk_emu, nk, z, cosm, verbose)
-         ELSE IF (emulator_version == emulator_FrankenEmu) THEN
-            CALL get_FrankenEmu_power_z(k_emu, Pk_emu, nk, z, cosm, verbose)
-         ELSE IF (emulator_version == emulator_MiraTitan) THEN
-            CALL get_MiraTitan_power_z(k_emu, Pk_emu, nk, z, cosm, verbose)
+         IF (version == emulator_CosmicEmu) THEN
+            CALL get_CosmicEmu_power_z(k_emu, Pk_emu, nk, z, cosm, rebin, verbose)
+         ELSE IF (version == emulator_FrankenEmu) THEN
+            CALL get_FrankenEmu_power_z(k_emu, Pk_emu, nk, z, cosm, rebin, verbose)
+         ELSE IF (version == emulator_MiraTitan) THEN
+            CALL get_MiraTitan_power_z(k_emu, Pk_emu, nk, z, cosm, rebin, verbose)
          ELSE
-            STOP 'GET_EMULATOR_POWER: Error, emulator_version not specified correctly'
-         END IF
-
-         IF (present_and_correct(rebin)) THEN
-            CALL rebin_array(kmin_rebin, kmax_rebin, nk_rebin, k_emu, Pk_emu, &
-               iorder_rebin, &
-               ifind_rebin, &
-               iinterp_rebin, &
-               logx=.TRUE., &
-               logf=.TRUE. &
-               )
-            nk = nk_rebin
+            STOP 'GET_EMULATOR_POWER: Error, version not specified correctly'
          END IF
 
          IF (.NOT. allocated(k))  ALLOCATE(k(nk))
@@ -95,13 +64,35 @@ CONTAINS
 
    END SUBROUTINE get_emulator_power
 
-   SUBROUTINE get_CosmicEmu_power_z(k, P, n, z, cosm, verbose)
+   SUBROUTINE rebin_emulator(kmin, kmax, nk, k, Pk)
+
+      REAL, INTENT(IN) :: kmin
+      REAL, INTENT(IN) :: kmax
+      INTEGER, INTENT(IN) :: nk
+      REAL, ALLOCATABLE, INTENT(INOUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: Pk(:)
+      INTEGER, PARAMETER :: iorder_rebin = 3
+      INTEGER, PARAMETER :: ifind_rebin = 3
+      INTEGER, PARAMETER :: iinterp_rebin = 2
+
+      CALL rebin_array(kmin, kmax, nk, k, Pk, &
+         iorder_rebin, &
+         ifind_rebin, &
+         iinterp_rebin, &
+         logx=.TRUE., &
+         logf=.TRUE. &
+         )
+
+   END SUBROUTINE rebin_emulator
+
+   SUBROUTINE get_CosmicEmu_power_z(k, P, n, z, cosm, rebin, verbose)
     
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: P(:)
       INTEGER, INTENT(OUT) :: n
       REAL, INTENT(IN) :: z
       TYPE(cosmology), INTENT(IN) :: cosm
+      LOGICAL, OPTIONAL, INTENT(IN) :: rebin
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       INTEGER :: i
       CHARACTER(len=256) :: crap
@@ -112,6 +103,9 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: output = 'emu_power.dat'
       CHARACTER(len=256), PARAMETER :: exe = '/Users/Mead/Physics/CosmicEmu/emu.exe'
       REAL, PARAMETER :: eps_h = 3e-3
+      REAL, PARAMETER :: kmin_rebin = 1e-2
+      REAL, PARAMETER :: kmax_rebin = 1.   ! Maximum k if rebinnning
+      INTEGER, PARAMETER :: nk_rebin = 128
 
       ! Remove previous parameter and power file
       CALL EXECUTE_COMMAND_LINE('rm '//trim(params))
@@ -161,6 +155,14 @@ CONTAINS
       ! Convert k to k/h
       k = k/cosm%h
 
+      IF (present_and_correct(rebin)) THEN
+         IF (present_and_correct(verbose)) THEN
+            WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Rebinning power'
+         END IF
+         CALL rebin_emulator(kmin_rebin, kmax_rebin, nk_rebin, k, P)
+         n = nk_rebin
+      END IF
+
       ! Done
       IF (present_and_correct(verbose)) THEN
          WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Done'
@@ -169,19 +171,23 @@ CONTAINS
 
    END SUBROUTINE get_CosmicEmu_power_z
 
-   SUBROUTINE get_FrankenEmu_power_z(k, P, n, z, cosm, verbose)
+   SUBROUTINE get_FrankenEmu_power_z(k, P, n, z, cosm, rebin, verbose)
 
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: P(:)
       INTEGER, INTENT(OUT) :: n
       REAL, INTENT(IN) :: z
       TYPE(cosmology), INTENT(IN) :: cosm
+      LOGICAL, OPTIONAL, INTENT(IN) :: rebin
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       INTEGER :: i
       INTEGER, PARAMETER :: nh = 5   ! Length of header
       CHARACTER(len=256), PARAMETER :: params = 'emu_params.txt'
       CHARACTER(len=256), PARAMETER :: output = 'emu_power.dat'
       CHARACTER(len=256), PARAMETER :: exe = '/Users/Mead/Physics/FrankenEmu/emu.exe'
+      REAL, PARAMETER :: kmin_rebin = 1e-2
+      REAL, PARAMETER :: kmax_rebin = 10.   ! Maximum k if rebinnning
+      INTEGER, PARAMETER :: nk_rebin = 128
 
       ! Remove previous parameter and power file
       CALL EXECUTE_COMMAND_LINE('rm '//trim(params))
@@ -223,6 +229,14 @@ CONTAINS
       ! Convert k to k/h
       k = k/cosm%h
 
+      IF (present_and_correct(rebin)) THEN
+         IF (present_and_correct(verbose)) THEN
+            WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Rebinning power'
+         END IF
+         CALL rebin_emulator(kmin_rebin, kmax_rebin, nk_rebin, k, P)
+         n = nk_rebin
+      END IF
+
       ! Done
       IF (present_and_correct(verbose)) THEN
          WRITE (*, *) 'GET_FRANKENEMU_POWER_Z: Done'
@@ -231,7 +245,7 @@ CONTAINS
 
    END SUBROUTINE get_FrankenEmu_power_z
 
-   SUBROUTINE get_MiraTitan_power_z(k, P, n, z, cosm, verbose)
+   SUBROUTINE get_MiraTitan_power_z(k, P, n, z, cosm, rebin, verbose)
 
       USE constants
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
@@ -239,9 +253,13 @@ CONTAINS
       INTEGER, INTENT(OUT) :: n
       REAL, INTENT(IN) :: z
       TYPE(cosmology), INTENT(IN) :: cosm
+      LOGICAL, OPTIONAL, INTENT(IN) :: rebin
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       CHARACTER(len=256) :: output
       INTEGER :: i
+      REAL, PARAMETER :: kmin_rebin = 1e-2
+      REAL, PARAMETER :: kmax_rebin = 7.   ! Maximum k if rebinnning
+      INTEGER, PARAMETER :: nk_rebin = 128
 
       CALL EXECUTE_COMMAND_LINE('rm xstar.dat')
       CALL EXECUTE_COMMAND_LINE('rm EMU0.txt')
@@ -276,6 +294,14 @@ CONTAINS
 
       ! Convert k to k/h
       k = k/cosm%h
+
+      IF (present_and_correct(rebin)) THEN
+         IF (present_and_correct(verbose)) THEN
+            WRITE (*, *) 'GET_COSMICEMU_POWER_Z: Rebinning power'
+         END IF
+         CALL rebin_emulator(kmin_rebin, kmax_rebin, nk_rebin, k, P)
+         n = nk_rebin
+      END IF
 
       IF (present_and_correct(verbose)) THEN
          WRITE (*, *) 'GET_MIRATITAN_POWER_Z: Done'
