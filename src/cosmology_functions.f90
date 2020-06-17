@@ -1984,9 +1984,11 @@ CONTAINS
       CALL fill_array_log(amin, amax, a, na)
       ALLOCATE (gk(nk, na))
 
-      ALLOCATE(cosm%log_k_plin(nk), cosm%log_a_plin(na), cosm%log_plina(nk, na))
-      cosm%log_k_plin = log(k)
-      cosm%log_a_plin = log(a)
+      IF (.NOT. power_interpolator) THEN
+         ALLOCATE(cosm%log_k_plin(nk), cosm%log_a_plin(na), cosm%log_plina(nk, na))
+         cosm%log_k_plin = log(k)
+         cosm%log_a_plin = log(a)
+      END IF
 
       !Initial condtions for the EdS growing mode
       dinit = ainit_ode
@@ -2047,9 +2049,20 @@ CONTAINS
       ! Get the linear power, will not be correct at this stage
       CALL calculate_plin(k, a, Pk, nk, na, cosm)
       Pk = Pk*gk ! Mutliply through by scale-dependent growth to get f(R) linear shape
-      cosm%log_plina = log(Pk)
-      cosm%nk_plin = nk
-      cosm%na_plin = na
+
+      IF (power_interpolator) THEN
+         CALL init_interpolator(k, a, Pk, cosm%plina, &
+            iorder=iorder_interp_plin, &
+            iextrap=iextrap_plin, &
+            store=.TRUE., &
+            logx=.TRUE., &
+            logy=.TRUE., &
+            logf=.TRUE.)
+      ELSE
+         cosm%log_plina = log(Pk)
+         cosm%nk_plin = nk
+         cosm%na_plin = na
+      END IF
 
       ! Switch analyical power off and set flag for stored power
       cosm%analytical_power = .FALSE.
@@ -2917,12 +2930,12 @@ CONTAINS
       END IF
 
       CALL init_interpolator(a, r, cosm%dist, &
-                              iextrap = iextrap_distance, &
-                              iorder = iorder_interp_distance, &
-                              store=.TRUE., &
-                              logx = .TRUE., &
-                              logf = .TRUE. &
-                              )
+         iextrap = iextrap_distance, &
+         iorder = iorder_interp_distance, &
+         store=.TRUE., &
+         logx = .TRUE., &
+         logf = .TRUE. &
+         )
 
       ! Find the horizon distance in your cosmology
       ! exp(log) ensures the value is exactly the same as what comes out of the (log) interpolator
@@ -3034,11 +3047,11 @@ CONTAINS
       END IF
 
       CALL init_interpolator(a, t, cosm%time, &
-               iorder=iorder_interp_time, &
-               iextrap=iextrap_time, &
-               store=.TRUE., &
-               logx=.TRUE., &
-               logf=.TRUE.)
+         iorder=iorder_interp_time, &
+         iextrap=iextrap_time, &
+         store=.TRUE., &
+         logx=.TRUE., &
+         logf=.TRUE.)
 
       ! Find the horizon distance in your cosmology
       ! exp(log) ensures the value is exactly the same as what comes out of the (log) look-up tables
@@ -3558,7 +3571,7 @@ CONTAINS
          CALL init_interpolator(R, a, sig, cosm%sigmaa, &
             iorder_interp_sigma, &
             iextrap_sigma, &
-            store = .TRUE., &
+            store = .FALSE., &
             logx = .TRUE., &
             logy = .TRUE., &
             logf = .TRUE. &
