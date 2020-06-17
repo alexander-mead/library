@@ -300,8 +300,7 @@ MODULE HMx
       ! HMcode (2020) parameters
       REAL :: kd, kdp, Ap, Ac, kp, nd
       REAL :: mbar, nbar, sbar, mbarz, sbarz
-      !REAL :: mbar_a0, nbar_a0, sbar_a0, mbarz_a0, sbarz_a0
-      REAL :: mbar_T1, As_T1, sbar_T1, mbarz_T1, sbarz_T1
+      REAL :: mbar_T, As_T, sbar_T, mbarz_T, sbarz_T
 
       ! Halo types
       INTEGER :: halo_DMONLY, halo_CDM, halo_normal_bound_gas, halo_cold_bound_gas, halo_hot_bound_gas, halo_ejected_gas
@@ -945,11 +944,11 @@ CONTAINS
       hmod%mbarz = 0.
       hmod%sbarz = 0.
       hmod%Amfz = 0.
-      hmod%mbar_T1 = 0.
-      hmod%As_T1 = 0.
-      hmod%sbar_T1 = 0.
-      hmod%mbarz_T1 = 0.
-      hmod%sbarz_T1 = 0.
+      hmod%mbar_T = 0.
+      hmod%As_T = 0.
+      hmod%sbar_T = 0.
+      hmod%mbarz_T = 0.
+      hmod%sbarz_T = 0.
 
       ! ~infinite redshift for Dolag correction
       hmod%zinf_Dolag = 100.
@@ -1869,18 +1868,16 @@ CONTAINS
             hmod%Dvnu = 0.5504368           
             IF (ihm == 102) THEN
                hmod%DMONLY_baryon_recipe = .TRUE.
-               !hmod%mbar = 10**14.3
-               !hmod%mbarz = -0.6
-               !hmod%sbar = 0.005
-               !hmod%sbarz = 2.5
-               !hmod%As =
-               !hmod%Amf = 1.55
-               !hmod%Amfz = -0.1
-               hmod%As = 3.0766517
-               hmod%mbar = 10**13.9154616
-               hmod%mbarz = -0.0801776
-               hmod%sbar = 0.0293147
-               hmod%sbarz = 0.7397543
+               hmod%As = 3.093587
+               hmod%mbar = 10**13.95954
+               hmod%mbarz = -0.067325
+               hmod%sbar = 0.0291325
+               hmod%sbarz = 0.7261285
+               hmod%As_T = -1.53191
+               hmod%mbar_T = 1.214031
+               hmod%mbarz_T = 0.3162607
+               hmod%sbar_T = 0.007180
+               hmod%sbarz_T = -0.38087524
             END IF 
          END IF
       ELSE IF (ihm == 80) THEN
@@ -4497,7 +4494,12 @@ CONTAINS
          IF (hmod%iDv == 3) THEN
             ! HMcode(2016) additions
             Delta_v = Delta_v*(1.+hmod%Dvnu*cosm%f_nu)
-            IF (cosm%img == img_nDGP) Delta_v = Delta_v*(1.-a*0.0388*cosm%H0rc**(-0.7))
+            IF (cosm%img == img_nDGP) THEN
+               Delta_v = Delta_v*(1.-a*0.0388*cosm%H0rc**(-0.7))
+            ELSE IF (cosm%img == img_fR) THEN
+               STOP 'DELTA_V: Error, for f(R) need to have Delta_v(M)'
+               !Delta_v = Delta_v*Geff(a, M, p, cosm)**(-0.5)
+            END IF
          END IF
       ELSE IF (hmod%iDv == 4) THEN
          ! From Mead (2017) fitting function
@@ -4522,6 +4524,24 @@ CONTAINS
 
    END FUNCTION Delta_v
 
+   REAL FUNCTION Geff(a, M, cosm)
+
+      !This is an approximate toy screening model
+      REAL, INTENT(IN) :: a
+      REAL, INTENT(IN) :: M
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: Gmin, Gmax, M0
+    
+      ! Maximum and minimum modification
+      Gmax = 4./3.
+      Gmin = 1.
+
+      ! Screening mass in f(R) models
+      M0 = (10**26.4)*(abs(fr_a(a, cosm))**1.5)*(cosm%Om_m**(-0.5))
+      Geff = Gmin+(Gmax-Gmin)*sigmoid_tanh(log10(M/M0)/0.38)
+  
+   END FUNCTION Geff
+
    REAL FUNCTION HMcode_kstar(hmod, cosm)
 
       ! Calculates the one-halo damping wave number [h/Mpc]
@@ -4529,10 +4549,6 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: sigv, sig8
-      REAL :: crap
-
-      ! To prevent compile-time warnings
-      crap = cosm%A
 
       IF (hmod%i1hdamp == 0) THEN
          HMcode_kstar = 0.
@@ -4558,10 +4574,6 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: sig, sigv
-      REAL :: crap
-
-      ! To prevent compile-time warnings
-      crap = cosm%A
 
       IF (hmod%i2hdamp == 0) THEN
          ! Set to 0 for the standard linear theory two halo term
@@ -4657,7 +4669,6 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: eta0, sig
-      INTEGER :: flag
 
       IF (hmod%ieta == 0) THEN
          HMcode_eta = 0.
@@ -4701,10 +4712,12 @@ CONTAINS
          !sig = sigma(8., hmod%a, flag_power_total, cosm)
          sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
          IF (hmod%DMONLY_baryon_recipe) THEN
-            As = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%As_T1, hmod%As)
+            As = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%As_T, hmod%As)
          ELSE
             As = hmod%As
          END IF
+         !WRITE(*, *) log10(cosm%Theat), As
+         !STOP
          HMcode_A = As*(sig/0.8)**hmod%Ap+hmod%Ac
       ELSE
          STOP 'HMcode_A: Error, iAs defined incorrectly'
@@ -6456,7 +6469,7 @@ CONTAINS
       REAL, INTENT(IN) :: a0
       REAL, PARAMETER :: Tmid = 7.8
 
-      HMcode_DMONLY_baryon_model = a1*(log10(T)-7.8)+a0
+      HMcode_DMONLY_baryon_model = a1*(log10(T)-Tmid)+a0
 
    END FUNCTION HMcode_DMONLY_baryon_model
 
@@ -6464,11 +6477,15 @@ CONTAINS
 
       TYPE(cosmology), INTENT(IN) :: cosm
       TYPE(halomod) :: hmod
-      REAL :: mbar, mbarz
+      REAL :: mbar, mbarz, z
 
-      mbar = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%mbar_T1, hmod%mbar)
-      mbarz = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%mbarz_T1, hmod%mbarz)
-      HMcode_mbar = mbar*10**(mbarz*hmod%z)
+      mbar = 10.**HMcode_DMONLY_baryon_model(cosm%Theat, hmod%mbar_T, log10(hmod%mbar))
+      mbarz = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%mbarz_T, hmod%mbarz)
+      z = hmod%z
+      HMcode_mbar = mbar*10**(mbarz*z)
+
+      !WRITE(*, *) z, log10(HMcode_mbar), log10(cosm%Theat)
+      !STOP
 
    END FUNCTION HMcode_mbar
 
@@ -6476,12 +6493,15 @@ CONTAINS
 
       TYPE(cosmology), INTENT(IN) :: cosm
       TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: sbar, sbarz
+      REAL :: sbar, sbarz, z
 
-      sbar = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%sbar_T1, hmod%sbar)
-      sbarz = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%sbarz_T1, hmod%sbarz)
+      sbar = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%sbar_T, hmod%sbar)
+      sbarz = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%sbarz_T, hmod%sbarz)
+      z = hmod%z
+      HMcode_sbar = sbar*(1.+sbarz*z**2)
 
-      HMcode_sbar = sbar*(1.+sbarz*hmod%z**2)
+      !WRITE(*, *) z, HMcode_sbar, log10(cosm%Theat)
+      !STOP
 
    END FUNCTION HMcode_sbar
 
@@ -10000,9 +10020,6 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: m0, sig, A
       REAL :: f_bound, f_total
-      REAL :: crap
-
-      crap = cosm%A
 
       IF (hmod%frac_stars == 1 .OR. hmod%frac_stars == 3) THEN
          ! Fedeli (2014)
