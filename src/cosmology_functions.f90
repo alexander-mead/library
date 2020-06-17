@@ -55,6 +55,7 @@ MODULE cosmology_functions
    PUBLIC :: img_none
    PUBLIC :: img_nDGP
    PUBLIC :: img_fR
+   PUBLIC :: img_nDGP_lin
 
    ! Modified gravity things
    PUBLIC :: fR_a
@@ -236,6 +237,8 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iw_IDE2 = 6     ! Intermediate dark energy model 2
    INTEGER, PARAMETER :: iw_IDE3 = 7     ! Intermediate dark energy model 3
    INTEGER, PARAMETER :: iw_BDE = 8      ! Bound dark energy (1812.01133)  
+
+   ! Dark energy integration and interpolation
    REAL, PARAMETER :: amin_Xde = 1e-4    ! Minimum scale factor for direction integration to get Xde
    REAL, PARAMETER :: amax_Xde = 1.      ! Maximum scale factor for direction integration to get Xde
    INTEGER, PARAMETER :: n_Xde = 128     ! Number of points for Xde interpolation
@@ -244,33 +247,36 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_integration_Xde = 3  ! Polynomial order for time integration
    INTEGER, PARAMETER :: iorder_interp_Xde = 3       ! Polynomial order for time interpolation
    INTEGER, PARAMETER :: iextrap_Xde = iextrap_standard
+   LOGICAL, PARAMETER :: store_Xde = .TRUE.
 
    ! Modified gravity
    INTEGER, PARAMETER :: img_none = 0
    INTEGER, PARAMETER :: img_nDGP = 1
    INTEGER, PARAMETER :: img_fR = 2
+   INTEGER, PARAMETER :: img_nDGP_lin = 3
 
    ! Distance
    ! Changing to linear integer finding provides very little speed increase
-   REAL, PARAMETER :: amin_distance = 1e-4               ! Minimum scale factor in look-up table
-   REAL, PARAMETER :: amax_distance = 1.                 ! Maximum scale factor in look-up table
-   INTEGER, PARAMETER :: n_distance = 128                ! Number of scale factor entries in look-up table
-   REAL, PARAMETER :: atay_distance = 1e-5               ! Below this do a Taylor expansion to avoid divergence
-   INTEGER, PARAMETER :: iorder_integration_distance = 3 ! Polynomial order for distance integration
-   INTEGER, PARAMETER :: iorder_interp_distance = 3      ! Polynomial order for distance interpolation
-   INTEGER, PARAMETER :: iextrap_distance = iextrap_standard
+   REAL, PARAMETER :: amin_distance = 1e-4                   ! Minimum scale factor in look-up table
+   REAL, PARAMETER :: amax_distance = 1.                     ! Maximum scale factor in look-up table
+   INTEGER, PARAMETER :: n_distance = 128                    ! Number of scale factor entries in look-up table
+   REAL, PARAMETER :: atay_distance = 1e-5                   ! Below this do a Taylor expansion to avoid divergence
+   INTEGER, PARAMETER :: iorder_integration_distance = 3     ! Polynomial order for distance integration
+   INTEGER, PARAMETER :: iorder_interp_distance = 3          ! Polynomial order for distance interpolation
+   INTEGER, PARAMETER :: iextrap_distance = iextrap_standard ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_distance = .TRUE.             ! Pre-calculate interpolation coefficients?
 
    ! Time
-   ! Changing to linear integer finding provides very little speed increase
-   REAL, PARAMETER :: amin_time = 1e-4               ! Minimum scale factor in look-up table
-   REAL, PARAMETER :: amax_time = 1.                 ! Maximum scale factor in look-up table
-   INTEGER, PARAMETER :: n_time = 128                ! Number of scale factor entries in look-up table
-   REAL, PARAMETER :: atay_time = 1e-5               ! Below this do a Taylor expansion to avoid divergence
-   INTEGER, PARAMETER :: iorder_integration_time = 3 ! Polynomial order for time integration
-   INTEGER, PARAMETER :: iorder_interp_time = 3      ! Polynomial order for time interpolation
-   INTEGER, PARAMETER :: iextrap_time = iextrap_standard
+   REAL, PARAMETER :: amin_time = 1e-4                   ! Minimum scale factor in look-up table
+   REAL, PARAMETER :: amax_time = 1.                     ! Maximum scale factor in look-up table
+   INTEGER, PARAMETER :: n_time = 128                    ! Number of scale factor entries in look-up table
+   REAL, PARAMETER :: atay_time = 1e-5                   ! Below this do a Taylor expansion to avoid divergence
+   INTEGER, PARAMETER :: iorder_integration_time = 3     ! Polynomial order for time integration
+   INTEGER, PARAMETER :: iorder_interp_time = 3          ! Polynomial order for time interpolation
+   INTEGER, PARAMETER :: iextrap_time = iextrap_standard ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_time = .TRUE.             ! Pre-calculate interpolation coefficients?
 
-   ! Power
+   ! Linear power
    REAL, PARAMETER :: kmin_abs_plin = 0.       ! Power below this wavenumber is set to zero [h/Mpc]
    REAL, PARAMETER :: kmax_abs_plin = 1e8      ! Power above this wavenumber is set to zero [h/Mpc]
    LOGICAL, PARAMETER :: plin_extrap = .FALSE. ! Extrapolate high-k power assuming P(k) ~ ln(k)^2 k^(n-3)?
@@ -287,34 +293,6 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: flag_power_cold = 2       ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
    INTEGER, PARAMETER :: flag_power_cold_unorm = 3 ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
 
-   ! De-wiggle power
-   INTEGER, PARAMETER :: wiggle_Lagrange = 1
-   INTEGER, PARAMETER :: wiggle_smooth = 2
-   INTEGER, PARAMETER :: imethod_pwiggle = wiggle_Lagrange
-   INTEGER, PARAMETER :: iorder_interp_pwiggle = 3
-   INTEGER, PARAMETER :: iextrap_pwiggle = iextrap_zero
-
-   ! Correlation function
-   ! TODO: This works very poorly
-   INTEGER, PARAMETER :: method_xi = 1         ! Method for xi integration
-   INTEGER, PARAMETER :: iorder_xi = 3         ! Polynomial order for xi(r) integration
-   INTEGER, PARAMETER :: min_humps_xi = 5      ! Minimum number of humps fox xi(r) integration if using humps integration
-   INTEGER, PARAMETER :: max_humps_xi = 100000 ! Maximum number of humps fox xi(r) integration if using humps integration
-   REAL, PARAMETER :: rsplit_xi = 10.          ! Value of r to split alpha values for conventional integration
-   REAL, PARAMETER :: alpha_lo_xi = 2.         ! Low r value of alpha for conventional integration
-   REAL, PARAMETER :: alpha_hi_xi = 1.5        ! High r value of alpha for conventional integration
-
-   ! CAMB interface
-   !REAL, PARAMETER :: amin_CAMB = 0.1          ! Minimum a value for P(k,a) tables when linear growth is scale dependent
-   !REAL, PARAMETER :: amax_CAMB = 1.0          ! Maximum a value for P(k,a) tables when linear growth is scale dependent
-   !INTEGER, PARAMETER :: na_CAMB = 16          ! Number of a values for linear P(k,a) tables if growth is scale dependent
-   REAL, PARAMETER :: pk_min_CAMB = 1e-10      ! Minimum value of power at low k (remove k with less than this) 
-   REAL, PARAMETER :: nmax_CAMB = 2.           ! How many times more to go than kmax due to inaccuracy near k limit
-   LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.  ! Should we rebin CAMB or just use default k?
-   INTEGER, PARAMETER :: iorder_rebin_CAMB = 3                 ! Polynomial order for interpolation on CAMB rebinning
-   INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation on CAMB rebinning (*definitely* not linear)
-   INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Method for interpolation on CAMB rebinning
-
    ! Linear power interpolation
    REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used [h/Mpc]
    REAL, PARAMETER :: kmax_plin = 1e2                    ! Maximum wavenumber used [h/Mpc]
@@ -327,6 +305,33 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
    INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
    INTEGER, PARAMETER :: iextrap_plin = iextrap_linear   ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_plin = .TRUE.             ! Pre-calculate interpolation coefficients
+
+   ! CAMB interface
+   REAL, PARAMETER :: pk_min_CAMB = 1e-10      ! Minimum value of power at low k (remove k with less than this) 
+   REAL, PARAMETER :: nmax_CAMB = 2.           ! How many times more to go than kmax due to inaccuracy near k limit
+   LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.  ! Should we rebin CAMB or just use default k?
+   INTEGER, PARAMETER :: iorder_rebin_CAMB = 3                 ! Polynomial order for interpolation on CAMB rebinning
+   INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation on CAMB rebinning (*definitely* not linear)
+   INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Method for interpolation on CAMB rebinning
+
+   ! De-wiggle power
+   INTEGER, PARAMETER :: wiggle_Lagrange = 1
+   INTEGER, PARAMETER :: wiggle_smooth = 2
+   INTEGER, PARAMETER :: imethod_pwiggle = wiggle_Lagrange
+   INTEGER, PARAMETER :: iorder_interp_pwiggle = 3
+   INTEGER, PARAMETER :: iextrap_pwiggle = iextrap_zero
+   LOGICAL, PARAMETER :: store_pwiggle = .TRUE.            ! Pre-calculate interpolation coefficients
+
+   ! Correlation function
+   ! TODO: This works very poorly
+   INTEGER, PARAMETER :: method_xi = 1         ! Method for xi integration
+   INTEGER, PARAMETER :: iorder_xi = 3         ! Polynomial order for xi(r) integration
+   INTEGER, PARAMETER :: min_humps_xi = 5      ! Minimum number of humps fox xi(r) integration if using humps integration
+   INTEGER, PARAMETER :: max_humps_xi = 100000 ! Maximum number of humps fox xi(r) integration if using humps integration
+   REAL, PARAMETER :: rsplit_xi = 10.          ! Value of r to split alpha values for conventional integration
+   REAL, PARAMETER :: alpha_lo_xi = 2.         ! Low r value of alpha for conventional integration
+   REAL, PARAMETER :: alpha_hi_xi = 1.5        ! High r value of alpha for conventional integration
 
    ! Growth ODE
    REAL, PARAMETER :: ainit_growth = 1e-3                    ! Starting value for growth integratiton (should start | Omega_m(a)=1)
@@ -343,22 +348,20 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_integral_grow = 3  ! Polynomial order for growth integral solving (wCDM only)
 
    ! Growth interpolation
-   ! Changing to linear integer finding is wrong because tables not stored lin-log
-   INTEGER, PARAMETER :: iorder_interp_grow = 3 ! Polynomial order for growth interpolation
-   INTEGER, PARAMETER :: iextrap_grow = iextrap_linear
+   INTEGER, PARAMETER :: iorder_interp_grow = 3        ! Polynomial order for growth interpolation
+   INTEGER, PARAMETER :: iextrap_grow = iextrap_linear ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_grow = .TRUE.           ! Pre-calculate interpolation coefficients?
 
    ! Growth rate interpolation
-   ! Changing to linear integer finding is wrong because tables not stored lin-log
-   INTEGER, PARAMETER :: iorder_interp_rate = 3 ! Polynomial order for growth rate interpolation for ODE solution
-   INTEGER, PARAMETER :: iextrap_rate = iextrap_linear
+   INTEGER, PARAMETER :: iorder_interp_rate = 3        ! Polynomial order for growth rate interpolation for ODE solution
+   INTEGER, PARAMETER :: iextrap_rate = iextrap_linear ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_rate = .TRUE.           ! Pre-calculate interpolation coefficients?
 
-   ! Accumulated growth integration
-   INTEGER, PARAMETER :: iorder_integration_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
-
-   ! Accumualted growth interpolation
-   ! Changing to linear integer finding is wrong because tables not stored lin-log
-   INTEGER, PARAMETER :: iorder_interp_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
-   INTEGER, PARAMETER :: iextrap_agrow = iextrap_linear
+   ! Accumualted growth integration and interpolation
+   INTEGER, PARAMETER :: iorder_integration_agrow = 3   ! Polynomial order for growth interpolation for ODE solution
+   INTEGER, PARAMETER :: iorder_interp_agrow = 3        ! Polynomial order for growth interpolation for ODE solution
+   INTEGER, PARAMETER :: iextrap_agrow = iextrap_linear ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_agrow = .TRUE.           ! Pre-calculate interpolation coefficients?
 
    ! sigma(R) integration
    REAL, PARAMETER :: alpha_sigma = 3.     ! Exponent to increase speed (1 is terrible, 2, 3, 4 all okay)
@@ -376,10 +379,8 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split    ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange    ! Method for sigma(R) interpolation
    INTEGER, PARAMETER :: sigma_store = flag_power_cold_unorm ! Which version of sigma should be tabulated (0 for none)
-   INTEGER, PARAMETER :: iextrap_sigma = iextrap_standard    ! Extrapolation for sigma(R) interpolator      
-
-   ! Use the interpolator structure?
-   LOGICAL, PARAMETER :: use_interpolators = .TRUE. 
+   INTEGER, PARAMETER :: iextrap_sigma = iextrap_standard    ! Extrapolation for sigma(R) interpolator
+   LOGICAL, PARAMETER :: store_sigma = .TRUE.                ! Pre-calculate interpolation coefficients?
 
    ! sigma_v(R) integration
    REAL, PARAMETER :: alpha_sigmaV = 3.     ! Exponent to increase integration speed
@@ -406,16 +407,18 @@ MODULE cosmology_functions
    REAL, PARAMETER :: dinf_spherical = 1e8       ! Value considered to be 'infinite' for the perturbation
 
    ! delta_c
-   INTEGER, PARAMETER :: iorder_interp_dc = 3 ! Polynomial order for delta_c interpolation
-   INTEGER, PARAMETER :: ifind_interp_dc = 3  ! Finding scheme for delta_c interpolation
-   INTEGER, PARAMETER :: imeth_interp_dc = 2  ! Method for delta_c interpolation
-   INTEGER, PARAMETER :: iextrap_dc = iextrap_standard
+   INTEGER, PARAMETER :: iorder_interp_dc = 3          ! Polynomial order for delta_c interpolation
+   INTEGER, PARAMETER :: ifind_interp_dc = 3           ! Finding scheme for delta_c interpolation
+   INTEGER, PARAMETER :: imeth_interp_dc = 2           ! Method for delta_c interpolation
+   INTEGER, PARAMETER :: iextrap_dc = iextrap_standard ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_dc = .TRUE.             ! Pre-calculate interpolation coefficients?
 
    ! Delta_v
-   INTEGER, PARAMETER :: iorder_interp_Dv = 3 ! Polynomial order for Delta_v interpolation
-   INTEGER, PARAMETER :: ifind_interp_Dv = 3  ! Finding scheme for Delta_v interpolation
-   INTEGER, PARAMETER :: imeth_interp_Dv = 2  ! Method for Delta_v interpolation
-   INTEGER, PARAMETER :: iextrap_Dv = iextrap_standard
+   INTEGER, PARAMETER :: iorder_interp_Dv = 3          ! Polynomial order for Delta_v interpolation
+   INTEGER, PARAMETER :: ifind_interp_Dv = 3           ! Finding scheme for Delta_v interpolation
+   INTEGER, PARAMETER :: imeth_interp_Dv = 2           ! Method for Delta_v interpolation
+   INTEGER, PARAMETER :: iextrap_Dv = iextrap_standard ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_Dv = .TRUE.             ! Pre-calculate interpolation coefficients?
 
    ! Halofit
    INTEGER, PARAMETER :: HALOFIT_Smith = 1       ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
@@ -543,6 +546,9 @@ CONTAINS
       names(84) = 'f(R) with F4, n=1'
       names(85) = 'f(R) with F5, n=1'
       names(86) = 'f(R) with F6, n=1'
+      names(87) = 'linearised nDGP - Strong'
+      names(88) = 'linearised nDGP - Medium'
+      names(89) = 'linearised nDGP - Weak'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -881,21 +887,27 @@ CONTAINS
          cosm%Om_m = 0.3
          cosm%Om_w = 0.7
          cosm%Om_v = 0.
-      ELSE IF (icosmo == 11 .OR. icosmo == 12 .OR. icosmo == 13) THEN
+      ELSE IF (is_in_array(icosmo, [11, 12, 13, 87, 88, 89])) THEN
          ! nDGP
-         cosm%img = img_nDGP
-         IF (icosmo == 11) THEN
+         IF (is_in_array(icosmo, [11, 12, 13])) THEN
+            cosm%img = img_nDGP
+         ELSE
+            cosm%img = img_nDGP_lin
+         END IF
+         IF (icosmo == 11 .OR. icosmo == 87) THEN
             ! Strong         
             cosm%H0rc = 0.1
             cosm%sig8 = 0.8*(1.0176/0.7790) ! Normalise to boring at a<<1
-         ELSE IF (icosmo == 12) THEN
+         ELSE IF (icosmo == 12 .OR. icosmo == 88) THEN
             ! Medium
             cosm%H0rc = 0.5
             cosm%sig8 = 0.8*(0.8717/0.7790) ! Normalise to boring at a<<1
-         ELSE IF (icosmo == 13) THEN
+         ELSE IF (icosmo == 13 .OR. icosmo == 89) THEN
             ! Weak
             cosm%H0rc = 2.0
             cosm%sig8 = 0.8*(0.8093/0.7790) ! Normalise to boring at a<<1
+         ELSE
+            STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with nDGP'
          END IF
       ELSE IF (icosmo == 14) THEN
          ! WDM
@@ -1609,8 +1621,9 @@ CONTAINS
          END IF
          WRITE (*, *) dashes
          IF (cosm%img .NE. img_none) THEN
-            IF(cosm%img == img_nDGP) THEN
-               WRITE(*, *) 'COSMOLOGY: nDGP with LCDM background'
+            IF(cosm%img == img_nDGP .OR. cosm%img == img_nDGP_lin) THEN
+               IF (cosm%img == img_nDGP)     WRITE(*, *) 'COSMOLOGY: nDGP modified gravity'
+               IF (cosm%img == img_nDGP_lin) WRITE(*, *) 'COSMOLOGY: Linearised nDGP modified gravity'
                WRITE(*, fmt=format) 'COSMOLOGY:', 'H0rc:', cosm%H0rc
             ELSE IF (cosm%img == img_fR) THEN
                WRITE(*, *) 'COSMOLOGY: f(R) with LCDM background'
@@ -1864,7 +1877,7 @@ CONTAINS
       ! Normalising the power spectrum using sigma8
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: sigma8_initial, sigma8_final, kbox_save
+      REAL :: sigma8_initial, sigma8_final, kbox_save, corr
 
       IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Normalising power to get correct sigma_8'
 
@@ -1886,10 +1899,26 @@ CONTAINS
          cosm%As = cosm%As*(cosm%sig8/sigma8_initial)**2 
          ! Normalisation
          ! ... or normalise using sigma8 and rescaling linear power
-         IF (cosm%scale_dependent_growth) THEN
-            cosm%log_plina = cosm%log_plina+2.*log(cosm%sig8/sigma8_initial)
+         corr = 2.*log(cosm%sig8/sigma8_initial)
+         IF (power_interpolator) THEN
+            IF (cosm%scale_dependent_growth) THEN
+               IF (.NOT. cosm%plina%logf) STOP 'NORMALISE_POWER_SIGMA8: This will not work unless P(k) is stored as log'
+               cosm%plina%f = cosm%plina%f+corr
+               IF (store_plin) THEN
+                  cosm%plina%ax0 = cosm%plina%ax0+corr
+                  cosm%plina%ay0 = cosm%plina%ay0+corr
+               END IF
+            ELSE
+               IF (.NOT. cosm%plin%logf) STOP 'NORMALISE_POWER_SIGMA8: This will not work unless P(k) is stored as log'
+               cosm%plin%f = cosm%plin%f+corr
+               IF (store_plin) cosm%plin%a0 = cosm%plin%a0+corr
+            END IF
          ELSE
-            cosm%log_plin = cosm%log_plin+2.*log(cosm%sig8/sigma8_initial)
+            IF (cosm%scale_dependent_growth) THEN
+               cosm%log_plina = cosm%log_plina+corr
+            ELSE
+               cosm%log_plin = cosm%log_plin+corr
+            END IF
          END IF
       ELSE IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
          cosm%A = cosm%sig8/sigma8_initial
@@ -2052,12 +2081,12 @@ CONTAINS
 
       IF (power_interpolator) THEN
          CALL init_interpolator(k, a, Pk, cosm%plina, &
-            iorder=iorder_interp_plin, &
-            iextrap=iextrap_plin, &
-            store=.TRUE., &
-            logx=.TRUE., &
-            logy=.TRUE., &
-            logf=.TRUE.)
+            iorder = iorder_interp_plin, &
+            iextrap = iextrap_plin, &
+            store = store_plin, &
+            logx = .TRUE., &
+            logy = .TRUE., &
+            logf = .TRUE.)
       ELSE
          cosm%log_plina = log(Pk)
          cosm%nk_plin = nk
@@ -2616,11 +2645,11 @@ CONTAINS
       WRITE(*, *) 'INIT_XDE: maximum X_de:', Xde(1)
 
       CALL init_interpolator(a, Xde, cosm%Xde, &
-         iorder_interp_Xde, &
-         iextrap_Xde, &
-         store=.TRUE., &
-         logx=.TRUE., &
-         logf=.TRUE.)
+         iorder = iorder_interp_Xde, &
+         iextrap = iextrap_Xde, &
+         store = store_Xde, &
+         logx = .TRUE., &
+         logf = .TRUE.)
 
       !cosm%log_a_Xde = log(a)
       !cosm%log_Xde = log(Xde)
@@ -2932,7 +2961,7 @@ CONTAINS
       CALL init_interpolator(a, r, cosm%dist, &
          iextrap = iextrap_distance, &
          iorder = iorder_interp_distance, &
-         store=.TRUE., &
+         store = store_distance, &
          logx = .TRUE., &
          logf = .TRUE. &
          )
@@ -3047,11 +3076,11 @@ CONTAINS
       END IF
 
       CALL init_interpolator(a, t, cosm%time, &
-         iorder=iorder_interp_time, &
-         iextrap=iextrap_time, &
-         store=.TRUE., &
-         logx=.TRUE., &
-         logf=.TRUE.)
+         iorder = iorder_interp_time, &
+         iextrap = iextrap_time, &
+         store = store_time, &
+         logx = .TRUE., &
+         logf = .TRUE.)
 
       ! Find the horizon distance in your cosmology
       ! exp(log) ensures the value is exactly the same as what comes out of the (log) look-up tables
@@ -3442,9 +3471,7 @@ CONTAINS
       INTEGER, PARAMETER :: iinterp = iinterp_plin      ! Method for polynomials (2 - Lagrange polynomials)
 
       ! This line generates a recursion
-      IF (.NOT. cosm%is_normalised) THEN        
-         CALL normalise_power(cosm)
-      END IF
+      IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm)
 
       IF (k <= kmin_abs_plin) THEN
          ! If plin happens to be foolishly called for very low k
@@ -3460,10 +3487,16 @@ CONTAINS
       ELSE
          IF (cosm%has_power) THEN
             IF (plin_extrap) THEN
-               nk = cosm%nk_plin
-               kmax = exp(cosm%log_k_plin(nk))
+               IF (.NOT. power_interpolator) THEN
+                  nk = cosm%nk_plin
+                  kmax = exp(cosm%log_k_plin(nk))
+               END IF
             END IF
             IF (cosm%scale_dependent_growth) THEN
+               IF (power_interpolator) THEN
+                  nk = cosm%plina%nx
+                  kmax = exp(cosm%plina%x(nk))
+               END IF
                IF (plin_extrap .AND. k > kmax) THEN
                   IF (power_interpolator) THEN
                      pmax = evaluate_interpolator(kmax, a, cosm%plina)
@@ -3481,6 +3514,10 @@ CONTAINS
                   END IF
                END IF
             ELSE
+               IF (power_interpolator) THEN
+                  nk = cosm%plin%n
+                  kmax = exp(cosm%plin%x(nk))
+               END IF
                IF(plin_extrap .AND. k > kmax) THEN
                   IF (power_interpolator) THEN
                      pmax = evaluate_interpolator(kmax, cosm%plin)
@@ -3536,12 +3573,6 @@ CONTAINS
       REAL, ALLOCATABLE :: R(:), a(:), sig(:, :)
       INTEGER :: i, j
 
-      ! TILMAN: Set nr_sigma, na_sigma, amin_sigma, and amax_sigma to defaults if not set by the user
-      !IF(cosm%nr_sigma == 0) cosm%nr_sigma = nr_sigma
-      !IF(cosm%na_sigma == 0) cosm%na_sigma = na_sigma
-      !IF(cosm%amin_sigma == 0.0) cosm%amin_sigma = amin_sigma
-      !IF(cosm%amax_sigma == 0.0) cosm%amax_sigma = amax_sigma
-
       ! This does not need to be evaulated at multiple a unless growth is scale dependent
       IF (.NOT. cosm%scale_dependent_growth) cosm%na_sigma = 1
 
@@ -3571,7 +3602,7 @@ CONTAINS
          CALL init_interpolator(R, a, sig, cosm%sigmaa, &
             iorder_interp_sigma, &
             iextrap_sigma, &
-            store = .FALSE., &
+            store = store_sigma, &
             logx = .TRUE., &
             logy = .TRUE., &
             logf = .TRUE. &
@@ -3585,9 +3616,9 @@ CONTAINS
          END DO
 
          CALL init_interpolator(R, sig(:, 1), cosm%sigma, &
-            iorder_interp_sigma, &
-            iextrap_sigma, &
-            store = .TRUE., &
+            iorder = iorder_interp_sigma, &
+            iextrap = iextrap_sigma, &
+            store = store_sigma, &
             logx = .TRUE., &
             logf = .TRUE. &
             )
@@ -4079,7 +4110,7 @@ CONTAINS
       CALL init_interpolator(a, growth, cosm%grow, &
          iorder = iorder_interp_grow, &
          iextrap = iextrap_grow, &
-         store=.TRUE., &
+         store = store_grow, &
          logx = .TRUE., &
          logf = .TRUE. &
          )
@@ -4087,7 +4118,7 @@ CONTAINS
       CALL init_interpolator(a, rate, cosm%grate, &
          iorder = iorder_interp_rate, &
          iextrap = iextrap_rate, &
-         store=.TRUE., &
+         store = store_rate, &
          logx = .TRUE., &
          logf = .FALSE. &
          )
@@ -4110,7 +4141,7 @@ CONTAINS
       CALL init_interpolator(a, agrow, cosm%agrow, &
          iorder = iorder_interp_agrow, &
          iextrap = iextrap_agrow, &
-         store=.TRUE., &
+         store = store_agrow, &
          logx = .TRUE., &
          logf = .TRUE.  &
          )
@@ -4211,7 +4242,7 @@ CONTAINS
 
       IF (cosm%img == img_none) THEN
          G_lin = 1.
-      ELSE IF (cosm%img == img_nDGP) THEN
+      ELSE IF (cosm%img == img_nDGP .OR. cosm%img == img_nDGP_lin) THEN
          G_lin = 1.+1./(3.*beta_dgp(a, cosm))
       ELSE IF (cosm%img == img_fR) THEN
          G_lin = 1.+mu_fR(k, a, cosm)
@@ -4287,15 +4318,13 @@ CONTAINS
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: crap
-
-      crap = v
-      crap = k
 
       IF (cosm%img == img_none) THEN
          G_nl = 1.
       ELSE IF (cosm%img == img_nDGP) THEN  
          G_nl = G_DGP(d, a, cosm)
+      ELSE IF (cosm%img == img_nDGP_lin) THEN
+         G_nl = G_lin(d, v, k, a, cosm)
       ELSE IF (cosm%img == img_fR) THEN
          STOP 'G_NL: Error, non-linear calculation not supported for f(R)'
       ELSE
@@ -4686,7 +4715,7 @@ CONTAINS
       CALL init_interpolator(a, dc, cosm%dc, &
          iorder = iorder_interp_dc, &
          iextrap = iextrap_dc, &
-         store=.TRUE., &
+         store = store_dc, &
          logx = .TRUE., &
          logf = .FALSE. &
          )
@@ -4694,7 +4723,7 @@ CONTAINS
       CALL init_interpolator(a, Dv, cosm%Dv, &
          iorder = iorder_interp_Dv, &
          iextrap = iextrap_Dv, &
-         store=.TRUE., &
+         store = store_Dv, &
          logx = .TRUE., &
          logf = .FALSE. &
          )
@@ -5911,64 +5940,69 @@ CONTAINS
       REAL, INTENT(IN) :: Pk(:, :)
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: nk, na
-      LOGICAL, PARAMETER :: store = .TRUE.
 
       nk = size(k)
       IF (nk /= size(Pk, 1)) THEN
          WRITE(*, *) 'INIT_LINEAR: Sizes', nk, size(Pk, 1)
          STOP 'INIT_LINEAR: Error, k and Pk arrays are not the same size'
-      END IF
-      cosm%nk_plin = nk
+      END IF    
 
       na = size(a)
       IF (na /= size(Pk, 2)) THEN
          WRITE(*, *) 'INIT_LINEAR: Sizes', na, size(Pk, 2)
          STOP 'INIT_LINEAR: Error, a and Pk arrays are not the same size'
-      END IF      
-      cosm%na_plin = na
+      END IF
+      
+      IF (cosm%verbose) THEN
+         WRITE (*, *) 'INIT_LINEAR: kmin [h/Mpc]:', k(1)
+         WRITE (*, *) 'INIT_LINEAR: kmax [h/Mpc]:', k(nk)
+         WRITE (*, *) 'INIT_LINEAR: nk:', nk
+         WRITE (*, *) 'INIT_LINEAR: amin:', a(1)
+         WRITE (*, *) 'INIT_LINEAR: amax:', a(na)
+         WRITE (*, *) 'INIT_LINEAR: na:', na
+         WRITE (*, *) 'INIT_LINEAR: Initialising interpolator'
+      END IF
 
       IF (power_interpolator) THEN
 
          IF (na == 1) THEN
             CALL init_interpolator(k, Pk(:, 1), cosm%plin, &
-               iorder_interp_plin, &
-               iextrap_plin, &
-               store, &
-               logx=.TRUE., &
-               logf=.TRUE.)
+               iorder = iorder_interp_plin, &
+               iextrap = iextrap_plin, &
+               store = store_plin, &
+               logx = .TRUE., &
+               logf = .TRUE.)
          ELSE
             CALL init_interpolator(k, a, Pk, cosm%plina, &
-               iorder_interp_plin, &
-               iextrap_plin, &
-               store, &
-               logx=.TRUE., &
-               logy=.TRUE., &
-               logf=.TRUE.)
+               iorder = iorder_interp_plin, &
+               iextrap = iextrap_plin, &
+               store = store_plin, &
+               logx = .TRUE., &
+               logy = .TRUE., &
+               logf = .TRUE.)
+         END IF
+
+      ELSE
+
+         cosm%nk_plin = nk
+         cosm%na_plin = na
+         CALL safe_allocate(cosm%log_k_plin, nk)
+         cosm%log_k_plin = log(k)
+
+         IF (na == 1) THEN
+            CALL safe_allocate(cosm%log_plin, nk)
+            cosm%log_plin = log(Pk(:, 1))
+         ELSE
+            CALL safe_allocate(cosm%log_a_plin, na)
+            cosm%log_a_plin = log(a)
+            CALL safe_allocate(cosm%log_plina, nk, na)
+            cosm%log_plina = log(Pk)
          END IF
 
       END IF
 
-      CALL safe_allocate(cosm%log_k_plin, nk)
-      cosm%log_k_plin = log(k)
-
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_LINEAR: kmin [h/Mpc]:', k(1)
-         WRITE (*, *) 'INIT_LINEAR: kmax [h/Mpc]:', k(nk)
-         WRITE (*, *) 'INIT_LINEAR: nk:', nk, na
-      END IF
-
-      IF (na == 1) THEN
-         CALL safe_allocate(cosm%log_plin, nk)
-         cosm%log_plin = log(Pk(:, 1))
-      ELSE
-         CALL safe_allocate(cosm%log_a_plin, na)
-         cosm%log_a_plin = log(a)
-         CALL safe_allocate(cosm%log_plina, nk, na)
-         cosm%log_plina = log(Pk)
-      END IF
-
-      IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_PLIN: Done'
+         WRITE (*, *) 'INIT_LINEAR: Done'
          WRITE (*, *)
       END IF
 
@@ -6034,6 +6068,25 @@ CONTAINS
       cosm%amin_sigma = MINVAL(EXP(cosm%log_a_plin))
       cosm%amax_sigma = MAXVAL(EXP(cosm%log_a_plin))
       cosm%na_sigma = na
+
+      IF (power_interpolator) THEN
+         IF (cosm%scale_dependent_growth) THEN
+            CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_a_plin), exp(cosm%log_plina), cosm%plina, &
+               iorder = iorder_interp_plin, &
+               iextrap = iextrap_plin, &
+               store = store_plin, &
+               logx = .TRUE., &
+               logy = .TRUE., &
+               logf = .TRUE.)
+         ELSE
+            CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_plin), cosm%plin, &
+               iorder = iorder_interp_plin, &
+               iextrap = iextrap_plin, &
+               store = store_plin, &
+               logx = .TRUE., &
+               logf = .TRUE.)
+         END IF
+      END IF
 
       cosm%has_power = .TRUE.
 
@@ -7366,20 +7419,47 @@ CONTAINS
 
       IF (.NOT. cosm%has_power) CALL init_analytical_linear(cosm)
 
-      nk = cosm%nk_plin
+      IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Starting'
+
+      IF (power_interpolator) THEN
+         IF (cosm%scale_dependent_growth) THEN
+            nk = cosm%plina%nx
+         ELSE
+            nk = cosm%plin%n
+         END IF
+      ELSE
+         nk = cosm%nk_plin
+      END IF
 
       ! Allocate arrays
       ALLOCATE (logk(nk), Pk(nk), logPk(nk))
       ALLOCATE (Pk_wiggles(nk), Pk_smooth(nk))
 
       ! Allocate the internal arrays from the cosmology arrays
-      IF(cosm%scale_dependent_growth) THEN
-         logPk = cosm%log_plina(:, cosm%na_plin)
+      IF (power_interpolator) THEN
+         IF (cosm%scale_dependent_growth) THEN
+            logPk = cosm%plina%f(:, cosm%plina%ny)
+            logk = cosm%plina%x
+         ELSE
+            logPk = cosm%plin%f
+            logk = cosm%plin%x
+         END IF
       ELSE
-         logPk = cosm%log_plin
+         IF(cosm%scale_dependent_growth) THEN
+            logPk = cosm%log_plina(:, cosm%na_plin)
+         ELSE
+            logPk = cosm%log_plin
+         END IF
+         logk = cosm%log_k_plin
       END IF
-      logk = cosm%log_k_plin
       Pk = exp(logPk)
+
+      IF (cosm%verbose) THEN
+         WRITE(*, *) 'INIT_WIGGLE: kmin [h/Mpc]:', exp(logk(1))
+         WRITE(*, *) 'INIT_WIGGLE: kmax [h/Mpc]:', exp(logk(nk))
+         WRITE(*, *) 'INIT_WIGGLE: nk:', nk
+         WRITE(*, *) 'INIT_WIGGLE: Splitting into wiggle and broad-band'
+      END IF
 
       IF(imethod_pwiggle == wiggle_Lagrange) THEN
 
@@ -7414,19 +7494,28 @@ CONTAINS
          STOP 'INIT_WIGGLE: Error, wiggle method is not specified correctly'
       END IF
 
+      IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Isolating wiggle'
+
       ! Isolate just the wiggles
       ! It is difficult to make this operation (subtraction) fast given log arrays
       Pk_wiggles = Pk-Pk_smooth
 
+      IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Initialising interpolator'
+
       CALL init_interpolator(exp(logk), Pk_wiggles, cosm%wiggle, &
-         iorder=iorder_interp_pwiggle, &
-         iextrap=iextrap_pwiggle, &
-         store=.TRUE., &
-         logx=.TRUE., &
-         logf=.FALSE.)
+         iorder = iorder_interp_pwiggle, &
+         iextrap = iextrap_pwiggle, &
+         store = store_pwiggle, &
+         logx = .TRUE., &
+         logf = .FALSE.)
 
       ! Set the flag
       cosm%has_wiggle = .TRUE.
+
+      IF (cosm%verbose) THEN
+         WRITE (*, *) 'INIT_WIGGLE: Done'
+         WRITE (*, *)
+      END IF
 
    END SUBROUTINE init_wiggle
 
