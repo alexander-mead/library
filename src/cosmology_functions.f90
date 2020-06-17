@@ -1247,10 +1247,13 @@ CONTAINS
          cosm%nfR = 1
          IF (icosmo == 84) THEN
             cosm%fR0 = -1e-4
+            cosm%sig8 = 0.8*(2.1654/2.0518)
          ELSE IF (icosmo == 85) THEN
             cosm%fR0 = -1e-5
+            cosm%sig8 = 0.8*(2.1058/2.0518)
          ELSE IF (icosmo == 86) THEN
             cosm%fR0 = -1e-6
+            cosm%sig8 = 0.8*(2.0654/2.0518)
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Something went wrong with f(R) models'
          END IF
@@ -1367,9 +1370,20 @@ CONTAINS
          cosm%trivial_cold = .TRUE.
       END IF
 
+      ! Write to screen
       IF (cosm%verbose) THEN
          IF (cosm%scale_dependent_growth) WRITE (*, *) 'INIT_COSMOLOGY: Scale-dependent growth'
          IF (.NOT. cosm%trivial_cold)     WRITE (*, *) 'INIT_COSMOLOGY: Non-trivial cold spectrum'
+      END IF
+
+      ! Would need to include MGCAMB to make this work
+      IF ((cosm%img .NE. img_none) .AND. (cosm%m_nu .NE. 0.)) THEN
+         STOP 'INIT_COSMOLOGY: Error, modified gravity not compatible with massive neutrinos'
+      END IF
+
+      ! Would need to modify formulas to make this compatable
+      IF (cosm%img == img_fR .AND. cosm%Om_w .NE. 0) THEN
+         STOP 'INIT_COSMOLOGY: f(R) grvity not compatible with dark energy'
       END IF
 
       ! Derived cosmological parameters
@@ -4226,8 +4240,6 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(IN) :: cosm
 
-      IF (cosm%Om_w .NE. 0) STOP 'RBAR: Error, f(R) not currently compatible with dark energy Omega_w'
-
       Rbar=3.*(cosm%Om_m*(a**(-3))+4.*cosm%Om_v)/Hdist**2
 
    END FUNCTION Rbar
@@ -4285,10 +4297,10 @@ CONTAINS
       r3 = (r/r_Vainshtein_DGP(M, a, cosm))**3 ! G_nl depends on r3 only
       IF((1./r3) < eps) THEN
          ! High r3 expansion to avoid cancellation problems
-         G_DGP = 1.+(1./(3.*beta_dgp(a, cosm)))*(1.-1./(4.*r3))
+         G_DGP = 1.+(1./(3.*beta_DGP(a, cosm)))*(1.-1./(4.*r3))
       ELSE
          ! Standard formula
-         G_DGP = 1.+(2./(3.*beta_dgp(a, cosm)))*r3*(sqrt(1.+1./r3)-1.)
+         G_DGP = 1.+(2./(3.*beta_DGP(a, cosm)))*r3*(sqrt(1.+1./r3)-1.)
       END IF
 
    END FUNCTION G_DGP
@@ -4304,7 +4316,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: GN = bigG_cos/H0_cos**2 ! G/H0^2 in units (Mpc/h)^3 (M_sun/h)^-1
       
-      r_Vainshtein_DGP = (16.*GN*M*cosm%H0rc**2)/(9.*beta_dgp(a, cosm)**2)
+      r_Vainshtein_DGP = (16.*GN*M*cosm%H0rc**2)/(9.*beta_DGP(a, cosm)**2)
       r_Vainshtein_DGP = r_Vainshtein_DGP**(1./3.)
   
     END FUNCTION r_Vainshtein_DGP
