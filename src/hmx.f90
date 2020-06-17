@@ -4488,9 +4488,8 @@ CONTAINS
          ! From Bryan & Norman (1998; arXiv:astro-ph/9710107) fitting functions
          Delta_v = Dv_BryanNorman(a, cosm)
       ELSE IF (hmod%iDv == 3 .OR. hmod%iDv == 8) THEN
-         ! From HMcode(2015, 2016)
-         ! This has Omega_m(a) dependence in HMcode (2016)
-         Delta_v = hmod%Dv0*Omega_m(a, cosm)**hmod%Dv1
+         ! From HMcode(2015, 2016)  
+         Delta_v = hmod%Dv0*Omega_m(a, cosm)**hmod%Dv1 ! This has Omega_m(a) dependence in HMcode (2016)
          IF (hmod%iDv == 3) THEN
             ! HMcode(2016) additions
             Delta_v = Delta_v*(1.+hmod%Dvnu*cosm%f_nu)

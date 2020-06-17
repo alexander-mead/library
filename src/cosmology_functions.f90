@@ -56,6 +56,7 @@ MODULE cosmology_functions
    PUBLIC :: img_nDGP
    PUBLIC :: img_fR
    PUBLIC :: img_nDGP_lin
+   PUBLIC :: img_fR_lin
 
    ! Modified gravity things
    PUBLIC :: fR_a
@@ -254,6 +255,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: img_nDGP = 1
    INTEGER, PARAMETER :: img_fR = 2
    INTEGER, PARAMETER :: img_nDGP_lin = 3
+   INTEGER, PARAMETER :: img_fR_lin = 4
 
    ! Distance
    ! Changing to linear integer finding provides very little speed increase
@@ -546,9 +548,12 @@ CONTAINS
       names(84) = 'f(R) with F4, n=1'
       names(85) = 'f(R) with F5, n=1'
       names(86) = 'f(R) with F6, n=1'
-      names(87) = 'linearised nDGP - Strong'
-      names(88) = 'linearised nDGP - Medium'
-      names(89) = 'linearised nDGP - Weak'
+      names(87) = 'linearised f(R) with F4, n=1'
+      names(88) = 'linearised f(R) with F5, n=1'
+      names(89) = 'linearised f(R) with F6, n=1'
+      names(90) = 'linearised nDGP - Strong'
+      names(91) = 'linearised nDGP - Medium'
+      names(92) = 'linearised nDGP - Weak'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -887,22 +892,22 @@ CONTAINS
          cosm%Om_m = 0.3
          cosm%Om_w = 0.7
          cosm%Om_v = 0.
-      ELSE IF (is_in_array(icosmo, [11, 12, 13, 87, 88, 89])) THEN
+      ELSE IF (is_in_array(icosmo, [11, 12, 13, 90, 91, 92])) THEN
          ! nDGP
          IF (is_in_array(icosmo, [11, 12, 13])) THEN
             cosm%img = img_nDGP
          ELSE
             cosm%img = img_nDGP_lin
          END IF
-         IF (icosmo == 11 .OR. icosmo == 87) THEN
+         IF (icosmo == 11 .OR. icosmo == 90) THEN
             ! Strong         
             cosm%H0rc = 0.1
             cosm%sig8 = 0.8*(1.0176/0.7790) ! Normalise to boring at a<<1
-         ELSE IF (icosmo == 12 .OR. icosmo == 88) THEN
+         ELSE IF (icosmo == 12 .OR. icosmo == 91) THEN
             ! Medium
             cosm%H0rc = 0.5
             cosm%sig8 = 0.8*(0.8717/0.7790) ! Normalise to boring at a<<1
-         ELSE IF (icosmo == 13 .OR. icosmo == 89) THEN
+         ELSE IF (icosmo == 13 .OR. icosmo == 92) THEN
             ! Weak
             cosm%H0rc = 2.0
             cosm%sig8 = 0.8*(0.8093/0.7790) ! Normalise to boring at a<<1
@@ -1253,17 +1258,21 @@ CONTAINS
          cosm%itk = itk_CAMB
          cosm%Om_w = cosm%Om_v
          cosm%Om_v = 0.
-      ELSE IF (icosmo == 84 .OR. icosmo == 85 .OR. icosmo == 86) THEN
+      ELSE IF (is_in_array(icosmo, [84, 85, 86, 87, 88, 89])) THEN
          ! f(R) models
-         cosm%img = img_fR
+         IF (is_in_array(icosmo, [84, 85, 86])) THEN
+            cosm%img = img_fR
+         ELSE
+            cosm%img = img_fR_lin
+         END IF
          cosm%nfR = 1
-         IF (icosmo == 84) THEN
+         IF (icosmo == 84 .OR. icosmo == 87) THEN
             cosm%fR0 = -1e-4
             cosm%sig8 = 0.8*(2.1654/2.0518) ! Normalise to boring at k<<1
-         ELSE IF (icosmo == 85) THEN
+         ELSE IF (icosmo == 85 .OR. icosmo == 88) THEN
             cosm%fR0 = -1e-5
             cosm%sig8 = 0.8*(2.1058/2.0518) ! Normalise to boring at k<<1
-         ELSE IF (icosmo == 86) THEN
+         ELSE IF (icosmo == 86 .OR. icosmo == 89) THEN
             cosm%fR0 = -1e-6
             cosm%sig8 = 0.8*(2.0654/2.0518) ! Normalise to boring at k<<1
          ELSE
@@ -1369,7 +1378,7 @@ CONTAINS
       END IF
 
       ! Decide on scale-dependent growth
-      IF ((cosm%m_nu .NE. 0.) .OR. cosm%img == img_fR) THEN
+      IF ((cosm%m_nu .NE. 0.) .OR. cosm%img == img_fR .OR. cosm%img == img_fR_lin) THEN
          cosm%scale_dependent_growth = .TRUE.
       ELSE
          cosm%scale_dependent_growth = .FALSE.
@@ -1394,7 +1403,7 @@ CONTAINS
       END IF
 
       ! Would need to modify formulas to make this compatable
-      IF (cosm%img == img_fR .AND. cosm%Om_w .NE. 0) THEN
+      IF ((cosm%img == img_fR .OR. cosm%img == img_fR_lin) .AND. cosm%Om_w .NE. 0) THEN
          STOP 'INIT_COSMOLOGY: f(R) grvity not compatible with dark energy'
       END IF
 
@@ -1622,11 +1631,12 @@ CONTAINS
          WRITE (*, *) dashes
          IF (cosm%img .NE. img_none) THEN
             IF(cosm%img == img_nDGP .OR. cosm%img == img_nDGP_lin) THEN
-               IF (cosm%img == img_nDGP)     WRITE(*, *) 'COSMOLOGY: nDGP modified gravity'
+               IF (cosm%img == img_nDGP) WRITE(*, *) 'COSMOLOGY: nDGP modified gravity'
                IF (cosm%img == img_nDGP_lin) WRITE(*, *) 'COSMOLOGY: Linearised nDGP modified gravity'
                WRITE(*, fmt=format) 'COSMOLOGY:', 'H0rc:', cosm%H0rc
-            ELSE IF (cosm%img == img_fR) THEN
-               WRITE(*, *) 'COSMOLOGY: f(R) with LCDM background'
+            ELSE IF (cosm%img == img_fR .OR. cosm%img == img_fR_lin) THEN
+               IF (cosm%img == img_fR) WRITE(*, *) 'COSMOLOGY: f(R) with LCDM background'
+               IF (cosm%img == img_fR_lin) WRITE(*, *) 'COSMOLOGY: Linearised f(R) with LCDM background'
                WRITE(*, fmt=format) 'COSMOLOGY:', 'log10(-fR0):', log10(-cosm%fR0)
                WRITE(*, fmt=format) 'COSMOLOGY:', 'nfR:', cosm%nfR
             END IF
@@ -1839,15 +1849,15 @@ CONTAINS
       END IF
 
       ! Check that transfer function is okay for modified gravity
-      IF (cosm%img == img_fR .AND. cosm%itk == itk_CAMB) THEN
-         STOP 'INIT_COSMOLOGY: Error, f(R) is not compatible with using a CAMB transfer function'
+      IF ((cosm%img .NE. img_none) .AND. cosm%itk == itk_CAMB) THEN
+         STOP 'INIT_COSMOLOGY: Modified gravity not compatible with using a CAMB transfer function'
       END IF
 
       ! Get the CAMB power if necessary
-      IF (cosm%itk == itk_CAMB)     CALL init_CAMB_linear(cosm)
+      IF (cosm%itk == itk_CAMB) CALL init_CAMB_linear(cosm)
       !IF (cosm%itk == itk_external) CALL init_external_linear(cosm)
-      !IF (cosm%analytical_power)    CALL init_analytical_linear(cosm)
-      IF (cosm%img == img_fR)       CALL init_fR_linear(cosm)
+      !IF (cosm%analytical_power) CALL init_analytical_linear(cosm)
+      IF (cosm%img == img_fR .OR. cosm%img == img_fR_lin) CALL init_fR_linear(cosm)
 
       ! Change the flag *before* doing the normalisation calculation because it calls power
       cosm%is_normalised = .TRUE.
@@ -4244,7 +4254,7 @@ CONTAINS
          G_lin = 1.
       ELSE IF (cosm%img == img_nDGP .OR. cosm%img == img_nDGP_lin) THEN
          G_lin = 1.+1./(3.*beta_dgp(a, cosm))
-      ELSE IF (cosm%img == img_fR) THEN
+      ELSE IF (cosm%img == img_fR .OR. cosm%img == img_fR_lin) THEN
          G_lin = 1.+mu_fR(k, a, cosm)
       ELSE
          STOP 'G_LIN: Error, img not specified correctly'
@@ -4323,7 +4333,7 @@ CONTAINS
          G_nl = 1.
       ELSE IF (cosm%img == img_nDGP) THEN  
          G_nl = G_DGP(d, a, cosm)
-      ELSE IF (cosm%img == img_nDGP_lin) THEN
+      ELSE IF (cosm%img == img_nDGP_lin .OR. cosm%img == img_fR_lin) THEN
          G_nl = G_lin(d, v, k, a, cosm)
       ELSE IF (cosm%img == img_fR) THEN
          STOP 'G_NL: Error, non-linear calculation not supported for f(R)'
