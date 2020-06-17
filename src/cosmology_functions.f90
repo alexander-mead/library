@@ -196,13 +196,13 @@ MODULE cosmology_functions
       ! Look-up tables that are filled during a calculation
       REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:)     ! Arrays for input linear P(k)
       REAL, ALLOCATABLE :: log_a_plin(:), log_plina(:, :) ! Arrays for input linear P(k, a)
-      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:, :)    ! Arrays for cold T(k) and wiggle P(k)
+      !REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:, :)    ! Arrays for cold T(k) and wiggle P(k)
       TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde ! 1D interpolators
       TYPE(interpolator1D) :: plin, wiggle
-      TYPE(interpolator2D) :: sigmaa, plina!, Tcold ! 2D interpolators 
+      TYPE(interpolator2D) :: sigmaa, plina, Tcold ! 2D interpolators 
       INTEGER :: nk_plin, na_plin ! Number of array entries
-      INTEGER :: nk_Tcold
-      REAL :: amin_sigma, amax_sigma  ! TILMAN: Ranges of arrays   
+      !INTEGER :: nk_Tcold
+      !REAL :: amin_sigma, amax_sigma  ! TILMAN: Ranges of arrays   
       LOGICAL :: analytical_power                                                          
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
       LOGICAL :: has_wiggle
@@ -316,6 +316,18 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation on CAMB rebinning (*definitely* not linear)
    INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Method for interpolation on CAMB rebinning
 
+   ! Cold transfer function method
+   INTEGER, PARAMETER :: method_cold_none = 0
+   INTEGER, PARAMETER :: method_cold_total = 1
+   INTEGER, PARAMETER :: method_cold_EH = 2
+   INTEGER, PARAMETER :: method_cold_CAMB = 3
+   INTEGER, PARAMETER :: method_cold = method_cold_EH
+
+   ! CAMB cold transfer function
+   INTEGER, PARAMETER :: iextrap_Tcold = iextrap_linear
+   INTEGER, PARAMETER :: iorder_interp_Tcold = 3
+   LOGICAL, PARAMETER :: store_Tcold = .TRUE.
+
    ! De-wiggle power
    INTEGER, PARAMETER :: wiggle_Lagrange = 1
    INTEGER, PARAMETER :: wiggle_smooth = 2
@@ -373,8 +385,8 @@ MODULE cosmology_functions
    REAL, PARAMETER :: rmin_sigma = 1e-4          ! Minimum r value (NB. sigma(R) needs to be power-law below)
    REAL, PARAMETER :: rmax_sigma = 1e3           ! Maximum r value (NB. sigma(R) needs to be power-law above)
    INTEGER, PARAMETER :: nr_sigma = 128          ! Number of r entries for sigma(R) tables
-   REAL, PARAMETER :: amin_sigma = 0.1           ! Minimum a value for sigma(R,a) tables when growth is scale dependent
-   REAL, PARAMETER :: amax_sigma = 1.0           ! Maximum a value for sigma(R,a) tables when growth is scale dependent
+   REAL, PARAMETER :: amin_sigma = amin_plin     ! Minimum a value for sigma(R,a) tables when growth is scale dependent
+   REAL, PARAMETER :: amax_sigma = amax_plin     ! Maximum a value for sigma(R,a) tables when growth is scale dependent
    INTEGER, PARAMETER :: na_sigma = 16           ! Number of a values for sigma(R,a) tables
    INTEGER, PARAMETER :: iorder_interp_sigma = 3 ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split    ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
@@ -1540,13 +1552,7 @@ CONTAINS
       END IF
 
       ! TILMAN: Added this
-      IF (cosm%itk == itk_external) THEN
-         ! This would set has_power to .TRUE.
-         CALL init_external_linear(cosm)
-      ELSE
-         cosm%amin_sigma = amin_sigma
-         cosm%amax_sigma = amax_sigma
-      END IF
+      IF (cosm%itk == itk_external) CALL init_external_linear(cosm)
 
       ! Write finishing message to screen
       IF (cosm%verbose) THEN
@@ -3332,25 +3338,26 @@ CONTAINS
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       REAL, INTENT(IN) :: a ! Scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER, PARAMETER :: method_cold = 3
+      INTEGER, PARAMETER :: method = method_cold
 
-      IF (cosm%trivial_cold .OR. method_cold == 1 .OR. cosm%f_nu == 0.) THEN
+      IF (cosm%trivial_cold .OR. method == method_cold_none .OR. cosm%f_nu == 0.) THEN
          ! Assuming the cold spectrum is exactly the matter spectrum
          Tcold = 1. 
-      ELSE IF (method_cold == 2) THEN
+      ELSE IF (method== method_cold_total) THEN
          ! This approximation assumes that the neutrinos are as clustered as the rest of the mass
          ! This is only true on scales greater than the neutrino free-streaming scale
          Tcold = (cosm%Om_c+cosm%Om_b)/cosm%Om_m 
-      ELSE IF (method_cold == 3) THEN
+      ELSE IF (method == method_cold_EH) THEN
          ! Use the Eisenstein and Hu approximation
          Tcold = Tcold_EH(k, a, cosm)
-      ELSE IF (method_cold == 4) THEN
+      ELSE IF (method == method_cold_CAMB) THEN
          ! Use look-up tables from CAMB transfer functions
-         Tcold = find(log(k), cosm%log_k_Tcold, log(a), cosm%log_a_plin, cosm%Tcold, cosm%nk_Tcold, cosm%na_plin, &
-            iorder = iorder_interp_plin, &
-            ifindx = ifind_interp_plin, &
-            ifindy = ifind_interp_plin, &
-            iinterp = iinterp_polynomial) ! No Lagrange polynomials 
+         ! Tcold = find(log(k), cosm%log_k_Tcold, log(a), cosm%log_a_plin, cosm%Tcold, cosm%nk_Tcold, cosm%na_plin, &
+         !    iorder = iorder_interp_plin, &
+         !    ifindx = ifind_interp_plin, &
+         !    ifindy = ifind_interp_plin, &
+         !    iinterp = iinterp_polynomial) ! No Lagrange polynomials 
+         Tcold = evaluate_interpolator(k, a, cosm%Tcold)
       ELSE
          STOP 'TCOLD: Error, method not specified correctly'
       END IF
@@ -3579,27 +3586,47 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, ALLOCATABLE :: R(:), a(:), sig(:, :)
       INTEGER :: ir, ia, na
+      REAL :: amin, amax
+      REAL, PARAMETER :: rmin = rmin_sigma
+      REAL, PARAMETER :: rmax = rmax_sigma
       INTEGER, PARAMETER :: nr = nr_sigma
-
-      ! This does not need to be evaulated at multiple a unless growth is scale dependent
-      IF (cosm%scale_dependent_growth) THEN
-         na = na_sigma
-      ELSE
-         na = 1
-      END IF
 
       ! Write to screen
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_SIGMA: Filling sigma(R) interpolation tables'
-         WRITE (*, *) 'INIT_SIGMA: R minimum [Mpc/h]:', real(rmin_sigma)
-         WRITE (*, *) 'INIT_SIGMA: R maximum [Mpc/h]:', real(rmax_sigma)
-         WRITE (*, *) 'INIT_SIGMA: Number of points:', nr
+         WRITE (*, *) 'INIT_SIGMA: R minimum [Mpc/h]:', real(rmin)
+         WRITE (*, *) 'INIT_SIGMA: R maximum [Mpc/h]:', real(rmax)
+         WRITE (*, *) 'INIT_SIGMA: Number of R points:', nr
       END IF
 
       ! Allocate and fill array of R values
-      CALL fill_array_log(rmin_sigma, rmax_sigma, R, nr)
-      IF (cosm%scale_dependent_growth) CALL fill_array_log(cosm%amin_sigma, cosm%amax_sigma, a, na)
+      CALL fill_array_log(rmin, rmax, R, nr)
+
+      ! This does not need to be evaulated at multiple a unless growth is scale dependent
+      IF (cosm%scale_dependent_growth) THEN
+         IF (cosm%has_power) THEN
+            amin = exp(cosm%log_a_plin(1))
+            amax = exp(cosm%log_a_plin(cosm%na_plin))
+            !amin = cosm%amin_sigma
+            !amax = cosm%amax_sigma
+         ELSE
+            amin = amin_sigma
+            amax = amax_sigma
+         END IF
+         na = na_sigma
+         CALL fill_array_log(amin, amax, a, na)
+         IF (cosm%verbose) THEN
+            WRITE (*, *) 'INIT_SIGMA: amin:', real(amin)
+            WRITE (*, *) 'INIT_SIGMA: amax:', real(amax)
+            WRITE (*, *) 'INIT_SIGMA: Number of a points:', na
+         END IF
+      ELSE
+         na = 1
+      END IF
+
       ALLOCATE(sig(nr, na))
+
+      IF (cosm%verbose) WRITE (*, *) 'INIT_SIGMA: Calculating sigma(R)'
 
       ! Do the calculations to fill the look-up tables
       IF (cosm%scale_dependent_growth) THEN
@@ -3637,6 +3664,9 @@ CONTAINS
 
       END IF
 
+      ! Change flag so that it is known that the look-up tables are filled
+      cosm%has_sigma = .TRUE.
+
       ! Write useful information to screen
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', sig(nr, na)
@@ -3644,9 +3674,6 @@ CONTAINS
          WRITE (*, *) 'INIT_SIGMA: Done'
          WRITE (*, *)
       END IF
-
-      ! Change flag so that it is known that the look-up tables are filled
-      cosm%has_sigma = .TRUE.
 
    END SUBROUTINE init_sigma
 
@@ -5822,9 +5849,6 @@ CONTAINS
       REAL, PARAMETER :: amin = amin_plin              ! Minimum scale factor to get from CAMB
       REAL, PARAMETER :: amax = amax_plin              ! Maximum scale factor to get from CAMB
       LOGICAL, PARAMETER :: rebin = rebin_CAMB         ! Should we rebin CAMB input P(k)?
-      !INTEGER, PARAMETER :: iorder = iorder_rebin_CAMB ! Order for interpolation if rebinning
-      !INTEGER, PARAMETER :: ifind = ifind_rebin_CAMB   ! Finding scheme for interpolation if rebinning
-      !INTEGER, PARAMETER :: imeth = imeth_rebin_CAMB   ! Method for interpolation if rebinning
 
       IF (cosm%verbose) THEN
          WRITE(*,*) 'INIT_CAMB_LINEAR: Getting linear power from CAMB'
@@ -5855,21 +5879,28 @@ CONTAINS
       DO ik = 1, nPk
          k = kPk(ik)
          fac = Tk_factor(k, cosm)
-         Pk(ik,:) = Pk(ik, :)*fac**2
-      END DO
-      DO ik = 1, nTc
-         k = kTc(ik)
-         fac = Tk_factor(k, cosm)
-         Tc(ik,:) = Tc(ik, :)*fac
+         Pk(ik, :) = Pk(ik, :)*fac**2
       END DO
 
-      CALL if_allocated_deallocate(cosm%log_k_Tcold)
-      CALL if_allocated_deallocate(cosm%Tcold)
-      ALLOCATE(cosm%log_k_Tcold(nTc), cosm%Tcold(nTc, na))
-      cosm%log_k_Tcold = log(kTc)
-      cosm%Tcold = Tc
-      cosm%nk_Tcold = nTc
-      DEALLOCATE(kTc, Tc)
+      IF (method_cold == method_cold_CAMB) THEN
+
+         DO ik = 1, nTc
+            k = kTc(ik)
+            fac = Tk_factor(k, cosm)
+            Tc(ik, :) = Tc(ik, :)*fac
+         END DO
+
+         CALL init_interpolator(kTc, a, Tc, cosm%Tcold, &
+            iorder = iorder_interp_Tcold, &
+            iextrap = iextrap_Tcold, &
+            store = store_Tcold, &
+            logx = .TRUE., &
+            logy = .TRUE., &
+            logf = .FALSE.)
+
+      END IF
+
+      DEALLOCATE(kTc, Tc)    
 
       IF (cosm%verbose) THEN
          WRITE(*,*) 'INIT_CAMB_LINEAR: kmin [h/Mpc]:', kPk(1)
@@ -5883,6 +5914,8 @@ CONTAINS
       END IF
 
       IF (rebin) THEN
+
+         ! TODO: Dedicated rebinnig 
 
          CALL fill_array_log(kmin_rebin, kmax_rebin, kkPk, nk)
          ALLOCATE(Pkk(nk, na))
@@ -6077,8 +6110,8 @@ CONTAINS
          RETURN
       ENDIF
 
-      cosm%amin_sigma = MINVAL(EXP(cosm%log_a_plin))
-      cosm%amax_sigma = MAXVAL(EXP(cosm%log_a_plin))
+      !cosm%amin_sigma = MINVAL(EXP(cosm%log_a_plin))
+      !cosm%amax_sigma = MAXVAL(EXP(cosm%log_a_plin))
 
       IF (power_interpolator) THEN
          IF (cosm%scale_dependent_growth) THEN
