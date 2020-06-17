@@ -202,7 +202,6 @@ MODULE cosmology_functions
       TYPE(interpolator2D) :: sigmaa, plina!, Tcold ! 2D interpolators 
       INTEGER :: nk_plin, na_plin ! Number of array entries
       INTEGER :: nk_Tcold
-      INTEGER :: nr_sigma, na_sigma
       REAL :: amin_sigma, amax_sigma  ! TILMAN: Ranges of arrays   
       LOGICAL :: analytical_power                                                          
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
@@ -1541,12 +1540,10 @@ CONTAINS
       END IF
 
       ! TILMAN: Added this
-      cosm%nr_sigma = nr_sigma
       IF (cosm%itk == itk_external) THEN
          ! This would set has_power to .TRUE.
          CALL init_external_linear(cosm)
       ELSE
-         cosm%na_sigma = na_sigma
          cosm%amin_sigma = amin_sigma
          cosm%amax_sigma = amax_sigma
       END IF
@@ -3581,31 +3578,36 @@ CONTAINS
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, ALLOCATABLE :: R(:), a(:), sig(:, :)
-      INTEGER :: i, j
+      INTEGER :: ir, ia, na
+      INTEGER, PARAMETER :: nr = nr_sigma
 
       ! This does not need to be evaulated at multiple a unless growth is scale dependent
-      IF (.NOT. cosm%scale_dependent_growth) cosm%na_sigma = 1
+      IF (cosm%scale_dependent_growth) THEN
+         na = na_sigma
+      ELSE
+         na = 1
+      END IF
 
       ! Write to screen
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_SIGMA: Filling sigma(R) interpolation tables'
          WRITE (*, *) 'INIT_SIGMA: R minimum [Mpc/h]:', real(rmin_sigma)
          WRITE (*, *) 'INIT_SIGMA: R maximum [Mpc/h]:', real(rmax_sigma)
-         WRITE (*, *) 'INIT_SIGMA: Number of points:', cosm%nr_sigma
+         WRITE (*, *) 'INIT_SIGMA: Number of points:', nr
       END IF
 
       ! Allocate and fill array of R values
-      CALL fill_array_log(rmin_sigma, rmax_sigma, R, cosm%nr_sigma)
-      IF (cosm%scale_dependent_growth) CALL fill_array_log(cosm%amin_sigma, cosm%amax_sigma, a, cosm%na_sigma)
-      ALLOCATE(sig(cosm%nr_sigma, cosm%na_sigma))
+      CALL fill_array_log(rmin_sigma, rmax_sigma, R, nr)
+      IF (cosm%scale_dependent_growth) CALL fill_array_log(cosm%amin_sigma, cosm%amax_sigma, a, na)
+      ALLOCATE(sig(nr, na))
 
       ! Do the calculations to fill the look-up tables
       IF (cosm%scale_dependent_growth) THEN
 
          ! Loop over R and a and calculate sigma(R,a)
-         DO j = 1, cosm%na_sigma
-            DO i = 1, cosm%nr_sigma
-               sig(i, j) = sigma_integral(R(i), a(j), sigma_store, cosm)
+         DO ia = 1, na
+            DO ir = 1, nr
+               sig(ir, ia) = sigma_integral(R(ir), a(ia), sigma_store, cosm)
             END DO
          END DO
 
@@ -3621,8 +3623,8 @@ CONTAINS
       ELSE
 
          ! Loop over R values and calculate sigma(R, a=1)
-         DO i = 1, cosm%nr_sigma
-            sig(i, 1) = sigma_integral(R(i), 1., sigma_store, cosm)
+         DO ir = 1, nr
+            sig(ir, 1) = sigma_integral(R(ir), 1., sigma_store, cosm)
          END DO
 
          CALL init_interpolator(R, sig(:, 1), cosm%sigma, &
@@ -3637,8 +3639,8 @@ CONTAINS
 
       ! Write useful information to screen
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', sig(cosm%nr_sigma, cosm%na_sigma)
-         WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', sig(1, cosm%na_sigma)
+         WRITE (*, *) 'INIT_SIGMA: Minimum sigma (a=1):', sig(nr, na)
+         WRITE (*, *) 'INIT_SIGMA: Maximum sigma (a=1):', sig(1, na)
          WRITE (*, *) 'INIT_SIGMA: Done'
          WRITE (*, *)
       END IF
@@ -6024,7 +6026,7 @@ CONTAINS
    SUBROUTINE init_external_linear(cosm)
 
       ! TILMAN: Wrote this
-      ! The purpose of this is *only* to set cosm%: amin_sigma, amax_sigma, na_sigma, has_power
+      ! The purpose of this is *only* to set cosm%: amin_sigma, amax_sigma, has_power
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: nk, nk_plin, na, na_plin
@@ -6077,7 +6079,6 @@ CONTAINS
 
       cosm%amin_sigma = MINVAL(EXP(cosm%log_a_plin))
       cosm%amax_sigma = MAXVAL(EXP(cosm%log_a_plin))
-      cosm%na_sigma = na
 
       IF (power_interpolator) THEN
          IF (cosm%scale_dependent_growth) THEN
