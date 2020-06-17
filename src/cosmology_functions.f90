@@ -1992,9 +1992,11 @@ CONTAINS
       dinit = ainit_ode
       vinit = 1.
 
+      ! Get normalisation for g(k)
       g = grow(1., cosm) ! Ensures that init_groth has run
       norm = cosm%gnorm  ! Only will work if init_growth has run
 
+      ! Write to screen
       IF(cosm%verbose) THEN
          WRITE (*, *) 'INIT_FR_LINEAR: Solving scale-dependent growth ODE'
          WRITE (*, *) 'INIT_FR_LINEAR: kmin [h/Mpc]:', kmin
@@ -2005,8 +2007,10 @@ CONTAINS
          WRITE (*, *) 'INIT_FR_LINEAR: na:', na
       END IF
 
+      ! Loop over all wavenumbers
       DO ik = 1, nk
 
+         ! Solve g(k) equation
          CALL ODE_adaptive_cosmology(d_tab, v_tab, k(ik), a_tab, cosm, &
             ainit_ode, amax_ode, &
             dinit, vinit, &
@@ -2017,6 +2021,7 @@ CONTAINS
          ! Normalise the solution
          d_tab = d_tab/norm
 
+         ! Shrink output array from g(k) ODE solver
          ALLOCATE(d_new(na))
          CALL interpolate_array(a_tab, d_tab, a, d_new, &
             iorder = iorder_ODE_interpolation_growth, &
@@ -2030,6 +2035,7 @@ CONTAINS
 
       END DO
 
+      ! Write to screen
       IF(cosm%verbose) THEN
          WRITE (*, *) 'INIT_FR_LINEAR: ODE solved'
          WRITE (*, *) 'INIT_FR_LINEAR: Calculating power'
@@ -2045,8 +2051,11 @@ CONTAINS
       cosm%nk_plin = nk
       cosm%na_plin = na
 
+      ! Switch analyical power off and set flag for stored power
+      cosm%analytical_power = .FALSE.
       cosm%has_power = .TRUE.
 
+      ! Write to screen
       IF(cosm%verbose) THEN
          WRITE (*, *) 'INIT_FR_LINEAR: Done'
          WRITE (*, *)
