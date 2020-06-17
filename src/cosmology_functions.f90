@@ -54,6 +54,10 @@ MODULE cosmology_functions
    ! Modified gravity models
    PUBLIC :: img_none
    PUBLIC :: img_nDGP
+   PUBLIC :: img_fR
+
+   ! Modified gravity things
+   PUBLIC :: fR_a
 
    ! Distances and times
    PUBLIC :: f_k
@@ -188,9 +192,9 @@ MODULE cosmology_functions
       LOGICAL :: trivial_cold            ! Is the cold spectrum trivially related to the matter spectrum?    
       
       ! Look-up tables that are filled during a calculation
-      REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:) ! Arrays for input linear P(k)
+      REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:)     ! Arrays for input linear P(k)
       REAL, ALLOCATABLE :: log_a_plin(:), log_plina(:, :) ! Arrays for input linear P(k, a)
-      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:, :) ! Arrays for cold T(k) and wiggle P(k)
+      REAL, ALLOCATABLE :: log_k_Tcold(:), Tcold(:, :)    ! Arrays for cold T(k) and wiggle P(k)
       TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde ! 1D interpolators
       TYPE(interpolator1D) :: plin, wiggle
       TYPE(interpolator2D) :: sigmaa, plina!, Tcold ! 2D interpolators 
@@ -301,9 +305,9 @@ MODULE cosmology_functions
    REAL, PARAMETER :: alpha_hi_xi = 1.5        ! High r value of alpha for conventional integration
 
    ! CAMB interface
-   REAL, PARAMETER :: amin_CAMB = 0.1          ! Minimum a value for P(k,a) tables when linear growth is scale dependent
-   REAL, PARAMETER :: amax_CAMB = 1.0          ! Maximum a value for P(k,a) tables when linear growth is scale dependent
-   INTEGER, PARAMETER :: na_CAMB = 16          ! Number of a values for linear P(k,a) tables if growth is scale dependent
+   !REAL, PARAMETER :: amin_CAMB = 0.1          ! Minimum a value for P(k,a) tables when linear growth is scale dependent
+   !REAL, PARAMETER :: amax_CAMB = 1.0          ! Maximum a value for P(k,a) tables when linear growth is scale dependent
+   !INTEGER, PARAMETER :: na_CAMB = 16          ! Number of a values for linear P(k,a) tables if growth is scale dependent
    REAL, PARAMETER :: pk_min_CAMB = 1e-10      ! Minimum value of power at low k (remove k with less than this) 
    REAL, PARAMETER :: nmax_CAMB = 2.           ! How many times more to go than kmax due to inaccuracy near k limit
    LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.  ! Should we rebin CAMB or just use default k?
@@ -315,6 +319,9 @@ MODULE cosmology_functions
    REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used [h/Mpc]
    REAL, PARAMETER :: kmax_plin = 1e2                    ! Maximum wavenumber used [h/Mpc]
    INTEGER, PARAMETER :: nk_plin = 128                   ! Number of k to use
+   REAL, PARAMETER :: amin_plin = 0.1                    ! Minimum a value for Pk growth is scale dependent
+   REAL, PARAMETER :: amax_plin = 1.0                    ! Maximum a value for Pk when linear growth is scale dependent
+   INTEGER, PARAMETER :: na_plin = 16                    ! Number of a values for linear P(k,a) tables if growth is scale dependent
    LOGICAL, PARAMETER :: power_interpolator = .FALSE.    ! Use dedicated interpolator for power?
    INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Order for interpolation
    INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
@@ -459,7 +466,7 @@ CONTAINS
       names(7)  = 'IDE I'
       names(8)  = 'IDE II'
       names(9)  = 'IDE III'
-      names(10) = 'nDGP - LCDM'
+      names(10) = ''
       names(11) = 'nDGP - Strong'
       names(12) = 'nDGP - Medium'
       names(13) = 'nDGP - Weak'
@@ -533,6 +540,9 @@ CONTAINS
       names(81) = 'Power bump: A = 0.15; k = 1.00h/Mpc; sigma = 0.3'
       names(82) = 'Harrison-Zeldovich'
       names(83) = 'Boring but with some CDM replaced with 1.00eV neutrinos'
+      names(84) = 'f(R) with F4, n=1'
+      names(85) = 'f(R) with F5, n=1'
+      names(86) = 'f(R) with F6, n=1'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -871,27 +881,19 @@ CONTAINS
          cosm%Om_m = 0.3
          cosm%Om_w = 0.7
          cosm%Om_v = 0.
-      ELSE IF (icosmo == 10 .OR. icosmo == 11 .OR. icosmo == 12 .OR. icosmo == 13) THEN
-         ! nDGP - Barreira       
-         cosm%Om_m = 0.3132
-         cosm%Om_b = 0.049
-         cosm%ns = 0.9655
-         cosm%h = 0.6731
-         cosm%om_v = 1.-cosm%Om_m
-         cosm%sig8 = 0.767400759753/0.7428
+      ELSE IF (icosmo == 11 .OR. icosmo == 12 .OR. icosmo == 13) THEN
+         ! nDGP
+         cosm%img = img_nDGP
          IF (icosmo == 11) THEN
-            ! Strong
-            cosm%img = img_nDGP
+            ! Strong         
             cosm%H0rc = 0.1
             cosm%sig8 = 1.0813979052
          ELSE IF (icosmo == 12) THEN
             ! Medium
-            cosm%img = img_nDGP
             cosm%H0rc = 0.5
             cosm%sig8 = 0.927171072956
          ELSE IF (icosmo == 13) THEN
             ! Weak
-            cosm%img = img_nDGP
             cosm%H0rc = 2.0
             cosm%sig8 = 0.861136740687
          END IF
@@ -1239,6 +1241,19 @@ CONTAINS
          cosm%itk = itk_CAMB
          cosm%Om_w = cosm%Om_v
          cosm%Om_v = 0.
+      ELSE IF (icosmo == 84 .OR. icosmo == 85 .OR. icosmo == 86) THEN
+         ! f(R) models
+         cosm%img = img_fR
+         cosm%nfR = 1
+         IF (icosmo == 84) THEN
+            cosm%fR0 = -1e-4
+         ELSE IF (icosmo == 85) THEN
+            cosm%fR0 = -1e-5
+         ELSE IF (icosmo == 86) THEN
+            cosm%fR0 = -1e-6
+         ELSE
+            STOP 'ASSIGN_COSMOLOGY: Something went wrong with f(R) models'
+         END IF
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1338,20 +1353,28 @@ CONTAINS
          STOP 'INIT_COSMOLOGY: Error, neutrinos are too light'
       END IF
 
-      ! Decide on scale-dependent growth and cold spectrum
-      cosm%scale_dependent_growth = .FALSE.
-      cosm%trivial_cold = .TRUE.
-      IF (cosm%m_nu .NE. 0.) THEN
+      ! Decide on scale-dependent growth
+      IF ((cosm%m_nu .NE. 0.) .OR. cosm%img == img_fR) THEN
          cosm%scale_dependent_growth = .TRUE.
-         cosm%trivial_cold = .FALSE.
+      ELSE
+         cosm%scale_dependent_growth = .FALSE.
       END IF
 
-      IF (cosm%verbose .AND. cosm%scale_dependent_growth) WRITE (*, *) 'INIT_COSMOLOGY: Scale-dependent growth'
-      IF (cosm%verbose .AND. (.NOT. cosm%trivial_cold))   WRITE (*, *) 'INIT_COSMOLOGY: Non-trivial cold spectrum'
+      ! Decide on triviality of the cold spectrum
+      IF (cosm%m_nu .NE. 0) THEN
+         cosm%trivial_cold = .FALSE.
+      ELSE
+         cosm%trivial_cold = .TRUE.
+      END IF
+
+      IF (cosm%verbose) THEN
+         IF (cosm%scale_dependent_growth) WRITE (*, *) 'INIT_COSMOLOGY: Scale-dependent growth'
+         IF (.NOT. cosm%trivial_cold)     WRITE (*, *) 'INIT_COSMOLOGY: Non-trivial cold spectrum'
+      END IF
 
       ! Derived cosmological parameters
       cosm%Om_c = cosm%Om_m-cosm%Om_b-cosm%Om_nu ! Omega_m defined to include CDM, baryons and massive neutrinos
-      cosm%Om = cosm%Om_m+cosm%Om_v+cosm%Om_w ! Ignore radiation here
+      cosm%Om = cosm%Om_m+cosm%Om_v+cosm%Om_w    ! Ignore radiation here
       cosm%Om_k = 1.-cosm%Om
       cosm%k = (cosm%Om-1.)/(Hdist**2)
       IF (cosm%verbose) THEN
@@ -1577,7 +1600,7 @@ CONTAINS
                WRITE(*, fmt=format) 'COSMOLOGY:', 'H0rc:', cosm%H0rc
             ELSE IF (cosm%img == img_fR) THEN
                WRITE(*, *) 'COSMOLOGY: f(R) with LCDM background'
-               WRITE(*, fmt=format) 'COSMOLOGY:', 'fR0:', cosm%fR0
+               WRITE(*, fmt=format) 'COSMOLOGY:', 'log10(-fR0):', log10(-cosm%fR0)
                WRITE(*, fmt=format) 'COSMOLOGY:', 'nfR:', cosm%nfR
             END IF
             WRITE (*, *) dashes
@@ -1783,15 +1806,21 @@ CONTAINS
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      ! Check that something insane is not happening
+      ! Check that transfer function is okay for massive neutrinos
       IF ((cosm%m_nu .NE. 0) .AND. is_in_array(cosm%itk, [itk_none, itk_DEFW, itk_EH])) THEN
          STOP 'INIT_COSMOLOGY: You cannot use a linear power fitting function for massive neutrino cosmologies'
+      END IF
+
+      ! Check that transfer function is okay for modified gravity
+      IF (cosm%img == img_fR .AND. cosm%itk == itk_CAMB) THEN
+         STOP 'INIT_COSMOLOGY: Error, f(R) is not compatible with using a CAMB transfer function'
       END IF
 
       ! Get the CAMB power if necessary
       IF (cosm%itk == itk_CAMB)     CALL init_CAMB_linear(cosm)
       !IF (cosm%itk == itk_external) CALL init_external_linear(cosm)
       !IF (cosm%analytical_power)    CALL init_analytical_linear(cosm)
+      IF (cosm%img == img_fR)       CALL init_fR_linear(cosm)
 
       ! Change the flag *before* doing the normalisation calculation because it calls power
       cosm%is_normalised = .TRUE.
@@ -1822,41 +1851,35 @@ CONTAINS
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: sigma8_initial, sigma8_final, kbox_save
-      LOGICAL, PARAMETER :: run_CAMB_twice = .FALSE. ! This is almost always a stupid thing to do
 
       IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Normalising power to get correct sigma_8'
 
-      ! Remove the k-cut for the normalisation          
-      kbox_save = 0. ! Need to give this a value otherwise get a warning in debug mode
+      ! Remove the k-cut for the normalisation     
       IF (cosm%box) THEN
          kbox_save = cosm%kbox
          cosm%kbox = 0.
+      ELSE
+         kbox_save = 0. ! Need to give this a value otherwise get a warning in debug mode
       END IF
 
       ! Calculate the initial sigma_8 value (will not be correct)
       sigma8_initial = sigma8(cosm)
-
       IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Initial sigma_8:', real(sigma8_initial)
 
-      IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
-         cosm%A = cosm%sig8/sigma8_initial
-         !cosm%A=391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
-      ELSE IF(cosm%itk == itk_CAMB .OR. cosm%itk == itk_external) THEN
-         ! TODO: Resetting As is not really necesary and might not be logical to do here
+      IF (cosm%has_power) THEN
+         ! TODO: Resetting As (CMB) is not really necesary and might not be logical to do here
          ! TODO: Need to think about normalisation parameters as primary vs. seconary
          cosm%As = cosm%As*(cosm%sig8/sigma8_initial)**2 
          ! Normalisation
-         IF (run_CAMB_twice) THEN
-            ! Run again to normalise..., almost certainly foolish
-            CALL init_CAMB_linear(cosm)
+         ! ... or normalise using sigma8 and rescaling linear power
+         IF (cosm%scale_dependent_growth) THEN
+            cosm%log_plina = cosm%log_plina+2.*log(cosm%sig8/sigma8_initial)
          ELSE
-            ! ... or normalise using sigma8 and rescaling linear power
-            IF (cosm%scale_dependent_growth) THEN
-               cosm%log_plina = cosm%log_plina+2.*log(cosm%sig8/sigma8_initial)
-            ELSE
-               cosm%log_plin = cosm%log_plin+2.*log(cosm%sig8/sigma8_initial)
-            END IF
+            cosm%log_plin = cosm%log_plin+2.*log(cosm%sig8/sigma8_initial)
          END IF
+      ELSE IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
+         cosm%A = cosm%sig8/sigma8_initial
+         ! cosm%A = 391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
       ELSE
          STOP 'NORMALISE_POWER_SIGMA8: Error, cannot normalise with this itk'
       END IF
@@ -1913,7 +1936,7 @@ CONTAINS
    RECURSIVE REAL FUNCTION sigma8(cosm)
 
       ! Calculate the value of sigma8 from the linear power spectrum
-      ! Seems to need to call sigma_intergral, rather than sigma, not sure why, maybe regression?
+      ! TODO: Seems to need to call sigma_intergral, rather than sigma, not sure why, maybe regression?
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: R = 8. ! Because we are doing sigma(R = 8 Mpc/h) normalisation
@@ -1923,6 +1946,99 @@ CONTAINS
       !sigma8 = sigma(R, a, flag_power_total, cosm)
 
    END FUNCTION sigma8
+
+   SUBROUTINE init_fR_linear(cosm)
+
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: dinit, vinit
+      REAL, ALLOCATABLE :: k(:), a(:), gk(:, :), Pk(:, :)
+      REAL, ALLOCATABLE :: d_tab(:), v_tab(:), a_tab(:), d_new(:)
+      INTEGER :: ik
+      REAL :: g, norm
+      REAL, PARAMETER :: kmin = kmin_plin
+      REAL, PARAMETER :: kmax = kmax_plin
+      INTEGER, PARAMETER :: nk = nk_plin
+      REAL, PARAMETER :: amin = amin_plin
+      REAL, PARAMETER :: amax = amax_plin
+      INTEGER, PARAMETER :: na = na_plin
+      REAL, PARAMETER :: ainit_ode = ainit_growth
+      REAL, PARAMETER :: amax_ode = amax_growth
+
+      IF(cosm%verbose) WRITE (*, *) 'INIT_FR_LINEAR: Starting'
+
+      CALL fill_array_log(kmin, kmax, k, nk)
+      CALL fill_array_log(amin, amax, a, na)
+      ALLOCATE (gk(nk, na))
+
+      ALLOCATE(cosm%log_k_plin(nk), cosm%log_a_plin(na), cosm%log_plina(nk, na))
+      cosm%log_k_plin = log(k)
+      cosm%log_a_plin = log(a)
+
+      !Initial condtions for the EdS growing mode
+      dinit = ainit_ode
+      vinit = 1.
+
+      g = grow(1., cosm) ! Ensures that init_groth has run
+      norm = cosm%gnorm  ! Only will work if init_growth has run
+
+      IF(cosm%verbose) THEN
+         WRITE (*, *) 'INIT_FR_LINEAR: Solving scale-dependent growth ODE'
+         WRITE (*, *) 'INIT_FR_LINEAR: kmin [h/Mpc]:', kmin
+         WRITE (*, *) 'INIT_FR_LINEAR: kmax [h/Mpc]:', kmax
+         WRITE (*, *) 'INIT_FR_LINEAR: nk:', nk
+         WRITE (*, *) 'INIT_FR_LINEAR: amin:', amin
+         WRITE (*, *) 'INIT_FR_LINEAR: amax:', amax
+         WRITE (*, *) 'INIT_FR_LINEAR: na:', na
+      END IF
+
+      DO ik = 1, nk
+
+         CALL ODE_adaptive_cosmology(d_tab, v_tab, k(ik), a_tab, cosm, &
+            ainit_ode, amax_ode, &
+            dinit, vinit, &
+            ddda, dvda, &
+            acc_ODE_growth, imeth_ODE_growth, ilog=.FALSE. &
+         )
+
+         ! Normalise the solution
+         d_tab = d_tab/norm
+
+         ALLOCATE(d_new(na))
+         CALL interpolate_array(a_tab, d_tab, a, d_new, &
+            iorder = iorder_ODE_interpolation_growth, &
+            ifind = ifind_ODE_interpolation_growth, &
+            iinterp = imeth_ODE_interpolation_growth, &
+            logx = .TRUE., &
+            logy = .TRUE. &
+         )
+         gk(ik, :) = d_new
+         DEALLOCATE(d_new)
+
+      END DO
+
+      IF(cosm%verbose) THEN
+         WRITE (*, *) 'INIT_FR_LINEAR: ODE solved'
+         WRITE (*, *) 'INIT_FR_LINEAR: Calculating power'
+      END IF
+
+      ! Need to set is_normalised now so that linear power (from EH) can be got below
+      cosm%is_normalised = .TRUE.
+
+      ! Get the linear power, will not be correct at this stage
+      CALL calculate_plin(k, a, Pk, nk, na, cosm)
+      Pk = Pk*gk ! Mutliply through by scale-dependent growth to get f(R) linear shape
+      cosm%log_plina = log(Pk)
+      cosm%nk_plin = nk
+      cosm%na_plin = na
+
+      cosm%has_power = .TRUE.
+
+      IF(cosm%verbose) THEN
+         WRITE (*, *) 'INIT_FR_LINEAR: Done'
+         WRITE (*, *)
+      END IF
+
+   END SUBROUTINE init_fR_linear
 
    REAL FUNCTION comoving_critical_density(a, cosm)
 
@@ -3872,6 +3988,7 @@ CONTAINS
       REAL, ALLOCATABLE :: d_tab(:), v_tab(:), a_tab(:), f_tab(:)
       REAL :: dinit, vinit
       REAL :: g0, f0, bigG0
+      REAL, PARAMETER :: k = 0.
       REAL, PARAMETER :: ainit = ainit_growth
       REAL, PARAMETER :: amax = amax_growth
       INTEGER, PARAMETER :: ng = n_growth
@@ -3898,7 +4015,7 @@ CONTAINS
       END IF
 
       ! Solve the growth ODE
-      CALL ODE_adaptive_cosmology(d_tab, v_tab, 0., a_tab, cosm, ainit, amax, &
+      CALL ODE_adaptive_cosmology(d_tab, v_tab, k, a_tab, cosm, ainit, amax, &
          dinit, vinit, ddda, dvda, acc_ODE, imeth_ODE, .FALSE.)
       IF (cosm%verbose) WRITE (*, *) 'INIT_GROWTH: ODE done'
       na = SIZE(a_tab)
@@ -4013,9 +4130,8 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: f1, f2
-      REAL :: crap
 
-      f1 = 1.5*Omega_cold_norad(a, cosm)*G_lin(k, a, cosm)*d/a**2
+      f1 = 1.5*Omega_cold_norad(a, cosm)*G_lin(d, v, k, a, cosm)*d/a**2
       f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*v/a
       dvda = f1+f2
 
@@ -4036,7 +4152,7 @@ CONTAINS
       ! TODO: prevent compile-time warning
       crap = k
 
-      f1 = 1.5*Omega_cold_norad(a, cosm)*G_nl(d, a, cosm)*d*(1.+d)/a**2
+      f1 = 1.5*Omega_cold_norad(a, cosm)*G_nl(d, v, k, a, cosm)*d*(1.+d)/a**2
       f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*v/a
       f3 = (4./3.)*(v**2)/(1.+d)
 
@@ -4044,12 +4160,18 @@ CONTAINS
 
    END FUNCTION dvdanl
 
-   REAL FUNCTION G_lin(k, a, cosm)
+   REAL FUNCTION G_lin(d, v, k, a, cosm)
 
       ! Linear effective gravitational constant
+      REAL, INTENT(IN) :: d
+      REAL, INTENT(IN) :: v
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: crap
+
+      crap = d
+      crap = v
 
       IF (cosm%img == img_none) THEN
          G_lin = 1.
@@ -4110,12 +4232,31 @@ CONTAINS
 
    END FUNCTION Rbar
 
-   REAL FUNCTION G_nl(d, a, cosm)
+   REAL FUNCTION fR_a(a, cosm)
+
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: c1, c2
+
+      c1 = 1.+4.*cosm%Om_v/cosm%Om_m
+      c2 = (a**(-3))+4.*cosm%Om_v/cosm%Om_m
+
+      fR_a = cosm%fR0*((c1/c2)**(cosm%nfR+1.))
+  
+   END FUNCTION fR_a
+
+   REAL FUNCTION G_nl(d, v, k, a, cosm)
 
       ! Non-linear effective gravitational constant modification
       REAL, INTENT(IN) :: d
+      REAL, INTENT(IN) :: v
+      REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: crap
+
+      crap = v
+      crap = k
 
       IF (cosm%img == img_none) THEN
          G_nl = 1.
@@ -5603,8 +5744,8 @@ CONTAINS
       REAL, PARAMETER :: kmin_rebin = kmin_plin
       REAL, PARAMETER :: kmax_rebin = kmax_plin
       INTEGER, PARAMETER :: nk = nk_plin
-      REAL, PARAMETER :: amin = amin_CAMB              ! Minimum scale factor to get from CAMB
-      REAL, PARAMETER :: amax = amax_CAMB              ! Maximum scale factor to get from CAMB
+      REAL, PARAMETER :: amin = amin_plin              ! Minimum scale factor to get from CAMB
+      REAL, PARAMETER :: amax = amax_plin              ! Maximum scale factor to get from CAMB
       LOGICAL, PARAMETER :: rebin = rebin_CAMB         ! Should we rebin CAMB input P(k)?
       !INTEGER, PARAMETER :: iorder = iorder_rebin_CAMB ! Order for interpolation if rebinning
       !INTEGER, PARAMETER :: ifind = ifind_rebin_CAMB   ! Finding scheme for interpolation if rebinning
@@ -5616,7 +5757,7 @@ CONTAINS
 
       ! For scale-dependent growth fill the scale-factor array first
       IF (cosm%scale_dependent_growth) THEN
-         na = na_CAMB
+         na = na_plin
          CALL fill_array(log(amin), log(amax), cosm%log_a_plin, na)          
       ELSE
          ! For non-scale-dependent growth need a size-one array of a(1)=1.
@@ -7189,7 +7330,7 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = iorder_interp_pwiggle
       INTEGER, PARAMETER :: nsmooth = 10    
 
-      IF (cosm%analytical_power) CALL init_analytical_linear(cosm)
+      IF (.NOT. cosm%has_power) CALL init_analytical_linear(cosm)
 
       nk = cosm%nk_plin
 
