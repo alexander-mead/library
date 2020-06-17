@@ -887,15 +887,15 @@ CONTAINS
          IF (icosmo == 11) THEN
             ! Strong         
             cosm%H0rc = 0.1
-            cosm%sig8 = 1.0813979052
+            cosm%sig8 = 0.8*(1.0176/0.7790) ! Normalise to boring at a<<1
          ELSE IF (icosmo == 12) THEN
             ! Medium
             cosm%H0rc = 0.5
-            cosm%sig8 = 0.927171072956
+            cosm%sig8 = 0.8*(0.8717/0.7790) ! Normalise to boring at a<<1
          ELSE IF (icosmo == 13) THEN
             ! Weak
             cosm%H0rc = 2.0
-            cosm%sig8 = 0.861136740687
+            cosm%sig8 = 0.8*(0.8093/0.7790) ! Normalise to boring at a<<1
          END IF
       ELSE IF (icosmo == 14) THEN
          ! WDM
@@ -1247,13 +1247,13 @@ CONTAINS
          cosm%nfR = 1
          IF (icosmo == 84) THEN
             cosm%fR0 = -1e-4
-            cosm%sig8 = 0.8*(2.1654/2.0518)
+            cosm%sig8 = 0.8*(2.1654/2.0518) ! Normalise to boring at k<<1
          ELSE IF (icosmo == 85) THEN
             cosm%fR0 = -1e-5
-            cosm%sig8 = 0.8*(2.1058/2.0518)
+            cosm%sig8 = 0.8*(2.1058/2.0518) ! Normalise to boring at k<<1
          ELSE IF (icosmo == 86) THEN
             cosm%fR0 = -1e-6
-            cosm%sig8 = 0.8*(2.0654/2.0518)
+            cosm%sig8 = 0.8*(2.0654/2.0518) ! Normalise to boring at k<<1
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Something went wrong with f(R) models'
          END IF
