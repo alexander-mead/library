@@ -10,12 +10,12 @@ PROGRAM cosmology_functions_demo
    REAL :: a, z, k, r
    REAL :: t1, t2, t3, t4, xi
    REAL :: crap
-   REAL :: sigv, sig8, sigv100
+   REAL :: sigv, sigv100
    INTEGER :: i
    CHARACTER(len=256) :: cosmo
 
    LOGICAL, PARAMETER :: test_background = .TRUE.
-   LOGICAL, PARAMETER :: test_spherical = .TRUE.
+   LOGICAL, PARAMETER :: test_spherical = .FALSE.
    LOGICAL, PARAMETER :: test_power = .TRUE.
    LOGICAL, PARAMETER :: test_dewiggle = .TRUE.
    LOGICAL, PARAMETER :: test_correlation = .FALSE.
@@ -220,8 +220,8 @@ PROGRAM cosmology_functions_demo
       CALL CPU_TIME(t2)
       sigv100 = sigmaV(100., 1.0, flag_power_total, cosm)
       CALL CPU_TIME(t3)
-      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=0 Mpc/h,   a=1.0):', sigv
-      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=0 Mpc/h,   a=1.0) time [s]:', t2-t1
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(a=1.0):', sigv
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(a=1.0) time [s]:', t2-t1
       WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=100 Mpc/h, a=1.0):', sigv100
       WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: sigmaV(R=100 Mpc/h, a=1.0) time [s]:', t3-t2
       OPEN (10, file='data/sigmaV.dat')
