@@ -1382,7 +1382,6 @@ CONTAINS
       REAL :: xx(4), yy(4), fx(4), fy(4)
       REAL :: x0, y0
       REAL :: a0, a1, a2, a3
-      LOGICAL :: linear_edges
       INTEGER, PARAMETER :: ifind_default = ifind_interpolator_default
 
       CALL if_allocated_deallocate(interp%x)
