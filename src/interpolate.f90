@@ -1365,6 +1365,7 @@ CONTAINS
       ! Initialise a 2D interpolator
       ! TODO: Should end sections be quadratic when doing cubic interpolation?
       ! TODO: Linear extrapolation unnecessarily fills entire centre of array with linear interpolation
+      ! TODO: Linear extrapolation only needs to do rows ix = 1, nx-1, nx and same for y
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                    ! Input data x
       REAL, INTENT(IN) :: y(:)                    ! Input data x
@@ -1493,7 +1494,13 @@ CONTAINS
 
             DO iy = 1, ny
 
+               ! TODO: This should work, but it does not
+               !IF (iorder > 1 .AND. iy > 2 .AND. iy < ny-1) CYCLE
+
                DO ix = 1, nx
+
+                  ! TODO: This should work, but it does not
+                  !IF (iorder > 1 .AND. ix > 2 .AND. ix < nx-1) CYCLE
 
                   IF (ix /= nx) THEN
 
