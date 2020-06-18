@@ -2,8 +2,6 @@ MODULE interpolate
 
    ! TODO: Combine the integer finding that is carried out separately in 'find' and 'evaluate_interpolator'
    ! TODO: Combine the interpolation that is carried out separatly in 'find' and 'evaluate_interpolator'
-   ! TODO: Reverse array in init_interpolator
-   ! TODO: Linear extrapolation in 2D interpolator
    ! TODO: Create 3D interpolator
 
    USE table_integer
@@ -1366,7 +1364,7 @@ CONTAINS
 
       ! Initialise a 2D interpolator
       ! TODO: Should end sections be quadratic when doing cubic interpolation?
-      ! TODO: Linear extrapolation unnecessarily fills entire array with linear interpolation
+      ! TODO: Linear extrapolation unnecessarily fills entire centre of array with linear interpolation
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                    ! Input data x
       REAL, INTENT(IN) :: y(:)                    ! Input data x
@@ -1478,14 +1476,24 @@ CONTAINS
 
       IF (interp%store) THEN 
 
-         ALLOCATE(interp%x0(nx-1, ny), interp%ax0(nx-1, ny), interp%ax1(nx-1, ny))
-         ALLOCATE(interp%y0(nx, ny-1), interp%ay0(nx, ny-1), interp%ay1(nx, ny-1))
-         ALLOCATE(interp%ax2(nx-1, ny), interp%ax3(nx-1, ny))
-         ALLOCATE(interp%ay2(nx, ny-1), interp%ay3(nx, ny-1))
+         ALLOCATE(interp%x0(nx-1, ny), interp%y0(nx, ny-1))
+         ALLOCATE(interp%ax0(nx-1, ny), interp%ax1(nx-1, ny), interp%ax2(nx-1, ny), interp%ax3(nx-1, ny))
+         ALLOCATE(interp%ay0(nx, ny-1), interp%ay1(nx, ny-1), interp%ay2(nx, ny-1), interp%ay3(nx, ny-1))
+         interp%x0 = 0.
+         interp%ax0 = 0.
+         interp%ax1 = 0.
+         interp%ax2 = 0.
+         interp%ax3 = 0.
+         interp%y0 = 0.
+         interp%ay0 = 0.
+         interp%ay1 = 0.
+         interp%ay2 = 0.
+         interp%ay3 = 0.
          
          IF ((interp%iorder == 1) .OR. (iextrap == iextrap_linear)) THEN
 
             DO iy = 1, ny
+
                DO ix = 1, nx
 
                   IF (ix /= nx) THEN
@@ -1625,7 +1633,7 @@ CONTAINS
    REAL FUNCTION evaluate_interpolator_2D(x, y, interp)
 
       ! TODO: Quadratics at end sections?
-      ! TODO: Implement linear interpolation
+      ! TODO: Should linear interpolation turn of xycubic?
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: y
       TYPE(interpolator2D), INTENT(IN) :: interp

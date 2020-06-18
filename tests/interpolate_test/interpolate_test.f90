@@ -156,35 +156,46 @@ PROGRAM interpolate_test
       TYPE(interpolator2D) :: interp
       INTEGER :: iextrap, iorder
       LOGICAL :: logtest, store
-      REAL, PARAMETER :: xmin = 1e-3
-      REAL, PARAMETER :: xmax = 3.
+      REAL :: xmin, xmax, ymin, ymax
+      REAL :: xmin_test, xmax_test, ymin_test, ymax_test
       INTEGER, PARAMETER :: nx = 8
-      REAL, PARAMETER :: ymin = 1e-3
-      REAL, PARAMETER :: ymax = 5.
-      INTEGER, PARAMETER :: ny = 8
+      INTEGER, PARAMETER :: ny = 10
       INTEGER, PARAMETER :: mx = 64
-      INTEGER, PARAMETER :: my = 64
+      INTEGER, PARAMETER :: my = 32
       REAL, PARAMETER :: tol = 1e-8
       REAL, PARAMETER :: a = 2.
-      INTEGER, PARAMETER :: ntest = 6
+      INTEGER, PARAMETER :: ntest = 10
 
       fail = .FALSE.
 
       DO itest = 1, ntest
 
-         IF (itest == 1 .OR. itest == 4 .OR. itest == 5 .OR. itest == 6) THEN
+         IF (is_in_array(itest, [1, 3, 4, 5, 6, 7, 8, 9, 10])) THEN
+            xmin = 0.
+            xmax = 3.
+            ymin = 0.
+            ymax = 5.
             logtest = .FALSE.
-            iorder = 3
-            iextrap = iextrap_standard
+            IF (itest == 3) THEN
+               iorder = 2
+            ELSE IF (is_in_array(itest, [1, 4, 5, 6, 9])) THEN
+               iorder = 3
+            ELSE
+               iorder = 1
+            END IF
+            IF (itest == 9 .OR. itest == 10) THEN
+               iextrap = iextrap_linear
+            ELSE
+               iextrap = iextrap_standard
+            END IF
             store = .TRUE.
          ELSE IF (itest == 2) THEN
+            xmin = 1e-3
+            xmax = 3.
+            ymin = 1e-3
+            ymax = 3.
             logtest = .TRUE.
             iorder = 3
-            iextrap = iextrap_standard
-            store = .TRUE.
-         ELSE IF (itest == 3) THEN
-            logtest = .FALSE.
-            iorder = 2
             iextrap = iextrap_standard
             store = .TRUE.
          ELSE
@@ -204,13 +215,23 @@ PROGRAM interpolate_test
                f(ix, iy) = test_function_2D(x(ix), y(iy), itest)
             END DO
          END DO
-
          CALL init_interpolator(x, y, f, interp, iorder, iextrap, store=store, logx=logtest, logy=logtest, logf=logtest)
 
+         IF (itest == 8 .OR. itest == 9 .OR. itest == 10) THEN
+            xmin_test = xmin-1.
+            xmax_test = xmax+1.
+            ymin_test = ymin-1.
+            ymax_test = ymax+1.
+         ELSE
+            xmin_test = xmin
+            xmax_test = xmax
+            ymin_test = ymin
+            ymax_test = ymax
+         END IF
          DO ix = 1, mx
             DO iy = 1, my
-               xv = progression(xmin, xmax, ix, mx)
-               yv = progression(ymin, ymax, iy, my)
+               xv = progression(xmin_test, xmax_test, ix, mx)
+               yv = progression(ymin_test, ymax_test, iy, my)
                fv = evaluate_interpolator(xv, yv, interp)
                ft = test_function_2D(xv, yv, itest)
                IF(.NOT. requal(fv, ft, tol)) THEN
@@ -249,6 +270,8 @@ PROGRAM interpolate_test
          f = 12.*x*y
       ELSE IF (itest == 3) THEN
          f = x+3.*y+1.
+      ELSE IF (itest == 7 .OR. itest == 8 .OR. itest == 9 .OR. itest == 10) THEN
+         f = 3.*x+4.*y
       ELSE
          STOP 'TEST_FUNCTION_2D: Error, itest specified incorrectly'
       END IF
