@@ -1850,8 +1850,8 @@ CONTAINS
 
       ! Get the CAMB power if necessary
       IF (cosm%itk == itk_CAMB) CALL init_CAMB_linear(cosm)
-      !IF (cosm%itk == itk_external) CALL init_external_linear(cosm)
-      !IF (cosm%analytical_power) CALL init_analytical_linear(cosm)
+      !IF (cosm%itk == itk_external) CALL init_external_linear(cosm) ! This is now done in init_cosmology
+      !IF (cosm%analytical_power) CALL init_analytical_linear(cosm) ! If you want to create interpolator for analytical P(k)
       IF (cosm%img == img_fR .OR. cosm%img == img_fR_lin) CALL init_fR_linear(cosm)
 
       ! Change the flag *before* doing the normalisation calculation because it calls power
@@ -5865,8 +5865,6 @@ CONTAINS
       INTEGER, PARAMETER :: nk = nk_plin
       INTEGER, PARAMETER :: na = 1
 
-      STOP 'INIT_ANALYICAL_LINEAR: Error, this does not work'
-
       CALL fill_array_log(kmin, kmax, k, nk)
       ALLOCATE(a(na), Pk(nk, na))
       a = 1.
@@ -5925,6 +5923,8 @@ CONTAINS
             logy = .TRUE., &
             logf = .TRUE.)
       END IF
+
+      IF (cosm%is_normalised) cosm%A = 1.
 
       IF (cosm%verbose) THEN
          WRITE (*, *) 'INIT_LINEAR: Done'
@@ -7339,6 +7339,7 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = iorder_interp_wiggle
       INTEGER, PARAMETER :: n_smooth = n_wiggle_smooth
 
+      ! This is no longer necessary
       !IF (.NOT. cosm%has_power) CALL init_analytical_linear(cosm)
 
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Starting'
