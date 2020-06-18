@@ -194,8 +194,8 @@ MODULE cosmology_functions
       LOGICAL :: trivial_cold            ! Is the cold spectrum trivially related to the matter spectrum?    
       
       ! Look-up tables that are filled during a calculation
-      REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:)     ! Arrays for input linear P(k)
-      REAL, ALLOCATABLE :: log_a_plin(:), log_plina(:, :) ! Arrays for input linear P(k, a)
+      REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:)     ! Arrays for input linear P(k) TODO: Remove
+      REAL, ALLOCATABLE :: log_a_plin(:), log_plina(:, :) ! Arrays for input linear P(k, a) TODO: Remove
       TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde ! 1D interpolators
       TYPE(interpolator1D) :: plin, wiggle
       TYPE(interpolator2D) :: sigmaa, plina, Tcold ! 2D interpolators 
@@ -289,7 +289,6 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: flag_power_total = 1      ! Flag to get the total matter power spectrum
    INTEGER, PARAMETER :: flag_power_cold = 2       ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
    INTEGER, PARAMETER :: flag_power_cold_unorm = 3 ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
-   LOGICAL, PARAMETER :: old_normalisation = .TRUE.
 
    ! Linear power interpolation
    REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used [h/Mpc]
@@ -298,7 +297,6 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amin_plin = 0.1                    ! Minimum a value for Pk growth is scale dependent
    REAL, PARAMETER :: amax_plin = 1.0                    ! Maximum a value for Pk when linear growth is scale dependent
    INTEGER, PARAMETER :: na_plin = 16                    ! Number of a values for linear P(k,a) tables if growth is scale dependent
-   LOGICAL, PARAMETER :: power_interpolator = .TRUE.     ! Use dedicated interpolator for power?
    INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Order for interpolation
    INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
    INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
@@ -326,15 +324,16 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: store_Tcold = .TRUE.
 
    ! De-wiggle power
-   REAL, PARAMETER :: kmin_dewiggle = 0.008
-   REAL, PARAMETER :: kmax_dewiggle = 1.
-   INTEGER, PARAMETER :: nk_dewiggle = nk_plin
-   INTEGER, PARAMETER :: wiggle_Lagrange = 1
-   INTEGER, PARAMETER :: wiggle_smooth = 2
-   INTEGER, PARAMETER :: imethod_pwiggle = wiggle_Lagrange
-   INTEGER, PARAMETER :: iorder_interp_pwiggle = 3
-   INTEGER, PARAMETER :: iextrap_pwiggle = iextrap_zero
-   LOGICAL, PARAMETER :: store_pwiggle = .TRUE.            ! Pre-calculate interpolation coefficients
+   REAL, PARAMETER :: kmin_wiggle = 0.008                 ! Minimum wavenumber to calulate wiggle
+   REAL, PARAMETER :: kmax_wiggle = 1.                    ! Maximum wavenumber to calculate wiggle
+   INTEGER, PARAMETER :: nk_wiggle = 128                  ! Number of k points to store wiggle
+   INTEGER, PARAMETER :: wiggle_Lagrange = 1              ! Method to calculate wiggle using Lagrange polynomials
+   INTEGER, PARAMETER :: wiggle_smooth = 2                ! Method to calculate wiggle using array smoothing
+   INTEGER, PARAMETER :: n_wiggle_smooth = 10             ! If using array smoothing number of entries to smooth over
+   INTEGER, PARAMETER :: imethod_wiggle = wiggle_Lagrange ! Choose method for wiggle
+   INTEGER, PARAMETER :: iorder_interp_wiggle = 3         ! Order for wiggle interpolator
+   INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero    ! Should be zeros because interpolator stores only wiggle
+   LOGICAL, PARAMETER :: store_wiggle = .TRUE.            ! Pre-calculate interpolation coefficients
 
    ! Correlation function
    ! TODO: This works very poorly
@@ -1540,13 +1539,7 @@ CONTAINS
       END IF
 
       ! TILMAN: Added this
-      ! Ensure deallocate linear-power tables if not using external tables
-      IF (cosm%itk /= itk_external) THEN
-         CALL if_allocated_deallocate(cosm%log_k_plin)
-         CALL if_allocated_deallocate(cosm%log_a_plin)
-         CALL if_allocated_deallocate(cosm%log_plin)
-         CALL if_allocated_deallocate(cosm%log_plina)
-      ELSE
+      IF (cosm%itk == itk_external) THEN
          cosm%has_power = .TRUE.
       END IF
 
@@ -1906,45 +1899,11 @@ CONTAINS
       IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Initial sigma_8:', real(sigma8_initial)
 
       ! Normalisation factor
-      !TODO: Resetting As (CMB) is not really necesary and might not be logical to do here
+      ! TODO: Resetting As (CMB) is not really necesary and might not be logical to do here
       ! TODO: Need to think about normalisation parameters as primary vs. seconary  
+      ! cosm%A = 391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
       cosm%A = cosm%A*cosm%sig8/sigma8_initial
       cosm%As = cosm%As*cosm%A**2 
-
-      IF (cosm%has_power) THEN
-         ! Normalisation
-         ! ... or normalise using sigma8 and rescaling linear power
-         !corr = 2.*log(cosm%sig8/sigma8_initial)
-         IF (old_normalisation) THEN
-            corr = 2.*log(cosm%A)
-            IF (power_interpolator) THEN
-               IF (cosm%scale_dependent_growth) THEN
-                  IF (.NOT. cosm%plina%logf) STOP 'NORMALISE_POWER_SIGMA8: This will not work unless P(k) is stored as log'
-                  cosm%plina%f = cosm%plina%f+corr
-                  IF (store_plin) THEN
-                     cosm%plina%ax0 = cosm%plina%ax0+corr
-                     cosm%plina%ay0 = cosm%plina%ay0+corr
-                  END IF
-               ELSE
-                  IF (.NOT. cosm%plin%logf) STOP 'NORMALISE_POWER_SIGMA8: This will not work unless P(k) is stored as log'
-                  cosm%plin%f = cosm%plin%f+corr
-                  IF (store_plin) cosm%plin%a0 = cosm%plin%a0+corr
-               END IF
-            ELSE
-               IF (cosm%scale_dependent_growth) THEN
-                  cosm%log_plina = cosm%log_plina+corr
-               ELSE
-                  cosm%log_plin = cosm%log_plin+corr
-               END IF
-            END IF
-         END IF
-      !ELSE IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
-      !   cosm%A = cosm%sig8/sigma8_initial
-      !   ! cosm%A = 391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
-      !ELSE
-      !   STOP 'NORMALISE_POWER_SIGMA8: Error, cannot normalise with this itk'
-      !END IF
-      END IF
 
       ! Replace the k-cut if necessary
       IF (cosm%box) THEN
@@ -1969,23 +1928,9 @@ CONTAINS
       ! Normalise the power spectrum by fixing the power at some wavenumber at a=1
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: fac
       REAL, PARAMETER :: a = 1.
-      
-      IF (old_normalisation) THEN
-         IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
-            cosm%A = cosm%A*sqrt(cosm%pval/plin(cosm%kval, a, flag_power_total, cosm))
-         ELSE
-            fac = cosm%pval/plin(cosm%kval, a, flag_power_total, cosm)
-            IF (cosm%scale_dependent_growth) THEN
-               cosm%log_plina = cosm%log_plina+log(fac)
-            ELSE
-               cosm%log_plin = cosm%log_plin+log(fac)
-            END IF
-         END IF
-      ELSE
-         cosm%A = cosm%A*sqrt(cosm%pval/plin(cosm%kval, a, flag_power_total, cosm))
-      END IF
+   
+      cosm%A = cosm%A*sqrt(cosm%pval/plin(cosm%kval, a, flag_power_total, cosm))
 
    END SUBROUTINE normalise_power_value
 
@@ -2035,12 +1980,6 @@ CONTAINS
       CALL fill_array_log(kmin, kmax, k, nk)
       CALL fill_array_log(amin, amax, a, na)
       ALLOCATE (gk(nk, na))
-
-      IF (.NOT. power_interpolator) THEN
-         ALLOCATE(cosm%log_k_plin(nk), cosm%log_a_plin(na), cosm%log_plina(nk, na))
-         cosm%log_k_plin = log(k)
-         cosm%log_a_plin = log(a)
-      END IF
 
       !Initial condtions for the EdS growing mode
       dinit = ainit_ode
@@ -2102,19 +2041,13 @@ CONTAINS
       CALL calculate_plin(k, a, Pk, nk, na, cosm)
       Pk = Pk*gk ! Mutliply through by scale-dependent growth to get f(R) linear shape
 
-      IF (power_interpolator) THEN
-         CALL init_interpolator(k, a, Pk, cosm%plina, &
-            iorder = iorder_interp_plin, &
-            iextrap = iextrap_plin, &
-            store = store_plin, &
-            logx = .TRUE., &
-            logy = .TRUE., &
-            logf = .TRUE.)
-      ELSE
-         cosm%log_plina = log(Pk)
-         cosm%nk_plin = nk
-         cosm%na_plin = na
-      END IF
+      CALL init_interpolator(k, a, Pk, cosm%plina, &
+         iorder = iorder_interp_plin, &
+         iextrap = iextrap_plin, &
+         store = store_plin, &
+         logx = .TRUE., &
+         logy = .TRUE., &
+         logf = .TRUE.)
 
       ! Switch analyical power off and set flag for stored power
       cosm%analytical_power = .FALSE.
@@ -3362,11 +3295,6 @@ CONTAINS
          Tcold = Tcold_EH(k, a, cosm)
       ELSE IF (method == method_cold_CAMB) THEN
          ! Use look-up tables from CAMB transfer functions
-         ! Tcold = find(log(k), cosm%log_k_Tcold, log(a), cosm%log_a_plin, cosm%Tcold, cosm%nk_Tcold, cosm%na_plin, &
-         !    iorder = iorder_interp_plin, &
-         !    ifindx = ifind_interp_plin, &
-         !    ifindy = ifind_interp_plin, &
-         !    iinterp = iinterp_polynomial) ! No Lagrange polynomials 
          Tcold = evaluate_interpolator(k, a, cosm%Tcold)
       ELSE
          STOP 'TCOLD: Error, method not specified correctly'
@@ -3489,7 +3417,6 @@ CONTAINS
       INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: kmax, pmax
-      INTEGER :: nk
       INTEGER, PARAMETER :: iorder = iorder_interp_plin ! Order for interpolation (3 - cubic)
       INTEGER, PARAMETER :: ifind = ifind_interp_plin   ! Finding scheme in table (3 - Mid-point method)
       INTEGER, PARAMETER :: iinterp = iinterp_plin      ! Method for polynomials (2 - Lagrange polynomials)
@@ -3510,58 +3437,30 @@ CONTAINS
          plin = 0.
       ELSE
          IF (cosm%has_power) THEN
-            IF (plin_extrap) THEN
-               IF (.NOT. power_interpolator) THEN
-                  nk = cosm%nk_plin
-                  kmax = exp(cosm%log_k_plin(nk))
-               END IF
-            END IF
             IF (cosm%scale_dependent_growth) THEN
-               IF (power_interpolator) kmax = cosm%plina%xmax
+               kmax = cosm%plina%xmax
                IF (plin_extrap .AND. k > kmax) THEN
-                  IF (power_interpolator) THEN
-                     pmax = evaluate_interpolator(kmax, a, cosm%plina)
-                  ELSE
-                     pmax = exp(find(log(a), cosm%log_a_plin, cosm%log_plina(nk, :), cosm%na_plin, &
-                        iorder, ifind, iinterp))
-                  END IF
+                  pmax = evaluate_interpolator(kmax, a, cosm%plina)
                   plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
                ELSE
-                  IF (power_interpolator) THEN
-                     plin = evaluate_interpolator(k, a, cosm%plina)
-                  ELSE
-                     plin = exp(find(log(k), cosm%log_k_plin, log(a), cosm%log_a_plin, &
-                        cosm%log_plina, cosm%nk_plin, cosm%na_plin, iorder, ifind, ifind, iinterp_polynomial))
-                  END IF
+                  plin = evaluate_interpolator(k, a, cosm%plina)
                END IF
             ELSE
-               IF (power_interpolator) kmax = cosm%plin%xmax
+               kmax = cosm%plin%xmax
                IF(plin_extrap .AND. k > kmax) THEN
-                  IF (power_interpolator) THEN
-                     pmax = evaluate_interpolator(kmax, cosm%plin)
-                  ELSE
-                     pmax = exp(cosm%log_plin(nk))
-                  END IF
+                  pmax = evaluate_interpolator(kmax, cosm%plin)
                   plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
                ELSE
-                  IF (power_interpolator) THEN
-                     plin = evaluate_interpolator(k, cosm%plin)
-                  ELSE
-                     plin = exp(find(log(k), cosm%log_k_plin, cosm%log_plin, cosm%nk_plin, iorder, ifind, iinterp))
-                  END IF
+                  plin = evaluate_interpolator(k, cosm%plin)
                END IF
                plin = (grow(a, cosm)**2)*plin
             END IF
          ELSE
             ! In this case get the power from the transfer function
-            IF (old_normalisation) THEN
-               plin = (cosm%A**2)*(grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%ns+3.))             
-            ELSE
-               plin = (grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%ns+3.))
-            END IF
+            plin = (grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%ns+3.))
          END IF
       END IF
-      IF (.NOT. old_normalisation) plin = plin*cosm%A**2
+      plin = plin*cosm%A**2
 
       IF (flag == flag_power_cold .OR. flag == flag_power_cold_unorm) THEN
          plin = plin*Tcold(k, a, cosm)**2
@@ -3614,8 +3513,8 @@ CONTAINS
       ! This does not need to be evaulated at multiple a unless growth is scale dependent
       IF (cosm%scale_dependent_growth) THEN
          IF (cosm%has_power) THEN
-            amin = exp(cosm%log_a_plin(1))
-            amax = exp(cosm%log_a_plin(cosm%na_plin))
+            amin = cosm%plina%ymin
+            amax = cosm%plina%ymax
          ELSE
             amin = amin_sigma
             amax = amax_sigma
@@ -5864,18 +5763,11 @@ CONTAINS
       ! For scale-dependent growth fill the scale-factor array first
       IF (cosm%scale_dependent_growth) THEN
          na = na_plin
-         CALL fill_array(log(amin), log(amax), cosm%log_a_plin, na)          
+         CALL fill_array_log(amin, amax, a, na)          
       ELSE
          ! For non-scale-dependent growth need a size-one array of a(1)=1.
          na = 1
-      END IF
-
-      ! Fill arrays
-      cosm%na_plin = na
-      ALLOCATE(a(na))
-      IF (cosm%scale_dependent_growth) THEN
-         a = exp(cosm%log_a_plin)
-      ELSE
+         ALLOCATE(a(na))
          a = 1.
       END IF
 
@@ -5973,6 +5865,8 @@ CONTAINS
       INTEGER, PARAMETER :: nk = nk_plin
       INTEGER, PARAMETER :: na = 1
 
+      STOP 'INIT_ANALYICAL_LINEAR: Error, this does not work'
+
       CALL fill_array_log(kmin, kmax, k, nk)
       ALLOCATE(a(na), Pk(nk, na))
       a = 1.
@@ -6015,42 +5909,21 @@ CONTAINS
          WRITE (*, *) 'INIT_LINEAR: Initialising interpolator'
       END IF
 
-      IF (power_interpolator) THEN
-
-         IF (na == 1) THEN
-            CALL init_interpolator(k, Pk(:, 1), cosm%plin, &
-               iorder = iorder_interp_plin, &
-               iextrap = iextrap_plin, &
-               store = store_plin, &
-               logx = .TRUE., &
-               logf = .TRUE.)
-         ELSE
-            CALL init_interpolator(k, a, Pk, cosm%plina, &
-               iorder = iorder_interp_plin, &
-               iextrap = iextrap_plin, &
-               store = store_plin, &
-               logx = .TRUE., &
-               logy = .TRUE., &
-               logf = .TRUE.)
-         END IF
-
+      IF (na == 1) THEN
+         CALL init_interpolator(k, Pk(:, 1), cosm%plin, &
+            iorder = iorder_interp_plin, &
+            iextrap = iextrap_plin, &
+            store = store_plin, &
+            logx = .TRUE., &
+            logf = .TRUE.)
       ELSE
-
-         cosm%nk_plin = nk
-         cosm%na_plin = na
-         CALL safe_allocate(cosm%log_k_plin, nk)
-         cosm%log_k_plin = log(k)
-
-         IF (na == 1) THEN
-            CALL safe_allocate(cosm%log_plin, nk)
-            cosm%log_plin = log(Pk(:, 1))
-         ELSE
-            CALL safe_allocate(cosm%log_a_plin, na)
-            cosm%log_a_plin = log(a)
-            CALL safe_allocate(cosm%log_plina, nk, na)
-            cosm%log_plina = log(Pk)
-         END IF
-
+         CALL init_interpolator(k, a, Pk, cosm%plina, &
+            iorder = iorder_interp_plin, &
+            iextrap = iextrap_plin, &
+            store = store_plin, &
+            logx = .TRUE., &
+            logy = .TRUE., &
+            logf = .TRUE.)
       END IF
 
       IF (cosm%verbose) THEN
@@ -6117,23 +5990,21 @@ CONTAINS
          RETURN
       ENDIF
 
-      IF (power_interpolator) THEN
-         IF (cosm%scale_dependent_growth) THEN
-            CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_a_plin), exp(cosm%log_plina), cosm%plina, &
-               iorder = iorder_interp_plin, &
-               iextrap = iextrap_plin, &
-               store = store_plin, &
-               logx = .TRUE., &
-               logy = .TRUE., &
-               logf = .TRUE.)
-         ELSE
-            CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_plin), cosm%plin, &
-               iorder = iorder_interp_plin, &
-               iextrap = iextrap_plin, &
-               store = store_plin, &
-               logx = .TRUE., &
-               logf = .TRUE.)
-         END IF
+      IF (cosm%scale_dependent_growth) THEN
+         CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_a_plin), exp(cosm%log_plina), cosm%plina, &
+            iorder = iorder_interp_plin, &
+            iextrap = iextrap_plin, &
+            store = store_plin, &
+            logx = .TRUE., &
+            logy = .TRUE., &
+            logf = .TRUE.)
+      ELSE
+         CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_plin), cosm%plin, &
+            iorder = iorder_interp_plin, &
+            iextrap = iextrap_plin, &
+            store = store_plin, &
+            logx = .TRUE., &
+            logf = .TRUE.)
       END IF
 
       cosm%has_power = .TRUE.
@@ -7460,73 +7331,38 @@ CONTAINS
       REAL :: logkv(4), logpv(4)
       REAL, ALLOCATABLE :: k(:), Pk(:), Pka(:, :)
       REAL, ALLOCATABLE :: logk(:), logPk(:)
-      REAL, ALLOCATABLE :: Pk_smooth(:), logPk_smooth(:), Pk_wiggles(:)
-      INTEGER :: i, nk
+      REAL, ALLOCATABLE :: Pk_smooth(:), logPk_smooth(:), Pk_wiggle(:)
+      INTEGER :: i
+      REAL, PARAMETER :: kmin = kmin_wiggle
+      REAL, PARAMETER :: kmax = kmax_wiggle
+      INTEGER, PARAMETER  :: nk = nk_wiggle
+      INTEGER, PARAMETER :: iorder = iorder_interp_wiggle
+      INTEGER, PARAMETER :: n_smooth = n_wiggle_smooth
 
-      REAL, PARAMETER :: kmin = kmin_dewiggle
-      REAL, PARAMETER :: kmax = kmax_dewiggle
-      !INTEGER, PARAMETER  :: nk = nk_dewiggle
-      INTEGER, PARAMETER :: iorder = iorder_interp_pwiggle
-      INTEGER, PARAMETER :: nsmooth = 10    
-
-      IF (.NOT. cosm%has_power) CALL init_analytical_linear(cosm)
+      !IF (.NOT. cosm%has_power) CALL init_analytical_linear(cosm)
 
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Starting'
 
-      IF (old_normalisation) THEN
-         IF (power_interpolator) THEN
-            IF (cosm%scale_dependent_growth) THEN
-               nk = cosm%plina%nx
-            ELSE
-               nk = cosm%plin%n
-            END IF
-         ELSE
-            nk = cosm%nk_plin
-         END IF
-      ELSE
-         nk = nk_dewiggle
-      END IF
-
       ! Allocate arrays
       ALLOCATE (logk(nk), Pk(nk), logPk(nk))
-      ALLOCATE (Pk_wiggles(nk), Pk_smooth(nk))
+      ALLOCATE (Pk_wiggle(nk), Pk_smooth(nk))
 
       ! Allocate the internal arrays from the cosmology arrays
-      IF (old_normalisation) THEN
-         IF (power_interpolator) THEN
-            IF (cosm%scale_dependent_growth) THEN
-               logPk = cosm%plina%f(:, cosm%plina%ny)
-               logk = cosm%plina%x
-            ELSE
-               logPk = cosm%plin%f
-               logk = cosm%plin%x
-            END IF
-         ELSE
-            IF(cosm%scale_dependent_growth) THEN
-               logPk = cosm%log_plina(:, cosm%na_plin)
-            ELSE
-               logPk = cosm%log_plin
-            END IF
-            logk = cosm%log_k_plin
-         END IF
-         Pk = exp(logPk)
-      ELSE
-         IF(.NOT. cosm%is_normalised) STOP 'INIT_WIGGLE: Error, linear power must be normalised'
-         CALL fill_array_log(kmin, kmax, k, nk)
-         logk = log(k)
-         CALL calculate_plin(k, [1.], Pka, nk, 1, cosm)
-         Pk = Pka(:, 1)
-         logPk = log(Pk)
-      END IF   
+      IF(.NOT. cosm%is_normalised) STOP 'INIT_WIGGLE: Error, linear power must be normalised'
+      CALL fill_array_log(kmin, kmax, k, nk)
+      logk = log(k)
+      CALL calculate_plin(k, [1.], Pka, nk, 1, cosm)
+      Pk = Pka(:, 1)
+      logPk = log(Pk)
 
       IF (cosm%verbose) THEN
-         WRITE(*, *) 'INIT_WIGGLE: kmin [h/Mpc]:', exp(logk(1))
-         WRITE(*, *) 'INIT_WIGGLE: kmax [h/Mpc]:', exp(logk(nk))
+         WRITE(*, *) 'INIT_WIGGLE: kmin [h/Mpc]:', k(1)
+         WRITE(*, *) 'INIT_WIGGLE: kmax [h/Mpc]:', k(nk)
          WRITE(*, *) 'INIT_WIGGLE: nk:', nk
          WRITE(*, *) 'INIT_WIGGLE: Splitting into wiggle and broad-band'
       END IF
 
-      IF(imethod_pwiggle == wiggle_Lagrange) THEN
+      IF(imethod_wiggle == wiggle_Lagrange) THEN
 
          ! Fixed k values - CAMB
          logkv(1) = log(0.008)
@@ -7548,11 +7384,11 @@ CONTAINS
             END IF
          END DO
 
-      ELSE IF (imethod_pwiggle == wiggle_smooth) THEN
+      ELSE IF (imethod_wiggle == wiggle_smooth) THEN
 
          ALLOCATE (logPk_smooth(nk))
          logPk_smooth = logPk
-         CALL smooth_array(logPk_smooth, nsmooth)
+         CALL smooth_array(logPk_smooth, n_smooth)
          Pk_smooth = exp(logPk_smooth)
 
       ELSE
@@ -7562,15 +7398,15 @@ CONTAINS
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Isolating wiggle'
 
       ! Isolate just the wiggles
-      ! It is difficult to make this operation (subtraction) fast given log arrays
-      Pk_wiggles = Pk-Pk_smooth
+      ! It is difficult to make this operation (subtraction) fast given log arrays 
+      Pk_wiggle = Pk-Pk_smooth  
 
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Initialising interpolator'
 
-      CALL init_interpolator(exp(logk), Pk_wiggles, cosm%wiggle, &
-         iorder = iorder_interp_pwiggle, &
-         iextrap = iextrap_pwiggle, &
-         store = store_pwiggle, &
+      CALL init_interpolator(k, Pk_wiggle, cosm%wiggle, &
+         iorder = iorder_interp_wiggle, &
+         iextrap = iextrap_wiggle, &
+         store = store_wiggle, &
          logx = .TRUE., &
          logf = .FALSE.)
 
@@ -7587,8 +7423,6 @@ CONTAINS
    REAL FUNCTION p_dewiggle(k, a, flag, sigv, cosm)
 
       ! Call the dewiggled power spectrum
-      ! TODO: Convert this to a wiggle T(k)?
-      ! TODO: replace p_linear = ... with IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm)
       IMPLICIT NONE
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
@@ -7599,9 +7433,10 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: ifind = 3
       INTEGER, PARAMETER :: imeth = 2
-
+   
+      IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm) 
+      IF (.NOT. cosm%has_wiggle) CALL init_wiggle(cosm)  
       p_linear = plin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle   
-      IF (.NOT. cosm%has_wiggle) CALL init_wiggle(cosm)
       p_wiggle = evaluate_interpolator(k, cosm%wiggle)
       f = exp(-(k*sigv)**2)
       p_dewiggle = p_linear+(f-1.)*p_wiggle*grow(a, cosm)**2

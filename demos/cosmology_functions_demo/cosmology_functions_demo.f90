@@ -15,7 +15,7 @@ PROGRAM cosmology_functions_demo
    CHARACTER(len=256) :: cosmo
 
    LOGICAL, PARAMETER :: test_background = .TRUE.
-   LOGICAL, PARAMETER :: test_spherical = .TRUE.
+   LOGICAL, PARAMETER :: test_spherical = .FALSE.
    LOGICAL, PARAMETER :: test_power = .TRUE.
    LOGICAL, PARAMETER :: test_dewiggle = .TRUE.
    LOGICAL, PARAMETER :: test_correlation = .FALSE.
@@ -164,7 +164,7 @@ PROGRAM cosmology_functions_demo
    IF(test_dewiggle) THEN   
       IF (verbose) WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing wiggle'
       sigv = 1000. ! Set to a high value  
-      crap = p_dewiggle(0.1, 1., flag_power_total, sigv, cosm) ! Necessary to prevent function write
+      a = 1.0
       OPEN(10, file = 'data/dewiggle.dat')
       DO i = 1, nk
          k = progression_log(kmin, kmax, i, nk)
