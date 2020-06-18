@@ -88,9 +88,10 @@ MODULE interpolate
    TYPE interpolator2D
       REAL, ALLOCATABLE :: x(:), y(:)
       REAL, ALLOCATABLE :: f(:, :)
-      REAL, ALLOCATABLE :: x0(:, :), y0(:, :)
+      REAL, ALLOCATABLE :: x0(:, :), y0(:, :), xl0(:, :), yl0(:, :)
       REAL, ALLOCATABLE :: ax0(:, :), ax1(:, :), ax2(:, :), ax3(:, :)
       REAL, ALLOCATABLE :: ay0(:, :), ay1(:, :), ay2(:, :), ay3(:, :)
+      REAL, ALLOCATABLE :: bx0(:, :), bx1(:, :), by0(:, :), by1(:, :)
       REAL :: xmin, xmax, ymin, ymax
       INTEGER :: iorder, iextrap
       INTEGER :: ifindx, ifindy 
@@ -1365,6 +1366,7 @@ CONTAINS
 
       ! Initialise a 2D interpolator
       ! TODO: Should end sections be quadratic when doing cubic interpolation?
+      ! TODO: Linear extrapolation unnecessarily fills entire array with linear interpolation
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                    ! Input data x
       REAL, INTENT(IN) :: y(:)                    ! Input data x
@@ -1376,12 +1378,13 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: logx       ! Should interpolator take the logarithm of x?
       LOGICAL, OPTIONAL, INTENT(IN) :: logy       ! Should interpolator take the logarithm of x?
       LOGICAL, OPTIONAL, INTENT(IN) :: logf       ! Should interpolator take the logarithm of y?
-      INTEGER :: ix, iy, nx, ny, nnx, nny
+      INTEGER :: ix, iy, nx, ny
       INTEGER :: jx(4), jy(4)
       INTEGER :: i
       REAL :: xx(4), yy(4), fx(4), fy(4)
       REAL :: x0, y0
       REAL :: a0, a1, a2, a3
+      LOGICAL :: linear_edges
       INTEGER, PARAMETER :: ifind_default = ifind_interpolator_default
 
       CALL if_allocated_deallocate(interp%x)
@@ -1395,6 +1398,8 @@ CONTAINS
       CALL if_allocated_deallocate(interp%ay1)
       CALL if_allocated_deallocate(interp%ay2)
       CALL if_allocated_deallocate(interp%ay3)
+
+      IF (iorder > 3 .OR. iorder < 0) STOP 'INIT_INTERPOLATOR_2D: Error, this order is not supported'
 
       ! Sort out x axis
       nx = size(x)
@@ -1471,27 +1476,17 @@ CONTAINS
       interp%iextrap = iextrap
       interp%store = store
 
-      IF (interp%store) THEN
+      IF (interp%store) THEN 
 
-         IF (interp%iextrap == iextrap_linear) THEN
-            nnx = nx+1
-            nny = ny+1
-         ELSE
-            nnx = nx
-            nny = ny
-         END IF
+         ALLOCATE(interp%x0(nx-1, ny), interp%ax0(nx-1, ny), interp%ax1(nx-1, ny))
+         ALLOCATE(interp%y0(nx, ny-1), interp%ay0(nx, ny-1), interp%ay1(nx, ny-1))
+         ALLOCATE(interp%ax2(nx-1, ny), interp%ax3(nx-1, ny))
+         ALLOCATE(interp%ay2(nx, ny-1), interp%ay3(nx, ny-1))
+         
+         IF ((interp%iorder == 1) .OR. (iextrap == iextrap_linear)) THEN
 
-         ALLOCATE(interp%x0(nnx-1, nny), interp%ax0(nnx-1, nny), interp%ax1(nnx-1, nny))
-         ALLOCATE(interp%y0(nnx, nny-1), interp%ay0(nnx, nny-1), interp%ay1(nnx, nny-1))
-         IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
-            ALLOCATE(interp%ax2(nnx-1, nny), interp%ax3(nnx-1, nny))
-            ALLOCATE(interp%ay2(nnx, nny-1), interp%ay3(nnx, nny-1))
-         END IF        
-
-         DO iy = 1, nny
-            DO ix = 1, nnx
-
-               IF (interp%iorder == 1) THEN
+            DO iy = 1, ny
+               DO ix = 1, nx
 
                   IF (ix /= nx) THEN
 
@@ -1541,9 +1536,26 @@ CONTAINS
 
                   END IF
 
-               ELSE IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
+               END DO
+            END DO
 
-                  IF (interp%iextrap == iextrap_linear) STOP 'INIT_INTERPOLATOR_2D: Error, linear extrapolation not supported'
+            IF ((iextrap == iextrap_linear) .AND. (iorder > 1)) THEN
+
+               interp%bx0 = interp%ax0
+               interp%by0 = interp%ay0
+               interp%bx1 = interp%ax1
+               interp%by1 = interp%ay1
+               interp%xl0 = interp%x0
+               interp%yl0 = interp%y0
+
+            END IF
+
+         END IF
+
+         IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
+
+            DO iy = 1, ny
+               DO ix = 1, nx
 
                   IF (ix /= nx) THEN
 
@@ -1553,7 +1565,6 @@ CONTAINS
                      END DO
                      IF (ix == 1)    jx = jx+1
                      IF (ix == nx-1) jx = jx-1
-                     !IF (ix == nx)   jx = jx-2
 
                      ! Get x values and function values running along x direction
                      DO i = 1, 4
@@ -1582,7 +1593,6 @@ CONTAINS
                      END DO
                      IF (iy == 1)    jy = jy+1
                      IF (iy == ny-1) jy = jy-1
-                     !IF (iy == ny)   jy = jy-2
 
                      ! Get y values and function values running along y direction
                      DO i = 1, 4
@@ -1603,14 +1613,10 @@ CONTAINS
 
                   END IF
 
-               ELSE
-
-                  STOP 'INIT_INTERPOLATOR_2D: Error, iorder not supported'
-      
-               END IF
-
+               END DO
             END DO
-         END DO 
+
+         END IF
          
       END IF
 
@@ -1624,10 +1630,12 @@ CONTAINS
       REAL, INTENT(IN) :: y
       TYPE(interpolator2D), INTENT(IN) :: interp
       INTEGER, PARAMETER :: iinterp = iinterp_polynomial ! No Lagrange polynomials in 2D
-      INTEGER :: ix, iy, nx, ny, i, j, m  
+      INTEGER :: ix, iy, nx, ny, i, j, mx, my
       REAL :: xx, yy, ffx, ffy
+      REAL :: a3, a2, a1, a0, x0, y0
       INTEGER, ALLOCATABLE :: jx(:), jy(:)
       REAL, ALLOCATABLE :: fx(:), fy(:), xxx(:), yyy(:)
+      LOGICAL :: outx, outy
       LOGICAL, PARAMETER :: xycubic = .FALSE.
 
       xx = x
@@ -1640,13 +1648,23 @@ CONTAINS
 
       IF (interp%store) THEN
 
-         IF (xx < interp%x(1) .OR. xx > interp%x(nx) .OR. yy < interp%y(1) .OR. yy > interp%y(ny)) THEN
+         IF (xx < interp%x(1) .OR. xx > interp%x(nx)) THEN
+            outx = .TRUE.
+         ELSE
+            outx = .FALSE.
+            END IF
+         IF (yy < interp%y(1) .OR. yy > interp%y(ny)) THEN
+            outy = .TRUE.
+         ELSE
+            outy = .FALSE.
+         END IF
+
+         IF (outx .OR. outy) THEN
             IF (interp%iextrap == iextrap_no) THEN
                STOP 'EVALUATE_INTERPOLATOR_2D: Error, point is outside interpolator range'
-            ELSE IF (interp%iextrap == iextrap_linear) THEN
-               STOP 'EVALUATE_INTERPOLATOR_2D: Linear extrapolation not supported yet'
             ELSE IF (interp%iextrap == iextrap_zero) THEN
                evaluate_interpolator_2D = 0.
+               RETURN
             ELSE IF (interp%iextrap == iextrap_nearest) THEN
                ix = find_table_integer(xx, interp%x, interp%ifindx)
                iy = find_table_integer(yy, interp%y, interp%ifindy)
@@ -1656,73 +1674,103 @@ CONTAINS
             END IF
          END IF
 
-         IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
-
-            IF (interp%iorder == 2) THEN
-               m = 2
-            ELSE IF (interp%iorder == 3) THEN
-               m = 4
+         IF (interp%iorder == 1 .OR. interp%iorder == 2) THEN
+            mx = 2
+            my = 2
+         ELSE IF (interp%iorder == 3) THEN
+            IF (outx) THEN
+               mx = 2
             ELSE
-               STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
+               mx = 4
             END IF
-            ALLOCATE(jx(m), jy(m))
-            ALLOCATE(fx(m), fy(m), xxx(m), yyy(m))
-
-            ix = find_table_integer(xx, interp%x, interp%ifindx)
-            IF (ix == 0)  ix = 1
-            IF (ix == nx) ix = nx-1
-            IF (interp%iorder == 2) THEN
-               jx(1) = ix
-               jx(2) = ix+1
-            ELSE IF (interp%iorder == 3) THEN
-               DO i = 1, m
-                  jx(i) = ix+(i-2)
-               END DO
-               IF (ix == 1)    jx = jx+1
-               IF (ix == nx-1) jx = jx-1  
+            IF (outy) THEN
+               my = 2
             ELSE
-               STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
+               my = 4
             END IF
-
-            iy = find_table_integer(yy, interp%y, interp%ifindy)
-            IF (iy == 0)  iy = 1
-            IF (iy == ny) iy = ny-1
-            IF (interp%iorder == 2) THEN
-               jy(1) = iy
-               jy(2) = iy+1
-            ELSE IF (interp%iorder == 3) THEN 
-               DO i = 1, m
-                  jy(i) = iy+(i-2)
-               END DO 
-               IF (iy == 1)    jy = jy+1
-               IF (iy == ny-1) jy = jy-1
-            ELSE
-               STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
-            END IF
-            
-            DO i = 1, m
-               j = jx(i)
-               xxx(i) = interp%x(j)
-               fx(i) = centred_polynomial(yy, interp%y0(j, iy), interp%ay3(j, iy), interp%ay2(j, iy), interp%ay1(j, iy), interp%ay0(j, iy))
-            END DO
-            ffy = Lagrange_polynomial(xx, xxx, fx)
-
-            IF (xycubic) THEN
-               DO i = 1, m
-                  j = jy(i)
-                  yyy(i) = interp%y(j)
-                  fy(i) = centred_polynomial(xx, interp%x0(ix, j), interp%ax3(ix, j), interp%ax2(ix, j), interp%ax1(ix, j), interp%ax0(ix, j))
-               END DO
-               ffx = Lagrange_polynomial(yy, yyy, fy)
-            ELSE
-               ffx = ffy               
-            END IF
-
-            evaluate_interpolator_2D = (ffx+ffy)/2.
-
          ELSE
-            STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with the order'
+            STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
          END IF
+         ALLOCATE(jx(mx), fx(mx), xxx(mx))
+         ALLOCATE(jy(my), fy(my), yyy(my))
+
+         ix = find_table_integer(xx, interp%x, interp%ifindx)
+         IF (ix == 0)  ix = 1
+         IF (ix == nx) ix = nx-1
+         IF (mx == 2) THEN
+            jx(1) = ix
+            jx(2) = ix+1
+         ELSE IF (mx == 4) THEN
+            DO i = 1, mx
+               jx(i) = ix+(i-2)
+            END DO
+            IF (ix == 1)    jx = jx+1
+            IF (ix == nx-1) jx = jx-1  
+         ELSE
+            STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
+         END IF
+
+         iy = find_table_integer(yy, interp%y, interp%ifindy)
+         IF (iy == 0)  iy = 1
+         IF (iy == ny) iy = ny-1
+         IF (my == 2) THEN
+            jy(1) = iy
+            jy(2) = iy+1
+         ELSE IF (my == 4) THEN 
+            DO i = 1, my
+               jy(i) = iy+(i-2)
+            END DO 
+            IF (iy == 1)    jy = jy+1
+            IF (iy == ny-1) jy = jy-1
+         ELSE
+            STOP 'EVALUATE_INTERPOLATOR_2D: Error, something went wrong with iorder'
+         END IF
+         
+         DO i = 1, mx
+            j = jx(i)
+            xxx(i) = interp%x(j)
+            IF (interp%iorder .NE. 1 .AND. interp%iextrap == iextrap_linear .AND. outy) THEN
+               y0 = interp%yl0(j, iy)
+               a3 = 0.
+               a2 = 0.
+               a1 = interp%by1(j, iy)
+               a0 = interp%by0(j, iy)
+            ELSE
+               y0 = interp%y0(j, iy)
+               a3 = interp%ay3(j, iy)
+               a2 = interp%ay2(j, iy)
+               a1 = interp%ay1(j, iy)
+               a0 = interp%ay0(j, iy)
+            END IF
+            fx(i) = centred_polynomial(yy, y0, a3, a2, a1, a0)
+         END DO
+         ffy = Lagrange_polynomial(xx, xxx, fx)
+
+         IF (xycubic) THEN
+            DO i = 1, my
+               j = jy(i)
+               yyy(i) = interp%y(j)
+               IF (interp%iorder .NE. 1 .AND. interp%iextrap == iextrap_linear .AND. outx) THEN
+                  x0 = interp%xl0(ix, j)
+                  a3 = 0.
+                  a2 = 0.
+                  a1 = interp%bx1(ix, j)
+                  a0 = interp%bx0(ix, j)
+               ELSE
+                  x0 = interp%x0(ix, j)
+                  a3 = interp%ax3(ix, j)
+                  a2 = interp%ax2(ix, j)
+                  a1 = interp%ax1(ix, j)
+                  a0 = interp%ax0(ix, j)
+               END IF
+               fy(i) = centred_polynomial(xx, x0, a3, a2, a1, a0)                  
+            END DO
+            ffx = Lagrange_polynomial(yy, yyy, fy)
+         ELSE
+            ffx = ffy               
+         END IF
+
+         evaluate_interpolator_2D = (ffx+ffy)/2.
 
       ELSE
 
