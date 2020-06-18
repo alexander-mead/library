@@ -77,6 +77,7 @@ MODULE interpolate
       REAL, ALLOCATABLE :: x(:), x0(:)
       REAL, ALLOCATABLE :: f(:)
       REAL, ALLOCATABLE :: a0(:), a1(:), a2(:), a3(:)
+      REAL :: xmin, xmax
       INTEGER :: iorder, iextrap
       INTEGER :: ifind
       INTEGER :: n
@@ -90,6 +91,7 @@ MODULE interpolate
       REAL, ALLOCATABLE :: x0(:, :), y0(:, :)
       REAL, ALLOCATABLE :: ax0(:, :), ax1(:, :), ax2(:, :), ax3(:, :)
       REAL, ALLOCATABLE :: ay0(:, :), ay1(:, :), ay2(:, :), ay3(:, :)
+      REAL :: xmin, xmax, ymin, ymax
       INTEGER :: iorder, iextrap
       INTEGER :: ifindx, ifindy 
       INTEGER :: nx, ny
@@ -450,14 +452,23 @@ CONTAINS
       ytab = yin
       ftab = fin
 
-      IF (xtab(1) > xtab(nx)) STOP 'FIND_2D: x array in wrong order'
-      IF (ytab(1) > ytab(ny)) STOP 'FIND_2D: y array in wrong order'
+      !IF (xtab(1) > xtab(nx)) STOP 'FIND_2D: x array in wrong order'
+      IF (xtab(1) > xtab(nx)) THEN
+         CALL reverse_array(xtab)
+         CALL reverse_array(ftab, 1)
+      END IF
+
+      !IF (ytab(1) > ytab(ny)) STOP 'FIND_2D: y array in wrong order'
+      IF (ytab(1) > ytab(ny)) THEN
+         CALL reverse_array(ytab)
+         CALL reverse_array(ftab, 2)
+      END IF
 
       IF(iorder == 0) THEN
 
-         ix = find_table_integer(x, xin, ifindx)
+         ix = find_table_integer(x, xtab, ifindx)
          IF(ix == 0) ix = 1
-         iy = find_table_integer(y, yin, ifindy)
+         iy = find_table_integer(y, ytab, ifindy)
          IF(iy == 0) iy = 1
 
          find_2D = fin(ix, iy)
@@ -470,7 +481,7 @@ CONTAINS
          !! Get the x,y values !!
 
          ! Get the integer coordinates in the x direction
-         ix = find_table_integer(x, xin, ifindx)
+         ix = find_table_integer(x, xtab, ifindx)
          IF(ix==0) THEN
             ix=1
          ELSE IF(ix==nx) THEN
@@ -480,11 +491,11 @@ CONTAINS
          ix2 = ix+1
 
          ! Get the x values at the corners
-         x1 = xin(ix1)
-         x2 = xin(ix2)
+         x1 = xtab(ix1)
+         x2 = xtab(ix2)
 
          ! Get the integer coordinates in the y direction
-         iy = find_table_integer(y, yin, ifindy)
+         iy = find_table_integer(y, ytab, ifindy)
          IF(iy==0) THEN
             iy=1
          ELSE IF(iy==ny) THEN
@@ -494,15 +505,15 @@ CONTAINS
          iy2 = iy+1
 
          ! Get the y values at the corners
-         y1 = yin(iy1)
-         y2 = yin(iy2)
+         y1 = ytab(iy1)
+         y2 = ytab(iy2)
 
          ! Interpolation is function values at corners weighted by opposite area
          ! TODO: Clever loop here? Maybe not, its nice and transparent without the loop
-         V(1, 1) = (x2-x)*(y2-y)*fin(ix1, iy1)
-         V(1, 2) = (x2-x)*(y-y1)*fin(ix1, iy2)
-         V(2, 1) = (x-x1)*(y2-y)*fin(ix2, iy1)
-         V(2, 2) = (x-x1)*(y-y1)*fin(ix2, iy2)
+         V(1, 1) = (x2-x)*(y2-y)*ftab(ix1, iy1)
+         V(1, 2) = (x2-x)*(y-y1)*ftab(ix1, iy2)
+         V(2, 1) = (x-x1)*(y2-y)*ftab(ix2, iy1)
+         V(2, 2) = (x-x1)*(y-y1)*ftab(ix2, iy2)
 
          ! Normalisation
          find_2D = sum(V)/((x2-x1)*(y2-y1))
@@ -1002,7 +1013,6 @@ CONTAINS
 
       ! Initialise an interpolator
       ! TODO: Should be loops and arrays rather than x1, x2, x3, x4 etc.
-      ! TODO: Catch for x being ordered high -> low
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                  ! Input data x
       REAL, INTENT(IN) :: f(:)                  ! Input data f(x)
@@ -1025,6 +1035,7 @@ CONTAINS
       ! Should the first and last sections of cubic interpolation be quadratic
       LOGICAL, PARAMETER :: quadratic_end_cubic = .FALSE. 
 
+      ! Deallocate arrays if they are already allocated
       CALL if_allocated_deallocate(interp%x)
       CALL if_allocated_deallocate(interp%x0)
       CALL if_allocated_deallocate(interp%a0)
@@ -1036,27 +1047,39 @@ CONTAINS
       n = size(x)
       IF (n /= size(f)) STOP 'INIT_INTERPOLATOR: Error, input x and f data should be the same size'
       interp%n = n
-      ALLOCATE(xx(n), ff(n), interp%x(n), interp%f(n))
+      ALLOCATE(xx(n), ff(n), interp%x(n), interp%f(n)) ! TODO: Remove?
 
       ! Set the internal variables
       interp%iextrap = iextrap
       interp%iorder = iorder
 
+      ! Fill the internal arrays
+      xx = x
+      ff = f
+
+      ! Reverse x and f if necessary
+      IF (xx(1) > xx(n)) THEN
+         CALL reverse_array(xx)
+         CALL reverse_array(ff)
+      END IF
+
+      ! Set the internal xmin and xmax
+      interp%xmin = xx(1)
+      interp%xmax = xx(n)
+
       ! Sort out logs and x arrays
       IF (present_and_correct(logx)) THEN
-         xx = log(x)
+         xx = log(xx)
          interp%logx = .TRUE.
       ELSE
-         xx = x
          interp%logx = .FALSE.
       END IF
 
       ! Sort out logs and f array
       IF (present_and_correct(logf)) THEN
-         ff = log(f)
+         ff = log(ff)
          interp%logf = .TRUE.
       ELSE
-         ff = f
          interp%logf = .FALSE.
       END IF
       
@@ -1068,11 +1091,7 @@ CONTAINS
       END IF
       interp%store = store
 
-      IF (xx(1) > xx(n)) THEN
-         CALL reverse_array(xx)
-         CALL reverse_array(ff)
-      END IF
-
+      ! Set the internal 
       interp%x = xx
       interp%f = ff
 
@@ -1345,7 +1364,7 @@ CONTAINS
    SUBROUTINE init_interpolator_2D(x, y, f, interp, iorder, iextrap, store, logx, logy, logf)
 
       ! Initialise a 2D interpolator
-      ! TODO: Catch for x, y being ordered high -> low
+      ! TODO: Should end sections be quadratic when doing cubic interpolation?
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                    ! Input data x
       REAL, INTENT(IN) :: y(:)                    ! Input data x
@@ -1357,7 +1376,7 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: logx       ! Should interpolator take the logarithm of x?
       LOGICAL, OPTIONAL, INTENT(IN) :: logy       ! Should interpolator take the logarithm of x?
       LOGICAL, OPTIONAL, INTENT(IN) :: logf       ! Should interpolator take the logarithm of y?
-      INTEGER :: ix, iy, nx, ny
+      INTEGER :: ix, iy, nx, ny, nnx, nny
       INTEGER :: jx(4), jy(4)
       INTEGER :: i
       REAL :: xx(4), yy(4), fx(4), fy(4)
@@ -1423,14 +1442,28 @@ CONTAINS
          interp%logf = .FALSE.
       END IF
 
+      ! Reverse arrays if necessary
       IF (interp%x(1) > interp%x(nx)) THEN
          CALL reverse_array(interp%x)
          CALL reverse_array(interp%f, 1)
       END IF
-
       IF (interp%y(1) > interp%y(ny)) THEN
          CALL reverse_array(interp%y)
          CALL reverse_array(interp%f, 2)
+      END IF
+
+      ! Set the interp%xmin, xmax, ymin, ymax values
+      interp%xmin = interp%x(1)
+      interp%xmax = interp%x(nx)
+      interp%ymin = interp%y(1)
+      interp%ymax = interp%y(ny)
+      IF (interp%logx) THEN
+         interp%xmin = exp(interp%xmin)
+         interp%xmax = exp(interp%xmax)
+      END IF
+      IF (interp%logy) THEN
+         interp%ymin = exp(interp%ymin)
+         interp%ymax = exp(interp%ymax)
       END IF
 
       ! Set internal variables
@@ -1440,74 +1473,144 @@ CONTAINS
 
       IF (interp%store) THEN
 
-         IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
-
-            IF (interp%iextrap == iextrap_linear) STOP 'INIT_INTERPOLATOR_2D: Error, linear extrapolation not supported'
-
-            ALLOCATE(interp%x0(nx, ny), interp%ax0(nx, ny), interp%ax1(nx, ny), interp%ax2(nx, ny), interp%ax3(nx, ny))
-            ALLOCATE(interp%y0(nx, ny), interp%ay0(nx, ny), interp%ay1(nx, ny), interp%ay2(nx, ny), interp%ay3(nx, ny))
-
-            DO iy = 1, ny
-               DO ix = 1, nx
-
-                  ! Indices run sequentially but must be within 1, nx
-                  DO i = 1, 4
-                     jx(i) = ix+(i-2)
-                  END DO
-                  IF (ix == 1)    jx = jx+1
-                  IF (ix == nx-1) jx = jx-1
-                  IF (ix == nx)   jx = jx-2
-
-                  ! Indices run sequentially but must be within 1, ny
-                  DO i = 1, 4
-                     jy(i) = iy+(i-2)
-                  END DO
-                  IF (iy == 1)    jy = jy+1
-                  IF (iy == ny-1) jy = jy-1
-                  IF (iy == ny)   jy = jy-2
-
-                  ! Get x values and function values running along x direction
-                  DO i = 1, 4
-                     xx(i) = interp%x(jx(i))
-                     fx(i) = interp%f(jx(i), iy)
-                  END DO
-
-                  ! Calculate the mid point for polynomial
-                  x0 = (xx(2)+xx(3))/2.
-                  interp%x0(ix, iy) = x0
-
-                  ! Fix polynomial along the x direction
-                  CALL fix_centred_polynomial(a3, a2, a1, a0, x0, xx, fx)
-                  interp%ax3(ix, iy) = a3
-                  interp%ax2(ix, iy) = a2
-                  interp%ax1(ix, iy) = a1
-                  interp%ax0(ix, iy) = a0
-
-                  ! Get y values and function values running along y direction
-                  DO i = 1, 4
-                     yy(i) = interp%y(jy(i))
-                     fy(i) = interp%f(ix, jy(i))
-                  END DO
-
-                  ! Calculate the mid point for polynomial
-                  y0 = (yy(2)+yy(3))/2.
-                  interp%y0(ix, iy) = y0
-
-                  ! Fix polynomial along the y direction
-                  CALL fix_centred_polynomial(a3, a2, a1, a0, y0, yy, fy)
-                  interp%ay3(ix, iy) = a3
-                  interp%ay2(ix, iy) = a2
-                  interp%ay1(ix, iy) = a1
-                  interp%ay0(ix, iy) = a0
-
-               END DO
-            END DO 
-
+         IF (interp%iextrap == iextrap_linear) THEN
+            nnx = nx+1
+            nny = ny+1
          ELSE
-
-            STOP 'INIT_INTERPOLATOR_2D: Error, iorder not supported'
-
+            nnx = nx
+            nny = ny
          END IF
+
+         ALLOCATE(interp%x0(nnx-1, nny), interp%ax0(nnx-1, nny), interp%ax1(nnx-1, nny))
+         ALLOCATE(interp%y0(nnx, nny-1), interp%ay0(nnx, nny-1), interp%ay1(nnx, nny-1))
+         IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
+            ALLOCATE(interp%ax2(nnx-1, nny), interp%ax3(nnx-1, nny))
+            ALLOCATE(interp%ay2(nnx, nny-1), interp%ay3(nnx, nny-1))
+         END IF        
+
+         DO iy = 1, nny
+            DO ix = 1, nnx
+
+               IF (interp%iorder == 1) THEN
+
+                  IF (ix /= nx) THEN
+
+                     ! Indices run sequentially but must be within 1, nx
+                     DO i = 1, 2
+                        jx(i) = ix+i-1
+                     END DO
+
+                     ! Get x values and function values running along x direction
+                     DO i = 1, 2
+                        xx(i) = interp%x(jx(i))
+                        fx(i) = interp%f(jx(i), iy)
+                     END DO
+
+                     ! Calculate the mid point for polynomial
+                     x0 = (xx(1)+xx(2))/2.
+                     interp%x0(ix, iy) = x0
+
+                     ! Fix polynomial along the x direction
+                     CALL fix_centred_polynomial(a1, a0, x0, xx, fx)
+                     interp%ax1(ix, iy) = a1
+                     interp%ax0(ix, iy) = a0
+
+                  END IF
+
+                  IF (iy /= ny) THEN
+
+                     ! Indices run sequentially but must be within 1, ny
+                     DO i = 1, 2
+                        jy(i) = iy+i-1
+                     END DO
+
+                     ! Get y values and function values running along y direction
+                     DO i = 1, 2
+                        yy(i) = interp%y(jy(i))
+                        fy(i) = interp%f(ix, jy(i))
+                     END DO
+
+                     ! Calculate the mid point for polynomial
+                     y0 = (yy(1)+yy(2))/2.
+                     interp%y0(ix, iy) = y0
+
+                     ! Fix polynomial along the y direction
+                     CALL fix_centred_polynomial(a1, a0, y0, yy, fy)
+                     interp%ay1(ix, iy) = a1
+                     interp%ay0(ix, iy) = a0
+
+                  END IF
+
+               ELSE IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
+
+                  IF (interp%iextrap == iextrap_linear) STOP 'INIT_INTERPOLATOR_2D: Error, linear extrapolation not supported'
+
+                  IF (ix /= nx) THEN
+
+                     ! Indices run sequentially but must be within 1, nx
+                     DO i = 1, 4
+                        jx(i) = ix+(i-2)
+                     END DO
+                     IF (ix == 1)    jx = jx+1
+                     IF (ix == nx-1) jx = jx-1
+                     !IF (ix == nx)   jx = jx-2
+
+                     ! Get x values and function values running along x direction
+                     DO i = 1, 4
+                        xx(i) = interp%x(jx(i))
+                        fx(i) = interp%f(jx(i), iy)
+                     END DO
+
+                     ! Calculate the mid point for polynomial
+                     x0 = (xx(2)+xx(3))/2.
+                     interp%x0(ix, iy) = x0
+
+                     ! Fix polynomial along the x direction
+                     CALL fix_centred_polynomial(a3, a2, a1, a0, x0, xx, fx)
+                     interp%ax3(ix, iy) = a3
+                     interp%ax2(ix, iy) = a2
+                     interp%ax1(ix, iy) = a1
+                     interp%ax0(ix, iy) = a0
+
+                  END IF
+
+                  IF (iy /= ny) THEN
+
+                     ! Indices run sequentially but must be within 1, ny
+                     DO i = 1, 4
+                        jy(i) = iy+(i-2)
+                     END DO
+                     IF (iy == 1)    jy = jy+1
+                     IF (iy == ny-1) jy = jy-1
+                     !IF (iy == ny)   jy = jy-2
+
+                     ! Get y values and function values running along y direction
+                     DO i = 1, 4
+                        yy(i) = interp%y(jy(i))
+                        fy(i) = interp%f(ix, jy(i))
+                     END DO
+
+                     ! Calculate the mid point for polynomial
+                     y0 = (yy(2)+yy(3))/2.
+                     interp%y0(ix, iy) = y0
+
+                     ! Fix polynomial along the y direction
+                     CALL fix_centred_polynomial(a3, a2, a1, a0, y0, yy, fy)
+                     interp%ay3(ix, iy) = a3
+                     interp%ay2(ix, iy) = a2
+                     interp%ay1(ix, iy) = a1
+                     interp%ay0(ix, iy) = a0
+
+                  END IF
+
+               ELSE
+
+                  STOP 'INIT_INTERPOLATOR_2D: Error, iorder not supported'
+      
+               END IF
+
+            END DO
+         END DO 
          
       END IF
 
