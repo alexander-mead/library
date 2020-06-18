@@ -233,6 +233,7 @@ MODULE HMx
 
       ! Spherical collapse parameters
       REAL :: dc, Dv
+      LOGICAL :: mass_dependent_Dv
 
       ! HMx baryon parameters
       LOGICAL :: fix_star_concentration, different_Gammas
@@ -347,6 +348,9 @@ MODULE HMx
    INTEGER, PARAMETER :: nmeth_win = 13        ! Number of different winint methods
    INTEGER, PARAMETER :: nlim_bumps = 2        ! Do the bumps approximation after this number of bumps
    LOGICAL, PARAMETER :: winint_exit = .FALSE. ! Exit when the contributions to the integral become small
+
+   ! Delta_v
+   REAL, PARAMETER :: M0_Dv_default = 1e14
 
    ! Mass function
    INTEGER, PARAMETER :: iorder_derivative_mass_function = 3
@@ -1982,10 +1986,16 @@ CONTAINS
       !hmod%sigv = sigmaV(0., a, flag_power_cold_unorm, cosm)      
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigv)
 
+      IF (cosm%img == img_fR) THEN
+         hmod%mass_dependent_Dv = .TRUE.
+      ELSE
+         hmod%mass_dependent_Dv = .FALSE.
+      END IF
+
       ! Calcuate delta_c and Delta_v
       ! Sometimes these calculations rely on the sigmas that should be calculated before this
       hmod%dc = delta_c(hmod, cosm)
-      hmod%Dv = Delta_v(hmod, cosm)
+      hmod%Dv = Delta_v(M0_Dv_default, hmod, cosm)
       IF (verbose) THEN         
          WRITE (*, *) 'INIT_HALOMOD: Delta_v:', REAL(hmod%Dv)
          WRITE (*, *) 'INIT_HALOMOD: delta_c:', REAL(hmod%dc)
@@ -2018,6 +2028,7 @@ CONTAINS
          hmod%rr(i) = R
          hmod%sig(i) = sig
          hmod%nu(i) = nu
+         hmod%rv(i) = virial_radius(hmod%m(i), hmod, cosm)
 
       END DO
 
@@ -2033,7 +2044,7 @@ CONTAINS
       END IF
 
       ! Fill virial radius table using real radius table
-      hmod%rv = hmod%rr/hmod%Dv**(1./3.)
+      !hmod%rv = hmod%rr/hmod%Dv**(1./3.)
 
       ! Write some useful information to the screen
       IF (verbose) THEN
@@ -4471,10 +4482,11 @@ CONTAINS
 
    END FUNCTION delta_c
 
-   REAL FUNCTION Delta_v(hmod, cosm)
+   REAL FUNCTION Delta_v(M, hmod, cosm)
 
       ! Virialised overdensity
       IMPLICIT NONE
+      REAL, INTENT(IN) :: M
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: a
@@ -4496,8 +4508,7 @@ CONTAINS
             IF (cosm%img == img_nDGP) THEN
                Delta_v = Delta_v*(1.-a*0.0388*cosm%H0rc**(-0.7))
             ELSE IF (cosm%img == img_fR) THEN
-               STOP 'DELTA_V: Error, for f(R) need to have Delta_v(M)'
-               !Delta_v = Delta_v*Geff(a, M, p, cosm)**(-0.5)
+               Delta_v = Delta_v*Geff_fR(M, a, cosm)**(-0.5)
             END IF
          END IF
       ELSE IF (hmod%iDv == 4) THEN
@@ -4523,23 +4534,21 @@ CONTAINS
 
    END FUNCTION Delta_v
 
-   REAL FUNCTION Geff(a, M, cosm)
+   REAL FUNCTION Geff_fR(M, a, cosm)
 
-      !This is an approximate toy screening model
-      REAL, INTENT(IN) :: a
+      ! This is an approximate toy screening model
       REAL, INTENT(IN) :: M
+      REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: Gmin, Gmax, M0
-    
-      ! Maximum and minimum modification
-      Gmax = 4./3.
-      Gmin = 1.
+      REAL :: M0
+      REAL, PARAMETER :: Gmin = 1.
+      REAL, PARAMETER :: Gmax = 4./3.
 
       ! Screening mass in f(R) models
       M0 = (10**26.4)*(abs(fr_a(a, cosm))**1.5)*(cosm%Om_m**(-0.5))
-      Geff = Gmin+(Gmax-Gmin)*sigmoid_tanh(log10(M/M0)/0.38)
+      Geff_fR = Gmin+(Gmax-Gmin)*sigmoid_tanh(log10(M/M0)/0.38)
   
-   END FUNCTION Geff
+   END FUNCTION Geff_fR
 
    REAL FUNCTION HMcode_kstar(hmod, cosm)
 
@@ -5686,7 +5695,11 @@ CONTAINS
       ! Get the densities
       rhom = comoving_matter_density(cosm)
       rhoc = comoving_critical_density(a, cosm)
-      Dv = Delta_v(hmod, cosm)
+      IF (cosm%img == img_fR) THEN
+         STOP 'CONVERT_MASS_DEFINITIONS: Error, this does not work for a mass-dependent Delta_v'
+      ELSE
+         Dv = Delta_v(M0_Dv_default, hmod, cosm)
+      END IF
 
       ! Calculate Delta = 200, 500 and Delta_c = 200, 500 quantities
       CALL convert_mass_definition(hmod%rv, hmod%c, hmod%m, Dv, 1., hmod%r500, hmod%c500, hmod%m500, 500., 1., hmod%n)
@@ -5810,7 +5823,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      virial_radius = (3.*m/(4.*pi*comoving_matter_density(cosm)*Delta_v(hmod, cosm)))**(1./3.)
+      virial_radius = (3.*m/(4.*pi*comoving_matter_density(cosm)*Delta_v(m, hmod, cosm)))**(1./3.)
 
    END FUNCTION virial_radius
 
@@ -9565,7 +9578,11 @@ CONTAINS
 
       ! Get these from the halo-model structure
       z = hmod%z
-      log_Dv = log(hmod%Dv)
+      IF (hmod%mass_dependent_Dv) THEN
+         STOP 'INIT_TINKER2008: Error, this does not work with mass-dependent Delta_v'
+      ELSE
+         log_Dv = log(hmod%Dv)
+      END IF
 
       ! Delta_v dependence (changed to log Dv finding)
       bigA = find(log_Dv, log_Deltav, bigAs, n, iorder, ifind, imeth)
@@ -9620,7 +9637,11 @@ CONTAINS
       ! Get these from the halo-model structure
       z = hmod%z
       IF (z > 3.) z = 3. ! Recommendation from Tinker et al. (2010)
-      log_Dv = log(hmod%Dv)
+      IF (hmod%mass_dependent_Dv) THEN
+         STOP 'INIT_TINKER2008: Error, this does not work with mass-dependent Delta_v'
+      ELSE
+         log_Dv = log(hmod%Dv)
+      END IF
 
       ! Delta_v dependence (changed to log Dv finding)
       alpha = find(log_Dv, log_Deltav, alpha0, n, iorder, ifind, imeth)
