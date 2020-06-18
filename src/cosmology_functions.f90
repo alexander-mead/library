@@ -298,7 +298,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amin_plin = 0.1                    ! Minimum a value for Pk growth is scale dependent
    REAL, PARAMETER :: amax_plin = 1.0                    ! Maximum a value for Pk when linear growth is scale dependent
    INTEGER, PARAMETER :: na_plin = 16                    ! Number of a values for linear P(k,a) tables if growth is scale dependent
-   LOGICAL, PARAMETER :: power_interpolator = .FALSE.    ! Use dedicated interpolator for power?
+   LOGICAL, PARAMETER :: power_interpolator = .TRUE.     ! Use dedicated interpolator for power?
    INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Order for interpolation
    INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
    INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
@@ -306,9 +306,9 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: store_plin = .TRUE.             ! Pre-calculate interpolation coefficients
 
    ! CAMB interface
-   REAL, PARAMETER :: pk_min_CAMB = 1e-10      ! Minimum value of power at low k (remove k with less than this) 
-   REAL, PARAMETER :: nmax_CAMB = 2.           ! How many times more to go than kmax due to inaccuracy near k limit
-   LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.  ! Should we rebin CAMB or just use default k?
+   REAL, PARAMETER :: pk_min_CAMB = 1e-10     ! Minimum value of power at low k (remove k with less than this) 
+   REAL, PARAMETER :: nmax_CAMB = 2.          ! How many times more to go than kmax due to inaccuracy near k limit
+   LOGICAL, PARAMETER :: rebin_CAMB = .FALSE. ! Should we rebin CAMB or just use default k?
    INTEGER, PARAMETER :: iorder_rebin_CAMB = 3                 ! Polynomial order for interpolation on CAMB rebinning
    INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation on CAMB rebinning (*definitely* not linear)
    INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Method for interpolation on CAMB rebinning
