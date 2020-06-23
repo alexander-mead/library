@@ -1253,8 +1253,8 @@ CONTAINS
             interp%x0(ii) = xm
             interp%a0(ii) = a0
             interp%a1(ii) = a1
-            IF(iorder >= 2) interp%a2(ii) = a2
-            IF(iorder >= 3) interp%a3(ii) = a3
+            IF(iorder >= 2 .AND. (i .NE. 0 .AND. i .NE. n)) interp%a2(ii) = a2
+            IF(iorder >= 3 .AND. (i .NE. 0 .AND. i .NE. n)) interp%a3(ii) = a3
 
          END DO
 
