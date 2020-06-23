@@ -303,13 +303,14 @@ CONTAINS
 
    END SUBROUTINE if_allocated_deallocate_character_1D
 
-   SUBROUTINE smooth_array(x, m)
+   SUBROUTINE smooth_array(x, m, smooth_edges)
 
       ! Take an array and smooth it by taking the over a fixed number of values in each direction
       ! For example, if m = 2 then poisition i in the smoothed array is the average over i-2, i-1, i, i+1, i+2 in the old array
       ! It probably only makes sense to do this if x(t) is a function and the t are uniformally distributed
       REAL, INTENT(INOUT) :: x(:) ! Array to smooth
       INTEGER, INTENT(IN) :: m    ! Number of entries to smooth over
+      LOGICAL, INTENT(IN) :: smooth_edges
       INTEGER :: i, iup, idn, j, mm, n
       REAL, ALLOCATABLE :: x_save(:)
 
@@ -326,18 +327,20 @@ CONTAINS
       DO i = 1, n
          mm = 1
          x(i) = x_save(i)
-         DO j = 1, m
-            iup = i+j
-            IF(iup <= n) THEN
-               x(i) = x(i) + x_save(iup)
-               mm = mm + 1
-            END IF
-            idn = i-j
-            IF(idn >= 1) THEN
-               x(i) = x(i) + x_save(idn)
-               mm = mm + 1
-            END IF
-         END DO
+         IF (smooth_edges .OR. (i > m .AND. i < n-m)) THEN
+            DO j = 1, m
+               iup = i+j
+               IF(iup <= n) THEN
+                  x(i) = x(i) + x_save(iup)
+                  mm = mm + 1
+               END IF
+               idn = i-j
+               IF(idn >= 1) THEN
+                  x(i) = x(i) + x_save(idn)
+                  mm = mm + 1
+               END IF
+            END DO
+         END IF
          x(i) = x(i)/real(mm)
       END DO
 
