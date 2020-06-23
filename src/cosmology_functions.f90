@@ -291,12 +291,12 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: flag_power_cold_unorm = 3 ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
 
    ! Linear power interpolation
-   REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used [h/Mpc]
-   REAL, PARAMETER :: kmax_plin = 1e2                    ! Maximum wavenumber used [h/Mpc]
-   INTEGER, PARAMETER :: nk_plin = 128                   ! Number of k to use
-   REAL, PARAMETER :: amin_plin = 0.1                    ! Minimum a value for Pk growth is scale dependent
-   REAL, PARAMETER :: amax_plin = 1.0                    ! Maximum a value for Pk when linear growth is scale dependent
-   INTEGER, PARAMETER :: na_plin = 16                    ! Number of a values for linear P(k,a) tables if growth is scale dependent
+   REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used in interpolation [h/Mpc]
+   REAL, PARAMETER :: kmax_plin = 1e2                    ! Maximum wavenumber used in interpolation [h/Mpc]
+   INTEGER, PARAMETER :: nk_plin = 128                   ! Number of k to use in interpolation
+   REAL, PARAMETER :: amin_plin = 0.1                    ! Minimum a value for Pk growth if scale dependent
+   REAL, PARAMETER :: amax_plin = 1.0                    ! Maximum a value for Pk growth if scale dependent
+   INTEGER, PARAMETER :: na_plin = 16                    ! Number of a values if growth is scale dependent
    INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Order for interpolation
    INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
    INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
@@ -312,16 +312,16 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Method for interpolation on CAMB rebinning
 
    ! Cold transfer function method
-   INTEGER, PARAMETER :: method_cold_none = 0
-   INTEGER, PARAMETER :: method_cold_total = 1
-   INTEGER, PARAMETER :: method_cold_EH = 2
-   INTEGER, PARAMETER :: method_cold_CAMB = 3
-   INTEGER, PARAMETER :: method_cold = method_cold_EH
+   INTEGER, PARAMETER :: method_cold_none = 0         ! Cold transfer function is equal to matter
+   INTEGER, PARAMETER :: method_cold_total = 1        ! Assume neutrinos are completely hot
+   INTEGER, PARAMETER :: method_cold_EH = 2           ! Eisenstein & Hu approximation
+   INTEGER, PARAMETER :: method_cold_CAMB = 3         ! Taken from CAMB
+   INTEGER, PARAMETER :: method_cold = method_cold_EH ! Choose method heree
 
    ! CAMB cold transfer function
-   INTEGER, PARAMETER :: iextrap_Tcold = iextrap_linear
-   INTEGER, PARAMETER :: iorder_interp_Tcold = 3
-   LOGICAL, PARAMETER :: store_Tcold = .TRUE.
+   INTEGER, PARAMETER :: iextrap_Tcold = iextrap_linear ! Extrapolation scheme for cold interpolation
+   INTEGER, PARAMETER :: iorder_interp_Tcold = 3        ! Order for cold interpolatin
+   LOGICAL, PARAMETER :: store_Tcold = .TRUE.           ! Storage for cold interpolation
 
    ! De-wiggle power
    REAL, PARAMETER :: kmin_wiggle = 0.008                 ! Minimum wavenumber to calulate wiggle
@@ -329,8 +329,8 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: nk_wiggle = 128                  ! Number of k points to store wiggle
    INTEGER, PARAMETER :: wiggle_Lagrange = 1              ! Method to calculate wiggle using Lagrange polynomials
    INTEGER, PARAMETER :: wiggle_smooth = 2                ! Method to calculate wiggle using array smoothing
-   INTEGER, PARAMETER :: n_wiggle_smooth = 10             ! If using array smoothing number of entries to smooth over
-   INTEGER, PARAMETER :: imethod_wiggle = wiggle_Lagrange ! Choose method for wiggle
+   INTEGER, PARAMETER :: n_wiggle_smooth = 8             ! If using array smoothing number of entries to smooth over
+   INTEGER, PARAMETER :: imethod_wiggle = wiggle_smooth ! Choose method for wiggle
    INTEGER, PARAMETER :: iorder_interp_wiggle = 3         ! Order for wiggle interpolator
    INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero    ! Should be zeros because interpolator stores only wiggle
    LOGICAL, PARAMETER :: store_wiggle = .TRUE.            ! Pre-calculate interpolation coefficients
@@ -1041,7 +1041,8 @@ CONTAINS
          cosm%h = 0.70
          cosm%Om_b = 0.0469
          cosm%Om_m = 0.27
-         cosm%Om_v = 1.-cosm%Om_m
+         cosm%Om_w = 1.-cosm%Om_m
+         cosm%Om_v = 0.
          cosm%ns =  0.95
          cosm%sig8 = 0.82 ! Seems wrong at z=0, data more like sigma_8 = 0.80
          cosm%itk = itk_CAMB ! CAMB
@@ -7341,6 +7342,7 @@ CONTAINS
 
       ! This is no longer necessary
       !IF (.NOT. cosm%has_power) CALL init_analytical_linear(cosm)
+      IF (cosm%box) STOP 'INIT_WIGGLE: Error, cannot extract wiggle from truncated linear power'
 
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Starting'
 
@@ -7389,7 +7391,7 @@ CONTAINS
 
          ALLOCATE (logPk_smooth(nk))
          logPk_smooth = logPk
-         CALL smooth_array(logPk_smooth, n_smooth)
+         CALL smooth_array(logPk_smooth, n_smooth, smooth_edges=.FALSE.)
          Pk_smooth = exp(logPk_smooth)
 
       ELSE
