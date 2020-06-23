@@ -1,5 +1,8 @@
 MODULE calculus
 
+   ! TODO: Make jmin -> jmax parameters in header
+   ! TODO: Number of steps is 2^(j-1) which may exceed integer range for large j
+
    IMPLICIT NONE
 
    PRIVATE
