@@ -226,32 +226,32 @@ MODULE cosmology_functions
    REAL, PARAMETER :: w_v = -1.   ! Vacuum energy
 
    ! Dark energy density
-   INTEGER, PARAMETER :: iw_LCDM = 1     ! Vacuum dark energy
-   INTEGER, PARAMETER :: iw_QUICC = 2    ! QUICC dark energy
-   INTEGER, PARAMETER :: iw_waCDM = 3    ! w(a) dark energy
-   INTEGER, PARAMETER :: iw_wCDM = 4     ! Constant w dark energy
-   INTEGER, PARAMETER :: iw_IDE1 = 5     ! Intermediate dark energy model 1
-   INTEGER, PARAMETER :: iw_IDE2 = 6     ! Intermediate dark energy model 2
-   INTEGER, PARAMETER :: iw_IDE3 = 7     ! Intermediate dark energy model 3
-   INTEGER, PARAMETER :: iw_BDE = 8      ! Bound dark energy (1812.01133)  
+   INTEGER, PARAMETER :: iw_LCDM = 1  ! Vacuum dark energy
+   INTEGER, PARAMETER :: iw_QUICC = 2 ! QUICC dark energy
+   INTEGER, PARAMETER :: iw_waCDM = 3 ! w(a) dark energy
+   INTEGER, PARAMETER :: iw_wCDM = 4  ! Constant w dark energy
+   INTEGER, PARAMETER :: iw_IDE1 = 5  ! Intermediate dark energy model 1
+   INTEGER, PARAMETER :: iw_IDE2 = 6  ! Intermediate dark energy model 2
+   INTEGER, PARAMETER :: iw_IDE3 = 7  ! Intermediate dark energy model 3
+   INTEGER, PARAMETER :: iw_BDE = 8   ! Bound dark energy (1812.01133)  
 
    ! Dark energy integration and interpolation
    REAL, PARAMETER :: amin_Xde = 1e-4    ! Minimum scale factor for direction integration to get Xde
    REAL, PARAMETER :: amax_Xde = 1.      ! Maximum scale factor for direction integration to get Xde
    INTEGER, PARAMETER :: n_Xde = 128     ! Number of points for Xde interpolation
-   LOGICAL, PARAMETER :: tabulate_Xde = .TRUE.       ! Tabulate Xde for interpolation
-   REAL, PARAMETER :: acc_integration_Xde = acc_cosm ! Accuracy for direct integration of dark energy density
-   INTEGER, PARAMETER :: iorder_integration_Xde = 3  ! Polynomial order for time integration
-   INTEGER, PARAMETER :: iorder_interp_Xde = 3       ! Polynomial order for time interpolation
-   INTEGER, PARAMETER :: iextrap_Xde = iextrap_standard
-   LOGICAL, PARAMETER :: store_Xde = .TRUE.
+   LOGICAL, PARAMETER :: tabulate_Xde = .TRUE.        ! Tabulate Xde for interpolation
+   REAL, PARAMETER :: acc_integration_Xde = acc_cosm  ! Accuracy for direct integration of dark energy density
+   INTEGER, PARAMETER :: iorder_integration_Xde = 3   ! Polynomial order for time integration
+   INTEGER, PARAMETER :: iorder_interp_Xde = 3        ! Polynomial order for time interpolation
+   INTEGER, PARAMETER :: iextrap_Xde = iextrap_linear ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_Xde = .TRUE.           ! Storage in interpolator
 
    ! Modified gravity
-   INTEGER, PARAMETER :: img_none = 0
-   INTEGER, PARAMETER :: img_nDGP = 1
-   INTEGER, PARAMETER :: img_fR = 2
-   INTEGER, PARAMETER :: img_nDGP_lin = 3
-   INTEGER, PARAMETER :: img_fR_lin = 4
+   INTEGER, PARAMETER :: img_none = 0     ! Standard gravity
+   INTEGER, PARAMETER :: img_nDGP = 1     ! normal-branch DGP gravity with a LCDM background
+   INTEGER, PARAMETER :: img_fR = 2       ! f(R) gravity with a LCDM background
+   INTEGER, PARAMETER :: img_nDGP_lin = 3 ! Linearised nDGP (only affects spherical model and HMcode)
+   INTEGER, PARAMETER :: img_fR_lin = 4   ! Linearised f(R) (only affects spherical model and HMcode)
 
    ! Distance
    REAL, PARAMETER :: amin_distance = 1e-4                   ! Minimum scale factor in look-up table
@@ -323,17 +323,20 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interp_Tcold = 3        ! Order for cold interpolatin
    LOGICAL, PARAMETER :: store_Tcold = .TRUE.           ! Storage for cold interpolation
 
-   ! De-wiggle power
-   REAL, PARAMETER :: kmin_wiggle = 0.008                 ! Minimum wavenumber to calulate wiggle
-   REAL, PARAMETER :: kmax_wiggle = 1.                    ! Maximum wavenumber to calculate wiggle
-   INTEGER, PARAMETER :: nk_wiggle = 128                  ! Number of k points to store wiggle
-   INTEGER, PARAMETER :: wiggle_Lagrange = 1              ! Method to calculate wiggle using Lagrange polynomials
-   INTEGER, PARAMETER :: wiggle_smooth = 2                ! Method to calculate wiggle using array smoothing
-   INTEGER, PARAMETER :: n_wiggle_smooth = 8             ! If using array smoothing number of entries to smooth over
-   INTEGER, PARAMETER :: imethod_wiggle = wiggle_smooth ! Choose method for wiggle
-   INTEGER, PARAMETER :: iorder_interp_wiggle = 3         ! Order for wiggle interpolator
-   INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero    ! Should be zeros because interpolator stores only wiggle
-   LOGICAL, PARAMETER :: store_wiggle = .TRUE.            ! Pre-calculate interpolation coefficients
+   ! Wiggle extraction methods
+   INTEGER, PARAMETER :: wiggle_Lagrange = 1 ! Using Lagrange polynomials
+   INTEGER, PARAMETER :: wiggle_smooth = 2   ! Array smoothing
+
+   ! Wiggle extraction and interpolation
+   REAL, PARAMETER :: kmin_wiggle = 0.008                     ! Minimum wavenumber to calulate wiggle
+   REAL, PARAMETER :: kmax_wiggle = 1.                        ! Maximum wavenumber to calculate wiggle
+   INTEGER, PARAMETER :: nk_wiggle = 128                      ! Number of k points to store wiggle
+   LOGICAL, PARAMETER :: store_wiggle = .TRUE.                ! Pre-calculate interpolation coefficients 
+   INTEGER, PARAMETER :: n_wiggle_smooth = nk_wiggle/16       ! If using array smoothing number of entries to smooth over
+   REAL, PARAMETER :: kwig_points(4) = [0.008, 0.01, 0.8, 1.] ! Points in k for Lagrange polynomial
+   INTEGER, PARAMETER :: imethod_wiggle = wiggle_Lagrange     ! Choose method for wiggle
+   INTEGER, PARAMETER :: iorder_interp_wiggle = 3             ! Order for wiggle interpolator
+   INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero        ! Should be zeros because interpolator stores only wiggle
 
    ! Correlation function
    ! TODO: This works very poorly
@@ -442,16 +445,16 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
 
    ! CAMB non-linear
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016_neutrinofix = 9
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1          ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2           ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4      ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8             ! Mead et al. (2015; )
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5             ! Mead et al. (2016; )
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016_neutrinofix = 9 ! Unpublished Takahashi with Bird
 
-   ! General integrations
-   INTEGER, PARAMETER :: jmin_integration = 5
-   INTEGER, PARAMETER :: jmax_integration = 30
+   ! General cosmological integrations
+   INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
+   INTEGER, PARAMETER :: jmax_integration = 30 ! Maximum number of points: 2^(j-1)
 
 CONTAINS
 
@@ -816,6 +819,7 @@ CONTAINS
          ! Boring - do nothing
       ELSE IF (icosmo == 2) THEN
          ! cosmo-OWLS - WMAP7 (1312.5462)
+         ! TODO: Should this use a CAMB linear spectrum?
          cosm%Om_m = 0.272
          cosm%Om_b = 0.0455
          cosm%Om_v = 1.-cosm%Om_m
@@ -824,6 +828,7 @@ CONTAINS
          cosm%ns =  0.967
       ELSE IF (icosmo == 3) THEN
          ! Planck 2013 (cosmo-OWLS/BAHAMAS; 1312.5462/1603.02702; no neutrinos)
+         ! TODO: Should this use a CAMB linear spectrum?
          cosm%Om_m = 0.3175
          cosm%Om_b = 0.0490
          cosm%Om_v = 1.-cosm%Om_m
@@ -831,6 +836,7 @@ CONTAINS
          cosm%ns =  0.9624
          cosm%sig8 = 0.8341
       ELSE IF (is_in_array(icosmo, [4, 61, 62, 70, 71, 75, 76, 77, 78])) THEN
+         ! BAHAMAS - WMAP 9
          ! TODO: Should this use CAMB linear spectrum?
          !  4 - WMAP9 (BAHAMAS; 1712.02411; no neutrinos)
          ! 61 - WMAP9 with T_AGN = 10^7.6 K (low)
@@ -861,6 +867,13 @@ CONTAINS
          IF (icosmo == 76) cosm%m_nu = 0.12 ! 0.12eV neutrinos
          IF (icosmo == 77) cosm%m_nu = 0.24 ! 0.24eV neutrinos
          IF (icosmo == 78) cosm%m_nu = 0.48 ! 0.48eV neutrinos
+         IF (is_in_array(icosmo, [75, 76, 77, 78])) THEN
+            cosm%itk = itk_CAMB
+            cosm%Om_w = cosm%Om_v
+            cosm%Om_v = 0.
+         ELSE
+            cosm%itk = itk_EH
+         END IF
       ELSE IF (icosmo == 5) THEN
          !  5 - Open model
          cosm%Om_v = 0.
@@ -1238,13 +1251,14 @@ CONTAINS
          cosm%Om_w = cosm%Om_v
          cosm%Om_v = 0.
       ELSE IF (is_in_array(icosmo, [63, 64, 65, 79, 80, 81])) THEN
+         ! BAHAMAS Planck 2015 cosmologies
+          ! Note well that these cosmologies all have a  neutrino mass
          ! 63 - Planck 2015 (BAHAMAS; Table 1 of 1712.02411)
          ! 64 - Planck 2015 but with 10^7.6 AGN temperature
          ! 65 - Planck 2015 but with 10^8.0 AGN temperature
          ! 79 - Planck 2015 but with 0.12eV neutrinos
-         ! 80 - Planck 2015 but with 0.12eV neutrinos
-         ! 81 - Planck 2015 but with 0.12eV neutrinos
-         ! Note well that this has a neutrino mass
+         ! 80 - Planck 2015 but with 0.24eV neutrinos
+         ! 81 - Planck 2015 but with 0.48eV neutrinos     
          cosm%itk = itk_CAMB
          cosm%m_nu = 0.06
          cosm%h = 0.6787
@@ -2086,7 +2100,7 @@ CONTAINS
 
    END FUNCTION physical_critical_density
 
-   REAL FUNCTION comoving_matter_density(cosm)
+   PURE REAL FUNCTION comoving_matter_density(cosm)
 
       ! Comoving matter density [(Msun/h) / (Mpc/h)^3]
       ! Not a function of redshift, constant value throughout time
@@ -2097,7 +2111,7 @@ CONTAINS
 
    END FUNCTION comoving_matter_density
 
-   REAL FUNCTION physical_matter_density(a, cosm)
+   PURE REAL FUNCTION physical_matter_density(a, cosm)
 
       ! Physical matter density [(Msun/h) / (Mpc/h)^3]
       ! Proportional to a^-3 always
@@ -4376,7 +4390,7 @@ CONTAINS
       REAL, PARAMETER :: p23 = 0.0646
       INTEGER, PARAMETER :: a2 = 0
 
-      IF(cosm%m_nu .NE. 0) THEN
+      IF(cosm%m_nu .NE. 0.) THEN
          cosm_LCDM = convert_cosmology(cosm, make_lambda=.FALSE., make_flat=.FALSE., remove_neutrinos=.TRUE.)
       ELSE
          cosm_LCDM = cosm
@@ -4415,7 +4429,7 @@ CONTAINS
       REAL, PARAMETER :: p43 = -15.87
       INTEGER, PARAMETER :: a4 = 2
 
-      IF (cosm%m_nu .NE. 0) THEN
+      IF (cosm%m_nu .NE. 0.) THEN
          cosm_LCDM = convert_cosmology(cosm, make_lambda=.FALSE., make_flat=.FALSE., remove_neutrinos=.TRUE.)
       ELSE
          cosm_LCDM = cosm
@@ -7368,10 +7382,11 @@ CONTAINS
       IF(imethod_wiggle == wiggle_Lagrange) THEN
 
          ! Fixed k values - CAMB
-         logkv(1) = log(0.008)
-         logkv(2) = log(0.01)
-         logkv(3) = log(0.8)
-         logkv(4) = log(1.0)
+         !logkv(1) = log(0.008)
+         !logkv(2) = log(0.01)
+         !logkv(3) = log(0.8)
+         !logkv(4) = log(1.0)
+         logkv = log(kwig_points)
 
          ! Fix p values
          DO i = 1, 4
