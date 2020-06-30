@@ -40,6 +40,7 @@ MODULE HMx
    PUBLIC :: calculate_HMcode
    PUBLIC :: calculate_halomod
    PUBLIC :: calculate_halomod_full
+   PUBLIC :: calculate_halomod_response
    PUBLIC :: set_halo_type
    PUBLIC :: halo_type
    PUBLIC :: M_nu
@@ -258,7 +259,7 @@ MODULE HMx
 
       ! Tilman 2018 work
       ! TODO: Probably redundant
-      REAL :: Theat
+      !REAL :: Theat
       REAL :: A_alpha, B_alpha, C_alpha, D_alpha, E_alpha      ! Tilman alpha parameters
       REAL :: A_eps, B_eps, C_eps, D_eps                       ! Tilman eps parameters
       REAL :: A_Gamma, B_Gamma, C_Gamma, D_Gamma, E_gamma      ! Tilman Gamma parameters
@@ -278,7 +279,7 @@ MODULE HMx
       INTEGER :: nk
 
       ! HMcode parameters and experimental parameters
-      REAL :: knl, rnl, mnl, neff, Rh, Mh, Mp, sigv
+      REAL :: knl, rnl, mnl, neff, Rh, Mh, Mp, sigv, Rhh
       !REAL :: sig_eta, sig_deltac, sig_fdamp, sigV_kstar, sigV_fdamp, sigV_all, sig8_all
 
       ! Saturation parameters (e.g., WDM)
@@ -385,6 +386,7 @@ MODULE HMx
    REAL, PARAMETER :: HMcode_alpha_min = 0.5  ! Minimum value for alpha transition parameter
    REAL, PARAMETER :: HMcode_alpha_max = 2.0  ! Maximum value for alpha transition parameter
    REAL, PARAMETER :: HMcode_ks_limit = 7.    ! Limit for (k/k*)^2 in one-halo term
+   LOGICAL, PARAMETER :: renormalise_onehalo = .FALSE.
 
    ! HMx
    REAL, PARAMETER :: HMx_alpha_min = 1e-2 ! Minimum alpha parameter; needs to be set at not zero
@@ -660,7 +662,8 @@ CONTAINS
       names(99) = 'Standard but with sigma calculated for normalised cold matter'
       names(100) = 'Standard but massive neutrinos affect virial radius'
       names(101) = 'Standard but with spherical collapse calculation'
-      names(102) = 'HMcode (2020)'
+      names(102) = 'HMcode (2020) with baryon model'
+      names(103) = 'Baryon model only'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -964,7 +967,7 @@ CONTAINS
       ! 1 - NOT USED
       ! 2 - NOT USED
       ! 3 - Standard
-      ! 4 - Tilman model
+      ! 4 - NOT SUPPORTED
       ! 5 - HMx2020 redshift scalings
       ! 6 - HMx2020 redshift and temperature scalings
       hmod%HMx_mode = 3
@@ -1264,7 +1267,6 @@ CONTAINS
          ELSE IF (ihm == 64) THEN
             ! 64 - HMcode 2016 but with 2020 baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
-            !hmod%sbar = 1e-3
          ELSE IF (ihm == 92 .OR. ihm == 95) THEN
             ! 92, 95 - HMcode (2016) with neutrino bug fix
             hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Neutrino bug fix
@@ -1367,13 +1369,16 @@ CONTAINS
          hmod%alp1 = 1.85
          IF (ihm == 17) THEN
             ! AGN 7.6
-            hmod%Theat = 10**7.6
+            !hmod%Theat = 10**7.6
+            STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          ELSE IF (ihm == 18) THEN
             ! AGN tuned
-            hmod%Theat = 10**7.8
+            !hmod%Theat = 10**7.8
+            STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          ELSE IF (ihm == 19) THEN
             ! AGN 8.0
-            hmod%Theat = 10**8.0
+            !hmod%Theat = 10**8.0
+            STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          END IF
       ELSE IF (ihm == 20) THEN
          ! Standard halo model but as response with HMcode
@@ -1771,12 +1776,13 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
-      ELSE IF (ihm == 77 .OR. ihm == 78 .OR. ihm == 79 .OR. ihm == 102) THEN
+      ELSE IF (ihm == 77 .OR. ihm == 78 .OR. ihm == 79 .OR. ihm == 102 .OR. ihm == 103) THEN
          ! HMcode (2020)
          !  77 - Unfitted
          !  78 - Fitted to Cosmic Emu for k<1
          !  79 - Fitted
          ! 102 - Fitted with baryon model
+         ! 103 - Unfitted with baryon model
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - alpha smoothing
@@ -1870,19 +1876,30 @@ CONTAINS
             hmod%As = 3.8870756
             hmod%dcnu = 0.2551262
             hmod%Dvnu = 0.5504368           
-            IF (ihm == 102) THEN
-               hmod%DMONLY_baryon_recipe = .TRUE.
-               hmod%As = 3.093587
-               hmod%mbar = 10**13.95954
-               hmod%mbarz = -0.067325
-               hmod%sbar = 0.0291325
-               hmod%sbarz = 0.7261285
-               hmod%As_T = -1.53191
-               hmod%mbar_T = 1.214031
-               hmod%mbarz_T = 0.3162607
-               hmod%sbar_T = 0.007180
-               hmod%sbarz_T = -0.38087524
-            END IF 
+         END IF
+         IF (ihm == 102 .OR. ihm == 103) THEN
+            hmod%DMONLY_baryon_recipe = .TRUE.
+            !hmod%As = 3.093587
+            !hmod%mbar = 10**13.95954
+            !hmod%mbarz = -0.067325
+            !hmod%sbar = 0.0291325
+            !hmod%sbarz = 0.7261285
+            !hmod%As_T = -1.53191
+            !hmod%mbar_T = 1.214031
+            !hmod%mbarz_T = 0.3162607
+            !hmod%sbar_T = 0.007180
+            !hmod%sbarz_T = -0.38087524
+            !hmod%Amf = 1.38
+            hmod%As = 3.08320
+            hmod%mbar = 10**13.61510
+            hmod%mbarz = -0.178117
+            hmod%sbar = 0.02996309
+            hmod%sbarz = 0.9240190
+            hmod%As_T =  -0.47455
+            hmod%mbar_T = 1.830053
+            hmod%mbarz_T = -0.202781
+            hmod%sbar_T = -0.0050202
+            hmod%sbarz_T = -0.12670
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
@@ -2010,29 +2027,33 @@ CONTAINS
          WRITE (*, *) 'INIT_HALOMOD: Number of entries:', hmod%n
       END IF
 
-      ! Loop over halo masses and fill arrays
+      ! Halo masses
+      CALL fill_array(log(hmod%mmin), log(hmod%mmax), hmod%log_m, hmod%n)
+      hmod%m = exp(hmod%log_m)
+      !DO i = 1, hmod%n
+      !   hmod%mr(i) = hmod%m(i)*(1.-cosm%f_nu)*(1.-halo_ejected_gas_fraction(hmod%m(i), hmod, cosm))
+      !END DO
+
+      ! Lagrangian and virial radius
+      hmod%rr = radius_m(hmod%m, cosm)
+      IF (hmod%DMONLY_neutrinos_affect_virial_radius) THEN
+         hmod%rr = hmod%rr*(1.-cosm%f_nu)**(1./3.)
+      END IF
+      IF(hmod%mass_dependent_Dv) THEN
+         DO i = 1, hmod%n
+            hmod%rv(i) = virial_radius(hmod%m(i), hmod, cosm)
+         END DO
+      ELSE
+         hmod%rv = hmod%rr/hmod%Dv**(1./3.)
+      END IF
+
+      ! Sigma and nu
       DO i = 1, hmod%n
-
-         log_m = progression(log(hmod%mmin), log(hmod%mmax), i, hmod%n)
-         m = exp(log_m)
-         R = radius_m(m, cosm)
-         IF (hmod%DMONLY_neutrinos_affect_virial_radius) THEN
-            R = R*(1.-cosm%f_nu)**(1./3.)
-         END IF
-         sig = sigma(R, a, hmod%flag_sigma, cosm)
-         nu = hmod%dc/sig
-
-         hmod%log_m(i) = log_m
-         hmod%m(i) = m
-         !hmod%mr(i) = m*(1.-cosm%f_nu)*(1.-halo_ejected_gas_fraction(hmod%m(i), hmod, cosm))
-         hmod%rr(i) = R
-         hmod%sig(i) = sig
-         hmod%nu(i) = nu
-         hmod%rv(i) = virial_radius(hmod%m(i), hmod, cosm)
-
+         hmod%sig(i) = sigma(hmod%rr(i), a, hmod%flag_sigma, cosm)
       END DO
+      hmod%nu = hmod%dc/hmod%sig
 
-      IF (verbose) WRITE (*, *) 'INIT_HALOMOD: M, R, nu, sigma tables filled'
+      IF (verbose) WRITE (*, *) 'INIT_HALOMOD: M, R, rv, sigma, nu tables filled'
 
       ! For spectra with finite variance we have cut-off masses etc.
       IF(cosm%warm) THEN
@@ -2042,9 +2063,6 @@ CONTAINS
             WRITE(*, *) 'INIT_HALOMOD: Saturation nu:', hmod%nu_saturation
          END IF
       END IF
-
-      ! Fill virial radius table using real radius table
-      !hmod%rv = hmod%rr/hmod%Dv**(1./3.)
 
       ! Write some useful information to the screen
       IF (verbose) THEN
@@ -2120,6 +2138,14 @@ CONTAINS
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: One-halo amplitude [Mpc/h]^3:', hmod%Rh
          WRITE (*, *) 'INIT_HALOMOD: One-halo amplitude [log10(M) [Msun/h]]:', log10(hmod%Mh)
+      END IF
+
+      ! Applies if we enforce the amplitude of the one-halo term not to be affected by mass loss
+      IF (hmod%DMONLY_baryon_recipe .AND. renormalise_onehalo) THEN
+         hmod%Rhh = one_halo_modified_amplitude(hmod, cosm)
+         IF (verbose) THEN
+            WRITE (*, *) 'INIT_HALOMOD: One-halo modified amplitude [Mpc/h]^3:', hmod%Rhh
+         END IF
       END IF
 
       ! Calculate the total stellar mass fraction
@@ -2516,8 +2542,9 @@ CONTAINS
             WRITE (*, fmt=fmt) 'beta gas:', hmod%gbeta   
             WRITE (*, fmt=fmt) 'beta gas z index:', hmod%gbetaz
          ELSE IF (hmod%HMx_mode == 4 .OR. hmod%HMx_mode == 6) THEN         
-            IF(hmod%HMx_mode == 4) WRITE (*, fmt=fmt) 'log10(T_heat) [K]:', log10(hmod%Theat)
-            IF(hmod%HMx_mode == 6) WRITE (*, fmt=fmt) 'log10(T_heat) [K]:', log10(cosm%Theat)
+            !IF(hmod%HMx_mode == 4) WRITE (*, fmt=fmt) 'log10(T_heat) [K]:', log10(hmod%Theat)
+            IF (hmod%HMx_mode == 4) STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+            IF (hmod%HMx_mode == 6) WRITE (*, fmt=fmt) 'log10(T_heat) [K]:', log10(cosm%Theat)
             WRITE (*, fmt=fmt) 'alpha:', HMx_alpha(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'beta:', HMx_beta(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'epsilon:', HMx_eps(hmod, cosm)
@@ -2927,6 +2954,36 @@ CONTAINS
       CALL calculate_halomod_full(k, a, pow_li, pow_2h, pow_1h, Pk, nk, na, cosm, ihm)
 
    END SUBROUTINE calculate_halomod
+
+   SUBROUTINE calculate_halomod_response(k, a, Pk, nk, na, cosm, ihm_num, ihm_den, ihm_base)
+
+      ! Get the halo model prediction for matter--matter for cosmology for a range of k and a
+      ! Assumes DMONLY halo profiles etc.
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
+      INTEGER, INTENT(IN) :: na                  ! Number of scale factors
+      REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
+      REAL, INTENT(IN) :: a(na)                  ! Array of scale factors
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
+      TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
+      INTEGER, INTENT(IN) :: ihm_num          ! The ihm corresponding to the HMcode version
+      INTEGER, INTENT(IN) :: ihm_den          ! The ihm corresponding to the HMcode version
+      INTEGER, INTENT(IN) :: ihm_base         ! The ihm corresponding to the HMcode version
+      REAL, ALLOCATABLE :: Pk_num(:, :), Pk_den(:, :)
+      INTEGER :: ihm
+
+      ihm = ihm_num
+      CALL calculate_halomod(k, a, Pk_num, nk, na, cosm, ihm)
+
+      ihm = ihm_den
+      CALL calculate_halomod(k, a, Pk_den, nk, na, cosm, ihm)
+
+      ihm = ihm_base
+      CALL calculate_halomod(k, a, Pk, nk, na, cosm, ihm)
+
+      Pk = Pk*Pk_num/Pk_den
+
+   END SUBROUTINE calculate_halomod_response
 
    SUBROUTINE calculate_halomod_full(k, a, pow_li, pow_2h, pow_1h, pow_hm, nk, na, cosm, ihm)
 
@@ -3860,6 +3917,11 @@ CONTAINS
          STOP 'P_1H: Error, i1hdamp not specified correctly'
       END IF
 
+      ! Renormalise the one-halo term if that is desirous
+      IF(hmod%DMONLY_baryon_recipe .AND. renormalise_onehalo) THEN
+         p_1h = p_1h*hmod%Rh/hmod%Rhh
+      END IF
+
    END FUNCTION p_1h
 
    REAL FUNCTION p_hm(k, pow_2h, pow_1h, hmod)
@@ -4448,6 +4510,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: a, sig
 
+      ! Scale factor
       a = hmod%a
 
       IF (hmod%idc == 1) THEN
@@ -4461,8 +4524,7 @@ CONTAINS
          sig = sigma(8., a, flag_power_total, cosm)
          delta_c = hmod%dc0+hmod%dc1*log(sig)
          IF (hmod%idc == 3) THEN
-            ! HMcode(2016) addition of small cosmology and explicit neutrino dependence
-            delta_c = delta_c*(1.+hmod%dcnu*cosm%f_nu)
+            ! HMcode(2016) addition of small cosmology and explicit neutrino dependence          
             delta_c = delta_c*(dc_NakamuraSuto(a, cosm)/dc0)
             IF (cosm%img == img_nDGP) THEN
                delta_c = delta_c*(1.+0.008*sigmoid_tanh(log10(2.33*a*cosm%H0rc**(-0.65))/0.4))
@@ -4471,7 +4533,6 @@ CONTAINS
       ELSE IF (hmod%idc == 4) THEN
          ! From Mead (2017) fitting function
          delta_c = dc_Mead(a, cosm)
-         delta_c = delta_c*(1.+hmod%dcnu*cosm%f_nu)
       ELSE IF (hmod%idc == 5) THEN
          ! From spherical-collapse calculation
          delta_c = dc_spherical(a, cosm)
@@ -4479,6 +4540,9 @@ CONTAINS
          WRITE (*, *) 'DELTA_C: idc:', hmod%idc
          STOP 'DELTA_C: Error, idc defined incorrectly'
       END IF
+
+      ! Massive neutrino dependence
+      delta_c = delta_c*(1.+hmod%dcnu*cosm%f_nu)
 
    END FUNCTION delta_c
 
@@ -4491,6 +4555,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: a
 
+      ! Scale factor
       a = hmod%a
 
       IF (hmod%iDv == 1) THEN
@@ -4501,10 +4566,10 @@ CONTAINS
          Delta_v = Dv_BryanNorman(a, cosm)
       ELSE IF (hmod%iDv == 3 .OR. hmod%iDv == 8) THEN
          ! From HMcode(2015, 2016)  
-         Delta_v = hmod%Dv0*Omega_m(a, cosm)**hmod%Dv1 ! This has Omega_m(a) dependence in HMcode (2016)
+         ! This has Omega_m(a) dependence in HMcode (2016), maybe cold would have been better?
+         Delta_v = hmod%Dv0*Omega_m(a, cosm)**hmod%Dv1 
          IF (hmod%iDv == 3) THEN
-            ! HMcode(2016) additions
-            Delta_v = Delta_v*(1.+hmod%Dvnu*cosm%f_nu)
+            ! HMcode(2016) additions           
             IF (cosm%img == img_nDGP) THEN
                Delta_v = Delta_v*(1.-a*0.0388*cosm%H0rc**(-0.7))
             ELSE IF (cosm%img == img_fR) THEN
@@ -4514,7 +4579,6 @@ CONTAINS
       ELSE IF (hmod%iDv == 4) THEN
          ! From Mead (2017) fitting function
          Delta_v = Dv_Mead(a, cosm)
-         Delta_v = Delta_v*(1.+hmod%Dvnu*cosm%f_nu)
       ELSE IF (hmod%iDv == 5) THEN
          ! From spheircal-collapse calculation
          Delta_v = Dv_spherical(a, cosm)
@@ -4523,7 +4587,6 @@ CONTAINS
          Delta_v = 1.
       ELSE IF (hmod%iDv == 7) THEN
          ! M200c
-         !Delta_v = 200.*comoving_critical_density(a, cosm)/comoving_matter_density(cosm)
          Delta_v = 200./Omega_m(a, cosm)
       ELSE IF (hmod%iDv == 9) THEN
          ! 18pi^2 ~178
@@ -4531,6 +4594,9 @@ CONTAINS
       ELSE
          STOP 'DELTA_V: Error, iDv defined incorrectly'
       END IF
+
+      ! Massive neutrino dependence
+      Delta_v = Delta_v*(1.+hmod%Dvnu*cosm%f_nu)
 
    END FUNCTION Delta_v
 
@@ -4726,7 +4792,7 @@ CONTAINS
          END IF
          !WRITE(*, *) log10(cosm%Theat), As
          !STOP
-         HMcode_A = As*(sig/0.8)**hmod%Ap+hmod%Ac
+         HMcode_A = As*(sig**hmod%Ap)+hmod%Ac
       ELSE
          STOP 'HMcode_A: Error, iAs defined incorrectly'
       END IF
@@ -4786,13 +4852,14 @@ CONTAINS
          END IF
 
       ELSE IF (hmod%HMx_mode == 4) THEN
+         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_alpha
          B = hmod%B_alpha
          C = hmod%C_alpha
          D = hmod%D_alpha
          E = hmod%E_alpha
          z = hmod%z
-         T = log10(hmod%Theat)
+         !T = log10(hmod%Theat)
          !HMx_alpha=A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_alpha = (A*(1.+z)**2+B*(1.+z)+C)*T**2+D*T+E
          HMx_alpha = HMx_alpha/(1.+z) ! NEW: (1+z) accounts for previous wrong definition of temperature
@@ -4860,12 +4927,13 @@ CONTAINS
          END IF 
 
       ELSE IF (hmod%HMx_mode == 4) THEN
+         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_eps
          B = hmod%B_eps
          C = hmod%C_eps
          D = hmod%D_eps
          z = hmod%z
-         T = log10(hmod%Theat)
+         !T = log10(hmod%Theat)
          HMx_eps = A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_eps = 10**HMx_eps-1.
       ELSE
@@ -4933,13 +5001,14 @@ CONTAINS
          END IF
 
       ELSE IF (hmod%HMx_mode == 4) THEN
+         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_Gamma
          B = hmod%B_Gamma
          C = hmod%C_Gamma
          D = hmod%D_Gamma
          E = hmod%E_Gamma
          z = hmod%z
-         T = log10(hmod%Theat)
+         !T = log10(hmod%Theat)
          !HMx_Gamma=A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_Gamma = (A*(1.+z)**2+B*(1.+z)+C)*T**2+D*T+E
       ELSE
@@ -5032,13 +5101,14 @@ CONTAINS
          END IF
 
       ELSE IF (hmod%HMx_mode == 4) THEN
+         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_M0
          B = hmod%B_M0
          C = hmod%C_M0
          D = hmod%D_M0
          E = hmod%E_M0
          z = hmod%z
-         T = log10(hmod%Theat)
+         !T = log10(hmod%Theat)
          !HMx_M0=A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_M0 = (A*(1.+z)**2+B*(1.+z)+C)*T**2+D*T+E
          HMx_M0 = 10**HMx_M0
@@ -5078,12 +5148,13 @@ CONTAINS
          END IF
 
       ELSE IF (hmod%HMx_mode == 4) THEN
+         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_Astar
          B = hmod%B_Astar
          C = hmod%C_Astar
          D = hmod%D_Astar
          z = hmod%z
-         T = log10(hmod%Theat)
+         !T = log10(hmod%Theat)
          HMx_Astar = A*(1.+z)*T+B*(1.+z)+C*T+D
       ELSE
          STOP 'HMx_ASTAR: Error, HMx_mode not specified correctly'
@@ -5124,12 +5195,13 @@ CONTAINS
          END IF
 
       ELSE IF (hmod%HMx_mode == 4) THEN
+         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_Twhim
          B = hmod%B_Twhim
          C = hmod%C_Twhim
          D = hmod%D_Twhim
          z = hmod%z
-         T = log10(hmod%Theat)
+         !T = log10(hmod%Theat)
          !HMx_Twhim=A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_Twhim = (A*(1.+z)**2+B*(1.+z)+C)*T+D
          HMx_Twhim = 10**HMx_Twhim
@@ -5603,11 +5675,10 @@ CONTAINS
 
    END FUNCTION rhobar_tracer
 
-   FUNCTION one_halo_amplitude(hmod, cosm)
+   REAL FUNCTION one_halo_amplitude(hmod, cosm)
 
       !Calculates the amplitude of the shot-noise plateau of the one-halo term [Mpc/h]^3
       IMPLICIT NONE
-      REAL :: one_halo_amplitude
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: integrand(hmod%n), g, m
@@ -5629,6 +5700,32 @@ CONTAINS
       one_halo_amplitude = one_halo_amplitude/comoving_matter_density(cosm)
 
    END FUNCTION one_halo_amplitude
+
+   REAL FUNCTION one_halo_modified_amplitude(hmod, cosm)
+
+      !Calculates the amplitude of the shot-noise plateau of the one-halo term [Mpc/h]^3
+      IMPLICIT NONE
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: integrand(hmod%n), g, m
+      INTEGER :: i
+
+      IF (hmod%imf == 4) THEN
+         ! Special case for delta-function mass function
+         one_halo_modified_amplitude = hmod%hmass*DMONLY_halo_mass_fraction(hmod%hmass, hmod, cosm)**2
+      ELSE
+         !Calculates the value of the integrand at all nu values!
+         DO i = 1, hmod%n
+            g = g_nu(hmod%nu(i), hmod)
+            m = hmod%m(i)
+            integrand(i) = g*m*DMONLY_halo_mass_fraction(m, hmod, cosm)**2
+         END DO
+         one_halo_modified_amplitude = integrate_table(hmod%nu, integrand, 1, hmod%n, 1)
+      END IF
+
+      one_halo_modified_amplitude = one_halo_modified_amplitude/comoving_matter_density(cosm)
+
+   END FUNCTION one_halo_modified_amplitude
 
    REAL FUNCTION mass_function(m, hmod, cosm)
 
@@ -5695,7 +5792,7 @@ CONTAINS
       ! Get the densities
       rhom = comoving_matter_density(cosm)
       rhoc = comoving_critical_density(a, cosm)
-      IF (cosm%img == img_fR) THEN
+      IF (hmod%mass_dependent_Dv) THEN
          STOP 'CONVERT_MASS_DEFINITIONS: Error, this does not work for a mass-dependent Delta_v'
       ELSE
          Dv = Delta_v(M0_Dv_default, hmod, cosm)
@@ -5804,12 +5901,12 @@ CONTAINS
 
    END FUNCTION NFW_factor
 
-   REAL FUNCTION radius_m(m, cosm)
+   ELEMENTAL REAL FUNCTION radius_m(m, cosm)
 
       ! The comoving radius corresponding to mass M in a homogeneous universe
       IMPLICIT NONE
       REAL, INTENT(IN) :: m
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       radius_m = (3.*m/(4.*pi*comoving_matter_density(cosm)))**(1./3.)
 
@@ -6406,8 +6503,11 @@ CONTAINS
       ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
       ! TODO: Should this really be computed here?
       ! TODO: Think man, think!
-      IF (hmod%DMONLY_neutrino_halo_mass_correction) win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
-      IF (hmod%DMONLY_baryon_recipe)                 win_DMONLY = baryonify_wk(win_DMONLY, m, hmod, cosm)
+      IF (hmod%DMONLY_baryon_recipe) THEN
+         win_DMONLY = baryonify_wk(win_DMONLY, m, hmod, cosm)
+      ELSE IF (hmod%DMONLY_neutrino_halo_mass_correction) THEN
+         win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
+      END IF    
 
    END FUNCTION win_DMONLY
 
@@ -6445,12 +6545,10 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: wkn, sb
 
-      !STOP 'BARYONIFY_WK: The star model is just plain wrong here'
-
       wkn = wk
       wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm)  ! Account for 'gas expulsion'
       sb = HMcode_sbar(cosm, hmod)
-      wkn = wkn+sb*m/comoving_matter_density(cosm) ! Add in 'stars'
+      wkn = wkn*(1.-sb)+sb*m/comoving_matter_density(cosm)  
 
       baryonify_wk = wkn
 
@@ -6467,7 +6565,7 @@ CONTAINS
 
       wko = wk
       sb = HMcode_sbar(cosm, hmod)
-      wko = wko-sb*m/comoving_matter_density(cosm) ! Subtract 'stars'
+      wko = (wko-sb*m/comoving_matter_density(cosm))/(1.-sb) ! Subtract 'stars'
       wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm)  ! Remove 'gas expulsion'
 
       unbaryonify_wk = wko
