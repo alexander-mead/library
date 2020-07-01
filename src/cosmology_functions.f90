@@ -1897,7 +1897,7 @@ CONTAINS
       ! Normalising the power spectrum using sigma8
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: sigma8_initial, sigma8_final, kbox_save, corr
+      REAL :: sigma8_initial, sigma8_final, kbox_save
 
       IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Normalising power to get correct sigma_8'
 
