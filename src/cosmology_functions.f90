@@ -536,9 +536,9 @@ CONTAINS
       names(60) = 'Boring but with some CDM replaced with 0.3eV neutrinos'
       names(61) = 'WMAP9 (BAHAMAS AGN 7.6)'
       names(62) = 'WMAP9 (BAHAMAS AGN 8.0)'
-      names(63) = 'Planck 2015'
-      names(64) = 'Planck 2015 (AGN 7.6)'
-      names(65) = 'Planck 2015 (AGN 8.0)'
+      names(63) = 'Planck 2015 0.06eV (BAHAMAS)'
+      names(64) = 'Planck 2015 0.06eV (BAHAMAS; AGN 7.6)'
+      names(65) = 'Planck 2015 0.06eV (BAHAMAS; AGN 8.0)'
       names(66) = 'Power bump: A = 0.15; k = 0.05h/Mpc; sigma = 1.0'
       names(67) = 'Power bump: A = 0.15; k = 0.10h/Mpc; sigma = 1.0'
       names(68) = 'Power bump: A = 0.15; k = 1.00h/Mpc; sigma = 1.0'
@@ -566,6 +566,9 @@ CONTAINS
       names(90) = 'linearised nDGP - Strong'
       names(91) = 'linearised nDGP - Medium'
       names(92) = 'linearised nDGP - Weak'
+      names(93) = 'Planck 2015 0.12eV (BAHAMAS)'
+      names(94) = 'Planck 2015 0.24eV (BAHAMAS)'
+      names(95) = 'Planck 2015 0.48eV (BAHAMAS)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -858,15 +861,30 @@ CONTAINS
          Xi = 1.08
          Xe = 1.17
          cosm%mue = cosm%mup*(Xe+Xi)/Xe
-         IF (icosmo == 4)  cosm%Theat = 10**7.8 ! Standard AGN temperature
-         IF (icosmo == 61) cosm%Theat = 10**7.6 ! Low AGN temperature
-         IF (icosmo == 62) cosm%Theat = 10**8.0 ! High AGN temperature
-         IF (icosmo == 70) cosm%Theat = 10**7.0 ! Extremely low AGN temperature
-         IF (icosmo == 71) cosm%Theat = 10**8.6 ! Extremely high AGN temperature
-         IF (icosmo == 75) cosm%m_nu = 0.06 ! 0.06eV (minimal) neutrino mass
-         IF (icosmo == 76) cosm%m_nu = 0.12 ! 0.12eV neutrinos
-         IF (icosmo == 77) cosm%m_nu = 0.24 ! 0.24eV neutrinos
-         IF (icosmo == 78) cosm%m_nu = 0.48 ! 0.48eV neutrinos
+         IF (icosmo == 4)  THEN
+            cosm%Theat = 10**7.8 ! Standard AGN temperature
+         ELSE IF (icosmo == 61) THEN
+            cosm%Theat = 10**7.6 ! Low AGN temperature
+         ELSE IF (icosmo == 62) THEN
+            cosm%Theat = 10**8.0 ! High AGN temperature
+         ELSE IF (icosmo == 70) THEN
+            cosm%Theat = 10**7.0 ! Extremely low AGN temperature
+         ELSE IF (icosmo == 71) THEN
+            cosm%Theat = 10**8.6 ! Extremely high AGN temperature
+         END IF
+         IF (icosmo == 75) THEN
+            cosm%m_nu = 0.06 ! 0.06eV (minimal) neutrino mass
+            cosm%sig8 = 0.8069
+         ELSE IF (icosmo == 76) THEN
+            cosm%m_nu = 0.12 ! 0.12eV neutrinos
+            cosm%sig8 = 0.7924
+         ELSE IF (icosmo == 77) THEN
+            cosm%m_nu = 0.24 ! 0.24eV neutrinos
+            cosm%sig8 = 0.7600
+         ELSE IF (icosmo == 78) THEN
+            cosm%m_nu = 0.48 ! 0.48eV neutrinos
+            cosm%sig8 = 0.7001
+         END IF
          IF (is_in_array(icosmo, [75, 76, 77, 78])) THEN
             cosm%itk = itk_CAMB
             cosm%Om_w = cosm%Om_v
@@ -1250,28 +1268,56 @@ CONTAINS
          cosm%itk = itk_CAMB
          cosm%Om_w = cosm%Om_v
          cosm%Om_v = 0.
-      ELSE IF (is_in_array(icosmo, [63, 64, 65, 79, 80, 81])) THEN
+      ELSE IF (is_in_array(icosmo, [63, 64, 65])) THEN
          ! BAHAMAS Planck 2015 cosmologies
-          ! Note well that these cosmologies all have a  neutrino mass
+         ! Note well that these cosmologies all have a  neutrino mass
          ! 63 - Planck 2015 (BAHAMAS; Table 1 of 1712.02411)
          ! 64 - Planck 2015 but with 10^7.6 AGN temperature
          ! 65 - Planck 2015 but with 10^8.0 AGN temperature
-         ! 79 - Planck 2015 but with 0.12eV neutrinos
-         ! 80 - Planck 2015 but with 0.24eV neutrinos
-         ! 81 - Planck 2015 but with 0.48eV neutrinos     
          cosm%itk = itk_CAMB
          cosm%m_nu = 0.06
          cosm%h = 0.6787
          cosm%Om_b = 0.0482
-         cosm%Om_m = 0.2571+cosm%Om_b
-         cosm%Om_v = 1.-cosm%Om_m
+         cosm%Om_m = cosm%Om_b+0.2571+0.0014
+         cosm%Om_w = 1.-cosm%Om_m
+         cosm%Om_v = 0.
          cosm%ns =  0.9701
          cosm%sig8 = 0.8085
          IF (icosmo == 64) cosm%Theat = 10**7.6
          IF (icosmo == 65) cosm%Theat = 10**8.0
-         IF (icosmo == 79) cosm%m_nu = 0.12
-         IF (icosmo == 80) cosm%m_nu = 0.24
-         IF (icosmo == 81) cosm%m_nu = 0.48
+      ELSE IF (icosmo == 93) THEN
+         ! 93 - BAHAMAS Planck 2015 but with 0.12eV neutrinos
+         cosm%itk = itk_CAMB
+         cosm%m_nu = 0.12
+         cosm%h = 0.6768
+         cosm%Om_b = 0.0488
+         cosm%Om_m = cosm%Om_b+0.2574+0.0029
+         cosm%Om_w = 1.-cosm%Om_m
+         cosm%Om_v = 0.
+         cosm%ns = 0.9693
+         cosm%sig8 = 0.7943
+      ELSE IF (icosmo == 94) THEN
+         ! 94 - BAHAMAS Planck 2015 but with 0.24eV neutrinos
+         cosm%itk = itk_CAMB
+         cosm%m_nu = 0.24
+         cosm%h = 0.6723
+         cosm%Om_b = 0.0496
+         cosm%Om_m = cosm%Om_b+0.2576+0.0057
+         cosm%Om_w = 1.-cosm%Om_m
+         cosm%Om_v = 0.
+         cosm%ns = 0.9733
+         cosm%sig8 = 0.7664
+      ELSE IF (icosmo == 95) THEN
+         ! 95 - BAHAMAS Planck 2015 but with 0.48eV neutrinos 
+         cosm%itk = itk_CAMB
+         cosm%m_nu = 0.48
+         cosm%h = 0.6643
+         cosm%Om_b = 0.0513
+         cosm%Om_m = cosm%Om_b+0.2567+0.0117
+         cosm%Om_w = 1.-cosm%Om_m
+         cosm%Om_v = 0.
+         cosm%ns = 0.9811
+         cosm%sig8 = 0.7030
       ELSE IF (icosmo == 82) THEN
          ! Harrison - Zel'dovich
          cosm%itk = itk_none
