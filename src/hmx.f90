@@ -33,10 +33,10 @@ MODULE HMx
    PUBLIC :: write_power_fields
 
    ! Calculations  
-   PUBLIC :: calculate_HMx      ! TODO: Replace calculate_HMx with this
-   PUBLIC :: calculate_HMx_full ! TODO: Replace calculate_HMx with this
-   PUBLIC :: calculate_HMx_old  ! TODO: Replace with the new version
-   PUBLIC :: calculate_HMx_a    ! TODO: Remove (hard task)
+   PUBLIC :: calculate_HMx
+   PUBLIC :: calculate_HMx_full
+   PUBLIC :: calculate_HMx_old  ! TODO: Replace sometime, but Tilman uses this
+   PUBLIC :: calculate_HMx_a    ! TODO: Remove from public (hard task)
    PUBLIC :: calculate_HMcode
    PUBLIC :: calculate_halomod
    PUBLIC :: calculate_halomod_full
@@ -319,7 +319,8 @@ MODULE HMx
       LOGICAL :: has_HI, has_galaxies, has_mass_conversions, safe_negative
 
       LOGICAL :: simple_pivot
-      INTEGER :: response
+      INTEGER :: response_baseline, response_denominator
+      LOGICAL :: response_matter_only
       REAL :: acc, small_nu, large_nu
       CHARACTER(len=256) :: name
       INTEGER :: HMx_mode
@@ -662,8 +663,8 @@ CONTAINS
       names(99) = 'Standard but with sigma calculated for normalised cold matter'
       names(100) = 'Standard but massive neutrinos affect virial radius'
       names(101) = 'Standard but with spherical collapse calculation'
-      names(102) = 'HMcode (2020) with baryon model'
-      names(103) = 'Baryon model only'
+      names(102) = 'HMcode (2020) baryon model'
+      names(103) = 'HMcode (2020) baryon model response'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -917,7 +918,7 @@ CONTAINS
       ! Safeguard against negative terms in cross correlations
       hmod%safe_negative = .FALSE.
 
-      ! HMcode unfitted parameters
+      ! HMcode parameters defaults
       hmod%Dv0 = 200.
       hmod%Dv1 = 0.
       hmod%dc0 = 1.686
@@ -936,10 +937,10 @@ CONTAINS
       ! HMcode (2020) additional parameters
       hmod%DMONLY_neutrino_halo_mass_correction = .TRUE.
       hmod%DMONLY_neutrinos_affect_virial_radius = .FALSE.
-      hmod%kd = 1e-2
+      !hmod%kd = 1e-2
+      hmod%kd = 0.
       hmod%kp = 0.
       hmod%nd = 0.
-      hmod%kp = 0.
       hmod%Ap = 0.
       hmod%Ac = 0.
 
@@ -1108,11 +1109,14 @@ CONTAINS
 
       !!! !!!
 
-      ! Do we treat the halomodel as a response model (multiply by HMcode) or not
-      ! 0 - No
-      ! 1 - Yes for all power spectra
-      ! 2 - Yes only for matter-field (CDM, gas, stars) power spectra
-      hmod%response = 0
+      ! Do we treat the halomodel as a response model (multiply by HMcode) or not?
+      ! 0 - No, otherwise choose an ihm for the baseline and denominator
+      ! If the denominator remains zero then it is taken to be the DMONLY model from the current ihm
+      hmod%response_baseline = 0
+      hmod%response_denominator = 0
+
+      ! Do any response calculations apply to the matter spectra only, or to all spectra?
+      hmod%response_matter_only = .FALSE.
 
       ! Halo mass if the mass function is a delta function
       hmod%hmass = 1e13
@@ -1364,7 +1368,7 @@ CONTAINS
          !hmod%itrans = 1
          hmod%i1hdamp = 2
          hmod%safe_negative = .TRUE.
-         hmod%response = 1
+         hmod%response_baseline = HMcode2016
          hmod%alp0 = 3.24
          hmod%alp1 = 1.85
          IF (ihm == 17) THEN
@@ -1382,14 +1386,14 @@ CONTAINS
          END IF
       ELSE IF (ihm == 20) THEN
          ! Standard halo model but as response with HMcode
-         hmod%response = 1
+         hmod%response_baseline = HMcode2016
       ELSE IF (ihm == 21) THEN
          ! Cored NFW halo profile model
          hmod%halo_DMONLY = 5 ! Cored profile
       ELSE IF (ihm == 22) THEN
          ! Different stellar profile
          hmod%halo_central_stars = 2 ! Schneider & Teyssier (2015)
-         hmod%response = 1
+         hmod%response_baseline = HMcode2016
       ELSE IF (ihm == 23) THEN
          ! Tinker (2010) mass function and bias; virial halo mass
          hmod%imf = 3 ! Tinker mass function and bias
@@ -1430,7 +1434,7 @@ CONTAINS
          ! 35 - Response model for AGN 7.6;   z = 0.0; clever pivot; f_hot
          ! 36 - Response model for AGN tuned; z = 0.0; clever pivot; f_hot
          ! 37 - Response model for AGN 8.0;   z = 0.0; clever pivot; f_hot
-         hmod%response = 1
+         hmod%response_baseline = HMcode2016
          IF (ihm == 32) THEN
             ! AGN 7.6
             ! Mpiv = 1e14; z = 0.0
@@ -1542,7 +1546,7 @@ CONTAINS
          ! 38 - AGN 7p6
          ! 39 - AGN tuned
          ! 49 - AGN 8p0
-         hmod%response = 1
+         hmod%response_baseline = HMcode2016
          IF (ihm == 38) THEN
             ! AGN 7p6
             hmod%alpha = 1.52016437
@@ -1625,8 +1629,9 @@ CONTAINS
          hmod%iconc = 5 ! Duffy for M200c for full sample
          hmod%idc = 1   ! Fixed to 1.686
       ELSE IF (ihm == 43) THEN
-         ! Standard halo model but as response with HMcode but only for matter spectra
-         hmod%response = 2
+         ! Standard halo model but as response with HMcode (2016) but only for matter spectra
+         hmod%response_baseline = HMcode2016
+         hmod%response_matter_only = .TRUE.
       ELSE IF (ihm == 44) THEN
          ! Tinker and stuff apprpriate for M200
          hmod%imf = 3   ! Tinker mass function and bias
@@ -1642,7 +1647,7 @@ CONTAINS
       ELSE IF (ihm == 47) THEN
          ! Isothermal beta model, response
          hmod%halo_normal_bound_gas = 2
-         hmod%response = 1
+         hmod%response_baseline = HMcode2016
       ELSE IF (ihm == 48) THEN
          ! Non-linear halo bias for standard halo model with virial haloes
          hmod%ibias = 3   ! Non-linear halo bias
@@ -1665,13 +1670,13 @@ CONTAINS
          hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
       ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, 60, 61, 62, 63, 65, 81, 82, 83, 84, 85, 86])) THEN
          ! HMx2020: Baseline
-         hmod%response = 1             ! Model should be calculated as a response
+         hmod%response_baseline = HMcode2016 ! Model should be calculated as a response
          hmod%halo_central_stars = 3   ! 3 - Delta function for central stars
          hmod%halo_satellite_stars = 1 ! 1 - NFW
          hmod%eta = -0.3               ! eta to split central and satellitee galaxies
          hmod%HMx_mode = 5             ! HMx2020 possible M and z dependence of parameters
-         IF (ihm == 65) hmod%response = 0                      ! No response
-         IF (is_in_array(ihm, [81, 82, 83])) hmod%response = 2 ! Matter-only response
+         IF (ihm == 65) hmod%response_baseline = 0 ! No response
+         IF (is_in_array(ihm, [81, 82, 83])) hmod%response_matter_only = .TRUE.
          IF (is_in_array(ihm, [84, 85, 86])) hmod%different_Gammas = .TRUE.
          IF (ihm == 56 .OR. ihm == 81 .OR. ihm == 84) THEN
             ! AGN 7.6
@@ -1782,7 +1787,7 @@ CONTAINS
          !  78 - Fitted to Cosmic Emu for k<1
          !  79 - Fitted
          ! 102 - Fitted with baryon model
-         ! 103 - Unfitted with baryon model
+         ! 103 - Baryon model in response
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - alpha smoothing
@@ -1877,7 +1882,7 @@ CONTAINS
             hmod%dcnu = 0.2551262
             hmod%Dvnu = 0.5504368           
          END IF
-         IF (ihm == 102 .OR. ihm == 103) THEN
+         IF (ihm == 102) THEN
             hmod%DMONLY_baryon_recipe = .TRUE.
             !hmod%As = 3.093587
             !hmod%mbar = 10**13.95954
@@ -1900,6 +1905,21 @@ CONTAINS
             hmod%mbarz_T = -0.202781
             hmod%sbar_T = -0.0050202
             hmod%sbarz_T = -0.12670
+         END IF
+         IF (ihm == 103) THEN
+            hmod%DMONLY_baryon_recipe = .TRUE.
+            hmod%response_baseline = HMcode2020
+            hmod%response_denominator = 77
+            hmod%As = 3.42
+            hmod%mbar = 10**13.83
+            hmod%mbarz = -0.252
+            hmod%sbar = 0.0231
+            hmod%sbarz = 1.089
+            hmod%As_T = -0.301
+            hmod%mbar_T = 1.803
+            hmod%mbarz_T = -0.217
+            hmod%sbar_T = -0.0061
+            hmod%sbarz_T = 0.105
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
@@ -1972,7 +1992,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
-      REAL :: log_m, m, nu, R, sig, z, Om_stars
+      REAL :: z, Om_stars
       REAL, PARAMETER :: glim = g_integral_limit
       REAL, PARAMETER :: gblim = gb_integral_limit
       LOGICAL, PARAMETER :: check_mf = check_mass_function
@@ -2426,8 +2446,19 @@ CONTAINS
          IF (hmod%itrans == 5) WRITE (*, *) 'HALOMODEL: HMcode (2020) smoothed transition'
 
          ! Response
-         IF (hmod%response == 1) WRITE (*, *) 'HALOMODEL: All power spectra computed via response'
-         IF (hmod%response == 2) WRITE (*, *) 'HALOMODEL: Only matter-field power spectra computed via response'
+         IF (hmod%response_baseline .NE. 0) THEN
+            WRITE (*, *) 'HALOMODEL: Halo model is response with baseline:', hmod%response_baseline
+            IF (hmod%response_denominator .NE. 0) THEN
+               WRITE (*, *) 'HALOMODEL: Response denominator:', hmod%response_denominator
+            ELSE
+               WRITE (*, *) 'HALOMODEL: Response denominator is DMONLY model'
+            END IF
+            IF (hmod%response_matter_only) THEN
+               WRITE (*, *) 'HALOMODEL: Response applies to matter spectra'
+            ELSE
+               WRITE (*, *) 'HALOMODEL: Response applies to all spectra'
+            END IF
+         END IF
 
          ! Numerical parameters
          WRITE (*, *) dashes
@@ -2966,9 +2997,9 @@ CONTAINS
       REAL, INTENT(IN) :: a(na)                  ! Array of scale factors
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array, note that this is Delta^2(k), not P(k)
       TYPE(cosmology), INTENT(INOUT) :: cosm     ! Cosmology
-      INTEGER, INTENT(IN) :: ihm_num          ! The ihm corresponding to the HMcode version
-      INTEGER, INTENT(IN) :: ihm_den          ! The ihm corresponding to the HMcode version
-      INTEGER, INTENT(IN) :: ihm_base         ! The ihm corresponding to the HMcode version
+      INTEGER, INTENT(IN) :: ihm_num             ! The ihm corresponding to the numerator
+      INTEGER, INTENT(IN) :: ihm_den             ! The ihm corresponding to the denominator
+      INTEGER, INTENT(IN) :: ihm_base            ! The ihm corresponding to the HMcode version (probably)
       REAL, ALLOCATABLE :: Pk_num(:, :), Pk_den(:, :)
       INTEGER :: ihm
 
@@ -3087,7 +3118,7 @@ CONTAINS
    SUBROUTINE calculate_HMx_old(ifield, nf, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
 
       ! Public facing function, calculates the halo model power for k and a range
-      ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed or (a,k,:,:)?
+      ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed?
       ! TODO: Remove
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: nf         ! Number of different fields
@@ -3171,13 +3202,15 @@ CONTAINS
       REAL :: powg_2h(nk), powg_1h(nk), powg_hm(nk)
       REAL, ALLOCATABLE :: upow_2h(:, :, :), upow_1h(:, :, :), upow_hm(:, :, :)
       REAL, ALLOCATABLE :: wk0(:, :)
-      REAL :: wk0_DMONLY(hmod%n, 1), wk0_HMcode(hmod%n, 1)
-      REAL :: hmcode_2h(nk), hmcode_1h(nk), hmcode_hm(nk)
+      REAL :: wk0_den(hmod%n, 1), wk0_base(hmod%n, 1)
+      REAL :: base_2h(nk), base_1h(nk), base_hm(nk)
       INTEGER :: i, j, ii, jj, match(nf), nnf
+      INTEGER :: ihm
       INTEGER, ALLOCATABLE :: iifield(:)
-      TYPE(halomod) :: hmcode
+      TYPE(halomod) :: hmod_base, hmod_den
       INTEGER, PARAMETER :: dmonly(1) = field_dmonly ! Needed because it needs to be an array(1)
-      INTEGER :: ihmcode = HMcode2016 ! Would like to be a parameter
+      !INTEGER, PARAMETER :: ihm_den = 77
+      !INTEGER :: ihmcode = HMcode2016 ! Would like to be a parameter
 
       ! Make a new indexing scheme for only the unique arrays
       CALL unique_index(ifield, nf, iifield, nnf, match)
@@ -3199,11 +3232,17 @@ CONTAINS
 
       ! Do an HMcode calculation for multiplying the response
       ! Also calculate the k->0 window functions
-      IF (hmod%response == 1 .OR. hmod%response == 2) THEN
-         CALL assign_halomod(ihmcode, hmcode, verbose=.FALSE.)
-         CALL init_halomod(hmod%a, hmcode, cosm, verbose=.FALSE.)
-         CALL init_windows(zero, dmonly, 1, wk0_DMONLY, hmod%n, hmod, cosm)
-         CALL init_windows(zero, dmonly, 1, wk0_HMcode, hmcode%n, hmcode, cosm)
+      IF (hmod%response_baseline .NE. 0) THEN
+         ihm = hmod%response_baseline
+         CALL assign_init_halomod(ihm, hmod%a, hmod_base, cosm, verbose=.FALSE.)
+         CALL init_windows(zero, dmonly, 1, wk0_base, hmod_base%n, hmod_base, cosm)
+         IF (hmod%response_denominator .NE. 0) THEN
+            ihm = hmod%response_denominator
+            CALL assign_init_halomod(ihm, hmod%a, hmod_den, cosm, verbose=.FALSE.)
+            CALL init_windows(zero, dmonly, 1, wk0_den, hmod_den%n, hmod_den, cosm)
+         ELSE
+            CALL init_windows(zero, dmonly, 1, wk0_den, hmod%n, hmod, cosm)
+         END IF
       END IF
 
       ! Get the k->0 window functions
@@ -3222,35 +3261,38 @@ CONTAINS
          pow_li(i) = plin(k(i), hmod%a, flag_power_total, cosm)
 
          ! Do the halo model calculation
-         ! TODO: slow array accessing
          CALL calculate_HMx_ka(iifield, wk0, nnf, k(i), pow_li(i), upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
 
-         IF (hmod%response == 1 .OR. hmod%response == 2) THEN
+         IF (hmod%response_baseline .NE. 0) THEN
 
             ! If doing a response then calculate a DMONLY prediction for both the current halomodel and HMcode
-            CALL calculate_HMx_ka(dmonly, wk0_DMONLY, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
-            CALL calculate_HMx_ka(dmonly, wk0_HMcode, 1, k(i), pow_li(i), hmcode_2h(i), hmcode_1h(i), hmcode_hm(i), hmcode, cosm)
+            CALL calculate_HMx_ka(dmonly, wk0_base, 1, k(i), pow_li(i), base_2h(i), base_1h(i), base_hm(i), hmod_base, cosm)
+            IF (hmod%response_denominator .NE. 0) THEN
+               CALL calculate_HMx_ka(dmonly, wk0_den, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod_den, cosm)
+            ELSE
+               CALL calculate_HMx_ka(dmonly, wk0_den, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
+            END IF  
 
-            IF (hmod%response == 1) THEN
-
-               ! Calculate the response for everything
-               upow_2h(:, :, i) = upow_2h(:, :, i)*hmcode_2h(i)/powg_2h(i) ! Two-halo response times HMcode (slow array accessing)
-               upow_1h(:, :, i) = upow_1h(:, :, i)*hmcode_1h(i)/powg_1h(i) ! One-halo response times HMcode (slow array accessing)
-               upow_hm(:, :, i) = upow_hm(:, :, i)*hmcode_hm(i)/powg_hm(i) ! Full model response times HMcode (slow array accessing)
-
-            ELSE IF (hmod%response == 2) THEN
+            IF (hmod%response_matter_only) THEN
 
                ! Only apply response to matter fields
-               ! TODO: Slow array accessing here
+               ! TODO: Slow array accessing here? Change ii and jj loop order?
                DO ii = 1, nf
                   DO jj = 1, nf
                      IF(is_matter_field(iifield(ii)) .AND. is_matter_field(iifield(jj))) THEN
-                        upow_2h(ii, jj, i) = upow_2h(ii, jj, i)*hmcode_2h(i)/powg_2h(i) ! Two-halo response times HMcode
-                        upow_1h(ii, jj, i) = upow_1h(ii, jj, i)*hmcode_1h(i)/powg_1h(i) ! One-halo response times HMcode
-                        upow_hm(ii, jj, i) = upow_hm(ii, jj, i)*hmcode_hm(i)/powg_hm(i) ! Full model response times HMcode
+                        upow_2h(ii, jj, i) = upow_2h(ii, jj, i)*base_2h(i)/powg_2h(i) ! Two-halo response times HMcode
+                        upow_1h(ii, jj, i) = upow_1h(ii, jj, i)*base_1h(i)/powg_1h(i) ! One-halo response times HMcode
+                        upow_hm(ii, jj, i) = upow_hm(ii, jj, i)*base_hm(i)/powg_hm(i) ! Full model response times HMcode
                      END IF
                   END DO
                END DO
+
+            ELSE
+
+               ! Calculate the response for everything
+               upow_2h(:, :, i) = upow_2h(:, :, i)*base_2h(i)/powg_2h(i) ! Two-halo response times HMcode
+               upow_1h(:, :, i) = upow_1h(:, :, i)*base_1h(i)/powg_1h(i) ! One-halo response times HMcode
+               upow_hm(:, :, i) = upow_hm(:, :, i)*base_hm(i)/powg_hm(i) ! Full model response times HMcode
 
             END IF
 
@@ -3766,17 +3808,16 @@ CONTAINS
          ! Two-halo damping parameters
          sigv = hmod%sigv
          fdamp = hmod%HMcode_fdamp
-         IF (fdamp == 0.) THEN
-            p_2h = p_2h
-         ELSE
+         IF (fdamp .NE. 0.) THEN
             p_2h = p_2h*(1.-fdamp*(tanh(k*sigv/sqrt(abs(fdamp))))**2)
          END IF
       ELSE IF (hmod%i2hdamp == 3) THEN
          fdamp = hmod%HMcode_fdamp
          kdamp = hmod%HMcode_kdamp
-         !ndamp = 2.
          ndamp = hmod%nd
-         p_2h = p_2h*(1.-fdamp*((k/kdamp)**ndamp)/(1.+(k/kdamp)**ndamp))
+         IF (kdamp .NE. 0.) THEN
+            p_2h = p_2h*(1.-fdamp*((k/kdamp)**ndamp)/(1.+(k/kdamp)**ndamp))
+         END IF
       END IF
 
    END FUNCTION p_2h
@@ -6502,7 +6543,6 @@ CONTAINS
       ! Improvements for dark-matter only models
       ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
       ! TODO: Should this really be computed here?
-      ! TODO: Think man, think!
       IF (hmod%DMONLY_baryon_recipe) THEN
          win_DMONLY = baryonify_wk(win_DMONLY, m, hmod, cosm)
       ELSE IF (hmod%DMONLY_neutrino_halo_mass_correction) THEN
