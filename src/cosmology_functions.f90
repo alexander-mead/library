@@ -477,7 +477,7 @@ CONTAINS
       names(1)  = 'Boring'
       names(2)  = 'WMAP7 (cosmo-OWLS)'
       names(3)  = 'Planck 2013 (cosmo-OWLS/BAHAMAS)'
-      names(4)  = 'WMAP9 (BAHAMAS)'
+      names(4)  = 'WMAP9 (BAHAMAS; EH)'
       names(5)  = 'Open'
       names(6)  = 'Einstein-de Sitter'
       names(7)  = 'IDE I'
@@ -569,6 +569,9 @@ CONTAINS
       names(93) = 'Planck 2015 0.12eV (BAHAMAS)'
       names(94) = 'Planck 2015 0.24eV (BAHAMAS)'
       names(95) = 'Planck 2015 0.48eV (BAHAMAS)'
+      names(96) = 'WMAP9 (CAMB)'
+      names(97) = 'WMAP9 (BAHAMAS AGN 7.6; CAMB)'
+      names(98) = 'WMAP9 (BAHAMAS AGN 8.0; CAMB)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -822,7 +825,7 @@ CONTAINS
          ! Boring - do nothing
       ELSE IF (icosmo == 2) THEN
          ! cosmo-OWLS - WMAP7 (1312.5462)
-         ! TODO: Should this use a CAMB linear spectrum?
+         cosm%itk = itk_CAMB
          cosm%Om_m = 0.272
          cosm%Om_b = 0.0455
          cosm%Om_v = 1.-cosm%Om_m
@@ -831,25 +834,32 @@ CONTAINS
          cosm%ns =  0.967
       ELSE IF (icosmo == 3) THEN
          ! Planck 2013 (cosmo-OWLS/BAHAMAS; 1312.5462/1603.02702; no neutrinos)
-         ! TODO: Should this use a CAMB linear spectrum?
+         cosm%itk = itk_CAMB
          cosm%Om_m = 0.3175
          cosm%Om_b = 0.0490
          cosm%Om_v = 1.-cosm%Om_m
          cosm%h = 0.6711
          cosm%ns =  0.9624
          cosm%sig8 = 0.8341
-      ELSE IF (is_in_array(icosmo, [4, 61, 62, 70, 71, 75, 76, 77, 78])) THEN
+      ELSE IF (is_in_array(icosmo, [4, 61, 62, 70, 71, 75, 76, 77, 78, 96, 97, 98])) THEN
          ! BAHAMAS - WMAP 9
-         ! TODO: Should this use CAMB linear spectrum?
-         !  4 - WMAP9 (BAHAMAS; 1712.02411; no neutrinos)
-         ! 61 - WMAP9 with T_AGN = 10^7.6 K (low)
-         ! 62 - WMAP9 with T_AGN = 10^8.0 K (high)
-         ! 70 - WMAP9 with T_AGN = 10^7.0 K (extremely low)
-         ! 71 - WMAP9 with T_AGN = 10^8.6 K (extrmely high)
-         ! 75 - WMAP9 with 0.06eV neutrinos
-         ! 76 - WMAP9 with 0.12eV neutrinos
-         ! 77 - WMAP9 with 0.24eV neutrinos
-         ! 78 - WMAP9 with 0.48eV neutrinos
+         !  4 - WMAP9 (1712.02411; no neutrinos; EH Tk)
+         ! 61 - WMAP9 with T_AGN = 7.6 (low; EH Tk)
+         ! 62 - WMAP9 with T_AGN = 8.0 (high; EH Tk)
+         ! 70 - WMAP9 with T_AGN = 7.0 (extremely low; EH Tk)
+         ! 71 - WMAP9 with T_AGN = 8.6 (extrmely high; EH Tk)
+         ! 75 - WMAP9 with 0.06eV neutrinos (CAMB Tk)
+         ! 76 - WMAP9 with 0.12eV neutrinos (CAMB Tk)
+         ! 77 - WMAP9 with 0.24eV neutrinos (CAMB Tk)
+         ! 78 - WMAP9 with 0.48eV neutrinos (CAMB Tk)
+         ! 96 - WMAP9 (as 4: T_AGN 7.8 but with CAMB Tk)
+         ! 97 - WMAP9 (as 4: T_AGN 7.6 but with CAMB Tk)
+         ! 98 - WMAP9 (as 4: T_AGN 8.0 but with CAMB Tk)
+         IF (is_in_array(icosmo, [4, 61, 62, 70, 71])) THEN
+            cosm%itk = itk_EH
+         ELSE
+            cosm%itk = itk_CAMB
+         END IF
          cosm%h = 0.7000
          cosm%Om_b = 0.0463
          cosm%Om_m = 0.2330+cosm%Om_b
@@ -861,11 +871,9 @@ CONTAINS
          Xi = 1.08
          Xe = 1.17
          cosm%mue = cosm%mup*(Xe+Xi)/Xe
-         IF (icosmo == 4)  THEN
-            cosm%Theat = 10**7.8 ! Standard AGN temperature
-         ELSE IF (icosmo == 61) THEN
+         IF (icosmo == 61 .OR. icosmo == 97) THEN
             cosm%Theat = 10**7.6 ! Low AGN temperature
-         ELSE IF (icosmo == 62) THEN
+         ELSE IF (icosmo == 62 .OR. icosmo == 98) THEN
             cosm%Theat = 10**8.0 ! High AGN temperature
          ELSE IF (icosmo == 70) THEN
             cosm%Theat = 10**7.0 ! Extremely low AGN temperature
@@ -884,13 +892,6 @@ CONTAINS
          ELSE IF (icosmo == 78) THEN
             cosm%m_nu = 0.48 ! 0.48eV neutrinos
             cosm%sig8 = 0.7001
-         END IF
-         IF (is_in_array(icosmo, [75, 76, 77, 78])) THEN
-            cosm%itk = itk_CAMB
-            cosm%Om_w = cosm%Om_v
-            cosm%Om_v = 0.
-         ELSE
-            cosm%itk = itk_EH
          END IF
       ELSE IF (icosmo == 5) THEN
          !  5 - Open model
@@ -1023,19 +1024,16 @@ CONTAINS
          cosm%itk = itk_CAMB ! Set to CAMB linear power
       ELSE IF (icosmo == 26) THEN
          ! Boring with CAMB linear spectrum
-         cosm%itk = itk_CAMB   ! Set to CAMB linear power
-         cosm%Om_w = cosm%Om_v ! Necessary for CAMB
-         cosm%Om_v = 0.        ! Necessary for CAMB
+         cosm%itk = itk_CAMB ! Set to CAMB linear power
       ELSE IF (icosmo == 27) THEN
          ! Illustris; L = 75 Mpc/h
          cosm%itk = itk_CAMB ! Set to CAMB linear power
          cosm%Om_m = 0.3089
          cosm%Om_b = 0.0486
-         cosm%Om_w = 1.-cosm%Om_m ! Necessary to be Omega_w for CAMB
+         cosm%Om_v = 1.-cosm%Om_m
          cosm%h = 0.6774
          cosm%ns =  0.9667
          cosm%sig8 = 0.8159
-         cosm%Om_v = 0. ! Necessary for CAMB
          cosm%box = .TRUE.
          cosm%Lbox = 75. ! 75 Mpc/h box
       ELSE IF (icosmo == 28) THEN
@@ -1072,8 +1070,7 @@ CONTAINS
          cosm%h = 0.70
          cosm%Om_b = 0.0469
          cosm%Om_m = 0.27
-         cosm%Om_w = 1.-cosm%Om_m
-         cosm%Om_v = 0.
+         cosm%Om_v = 1.-cosm%Om_m
          cosm%ns =  0.95
          cosm%sig8 = 0.82 ! Seems wrong at z=0, data more like sigma_8 = 0.80
          cosm%itk = itk_CAMB ! CAMB
@@ -1083,8 +1080,6 @@ CONTAINS
          ! Random cosmic emu model
          CALL random_Cosmic_Emu_cosmology(cosm)
          cosm%itk = itk_CAMB ! Set to CAMB linear power
-         cosm%iw = iw_wCDM    ! Set to constant w dark energy
-         cosm%Om_v = 0.      ! Necessary for CAMB
       ELSE IF (is_in_array(icosmo, [39, 40, 45, 46, 47, 48])) THEN
          ! Random cosmologies
          IF(icosmo == 39) THEN
@@ -1248,10 +1243,6 @@ CONTAINS
          cosm%norm_method = norm_value
          cosm%pval = 1.995809e-7 ! Gives sigma8 = 0.8 for no bump   
          cosm%itk = itk_CAMB
-         IF (cosm%itk == itk_CAMB) THEN
-            cosm%Om_w = cosm%Om_v
-            cosm%Om_v = 0.
-         END IF
          IF (is_in_array(icosmo, [66, 67, 68, 72, 73, 74, 79, 80, 81])) THEN
             cosm%bump = 2
             cosm%A_bump = 0.15
@@ -1266,56 +1257,50 @@ CONTAINS
          ! Boring cosmology but with exciting neutrino mass
          cosm%m_nu = 0.3
          cosm%itk = itk_CAMB
-         cosm%Om_w = cosm%Om_v
-         cosm%Om_v = 0.
       ELSE IF (is_in_array(icosmo, [63, 64, 65])) THEN
          ! BAHAMAS Planck 2015 cosmologies
          ! Note well that these cosmologies all have a  neutrino mass
-         ! 63 - Planck 2015 (BAHAMAS; Table 1 of 1712.02411)
-         ! 64 - Planck 2015 but with 10^7.6 AGN temperature
-         ! 65 - Planck 2015 but with 10^8.0 AGN temperature
+         ! 63 - Planck 2015 with 0.06eV neutrinos (BAHAMAS; Table 1 of 1712.02411)
+         ! 64 - Planck 2015 with 0.06eV neutrinos but with 10^7.6 AGN temperature
+         ! 65 - Planck 2015 with 0.06eV neutrinos but with 10^8.0 AGN temperature
          cosm%itk = itk_CAMB
          cosm%m_nu = 0.06
          cosm%h = 0.6787
          cosm%Om_b = 0.0482
          cosm%Om_m = cosm%Om_b+0.2571+0.0014
-         cosm%Om_w = 1.-cosm%Om_m
-         cosm%Om_v = 0.
+         cosm%Om_v = 1.-cosm%Om_m
          cosm%ns =  0.9701
          cosm%sig8 = 0.8085
          IF (icosmo == 64) cosm%Theat = 10**7.6
          IF (icosmo == 65) cosm%Theat = 10**8.0
       ELSE IF (icosmo == 93) THEN
-         ! 93 - BAHAMAS Planck 2015 but with 0.12eV neutrinos
+         ! 93 - BAHAMAS Planck 2015 but with 0.12eV neutrinos (other parameters changed too)
          cosm%itk = itk_CAMB
          cosm%m_nu = 0.12
          cosm%h = 0.6768
          cosm%Om_b = 0.0488
          cosm%Om_m = cosm%Om_b+0.2574+0.0029
-         cosm%Om_w = 1.-cosm%Om_m
-         cosm%Om_v = 0.
+         cosm%Om_v = 1.-cosm%Om_m
          cosm%ns = 0.9693
          cosm%sig8 = 0.7943
       ELSE IF (icosmo == 94) THEN
-         ! 94 - BAHAMAS Planck 2015 but with 0.24eV neutrinos
+         ! 94 - BAHAMAS Planck 2015 but with 0.24eV neutrinos (other parameters changed too)
          cosm%itk = itk_CAMB
          cosm%m_nu = 0.24
          cosm%h = 0.6723
          cosm%Om_b = 0.0496
          cosm%Om_m = cosm%Om_b+0.2576+0.0057
-         cosm%Om_w = 1.-cosm%Om_m
-         cosm%Om_v = 0.
+         cosm%Om_v = 1.-cosm%Om_m
          cosm%ns = 0.9733
          cosm%sig8 = 0.7664
       ELSE IF (icosmo == 95) THEN
-         ! 95 - BAHAMAS Planck 2015 but with 0.48eV neutrinos 
+         ! 95 - BAHAMAS Planck 2015 but with 0.48eV neutrinos (other parameters changed too)
          cosm%itk = itk_CAMB
          cosm%m_nu = 0.48
          cosm%h = 0.6643
          cosm%Om_b = 0.0513
          cosm%Om_m = cosm%Om_b+0.2567+0.0117
-         cosm%Om_w = 1.-cosm%Om_m
-         cosm%Om_v = 0.
+         cosm%Om_v = 1.-cosm%Om_m
          cosm%ns = 0.9811
          cosm%sig8 = 0.7030
       ELSE IF (icosmo == 82) THEN
@@ -1326,8 +1311,6 @@ CONTAINS
          ! Boring cosmology but with very exciting neutrino mass
          cosm%m_nu = 1.0
          cosm%itk = itk_CAMB
-         cosm%Om_w = cosm%Om_v
-         cosm%Om_v = 0.
       ELSE IF (is_in_array(icosmo, [84, 85, 86, 87, 88, 89])) THEN
          ! f(R) models
          IF (is_in_array(icosmo, [84, 85, 86])) THEN
@@ -5552,10 +5535,11 @@ CONTAINS
          h = cosm%h
       END IF
 
-      IF (cosm%Om_v .NE. 0) THEN
-         WRITE(*, *) 'GET_CAMB_POWER: Omega_v:', cosm%Om_v
-         STOP 'GET_CAMB_POWER: Need to provide Omega_w to CAMB, not Omega_v'
-      END IF
+      !IF (cosm%Om_v .NE. 0) THEN
+      !   WRITE(*, *) 'GET_CAMB_POWER: Omega_v:', cosm%Om_v
+      !   STOP 'GET_CAMB_POWER: Need to provide Omega_w to CAMB, not Omega_v'
+      !END IF
+      IF (.NOT. is_in_array(cosm%iw, [iw_LCDM, iw_wCDM, iw_waCDM])) STOP 'GET_CAMB_POWER: Can only cope with LCDM, wCDM or w(a)CDM'
 
       ! Physical density parameters that CAMB requires
       ombh2 = Om_b*h**2
