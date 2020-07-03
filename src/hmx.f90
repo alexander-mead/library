@@ -1883,18 +1883,8 @@ CONTAINS
             hmod%Dvnu = 0.5504368           
          END IF
          IF (ihm == 102) THEN
+            ! 102 - HMcode baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
-            !hmod%As = 3.093587
-            !hmod%mbar = 10**13.95954
-            !hmod%mbarz = -0.067325
-            !hmod%sbar = 0.0291325
-            !hmod%sbarz = 0.7261285
-            !hmod%As_T = -1.53191
-            !hmod%mbar_T = 1.214031
-            !hmod%mbarz_T = 0.3162607
-            !hmod%sbar_T = 0.007180
-            !hmod%sbarz_T = -0.38087524
-            !hmod%Amf = 1.38
             hmod%As = 3.08320
             hmod%mbar = 10**13.61510
             hmod%mbarz = -0.178117
@@ -1907,19 +1897,20 @@ CONTAINS
             hmod%sbarz_T = -0.12670
          END IF
          IF (ihm == 103) THEN
+            ! 103 - Response baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
             hmod%response_baseline = HMcode2020
             hmod%response_denominator = 77
             hmod%As = 3.42
             hmod%mbar = 10**13.83
-            hmod%mbarz = -0.252
+            hmod%mbarz = -0.254
             hmod%sbar = 0.0231
-            hmod%sbarz = 1.089
-            hmod%As_T = -0.301
-            hmod%mbar_T = 1.803
-            hmod%mbarz_T = -0.217
+            hmod%sbarz = 1.076
+            hmod%As_T = -0.293
+            hmod%mbar_T = 1.800
+            hmod%mbarz_T = -0.219
             hmod%sbar_T = -0.0061
-            hmod%sbarz_T = 0.105
+            hmod%sbarz_T = 0.106
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
@@ -4824,15 +4815,12 @@ CONTAINS
          HMcode_A = hmod%As
       ELSE IF (hmod%iAs == 2) THEN
          ! HMcode (2020)
-         !sig = sigma(8., hmod%a, flag_power_total, cosm)
          sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
          IF (hmod%DMONLY_baryon_recipe) THEN
             As = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%As_T, hmod%As)
          ELSE
             As = hmod%As
          END IF
-         !WRITE(*, *) log10(cosm%Theat), As
-         !STOP
          HMcode_A = As*(sig**hmod%Ap)+hmod%Ac
       ELSE
          STOP 'HMcode_A: Error, iAs defined incorrectly'
@@ -6540,10 +6528,10 @@ CONTAINS
          win_DMONLY = m*win_norm(k, rmin, rmax, rv, rss, p1, p2, irho)/comoving_matter_density(cosm)
       END IF
 
-      ! Improvements for dark-matter only models
-      ! TODO: This is a bit of a fudge. Probably no one should consider DMONLY as compatible with neutrinos
-      ! TODO: Should this really be computed here?
+      ! Fudges for DMONLY halo models to account for baryons and/or massive neutrinos
+      ! These are not k dependent so should probably not be computed here
       IF (hmod%DMONLY_baryon_recipe) THEN
+         ! This automatically accounts for massive neutrinos too
          win_DMONLY = baryonify_wk(win_DMONLY, m, hmod, cosm)
       ELSE IF (hmod%DMONLY_neutrino_halo_mass_correction) THEN
          win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
@@ -6551,33 +6539,9 @@ CONTAINS
 
    END FUNCTION win_DMONLY
 
-   REAL FUNCTION DMONLY_halo_mass_fraction(m, hmod, cosm)
-
-      ! Simple baryon model where high-mass haloes have a mass fraction of 1 and low-mass haloes have Omega_c/Omega_m
-      ! TODO: Add the neutrino correction here
-      ! TODO: This is independent of k, so probably should be computed outside and k dependent function for speed
-      ! TODO: Could probably just precompute this once in the halomod init function
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: m
-      TYPE(halomod), INTENT(IN) :: hmod
-      TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: r, fc, mb, n
-
-      IF (hmod%DMONLY_baryon_recipe) THEN
-         mb = HMcode_mbar(cosm, hmod)
-         n = hmod%nbar   
-         r = (m/mb)**n                                   ! If m>>m0 then r becomes large, if m<<m0 then r=0       
-         fc = cosm%Om_c/(cosm%Om_c+cosm%Om_b)            ! Halo fraction that is CDM (note that the denominator should exclude neutrinos)      
-         DMONLY_halo_mass_fraction = fc+(1.-fc)*r/(1.+r) ! Remaining halo mass fraction
-      ELSE
-         ! This should probably never be called
-         DMONLY_halo_mass_fraction = 1.
-      END IF
-
-   END FUNCTION DMONLY_halo_mass_fraction
-
    REAL FUNCTION baryonify_wk(wk, m, hmod, cosm)
 
+      ! Change DMONLY halo window to account for feedback mass loss and star formation
       IMPLICIT NONE
       REAL, INTENT(IN) :: wk
       REAL, INTENT(IN) :: m
@@ -6586,9 +6550,9 @@ CONTAINS
       REAL :: wkn, sb
 
       wkn = wk
-      wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm)  ! Account for 'gas expulsion'
       sb = HMcode_sbar(cosm, hmod)
-      wkn = wkn*(1.-sb)+sb*m/comoving_matter_density(cosm)  
+      wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm) ! Account for 'gas expulsion'   
+      wkn = wkn*(1.-sb)+sb*m/comoving_matter_density(cosm) ! Account for star formation
 
       baryonify_wk = wkn
 
@@ -6596,6 +6560,7 @@ CONTAINS
 
    REAL FUNCTION unbaryonify_wk(wk, m, hmod, cosm)
 
+      ! Inverse of baryonify_wk
       IMPLICIT NONE
       REAL, INTENT(IN) :: wk
       REAL, INTENT(IN) :: m
@@ -6606,11 +6571,32 @@ CONTAINS
       wko = wk
       sb = HMcode_sbar(cosm, hmod)
       wko = (wko-sb*m/comoving_matter_density(cosm))/(1.-sb) ! Subtract 'stars'
-      wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm)  ! Remove 'gas expulsion'
+      wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm) ! Remove 'gas expulsion'
 
       unbaryonify_wk = wko
 
    END FUNCTION unbaryonify_wk
+
+   REAL FUNCTION DMONLY_halo_mass_fraction(m, hmod, cosm)
+
+      ! Simple baryon model where high-mass haloes have a mass fraction of 1 and low-mass haloes have Omega_c/Omega_m
+      ! This also accounts for massive neutrinos since it is written in terms of Om_c and Om_b (rather than Om_m)
+      ! TODO: This is independent of k, so probably should be computed outside and k dependent function for speed
+      ! TODO: Could just precompute this once for each M in the halomod init function
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: m
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: r, fc, fb, mb, n
+
+      mb = HMcode_mbar(cosm, hmod)
+      n = hmod%nbar   
+      r = (m/mb)**n ! If m>>m0 then r becomes large, if m<<m0 then r=0  
+      fb = cosm%Om_b/cosm%Om_m ! Halo baryon fraction                              
+      fc = cosm%Om_c/cosm%Om_m ! Halo CDM fraction
+      DMONLY_halo_mass_fraction = fc+fb*r/(1.+r) ! Remaining halo mass fraction
+
+   END FUNCTION DMONLY_halo_mass_fraction
 
    REAL FUNCTION HMcode_DMONLY_baryon_model(T, a1, a0)
 
