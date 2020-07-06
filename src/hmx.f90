@@ -653,10 +653,10 @@ CONTAINS
       names(89) = 'Standard but with all halo gas bound'
       names(90) = 'Standard but with z-dependent Dolag correction'
       names(91) = 'Standard but with Tinker (2008) mass function for virial haloes'
-      names(92) = 'HMcode (2016) with neutrino bug fix'
+      names(92) = 'HMcode (2016) with neutrino halo-mass correction'
       names(93) = 'Standard but with Warren (2006) mass function'
       names(94) = 'Standard but with Reed (2007) mass function'
-      names(95) = 'HMcode (2016) with neutrino bug fix and CAMB mass range'
+      names(95) = 'HMcode (2016) with neutrino halo-mass correction and CAMB mass range'
       names(96) = 'Standard but with Bhattacharya (2011) mass function'
       names(97) = 'Standard but with sigma calculated for all matter'
       names(98) = 'Standard but with no DMONLY correction for neutrinos'
@@ -1177,8 +1177,8 @@ CONTAINS
          ! 53 - HMcode (2018)
          ! 64 - HMcode (2016) w/ 2020 baryon recipe
          ! 66 - HMcode (2015) w/ CAMB mass range and points
-         ! 92 - HMcode (2016) w/ neutrino bug fix
-         ! 95 - HMcode (2016) w/ neutrino bug fix and CAMB mass range and points
+         ! 92 - HMcode (2016) w/ neutrino halo-mass fix
+         ! 95 - HMcode (2016) w/ neutrino halo-mass fix and CAMB mass range and points
          hmod%ip2h = 1
          hmod%i1hdamp = 1
          hmod%iconc = 1
@@ -1225,7 +1225,7 @@ CONTAINS
             hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
             hmod%ip2h = 3    ! 3 - Linear theory with damped wiggles
             hmod%i2hdamp = 1 ! 1 - Change back to Mead (2015) model for two-halo damping
-            hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Neutrino bug fix
+            hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Neutrino halo-mass fix
             ! Model 1: Fits at 0.0196 to FrankenEmu nodes
             hmod%Dv0 = 411.
             hmod%Dv1 = -0.333
@@ -1252,7 +1252,7 @@ CONTAINS
             ! HMcode (2016) with bug present in CAMB when Dolag power is set to 1 rather than 1.5
             hmod%iDolag = 1
          ELSE IF (ihm == 53) THEN
-            ! HMcode (2018) with improved fitted parameters and neutrino bug fix compared to 2016
+            ! HMcode (2018) with improved fitted parameters and neutrino halo-mass fix compared to 2016
             hmod%Dv0 = 416.
             hmod%Dv1 = -0.346
             hmod%dc0 = 1.661
@@ -1265,15 +1265,15 @@ CONTAINS
             hmod%As = 3.09
             hmod%alp0 = 3.11
             hmod%alp1 = 1.91
-            hmod%Dvnu = 0. ! Set to zero because not necessary after bug fix
-            hmod%dcnu = 0. ! Set to zero because not necessary after bug fix
+            hmod%Dvnu = 0. ! Set to zero because not necessary after halo-mass fix
+            hmod%dcnu = 0. ! Set to zero because not necessary after halo-mass fix
             hmod%DMONLY_neutrino_halo_mass_correction = .TRUE.
          ELSE IF (ihm == 64) THEN
             ! 64 - HMcode 2016 but with 2020 baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
          ELSE IF (ihm == 92 .OR. ihm == 95) THEN
-            ! 92, 95 - HMcode (2016) with neutrino bug fix
-            hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Neutrino bug fix
+            ! 92, 95 - HMcode (2016) with neutrino halo-mass fix
+            hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Neutrino halo-mass fix
          END IF
          IF (ihm == 51 .OR. ihm == 66 .OR. ihm == 95) THEN
             ! CAMB mass range
@@ -3516,32 +3516,32 @@ CONTAINS
       ! Check for repeated fields
       IF (repeated_entries(fields)) STOP 'ADD_SMOOTH_COMPONENT_TO_WINDOWS: Error, repeated fields'
 
-      ! Add in neutrinos
-      ! TODO: This is a bit of a fudge. Probably DMONLY should not be considered compatible with neutrinos
-      IF (hmod%DMONLY_neutrino_halo_mass_correction .AND. cosm%f_nu /= 0. .AND. hmod%halo_neutrino == 1) THEN
+      ! If working with DMONLY haloes and an effective neutrino model
+      IF (hmod%DMONLY_baryon_recipe) THEN
          i_dmonly = array_position(field_dmonly, fields)
+         IF (i_dmonly /= 0) THEN
+            DO i = 1, hmod%n
+               wk(i, i_dmonly) = unbaryonify_wk(wk(i, i_dmonly), hmod%m(i), hmod, cosm)
+            END DO
+         END IF
+      ELSE IF (hmod%DMONLY_neutrino_halo_mass_correction) THEN
+         i_dmonly = array_position(field_dmonly, fields)
+         IF (i_dmonly /= 0) wk(:, i_dmonly) = wk(:, i_dmonly)/(1.-cosm%f_nu)
+      END IF
+
+      ! Add in neutrinos for matter/neutrino profiles
+      IF (hmod%halo_neutrino == 1 .AND. cosm%f_nu /= 0.) THEN
          i_matter = array_position(field_matter, fields)
          i_neutrino = array_position(field_neutrino, fields)
-         IF (i_matter == 0 .AND. i_dmonly == 0 .AND. i_neutrino == 0) THEN
+         IF (i_matter == 0 .AND. i_neutrino == 0) THEN
             ! Do nothing
          ELSE
             ! Loop over mass and apply corrections
             DO i = 1, hmod%n
                m = hmod%m(i)
                fc = halo_neutrino_fraction(m, hmod, cosm)*m/comoving_matter_density(cosm)
-               IF(i_dmonly /= 0) wk(i, i_dmonly) = wk(i, i_dmonly)+fc
                IF(i_matter /= 0) wk(i, i_matter) = wk(i, i_matter)+fc
                IF(i_neutrino /= 0) wk(i, i_neutrino) = wk(i, i_neutrino)+fc
-            END DO
-         END IF
-      END IF
-
-      ! Undo the simple baryon recipe
-      IF (hmod%DMONLY_baryon_recipe) THEN
-         i_dmonly = array_position(field_dmonly, fields)
-         IF (i_dmonly /= 0) THEN
-            DO i = 1, hmod%n
-               wk(i, i_dmonly) = unbaryonify_wk(wk(i, i_dmonly), hmod%m(i), hmod, cosm)
             END DO
          END IF
       END IF
