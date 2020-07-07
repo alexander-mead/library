@@ -9,6 +9,7 @@ MODULE string_operations
    PUBLIC :: number_file_zeroes
    PUBLIC :: integer_to_string
    PUBLIC :: real_to_string
+   PUBLIC :: string_in_string
 
 CONTAINS
 
@@ -23,6 +24,28 @@ CONTAINS
 !!$    read(str,*,iostat=stat) int
 !!$
 !!$  end subroutine str2int
+
+   LOGICAL FUNCTION string_in_string(str1, str2)
+
+      ! Returns true if 'str1' exists within 'str2'
+      CHARACTER(len=*), INTENT(IN) :: str1
+      CHARACTER(len=*), INTENT(IN) :: str2
+      INTEGER :: i
+      INTEGER :: l1, l2
+
+      l1 = len(trim(str1))
+      l2 = len(trim(str2))
+
+      string_in_string = .FALSE.
+
+      DO i = 1, l2-l1
+         IF (trim(str1) == str2(i:i+l1-1)) THEN
+            string_in_string = .TRUE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION string_in_string
 
    CHARACTER(len=8) FUNCTION integer_to_string(i)
 
