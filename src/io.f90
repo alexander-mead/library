@@ -34,6 +34,9 @@ MODULE io
       n = file_length(infile, verbose)
       n = n-header_size
 
+      ! Should be initialised
+      zrem = -1.
+
       ! Calculate how many k and z values there are from the file
       OPEN(newunit=u, file=infile, status='old')
       READ(u, *)
