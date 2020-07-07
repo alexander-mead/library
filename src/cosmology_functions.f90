@@ -7224,9 +7224,9 @@ CONTAINS
          aa = 10**(1.4861+1.8369*rn+1.6762*rn**2+0.7940*rn**3+0.1670*rn**4-0.6206*rncur)
          bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.9400*rncur)
          cc = 10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)
-         gam = 0.8649+0.2989*rn+0.1631*rncur+0.316-0.0765*rn-0.835*rncur ! Bird equation (A5)
+         gam = 0.8649+0.2989*rn+0.1631*rncur+0.316-0.0765*rn-0.835*rncur ! Bird equation (A5), last 3 terms are new
          alpha = 1.3884+0.3700*rn-0.1452*rn**2
-         beta = 0.8291+0.9854*rn+0.3401*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10)
+         beta = 0.8291+0.9854*rn+0.3401*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10), fnu term is new
          mu = 10**(-3.5442+0.1908*rn)
          nu = 10**(0.9589+1.2857*rn)
       ELSE IF (ihf == HALOFIT_Bird) THEN
@@ -7234,9 +7234,9 @@ CONTAINS
          aa = 10**(1.4861+1.83693*rn+1.67618*rn**2+0.7940*rn**3+0.1670756*rn**4-0.620695*rncur)
          bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.940*rncur)
          cc = 10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)
-         gam = 0.86485+0.2989*rn+0.1631*rncur+0.316-0.0765*rn-0.835*rncur ! Bird equation (A5)
+         gam = 0.86485+0.2989*rn+0.1631*rncur+0.316-0.0765*rn-0.835*rncur ! Bird equation (A5), last 3 terms are new
          alpha = 1.38848+0.3701*rn-0.1452*rn**2
-         beta = 0.8291+0.9854*rn+0.3400*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10)
+         beta = 0.8291+0.9854*rn+0.3400*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10), fnu term is new
          mu = 10**(-3.54419+0.19086*rn)
          nu = 10**(0.95897+1.2857*rn)
       ELSE IF (ihf == HALOFIT_Takahashi) THEN
@@ -7254,7 +7254,7 @@ CONTAINS
          aa = 10**(1.5222+2.8553*rn+2.3706*rn**2+0.9903*rn**3+0.2250*rn**4-0.6038*rncur+0.1749*Om_vz*(1.+wz)) ! Same as Takahashi
          bb = 10**(-0.5642+0.5864*rn+0.5716*rn**2-1.5474*rncur+0.2279*Om_vz*(1.+wz)) ! Same as Takahashi
          cc = 10**(0.3698+2.0404*rn+0.8161*rn**2+0.5869*rncur) ! Same as Takahashi
-         gam = 0.1971-0.0843*rn+0.8460*rncur ! Same as Takahashi
+         gam = 0.1971-0.0843*rn+0.8460*rncur ! Same as Takahashi; no Bird modification
          alpha = abs(6.0835+1.3373*rn-0.1959*rn**2-5.5274*rncur) ! Same as Takahashi
          beta = 2.0379-0.7354*rn+0.3157*rn**2+1.2490*rn**3+0.3980*rn**4-0.1682*rncur+fnu*(1.081+0.395*rn**2) ! CAMB; halofit_ppf.f90
          mu = 0. ! Same as Takahashi
@@ -7306,9 +7306,9 @@ CONTAINS
          fy = y/4.+y**2/8.
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Bird equation (A2)
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Bird equation (A1)
-         Q = fnu*(2.080-12.4*(Om_m-0.3))/(1.+(1.2e-3)*y**3)   ! Bird equation (A6)
+         Q = fnu*(2.080-12.4*(Om_m-0.3))/(1.+(1.2e-3)*y**3)   ! Bird equation (A6); note Omega_m term
          ph = ph*(1.+Q)                                       ! Bird equation (A7)
-         pq = pli*(1.+(26.3*fnu*rk**2.)/(1.+1.5*rk**2))       ! Bird equation (A9)
+         pq = pli*(1.+(26.3*fnu*rk**2)/(1.+1.5*rk**2))       ! Bird equation (A9)
          pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)        ! Bird equation (A8)
       ELSE IF (ihf == HALOFIT_Takahashi) THEN
          ! Takahashi et al. (2012)
@@ -7317,11 +7317,13 @@ CONTAINS
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Takahashi equation (A3i)
          pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)      ! Takahashi equation (A2)
       ELSE IF (ihf == HALOFIT_CAMB) THEN
-         ! Unpublished CAMB stuff from halofit_ppf.f90
+         ! Unpublished CAMB stuff from halofit.f90
          fy = y/4.+y**2/8.
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam))
-         ph = ph/(1.+mu*y**(-1)+nu*y**(-2))*(1.+fnu*0.977)    ! CAMB; halofit_ppf.f90; halofit
-         pq = pli*(1.+fnu*47.48*rk**2/(1.+1.5*rk**2))         ! CAMB; halofit_ppf.f90; halofit
+         ph = ph/(1.+mu*y**(-1)+nu*y**(-2))    
+         Q = fnu*0.977                                        ! CAMB; halofit_ppf.f90; halofit; note no Omega_m term
+         ph = ph*(1.+Q)
+         pq = pli*(1.+(47.48*fnu*rk**2)/(1.+1.5*rk**2))       ! CAMB; halofit_ppf.f90; halofit
          pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)
       ELSE
          STOP 'HALOFIT: Error, ihf specified incorrectly'
@@ -7470,7 +7472,7 @@ CONTAINS
 
    REAL FUNCTION p_dewiggle(k, a, flag, sigv, cosm)
 
-      ! Call the dewiggled power spectrum
+      ! Call the dewiggled power spectrum, which is linear but with damped wiggles
       IMPLICIT NONE
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
@@ -7478,9 +7480,6 @@ CONTAINS
       REAL, INTENT(IN) :: sigv
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: p_wiggle, f, p_linear
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: ifind = 3
-      INTEGER, PARAMETER :: imeth = 2
    
       IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm) 
       IF (.NOT. cosm%has_wiggle) CALL init_wiggle(cosm)  
