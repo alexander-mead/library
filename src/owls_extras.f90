@@ -11,6 +11,7 @@ MODULE owls_extras
    PUBLIC :: VD20_get_power
    PUBLIC :: VD20_get_response
    PUBLIC :: VD20_get_more_power
+   PUBLIC :: VD20_get_cosmology
 
    INTEGER, PARAMETER :: computer_mac = 1
    INTEGER, PARAMETER :: computer_linux = 2
@@ -581,5 +582,38 @@ CONTAINS
       END IF
 
    END FUNCTION VD20_dmonly_counterpart
+
+   INTEGER FUNCTION VD20_get_cosmology(sim) 
+
+      USE string_operations
+      CHARACTER(len=*), INTENT(IN) :: sim
+
+      IF (string_in_string('Planck2013', sim)) THEN
+         VD20_get_cosmology = 3
+      ELSE IF (string_in_string('nu0_WMAP9', sim) .OR. &
+               string_in_string('nu0_v2_WMAP9', sim) .OR. &
+               string_in_string('nu0_v3_WMAP9', sim)) THEN
+         VD20_get_cosmology = 96
+      ELSE IF (string_in_string('nu0.06_WMAP9', sim)) THEN
+         VD20_get_cosmology = 75
+      ELSE IF (string_in_string('nu0.12_WMAP9', sim)) THEN
+         VD20_get_cosmology = 76
+      ELSE IF (string_in_string('nu0.24_WMAP9', sim)) THEN
+         VD20_get_cosmology = 77
+      ELSE IF (string_in_string('nu0.48_WMAP9', sim)) THEN
+         VD20_get_cosmology = 78
+      ELSE IF (string_in_string('nu0.06_Planck2015', sim)) THEN
+         VD20_get_cosmology = 63
+      ELSE IF (string_in_string('nu0.12_Planck2015', sim)) THEN
+         VD20_get_cosmology = 93
+      ELSE IF (string_in_string('nu0.24_Planck2015', sim)) THEN
+         VD20_get_cosmology = 94
+      ELSE IF (string_in_string('nu0.48_Planck2015', sim)) THEN
+         VD20_get_cosmology = 95
+      ELSE
+         STOP 'VD20_GET_COSMOLOGY: Error, VD20 simulation name not recognised'
+      END IF
+
+   END FUNCTION VD20_get_cosmology
 
 END MODULE owls_extras
