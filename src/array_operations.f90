@@ -26,6 +26,7 @@ MODULE array_operations
    PUBLIC :: mask
    PUBLIC :: apply_mask
    PUBLIC :: smooth_array
+   PUBLIC :: Gaussian_smooth_array
    PUBLIC :: if_allocated_deallocate
    PUBLIC :: regular_spacing
    PUBLIC :: safe_allocate
@@ -312,13 +313,12 @@ CONTAINS
       INTEGER, INTENT(IN) :: m    ! Number of entries to smooth over
       LOGICAL, INTENT(IN) :: smooth_edges
       INTEGER :: i, iup, idn, j, mm, n
-      REAL, ALLOCATABLE :: x_save(:)
+      REAL, ALLOCATABLE :: xx(:)
 
       n = size(x)
-      ALLOCATE(x_save(n))
 
       ! Save the original input array
-      x_save = x
+      xx = x
 
       ! Delete the original array
       x = 0.
@@ -326,17 +326,17 @@ CONTAINS
       ! Make a running average over the function
       DO i = 1, n
          mm = 1
-         x(i) = x_save(i)
+         x(i) = xx(i)
          IF (smooth_edges .OR. (i > m .AND. i < n-m)) THEN
             DO j = 1, m
                iup = i+j
                IF(iup <= n) THEN
-                  x(i) = x(i) + x_save(iup)
+                  x(i) = x(i) + xx(iup)
                   mm = mm + 1
                END IF
                idn = i-j
                IF(idn >= 1) THEN
-                  x(i) = x(i) + x_save(idn)
+                  x(i) = x(i) + xx(idn)
                   mm = mm + 1
                END IF
             END DO
@@ -344,7 +344,47 @@ CONTAINS
          x(i) = x(i)/real(mm)
       END DO
 
+      DEALLOCATE(xx)
+
    END SUBROUTINE smooth_array
+
+   SUBROUTINE Gaussian_smooth_array(x, f, sigma)
+
+      ! Smooth an array f(x) using a Gaussian kernel
+      REAL, INTENT(IN) :: x(:)    ! x coordinates
+      REAL, INTENT(INOUT) :: f(:) ! Array to smooth
+      REAL, INTENT(IN) :: sigma   ! Width of smoothing Gaussian
+      INTEGER :: i, j, n
+      REAL, ALLOCATABLE :: ff(:)
+      REAL :: weight, total
+
+      IF (sigma  .NE. 0.) THEN
+
+         n = size(x)
+         IF (n /= size(f)) STOP 'GAUSSIAN_SMOOTH_ARRAY: Error, x and y should be the same size'
+
+         ! Save the original input array
+         ff = f
+
+         ! Delete the original array
+         f = 0.
+
+         ! Apply Gaussian smoothing
+         DO i = 1, n
+            total = 0.
+            DO j = 1, n
+               weight = exp(-(x(i)-x(j))**2/(2.*sigma**2))
+               f(i) = f(i)+ff(j)*weight
+               total = total+weight
+            END DO
+            f(i) = f(i)/total
+         END DO
+
+         DEALLOCATE(ff)
+
+      END IF
+
+   END SUBROUTINE Gaussian_smooth_array
 
    LOGICAL FUNCTION within_array(x, a)
 
