@@ -26,7 +26,7 @@ MODULE cosmology_functions
    PUBLIC :: redshift_a
    PUBLIC :: scale_factor_r
 
-   ! Friedmann
+   ! Background
    PUBLIC :: Hubble2
    PUBLIC :: Omega_m ! TODO: Retire
    PUBLIC :: Omega_c
@@ -40,6 +40,9 @@ MODULE cosmology_functions
    PUBLIC :: w_de
    PUBLIC :: w_de_total
    PUBLIC :: w_eff
+
+   ! Background without radiation
+   PUBLIC :: Omega_m_norad
 
    ! Dark energy models
    PUBLIC :: iw_LCDM
@@ -103,20 +106,23 @@ MODULE cosmology_functions
    PUBLIC :: Delta_Pk
    PUBLIC :: plin
    PUBLIC :: calculate_plin
+   PUBLIC :: calculate_psmooth
    PUBLIC :: p_dewiggle
+   PUBLIC :: Tk_nw
    PUBLIC :: sigma8
    PUBLIC :: sigma
    PUBLIC :: sigmaV
    PUBLIC :: neff
    PUBLIC :: ncur
    PUBLIC :: xi_lin
-   PUBLIC :: flag_power_total
-   PUBLIC :: flag_power_cold
-   PUBLIC :: flag_power_cold_unorm
+   PUBLIC :: flag_matter
+   PUBLIC :: flag_cold
+   PUBLIC :: flag_ucold
    PUBLIC :: norm_sigma8
    PUBLIC :: norm_none
    PUBLIC :: itk_none
    PUBLIC :: itk_EH
+   PUBLIC :: itk_nw
    PUBLIC :: itk_DEFW
    PUBLIC :: itk_CAMB
    PUBLIC :: itk_external
@@ -278,17 +284,18 @@ MODULE cosmology_functions
    REAL, PARAMETER :: kmax_abs_plin = 1e8      ! Power above this wavenumber is set to zero [h/Mpc]
    LOGICAL, PARAMETER :: plin_extrap = .FALSE. ! Extrapolate high-k power assuming P(k) ~ ln(k)^2 k^(n-3)?
    INTEGER, PARAMETER :: itk_none = 0          ! Pure power-law spectrum
-   INTEGER, PARAMETER :: itk_EH = 1            ! Eisenstein and Hu linear spectrum
+   INTEGER, PARAMETER :: itk_EH = 1            ! Eisenstein & Hu linear spectrum
    INTEGER, PARAMETER :: itk_CAMB = 2          ! CAMB linear spectrum
    INTEGER, PARAMETER :: itk_DEFW = 3          ! DEFW linear spectrum
    INTEGER, PARAMETER :: itk_external = 4      ! DEFW linear spectrum
+   INTEGER, PARAMETER :: itk_nw = 5            ! No-wiggle Eisenstein & Hu linear spectrum
    INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
    INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
    INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB
    INTEGER, PARAMETER :: norm_none = 4         ! Power spectrum does not need to be normalised
-   INTEGER, PARAMETER :: flag_power_total = 1      ! Flag to get the total matter power spectrum
-   INTEGER, PARAMETER :: flag_power_cold = 2       ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
-   INTEGER, PARAMETER :: flag_power_cold_unorm = 3 ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
+   INTEGER, PARAMETER :: flag_matter = 1      ! Flag to get the total matter power spectrum
+   INTEGER, PARAMETER :: flag_cold = 2       ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
+   INTEGER, PARAMETER :: flag_ucold = 3 ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
 
    ! Linear power interpolation
    REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used in interpolation [h/Mpc]
@@ -324,19 +331,29 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: store_Tcold = .TRUE.           ! Storage for cold interpolation
 
    ! Wiggle extraction methods
-   INTEGER, PARAMETER :: wiggle_Lagrange = 1 ! Using Lagrange polynomials
-   INTEGER, PARAMETER :: wiggle_smooth = 2   ! Array smoothing
+   INTEGER, PARAMETER :: wiggle_Lagrange = 1  ! Lagrange polynomial fixed through set points
+   INTEGER, PARAMETER :: wiggle_smoothing = 2 ! Smooth array to get smooth power spectrum
+   INTEGER, PARAMETER :: dewiggle_tophat = 1   ! Top-hat smoothing
+   INTEGER, PARAMETER :: dewiggle_Gaussian = 2 ! Gaussian smoothing
+
+   ! Lagrange polynomial options
+   REAL, PARAMETER :: kwig_points(4) = [0.008, 0.01, 0.8, 1.] ! Points in k for Lagrange polynomial 
+
+   ! Linear power spectrum smoothing methods  
+   REAL, PARAMETER :: wiggle_dx = 0.20      ! Smoothing half-width if using top-hat smoothing
+   REAL, PARAMETER :: wiggle_sigma = 0.25   ! Smoothing width if using Gaussian smoothing
+   REAL, PARAMETER :: knorm_nowiggle = 0.03 ! Wavenumber at which to force linear and nowiggle to be identical [Mpc/h]
+   INTEGER, PARAMETER :: wiggle_smooth = dewiggle_Gaussian
+   LOGICAL, PARAMETER :: divide_by_nowiggle = .TRUE. ! Should we reduce dynamic range with EH no-wiggle?
 
    ! Wiggle extraction and interpolation
-   REAL, PARAMETER :: kmin_wiggle = 0.008                     ! Minimum wavenumber to calulate wiggle
-   REAL, PARAMETER :: kmax_wiggle = 1.                        ! Maximum wavenumber to calculate wiggle
-   INTEGER, PARAMETER :: nk_wiggle = 128                      ! Number of k points to store wiggle
-   LOGICAL, PARAMETER :: store_wiggle = .TRUE.                ! Pre-calculate interpolation coefficients 
-   INTEGER, PARAMETER :: n_wiggle_smooth = nk_wiggle/16       ! If using array smoothing number of entries to smooth over
-   REAL, PARAMETER :: kwig_points(4) = [0.008, 0.01, 0.8, 1.] ! Points in k for Lagrange polynomial
-   INTEGER, PARAMETER :: imethod_wiggle = wiggle_Lagrange     ! Choose method for wiggle
-   INTEGER, PARAMETER :: iorder_interp_wiggle = 3             ! Order for wiggle interpolator
-   INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero        ! Should be zeros because interpolator stores only wiggle
+   REAL, PARAMETER :: kmin_wiggle = 5e-3                  ! Minimum wavenumber to calulate wiggle [Mpc/h]
+   REAL, PARAMETER :: kmax_wiggle = 5.                    ! Maximum wavenumber to calulate wiggle [Mpc/h]
+   INTEGER, PARAMETER :: nk_wiggle = 512                  ! Number of k points to store wiggle
+   LOGICAL, PARAMETER :: store_wiggle = .TRUE.            ! Pre-calculate interpolation coefficients 
+   INTEGER, PARAMETER :: imethod_wiggle = wiggle_smoothing ! Choose method for wiggle
+   INTEGER, PARAMETER :: iorder_interp_wiggle = 3         ! Order for wiggle interpolator
+   INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero    ! Should be zeros because interpolator stores only wiggle
 
    ! Correlation function
    ! TODO: This works very poorly
@@ -393,7 +410,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interp_sigma = 3 ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split    ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange    ! Method for sigma(R) interpolation
-   INTEGER, PARAMETER :: sigma_store = flag_power_cold_unorm ! Which version of sigma should be tabulated (0 for none)
+   INTEGER, PARAMETER :: sigma_store = flag_ucold ! Which version of sigma should be tabulated (0 for none)
    INTEGER, PARAMETER :: iextrap_sigma = iextrap_standard    ! Extrapolation for sigma(R) interpolator
    LOGICAL, PARAMETER :: store_sigma = .TRUE.                ! Pre-calculate interpolation coefficients?
 
@@ -572,6 +589,7 @@ CONTAINS
       names(96) = 'WMAP9 (CAMB)'
       names(97) = 'WMAP9 (BAHAMAS AGN 7.6; CAMB)'
       names(98) = 'WMAP9 (BAHAMAS AGN 8.0; CAMB)'
+      names(99) = 'Boring but with no-wiggle linear power'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1331,6 +1349,9 @@ CONTAINS
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Something went wrong with f(R) models'
          END IF
+      ELSE IF (icosmo == 99) THEN
+         ! No wiggle linear power
+         cosm%itk = itk_nw
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1576,7 +1597,8 @@ CONTAINS
       cosm%has_power = .FALSE.
 
       ! Switch analytical transfer function
-      IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
+      !IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
+      IF (is_in_array(cosm%itk, [itk_EH, itk_DEFW, itk_none, itk_nw])) THEN
          cosm%analytical_power = .TRUE.
       ELSE
          cosm%analytical_power = .FALSE.
@@ -1685,6 +1707,8 @@ CONTAINS
             WRITE(*,*) 'COSMOLOGY: Linear: Pure power law'
          ELSE IF(cosm%itk == itk_EH) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: Eisenstein & Hu'
+         ELSE IF(cosm%itk == itk_nw) THEN
+            WRITE(*,*) 'COSMOLOGY: Linear: No-wiggle'
          ELSE IF(cosm%itk == itk_CAMB) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: CAMB'
          ELSE IF(cosm%itk == itk_DEFW) THEN
@@ -1883,7 +1907,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       ! Check that transfer function is okay for massive neutrinos
-      IF ((cosm%m_nu .NE. 0) .AND. is_in_array(cosm%itk, [itk_none, itk_DEFW, itk_EH])) THEN
+      IF ((cosm%m_nu .NE. 0) .AND. is_in_array(cosm%itk, [itk_none, itk_DEFW, itk_EH, itk_nw])) THEN
          STOP 'INIT_COSMOLOGY: You cannot use a linear power fitting function for massive neutrino cosmologies'
       END IF
 
@@ -1974,7 +1998,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: a = 1.
    
-      cosm%A = cosm%A*sqrt(cosm%pval/plin(cosm%kval, a, flag_power_total, cosm))
+      cosm%A = cosm%A*sqrt(cosm%pval/plin(cosm%kval, a, flag_matter, cosm))
 
    END SUBROUTINE normalise_power_value
 
@@ -1997,8 +2021,8 @@ CONTAINS
       REAL, PARAMETER :: R = 8. ! Because we are doing sigma(R = 8 Mpc/h) normalisation
       REAL, PARAMETER :: a = 1. ! Because we are doing simga(R = 8 Mpc/h, a = 1) normalisation
 
-      sigma8 = sigma_integral(R, a, flag_power_total, cosm)
-      !sigma8 = sigma(R, a, flag_power_total, cosm)
+      sigma8 = sigma_integral(R, a, flag_matter, cosm)
+      !sigma8 = sigma(R, a, flag_matter, cosm)
 
    END FUNCTION sigma8
 
@@ -3121,7 +3145,7 @@ CONTAINS
       ! Transfer function selection
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       IF (cosm%itk == itk_none) THEN
          Tk_matter = 1.
@@ -3129,15 +3153,14 @@ CONTAINS
          Tk_matter = Tk_EH(k, cosm)
       ELSE IF (cosm%itk == itk_DEFW) THEN
          Tk_matter = Tk_DEFW(k, cosm)
+      ELSE IF (cosm%itk == itk_nw) THEN
+         Tk_matter = Tk_nw(k, cosm)
       ELSE
          WRITE (*, *) 'TK: itk:', cosm%itk
          STOP 'TK: Error, itk specified incorrectly'
       END IF
 
-      ! Damp transfer function if considering WDM
-      !IF (cosm%warm)      Tk_matter = Tk_matter*Tk_WDM(k, cosm)
-      !IF (cosm%bump == 1) Tk_matter = Tk_matter*Tk_bump(k, cosm)
-      !IF (cosm%bump == 2) Tk_matter = Tk_matter*Tk_bump_Mexico(k, cosm)
+      ! Additional weirdness
       Tk_matter = Tk_matter*Tk_factor(k, cosm)
 
    END FUNCTION Tk_matter
@@ -3146,7 +3169,7 @@ CONTAINS
 
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       ! Damp transfer function if considering WDM
       Tk_factor = 1.
@@ -3187,9 +3210,10 @@ CONTAINS
       ! Eisenstein & Hu fitting function (arXiv: 9709112)
       ! JP: the astonishing D.J. Eisenstein & W. Hu fitting formula (ApJ 496 605 [1998])
       ! JP: remember I use k/h, whereas they use pure k, Om_m is cdm + baryons
+      ! TODO: Could have an init for this as many things only need to be calculated once
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: rk, e, thet, b1, b2, zd, ze, rd, re, rke, s, rks
       REAL :: q
       REAL :: y, g, ab
@@ -3279,6 +3303,34 @@ CONTAINS
 
    END FUNCTION Tk_EH
 
+   REAL FUNCTION Tk_nw(k, cosm)
+
+      ! No-wiggle transfer function from astro-ph:9709112
+      ! TODO: Could have an init for this as many things only need to be calculated once
+      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: q, L, C, Gamma, wm, wb, s, h, alpha, rb
+      REAL, PARAMETER :: e = exp(1.)
+
+      ! Useful parameters to make equations shorter
+      wm = cosm%Om_m*cosm%h**2 ! Real matter density
+      wb = cosm%Om_b*cosm%h**2 ! Real baryon density
+      rb = cosm%Om_b/cosm%Om_m ! Baryon ratio
+      h = cosm%h               ! Hubble factor
+
+      ! These only needs to be calculated once
+      s = 44.5*log(9.83/wm)/sqrt(1.+10.*wb**0.75)              ! Equation (26)
+      alpha = 1.-0.328*log(431.*wm)*rb+0.38*log(22.3*wm)*rb**2 ! Equation (31)
+
+      ! Functions of k
+      Gamma = cosm%Gamma*(alpha+(1.-alpha)/(1.+(0.43*k*s*h)**4)) ! Equation (30)
+      q = k*(cosm%T_CMB/2.7)**2/Gamma ! Equation (28)
+      L = log(2.*e+1.8*q)             ! Equation (29)
+      C = 14.2+731./(1.+62.5*q)       ! Equation (29)
+      Tk_nw = L/(L+C*q**2)            ! Equation (29)
+
+   END FUNCTION Tk_nw
+
    REAL FUNCTION Tk_WDM(k, cosm)
 
       ! Warm dark matter 'correction' to the standard transfer function
@@ -3286,7 +3338,7 @@ CONTAINS
       ! Originally from Bode et al. (2001; arixv:0010389)
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: alpha, mu
 
       alpha = 0.074*0.7*cosm%m_wdm**(-1.15) ! alpha from equation (5), units Mpc/h
@@ -3301,7 +3353,7 @@ CONTAINS
       ! Put a Gaussian bump in a linear power spectrum
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       Tk_bump = 1.+cosm%A_bump*exp(-(log(k/cosm%k_bump)**2/(2.*cosm%sigma_bump**2)))
 
@@ -3312,7 +3364,7 @@ CONTAINS
       ! Put a Gaussian bump in a linear power spectrum
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-      TYPE(cosmology), INTENT(INOUT) :: cosm
+      TYPE(cosmology), INTENT(IN) :: cosm
 
       Tk_bump_Mexico = sqrt(1.+cosm%A_bump*exp(-(log(k/cosm%k_bump)**2/cosm%sigma_bump**2)))
 
@@ -3439,7 +3491,7 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
       TYPE(cosmology) :: cosm
       INTEGER :: ik, ia
-      INTEGER, PARAMETER :: flag = flag_power_total
+      INTEGER, PARAMETER :: flag = flag_matter
 
       ALLOCATE(Pk(nk, na))
 
@@ -3501,14 +3553,14 @@ CONTAINS
             END IF
          ELSE
             ! In this case get the power from the transfer function
-            plin = (grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%ns+3.))
+            plin = (grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%ns+3))
          END IF
       END IF
       plin = plin*cosm%A**2
 
-      IF (flag == flag_power_cold .OR. flag == flag_power_cold_unorm) THEN
+      IF (flag == flag_cold .OR. flag == flag_ucold) THEN
          plin = plin*Tcold(k, a, cosm)**2
-         IF (flag == flag_power_cold_unorm) plin = plin/(1.-cosm%f_nu)**2
+         IF (flag == flag_ucold) plin = plin/(1.-cosm%f_nu)**2
       END IF
 
    END FUNCTION plin
@@ -5915,7 +5967,7 @@ CONTAINS
       a = 1.
 
       DO i = 1, nk
-         Pk(i, 1) = plin(k(i), a(1), flag_power_total, cosm)
+         Pk(i, 1) = plin(k(i), a(1), flag_matter, cosm)
       END DO
       
       CALL init_linear(k, a, Pk, cosm)
@@ -7123,7 +7175,7 @@ CONTAINS
       CALL HALOFIT_init(rknl, rneff, rncur, a, cosm, verbose)
 
       DO i = 1, n
-         Pli(i) = plin(k(i), a, flag_power_total, cosm)
+         Pli(i) = plin(k(i), a, flag_matter, cosm)
          CALL HALOFIT(k(i), rneff, rncur, rknl, Pli(i), Pnl(i), Pq(i), Ph(i), a, cosm, ihf)
       END DO
 
@@ -7150,7 +7202,7 @@ CONTAINS
          t = (float(i)-0.5)/float(nint)
          y = -1.+1./t
          rk = y
-         d2 = plin(rk, a, flag_power_total, cosm)
+         d2 = plin(rk, a, flag_matter, cosm)
          x = y*r
          w1 = exp(-x*x)
          w2 = 2*x*x*w1
@@ -7366,7 +7418,30 @@ CONTAINS
 
    END FUNCTION r_sound
 
-   SUBROUTINE init_wiggle(cosm)
+   REAL FUNCTION Pk_Delta(Delta, k)
+
+   ! Converts dimensionless Delta^2(k) to P(k) [Mpc/h]^3
+   IMPLICIT NONE
+   REAL, INTENT(IN) :: Delta ! Power spectrum in Delta^2(k) dimensionless form
+   REAL, INTENT(IN) :: k     ! Wavenumber [h/Mpc]
+
+   Pk_Delta = Delta/(k/twopi)**3
+   Pk_Delta = Pk_Delta/(4.*pi)
+
+END FUNCTION Pk_Delta
+
+REAL FUNCTION Delta_Pk(Pk, k)
+
+   ! Converts P(k) [Mpc/h]^3 to dimensionless Delta^2(k) 
+   IMPLICIT NONE
+   REAL, INTENT(IN) :: Pk ! Power spectrum in P(k) [Mpc/h]^3
+   REAL, INTENT(IN) :: k  ! Wavenumber [h/Mpc]
+
+   Delta_Pk = (4.*pi)*((k/twopi)**3)*Pk
+
+END FUNCTION Delta_Pk
+
+SUBROUTINE init_wiggle(cosm)
 
       ! Isolate the power spectrum wiggle
       ! TODO: Smoothing should be over one wiggle period, not just fixed ns
@@ -7378,31 +7453,33 @@ CONTAINS
       REAL :: logkv(4), logpv(4)
       REAL, ALLOCATABLE :: k(:), Pk(:), Pka(:, :)
       REAL, ALLOCATABLE :: logk(:), logPk(:)
-      REAL, ALLOCATABLE :: Pk_smooth(:), logPk_smooth(:), Pk_wiggle(:)
+      REAL, ALLOCATABLE :: Pk_smooth(:), Pk_wiggle(:)
+      REAL, ALLOCATABLE :: Pk_smooth_a(:, :)
       INTEGER :: i
       REAL, PARAMETER :: kmin = kmin_wiggle
       REAL, PARAMETER :: kmax = kmax_wiggle
       INTEGER, PARAMETER  :: nk = nk_wiggle
       INTEGER, PARAMETER :: iorder = iorder_interp_wiggle
-      INTEGER, PARAMETER :: n_smooth = n_wiggle_smooth
+
+      ! Words
+      IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Starting'
+
+      ! Checks
+      IF (cosm%box) STOP 'INIT_WIGGLE: Error, cannot extract wiggle from truncated linear power'
 
       ! This is no longer necessary
       !IF (.NOT. cosm%has_power) CALL init_analytical_linear(cosm)
-      IF (cosm%box) STOP 'INIT_WIGGLE: Error, cannot extract wiggle from truncated linear power'
-
-      IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Starting'
 
       ! Allocate arrays
-      ALLOCATE (logk(nk), Pk(nk), logPk(nk))
-      ALLOCATE (Pk_wiggle(nk), Pk_smooth(nk))
+      ALLOCATE (Pk(nk), Pk_wiggle(nk), Pk_smooth(nk))
 
-      ! Allocate the internal arrays from the cosmology arrays
-      IF(.NOT. cosm%is_normalised) STOP 'INIT_WIGGLE: Error, linear power must be normalised'
+      ! Allocate array for k
       CALL fill_array_log(kmin, kmax, k, nk)
-      logk = log(k)
+
+      ! Get the linear power spectrum
+      IF(.NOT. cosm%is_normalised) STOP 'INIT_WIGGLE: Error, linear power must be normalised'
       CALL calculate_plin(k, [1.], Pka, nk, 1, cosm)
-      Pk = Pka(:, 1)
-      logPk = log(Pk)
+      Pk = Pka(:, 1)  
 
       IF (cosm%verbose) THEN
          WRITE(*, *) 'INIT_WIGGLE: kmin [h/Mpc]:', k(1)
@@ -7413,14 +7490,12 @@ CONTAINS
 
       IF(imethod_wiggle == wiggle_Lagrange) THEN
 
-         ! Fixed k values - CAMB
-         !logkv(1) = log(0.008)
-         !logkv(2) = log(0.01)
-         !logkv(3) = log(0.8)
-         !logkv(4) = log(1.0)
-         logkv = log(kwig_points)
+         ! Log arrays
+         logPk = log(Pk)
+         logk = log(k)
 
          ! Fix p values
+         logkv = log(kwig_points)
          DO i = 1, 4
             logpv(i) = find(logkv(i), logk, logPk, nk, iorder=3, ifind=3, iinterp=2)
          END DO
@@ -7434,12 +7509,10 @@ CONTAINS
             END IF
          END DO
 
-      ELSE IF (imethod_wiggle == wiggle_smooth) THEN
+      ELSE IF (imethod_wiggle == wiggle_smoothing) THEN
 
-         ALLOCATE (logPk_smooth(nk))
-         logPk_smooth = logPk
-         CALL smooth_array(logPk_smooth, n_smooth, smooth_edges=.FALSE.)
-         Pk_smooth = exp(logPk_smooth)
+         CALL calculate_psmooth(k, [1.], reshape(Pk, [nk, 1]), Pk_smooth_a, cosm)
+         Pk_smooth = Pk_smooth_a(:, 1)
 
       ELSE
          STOP 'INIT_WIGGLE: Error, wiggle method is not specified correctly'
@@ -7447,8 +7520,7 @@ CONTAINS
 
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Isolating wiggle'
 
-      ! Isolate just the wiggles
-      ! It is difficult to make this operation (subtraction) fast given log arrays 
+      ! Isolate the wiggle
       Pk_wiggle = Pk-Pk_smooth  
 
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Initialising interpolator'
@@ -7490,27 +7562,94 @@ CONTAINS
 
    END FUNCTION p_dewiggle
 
-   REAL FUNCTION Pk_Delta(Delta, k)
+   REAL FUNCTION Pk_nowiggle(k, cosm)
 
-      ! Converts dimensionless Delta^2(k) to P(k) [Mpc/h]^3
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: Delta ! Power spectrum in Delta^2(k) dimensionless form
-      REAL, INTENT(IN) :: k     ! Wavenumber [h/Mpc]
+      ! Calculates the un-normalised (probably) no-wiggle power spectrum 
+      ! Comes from the Eisenstein & Hu approximation
+      REAL, INTENT(IN) :: k
+      TYPE(cosmology), INTENT(IN) :: cosm
 
-      Pk_Delta = Delta/(k/twopi)**3
-      Pk_Delta = Pk_Delta/(4.*pi)
+      Pk_nowiggle = (k**(cosm%ns+3.))*Tk_nw(k, cosm)**2
 
-   END FUNCTION Pk_Delta
+   END FUNCTION Pk_nowiggle
 
-   REAL FUNCTION Delta_Pk(Pk, k)
+   SUBROUTINE calculate_nowiggle(k, a, Pk, Pk_nw, cosm)
 
-      ! Converts P(k) [Mpc/h]^3 to dimensionless Delta^2(k) 
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: Pk ! Power spectrum in P(k) [Mpc/h]^3
-      REAL, INTENT(IN) :: k  ! Wavenumber [h/Mpc]
+      ! Calculate the normalised no wiggle power spectrum at a range of k and a
+      ! Comes from the Eisenstein & Hu approximation
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, INTENT(IN) :: Pk(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk_nw(:, :)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: ik, ia, nk, na
+      REAL :: Pk_lin, Pk_nw_norm
+      REAL, PARAMETER :: knorm = knorm_nowiggle
 
-      Delta_Pk = (4.*pi)*((k/twopi)**3)*Pk
+      ! Allocate arrays
+      nk = size(k)
+      na = size(a)
+      IF (nk /= size(Pk, 1) .OR. na /= size(Pk, 2)) STOP 'CALCULATE_NOWIGGLE: Error, Pk should be same size as k and a'
+      ALLOCATE(Pk_nw(nk, na))
 
-   END FUNCTION Delta_Pk
+      ! Get the no-wiggle power spectrum (not a function of a)
+      DO ik = 1, nk
+         Pk_nw(ik, :) = Pk_nowiggle(k(ik), cosm)
+      END DO
+
+      ! Calculate the no-wiggle power spectrum at every wavenumber and Force spectra to agree at the minimum wavenumber
+      DO ia = 1, na
+         Pk_lin = Plin(knorm, a(ia), flag_matter, cosm)
+         Pk_nw_norm = find(knorm, k, Pk_nw(:, ia), nk, &
+            iorder=3, &
+            ifind=ifind_split, &
+            iinterp=iinterp_Lagrange)
+         Pk_nw(:, ia) = Pk_nw(:, ia)*Pk_lin/Pk_nw_norm
+      END DO
+
+   END SUBROUTINE calculate_nowiggle
+
+   SUBROUTINE calculate_psmooth(k, a, Pk, Pk_smt, cosm)
+
+      ! Calculate the normalised smoothed power spectrum at a range of k
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, INTENT(IN) :: Pk(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk_smt(:, :)
+      REAL, ALLOCATABLE :: Pk_nw(:, :)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: ia, na
+      REAL, PARAMETER :: dx = wiggle_dx
+      REAL, PARAMETER :: sig = wiggle_sigma
+      LOGICAL, PARAMETER :: divide = divide_by_nowiggle
+
+      ! Reduce dynamic range
+      IF (divide) THEN
+         CALL calculate_nowiggle(k, a, Pk, Pk_nw, cosm)
+         Pk_smt = Pk/Pk_nw
+      ELSE   
+         Pk_smt = log(Pk)
+      END IF
+
+      ! Smooth linear power
+      na = size(a)
+      DO ia = 1, na
+         IF (wiggle_smooth == dewiggle_Gaussian) THEN
+            CALL smooth_array_Gaussian(log(k), Pk_smt(:, ia), sig)
+         ELSE IF (wiggle_smooth == dewiggle_tophat) THEN
+            CALL smooth_array_tophat(log(k), Pk_smt(:, ia), dx)
+         ELSE
+            STOP 'CALCULATE_PSMOOTH: Error, smoothing method not recognised'
+         END IF
+      END DO
+
+      ! Return dynamic range
+      IF (divide) THEN
+         Pk_smt = Pk_smt*Pk_nw
+      ELSE
+         Pk_smt = exp(Pk_smt)
+      END IF
+
+   END SUBROUTINE calculate_psmooth
 
 END MODULE cosmology_functions
