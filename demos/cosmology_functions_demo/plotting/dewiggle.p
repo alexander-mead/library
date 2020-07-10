@@ -5,6 +5,8 @@ file = 'data/dewiggle.dat'
 klab = 'k / h Mpc^{-1}'
 
 plab = '{/Symbol D}^2(k)'
+pmin = 1e-10
+pmax = 1e2
 
 rlab = 'P_{no-wiggle}(k) / P_{lin}(k)'
 rmin = 0.9
@@ -19,6 +21,7 @@ set format x ''
 set log y
 set format y '10^{%T}'
 set ylabel plab
+set yrange [pmin:pmax]
 
 set key top left
 
