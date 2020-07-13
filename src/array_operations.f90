@@ -206,17 +206,6 @@ CONTAINS
 
    END SUBROUTINE safe_allocate2_real
 
-   ! SUBROUTINE safe_allocate_double(x, n)
-
-   !    IMPLICIT NONE
-   !    DOUBLE PRECISION, ALLOCATABLE, INTENT(INOUT) :: x(:)
-   !    INTEGER, INTENT(IN) :: n
-
-   !    CALL if_allocated_deallocate(x)
-   !    ALLOCATE(x(n))
-
-   ! END SUBROUTINE safe_allocate_double
-
    SUBROUTINE safe_allocate_integer(i, n)
 
       ! Checks array for allocation status, deallocates if necessary, then allocates
