@@ -331,29 +331,29 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: store_Tcold = .TRUE.           ! Storage for cold interpolation
 
    ! Wiggle extraction methods
-   INTEGER, PARAMETER :: wiggle_Lagrange = 1  ! Lagrange polynomial fixed through set points
-   INTEGER, PARAMETER :: wiggle_smoothing = 2 ! Smooth array to get smooth power spectrum
+   INTEGER, PARAMETER :: wiggle_Lagrange = 1   ! Lagrange polynomial fixed through set points TODO: Remove
+   INTEGER, PARAMETER :: wiggle_smoothing = 2  ! Smooth array to get smooth power spectrum TODO: Remove
    INTEGER, PARAMETER :: dewiggle_tophat = 1   ! Top-hat smoothing
    INTEGER, PARAMETER :: dewiggle_Gaussian = 2 ! Gaussian smoothing
 
    ! Lagrange polynomial options
-   REAL, PARAMETER :: kwig_points(4) = [0.008, 0.01, 0.8, 1.] ! Points in k for Lagrange polynomial 
+   REAL, PARAMETER :: kwig_points(4) = [0.008, 0.01, 0.8, 1.] ! Points in k for Lagrange polynomial TODO: Remove
 
    ! Linear power spectrum smoothing methods  
    REAL, PARAMETER :: wiggle_dx = 0.20      ! Smoothing half-width if using top-hat smoothing
-   REAL, PARAMETER :: wiggle_sigma = 0.25   ! Smoothing width if using Gaussian smoothing
+   REAL, PARAMETER :: wiggle_sigma = 0.25   ! Smoothing width if using Gaussian smoothing  
+   INTEGER, PARAMETER :: wiggle_smooth = dewiggle_Gaussian ! Type of smoothing to use
+   LOGICAL, PARAMETER :: divide_by_nowiggle = .TRUE.       ! Should we reduce dynamic range with EH no-wiggle?
    REAL, PARAMETER :: knorm_nowiggle = 0.03 ! Wavenumber at which to force linear and nowiggle to be identical [Mpc/h]
-   INTEGER, PARAMETER :: wiggle_smooth = dewiggle_Gaussian
-   LOGICAL, PARAMETER :: divide_by_nowiggle = .TRUE. ! Should we reduce dynamic range with EH no-wiggle?
 
    ! Wiggle extraction and interpolation
-   REAL, PARAMETER :: kmin_wiggle = 5e-3                  ! Minimum wavenumber to calulate wiggle [Mpc/h]
-   REAL, PARAMETER :: kmax_wiggle = 5.                    ! Maximum wavenumber to calulate wiggle [Mpc/h]
-   INTEGER, PARAMETER :: nk_wiggle = 512                  ! Number of k points to store wiggle
-   LOGICAL, PARAMETER :: store_wiggle = .TRUE.            ! Pre-calculate interpolation coefficients 
+   REAL, PARAMETER :: kmin_wiggle = 5e-3                   ! Minimum wavenumber to calulate wiggle [Mpc/h]
+   REAL, PARAMETER :: kmax_wiggle = 5.                     ! Maximum wavenumber to calulate wiggle [Mpc/h]
+   INTEGER, PARAMETER :: nk_wiggle = 512                   ! Number of k points to store wiggle
+   LOGICAL, PARAMETER :: store_wiggle = .TRUE.             ! Pre-calculate interpolation coefficients 
    INTEGER, PARAMETER :: imethod_wiggle = wiggle_smoothing ! Choose method for wiggle
-   INTEGER, PARAMETER :: iorder_interp_wiggle = 3         ! Order for wiggle interpolator
-   INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero    ! Should be zeros because interpolator stores only wiggle
+   INTEGER, PARAMETER :: iorder_interp_wiggle = 3          ! Order for wiggle interpolator
+   INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero     ! Should be zeros because interpolator stores only wiggle
 
    ! Correlation function
    ! TODO: This works very poorly
@@ -408,11 +408,11 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amax_sigma = amax_plin     ! Maximum a value for sigma(R,a) tables when growth is scale dependent
    INTEGER, PARAMETER :: na_sigma = 16           ! Number of a values for sigma(R,a) tables
    INTEGER, PARAMETER :: iorder_interp_sigma = 3 ! Polynomial order for sigma(R) interpolation 
-   INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split    ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
-   INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange    ! Method for sigma(R) interpolation
-   INTEGER, PARAMETER :: sigma_store = flag_ucold ! Which version of sigma should be tabulated (0 for none)
-   INTEGER, PARAMETER :: iextrap_sigma = iextrap_standard    ! Extrapolation for sigma(R) interpolator
-   LOGICAL, PARAMETER :: store_sigma = .TRUE.                ! Pre-calculate interpolation coefficients?
+   INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
+   INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange ! Method for sigma(R) interpolation
+   INTEGER, PARAMETER :: sigma_store = flag_ucold         ! Which version of sigma should be tabulated (0 for none)
+   INTEGER, PARAMETER :: iextrap_sigma = iextrap_standard ! Extrapolation for sigma(R) interpolator
+   LOGICAL, PARAMETER :: store_sigma = .TRUE.             ! Pre-calculate interpolation coefficients?
 
    ! sigma_v(R) integration
    REAL, PARAMETER :: alpha_sigmaV = 3.     ! Exponent to increase integration speed
@@ -465,8 +465,8 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1          ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
    INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2           ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
    INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4      ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8             ! Mead et al. (2015; )
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5             ! Mead et al. (2016; )
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8             ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5             ! Mead et al. (2016; https://arxiv.org/abs/1602.02154)
    INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016_neutrinofix = 9 ! Unpublished Takahashi with Bird
 
    ! General cosmological integrations
@@ -7418,28 +7418,28 @@ CONTAINS
 
    END FUNCTION r_sound
 
-   REAL FUNCTION Pk_Delta(Delta, k)
+   ELEMENTAL REAL FUNCTION Pk_Delta(Delta, k)
 
-   ! Converts dimensionless Delta^2(k) to P(k) [Mpc/h]^3
-   IMPLICIT NONE
-   REAL, INTENT(IN) :: Delta ! Power spectrum in Delta^2(k) dimensionless form
-   REAL, INTENT(IN) :: k     ! Wavenumber [h/Mpc]
+      ! Converts dimensionless Delta^2(k) to P(k) [Mpc/h]^3
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: Delta ! Power spectrum in Delta^2(k) dimensionless form
+      REAL, INTENT(IN) :: k     ! Wavenumber [h/Mpc]
 
-   Pk_Delta = Delta/(k/twopi)**3
-   Pk_Delta = Pk_Delta/(4.*pi)
+      Pk_Delta = Delta/(k/twopi)**3
+      Pk_Delta = Pk_Delta/(4.*pi)
 
-END FUNCTION Pk_Delta
+   END FUNCTION Pk_Delta
 
-REAL FUNCTION Delta_Pk(Pk, k)
+   ELEMENTAL REAL FUNCTION Delta_Pk(Pk, k)
 
-   ! Converts P(k) [Mpc/h]^3 to dimensionless Delta^2(k) 
-   IMPLICIT NONE
-   REAL, INTENT(IN) :: Pk ! Power spectrum in P(k) [Mpc/h]^3
-   REAL, INTENT(IN) :: k  ! Wavenumber [h/Mpc]
+      ! Converts P(k) [Mpc/h]^3 to dimensionless Delta^2(k) 
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: Pk ! Power spectrum in P(k) [Mpc/h]^3
+      REAL, INTENT(IN) :: k  ! Wavenumber [h/Mpc]
 
-   Delta_Pk = (4.*pi)*((k/twopi)**3)*Pk
+      Delta_Pk = (4.*pi)*((k/twopi)**3)*Pk
 
-END FUNCTION Delta_Pk
+   END FUNCTION Delta_Pk
 
 SUBROUTINE init_wiggle(cosm)
 
