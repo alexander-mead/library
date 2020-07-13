@@ -5,6 +5,7 @@ MODULE cosmic_emu_stuff
    USE cosmology_functions
    USE interpolate
    USE basic_operations
+   USE table_integer
 
    IMPLICIT NONE
 
@@ -21,6 +22,24 @@ MODULE cosmic_emu_stuff
    INTEGER, PARAMETER :: emulator_CosmicEmu = 1
    INTEGER, PARAMETER :: emulator_FrankenEmu = 2
    INTEGER, PARAMETER :: emulator_MiraTitan = 3
+
+   REAL, PARAMETER :: eps_h_CosmicEmu = 3e-3
+
+   REAL, PARAMETER :: kmin_rebin_CosmicEmu = 1e-2
+   REAL, PARAMETER :: kmax_rebin_CosmicEmu = 1.
+   INTEGER, PARAMETER :: nk_rebin_CosmicEmu = 128
+
+   REAL, PARAMETER :: kmin_rebin_FrankenEmu = 1e-2
+   REAL, PARAMETER :: kmax_rebin_FrankenEmu = 10.
+   INTEGER, PARAMETER :: nk_rebin_FrankenEmu = 128
+
+   REAL, PARAMETER :: kmin_rebin_MiraTitan = 1e-2
+   REAL, PARAMETER :: kmax_rebin_MiraTitan = 7.
+   INTEGER, PARAMETER :: nk_rebin_MiraTitan = 128
+
+   INTEGER, PARAMETER :: iorder_rebin = 3
+   INTEGER, PARAMETER :: ifind_rebin = ifind_split
+   INTEGER, PARAMETER :: iinterp_rebin = iinterp_Lagrange
 
 CONTAINS
 
@@ -71,9 +90,9 @@ CONTAINS
       INTEGER, INTENT(IN) :: nk
       REAL, ALLOCATABLE, INTENT(INOUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: Pk(:)
-      INTEGER, PARAMETER :: iorder_rebin = 3
-      INTEGER, PARAMETER :: ifind_rebin = 3
-      INTEGER, PARAMETER :: iinterp_rebin = 2
+      INTEGER, PARAMETER :: iorder = iorder_rebin
+      INTEGER, PARAMETER :: ifind = ifind_rebin
+      INTEGER, PARAMETER :: iinterp = iinterp_rebin
 
       CALL rebin_array(kmin, kmax, nk, k, Pk, &
          iorder_rebin, &
@@ -102,10 +121,10 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: params = 'emu_params.txt'
       CHARACTER(len=256), PARAMETER :: output = 'emu_power.dat'
       CHARACTER(len=256), PARAMETER :: exe = '/Users/Mead/Physics/CosmicEmu/emu.exe'
-      REAL, PARAMETER :: eps_h = 3e-3
-      REAL, PARAMETER :: kmin_rebin = 1e-2
-      REAL, PARAMETER :: kmax_rebin = 1.   ! Maximum k if rebinnning
-      INTEGER, PARAMETER :: nk_rebin = 128
+      REAL, PARAMETER :: eps_h = eps_h_CosmicEmu
+      REAL, PARAMETER :: kmin_rebin = kmin_rebin_CosmicEmu
+      REAL, PARAMETER :: kmax_rebin = kmax_rebin_CosmicEmu   
+      INTEGER, PARAMETER :: nk_rebin = nk_rebin_CosmicEmu
 
       ! Remove previous parameter and power file
       CALL EXECUTE_COMMAND_LINE('rm '//trim(params))
@@ -185,9 +204,9 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: params = 'emu_params.txt'
       CHARACTER(len=256), PARAMETER :: output = 'emu_power.dat'
       CHARACTER(len=256), PARAMETER :: exe = '/Users/Mead/Physics/FrankenEmu/emu.exe'
-      REAL, PARAMETER :: kmin_rebin = 1e-2
-      REAL, PARAMETER :: kmax_rebin = 10.   ! Maximum k if rebinnning
-      INTEGER, PARAMETER :: nk_rebin = 128
+      REAL, PARAMETER :: kmin_rebin = kmin_rebin_FrankenEmu
+      REAL, PARAMETER :: kmax_rebin = kmax_rebin_FrankenEmu
+      INTEGER, PARAMETER :: nk_rebin = nk_rebin_FrankenEmu
 
       ! Remove previous parameter and power file
       CALL EXECUTE_COMMAND_LINE('rm '//trim(params))
@@ -257,9 +276,9 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       CHARACTER(len=256) :: output
       INTEGER :: i
-      REAL, PARAMETER :: kmin_rebin = 1e-2
-      REAL, PARAMETER :: kmax_rebin = 7.   ! Maximum k if rebinnning
-      INTEGER, PARAMETER :: nk_rebin = 128
+      REAL, PARAMETER :: kmin_rebin = kmin_rebin_MiraTitan
+      REAL, PARAMETER :: kmax_rebin = kmax_rebin_MiraTitan
+      INTEGER, PARAMETER :: nk_rebin = nk_rebin_MiraTitan
 
       CALL EXECUTE_COMMAND_LINE('rm xstar.dat')
       CALL EXECUTE_COMMAND_LINE('rm EMU0.txt')
@@ -290,7 +309,8 @@ CONTAINS
       CLOSE (7)
 
       ! Convert P(k) to Delta^2(k)
-      P = P*(k**3)*4.*pi/(2.*pi)**3
+      !P = P*(k**3)*4.*pi/(2.*pi)**3
+      P = Delta_Pk(P, k)
 
       ! Convert k to k/h
       k = k/cosm%h
