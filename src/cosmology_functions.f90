@@ -421,13 +421,13 @@ MODULE cosmology_functions
 
    ! neff integration
    REAL, PARAMETER :: alpha_dsigma = 2.     ! Exponent to increase integration speed (3 seemed to give inaccuracies; no idea why)
-   REAL, PARAMETER :: acc_dsigma = acc_cosm ! Accuracy parameter for sigma(R) integration
+   REAL, PARAMETER :: acc_dsigma = acc_cosm ! Accuracy parameter for neff(R) integration
    INTEGER, PARAMETER :: iorder_dsigma = 3  ! Polynomial order for neff(R) integration
 
    ! ncur integration
-   REAL, PARAMETER :: alpha_ddsigma = 2.     ! Exponent to increase integration speed (3 seemed to give inaccuracies; no idea why)
-   REAL, PARAMETER :: acc_ddsigma = acc_cosm ! Accuracy parameter for sigma(R) integration
-   INTEGER, PARAMETER :: iorder_ddsigma = 3  ! Polynomial order for neff(R) integration
+   REAL, PARAMETER :: alpha_ddsigma = 2.     ! Exponent to increase integration speed
+   REAL, PARAMETER :: acc_ddsigma = acc_cosm ! Accuracy parameter for ncur(R) integration
+   INTEGER, PARAMETER :: iorder_ddsigma = 3  ! Polynomial order for ncur(R) integration
 
    ! Spherical collapse
    INTEGER, PARAMETER :: imeth_ODE_spherical = 3 ! Method for spherical collapse ODE solving
@@ -3876,8 +3876,8 @@ CONTAINS
 
    REAL FUNCTION ncur(r, a, flag, cosm)
 
-      ! Effective spectral index on scale R
-      ! 3 + neff = -dln(sigma^2)/dlnR and ranges from ~1 on large scales to ~-3 on small scales
+      ! -d^2ln(sigma^2)/dlnR^2
+      ! Spectral curvature in linear spectrum on scale 'r'
       IMPLICIT NONE
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
@@ -3890,8 +3890,8 @@ CONTAINS
 
    REAL FUNCTION ddsigma(r, a, flag, cosm)
 
-      ! Integral for calculating the effective linear P(k) power-law index
-      ! This is dlnP(k)/dlnk and ranges from ~1 on large scales to ~-3 on small scales
+      ! Integral for calculating dln(sigma^2)/dlnR
+      ! Transformation is kR = (1/t-1)**alpha
       IMPLICIT NONE
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
