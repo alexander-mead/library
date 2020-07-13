@@ -197,6 +197,7 @@ MODULE HMx
    PUBLIC :: param_HMcode_As
    PUBLIC :: param_HMcode_alpha0
    PUBLIC :: param_HMcode_alpha1
+   PUBLIC :: param_HMcode_alpha2
    PUBLIC :: param_HMcode_Dvnu
    PUBLIC :: param_HMcode_dcnu
    PUBLIC :: param_HMcode_mbar
@@ -279,7 +280,7 @@ MODULE HMx
       INTEGER :: nk
 
       ! HMcode parameters and experimental parameters
-      REAL :: knl, rnl, mnl, neff, Rh, Mh, Mp, sigv, Rhh
+      REAL :: knl, rnl, mnl, Rh, Mh, Mp, sigv, Rhh!, neff
       !REAL :: sig_eta, sig_deltac, sig_fdamp, sigV_kstar, sigV_fdamp, sigV_all, sig8_all
 
       ! Saturation parameters (e.g., WDM)
@@ -300,7 +301,7 @@ MODULE HMx
       LOGICAL :: DMONLY_neutrinos_affect_virial_radius
 
       ! HMcode (2020) parameters
-      REAL :: kd, kdp, Ap, Ac, kp, nd
+      REAL :: kd, kdp, Ap, Ac, kp, nd, alp2
       REAL :: mbar, nbar, sbar, mbarz, sbarz
       REAL :: mbar_T, As_T, sbar_T, mbarz_T, sbarz_T
 
@@ -530,7 +531,8 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_sbarz = 64
    INTEGER, PARAMETER :: param_HMcode_Amfz = 65
    INTEGER, PARAMETER :: param_HMcode_nd = 66
-   INTEGER, PARAMETER :: param_n = 66
+   INTEGER, PARAMETER :: param_HMcode_alpha2 = 67
+   INTEGER, PARAMETER :: param_n = 67
 
    ! HMcode versions
    INTEGER, PARAMETER :: HMcode2015 = 7
@@ -573,7 +575,7 @@ CONTAINS
       names(9) =  'Parameters for CCL tests (high accuracy)'
       names(10) = 'Comparison of mass conversions with Wayne Hu code'
       names(11) = 'UPP for electron pressure'
-      names(12) = 'Spherical collapse used for Mead (2017) results'
+      names(12) = 'Spherical collapse calculation for Mead (2017) results'
       names(13) = 'Experimental sigmoid transition'
       names(14) = 'Experimental scale-dependent halo bias'
       names(15) = 'HMcode (2019)'
@@ -732,7 +734,7 @@ CONTAINS
       hmod%iconc = 4
 
       ! How to calculate sigma(R); either cold matter (two definitions) or all matter
-      hmod%flag_sigma = flag_power_cold_unorm
+      hmod%flag_sigma = flag_ucold
 
       ! Linear collapse threshold delta_c
       ! 1 - Fixed 1.686
@@ -937,12 +939,12 @@ CONTAINS
       ! HMcode (2020) additional parameters
       hmod%DMONLY_neutrino_halo_mass_correction = .TRUE.
       hmod%DMONLY_neutrinos_affect_virial_radius = .FALSE.
-      !hmod%kd = 1e-2
       hmod%kd = 0.
       hmod%kp = 0.
       hmod%nd = 0.
       hmod%Ap = 0.
       hmod%Ac = 0.
+      hmod%alp2 = 0.
 
       ! HMcode (2020) baryon recipe
       hmod%DMONLY_baryon_recipe = .FALSE.     
@@ -1190,7 +1192,7 @@ CONTAINS
          hmod%itrans = 1
          hmod%iDolag = 2
          hmod%zinf_Dolag = 10.
-         hmod%flag_sigma = flag_power_cold_unorm
+         hmod%flag_sigma = flag_ucold
          hmod%DMONLY_neutrino_halo_mass_correction = .FALSE.
          hmod%Dv0 = 418.
          hmod%Dv1 = -0.352
@@ -1219,7 +1221,7 @@ CONTAINS
             hmod%alp1 = 1.77       
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
-            hmod%flag_sigma = flag_power_total
+            hmod%flag_sigma = flag_matter
          ELSE IF (ihm == 15) THEN
             ! HMcode (2019)
             hmod%i1hdamp = 2 ! 2 - k^4 at large scales for one-halo term
@@ -1790,7 +1792,7 @@ CONTAINS
          ! 103 - Baryon model in response
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
-         hmod%itrans = 1  ! 1 - alpha smoothing
+         hmod%itrans = 5  ! 1 - alpha smoothing
          hmod%i2hdamp = 3 ! 3 - fdamp for perturbation theory      
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
          hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
@@ -1798,9 +1800,9 @@ CONTAINS
          hmod%iDolag = 3  ! 3 - Dolag c(M) correction with sensible z evolution
          hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
          hmod%ieta = 3    ! 2 - eta with cold matter dependence
-         hmod%flag_sigma = flag_power_cold_unorm  ! Cold un-normalised produces better massive-neutrino results
+         hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
-         hmod%zinf_Dolag = 10. ! Why is 100 not better than 10? This is very strange!
+         hmod%zinf_Dolag = 100. ! 100 vs 10 makes a difference for EDE-type cosmologies
          IF (ihm == 78) THEN
             ! Model 1: 0.00745 for Cosmic Emu
             !hmod%f0 = 0.2259196
@@ -1812,75 +1814,85 @@ CONTAINS
             !hmod%kd = 0.0414575
             !hmod%kdp = -0.3542846
             !hmod%nd = 2.
-            ! Model 2: 0.00704 for Cosmic Emu
-            hmod%f0 = 0.2221080
-            hmod%f1 = 0.7354185
-            hmod%ks = 0.0598368
-            hmod%kp = -0.5832631
-            hmod%alp0 = 2.1592118
-            hmod%alp1 = 1.6949669
-            hmod%kd = 0.0638063
-            hmod%kdp = -0.5481986
-            hmod%nd = 2.8940349
+            ! Model 2: 0.00704 for Cosmic Emu (old de-wiggle)
+            !hmod%f0 = 0.2221080
+            !hmod%f1 = 0.7354185
+            !hmod%ks = 0.0598368
+            !hmod%kp = -0.5832631
+            !hmod%alp0 = 2.1592118
+            !hmod%alp1 = 1.6949669
+            !hmod%kd = 0.0638063
+            !hmod%kdp = -0.5481986
+            !hmod%nd = 2.8940349
+            ! Model 3: 0.00975 for Cosmic Emu
+            hmod%f0 = 0.2125526
+            hmod%f1 = 0.5941393
+            hmod%ks = 0.0395327
+            hmod%kp = -1.0752429
+            !hmod%alp0 = 2.3677969
+            !hmod%alp1 = 1.7706090
+            hmod%alp0 = 1.
+            hmod%alp1 = 0.
+            hmod%alp2 = 0.
+            hmod%kd = 0.0481365
+            hmod%kdp = -0.9141222
+            hmod%nd = 2.8346948
          ELSE IF (ihm == 79 .OR. ihm == 102) THEN
-            ! Model 1: 0.0160 to both Franken Emu and Mira Titan
-            !hmod%ieta = 2
-            !hmod%f0 = 0.2990829
-            !hmod%f1 = 1.1481055
-            !hmod%ks = 0.0281139
-            !hmod%kp = -0.1769449
-            !hmod%kd = 0.0561848
-            !hmod%kdp = 0.0228758
-            !hmod%eta0 = 0.2265319
-            !hmod%eta1 = 0.0095795
-            !hmod%alp0 = 2.4050830
-            !hmod%alp1 = 1.7988408 
-            !hmod%Amf = 1.3956430
-            !hmod%ST_p = 0.2867586
-            !hmod%ST_q = 0.8330417
-            !hmod%As = 3.8584895
-            !hmod%Ap = -0.0108849  ! Very tiny
-            !hmod%Ac = 0.0153846   ! Very tiny
-            !hmod%dcnu = 0.2452052
-            !hmod%Dvnu = 0.4495748
-            !hmod%nd = 2.
-            ! Model 2: 0.0160 to both Franken Emu and Mira Titan
-            !hmod%ieta = 2
-            !hmod%f0 = 0.2819368
-            !hmod%f1 = 0.9683412
-            !hmod%ks = 0.0988932
-            !hmod%kp = -0.7276630
-            !hmod%kd = 0.0934965
-            !hmod%kdp = -0.9014253
-            !hmod%nd = 3.2303373
-            !hmod%eta0 = 0.2231950
-            !hmod%eta1 = 0.0224848
-            !hmod%alp0 = 2.3387764
-            !hmod%alp1 = 1.7929939
-            !hmod%Amf = 1.3474791
-            !hmod%ST_p = 0.2836389
-            !hmod%ST_q = 0.8361781
-            !hmod%As = 3.9358818
-            !hmod%dcnu = 0.2552135
-            !hmod%Dvnu = 0.4843895
-            ! Model 3: 0.0155 to both Franken Emu and Mira Titan
-            hmod%f0 = 0.3029326
-            hmod%f1 = 0.9871813
-            hmod%ks = 0.1009522
-            hmod%kp = -0.6087461
-            hmod%kd = 0.0999463
-            hmod%kdp = -0.7043082
-            hmod%nd = 3.0978275
-            hmod%eta0 = 0.2076059
-            hmod%eta1 = -0.0395534
-            hmod%alp0 = 2.2627289
-            hmod%alp1 = 1.7735738
-            hmod%Amf = 1.3698191
-            hmod%ST_p = 0.2851119
-            hmod%ST_q = 0.8421921
-            hmod%As = 3.8870756
-            hmod%dcnu = 0.2551262
-            hmod%Dvnu = 0.5504368           
+            ! Model 1: 0.0155 to both Franken Emu and Mira Titan (old dewiggle)
+            ! hmod%f0 = 0.3029326
+            ! hmod%f1 = 0.9871813
+            ! hmod%ks = 0.1009522
+            ! hmod%kp = -0.6087461
+            ! hmod%kd = 0.0999463
+            ! hmod%kdp = -0.7043082
+            ! hmod%nd = 3.0978275
+            ! hmod%eta0 = 0.2076059
+            ! hmod%eta1 = -0.0395534
+            ! hmod%alp0 = 2.2627289
+            ! hmod%alp1 = 1.7735738
+            ! hmod%Amf = 1.3698191
+            ! hmod%ST_p = 0.2851119
+            ! hmod%ST_q = 0.8421921
+            ! hmod%As = 3.8870756
+            ! hmod%dcnu = 0.2551262
+            ! hmod%Dvnu = 0.5504368
+            ! Model 2: 0.0153 to Franken Emu
+            hmod%f0 = 0.2540020
+            hmod%f1 = 0.8657965
+            hmod%ks = 0.0569637
+            hmod%kp = -0.7193460
+            hmod%kd = 0.0620111
+            hmod%kdp = -0.6442670
+            hmod%nd = 2.9549404
+            hmod%eta0 = 0.2165872
+            hmod%eta1 = 0.0042358
+            !hmod%alp0 = 2.5246825
+            !hmod%alp1 = 1.8373918
+            hmod%alp0 = 1.
+            hmod%alp1 = 0.
+            hmod%alp2 = 0.
+            hmod%Amf = 1.6174759
+            hmod%ST_p = 0.3301253
+            hmod%ST_q = 0.8253601
+            hmod%As = 3.8645264
+            ! Model 3: 0.0194 to Franken Emu + Mira Titan
+            ! hmod%f0 = 0.2934852
+            ! hmod%f1 = 0.9822699
+            ! hmod%ks = 0.0753932
+            ! hmod%kp = -0.6239208
+            ! hmod%kd = 0.0813509
+            ! hmod%kdp = -0.5613598
+            ! hmod%nd = 3.1091039
+            ! hmod%eta0 = 0.2193618
+            ! hmod%eta1 = 0.0074750
+            ! hmod%alp0 = 2.3982007
+            ! hmod%alp1 = 1.8232834
+            ! hmod%Amf = 1.3324437
+            ! hmod%ST_p = 0.2543736
+            ! hmod%ST_q = 0.8714454
+            ! hmod%As = 3.6576695
+            ! hmod%dcnu = 0.1936836
+            ! hmod%Dvnu = -0.4013935
          END IF
          IF (ihm == 102) THEN
             ! 102 - HMcode baryon recipe
@@ -1946,13 +1958,13 @@ CONTAINS
          hmod%imf = 10
       ELSE IF (ihm == 97) THEN
          ! Sigma calculated from total matter power
-         hmod%flag_sigma = flag_power_total
+         hmod%flag_sigma = flag_matter
       ELSE IF (ihm == 98) THEN
          ! No correction for neutrino mass applied to DMONLY haloes
          hmod%DMONLY_neutrino_halo_mass_correction = .FALSE.        
       ELSE IF (ihm == 99) THEN
          ! Cold sigma calculated using 1+delta_c = rho_c/mean_rho_m
-         hmod%flag_sigma = flag_power_cold
+         hmod%flag_sigma = flag_cold
       ELSE IF (ihm == 100) THEN
          ! Massive neutrinos affect the calculation of the virial radius
          hmod%DMONLY_neutrinos_affect_virial_radius = .TRUE.
@@ -2010,8 +2022,8 @@ CONTAINS
       ! Calculate sigma_v
       ! TODO: This is really a 'cosmology' thing
       ! TODO: This is only necessary for some halo models
-      hmod%sigv = sigmaV(0., a, flag_power_total, cosm)
-      !hmod%sigv = sigmaV(0., a, flag_power_cold_unorm, cosm)      
+      hmod%sigv = sigmaV(0., a, flag_matter, cosm)
+      !hmod%sigv = sigmaV(0., a, flag_ucold, cosm)      
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigv)
 
       IF (cosm%img == img_fR) THEN
@@ -2139,8 +2151,8 @@ CONTAINS
 
       ! Calculate the effective spectral index at the collapse scale
       ! TODO: Not necessary for some halo models
-      hmod%neff = effective_index(hmod%flag_sigma, hmod, cosm)
-      IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Collapse n_eff:', REAL(hmod%neff)
+      !hmod%neff = effective_index(hmod%flag_sigma, hmod, cosm)
+      !IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Collapse n_eff:', REAL(hmod%neff)
 
       ! Calculate the amplitude of the the one-halo term
       ! TODO: Not necessary for some halo models
@@ -2395,11 +2407,11 @@ CONTAINS
          END IF
 
          ! sigma(R) type
-         IF (hmod%flag_sigma == flag_power_cold) THEN
+         IF (hmod%flag_sigma == flag_cold) THEN
             WRITE (*, *) 'HALOMODEL: Sigma being calculated using cold matter'
-         ELSE IF (hmod%flag_sigma == flag_power_cold_unorm) THEN
+         ELSE IF (hmod%flag_sigma == flag_ucold) THEN
             WRITE (*, *) 'HALOMODEL: Sigma being calculated using un-normalised cold matter'
-         ELSE IF (hmod%flag_sigma == flag_power_total) THEN
+         ELSE IF (hmod%flag_sigma == flag_matter) THEN
             WRITE (*, *) 'HALOMODEL: Sigma being calculated using total matter'
          ELSE
             STOP 'HALOMODEL: Error, flag for cold/matter specified incorreclty'
@@ -2507,6 +2519,7 @@ CONTAINS
          WRITE (*, fmt=fmt) 'Ac:', hmod%Ac
          WRITE (*, fmt=fmt) 'alpha0:', hmod%alp0
          WRITE (*, fmt=fmt) 'alpha1:', hmod%alp1
+         WRITE (*, fmt=fmt) 'alpha2:', hmod%alp2
          WRITE (*, fmt=fmt) 'Dvnu:', hmod%Dvnu
          WRITE (*, fmt=fmt) 'dcnu:', hmod%dcnu
          IF (hmod%DMONLY_baryon_recipe) THEN
@@ -3249,7 +3262,7 @@ CONTAINS
       DO i = 1, nk
 
          ! Get the linear power
-         pow_li(i) = plin(k(i), hmod%a, flag_power_total, cosm)
+         pow_li(i) = plin(k(i), hmod%a, flag_matter, cosm)
 
          ! Do the halo model calculation
          CALL calculate_HMx_ka(iifield, wk0, nnf, k(i), pow_li(i), upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
@@ -3659,7 +3672,7 @@ CONTAINS
       ELSE IF (hmod%ip2h == 3) THEN
 
          ! Damped BAO linear theory
-         p_2h = p_dewiggle(k, hmod%a, flag_power_total, hmod%sigv, cosm)
+         p_2h = p_dewiggle(k, hmod%a, flag_matter, hmod%sigv, cosm)
 
       ELSE IF (hmod%ip2h == 4) THEN
 
@@ -4553,7 +4566,7 @@ CONTAINS
          delta_c = dc_NakamuraSuto(a, cosm)
       ELSE IF (hmod%idc == 3 .OR. hmod%idc == 6) THEN
          ! From HMcode (2015, 2016)
-         sig = sigma(8., a, flag_power_total, cosm)
+         sig = sigma(8., a, flag_matter, cosm)
          delta_c = hmod%dc0+hmod%dc1*log(sig)
          IF (hmod%idc == 3) THEN
             ! HMcode(2016) addition of small cosmology and explicit neutrino dependence          
@@ -4659,13 +4672,13 @@ CONTAINS
       IF (hmod%i1hdamp == 0) THEN
          HMcode_kstar = 0.
       ELSE IF (hmod%i1hdamp == 1) THEN
-         !sigv = sigmaV(0., hmod%a, flag_power_total, cosm)
+         !sigv = sigmaV(0., hmod%a, flag_matter, cosm)
          sigv = hmod%sigv
          HMcode_kstar = hmod%ks/sigv
       ELSE IF(hmod%i1hdamp == 2) THEN
          HMcode_kstar = hmod%ks
       ELSE IF (hmod%i1hdamp == 3) THEN
-         sig8 = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+         sig8 = sigma(8., hmod%a, flag_ucold, cosm)
          HMcode_kstar = hmod%ks*sig8**hmod%kp
       ELSE
          STOP 'HMCODE_KSTAR: Error, i1hdamp  specified incorrectly'
@@ -4686,16 +4699,16 @@ CONTAINS
          HMcode_fdamp = 0.
       ELSE IF (hmod%i2hdamp == 1) THEN
          ! HMcode (2015)
-         sig = sigma(8., hmod%a, flag_power_total, cosm)
+         sig = sigma(8., hmod%a, flag_matter, cosm)
          HMcode_fdamp = hmod%f0*sig**hmod%f1
       ELSE IF (hmod%i2hdamp == 2) THEN
          ! HMcode (2016)
-         sigv = sigmaV(100., hmod%a, flag_power_total, cosm)
+         sigv = sigmaV(100., hmod%a, flag_matter, cosm)
          HMcode_fdamp = hmod%f0*sigv**hmod%f1
       ELSE IF (hmod%i2hdamp == 3) THEN
          ! HMcode (2020)
-         sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
-         !sig = sigma(8., hmod%a, flag_power_total, cosm)
+         sig = sigma(8., hmod%a, flag_ucold, cosm)
+         !sig = sigma(8., hmod%a, flag_matter, cosm)
          HMcode_fdamp = hmod%f0*sig**hmod%f1
       ELSE
          STOP 'HMcode_FDAMP: Error, i2hdamp defined incorrectly'
@@ -4715,7 +4728,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: sig8
 
-      sig8 = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+      sig8 = sigma(8., hmod%a, flag_ucold, cosm)
       HMcode_kdamp = hmod%kd*sig8**hmod%kdp
 
    END FUNCTION HMcode_kdamp
@@ -4726,7 +4739,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: n_eff
+      REAL :: neff, sig8, x, y
       REAL :: crap
 
       ! To prevent compile-time warnings
@@ -4734,30 +4747,41 @@ CONTAINS
 
       IF (hmod%itrans == 1) THEN
          ! From HMcode (2015, 2016)
-         n_eff = hmod%neff
+         !hmod%neff = effective_index(hmod%flag_sigma, hmod, cosm)
+         neff = effective_index(hmod%flag_sigma, hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0
          ELSE
-            HMcode_alpha = hmod%alp0*(hmod%alp1**n_eff)
+            HMcode_alpha = hmod%alp0*(hmod%alp1**neff)
          END IF
       ELSE IF (hmod%itrans == 2) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
-         n_eff = hmod%neff
+         !neff = hmod%neff
+         neff = effective_index(hmod%flag_sigma, hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**1.5
          ELSE
-            HMcode_alpha = (hmod%alp0*hmod%alp1**n_eff)**1.5
+            HMcode_alpha = (hmod%alp0*hmod%alp1**neff)**1.5
          END IF
       ELSE IF (hmod%itrans == 3) THEN
          ! Exponentiated HMcode (2016) result
-         n_eff = hmod%neff
+         !n_eff = hmod%neff
+         neff = effective_index(hmod%flag_sigma, hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**2.5
          ELSE
-            HMcode_alpha = (hmod%alp0*hmod%alp1**n_eff)**2.5
+            HMcode_alpha = (hmod%alp0*hmod%alp1**neff)**2.5
          END IF
       ELSE IF (hmod%itrans == 5) THEN
-         HMcode_alpha = hmod%alp0
+         ! HMcode 2020             
+         !x = sigma(8., hmod%a, flag_ucold, cosm)
+         x = effective_index(hmod%flag_sigma, hmod, cosm)
+         y = effective_curvature(hmod%flag_sigma, hmod, cosm)
+         !HMcode_alpha = hmod%alp0*(hmod%alp1**x)    ! Relation 1
+         !HMcode_alpha = hmod%alp0+x*hmod%alp1       ! Relation 2
+         !HMcode_alpha = hmod%alp0*abs(x)**hmod%alp1 ! Relation 3
+         !HMcode_alpha = hmod%alp0+hmod%alp1*x+hmod%alp2*x**2
+         HMcode_alpha = hmod%alp0+hmod%alp1*x+hmod%alp2*y
       ELSE
          HMcode_alpha = 1.
       END IF
@@ -4785,13 +4809,13 @@ CONTAINS
          ELSE
             eta0 = hmod%eta0
          END IF
-         sig = sigma(8., hmod%a, flag_power_total, cosm)
+         sig = sigma(8., hmod%a, flag_matter, cosm)
          HMcode_eta = eta0-hmod%eta1*sig
       ELSE IF (hmod%ieta == 2) THEN
-         sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+         sig = sigma(8., hmod%a, flag_ucold, cosm)
          HMcode_eta = hmod%eta0-hmod%eta1*sig
       ELSE IF (hmod%ieta == 3) THEN
-         sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+         sig = sigma(8., hmod%a, flag_ucold, cosm)
          HMcode_eta = hmod%eta0*sig**hmod%eta1
       ELSE
          STOP 'HMcode_ETA: Error, ieta defined incorrectly'
@@ -4815,7 +4839,7 @@ CONTAINS
          HMcode_A = hmod%As
       ELSE IF (hmod%iAs == 2) THEN
          ! HMcode (2020)
-         sig = sigma(8., hmod%a, flag_power_cold_unorm, cosm)
+         sig = sigma(8., hmod%a, flag_ucold, cosm)
          IF (hmod%DMONLY_baryon_recipe) THEN
             As = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%As_T, hmod%As)
          ELSE
@@ -5956,13 +5980,13 @@ CONTAINS
    REAL FUNCTION effective_index(flag_sigma, hmod, cosm)
 
       ! Power spectrum effective slope at the non-linear scale
-      ! Defined as -3. + d ln sigma^2 / d ln r, so pertains to P(k) not Delta^2(k) in HMcode
+      ! Defined as -3. + d ln sigma^2 / d ln r, so pertains to P(k) not Delta^2(k)
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: flag_sigma
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       
-      ! Numerical differentiation to find effective index at collapse
+      ! Find effective index at collapse
       effective_index = neff(hmod%rnl, hmod%a, flag_sigma, cosm)
 
       ! For some bizarre cosmologies r_nl is very small, so almost no collapse has occured
@@ -5971,6 +5995,20 @@ CONTAINS
       IF (effective_index > cosm%ns)    effective_index = cosm%ns
 
    END FUNCTION effective_index
+
+   REAL FUNCTION effective_curvature(flag_sigma, hmod, cosm)
+
+      ! Power spectrum effective curvature at the non-linear scale
+      ! Defined as d^2 ln sigma^2 / d ln r^2, so pertains to P(k) not Delta^2(k)
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: flag_sigma
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      
+      ! Effective curvature at the collapse scale
+      effective_curvature = ncur(hmod%rnl, hmod%a, flag_sigma, cosm)
+
+   END FUNCTION effective_curvature
 
    SUBROUTINE fill_halo_concentration(hmod, cosm)
 
@@ -6085,43 +6123,47 @@ CONTAINS
       LOGICAL, PARAMETER :: make_lambda = .TRUE.
       LOGICAL, PARAMETER :: make_flat = .TRUE.
 
-      ! The 'infinite' scale factor
-      ainf = scale_factor_z(hmod%zinf_Dolag)
+      IF (hmod%z < hmod%zinf_Dolag) THEN
 
-      ! Save the growth function in the current cosmology
-      ginf_wCDM = grow(ainf, cosm)
+         ! The 'infinite' scale factor
+         ainf = scale_factor_z(hmod%zinf_Dolag)
 
-      ! Make a flat LCDM cosmology and calculate growth
-      IF (hmod%iDolag == 1 .OR. hmod%iDolag == 2 .OR. hmod%iDolag == 3) THEN
-         remove_neutrinos = .FALSE.
-      ELSE IF (hmod%iDolag == 4) THEN
-         remove_neutrinos = .TRUE.
-      ELSE
-         STOP 'DOLAG_CORRECTION: Error, iDolag not specified correctly'
-      END IF
-      cosm_LCDM = convert_cosmology(cosm, make_lambda, make_flat, remove_neutrinos)
+         ! Save the growth function in the current cosmology
+         ginf_wCDM = grow(ainf, cosm)
 
-      ! Growth factor in LCDM at 'infinity' calculated using Linder approximation
-      ginf_LCDM = grow_Linder(ainf, cosm_LCDM)
+         ! Make a flat LCDM cosmology and calculate growth
+         IF (hmod%iDolag == 1 .OR. hmod%iDolag == 2 .OR. hmod%iDolag == 3) THEN
+            remove_neutrinos = .FALSE.
+         ELSE IF (hmod%iDolag == 4) THEN
+            remove_neutrinos = .TRUE.
+         ELSE
+            STOP 'DOLAG_CORRECTION: Error, iDolag not specified correctly'
+         END IF
+         cosm_LCDM = convert_cosmology(cosm, make_lambda, make_flat, remove_neutrinos)
 
-      ! Fractional difference compared to LCDM
-      f = ginf_wCDM/ginf_LCDM
+         ! Growth factor in LCDM at 'infinity' calculated using Linder approximation
+         ginf_LCDM = grow_Linder(ainf, cosm_LCDM)
 
-      IF (hmod%iDolag == 1) THEN
-         ! Standard correction (HMcode 2015)
-         hmod%c = hmod%c*f
-      ELSE IF (hmod%iDolag == 2) THEN
-         ! Changed this to a power of 1.5 in HMcode 2016, produces more accurate results for extreme DE
-         hmod%c = hmod%c*f**1.5
-      ELSE IF (hmod%iDolag == 3 .OR. hmod%iDolag == 4) THEN
-         ! Correction with a sensible redshift dependence, which is otherwise missing from Dolag
-         a = hmod%a
-         g_wCDM = grow(a, cosm)
-         g_LCDM = grow_Linder(a, cosm_LCDM)
-         g = g_wCDM/g_LCDM
-         hmod%c = hmod%c*f/g
-      ELSE
-         STOP 'DOLAG_CORRECTION: Error, iDolag specified incorrectly'
+         ! Fractional difference compared to LCDM
+         f = ginf_wCDM/ginf_LCDM
+
+         IF (hmod%iDolag == 1) THEN
+            ! Standard correction (HMcode 2015)
+            hmod%c = hmod%c*f
+         ELSE IF (hmod%iDolag == 2) THEN
+            ! Changed this to a power of 1.5 in HMcode 2016, produces more accurate results for extreme DE
+            hmod%c = hmod%c*f**1.5
+         ELSE IF (hmod%iDolag == 3 .OR. hmod%iDolag == 4) THEN
+            ! Correction with a sensible redshift dependence, which is otherwise missing from Dolag
+            a = hmod%a
+            g_wCDM = grow(a, cosm)
+            g_LCDM = grow_Linder(a, cosm_LCDM)
+            g = g_wCDM/g_LCDM
+            hmod%c = hmod%c*f/g
+         ELSE
+            STOP 'DOLAG_CORRECTION: Error, iDolag specified incorrectly'
+         END IF
+
       END IF
 
    END SUBROUTINE Dolag_correction
@@ -6333,7 +6375,7 @@ CONTAINS
       REAL, PARAMETER :: b0 = 3.39
       REAL, PARAMETER :: b1 = 1.82
       REAL, PARAMETER :: ca = 0.20
-      INTEGER, PARAMETER :: flag_power = flag_power_total
+      INTEGER, PARAMETER :: flag_power = flag_matter
 
       ! Suppress warnings
       alpha = nu
