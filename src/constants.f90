@@ -25,7 +25,7 @@ MODULE constants
    !!
 
    ! Physical constants in SI units
-   REAL, PARAMETER :: kB = 1.38064852e-23_dp        ! Boltzmann constant [m^2 kg s^-2 K^-1]
+   REAL, PARAMETER :: kB = 1.38064852e-23_dp        ! Boltzmann constant [kg m^2 s^-2 K^-1]
    REAL, PARAMETER :: mp = 1.6726219e-27_dp         ! proton mass [kg]
    REAL, PARAMETER :: me = 9.10938356e-31_dp        ! electron mass [kg]
    REAL, PARAMETER :: bigG = 6.67408e-11_dp         ! Gravitational constant [kg^-1 m^3 s^-2]
@@ -66,7 +66,7 @@ MODULE constants
 
    ! TODO: Relate these to fundamental constants
    REAL, PARAMETER :: neutrino_constant = 94.1_dp               ! Critical mass for neutrino density to close Universe [eV] (or is it 93.03 eV, or 93.14 eV?; https://arxiv.org/pdf/1812.02102.pdf)
-   REAL, PARAMETER :: neff_constant = (7./8.)*(4./11.)**(4./3.) ! Constant that appears in temperature formulae with neutrinos
+   REAL, PARAMETER :: neff_constant = (7./8.)*(4./11.)**(4./3.) ! Constant that appears in temperature formulae with neutrinos (~ 0.2271)
 
    !!
 

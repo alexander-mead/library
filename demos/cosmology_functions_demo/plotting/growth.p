@@ -35,8 +35,8 @@ if(ilog==1){unset key}
 
 plot x w l ls -1 noti,\
    gam w l lc 6 dt 2 noti,\
-   growth u 1:2 w l lc 1 dt 1 lw 2 ti 'Growth function',\
-   growth u 1:3 w l lc 2 dt 1 lw 2 ti 'Unnormalised growth',\
+   growth u 1:2 w l lc 1 dt 1 lw 2 ti 'Growth function: g(a=1) = 1',\
+   growth u 1:3 w l lc 2 dt 1 lw 2 ti 'Growth function: g(a→0) = a',\
    growth u 1:4 w l lc 3 dt 1 lw 2 ti 'Growth rate',\
    growth u 1:5 w l lc 4 dt 1 lw 2 ti 'Accumulated growth',\
    growth u 1:6 w l lc 1 dt 2 lw 3 ti 'Linder growth function approximation',\
