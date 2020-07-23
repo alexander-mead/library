@@ -32,28 +32,23 @@ MODULE HMx
    PUBLIC :: write_power_a_multiple
    PUBLIC :: write_power_fields
 
-   ! Calculations  
+   ! Halo-model calculations  
    PUBLIC :: calculate_HMx
    PUBLIC :: calculate_HMx_full
-   PUBLIC :: calculate_HMx_old  ! TODO: Replace sometime, but Tilman uses this
-   PUBLIC :: calculate_HMx_a    ! TODO: Remove from public (hard task)
+   PUBLIC :: calculate_HMx_old ! TODO: Replace sometime, but Tilman uses this
+   PUBLIC :: calculate_HMx_a   ! TODO: Remove from public (hard task)
    PUBLIC :: calculate_HMcode
    PUBLIC :: calculate_halomod
    PUBLIC :: calculate_halomod_full
    PUBLIC :: calculate_halomod_response
+
+   ! Halo-model things
    PUBLIC :: set_halo_type
    PUBLIC :: halo_type
    PUBLIC :: M_nu
    PUBLIC :: b_nu
    PUBLIC :: g_nu
    PUBLIC :: nu_M
-   PUBLIC :: mean_bias_number_weighted
-   PUBLIC :: mean_nu_number_weighted
-   PUBLIC :: mean_halo_mass_number_weighted
-   PUBLIC :: mean_bias_mass_weighted
-   PUBLIC :: mean_nu_mass_weighted
-   PUBLIC :: mean_halo_mass_mass_weighted
-   PUBLIC :: mean_halo_number_density
    PUBLIC :: virial_radius
    PUBLIC :: convert_mass_definitions
    PUBLIC :: win
@@ -62,6 +57,19 @@ MODULE HMx
    PUBLIC :: halo_HI_fraction ! TODO: Retire
    PUBLIC :: T_1h
    PUBLIC :: BNL
+
+   ! Mean things
+   PUBLIC :: mean_bias_number_weighted
+   PUBLIC :: mean_nu_number_weighted
+   PUBLIC :: mean_halo_mass_number_weighted
+   PUBLIC :: mean_bias_mass_weighted
+   PUBLIC :: mean_nu_mass_weighted
+   PUBLIC :: mean_halo_mass_mass_weighted
+   PUBLIC :: mean_halo_number_density
+
+   ! Effective power spectrum things
+   PUBLIC :: effective_index
+   PUBLIC :: effective_curvature
 
    ! Diagnostics
    PUBLIC :: halo_definitions
@@ -789,8 +797,9 @@ CONTAINS
       ! Use the Dolag et al. (2004; astro-ph/0309771) c(M) correction for dark energy?
       ! 0 - No
       ! 1 - Exactly as in Dolag et al. (2004)
-      ! 2 - As in Dolag et al. (2004) but with a ^1.5 power
-      ! 3 - My version of Dolag (2004) with some redshift dependence
+      ! 2 - As in Dolag et al. (2004) but with a 1.5 exponent
+      ! 3 - Dolag (2004) with redshift dependence
+      ! 4 - Dolag (2004) with redshift dependence and neutrinos removed
       hmod%iDolag = 1
 
       ! How to ensure that we do not have more baryons than Om_b
@@ -1792,17 +1801,17 @@ CONTAINS
          ! 103 - Baryon model in response
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
-         hmod%itrans = 5  ! 1 - alpha smoothing
+         hmod%itrans = 5  ! 5 - HMcode 2020 alpha smoothing
          hmod%i2hdamp = 3 ! 3 - fdamp for perturbation theory      
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
          hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
          hmod%iconc = 1   ! 1 - Bullock c(M) relation   
          hmod%iDolag = 3  ! 3 - Dolag c(M) correction with sensible z evolution
          hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
-         hmod%ieta = 3    ! 2 - eta with cold matter dependence
+         hmod%ieta = 3    ! 3 - HMcode 2020 eta bloating
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
-         hmod%zinf_Dolag = 100. ! 100 vs 10 makes a difference for EDE-type cosmologies
+         hmod%zinf_Dolag = 10. ! 100 vs 10 makes a difference for EDE-type cosmologies
          IF (ihm == 78) THEN
             ! Model 1: 0.00745 for Cosmic Emu
             !hmod%f0 = 0.2259196
@@ -1829,11 +1838,11 @@ CONTAINS
             hmod%f1 = 0.5941393
             hmod%ks = 0.0395327
             hmod%kp = -1.0752429
-            !hmod%alp0 = 2.3677969
-            !hmod%alp1 = 1.7706090
-            hmod%alp0 = 1.
-            hmod%alp1 = 0.
-            hmod%alp2 = 0.
+            hmod%alp0 = 2.3677969
+            hmod%alp1 = 1.7706090
+            !hmod%alp0 = 1.
+            !hmod%alp1 = 0.
+            !hmod%alp2 = 0.
             hmod%kd = 0.0481365
             hmod%kdp = -0.9141222
             hmod%nd = 2.8346948
@@ -1857,24 +1866,24 @@ CONTAINS
             ! hmod%dcnu = 0.2551262
             ! hmod%Dvnu = 0.5504368
             ! Model 2: 0.0153 to Franken Emu
-            hmod%f0 = 0.2540020
-            hmod%f1 = 0.8657965
-            hmod%ks = 0.0569637
-            hmod%kp = -0.7193460
-            hmod%kd = 0.0620111
-            hmod%kdp = -0.6442670
-            hmod%nd = 2.9549404
-            hmod%eta0 = 0.2165872
-            hmod%eta1 = 0.0042358
-            !hmod%alp0 = 2.5246825
-            !hmod%alp1 = 1.8373918
-            hmod%alp0 = 1.
-            hmod%alp1 = 0.
-            hmod%alp2 = 0.
-            hmod%Amf = 1.6174759
-            hmod%ST_p = 0.3301253
-            hmod%ST_q = 0.8253601
-            hmod%As = 3.8645264
+            hmod%f0 = 0.2471384
+            hmod%f1 = 0.8797992
+            hmod%ks = 0.0647618
+            hmod%kp = -0.5616775
+            hmod%kd = 0.0680499
+            hmod%kdp = -0.5113562
+            hmod%nd = 3.0079345
+            hmod%eta0 = 0.2315305
+            hmod%eta1 = 0.0391207
+            hmod%alp0 = 2.6450652
+            hmod%alp1 = 1.8686415
+            !hmod%alp0 = 1.
+            !hmod%alp1 = 0.
+            !hmod%alp2 = 0.
+            !hmod%Amf = 1.6641112
+            !hmod%ST_p = 0.3281193
+            !hmod%ST_q = 0.8334210
+            hmod%As = 3.7711354
             ! Model 3: 0.0194 to Franken Emu + Mira Titan
             ! hmod%f0 = 0.2934852
             ! hmod%f1 = 0.9822699
@@ -1891,8 +1900,6 @@ CONTAINS
             ! hmod%ST_p = 0.2543736
             ! hmod%ST_q = 0.8714454
             ! hmod%As = 3.6576695
-            ! hmod%dcnu = 0.1936836
-            ! hmod%Dvnu = -0.4013935
          END IF
          IF (ihm == 102) THEN
             ! 102 - HMcode baryon recipe
@@ -2309,6 +2316,7 @@ CONTAINS
          IF (hmod%iDolag == 2) WRITE (*, *) 'HALOMODEL: Dolag (2004) concentration correction with 1.5 exponent'
          IF (hmod%iDolag == 3) WRITE (*, *) 'HALOMODEL: Dolag (2004) concentration correction with z dependence'
          IF (hmod%iDolag == 4) WRITE (*, *) 'HALOMODEL: Dolag (2004) concentration correction with neutrinos removed and z dependence'
+         IF (hmod%iDolag == 5) WRITE (*, *) 'HALOMODEL: Dolag (2004) concentration correction with collapse redshift dependence'
 
          ! Bound gas fraction
          IF (hmod%frac_bound_gas == 1) WRITE (*, *) 'HALOMODEL: Halo bound gas fraction: Fedeli (2014)'
@@ -4776,12 +4784,12 @@ CONTAINS
          ! HMcode 2020             
          !x = sigma(8., hmod%a, flag_ucold, cosm)
          x = effective_index(hmod%flag_sigma, hmod, cosm)
-         y = effective_curvature(hmod%flag_sigma, hmod, cosm)
-         !HMcode_alpha = hmod%alp0*(hmod%alp1**x)    ! Relation 1
+         !y = effective_curvature(hmod%flag_sigma, hmod, cosm)
+         HMcode_alpha = hmod%alp0*(hmod%alp1**x)    ! Relation 1
          !HMcode_alpha = hmod%alp0+x*hmod%alp1       ! Relation 2
          !HMcode_alpha = hmod%alp0*abs(x)**hmod%alp1 ! Relation 3
          !HMcode_alpha = hmod%alp0+hmod%alp1*x+hmod%alp2*x**2
-         HMcode_alpha = hmod%alp0+hmod%alp1*x+hmod%alp2*y
+         !HMcode_alpha = hmod%alp0+hmod%alp1*x+hmod%alp2*y
       ELSE
          HMcode_alpha = 1.
       END IF
@@ -6075,7 +6083,7 @@ CONTAINS
 
       END DO
 
-      ! Dolag2004 prescription for adding DE dependence
+      ! Dolag (2004) prescription for adding DE dependence
       IF (hmod%iDolag /= 0) CALL Dolag_correction(hmod, cosm)
 
       ! Rescale the concentration-mass relation for gas the epsilon parameter
@@ -6116,55 +6124,83 @@ CONTAINS
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: g_LCDM, g_wCDM, g, a
-      REAL :: ginf_LCDM, ginf_wCDM, ainf, f
+      REAL :: g_LCDM, g_wCDM, gc_LCDM, gc_wCDM, ginf_LCDM, ginf_wCDM
+      REAL :: a, ac, zc, ainf, rc, rinf, r
+      INTEGER :: i
       TYPE(cosmology) :: cosm_LCDM
       LOGICAL :: remove_neutrinos
       LOGICAL, PARAMETER :: make_lambda = .TRUE.
       LOGICAL, PARAMETER :: make_flat = .TRUE.
 
-      IF (hmod%z < hmod%zinf_Dolag) THEN
+      IF (hmod%iDolag == 5) THEN
 
-         ! The 'infinite' scale factor
-         ainf = scale_factor_z(hmod%zinf_Dolag)
+         IF (.NOT. allocated(hmod%zc)) STOP 'DOLAG_CORRECTION: Error, this will only work if collapse redshifts have been defined'
 
-         ! Save the growth function in the current cosmology
-         ginf_wCDM = grow(ainf, cosm)
+         ! Set the LCDM cosmology
+         cosm_LCDM = convert_cosmology(cosm, make_lambda, make_flat, remove_neutrinos=.FALSE.)
 
-         ! Make a flat LCDM cosmology and calculate growth
-         IF (hmod%iDolag == 1 .OR. hmod%iDolag == 2 .OR. hmod%iDolag == 3) THEN
-            remove_neutrinos = .FALSE.
-         ELSE IF (hmod%iDolag == 4) THEN
-            remove_neutrinos = .TRUE.
-         ELSE
-            STOP 'DOLAG_CORRECTION: Error, iDolag not specified correctly'
+         ! Calculate the current growth factors
+         a = hmod%a
+         g_wCDM = grow(a, cosm)
+         g_LCDM = grow(a, cosm_LCDM)
+         r = g_wCDM/g_LCDM
+
+         ! Apply the correction using the collapse redshift of each halo individually
+         DO i = 1, hmod%n
+            zc = hmod%zc(i)
+            ac = scale_factor_z(zc)
+            gc_wCDM = grow(ac, cosm)
+            gc_LCDM = grow(ac, cosm_LCDM)
+            rc = gc_wCDM/gc_LCDM
+            hmod%c(i) = hmod%c(i)*rc/r
+         END DO
+
+      ELSE
+
+         IF (hmod%z < hmod%zinf_Dolag) THEN
+
+            ! The 'infinite' scale factor
+            ainf = scale_factor_z(hmod%zinf_Dolag)
+
+            ! Save the growth function in the current cosmology
+            ginf_wCDM = grow(ainf, cosm)
+
+            ! Make a flat LCDM cosmology and calculate growth
+            IF (hmod%iDolag == 1 .OR. hmod%iDolag == 2 .OR. hmod%iDolag == 3) THEN
+               remove_neutrinos = .FALSE.
+            ELSE IF (hmod%iDolag == 4) THEN
+               remove_neutrinos = .TRUE.
+            ELSE
+               STOP 'DOLAG_CORRECTION: Error, iDolag not specified correctly'
+            END IF
+            cosm_LCDM = convert_cosmology(cosm, make_lambda, make_flat, remove_neutrinos)
+
+            ! Growth factor in LCDM at 'infinity' calculated using Linder approximation
+            ginf_LCDM = grow_Linder(ainf, cosm_LCDM)
+
+            ! Fractional difference compared to LCDM
+            rinf = ginf_wCDM/ginf_LCDM
+
+            IF (hmod%iDolag == 1) THEN
+               ! Standard correction (HMcode 2015)
+               hmod%c = hmod%c*rinf
+            ELSE IF (hmod%iDolag == 2) THEN
+               ! Changed this to a power of 1.5 in HMcode 2016, produces more accurate results for extreme DE
+               hmod%c = hmod%c*rinf**1.5
+            ELSE IF (hmod%iDolag == 3 .OR. hmod%iDolag == 4) THEN
+               ! Correction with a sensible redshift dependence, which is otherwise missing from Dolag
+               a = hmod%a
+               g_wCDM = grow(a, cosm)
+               g_LCDM = grow_Linder(a, cosm_LCDM)
+               r = g_wCDM/g_LCDM
+               hmod%c = hmod%c*rinf/r
+            ELSE
+               STOP 'DOLAG_CORRECTION: Error, iDolag specified incorrectly'
+            END IF
+
          END IF
-         cosm_LCDM = convert_cosmology(cosm, make_lambda, make_flat, remove_neutrinos)
 
-         ! Growth factor in LCDM at 'infinity' calculated using Linder approximation
-         ginf_LCDM = grow_Linder(ainf, cosm_LCDM)
-
-         ! Fractional difference compared to LCDM
-         f = ginf_wCDM/ginf_LCDM
-
-         IF (hmod%iDolag == 1) THEN
-            ! Standard correction (HMcode 2015)
-            hmod%c = hmod%c*f
-         ELSE IF (hmod%iDolag == 2) THEN
-            ! Changed this to a power of 1.5 in HMcode 2016, produces more accurate results for extreme DE
-            hmod%c = hmod%c*f**1.5
-         ELSE IF (hmod%iDolag == 3 .OR. hmod%iDolag == 4) THEN
-            ! Correction with a sensible redshift dependence, which is otherwise missing from Dolag
-            a = hmod%a
-            g_wCDM = grow(a, cosm)
-            g_LCDM = grow_Linder(a, cosm_LCDM)
-            g = g_wCDM/g_LCDM
-            hmod%c = hmod%c*f/g
-         ELSE
-            STOP 'DOLAG_CORRECTION: Error, iDolag specified incorrectly'
-         END IF
-
-      END IF
+   END IF
 
    END SUBROUTINE Dolag_correction
 
