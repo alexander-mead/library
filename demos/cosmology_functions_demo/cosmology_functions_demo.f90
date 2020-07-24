@@ -96,7 +96,7 @@ PROGRAM cosmology_functions_demo
             grow_CPT(a, cosm), &
             growth_rate_Linder(a, cosm), &
             growth_rate_index(a, cosm)
-         !WRITE(*, *) a, ungrow(a, cosm), ungrow_approximate(a, cosm), (a-ungrow_approximate(a, cosm))/(a-ungrow(a, cosm))
+         !WRITE(*, fmt='(4F20.10)') a, ungrow(a, cosm), ungrow_approximate(a, cosm), ungrow_approximate(a, cosm)/ungrow(a, cosm)
          WRITE (13, *) a, w_de(a, cosm), w_de_total(a, cosm), w_eff(a, cosm)
          WRITE (14, *) a, &
             comoving_distance(a, cosm), &
