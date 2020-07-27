@@ -85,6 +85,7 @@ MODULE cosmology_functions
 
    ! Linear growth
    PUBLIC :: ungrow
+   PUBLIC :: ungrow_approximate
    PUBLIC :: grow
    PUBLIC :: grow_CPT
    PUBLIC :: grow_Linder
@@ -187,8 +188,8 @@ MODULE cosmology_functions
       ! Derived parameters
       REAL :: A, Gamma, k                ! Power spectrum amplitude and shape parameter for DEFW
       REAL :: Om, Om_k, Om_c, Om_g, Om_r ! Derived Omegas
-      REAL :: Om_nu, f_nu, a_nu, z_nu    ! Neutrinos
-      REAL :: Om_nu_rad, omega_nu        ! Neutrinos
+      REAL :: Om_nu, f_nu, a_nu          ! Neutrinos
+      REAL :: Om_nu_rad, omega_nu, T_nu  ! Neutrinos
       REAL :: omega_m, omega_b, omega_c  ! Physical densities
       REAL :: Om_c_pow                   ! Cosmological parameters used for P(k) if different from background
       REAL :: age, horizon               ! Derived distance/time
@@ -230,6 +231,19 @@ MODULE cosmology_functions
    REAL, PARAMETER :: w_b = 0.    ! Baryons
    REAL, PARAMETER :: w_g = 1./3. ! Photons
    REAL, PARAMETER :: w_v = -1.   ! Vacuum energy
+
+   ! Neutrino methods
+   INTEGER, PARAMETER :: neutrino_basic = 1
+   INTEGER, PARAMETER :: neutrino_Komatsu = 2
+   INTEGER, PARAMETER :: neutrino_method = neutrino_Komatsu
+
+   ! Parameters from WMAP7 Komatsu et al. 2011 paper
+   REAL, PARAMETER :: A_Komatsu = 0.3173 ! Acutally 180*zeta(3)/7*pi^4
+   REAL, PARAMETER :: p_Komatsu = 1.83   ! Fitted
+
+   ! Neutrinos
+   REAL, PARAMETER :: f_nu_limit = 0.5
+   REAL, PARAMETER :: a_nu_limit = 0.2
 
    ! Dark energy density
    INTEGER, PARAMETER :: iw_LCDM = 1  ! Vacuum dark energy
@@ -366,20 +380,24 @@ MODULE cosmology_functions
    REAL, PARAMETER :: alpha_hi_xi = 1.5        ! High r value of alpha for conventional integration
 
    ! Growth ODE
-   REAL, PARAMETER :: ainit_growth = 1e-3                    ! Starting value for growth integratiton (should start | Omega_m(a)=1)
-   REAL, PARAMETER :: amax_growth = 1.                       ! Finishing value for growth integratiton (should be a=1)
-   INTEGER, PARAMETER :: n_growth = 128                      ! Number of entries for growth look-up tables
+   REAL, PARAMETER :: aini_growth = 1e-4                      ! Starting value for growth integratiton (should start | Omega_m(a)=1)
+   REAL, PARAMETER :: afin_growth = 1.                       ! Finishing value for growth integratiton (should be a=1)
    REAL, PARAMETER :: acc_ODE_growth = acc_cosm              ! Accuracy parameter for growth ODE solving
    INTEGER, PARAMETER :: imeth_ODE_growth = 3                ! Method for solving growth ODE
    INTEGER, PARAMETER :: iorder_ODE_interpolation_growth = 3 ! Polynomial order for growth interpolation for ODE solution
    INTEGER, PARAMETER :: ifind_ODE_interpolation_growth = 3  ! Finding scheme for growth interpolation for ODE solution
    INTEGER, PARAMETER :: imeth_ODE_interpolation_growth = 2  ! Method for growth interpolation for ODE solution
+   LOGICAL, PARAMETER :: only_cold_growth = .FALSE.          ! Should smooth neutrinos be accounted for in growth calculations?
+   LOGICAL, PARAMETER :: EDE_growth_ics = .TRUE.             ! Should we try to account for EDE in growth initial conditions?
 
    ! Growth integral (LCDM only)
    REAL, PARAMETER :: acc_integral_grow = acc_cosm ! Accuracy parameter for growth integral solving (wCDM only)
    INTEGER, PARAMETER :: iorder_integral_grow = 3  ! Polynomial order for growth integral solving (wCDM only)
 
    ! Growth interpolation
+   REAL, PARAMETER :: amin_growth = 1e-3               ! Minimum value to store
+   REAL, PARAMETER :: amax_growth = 1.                 ! Maximum value to store
+   INTEGER, PARAMETER :: n_growth = 128                ! Number of entries for interpolation tables
    INTEGER, PARAMETER :: iorder_interp_grow = 3        ! Polynomial order for growth interpolation
    INTEGER, PARAMETER :: iextrap_grow = iextrap_linear ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_grow = .TRUE.           ! Pre-calculate interpolation coefficients?
@@ -388,6 +406,10 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interp_rate = 3        ! Polynomial order for growth rate interpolation for ODE solution
    INTEGER, PARAMETER :: iextrap_rate = iextrap_linear ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_rate = .TRUE.           ! Pre-calculate interpolation coefficients?
+
+   ! Growth rate index
+   REAL, PARAMETER :: growth_index_default = 6./11. ! Default indes value (perturbation theory for LCDM)
+   REAL, PARAMETER :: growth_index_limit = 0.01     ! Scale factor below which to use default value
 
    ! Accumualted growth integration and interpolation
    INTEGER, PARAMETER :: iorder_integration_agrow = 3   ! Polynomial order for growth interpolation for ODE solution
@@ -401,13 +423,13 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_sigma = 3  ! Polynomial order for sigma(R) integration
    
    ! sigma(R) tabulation and interpolation
-   REAL, PARAMETER :: rmin_sigma = 1e-4          ! Minimum r value (NB. sigma(R) needs to be power-law below)
-   REAL, PARAMETER :: rmax_sigma = 1e3           ! Maximum r value (NB. sigma(R) needs to be power-law above)
-   INTEGER, PARAMETER :: nr_sigma = 128          ! Number of r entries for sigma(R) tables
-   REAL, PARAMETER :: amin_sigma = amin_plin     ! Minimum a value for sigma(R,a) tables when growth is scale dependent
-   REAL, PARAMETER :: amax_sigma = amax_plin     ! Maximum a value for sigma(R,a) tables when growth is scale dependent
-   INTEGER, PARAMETER :: na_sigma = 16           ! Number of a values for sigma(R,a) tables
-   INTEGER, PARAMETER :: iorder_interp_sigma = 3 ! Polynomial order for sigma(R) interpolation 
+   REAL, PARAMETER :: rmin_sigma = 1e-4                   ! Minimum r value (NB. sigma(R) needs to be power-law below) [Mpc/h]
+   REAL, PARAMETER :: rmax_sigma = 1e3                    ! Maximum r value (NB. sigma(R) needs to be power-law above) [Mpc/h]
+   INTEGER, PARAMETER :: nr_sigma = 128                   ! Number of r entries for sigma(R) tables
+   REAL, PARAMETER :: amin_sigma = amin_plin              ! Minimum a value for sigma(R,a) tables when growth is scale dependent
+   REAL, PARAMETER :: amax_sigma = amax_plin              ! Maximum a value for sigma(R,a) tables when growth is scale dependent
+   INTEGER, PARAMETER :: na_sigma = 16                    ! Number of a values for sigma(R,a) tables
+   INTEGER, PARAMETER :: iorder_interp_sigma = 3          ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange ! Method for sigma(R) interpolation
    INTEGER, PARAMETER :: sigma_store = flag_ucold         ! Which version of sigma should be tabulated (0 for none)
@@ -746,7 +768,7 @@ CONTAINS
       cosm%Om_w = 0.
       cosm%m_nu = 0.
       cosm%h = 0.7
-      cosm%ns =  0.96
+      cosm%ns = 0.96
       cosm%w = -1.
       cosm%wa = 0.
       cosm%T_CMB = 2.725 ! CMB temperature [K]
@@ -849,7 +871,7 @@ CONTAINS
          cosm%Om_v = 1.-cosm%Om_m
          cosm%h = 0.704
          cosm%sig8 = 0.81
-         cosm%ns =  0.967
+         cosm%ns = 0.967
       ELSE IF (icosmo == 3) THEN
          ! Planck 2013 (cosmo-OWLS/BAHAMAS; 1312.5462/1603.02702; no neutrinos)
          cosm%itk = itk_CAMB
@@ -857,7 +879,7 @@ CONTAINS
          cosm%Om_b = 0.0490
          cosm%Om_v = 1.-cosm%Om_m
          cosm%h = 0.6711
-         cosm%ns =  0.9624
+         cosm%ns = 0.9624
          cosm%sig8 = 0.8341
       ELSE IF (is_in_array(icosmo, [4, 61, 62, 70, 71, 75, 76, 77, 78, 96, 97, 98])) THEN
          ! BAHAMAS - WMAP 9
@@ -882,7 +904,7 @@ CONTAINS
          cosm%Om_b = 0.0463
          cosm%Om_m = 0.2330+cosm%Om_b
          cosm%Om_v = 1.-cosm%Om_m
-         cosm%ns =  0.9720
+         cosm%ns = 0.9720
          cosm%sig8 = 0.8211
          cosm%derive_gas_numbers = .FALSE.
          cosm%mup = 0.61
@@ -1050,7 +1072,7 @@ CONTAINS
          cosm%Om_b = 0.0486
          cosm%Om_v = 1.-cosm%Om_m
          cosm%h = 0.6774
-         cosm%ns =  0.9667
+         cosm%ns = 0.9667
          cosm%sig8 = 0.8159
          cosm%box = .TRUE.
          cosm%Lbox = 75. ! 75 Mpc/h box
@@ -1089,7 +1111,7 @@ CONTAINS
          cosm%Om_b = 0.0469
          cosm%Om_m = 0.27
          cosm%Om_v = 1.-cosm%Om_m
-         cosm%ns =  0.95
+         cosm%ns = 0.95
          cosm%sig8 = 0.82 ! Seems wrong at z=0, data more like sigma_8 = 0.80
          cosm%itk = itk_CAMB ! CAMB
          IF(icosmo == 43) cosm%sig8 = 0.80 ! Check to see if better matches with lower sigma_8
@@ -1130,7 +1152,7 @@ CONTAINS
          ! 42 - Same, but with neutrino mass fixed to zero and nothing else changed
          cosm%itk = itk_CAMB
          cosm%h = 0.6732
-         cosm%ns =  0.96605
+         cosm%ns = 0.96605
          cosm%m_nu = 0.06
          IF(icosmo == 42) cosm%m_nu = 0.
          cosm%Om_m = 0.3158
@@ -1145,7 +1167,7 @@ CONTAINS
          cosm%Om_b = 0.0437
          cosm%Om_v = 1.-cosm%om_m
          cosm%sig8 = 0.794
-         cosm%ns =  0.967
+         cosm%ns = 0.967
          cosm%h = 0.717
          cosm%w = -1.
       ELSE IF(icosmo == 50) THEN
@@ -1156,7 +1178,7 @@ CONTAINS
          cosm%Om_b = 0.0456
          cosm%Om_v = 1.-cosm%Om_m
          cosm%sig8 = 0.815
-         cosm%ns =  0.966
+         cosm%ns = 0.966
          cosm%h = 0.702
          cosm%w = -1.
       ELSE IF (is_in_array(icosmo, [51, 52, 53, 54, 55])) THEN
@@ -1170,7 +1192,7 @@ CONTAINS
             cosm%Om_b = 0.03972
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.61272
-            cosm%ns =  0.70918
+            cosm%ns = 0.70918
             cosm%h = 0.54980
             cosm%M_nu = 0.
             cosm%w = -1.
@@ -1181,7 +1203,7 @@ CONTAINS
             cosm%Om_b = 0.05953
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.69869
-            cosm%ns =  0.70630
+            cosm%ns = 0.70630
             cosm%h = 0.52845
             cosm%M_nu = 0.0
             cosm%w = -1.
@@ -1192,7 +1214,7 @@ CONTAINS
             cosm%Om_b = 0.03993
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.61299
-            cosm%ns =  0.72517
+            cosm%ns = 0.72517
             cosm%h = 0.44980
             cosm%M_nu = 0.
             cosm%w = -1.
@@ -1203,7 +1225,7 @@ CONTAINS
             cosm%Om_b = 0.05109
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.65709
-            cosm%ns =  0.70027
+            cosm%ns = 0.70027
             cosm%h = 0.44819
             cosm%M_nu = 0.20378
             cosm%w = -1.01372
@@ -1214,7 +1236,7 @@ CONTAINS
             cosm%Om_b = 0.06696
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.77520
-            cosm%ns =  0.98360
+            cosm%ns = 0.98360
             cosm%h = 0.42278
             cosm%M_nu = 0.07639
             cosm%w = -1.26075
@@ -1256,7 +1278,7 @@ CONTAINS
          cosm%h = 0.7
          cosm%Om_b = 0.05
          cosm%Om_m = 0.30
-         cosm%ns =  0.96
+         cosm%ns = 0.96
          cosm%Om_v = 1.-cosm%Om_m
          cosm%norm_method = norm_value
          cosm%pval = 1.995809e-7 ! Gives sigma8 = 0.8 for no bump   
@@ -1287,7 +1309,7 @@ CONTAINS
          cosm%Om_b = 0.0482
          cosm%Om_m = cosm%Om_b+0.2571+0.0014
          cosm%Om_v = 1.-cosm%Om_m
-         cosm%ns =  0.9701
+         cosm%ns = 0.9701
          cosm%sig8 = 0.8085
          IF (icosmo == 64) cosm%Theat = 10**7.6
          IF (icosmo == 65) cosm%Theat = 10**8.0
@@ -1382,7 +1404,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: Xs, f1, f2
-      REAL :: rho_g, Om_g_h2, rho_crit, f_nu_rad
+      REAL :: rho_g, Om_g_h2, f_nu_rad
       REAL, PARAMETER :: small = small_curve ! Some small number for writing curvature things
 
       ! Is statements
@@ -1398,13 +1420,13 @@ CONTAINS
       IF (cosm%verbose) WRITE (*, *) 'INIT_COSMOLOGY: Calculating derived parameters'
 
       ! Calculate radiation density (includes photons and neutrinos at recombination)
-      rho_g = (4.*SBconst*cosm%T_CMB**4/c_light**3) ! Photon physical density at z=0 from CMB temperature [kg/m^3]
-      rho_crit = 3.*H0**2/(8.*pi*bigG) ! Critical density [h^2 kg/m^3]
-      Om_g_h2 = rho_g/rho_crit ! Photon cosmological density [h^2]
-      cosm%Om_g = Om_g_h2/cosm%h**2 ! Photon density parameter
-      cosm%Om_nu_rad = cosm%Om_g*neff_constant*cosm%neff ! Relativisitic neutrino density
-      cosm%Om_r = cosm%Om_g+cosm%Om_nu_rad ! Radiation is sum of photon and neutrino densities
-      f_nu_rad = cosm%Om_nu_rad/cosm%Om_r ! Fraction of radiation that is in neutrinos (~0.40)
+      cosm%T_nu = cosm%T_CMB*(4./11.)**(1./3.)           ! Neutrino temperature [K]
+      rho_g = (4.*SBconst*cosm%T_CMB**4/c_light**3)      ! Photon physical density at z=0 from CMB temperature [kg/m^3]
+      Om_g_h2 = rho_g/critical_density                   ! Photon cosmological density [h^2]
+      cosm%Om_g = Om_g_h2/cosm%h**2                      ! Photon density parameter
+      cosm%Om_nu_rad = cosm%Om_g*neff_constant*cosm%neff ! Relativisitic neutrino density (assuming they never behave like matter)
+      cosm%Om_r = cosm%Om_g+cosm%Om_nu_rad               ! Radiation is sum of photon and neutrino densities
+      f_nu_rad = cosm%Om_nu_rad/cosm%Om_r                ! Fraction of radiation that is in neutrinos (~0.40)
 
       ! Information about how radiation density is calculated
       IF (cosm%verbose) THEN
@@ -1428,25 +1450,41 @@ CONTAINS
 !!$    END IF
 
       ! Massive neutrinos
-      cosm%Om_nu = cosm%m_nu/(neutrino_constant*cosm%h**2)
-      cosm%f_nu = cosm%Om_nu/cosm%Om_m
-      IF (cosm%Om_nu >= cosm%Om_nu_rad) THEN
-         !cosm%a_nu=1./(1900.*cosm%m_nu)
-         cosm%a_nu = cosm%Om_nu_rad/cosm%Om_nu
+      IF (cosm%m_nu == 0.) THEN
+         cosm%Om_nu = cosm%Om_nu_rad
+         cosm%a_nu = 1. ! TODO: Should this be larger?
+         cosm%f_nu = 0.
       ELSE
-         cosm%a_nu = 1.
+         IF (neutrino_method == neutrino_basic) THEN
+            cosm%Om_nu = cosm%m_nu/(neutrino_constant*cosm%h**2)
+            IF (cosm%Om_nu >= cosm%Om_nu_rad) THEN
+               cosm%a_nu = cosm%Om_nu_rad/cosm%Om_nu
+            ELSE
+               cosm%Om_nu = cosm%Om_nu_rad
+               cosm%a_nu = 1. ! TODO: Should this be larger?
+            END IF
+         ELSE IF (neutrino_method == neutrino_Komatsu) THEN
+            ! This does not use the 94.1eV approximation
+            ! TODO: Should this be a division by neff or by 3?
+            cosm%a_nu = cosm%T_nu/(cosm%m_nu/cosm%neff)*(kB/eV) 
+            cosm%Om_nu = cosm%Om_nu_rad*Komatsu_nu(1./cosm%a_nu)
+         ELSE
+            STOP 'INIT_COSMOLOGY: Error, neutrino method not recognised'
+         END IF
+         cosm%f_nu = cosm%Om_nu/cosm%Om_m
       END IF
-      cosm%z_nu = redshift_a(cosm%a_nu)
+
+      ! Write neutrino information to screen
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_COSMOLOGY: Omega_nu (matter):', cosm%Om_nu
+         WRITE (*, *) 'INIT_COSMOLOGY: Omega_nu:', cosm%Om_nu
          WRITE (*, *) 'INIT_COSMOLOGY: a_nu:', cosm%a_nu
-         WRITE (*, *) 'INIT_COSMOLOGY: z_nu:', cosm%z_nu
+         WRITE (*, *) 'INIT_COSMOLOGY: z_nu:', redshift_a(cosm%a_nu)
          WRITE (*, *) 'INIT_COSMOLOGY: f_nu:', cosm%f_nu
       END IF
 
       ! Check neutrino mass fraction is not too high
-      IF (cosm%f_nu > 0.5) STOP 'INIT_COSMOLOGY: Error, neutrino mass fraction is too high'
-      IF ((cosm%m_nu .NE. 0.) .AND. cosm%a_nu > 0.2) THEN
+      IF (cosm%f_nu > f_nu_limit) STOP 'INIT_COSMOLOGY: Error, neutrino mass fraction is too high'
+      IF ((cosm%m_nu .NE. 0.) .AND. cosm%a_nu > a_nu_limit) THEN
          WRITE(*, *) 'INIT_COSMOLOGY: Neutrino mass [eV]:', cosm%m_nu
          STOP 'INIT_COSMOLOGY: Error, neutrinos are too light'
       END IF
@@ -1482,7 +1520,8 @@ CONTAINS
       END IF
 
       ! Derived cosmological parameters
-      cosm%Om_c = cosm%Om_m-cosm%Om_b-cosm%Om_nu ! Omega_m defined to include CDM, baryons and massive neutrinos
+      cosm%Om_c = cosm%Om_m-cosm%Om_b ! Omega_m defined to include CDM, baryons and massive neutrinos
+      IF (cosm%m_nu .NE. 0.) cosm%Om_c = cosm%Om_c-cosm%Om_nu
       cosm%Om = cosm%Om_m+cosm%Om_v+cosm%Om_w    ! Ignore radiation here
       cosm%Om_k = 1.-cosm%Om
       cosm%k = (cosm%Om-1.)/(Hdist**2)
@@ -1785,6 +1824,18 @@ CONTAINS
       CALL print_cosmology(cosm)
 
    END SUBROUTINE assign_init_cosmology
+
+   REAL FUNCTION Komatsu_nu(y)
+
+      ! Equation (26) in Komatsu et al. (2011; https://arxiv.org/pdf/1001.4538.pdf)
+      ! When f(y->0) = 1, f(y->infinity) = Ay
+      REAL, INTENT(IN) :: y
+      REAL, PARAMETER :: A = A_Komatsu
+      REAL, PARAMETER :: p = p_Komatsu
+
+      Komatsu_nu = (1.+(A*y)**p)**(1./p)
+
+   END FUNCTION Komatsu_nu
    
    REAL FUNCTION xi_lin(r, a, flag, cosm)
 
@@ -2040,8 +2091,8 @@ CONTAINS
       REAL, PARAMETER :: amin = amin_plin
       REAL, PARAMETER :: amax = amax_plin
       INTEGER, PARAMETER :: na = na_plin
-      REAL, PARAMETER :: ainit_ode = ainit_growth
-      REAL, PARAMETER :: amax_ode = amax_growth
+      REAL, PARAMETER :: aini_ode = aini_growth
+      REAL, PARAMETER :: afin_ode = afin_growth
 
       IF(cosm%verbose) WRITE (*, *) 'INIT_FR_LINEAR: Starting'
 
@@ -2050,7 +2101,7 @@ CONTAINS
       ALLOCATE (gk(nk, na))
 
       !Initial condtions for the EdS growing mode
-      dinit = ainit_ode
+      dinit = aini_ode
       vinit = 1.
 
       ! Get normalisation for g(k)
@@ -2073,7 +2124,7 @@ CONTAINS
 
          ! Solve g(k) equation
          CALL ODE_adaptive_cosmology(d_tab, v_tab, k(ik), a_tab, cosm, &
-            ainit_ode, amax_ode, &
+            aini_ode, afin_ode, &
             dinit, vinit, &
             ddda, dvda, &
             acc_ODE_growth, imeth_ODE_growth, ilog=.FALSE. &
@@ -2188,7 +2239,7 @@ CONTAINS
          cosm%Om_c*X_c(a)+ &
          cosm%Om_b*X_b(a)+ &
          cosm%Om_g*X_r(a)+ &
-         Omega_nu_0(a, cosm)*X_nu(a, cosm)+ &
+         cosm%Om_nu*X_nu(a, cosm)+ &
          cosm%Om_v*X_v(a)+ &
          cosm%Om_w*X_de(a, cosm)+ &
          (1.-cosm%Om)*a**(-2)
@@ -2203,7 +2254,12 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      Hubble2_norad = Hubble2(a, cosm)-cosm%Om_r*a**(-4)
+      !Hubble2_norad = Hubble2(a, cosm)-cosm%Om_r*a**(-4)
+      IF (a > cosm%a_nu) THEN
+         Hubble2_norad = Hubble2(a, cosm)-cosm%Om_g*a**(-4)
+      ELSE
+         Hubble2_norad = Hubble2(a, cosm)-cosm%Om_r*a**(-4)
+      END IF
 
    END FUNCTION Hubble2_norad
 
@@ -2217,11 +2273,11 @@ CONTAINS
 
       IF (cosm%is_init .EQV. .FALSE.) STOP 'AH: Error, cosmology is not initialised'
       AH = &
-         cosm%Om_c*(1.+3*w_c)*X_c(a)+ &
-         cosm%Om_b*(1.+3*w_b)*X_b(a)+ &
-         cosm%Om_g*(1.+3*w_g)*X_g(a)+ &
-         Omega_nu_0(a, cosm)*(1.+3*w_nu(a, cosm))*X_nu(a, cosm)+ &
-         cosm%Om_v*(1.+3*w_v)*X_v(a)+ &
+         cosm%Om_c*(1.+3.*w_c)*X_c(a)+ &
+         cosm%Om_b*(1.+3.*w_b)*X_b(a)+ &
+         cosm%Om_g*(1.+3.*w_g)*X_g(a)+ &
+         cosm%Om_nu*(1.+3.*w_nu(a, cosm))*X_nu(a, cosm)+ &
+         cosm%Om_v*(1.+3.*w_v)*X_v(a)+ &
          cosm%Om_w*(1.+3.*w_de(a, cosm))*X_de(a, cosm)
       AH = -AH/2.
 
@@ -2235,7 +2291,11 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      AH_norad = AH(a, cosm)+cosm%Om_r*a**(-4)
+      IF (a > cosm%a_nu) THEN
+         AH_norad = AH(a, cosm)+cosm%Om_g*a**(-4)
+      ELSE
+         AH_norad = AH(a, cosm)+cosm%Om_r*a**(-4)
+      END IF
 
    END FUNCTION AH_norad
 
@@ -2261,7 +2321,11 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_COLD_NORAD: Error, cosmology is not initialised'
-      Omega_m_norad = cosm%Om_m*X_m(a)/Hubble2_norad(a, cosm)
+      IF (a > cosm%a_nu) THEN
+         Omega_m_norad = cosm%Om_m*X_m(a)/Hubble2_norad(a, cosm)
+      ELSE
+         Omega_m_norad = (cosm%Om_c+cosm%Om_b)*X_m(a)/Hubble2_norad(a, cosm)
+      END IF
 
    END FUNCTION Omega_m_norad
 
@@ -2335,24 +2399,9 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_NU: Error, cosmology is not initialised'
-      Omega_nu = Omega_nu_0(a, cosm)*X_nu(a, cosm)/Hubble2(a, cosm)
+      Omega_nu = cosm%Om_nu*X_nu(a, cosm)/Hubble2(a, cosm)
 
    END FUNCTION Omega_nu
-
-   REAL FUNCTION Omega_nu_0(a, cosm)
-
-      ! Calcuate the Omega_nu0 value to use in calculations
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(IN) :: cosm
-
-      IF (a > cosm%a_nu) THEN
-         Omega_nu_0 = cosm%Om_nu
-      ELSE
-         Omega_nu_0 = cosm%Om_nu_rad
-      END IF
-
-   END FUNCTION Omega_nu_0
 
    REAL FUNCTION Omega_v(a, cosm)
 
@@ -2402,11 +2451,22 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: x, y
+      REAL, PARAMETER :: bigA = A_Komatsu
+      REAL, PARAMETER :: p = p_Komatsu
 
-      IF (a > cosm%a_nu) THEN
-         w_nu = 0.
+      IF (neutrino_method == neutrino_basic) THEN
+         IF (a > cosm%a_nu) THEN
+            w_nu = 0.
+         ELSE
+            w_nu = 1./3.
+         END IF
+      ELSE IF (neutrino_method == neutrino_Komatsu) THEN
+         y = a/cosm%a_nu
+         x = (bigA*y)**p
+         w_nu = (1.-x/(1.+x))/3.
       ELSE
-         w_nu = 1./3.
+         STOP 'W_NU: Error, neutrino method not recognised'
       END IF
 
    END FUNCTION w_nu
@@ -2568,10 +2628,16 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(IN) :: cosm
 
-      IF (a > cosm%a_nu) THEN
-         X_nu = a**(-3)
+      IF (neutrino_method == neutrino_basic) THEN
+         IF (a > cosm%a_nu) THEN
+            X_nu = a**(-3)
+         ELSE
+            X_nu = (cosm%Om_nu_rad/cosm%Om_nu)/a**4
+         END IF
+      ELSE IF (neutrino_method == neutrino_Komatsu) THEN
+         X_nu = (cosm%Om_nu_rad/cosm%Om_nu)*Komatsu_nu(a/cosm%a_nu)/a**4
       ELSE
-         X_nu = a**(-4)
+         STOP 'X_NU: Error, neutrino method not recognised'
       END IF
 
    END FUNCTION X_nu
@@ -2591,7 +2657,7 @@ CONTAINS
 
    REAL FUNCTION X_de(a, cosm)
 
-      ! Scaling for dark energy density (i.e., if w=0 x(a)=a^-3, if w=-1 x(a)=const etc.)
+      ! Scaling for dark energy density (i.e., if w=0 X(a)=a^-3, if w=-1 X(a)=const etc.)
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -2732,12 +2798,23 @@ CONTAINS
          convert_cosmology%Om_v = cosm%Om_v+cosm%Om_w
       END IF
 
-      ! Flatten
+      ! Flatten by forcing the dark-energy or vacuum density to sum with matter to unity
       IF (make_flat) THEN
-         convert_cosmology%Om_v = 1.-cosm%Om_m
+         IF (make_lambda) THEN
+            convert_cosmology%Om_v = 1.-cosm%Om_m
+         ELSE
+            IF ((cosm%Om_v .NE. 0.) .AND. (cosm%Om_w .NE. 0.)) THEN
+               STOP 'CONVERT_COSMOLOGY: Error, no unique way to flatten a cosmology with Omeega_v and Omega_w'
+            ELSE IF (cosm%Om_w .NE. 0.) THEN
+               convert_cosmology%Om_w = 1.-cosm%Om_m
+            ELSE
+               convert_cosmology%Om_v = 1.-cosm%Om_m
+            END IF
+         END IF
       END IF
 
       ! Remove neutrinos
+      ! This will convert nu to CDM since Omega_c is a derived parameter
       IF (remove_neutrinos) THEN
          convert_cosmology%m_nu = 0.
       END IF
@@ -3379,7 +3456,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       INTEGER, PARAMETER :: method = method_cold
 
-      IF (cosm%trivial_cold .OR. method == method_cold_none .OR. cosm%f_nu == 0.) THEN
+      IF (cosm%trivial_cold .OR. method == method_cold_none .OR. cosm%m_nu == 0.) THEN
          ! Assuming the cold spectrum is exactly the matter spectrum
          Tcold = 1. 
       ELSE IF (method== method_cold_total) THEN
@@ -3431,7 +3508,7 @@ CONTAINS
       INTEGER, PARAMETER :: N_massive_nu = 3
       LOGICAL, PARAMETER :: wrong_growth = .FALSE.
 
-      IF (cosm%f_nu == 0.) THEN
+      IF (cosm%m_nu == 0.) THEN
 
          ! Fix to unity if there are no neutrinos
          Tcold_EH = 1.
@@ -3938,7 +4015,7 @@ CONTAINS
 
    REAL RECURSIVE FUNCTION grow(a, cosm)
 
-      ! Scale-independent growth function | normalised g(a=1)=1
+      ! Scale-independent growth function, normalised | g(a=1)=1
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -3954,7 +4031,7 @@ CONTAINS
 
    REAL RECURSIVE FUNCTION ungrow(a, cosm)
 
-      ! Growth function normalised such that g(a)~a at early (matter-dominated) times
+      ! Growth function normalised such that g(a) = a at early (matter-dominated) times
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -3963,6 +4040,26 @@ CONTAINS
       ungrow = cosm%gnorm*grow(a, cosm)
 
    END FUNCTION ungrow
+
+   REAL FUNCTION ungrow_approximate(a, cosm)
+
+      ! Approximate growth function from integrating growth rate of Omega_m^(6/11)(a) normalised | g(a->0) = a
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: f1, f2, f3
+
+      IF (cosm%iw == iw_LCDM) THEN
+         ungrow_approximate = a*(1.-(2./11.)*(cosm%Om_v/cosm%Om_m)*a**3)
+      ELSE IF (cosm%iw == iw_wCDM) THEN
+         f1 = (cosm%w-1.)/(cosm%w*(5.-6.*cosm%w))
+         f2 = cosm%Om_w/cosm%Om_m
+         f3 = a**(-3.*cosm%w)
+         ungrow_approximate = a*(1.+f1*f2*f3)
+      ELSE
+         STOP 'UNGROW_APPROXIMATE: Error, Not supported for this type of dark energy'
+      END IF
+
+   END FUNCTION ungrow_approximate
 
    REAL RECURSIVE FUNCTION growth_rate(a, cosm)
 
@@ -3982,12 +4079,16 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: Om_m
-      REAL, PARAMETER :: limit = 0.01
-      REAL, PARAMETER :: gamma_default = 6./11.
+      REAL, PARAMETER :: gamma_default = growth_index_default
+      REAL, PARAMETER :: gamma_limit = growth_index_limit
 
-      Om_m = Omega_cold_norad(a,cosm)
+      IF (only_cold_growth) THEN
+         Om_m = Omega_cold_norad(a, cosm)
+      ELSE
+         Om_m = Omega_m_norad(a, cosm)
+      END IF
 
-      IF (abs(1.-Om_m) < limit) THEN
+      IF (abs(1.-Om_m) < gamma_limit) THEN
          growth_rate_index = gamma_default
       ELSE
          growth_rate_index = log(growth_rate(a, cosm))/log(Om_m)
@@ -4013,17 +4114,30 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: gam
+      REAL :: gam, Om_m, weff
 
-      IF (cosm%w < -1.) THEN
-         gam = 0.55+0.02*(1.+cosm%w)
-      ELSE IF (cosm%w > -1) THEN
-         gam = 0.55+0.05*(1.+cosm%w)
-      ELSE
+      IF ((cosm%Om_v .NE. 0.) .AND. (cosm%Om_w .NE. 0.)) STOP 'GROWTH_RATE_LINDER: Error, does not work if Omega_v and Omega_w both non zero'
+
+      IF (cosm%iw == iw_LCDM) THEN
          gam = 0.55
+      ELSE
+         ! Evaluate the equation of state at z=1
+         ! Bizarre discontinuous slope
+         weff = w_de(0.5, cosm) 
+         IF (weff < -1.) THEN
+            gam = 0.55+0.02*(1.+weff)
+         ELSE
+            gam = 0.55+0.05*(1.+weff)
+         END IF
       END IF
 
-      growth_rate_Linder = Omega_cold_norad(a, cosm)**gam
+      IF (only_cold_growth) THEN
+         Om_m = Omega_cold_norad(a, cosm)
+      ELSE
+         Om_m = Omega_m_norad(a, cosm)
+      END IF
+
+      growth_rate_Linder = Om_m**gam
 
    END FUNCTION growth_rate_Linder
 
@@ -4041,6 +4155,7 @@ CONTAINS
    REAL FUNCTION grow_Linder(a, cosm)
 
       ! Calculate the growth function from the Linder growth rate via integration
+      ! Defined such that g(a=1) = 1
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4061,9 +4176,9 @@ CONTAINS
       REAL :: Om_mz, Om_vz, Om_m, Om_v
 
       ! Get all necessary Omega values
-      Om_mz = Omega_cold_norad(a, cosm)
-      Om_vz = Omega_v(a, cosm)+Omega_w(a, cosm)
-      Om_m = cosm%Om_b+cosm%Om_c
+      Om_mz = Omega_m_norad(a, cosm)
+      Om_m = cosm%Om_m
+      Om_vz = Omega_v(a, cosm)+Omega_w(a, cosm)    
       Om_v = cosm%Om_v+cosm%Om_w
 
       ! Now call CPT twice, second time to normalise it
@@ -4094,10 +4209,12 @@ CONTAINS
       INTEGER :: i, na
       REAL, ALLOCATABLE :: a(:), growth(:), rate(:), agrow(:)
       REAL, ALLOCATABLE :: d_tab(:), v_tab(:), a_tab(:), f_tab(:)
-      REAL :: dinit, vinit
+      REAL :: dinit, vinit, f
       REAL :: g0, f0, bigG0
       REAL, PARAMETER :: k = 0.
-      REAL, PARAMETER :: ainit = ainit_growth
+      REAL, PARAMETER :: aini = aini_growth
+      REAL, PARAMETER :: afin = afin_growth
+      REAL, PARAMETER :: amin = amin_growth
       REAL, PARAMETER :: amax = amax_growth
       INTEGER, PARAMETER :: ng = n_growth
       REAL, PARAMETER :: acc_ODE = acc_ODE_growth
@@ -4108,22 +4225,36 @@ CONTAINS
       INTEGER, PARAMETER :: iorder_agrow = iorder_integration_agrow
 
       ! Set the initial conditions to be in the cold matter growing mode
-      ! Note that for massive neutrinos there is no asymptotic g(a) ~ a limit
-      dinit = ainit**(1.-3.*cosm%f_nu/5.)
-      vinit = (1.-3.*cosm%f_nu/5.)*ainit**(-3.*cosm%f_nu/5.)
+      ! Note that for massive neutrinos or EDE there is no asymptotic g(a) ~ a limit
+      IF (EDE_growth_ics) THEN
+         IF (only_cold_growth) THEN
+            f = 1.-Omega_cold_norad(aini, cosm)+cosm%f_nu
+         ELSE
+            f = 1.-Omega_m_norad(aini, cosm)
+         END IF
+      ELSE
+         IF (only_cold_growth) THEN
+            f = cosm%f_nu
+         ELSE
+            f = 0.
+         END IF
+      END IF
+      dinit = aini**(1.-3.*f/5.)
+      vinit = (1.-3.*f/5.)*aini**(-3.*f/5.)
 
       ! Write some useful information to the screen
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_GROWTH: Solving growth equation'
-         WRITE (*, *) 'INIT_GROWTH: Minimum scale factor:', ainit
-         WRITE (*, *) 'INIT_GROWTH: Maximum scale factor:', amax
+         WRITE (*, *) 'INIT_GROWTH: Solving growth equation' 
+         WRITE (*, *) 'INIT_GROWTH: Minimum scale factor:', aini
+         WRITE (*, *) 'INIT_GROWTH: Maximum scale factor:', afin
+         WRITE (*, *) 'INIT_GROWTH: Fraction of missing mass at initial time:', f
          WRITE (*, *) 'INIT_GROWTH: Initial delta:', dinit
          WRITE (*, *) 'INIT_GROWTH: Initial delta derivative:', vinit
          WRITE (*, *) 'INIT_GROWTH: Number of points for look-up tables:', ng
       END IF
 
       ! Solve the growth ODE
-      CALL ODE_adaptive_cosmology(d_tab, v_tab, k, a_tab, cosm, ainit, amax, &
+      CALL ODE_adaptive_cosmology(d_tab, v_tab, k, a_tab, cosm, aini, afin, &
          dinit, vinit, ddda, dvda, acc_ODE, imeth_ODE, .FALSE.)
       IF (cosm%verbose) WRITE (*, *) 'INIT_GROWTH: ODE done'
       na = SIZE(a_tab)
@@ -4138,7 +4269,7 @@ CONTAINS
       d_tab = d_tab/cosm%gnorm
 
       ! Allocate arrays
-      CALL fill_array_log(ainit, amax, a, ng)
+      CALL fill_array_log(amin, amax, a, ng)
       ALLOCATE(growth(ng), rate(ng), agrow(ng))
 
       ! Downsample the tables that come out of the ODE solve, which are otherwise too long
@@ -4237,9 +4368,15 @@ CONTAINS
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: f1, f2
+      REAL :: Om_m, f1, f2
 
-      f1 = 1.5*Omega_cold_norad(a, cosm)*G_lin(d, v, k, a, cosm)*d/a**2
+      IF (only_cold_growth) THEN
+         Om_m = Omega_cold_norad(a, cosm)
+      ELSE
+         Om_m = Omega_m_norad(a, cosm)
+      END IF
+
+      f1 = 1.5*Om_m*G_lin(d, v, k, a, cosm)*d/a**2
       f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*v/a
       dvda = f1+f2
 
@@ -4254,13 +4391,15 @@ CONTAINS
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: f1, f2, f3
-      REAL :: crap
+      REAL :: Om_m, f1, f2, f3
 
-      ! TODO: prevent compile-time warning
-      crap = k
+      IF (only_cold_growth) THEN
+         Om_m = Omega_cold_norad(a, cosm)
+      ELSE
+         Om_m = Omega_m_norad(a, cosm)
+      END IF
 
-      f1 = 1.5*Omega_cold_norad(a, cosm)*G_nl(d, v, k, a, cosm)*d*(1.+d)/a**2
+      f1 = 1.5*Om_m*G_nl(d, v, k, a, cosm)*d*(1.+d)/a**2
       f2 = -(2.+AH_norad(a, cosm)/Hubble2_norad(a, cosm))*v/a
       f3 = (4./3.)*(v**2)/(1.+d)
 
@@ -4416,6 +4555,7 @@ CONTAINS
    REAL FUNCTION dc_NakamuraSuto(a, cosm)
 
       ! Nakamura & Suto (1997; arXiv:astro-ph/9612074) fitting formula for spherical-collapse in LCDM
+      ! TODO: Use Omega_cold or Omega_m here?
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4430,6 +4570,7 @@ CONTAINS
 
       ! Bryan & Norman (1998; arXiv:astro-ph/9710107) spherical over-density fitting function
       ! Here overdensity is defined relative to the background matter density, rather than the critical density
+      ! TODO: Use Omega_cold or Omega_m here?
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4582,12 +4723,13 @@ CONTAINS
    SUBROUTINE init_spherical_collapse(cosm)
 
       ! Initialise the spherical-collapse calculation
+      ! TODO: Care with initial conditions and neutrinos/EDE here
       USE basic_operations
       USE table_integer
       USE minimization
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: dinit, ainit, vinit, ac
+      REAL :: dinit, ainit, vinit, ac, f
       REAL :: av, a_rmax, d_rmax, rmax, rv
       REAL, ALLOCATABLE :: d(:), a(:), v(:), dc(:), Dv(:), aa(:)
       REAL, ALLOCATABLE :: dnl(:), vnl(:), rnl(:)
@@ -4614,8 +4756,9 @@ CONTAINS
 
       ! BCs for integration. Note ainit=dinit means that collapse should occur around a=1 for dmin
       ! amax should be slightly greater than 1 to ensure at least a few points for a>0.9 (i.e not to miss out a=1)
-      ainit = dmin**(1./(1.-3.*cosm%f_nu/5.))
-      vinit = (1.-3.*cosm%f_nu/5.)*ainit**(-3.*cosm%f_nu/5.) ! vinit=1 is EdS growing mode solution
+      f = cosm%f_nu
+      ainit = dmin**(1./(1.-3.*f/5.))
+      vinit = (1.-3.*f/5.)*ainit**(-3.*f/5.) ! vinit=1 is EdS growing mode solution
 
       ! Now loop over all initial density fluctuations
       DO j = 1, m
@@ -5583,7 +5726,11 @@ CONTAINS
       ELSE
          Om_c = cosm%Om_c
          Om_b = cosm%Om_b
-         Om_nu = cosm%Om_nu
+         IF (cosm%m_nu == 0.) THEN
+            Om_nu = 0.
+         ELSE
+            Om_nu = cosm%Om_nu
+         END IF
          h = cosm%h
       END IF
 
@@ -6148,7 +6295,6 @@ CONTAINS
       cosm%Om_c = random_uniform(Om_c_min, Om_c_max)
 
       cosm%Om_b = random_uniform(Om_b_min, Om_b_max)
-      !cosm%Om_b = cosm%Om_c/5.
 
       cosm%Om_m = cosm%Om_c+cosm%Om_b
 
@@ -6157,7 +6303,7 @@ CONTAINS
       cosm%Om_v = 0.
       cosm%Om_w = 1.-cosm%Om_m
 
-      cosm%ns =  random_uniform(n_min, n_max)
+      cosm%ns = random_uniform(n_min, n_max)
 
       cosm%w = random_uniform(w_min, w_max)
 
@@ -6268,7 +6414,7 @@ CONTAINS
       cosm%Om_v = 0.
       cosm%Om_w = 1.-cosm%Om_m
 
-      cosm%ns =  random_uniform(n_min, n_max)
+      cosm%ns = random_uniform(n_min, n_max)
 
       cosm%w = random_uniform(w_min, w_max)
 
@@ -6325,7 +6471,7 @@ CONTAINS
       cosm%Om_v = 0.
       cosm%Om_w = 1.-cosm%Om_m
 
-      cosm%ns =  random_uniform(n_min, n_max)
+      cosm%ns = random_uniform(n_min, n_max)
 
       cosm%w = random_uniform(w_min, w_max)
 
@@ -6353,7 +6499,7 @@ CONTAINS
          ! M000 (not included in emulator construction)
          om_m = 0.1296
          om_b = 0.0224
-         cosm%ns =  0.9700
+         cosm%ns = 0.9700
          cosm%w = 1.000
          cosm%sig8 = 0.8000
          cosm%h = 0.7200
@@ -6361,7 +6507,7 @@ CONTAINS
          ! M001
          om_m = 0.1539
          om_b = 0.0231
-         cosm%ns =  0.9468
+         cosm%ns = 0.9468
          cosm%w = 0.816
          cosm%sig8 = 0.8161
          cosm%h = 0.5977
@@ -6369,7 +6515,7 @@ CONTAINS
          ! M002
          om_m = 0.1460
          om_b = 0.0227
-         cosm%ns =  0.8952
+         cosm%ns = 0.8952
          cosm%w = 0.758
          cosm%sig8 = 0.8548
          cosm%h = 0.5970
@@ -6377,7 +6523,7 @@ CONTAINS
          ! M003
          om_m = 0.1324
          om_b = 0.0235
-         cosm%ns =  0.9984
+         cosm%ns = 0.9984
          cosm%w = 0.874
          cosm%sig8 = 0.8484
          cosm%h = 0.6763
@@ -6385,7 +6531,7 @@ CONTAINS
          ! M004
          om_m = 0.1381
          om_b = 0.0227
-         cosm%ns =  0.9339
+         cosm%ns = 0.9339
          cosm%w = 1.087
          cosm%sig8 = 0.7000
          cosm%h = 0.7204
@@ -6393,7 +6539,7 @@ CONTAINS
          ! M005
          om_m = 0.1358
          om_b = 0.0216
-         cosm%ns =  0.9726
+         cosm%ns = 0.9726
          cosm%w = 1.242
          cosm%sig8 = 0.8226
          cosm%h = 0.7669
@@ -6401,7 +6547,7 @@ CONTAINS
          ! M006
          om_m = 0.1516
          om_b = 0.0229
-         cosm%ns =  0.9145
+         cosm%ns = 0.9145
          cosm%w = 1.223
          cosm%sig8 = 0.6705
          cosm%h = 0.7040
@@ -6409,7 +6555,7 @@ CONTAINS
          ! M007
          om_m = 0.1268
          om_b = 0.0223
-         cosm%ns =  0.9210
+         cosm%ns = 0.9210
          cosm%w = 0.70001 ! Changed to avoid problems
          cosm%sig8 = 0.7474
          cosm%h = 0.6189
@@ -6417,7 +6563,7 @@ CONTAINS
          ! M008
          om_m = 0.1448
          om_b = 0.0223
-         cosm%ns =  0.9855
+         cosm%ns = 0.9855
          cosm%w = 1.203
          cosm%sig8 = 0.8090
          cosm%h = 0.7218
@@ -6425,7 +6571,7 @@ CONTAINS
          ! M009
          om_m = 0.1392
          om_b = 0.0234
-         cosm%ns =  0.9790
+         cosm%ns = 0.9790
          cosm%w = 0.739
          cosm%sig8 = 0.6692
          cosm%h = 0.6127
@@ -6433,7 +6579,7 @@ CONTAINS
          ! M010
          om_m = 0.1403
          om_b = 0.0218
-         cosm%ns =  0.8565
+         cosm%ns = 0.8565
          cosm%w = 0.990
          cosm%sig8 = 0.7556
          cosm%h = 0.6695
@@ -6441,7 +6587,7 @@ CONTAINS
          ! M011
          om_m = 0.1437
          om_b = 0.0234
-         cosm%ns =  0.8823
+         cosm%ns = 0.8823
          cosm%w = 1.126
          cosm%sig8 = 0.7276
          cosm%h = 0.7177
@@ -6449,7 +6595,7 @@ CONTAINS
          ! M012
          om_m = 0.1223
          om_b = 0.0225
-         cosm%ns =  1.0048
+         cosm%ns = 1.0048
          cosm%w = 0.971
          cosm%sig8 = 0.6271
          cosm%h = 0.7396
@@ -6457,7 +6603,7 @@ CONTAINS
          ! M013
          om_m = 0.1482
          om_b = 0.0221
-         cosm%ns =  0.9597
+         cosm%ns = 0.9597
          cosm%w = 0.855
          cosm%sig8 = 0.6508
          cosm%h = 0.6107
@@ -6465,7 +6611,7 @@ CONTAINS
          ! M014
          om_m = 0.1471
          om_b = 0.0233
-         cosm%ns =  1.0306
+         cosm%ns = 1.0306
          cosm%w = 1.010
          cosm%sig8 = 0.7075
          cosm%h = 0.6688
@@ -6473,7 +6619,7 @@ CONTAINS
          ! M015
          om_m = 0.1415
          om_b = 0.0230
-         cosm%ns =  1.0177
+         cosm%ns = 1.0177
          cosm%w = 1.281
          cosm%sig8 = 0.7692
          cosm%h = 0.7737
@@ -6481,7 +6627,7 @@ CONTAINS
          ! M016
          om_m = 0.1245
          om_b = 0.0218
-         cosm%ns =  0.9403
+         cosm%ns = 0.9403
          cosm%w = 1.145
          cosm%sig8 = 0.7437
          cosm%h = 0.7929
@@ -6489,7 +6635,7 @@ CONTAINS
          ! M017
          om_m = 0.1426
          om_b = 0.0215
-         cosm%ns =  0.9274
+         cosm%ns = 0.9274
          cosm%w = 0.893
          cosm%sig8 = 0.6865
          cosm%h = 0.6305
@@ -6497,7 +6643,7 @@ CONTAINS
          ! M018
          om_m = 0.1313
          om_b = 0.0216
-         cosm%ns =  0.8887
+         cosm%ns = 0.8887
          cosm%w = 1.029
          cosm%sig8 = 0.6440
          cosm%h = 0.7136
@@ -6505,7 +6651,7 @@ CONTAINS
          ! M019
          om_m = 0.1279
          om_b = 0.0232
-         cosm%ns =  0.8629
+         cosm%ns = 0.8629
          cosm%w = 1.184
          cosm%sig8 = 0.6159
          cosm%h = 0.8120
@@ -6513,7 +6659,7 @@ CONTAINS
          ! M020
          om_m = 0.1290
          om_b = 0.0220
-         cosm%ns =  1.0242
+         cosm%ns = 1.0242
          cosm%w = 0.797
          cosm%sig8 = 0.7972
          cosm%h = 0.6442
@@ -6521,7 +6667,7 @@ CONTAINS
          ! M021
          om_m = 0.1335
          om_b = 0.0221
-         cosm%ns =  1.0371
+         cosm%ns = 1.0371
          cosm%w = 1.165
          cosm%sig8 = 0.6563
          cosm%h = 0.7601
@@ -6529,7 +6675,7 @@ CONTAINS
          ! M022
          om_m = 0.1505
          om_b = 0.0225
-         cosm%ns =  1.0500
+         cosm%ns = 1.0500
          cosm%w = 1.107
          cosm%sig8 = 0.7678
          cosm%h = 0.6736
@@ -6537,7 +6683,7 @@ CONTAINS
          ! M023
          om_m = 0.1211
          om_b = 0.0220
-         cosm%ns =  0.9016
+         cosm%ns = 0.9016
          cosm%w = 1.261
          cosm%sig8 = 0.6664
          cosm%h = 0.8694
@@ -6545,7 +6691,7 @@ CONTAINS
          ! M024
          om_m = 0.1302
          om_b = 0.0226
-         cosm%ns =  0.9532
+         cosm%ns = 0.9532
          cosm%w = 1.300
          cosm%sig8 = 0.6644
          cosm%h = 0.8380
@@ -6553,7 +6699,7 @@ CONTAINS
          ! M025
          om_m = 0.1494
          om_b = 0.0217
-         cosm%ns =  1.0113
+         cosm%ns = 1.0113
          cosm%w = 0.719
          cosm%sig8 = 0.7398
          cosm%h = 0.5724
@@ -6561,7 +6707,7 @@ CONTAINS
          ! M026
          om_m = 0.1347
          om_b = 0.0232
-         cosm%ns =  0.9081
+         cosm%ns = 0.9081
          cosm%w = 0.952
          cosm%sig8 = 0.7995
          cosm%h = 0.6931
@@ -6569,7 +6715,7 @@ CONTAINS
          ! M027
          om_m = 0.1369
          om_b = 0.0224
-         cosm%ns =  0.8500
+         cosm%ns = 0.8500
          cosm%w = 0.836
          cosm%sig8 = 0.7111
          cosm%h = 0.6387
@@ -6577,7 +6723,7 @@ CONTAINS
          ! M028
          om_m = 0.1527
          om_b = 0.0222
-         cosm%ns =  0.8694
+         cosm%ns = 0.8694
          cosm%w = 0.932
          cosm%sig8 = 0.8068
          cosm%h = 0.6189
@@ -6585,7 +6731,7 @@ CONTAINS
          ! M029
          om_m = 0.1256
          om_b = 0.0228
-         cosm%ns =  1.0435
+         cosm%ns = 1.0435
          cosm%w = 0.913
          cosm%sig8 = 0.7087
          cosm%h = 0.7067
@@ -6593,7 +6739,7 @@ CONTAINS
          ! M030
          om_m = 0.1234
          om_b = 0.0230
-         cosm%ns =  0.8758
+         cosm%ns = 0.8758
          cosm%w = 0.777
          cosm%sig8 = 0.6739
          cosm%h = 0.6626
@@ -6601,7 +6747,7 @@ CONTAINS
          ! M031
          om_m = 0.1550
          om_b = 0.0219
-         cosm%ns =  0.9919
+         cosm%ns = 0.9919
          cosm%w = 1.068
          cosm%sig8 = 0.7041
          cosm%h = 0.6394
@@ -6609,7 +6755,7 @@ CONTAINS
          ! M032
          om_m = 0.1200
          om_b = 0.0229
-         cosm%ns =  0.9661
+         cosm%ns = 0.9661
          cosm%w = 1.048
          cosm%sig8 = 0.7556
          cosm%h = 0.7901
@@ -6617,7 +6763,7 @@ CONTAINS
          ! M033
          om_m = 0.1399
          om_b = 0.0225
-         cosm%ns =  1.0407
+         cosm%ns = 1.0407
          cosm%w = 1.147
          cosm%sig8 = 0.8645
          cosm%h = 0.7286
@@ -6625,7 +6771,7 @@ CONTAINS
          ! M034
          om_m = 0.1497
          om_b = 0.0227
-         cosm%ns =  0.9239
+         cosm%ns = 0.9239
          cosm%w = 1.000
          cosm%sig8 = 0.8734
          cosm%h = 0.6510
@@ -6633,7 +6779,7 @@ CONTAINS
          ! M035
          om_m = 0.1485
          om_b = 0.0221
-         cosm%ns =  0.9604
+         cosm%ns = 0.9604
          cosm%w = 0.853
          cosm%sig8 = 0.8822
          cosm%h = 0.6100
@@ -6641,7 +6787,7 @@ CONTAINS
          ! M036
          om_m = 0.1216
          om_b = 0.0233
-         cosm%ns =  0.9387
+         cosm%ns = 0.9387
          cosm%w = 0.706
          cosm%sig8 = 0.8911
          cosm%h = 0.6421
@@ -6649,7 +6795,7 @@ CONTAINS
          ! M037
          om_m = 0.1495
          om_b = 0.0228
-         cosm%ns =  1.0233
+         cosm%ns = 1.0233
          cosm%w = 1.294
          cosm%sig8 = 0.8999 ! Moved off boundary
          cosm%h = 0.7313
@@ -6677,7 +6823,7 @@ CONTAINS
          ! M023
          om_m = 0.1211
          om_b = 0.0220
-         cosm%ns =  0.9016
+         cosm%ns = 0.9016
          cosm%w = -1.261
          cosm%sig8 = 0.6664
          cosm%h = 0.8500 ! Have to round down from 0.8694 to 0.85 for FrankenEmu shrunken space
@@ -6706,7 +6852,7 @@ CONTAINS
          om_b = 0.02258
          cosm%sig8 = 0.8
          cosm%h = 0.71
-         cosm%ns =  0.963
+         cosm%ns = 0.963
          cosm%w = -1.0
          cosm%wa = 0.0
          om_nu = 0.
@@ -6718,7 +6864,7 @@ CONTAINS
          om_b = 0.02261
          cosm%sig8 = 0.8778
          cosm%h = 0.6167
-         cosm%ns =  0.9611
+         cosm%ns = 0.9611
          cosm%w = -0.7000
          cosm%wa = 0.67220
          om_nu = 0.
@@ -6728,7 +6874,7 @@ CONTAINS
          om_b = 0.02328
          cosm%sig8 = 0.8556
          cosm%h = 0.7500
-         cosm%ns =  1.0500
+         cosm%ns = 1.0500
          cosm%w = -1.0330
          cosm%wa = 0.91110
          om_nu = 0.
@@ -6738,7 +6884,7 @@ CONTAINS
          om_b = 0.02194
          cosm%sig8 = 0.9000
          cosm%h = 0.7167
-         cosm%ns =  0.8944
+         cosm%ns = 0.8944
          cosm%w = -1.1000
          cosm%wa = -0.28330
          om_nu = 0.
@@ -6748,7 +6894,7 @@ CONTAINS
          om_b = 0.02283
          cosm%sig8 = 0.7889
          cosm%h = 0.5833
-         cosm%ns =  0.8722
+         cosm%ns = 0.8722
          cosm%w = -1.1670
          cosm%wa = 1.15000
          om_nu = 0.
@@ -6758,7 +6904,7 @@ CONTAINS
          om_b = 0.02350
          cosm%sig8 = 0.7667
          cosm%h = 0.8500
-         cosm%ns =  0.9833
+         cosm%ns = 0.9833
          cosm%w = -1.2330
          cosm%wa = -0.04445
          om_nu = 0.
@@ -6768,7 +6914,7 @@ CONTAINS
          om_b = 0.021501 ! Moved off boundary
          cosm%sig8 = 0.8333
          cosm%h = 0.5500
-         cosm%ns =  0.9167
+         cosm%ns = 0.9167
          cosm%w = -0.7667
          cosm%wa = 0.19440
          om_nu = 0.
@@ -6778,7 +6924,7 @@ CONTAINS
          om_b = 0.02217
          cosm%sig8 = 0.8111
          cosm%h = 0.8167
-         cosm%ns =  1.0280
+         cosm%ns = 1.0280
          cosm%w = -0.8333
          cosm%wa = -1.0000
          om_nu = 0.
@@ -6788,7 +6934,7 @@ CONTAINS
          om_b = 0.02306
          cosm%sig8 = 0.7000
          cosm%h = 0.6833
-         cosm%ns =  1.0060
+         cosm%ns = 1.0060
          cosm%w = -0.9000
          cosm%wa = 0.43330
          om_nu = 0.
@@ -6798,7 +6944,7 @@ CONTAINS
          om_b = 0.02172
          cosm%sig8 = 0.7444
          cosm%h = 0.6500
-         cosm%ns =  0.8500
+         cosm%ns = 0.8500
          cosm%w = -0.9667
          cosm%wa = -0.76110
          om_nu = 0.
@@ -6808,7 +6954,7 @@ CONTAINS
          om_b = 0.02239
          cosm%sig8 = 0.7222
          cosm%h = 0.7833
-         cosm%ns =  0.9389
+         cosm%ns = 0.9389
          cosm%w = -1.3000
          cosm%wa = -0.52220
          om_nu = 0.
@@ -6818,7 +6964,7 @@ CONTAINS
          om_b = 0.0220
          cosm%sig8 = 0.7151
          cosm%h = 0.5827
-         cosm%ns =  0.9357
+         cosm%ns = 0.9357
          cosm%w = -1.0821
          cosm%wa = 1.0646
          om_nu = 0.000345
@@ -6828,7 +6974,7 @@ CONTAINS
          om_b = 0.0224
          cosm%sig8 = 0.7472
          cosm%h = 0.8315
-         cosm%ns =  0.8865
+         cosm%ns = 0.8865
          cosm%w = -1.2325
          cosm%wa = -0.7646
          om_nu = 0.001204
@@ -6838,7 +6984,7 @@ CONTAINS
          om_b = 0.0232
          cosm%sig8 = 0.8098
          cosm%h = 0.7398
-         cosm%ns =  0.8706
+         cosm%ns = 0.8706
          cosm%w = -1.2993
          cosm%wa = 1.2236
          om_nu = 0.003770
@@ -6848,7 +6994,7 @@ CONTAINS
          om_b = 0.0215
          cosm%sig8 = 0.8742
          cosm%h = 0.5894
-         cosm%ns =  1.0151
+         cosm%ns = 1.0151
          cosm%w = -0.7281
          cosm%wa = -0.2088
          om_nu = 0.001752
@@ -6858,7 +7004,7 @@ CONTAINS
          om_b = 0.0224
          cosm%sig8 = 0.8881
          cosm%h = 0.6840
-         cosm%ns =  0.8638
+         cosm%ns = 0.8638
          cosm%w = -1.0134
          cosm%wa = 0.0415
          om_nu = 0.002789
@@ -6868,7 +7014,7 @@ CONTAINS
          om_b = 0.0223
          cosm%sig8 = 0.7959
          cosm%h = 0.6452
-         cosm%ns =  1.0219
+         cosm%ns = 1.0219
          cosm%w = -1.0139
          cosm%wa = 0.9434
          om_nu = 0.002734
@@ -6878,7 +7024,7 @@ CONTAINS
          om_b = 0.0215
          cosm%sig8 = 0.7332
          cosm%h = 0.7370
-         cosm%ns =  1.0377
+         cosm%ns = 1.0377
          cosm%w = -0.9472
          cosm%wa = -0.9897
          om_nu = 0.000168
@@ -6888,7 +7034,7 @@ CONTAINS
          om_b = 0.0217
          cosm%sig8 = 0.7982
          cosm%h = 0.6489
-         cosm%ns =  0.9026
+         cosm%ns = 0.9026
          cosm%w = -0.7091
          cosm%wa = 0.6409
          om_nu = 0.006419
@@ -6898,7 +7044,7 @@ CONTAINS
          om_b = 0.0222
          cosm%sig8 = 0.8547
          cosm%h = 0.8251
-         cosm%ns =  1.0265
+         cosm%ns = 1.0265
          cosm%w = -0.9813
          cosm%wa = -0.3393
          om_nu = 0.004673
@@ -6908,7 +7054,7 @@ CONTAINS
          om_b = 0.0225
          cosm%sig8 = 0.7561
          cosm%h = 0.6827
-         cosm%ns =  0.9913
+         cosm%ns = 0.9913
          cosm%w = -1.0101
          cosm%wa = -0.7778
          om_nu = 0.009777
@@ -6918,7 +7064,7 @@ CONTAINS
          om_b = 0.0221
          cosm%sig8 = 0.8475
          cosm%h = 0.6583
-         cosm%ns =  0.9613
+         cosm%ns = 0.9613
          cosm%w = -0.9111
          cosm%wa = -1.5470
          om_nu = 0.000672
@@ -6928,7 +7074,7 @@ CONTAINS
          om_b = 0.0231
          cosm%sig8 = 0.8328
          cosm%h = 0.8234
-         cosm%ns =  0.9739
+         cosm%ns = 0.9739
          cosm%w = -0.9312
          cosm%wa = 0.5939
          om_nu = 0.008239
@@ -6938,7 +7084,7 @@ CONTAINS
          om_b = 0.0225
          cosm%sig8 = 0.7113
          cosm%h = 0.7352
-         cosm%ns =  0.9851
+         cosm%ns = 0.9851
          cosm%w = -0.8971
          cosm%wa = 0.3247
          om_nu = 0.003733
@@ -6948,7 +7094,7 @@ CONTAINS
          om_b = 0.0229
          cosm%sig8 = 0.7002
          cosm%h = 0.7935
-         cosm%ns =  0.8685
+         cosm%ns = 0.8685
          cosm%w = -1.0322
          cosm%wa = 1.0220
          om_nu = 0.003063
@@ -6958,7 +7104,7 @@ CONTAINS
          om_b = 0.0230
          cosm%sig8 = 0.8773
          cosm%h = 0.6240
-         cosm%ns =  0.9279
+         cosm%ns = 0.9279
          cosm%w = -0.8282
          cosm%wa = -1.5005
          om_nu = 0.007024
@@ -6968,7 +7114,7 @@ CONTAINS
          om_b = 0.0222
          cosm%sig8 = 0.7785
          cosm%h = 0.7377
-         cosm%ns =  0.8618
+         cosm%ns = 0.8618
          cosm%w = -0.7463
          cosm%wa = 0.3647
          om_nu = 0.002082
@@ -6978,7 +7124,7 @@ CONTAINS
          om_b = 0.0234
          cosm%sig8 = 0.8976
          cosm%h = 0.8222
-         cosm%ns =  0.9698
+         cosm%ns = 0.9698
          cosm%w = -1.0853
          cosm%wa = 0.8683
          om_nu = 0.002902
@@ -6988,7 +7134,7 @@ CONTAINS
          om_b = 0.0231
          cosm%sig8 = 0.8257
          cosm%h = 0.6109
-         cosm%ns =  0.9885
+         cosm%ns = 0.9885
          cosm%w = -0.9311
          cosm%wa = 0.8693
          om_nu = 0.009086
@@ -6998,7 +7144,7 @@ CONTAINS
          om_b = 0.0228
          cosm%sig8 = 0.8999
          cosm%h = 0.8259
-         cosm%ns =  0.8505
+         cosm%ns = 0.8505
          cosm%w = -0.7805
          cosm%wa = 0.5688
          om_nu = 0.006588
@@ -7008,7 +7154,7 @@ CONTAINS
          om_b = 0.0222
          cosm%sig8 = 0.8232
          cosm%h = 0.6852
-         cosm%ns =  0.8679
+         cosm%ns = 0.8679
          cosm%w = -0.8594
          cosm%wa = -0.4637
          om_nu = 0.008126
@@ -7018,7 +7164,7 @@ CONTAINS
          om_b = 0.0229
          cosm%sig8 = 0.7693
          cosm%h = 0.6684
-         cosm%ns =  1.0478
+         cosm%ns = 1.0478
          cosm%w = -1.2670
          cosm%wa = 1.2536
          om_nu = 0.006502
@@ -7028,7 +7174,7 @@ CONTAINS
          om_b = 0.021501 ! Moved off boundary
          cosm%sig8 = 0.8812
          cosm%h = 0.8019
-         cosm%ns =  1.0005
+         cosm%ns = 1.0005
          cosm%w = -0.7282
          cosm%wa = -1.6927
          om_nu = 0.000905
@@ -7038,7 +7184,7 @@ CONTAINS
          om_b = 0.0230
          cosm%sig8 = 0.7005
          cosm%h = 0.6752
-         cosm%ns =  1.0492
+         cosm%ns = 1.0492
          cosm%w = -0.7119
          cosm%wa = -0.8184
          om_nu = 0.007968
@@ -7048,7 +7194,7 @@ CONTAINS
          om_b = 0.0216
          cosm%sig8 = 0.7018
          cosm%h = 0.5970
-         cosm%ns =  0.8791
+         cosm%ns = 0.8791
          cosm%w = -0.8252
          cosm%wa = -1.1148
          om_nu = 0.003602
@@ -7058,7 +7204,7 @@ CONTAINS
          om_b = 0.0228
          cosm%sig8 = 0.8210
          cosm%h = 0.6815
-         cosm%ns =  0.9872
+         cosm%ns = 0.9872
          cosm%w = -1.1642
          cosm%wa = -0.1801
          om_nu = 0.004440
@@ -7068,7 +7214,7 @@ CONTAINS
          om_b = 0.0220
          cosm%sig8 = 0.8631
          cosm%h = 0.6477
-         cosm%ns =  0.8985
+         cosm%ns = 0.8985
          cosm%w = -0.8632
          cosm%wa = 0.8285
          om_nu = 0.001082
@@ -7557,14 +7703,18 @@ SUBROUTINE init_wiggle(cosm)
       IF (.NOT. cosm%has_wiggle) CALL init_wiggle(cosm)  
       p_linear = plin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle   
       p_wiggle = evaluate_interpolator(k, cosm%wiggle)
-      f = exp(-(k*sigv)**2)
+      IF (sigv > 0.) THEN
+         f = exp(-(k*sigv)**2)
+      ELSE
+         f = 0.
+      END IF
       p_dewiggle = p_linear+(f-1.)*p_wiggle*grow(a, cosm)**2
 
    END FUNCTION p_dewiggle
 
    REAL FUNCTION Pk_nowiggle(k, cosm)
 
-      ! Calculates the un-normalised (probably) no-wiggle power spectrum 
+      ! Calculates the un-normalised no-wiggle power spectrum 
       ! Comes from the Eisenstein & Hu approximation
       REAL, INTENT(IN) :: k
       TYPE(cosmology), INTENT(IN) :: cosm
