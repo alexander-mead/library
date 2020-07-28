@@ -1829,6 +1829,7 @@ CONTAINS
 
       ! Critical mass for neutrino density to close Universe [eV] 
       ! Roughly 94.1 eV, or is it 93.03 eV, or 93.14 eV?; https://arxiv.org/pdf/1812.02102.pdf
+      ! Not really a constant because it depends on T_CMB, and also maybe Neff?
       ! TODO: Should there be a factor of Neff/N (~3.046/3) here?
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: C
@@ -6201,7 +6202,7 @@ CONTAINS
       ! The purpose of this is *only* to init interpolators and set has_power
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER :: nk, nk_plin, na, na_plin
+      INTEGER :: nk, nk_pk, na, na_pk
       INTEGER :: plina_shape(2)
 
       IF(ALLOCATED(cosm%log_k_plin)) THEN
@@ -6221,7 +6222,7 @@ CONTAINS
       ENDIF
 
       IF(ALLOCATED(cosm%log_plin)) THEN
-         nk_plin = SIZE(cosm%log_plin)
+         nk_pk = SIZE(cosm%log_plin)
       ELSE
          write(*,*) "cosmology%log_plin has not been allocated!"
          cosm%status = 1
@@ -6230,21 +6231,22 @@ CONTAINS
 
       IF(ALLOCATED(cosm%log_plina)) THEN
          plina_shape = SHAPE(cosm%log_plina)
-         na_plin = plina_shape(2)
+         !nk_pk = plina_shape(1) ! MEAD: Surely this should be uncommented?
+         na_pk = plina_shape(2)
       ELSE
          write(*,*) "cosmology%log_plina has not been allocated!"
          cosm%status = 1
          RETURN
       ENDIF
 
-      IF(nk /= nk_plin .OR. nk /= cosm%nk_plin) THEN
-         write(*,*) "Sizes of cosmology%log_plin, cosmology%log_k_plin, or cosmology%nk_plin are inconsistent:", nk_plin, nk, cosm%nk_plin
+      IF(nk /= nk_pk .OR. nk /= cosm%nk_plin) THEN
+         write(*,*) "Sizes of cosmology%log_plin, cosmology%log_k_plin, or cosmology%nk_plin are inconsistent:", nk_pk, nk, cosm%nk_plin
          cosm%status = 1
          RETURN
       ENDIF
 
-      IF(na /= cosm%na_plin .OR. na /= na_plin) THEN
-         write(*,*) "Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:", na_plin, na, cosm%na_plin
+      IF(na /= na_pk .OR. na /= cosm%na_plin) THEN
+         write(*,*) "Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:", na_pk, na, cosm%na_plin
          cosm%status = 1
          RETURN
       ENDIF
