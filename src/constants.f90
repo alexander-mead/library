@@ -19,6 +19,7 @@ MODULE constants
    REAL, PARAMETER :: twopi = 2._dp*pi        ! 2pi or tau ~6.283
    REAL, PARAMETER :: rad2deg = degrees/twopi ! radians-to-degrees conversion
    REAL, PARAMETER :: deg2rad = 1._dp/rad2deg ! degress-to-radians conversion
+   REAL, PARAMETER :: Riemann_3 = 1.202056903 ! Riemann Zeta function with n=3
 
    !!
 
@@ -56,7 +57,7 @@ MODULE constants
    REAL, PARAMETER :: Gpc = Mpc*1e3                                        ! Gpc [m] ~3.086e25 m
    REAL, PARAMETER :: H0 = H0_cos*1e3/Mpc                                  ! Hubble constant [s^-1] ~3.241e-18 s^-1 (1e3 is km -> m)
    REAL, PARAMETER :: bigG_cos = bigG*Msun/(Mpc*1e3**2)                    ! Gravitational constant [(Msun/h)^-1 (km/s)^2 (Mpc/h)] ~4.301e-9 (1e3**2 m -> km)
-   REAL, PARAMETER :: critical_density = 3.*H0**2/(8.*pi*bigG)             ! Critical density [h^2 kg/m^3] ~1.878e-26
+   REAL, PARAMETER :: critical_density = 3.*H0**2/(8.*pi*bigG)             ! Critical density [h^2 kg/m^3] ~1.878e-26 [h^2 kg/m^3]
    REAL, PARAMETER :: critical_density_cos = 3.*H0_cos**2/(8.*pi*bigG_cos) ! Universal critical density at (equal to 3*H0^2 / 8piG) [(M_sun/h)/(Mpc/h)^3] ~2.776e11
    REAL, PARAMETER :: Hdist = c_light/(H0_cos*1e3)                         ! Hubble distance (c/H0) [Mpc/h] ~3000 Mpc/h (1e3 km -> m)
    REAL, PARAMETER :: Htime = 1./(H0*60.*60.*24.*365.25*1e9)               ! Hubble time (1/H0) [Gyr/h] ~9.78 Gyr/h
@@ -64,9 +65,6 @@ MODULE constants
    REAL, PARAMETER :: dc0 = (3./20.)*(12.*pi)**(2./3.)                     ! Einstein-de Sitter linear collapse density ~1.686
    REAL, PARAMETER :: Dv0 = 18.*pi**2                                      ! Einsten-de Sitter virialised collapse threshold ~178
    REAL, PARAMETER :: neff_constant = (7./8.)*(4./11.)**(4./3.)            ! Constant that appears in temperature formulae with neutrinos (~ 0.2271)
-
-   ! TODO: Relate these to fundamental constants
-   REAL, PARAMETER :: neutrino_constant = 94.1_dp               ! Critical mass for neutrino density to close Universe [eV] (or is it 93.03 eV, or 93.14 eV?; https://arxiv.org/pdf/1812.02102.pdf)
    
    !!
 
