@@ -1456,7 +1456,7 @@ CONTAINS
          cosm%f_nu = 0.
       ELSE
          IF (neutrino_method == neutrino_basic) THEN
-            cosm%Om_nu = cosm%m_nu/(neutrino_constant*cosm%h**2)
+            cosm%Om_nu = cosm%m_nu/(neutrino_constant(cosm)*cosm%h**2)
             IF (cosm%Om_nu >= cosm%Om_nu_rad) THEN
                cosm%a_nu = cosm%Om_nu_rad/cosm%Om_nu
             ELSE
@@ -1824,6 +1824,21 @@ CONTAINS
       CALL print_cosmology(cosm)
 
    END SUBROUTINE assign_init_cosmology
+
+   REAL FUNCTION neutrino_constant(cosm)
+
+      ! Critical mass for neutrino density to close Universe [eV] 
+      ! Roughly 94.1 eV, or is it 93.03 eV, or 93.14 eV?; https://arxiv.org/pdf/1812.02102.pdf
+      ! TODO: Should there be a factor of Neff/N (~3.046/3) here?
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: C
+
+      C = (14./11.)*180.*Riemann_3/(7.*pi**4)
+      C = C*SBconst*cosm%T_CMB**3/(kB*critical_density*c_light)
+      C = C*eV/c_light**2
+      neutrino_constant = 1./C
+
+   END FUNCTION neutrino_constant
 
    REAL FUNCTION Komatsu_nu(y)
 
@@ -6465,7 +6480,7 @@ CONTAINS
       cosm%Om_b = om_b/cosm%h**2
 
       om_nu = random_uniform(om_nu_min, om_nu_max)
-      cosm%m_nu = neutrino_constant*om_nu
+      cosm%m_nu = neutrino_constant(cosm)*om_nu
 
       ! Enforce flatness, ensure Omega_w is used for dark energy, Omega_v = 0
       cosm%Om_v = 0.
@@ -7226,7 +7241,7 @@ CONTAINS
       cosm%Om_m = om_m/cosm%h**2
       cosm%Om_b = om_b/cosm%h**2
       !cosm%m_nu=neutrino_constant*om_nu/3. ! Split equally over three neutrinos
-      cosm%m_nu = neutrino_constant*om_nu
+      cosm%m_nu = neutrino_constant(cosm)*om_nu
       cosm%Om_w = 1.-cosm%Om_m
       cosm%Om_v = 0.
 
