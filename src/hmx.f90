@@ -223,7 +223,9 @@ MODULE HMx
    PUBLIC :: param_HMcode_kp
    PUBLIC :: param_HMcode_mbarz
    PUBLIC :: param_HMcode_sbarz
-   
+   PUBLIC :: param_HMcode_fM
+   PUBLIC :: param_HMcode_fD
+   PUBLIC :: param_HMcode_zD
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -288,7 +290,7 @@ MODULE HMx
       INTEGER :: nk
 
       ! HMcode parameters and experimental parameters
-      REAL :: knl, rnl, mnl, Rh, Mh, Mp, sigv, Rhh!, neff
+      REAL :: knl, rnl, mnl, Rh, Mh, Mp, sigv, Rhh!, neff, ncur
       !REAL :: sig_eta, sig_deltac, sig_fdamp, sigV_kstar, sigV_fdamp, sigV_all, sig8_all
 
       ! Saturation parameters (e.g., WDM)
@@ -309,7 +311,7 @@ MODULE HMx
       LOGICAL :: DMONLY_neutrinos_affect_virial_radius
 
       ! HMcode (2020) parameters
-      REAL :: kd, kdp, Ap, Ac, kp, nd, alp2
+      REAL :: kd, kdp, Ap, Ac, kp, nd, alp2, fM, fD, zD
       REAL :: mbar, nbar, sbar, mbarz, sbarz
       REAL :: mbar_T, As_T, sbar_T, mbarz_T, sbarz_T
 
@@ -342,7 +344,7 @@ MODULE HMx
       LOGICAL :: has_mass_function
 
       ! Infinite redshift as far as the Dolag correction is concerned
-      REAL :: zinf_Dolag
+      !REAL :: zinf_Dolag
 
       ! Non-linear halo bias parameters
       REAL, ALLOCATABLE :: bnl(:, :, :), k_bnl(:), nu_bnl(:)
@@ -540,7 +542,10 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_Amfz = 65
    INTEGER, PARAMETER :: param_HMcode_nd = 66
    INTEGER, PARAMETER :: param_HMcode_alpha2 = 67
-   INTEGER, PARAMETER :: param_n = 67
+   INTEGER, PARAMETER :: param_HMcode_fM = 68
+   INTEGER, PARAMETER :: param_HMcode_fD = 69
+   INTEGER, PARAMETER :: param_HMcode_zD = 70
+   INTEGER, PARAMETER :: param_n = 70
 
    ! HMcode versions
    INTEGER, PARAMETER :: HMcode2015 = 7
@@ -929,8 +934,8 @@ CONTAINS
       ! Safeguard against negative terms in cross correlations
       hmod%safe_negative = .FALSE.
 
-      ! HMcode parameters defaults
-      hmod%Dv0 = 200.
+      ! HMcode parameter defaults
+      hmod%Dv0 = 200. ! This should really be from the Bryan & Norman formula
       hmod%Dv1 = 0.
       hmod%dc0 = 1.686
       hmod%dc1 = 0.
@@ -954,12 +959,15 @@ CONTAINS
       hmod%Ap = 0.
       hmod%Ac = 0.
       hmod%alp2 = 0.
+      hmod%fM = 0.01
+      hmod%fD = 1.
+      hmod%zD = 100.
 
       ! HMcode (2020) baryon recipe
       hmod%DMONLY_baryon_recipe = .FALSE.     
       hmod%mbar = 1e14
       hmod%nbar = 2.
-      hmod%sbar = 1e-5 ! Problems with fitting if set to zero
+      hmod%sbar = 1e-5 ! Problems with fitting if set to zero due to log
       hmod%mbarz = 0.
       hmod%sbarz = 0.
       hmod%Amfz = 0.
@@ -970,7 +978,7 @@ CONTAINS
       hmod%sbarz_T = 0.
 
       ! ~infinite redshift for Dolag correction
-      hmod%zinf_Dolag = 100.
+      !hmod%zinf_Dolag = 10.
 
       ! Baryon model (relates eta0 and A)
       hmod%one_parameter_baryons = .FALSE.
@@ -1200,7 +1208,7 @@ CONTAINS
          hmod%i2hdamp = 2
          hmod%itrans = 1
          hmod%iDolag = 2
-         hmod%zinf_Dolag = 10.
+         hmod%zD = 10.
          hmod%flag_sigma = flag_ucold
          hmod%DMONLY_neutrino_halo_mass_correction = .FALSE.
          hmod%Dv0 = 418.
@@ -1811,19 +1819,9 @@ CONTAINS
          hmod%ieta = 3    ! 3 - HMcode 2020 eta bloating
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
-         hmod%zinf_Dolag = 10. ! 100 vs 10 makes a difference for EDE-type cosmologies
+         hmod%zD = 10.    ! 100 vs 10 makes a difference for EDE-type cosmologies
          IF (ihm == 78) THEN
-            ! Model 1: 0.00745 for Cosmic Emu
-            !hmod%f0 = 0.2259196
-            !hmod%f1 = 0.7756314
-            !hmod%ks = 0.0219584
-            !hmod%kp = -0.4848748
-            !hmod%alp0 = 2.1333320
-            !hmod%alp1 = 1.6846223
-            !hmod%kd = 0.0414575
-            !hmod%kdp = -0.3542846
-            !hmod%nd = 2.
-            ! Model 2: 0.00704 for Cosmic Emu (old de-wiggle)
+            ! Model 1: 0.00704 for Cosmic Emu (old de-wiggle)
             !hmod%f0 = 0.2221080
             !hmod%f1 = 0.7354185
             !hmod%ks = 0.0598368
@@ -1833,19 +1831,27 @@ CONTAINS
             !hmod%kd = 0.0638063
             !hmod%kdp = -0.5481986
             !hmod%nd = 2.8940349
-            ! Model 3: 0.00975 for Cosmic Emu
-            hmod%f0 = 0.2125526
-            hmod%f1 = 0.5941393
-            hmod%ks = 0.0395327
-            hmod%kp = -1.0752429
-            hmod%alp0 = 2.3677969
-            hmod%alp1 = 1.7706090
-            !hmod%alp0 = 1.
-            !hmod%alp1 = 0.
-            !hmod%alp2 = 0.
-            hmod%kd = 0.0481365
-            hmod%kdp = -0.9141222
-            hmod%nd = 2.8346948
+            ! Model 2: 0.00975 for Cosmic Emu
+            !hmod%f0 = 0.2125526
+            !hmod%f1 = 0.5941393
+            !hmod%ks = 0.0395327
+            !hmod%kp = -1.0752429
+            !hmod%alp0 = 2.3677969
+            !hmod%alp1 = 1.7706090
+            !hmod%kd = 0.0481365
+            !hmod%kdp = -0.9141222
+            !hmod%nd = 2.8346948
+            ! Model 3: 0.00926 for Cosmic Emu
+            hmod%f0 = 0.1995332
+            hmod%f1 = 0.4271555
+            hmod%ks = 0.0300269
+            hmod%kp = -1.3693749
+            hmod%alp0 = 1.1786775
+            hmod%alp1 = 0.2668017
+            hmod%alp2 = 0.4473270
+            hmod%kd = 0.0414780
+            hmod%kdp = -1.0887362
+            hmod%nd = 2.7259666
          ELSE IF (ihm == 79 .OR. ihm == 102) THEN
             ! Model 1: 0.0155 to both Franken Emu and Mira Titan (old dewiggle)
             ! hmod%f0 = 0.3029326
@@ -1866,24 +1872,24 @@ CONTAINS
             ! hmod%dcnu = 0.2551262
             ! hmod%Dvnu = 0.5504368
             ! Model 2: 0.0153 to Franken Emu
-            hmod%f0 = 0.2471384
-            hmod%f1 = 0.8797992
-            hmod%ks = 0.0647618
-            hmod%kp = -0.5616775
-            hmod%kd = 0.0680499
-            hmod%kdp = -0.5113562
-            hmod%nd = 3.0079345
-            hmod%eta0 = 0.2315305
-            hmod%eta1 = 0.0391207
-            hmod%alp0 = 2.6450652
-            hmod%alp1 = 1.8686415
+            !hmod%f0 = 0.2471384
+            !hmod%f1 = 0.8797992
+            !hmod%ks = 0.0647618
+            !hmod%kp = -0.5616775
+            !hmod%kd = 0.0680499
+            !hmod%kdp = -0.5113562
+            !hmod%nd = 3.0079345
+            !hmod%eta0 = 0.2315305
+            !hmod%eta1 = 0.0391207
+            !hmod%alp0 = 2.6450652
+            !hmod%alp1 = 1.8686415
             !hmod%alp0 = 1.
             !hmod%alp1 = 0.
             !hmod%alp2 = 0.
             !hmod%Amf = 1.6641112
             !hmod%ST_p = 0.3281193
             !hmod%ST_q = 0.8334210
-            hmod%As = 3.7711354
+            !hmod%As = 3.7711354
             ! Model 3: 0.0194 to Franken Emu + Mira Titan
             ! hmod%f0 = 0.2934852
             ! hmod%f1 = 0.9822699
@@ -1900,6 +1906,33 @@ CONTAINS
             ! hmod%ST_p = 0.2543736
             ! hmod%ST_q = 0.8714454
             ! hmod%As = 3.6576695
+            ! Model 4: 0.0168 to Franken Emu
+            hmod%f0 = 0.2695822
+            hmod%f1 = 0.9403087
+            hmod%ks = 0.0561778
+            hmod%kp = -1.0131066
+            hmod%kd = 0.0569871
+            hmod%kdp = -1.0890162
+            hmod%nd = 2.8534197
+            hmod%eta0 = 0.1281210
+            hmod%eta1 = -0.3643963
+            hmod%alp0 = 1.8751465
+            hmod%alp1 = 1.6029913
+            hmod%As = 5.1958429
+            ! Model 5: x.xxxx for Franken Emu
+            !hmod%f0 = 0.1995332
+            !hmod%f1 = 0.4271555
+            !hmod%ks = 0.0300269
+            !hmod%kp = -1.3693749
+            !hmod%alp0 = 1.1786775
+            !hmod%alp1 = 0.2668017
+            !hmod%alp2 = 0.4473270
+            !hmod%kd = 0.0414780
+            !hmod%kdp = -1.0887362
+            !hmod%nd = 2.7259666
+            !hmod%eta0 = 0.
+            !hmod%eta1 = 0.
+            !hmod%As = 4.
          END IF
          IF (ihm == 102) THEN
             ! 102 - HMcode baryon recipe
@@ -2159,6 +2192,7 @@ CONTAINS
       ! Calculate the effective spectral index at the collapse scale
       ! TODO: Not necessary for some halo models
       !hmod%neff = effective_index(hmod%flag_sigma, hmod, cosm)
+      !hmod%ncur = effective_curvature(hmod%flag_sigma, hmod, cosm)
       !IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Collapse n_eff:', REAL(hmod%neff)
 
       ! Calculate the amplitude of the the one-halo term
@@ -2505,7 +2539,7 @@ CONTAINS
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: Halo parameters'
          WRITE (*, *) dashes
-         WRITE (*, fmt=fmt) 'Dolag zinf:',hmod%zinf_Dolag
+         WRITE (*, fmt=fmt) 'Dolag zc:', hmod%zD
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMcode parameters'
          WRITE (*, *) dashes
@@ -2528,6 +2562,9 @@ CONTAINS
          WRITE (*, fmt=fmt) 'alpha0:', hmod%alp0
          WRITE (*, fmt=fmt) 'alpha1:', hmod%alp1
          WRITE (*, fmt=fmt) 'alpha2:', hmod%alp2
+         WRITE (*, fmt=fmt) 'fM:', hmod%fM
+         WRITE (*, fmt=fmt) 'fD:', hmod%fD
+         WRITE (*, fmt=fmt) 'zD:', hmod%zD
          WRITE (*, fmt=fmt) 'Dvnu:', hmod%Dvnu
          WRITE (*, fmt=fmt) 'dcnu:', hmod%dcnu
          IF (hmod%DMONLY_baryon_recipe) THEN
@@ -4747,7 +4784,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: neff, sig8, x, y
+      REAL :: n_eff!, x, sig8, y
       REAL :: crap
 
       ! To prevent compile-time warnings
@@ -4755,41 +4792,42 @@ CONTAINS
 
       IF (hmod%itrans == 1) THEN
          ! From HMcode (2015, 2016)
-         !hmod%neff = effective_index(hmod%flag_sigma, hmod, cosm)
-         neff = effective_index(hmod%flag_sigma, hmod, cosm)
+         !neff = hmod%neff
+         n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0
          ELSE
-            HMcode_alpha = hmod%alp0*(hmod%alp1**neff)
+            HMcode_alpha = hmod%alp0*(hmod%alp1**n_eff)
          END IF
       ELSE IF (hmod%itrans == 2) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
          !neff = hmod%neff
-         neff = effective_index(hmod%flag_sigma, hmod, cosm)
+         n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**1.5
          ELSE
-            HMcode_alpha = (hmod%alp0*hmod%alp1**neff)**1.5
+            HMcode_alpha = (hmod%alp0*hmod%alp1**n_eff)**1.5
          END IF
       ELSE IF (hmod%itrans == 3) THEN
          ! Exponentiated HMcode (2016) result
          !n_eff = hmod%neff
-         neff = effective_index(hmod%flag_sigma, hmod, cosm)
+         n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**2.5
          ELSE
-            HMcode_alpha = (hmod%alp0*hmod%alp1**neff)**2.5
+            HMcode_alpha = (hmod%alp0*hmod%alp1**n_eff)**2.5
          END IF
       ELSE IF (hmod%itrans == 5) THEN
          ! HMcode 2020             
          !x = sigma(8., hmod%a, flag_ucold, cosm)
-         x = effective_index(hmod%flag_sigma, hmod, cosm)
+         n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
          !y = effective_curvature(hmod%flag_sigma, hmod, cosm)
-         HMcode_alpha = hmod%alp0*(hmod%alp1**x)    ! Relation 1
+         HMcode_alpha = hmod%alp0*(hmod%alp1**n_eff)    ! Relation 1
          !HMcode_alpha = hmod%alp0+x*hmod%alp1       ! Relation 2
          !HMcode_alpha = hmod%alp0*abs(x)**hmod%alp1 ! Relation 3
          !HMcode_alpha = hmod%alp0+hmod%alp1*x+hmod%alp2*x**2
          !HMcode_alpha = hmod%alp0+hmod%alp1*x+hmod%alp2*y
+         !HMcode_alpha = hmod%alp0*(hmod%alp1**x)+hmod%alp2*y
       ELSE
          HMcode_alpha = 1.
       END IF
@@ -6147,20 +6185,22 @@ CONTAINS
 
          ! Apply the correction using the collapse redshift of each halo individually
          DO i = 1, hmod%n
-            zc = hmod%zc(i)
-            ac = scale_factor_z(zc)
-            gc_wCDM = grow(ac, cosm)
-            gc_LCDM = grow(ac, cosm_LCDM)
-            rc = gc_wCDM/gc_LCDM
-            hmod%c(i) = hmod%c(i)*rc/r
+            zc = hmod%zc(i)*hmod%fD
+            IF (zc > hmod%z) THEN
+               ac = scale_factor_z(zc)
+               gc_wCDM = grow(ac, cosm)
+               gc_LCDM = grow(ac, cosm_LCDM)
+               rc = gc_wCDM/gc_LCDM
+               hmod%c(i) = hmod%c(i)*rc/r
+            END IF
          END DO
 
       ELSE
 
-         IF (hmod%z < hmod%zinf_Dolag) THEN
+         IF (hmod%z < hmod%zD) THEN
 
             ! The 'infinite' scale factor
-            ainf = scale_factor_z(hmod%zinf_Dolag)
+            ainf = scale_factor_z(hmod%zD)
 
             ! Save the growth function in the current cosmology
             ginf_wCDM = grow(ainf, cosm)
@@ -6223,21 +6263,22 @@ CONTAINS
       REAL, INTENT(IN) :: z
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: dc, af, zf, RHS, a, rf, sig, growz
+      REAL :: dc, af, zf, RHS, a, rf, sig, growz, f
       INTEGER :: i
-      REAL, PARAMETER :: f = 0.01**(1./3.) ! This is the f=0.01 parameter in the Bullock realtion sigma(fM,z)
+      !REAL, PARAMETER :: f = 0.01**(1./3.) ! This is the f=0.01 parameter in the Bullock realtion sigma(fM,z)
 
       a = scale_factor_z(z)
 
       ! Fills up a table for sigma(fM) for Bullock c(m) relation
       IF (hmod%iconc == 1) THEN
+         f = hmod%fM**(1./3.)
          DO i = 1, hmod%n
             rf = hmod%rr(i)*f
             sig = sigma(rf, a, hmod%flag_sigma, cosm)
             hmod%sigf(i) = sig
          END DO   
       ELSE
-         STOP 'ZCOLL_BULLOCK: Error, something went wrong'
+         STOP 'ZCOLL_BULLOCK: Error, halo concentration model specified incorrectly'
       END IF
 
       ! I don't think this is really consistent with dc varying as a function of z
@@ -6629,7 +6670,7 @@ CONTAINS
 
       wkn = wk
       sb = HMcode_sbar(cosm, hmod)
-      wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm) ! Account for 'gas expulsion'   
+      wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm)   ! Account for 'gas expulsion'   
       wkn = wkn*(1.-sb)+sb*m/comoving_matter_density(cosm) ! Account for star formation
 
       baryonify_wk = wkn
@@ -6649,7 +6690,7 @@ CONTAINS
       wko = wk
       sb = HMcode_sbar(cosm, hmod)
       wko = (wko-sb*m/comoving_matter_density(cosm))/(1.-sb) ! Subtract 'stars'
-      wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm) ! Remove 'gas expulsion'
+      wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm)     ! Remove 'gas expulsion'
 
       unbaryonify_wk = wko
 
@@ -9513,8 +9554,12 @@ CONTAINS
    REAL FUNCTION HMcode_AMF(hmod)
 
       TYPE(halomod), INTENT(IN) :: hmod
-
+      !REAL :: x
+  
       HMcode_AMF = hmod%Amf+hmod%Amfz*hmod%z
+
+      !x = hmod%ncur
+      !HMcode_AMF = hmod%Amf+hmod%Amfz*x
 
    END FUNCTION HMcode_AMF
 
