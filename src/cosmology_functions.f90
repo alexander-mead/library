@@ -1403,7 +1403,7 @@ CONTAINS
       ! Calcualtes derived parameters
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: Xs, f1, f2
+      REAL :: Xs, f1, f2, neff_constant
       REAL :: rho_g, Om_g_h2, f_nu_rad
       REAL, PARAMETER :: small = small_curve ! Some small number for writing curvature things
 
@@ -1421,12 +1421,13 @@ CONTAINS
 
       ! Calculate radiation density (includes photons and neutrinos at recombination)
       cosm%T_nu = cosm%T_CMB*(4./11.)**(1./3.)           ! Neutrino temperature [K]
-      rho_g = (4.*SBconst*cosm%T_CMB**4/c_light**3)      ! Photon physical density at z=0 from CMB temperature [kg/m^3]
+      rho_g = 4.*SBconst*cosm%T_CMB**4/c_light**3        ! Photon physical density at z=0 from CMB temperature [kg/m^3]
       Om_g_h2 = rho_g/critical_density                   ! Photon cosmological density [h^2]
       cosm%Om_g = Om_g_h2/cosm%h**2                      ! Photon density parameter
-      cosm%Om_nu_rad = cosm%Om_g*neff_constant*cosm%neff ! Relativisitic neutrino density (assuming they never behave like matter)
+      neff_constant = (7./8.)*(4./11.)**(4./3.)          ! Number that converted photon density to neutrino density (~ 0.2271)
+      cosm%Om_nu_rad = cosm%Om_g*cosm%neff*neff_constant ! Relativisitic neutrino density (assuming they never behave like radiation always)
       cosm%Om_r = cosm%Om_g+cosm%Om_nu_rad               ! Radiation is sum of photon and neutrino densities
-      f_nu_rad = cosm%Om_nu_rad/cosm%Om_r                ! Fraction of radiation that is in neutrinos (~0.40)
+      f_nu_rad = cosm%Om_nu_rad/cosm%Om_r                ! Fraction of radiation that is neutrinos (~0.40)
 
       ! Information about how radiation density is calculated
       IF (cosm%verbose) THEN
@@ -1450,6 +1451,7 @@ CONTAINS
 !!$    END IF
 
       ! Massive neutrinos
+      ! TODO: Add support for separate species
       IF (cosm%m_nu == 0.) THEN
          cosm%Om_nu = cosm%Om_nu_rad
          cosm%a_nu = 1. ! TODO: Should this be larger?
@@ -2116,7 +2118,7 @@ CONTAINS
       CALL fill_array_log(amin, amax, a, na)
       ALLOCATE (gk(nk, na))
 
-      !Initial condtions for the EdS growing mode
+      ! Initial condtions for the EdS growing mode
       dinit = aini_ode
       vinit = 1.
 
