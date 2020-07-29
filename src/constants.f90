@@ -64,7 +64,6 @@ MODULE constants
    REAL, PARAMETER :: yfac = sigma_T/(me*c_light**2)                       ! sigma_T/m_e*c^2 [kg^-1 s^2], prefactor of Compton-y integral over *pressure*
    REAL, PARAMETER :: dc0 = (3./20.)*(12.*pi)**(2./3.)                     ! Einstein-de Sitter linear collapse density ~1.686
    REAL, PARAMETER :: Dv0 = 18.*pi**2                                      ! Einsten-de Sitter virialised collapse threshold ~178
-   REAL, PARAMETER :: neff_constant = (7./8.)*(4./11.)**(4./3.)            ! Constant that appears in temperature formulae with neutrinos (~ 0.2271)
    
    !!
 
