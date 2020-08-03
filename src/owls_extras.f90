@@ -583,7 +583,7 @@ CONTAINS
 
    END FUNCTION VD20_dmonly_counterpart
 
-   INTEGER FUNCTION VD20_get_cosmology(sim) 
+   INTEGER FUNCTION VD20_get_cosmology(sim)
 
       USE string_operations
       CHARACTER(len=*), INTENT(IN) :: sim
@@ -611,6 +611,7 @@ CONTAINS
       ELSE IF (string_in_string('nu0.48_Planck2015', sim)) THEN
          VD20_get_cosmology = 95
       ELSE
+         WRITE(*, *) 'VD20_GET_COSMOLOGY: Simulation name: ', trim(sim)
          STOP 'VD20_GET_COSMOLOGY: Error, VD20 simulation name not recognised'
       END IF
 
