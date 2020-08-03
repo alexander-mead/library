@@ -38,7 +38,7 @@ CONTAINS
 
       string_in_string = .FALSE.
 
-      DO i = 1, l2-l1
+      DO i = 1, l2-l1+1
          IF (trim(str1) == str2(i:i+l1-1)) THEN
             string_in_string = .TRUE.
             EXIT
