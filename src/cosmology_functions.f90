@@ -1832,14 +1832,16 @@ CONTAINS
       ! Critical mass for neutrino density to close Universe [eV] 
       ! Roughly 94.1 eV, or is it 93.03 eV, or 93.14 eV?; https://arxiv.org/pdf/1812.02102.pdf
       ! Not really a constant because it depends on T_CMB, and also maybe Neff?
-      ! TODO: Should there be a factor of Neff/N (~3.046/3) here?
+      ! TODO: Should there be a factor of Neff/N (~3.046/3)^(3/4) here (gives 93.14 eV)?
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: C
 
       C = (14./11.)*180.*Riemann_3/(7.*pi**4)
       C = C*SBconst*cosm%T_CMB**3/(kB*critical_density*c_light)
-      C = C*eV/c_light**2
-      neutrino_constant = 1./C
+      C = C*eV/c_light**2  
+      C = 1./C
+      !C = C*(cosm%neff/3.)**0.75 ! This converts 94.1 -> 93.14 eV
+      neutrino_constant = C
 
    END FUNCTION neutrino_constant
 
