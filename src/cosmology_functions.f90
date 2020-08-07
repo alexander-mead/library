@@ -350,7 +350,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: dewiggle_tophat = 1   ! Top-hat smoothing
    INTEGER, PARAMETER :: dewiggle_Gaussian = 2 ! Gaussian smoothing
 
-   ! Lagrange polynomial options
+   ! Wiggle Lagrange polynomial options
    REAL, PARAMETER :: kwig_points(4) = [0.008, 0.01, 0.8, 1.] ! Points in k for Lagrange polynomial TODO: Remove
 
    ! Linear power spectrum smoothing methods  
@@ -522,7 +522,7 @@ CONTAINS
       names(7)  = 'IDE I'
       names(8)  = 'IDE II'
       names(9)  = 'IDE III'
-      names(10) = ''
+      names(10) = 'Random neutrinoless Mira Titan cosmology'
       names(11) = 'nDGP - Strong'
       names(12) = 'nDGP - Medium'
       names(13) = 'nDGP - Weak'
@@ -612,6 +612,7 @@ CONTAINS
       names(97) = 'WMAP9 (BAHAMAS AGN 7.6; CAMB)'
       names(98) = 'WMAP9 (BAHAMAS AGN 8.0; CAMB)'
       names(99) = 'Boring but with no-wiggle linear power'
+      names(238) = 'Random Mira Titan cosmology with constant dark energy'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1054,10 +1055,12 @@ CONTAINS
             cosm%astar = 0.1
             cosm%Om_ws = 0.02
          END IF
-      ELSE IF (icosmo == 24) THEN
+      ELSE IF (icosmo == 10 .OR. icosmo == 24 .OR. icosmo == 238) THEN
          ! Random Mira Titan cosmology
          CALL random_Mira_Titan_cosmology(cosm)
          cosm%itk = itk_CAMB ! Set to CAMB linear power
+         IF (icosmo == 10)  cosm%m_nu = 0. ! No massive neutrinos
+         IF (icosmo == 238) cosm%wa = 0.   ! No time-varying dark energy
       ELSE IF (icosmo == 25) THEN
          ! Random Franken Emu cosmology
          CALL random_Franken_Emu_cosmology(cosm)
@@ -6459,8 +6462,8 @@ CONTAINS
       REAL, PARAMETER :: om_b_min = 0.0215
       REAL, PARAMETER :: om_b_max = 0.0235
 
-      REAL, PARAMETER :: om_nu_min = 0.00
-      REAL, PARAMETER :: om_nu_max = 0.01
+      REAL, PARAMETER :: om_nu_min = 1e-4
+      REAL, PARAMETER :: om_nu_max = 1e-2
 
       REAL, PARAMETER :: n_min = 0.85
       REAL, PARAMETER :: n_max = 1.05
@@ -7390,11 +7393,11 @@ CONTAINS
    SUBROUTINE HALOFIT(rk, rn, rncur, rknl, pli, pnl, pq, ph, a, cosm, ihf)
 
       ! Calculates the HALOFIT power spectrum after rn, rncur and rknl have been pre-calculated
-      ! ihf = 1 - Smith et al. 2003 (astro-ph/0207664)
-      ! ihf = 2 - Bird et al. 2012
-      ! ihf = 3 - Takahashi et al. 2012
-      ! ihf = 4 - Takahashi et al. but taken from CAMB with some neutrino stuff
-      ! ihf = 5 - Takahashi et al. but taken from CLASS with some neutrino stuff (https://github.com/cmbant/CAMB/issues/44)
+      ! Smith et al. (2003 ;astro-ph/0207664)
+      ! Bird et al. (2012)
+      ! Takahashi et al. (2012)
+      ! Takahashi et al. (2012) but taken from CAMB with some neutrino stuff
+      ! Takahashi et al. (2012) but taken from CLASS with some neutrino stuff (https://github.com/cmbant/CAMB/issues/44)
       IMPLICIT NONE
       REAL, INTENT(IN) :: rk
       REAL, INTENT(IN) :: rn
@@ -7453,11 +7456,19 @@ CONTAINS
          aa = 10**(1.4861+1.83693*rn+1.67618*rn**2+0.7940*rn**3+0.1670756*rn**4-0.620695*rncur)
          bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.940*rncur)
          cc = 10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)
-         gam = 0.86485+0.2989*rn+0.1631*rncur+0.316-0.0765*rn-0.835*rncur ! Bird equation (A5), last 3 terms are new
+         gam = 0.86485+0.2989*rn+0.1631*rncur+0.316-0.0765*rn-0.835*rncur ! Bird equation (A5), last 3 terms are new       
          alpha = 1.38848+0.3701*rn-0.1452*rn**2
-         beta = 0.8291+0.9854*rn+0.3400*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10), fnu term is new
+         beta = 0.8291+0.9854*rn+0.3400*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10), fnu term is new  
          mu = 10**(-3.54419+0.19086*rn)
          nu = 10**(0.95897+1.2857*rn)
+         !aa = 10**(1.4861+1.83693*rn+1.67618*rn**2+0.7940*rn**3+0.1670756*rn**4-0.620695*rncur)
+         !bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.940*rncur)
+         !cc = 10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)
+         !gam = 0.86485+0.2989*rn+0.1631*rncur+0.3159-0.0765*rn-0.8350*rncur ! Bird equation (A5), last 3 terms are new
+         !alpha = 1.38848+0.3701*rn-0.1452*rn**2
+         !beta = 0.8291+0.9854*rn+0.3400*rn**2+fnu*(-6.4868+1.4373*rn**2) ! Bird equation (A10), fnu term is new
+         !mu = 10**(-3.54419+0.19086*rn)
+         !nu = 10**(0.95897+1.2857*rn)
       ELSE IF (ihf == HALOFIT_Takahashi) THEN
          ! Takahashi et al. (2012); complete refit, all parameters different from Smith et al. (2003)
          aa = 10**(1.5222+2.8553*rn+2.3706*rn**2+0.9903*rn**3+0.2250*rn**4-0.6038*rncur+0.1749*Om_vz*(1.+wz)) ! Takahashi equation (A6)
@@ -7527,7 +7538,7 @@ CONTAINS
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Bird equation (A1)
          Q = fnu*(2.080-12.4*(Om_m-0.3))/(1.+(1.2e-3)*y**3)   ! Bird equation (A6); note Omega_m term
          ph = ph*(1.+Q)                                       ! Bird equation (A7)
-         pq = pli*(1.+(26.3*fnu*rk**2)/(1.+1.5*rk**2))       ! Bird equation (A9)
+         pq = pli*(1.+(26.3*fnu*rk**2)/(1.+1.5*rk**2))        ! Bird equation (A9)
          pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)        ! Bird equation (A8)
       ELSE IF (ihf == HALOFIT_Takahashi) THEN
          ! Takahashi et al. (2012)
