@@ -38,6 +38,7 @@ MODULE HMx
    PUBLIC :: calculate_HMx_old ! TODO: Replace sometime, but Tilman uses this
    PUBLIC :: calculate_HMx_a   ! TODO: Remove from public (hard task)
    PUBLIC :: calculate_HMcode
+   PUBLIC :: calculate_HMcode_full
    PUBLIC :: calculate_halomod
    PUBLIC :: calculate_halomod_full
    PUBLIC :: calculate_halomod_response
@@ -226,6 +227,7 @@ MODULE HMx
    PUBLIC :: param_HMcode_fM
    PUBLIC :: param_HMcode_fD
    PUBLIC :: param_HMcode_zD
+   PUBLIC :: param_HMcode_Az
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -311,9 +313,9 @@ MODULE HMx
       LOGICAL :: DMONLY_neutrinos_affect_virial_radius
 
       ! HMcode (2020) parameters
-      REAL :: kd, kdp, Ap, Ac, kp, nd, alp2, fM, fD, zD
+      REAL :: kd, kdp, Ap, Ac, kp, nd, alp2, fM, fD, zD, Az
       REAL :: mbar, nbar, sbar, mbarz, sbarz
-      REAL :: mbar_T, As_T, sbar_T, mbarz_T, sbarz_T
+      REAL :: mbar_T, As_T, sbar_T, mbarz_T, sbarz_T, Az_T
 
       ! Halo types
       INTEGER :: halo_DMONLY, halo_CDM, halo_normal_bound_gas, halo_cold_bound_gas, halo_hot_bound_gas, halo_ejected_gas
@@ -398,7 +400,9 @@ MODULE HMx
    REAL, PARAMETER :: HMcode_alpha_min = 0.5  ! Minimum value for alpha transition parameter
    REAL, PARAMETER :: HMcode_alpha_max = 2.0  ! Maximum value for alpha transition parameter
    REAL, PARAMETER :: HMcode_ks_limit = 7.    ! Limit for (k/k*)^2 in one-halo term
-   LOGICAL, PARAMETER :: renormalise_onehalo = .FALSE.
+
+   ! HMcode baryon model
+   LOGICAL, PARAMETER :: renormalise_onehalo = .FALSE. ! Enforce that one-halo amplitude is unaffected by mass loss
 
    ! HMx
    REAL, PARAMETER :: HMx_alpha_min = 1e-2 ! Minimum alpha parameter; needs to be set at not zero
@@ -545,7 +549,8 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_fM = 68
    INTEGER, PARAMETER :: param_HMcode_fD = 69
    INTEGER, PARAMETER :: param_HMcode_zD = 70
-   INTEGER, PARAMETER :: param_n = 70
+   INTEGER, PARAMETER :: param_HMcode_Az = 71
+   INTEGER, PARAMETER :: param_n = 71
 
    ! HMcode versions
    INTEGER, PARAMETER :: HMcode2015 = 7
@@ -557,7 +562,7 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2018 = 53
    INTEGER, PARAMETER :: HMcode2019 = 15
    INTEGER, PARAMETER :: HMcode2020 = 79
-   INTEGER, PARAMETER :: HMcode2020_baryons = 102
+   INTEGER, PARAMETER :: HMcode2020_baryons = 103
 
    ! HMx versions
    INTEGER, PARAMETER :: HMx2020_matter_with_temperature_scaling = 60
@@ -680,6 +685,7 @@ CONTAINS
       names(101) = 'Standard but with spherical collapse calculation'
       names(102) = 'HMcode (2020) baryon model'
       names(103) = 'HMcode (2020) baryon model response'
+      names(104) = 'HMcode (2020) baryon model using HMx language'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -887,7 +893,7 @@ CONTAINS
       ! Different Gamma parameter for pressure and density
       hmod%different_Gammas = .FALSE.
 
-      ! Cenrtal stars halo profile
+      ! Central stars halo profile
       ! 1 - Fedeli (2014) stellar distribution
       ! 2 - Schneider & Teyssier (2015) stellar distribution
       ! 3 - Delta function
@@ -958,16 +964,17 @@ CONTAINS
       hmod%nd = 0.
       hmod%Ap = 0.
       hmod%Ac = 0.
+      hmod%Az = 0.
       hmod%alp2 = 0.
       hmod%fM = 0.01
       hmod%fD = 1.
-      hmod%zD = 100.
+      hmod%zD = 100.   
 
       ! HMcode (2020) baryon recipe
       hmod%DMONLY_baryon_recipe = .FALSE.     
       hmod%mbar = 1e14
       hmod%nbar = 2.
-      hmod%sbar = 1e-5 ! Problems with fitting if set to zero due to log
+      hmod%sbar = 1e-3 ! Problems with fitting if set to zero due to log
       hmod%mbarz = 0.
       hmod%sbarz = 0.
       hmod%Amfz = 0.
@@ -976,6 +983,7 @@ CONTAINS
       hmod%sbar_T = 0.
       hmod%mbarz_T = 0.
       hmod%sbarz_T = 0.
+      hmod%Az_T = 0.
 
       ! ~infinite redshift for Dolag correction
       !hmod%zinf_Dolag = 10.
@@ -983,8 +991,8 @@ CONTAINS
       ! Baryon model (relates eta0 and A)
       hmod%one_parameter_baryons = .FALSE.
 
-      ! HMx parameters
-      ! 1 - NOT USED
+      ! HMx parameters dependence on redshift and AGN temperature
+      ! 1 - HMcode 2020
       ! 2 - NOT USED
       ! 3 - Standard
       ! 4 - NOT SUPPORTED
@@ -1800,13 +1808,14 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
-      ELSE IF (ihm == 77 .OR. ihm == 78 .OR. ihm == 79 .OR. ihm == 102 .OR. ihm == 103) THEN
+      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104])) THEN
          ! HMcode (2020)
          !  77 - Unfitted
          !  78 - Fitted to Cosmic Emu for k<1
          !  79 - Fitted
          ! 102 - Fitted with baryon model
          ! 103 - Baryon model in response
+         ! 104 - Baryon model using HMx language
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 5  ! 5 - HMcode 2020 alpha smoothing
@@ -1819,7 +1828,7 @@ CONTAINS
          hmod%ieta = 3    ! 3 - HMcode 2020 eta bloating
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
-         hmod%zD = 10.    ! 100 vs 10 makes a difference for EDE-type cosmologies
+         hmod%zD = 10. ! 100 vs 10 makes a difference for EDE-type cosmologies
          IF (ihm == 78) THEN
             ! Model 1: 0.00704 for Cosmic Emu (old de-wiggle)
             !hmod%f0 = 0.2221080
@@ -1949,20 +1958,50 @@ CONTAINS
             hmod%sbarz_T = -0.12670
          END IF
          IF (ihm == 103) THEN
-            ! 103 - Response baryon recipe
+            ! 103 - HMcode response baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
             hmod%response_baseline = HMcode2020
             hmod%response_denominator = 77
-            hmod%As = 3.42
-            hmod%mbar = 10**13.83
-            hmod%mbarz = -0.254
-            hmod%sbar = 0.0231
-            hmod%sbarz = 1.076
-            hmod%As_T = -0.293
-            hmod%mbar_T = 1.800
-            hmod%mbarz_T = -0.219
-            hmod%sbar_T = -0.0061
-            hmod%sbarz_T = 0.106
+            !hmod%As = 3.42
+            !hmod%mbar = 10**13.83
+            !hmod%mbarz = -0.254
+            !hmod%sbar = 0.0231
+            !hmod%sbarz = 1.076
+            !hmod%As_T = -0.293
+            !hmod%mbar_T = 1.800
+            !hmod%mbarz_T = -0.219
+            !hmod%sbar_T = -0.0061
+            !hmod%sbarz_T = 0.106
+            hmod%As = 3.44
+            hmod%Az = -0.0671
+            hmod%mbar = 10**13.87
+            hmod%mbarz = -0.108
+            hmod%sbar = 0.0201
+            hmod%sbarz = 0.409
+            hmod%As_T = -0.496
+            hmod%Az_T = -0.0371
+            hmod%mbar_T = 1.81
+            hmod%mbarz_T = 0.195
+            hmod%sbar_T = -0.0030
+            hmod%sbarz_T = 0.0224
+         END IF
+         IF (ihm == 104) THEN
+            ! 104 - HMx response baryon model
+            hmod%response_baseline = HMcode2020   
+            hmod%HMx_mode = 1              ! 1 - HMcode 2020 scalings with z and T_AGN         
+            hmod%frac_bound_gas = 2        ! 2 - Schneider & Teyssier 2015 baryon fraction
+            hmod%frac_stars = 2            ! 2 - Constant fraction of halo in stars
+            hmod%frac_central_stars = 1    ! 1 - All stars are central stars
+            hmod%halo_normal_bound_gas = 4 ! 4 - Bound gas is NFW
+            hmod%halo_ejected_gas = 7      ! 7 - Ejected gas is smooth
+            hmod%halo_central_stars = 3    ! 3 - Central stars are delta function
+            hmod%normalise_baryons = 2     ! 2 - Limit baryon reserves for gas
+            hmod%eps = -1.+3.42/4.
+            hmod%gbeta = 2.
+            hmod%M0 = 10**13.83
+            hmod%Astar = 0.0231
+            hmod%M0z = -0.254
+            hmod%Astarz = 1.076
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
@@ -2474,8 +2513,8 @@ CONTAINS
          ! Large-scale one-halo term damping function
          IF (hmod%i1hdamp == 0) WRITE (*, *) 'HALOMODEL: No damping in one-halo term at large scales'
          IF (hmod%i1hdamp == 1) WRITE (*, *) 'HALOMODEL: One-halo large-scale damping via an exponential'
-         IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo large-scale damping P(k) ~ k^4 with simple k'
-         IF (hmod%i1hdamp == 3) WRITE (*, *) 'HALOMODEL: One-halo large-scale damping P(k) ~ k^4 with complex k'
+         IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^4 with simple k*'
+         IF (hmod%i1hdamp == 3) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^4 with parameterised k*'
 
          ! Concentration-mass scaling
          IF (hmod%iAs == 0) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
@@ -2559,6 +2598,7 @@ CONTAINS
          WRITE (*, fmt=fmt) 'As:', hmod%As
          WRITE (*, fmt=fmt) 'Ap:', hmod%Ap
          WRITE (*, fmt=fmt) 'Ac:', hmod%Ac
+         WRITE (*, fmt=fmt) 'Az:', hmod%Az
          WRITE (*, fmt=fmt) 'alpha0:', hmod%alp0
          WRITE (*, fmt=fmt) 'alpha1:', hmod%alp1
          WRITE (*, fmt=fmt) 'alpha2:', hmod%alp2
@@ -2568,7 +2608,11 @@ CONTAINS
          WRITE (*, fmt=fmt) 'Dvnu:', hmod%Dvnu
          WRITE (*, fmt=fmt) 'dcnu:', hmod%dcnu
          IF (hmod%DMONLY_baryon_recipe) THEN
-            WRITE (*, fmt=fmt) 'log10(M_bar) [Msun/h]:', log10(hmod%mbar)
+            IF (hmod%mbar == 0.) THEN
+               WRITE (*, fmt=fmt) 'M_bar [Msun/h]:', hmod%mbar
+            ELSE
+               WRITE (*, fmt=fmt) 'log10(M_bar) [Msun/h]:', log10(hmod%mbar)
+            END IF
             WRITE (*, fmt=fmt) 'm_bar z:', hmod%mbarz
             WRITE (*, fmt=fmt) 'n_bar:', hmod%nbar
             WRITE (*, fmt=fmt) 's_bar:', hmod%sbar
@@ -2586,7 +2630,24 @@ CONTAINS
          WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: HMx parameters'
          WRITE (*, *) dashes
-         IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
+         IF (hmod%HMx_mode == 4) STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+         IF (hmod%HMx_mode == 1) THEN
+            WRITE (*, fmt=fmt) 'eps:', HMx_eps(hmod, cosm)
+            WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(HMx_M0(hmod, cosm))
+            WRITE (*, fmt=fmt) 'beta:', HMx_beta(hmod%Mh, hmod, cosm)
+            WRITE (*, fmt=fmt) 'A*:', HMx_Astar(hmod, cosm)
+            WRITE (*, *) dashes
+            WRITE (*, fmt=fmt) 'eps:', hmod%eps  
+            IF (hmod%M0 == 0.) THEN 
+               WRITE (*, fmt=fmt) 'M0 [Msun/h]:', hmod%M0
+            ELSE   
+               WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(hmod%M0)
+            END IF
+            WRITE (*, fmt=fmt) 'M0 z index:', hmod%M0z         
+            WRITE (*, fmt=fmt) 'beta:', hmod%beta         
+            WRITE (*, fmt=fmt) 'A*:', hmod%Astar
+            WRITE (*, fmt=fmt) 'A* z index:', hmod%Astarz       
+         ELSE IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
             WRITE (*, fmt=fmt) 'alpha:', hmod%alpha
             WRITE (*, fmt=fmt) 'alpha mass index:', hmod%alphap
             WRITE (*, fmt=fmt) 'alpha z index:', hmod%alphaz
@@ -2600,11 +2661,19 @@ CONTAINS
             WRITE (*, fmt=fmt) 'Gamma:', hmod%Gamma
             WRITE (*, fmt=fmt) 'Gamma mass index:', hmod%Gammap
             WRITE (*, fmt=fmt) 'Gamma z index:', hmod%Gammaz
-            WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(hmod%M0)
+            IF (hmod%M0 == 0.) THEN
+               WRITE (*, fmt=fmt) 'M0 [Msun/h]:', hmod%M0
+            ELSE
+               WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(hmod%M0)
+            END IF
             WRITE (*, fmt=fmt) 'M0 z index:', hmod%M0z
             WRITE (*, fmt=fmt) 'A*:', hmod%Astar
             WRITE (*, fmt=fmt) 'A* z index:', hmod%Astarz
-            WRITE (*, fmt=fmt) 'log10(T_WHIM) [K]:', log10(hmod%Twhim)
+            IF (hmod%Twhim == 0.) THEN
+               WRITE (*, fmt=fmt) 'T_WHIM [K]:', hmod%Twhim
+            ELSE
+               WRITE (*, fmt=fmt) 'log10(T_WHIM) [K]:', log10(hmod%Twhim)
+            END IF
             WRITE (*, fmt=fmt) 'T_WHIM z index:', hmod%Twhimz
             WRITE (*, fmt=fmt) 'c*:', hmod%cstar
             WRITE (*, fmt=fmt) 'c* mass index:', hmod%cstarp
@@ -2621,10 +2690,8 @@ CONTAINS
             WRITE (*, fmt=fmt) 'iso beta z index:', hmod%ibetaz
             WRITE (*, fmt=fmt) 'beta gas:', hmod%gbeta   
             WRITE (*, fmt=fmt) 'beta gas z index:', hmod%gbetaz
-         ELSE IF (hmod%HMx_mode == 4 .OR. hmod%HMx_mode == 6) THEN         
-            !IF(hmod%HMx_mode == 4) WRITE (*, fmt=fmt) 'log10(T_heat) [K]:', log10(hmod%Theat)
-            IF (hmod%HMx_mode == 4) STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
-            IF (hmod%HMx_mode == 6) WRITE (*, fmt=fmt) 'log10(T_heat) [K]:', log10(cosm%Theat)
+         ELSE IF (hmod%HMx_mode == 6) THEN         
+            WRITE (*, fmt=fmt) 'log10(T_heat) [K]:', log10(cosm%Theat)
             WRITE (*, fmt=fmt) 'alpha:', HMx_alpha(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'beta:', HMx_beta(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'epsilon:', HMx_eps(hmod, cosm)
@@ -4822,7 +4889,11 @@ CONTAINS
          !x = sigma(8., hmod%a, flag_ucold, cosm)
          n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
          !y = effective_curvature(hmod%flag_sigma, hmod, cosm)
-         HMcode_alpha = hmod%alp0*(hmod%alp1**n_eff)    ! Relation 1
+         IF (hmod%alp1 == 0.) THEN
+            HMcode_alpha = hmod%alp0
+         ELSE
+            HMcode_alpha = hmod%alp0*(hmod%alp1**n_eff)    ! Relation 1
+         END IF
          !HMcode_alpha = hmod%alp0+x*hmod%alp1       ! Relation 2
          !HMcode_alpha = hmod%alp0*abs(x)**hmod%alp1 ! Relation 3
          !HMcode_alpha = hmod%alp0+hmod%alp1*x+hmod%alp2*x**2
@@ -4875,7 +4946,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: sig, As
+      REAL :: sig, As, Az
 
       IF (hmod%iAs == 0) THEN
          ! Set to 4 for the standard Bullock value
@@ -4888,10 +4959,12 @@ CONTAINS
          sig = sigma(8., hmod%a, flag_ucold, cosm)
          IF (hmod%DMONLY_baryon_recipe) THEN
             As = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%As_T, hmod%As)
+            Az = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%Az_T, hmod%Az)
          ELSE
             As = hmod%As
+            Az = hmod%Az
          END IF
-         HMcode_A = As*(sig**hmod%Ap)+hmod%Ac
+         HMcode_A = (As*(sig**hmod%Ap)+hmod%Ac)*10**(hmod%z*Az)
       ELSE
          STOP 'HMcode_A: Error, iAs defined incorrectly'
       END IF
@@ -4926,8 +4999,7 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: z, T, A, B, C, D, E, Mpiv, alpha, alphap, alphaz
 
-      IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-    
+      IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN   
          IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
             alpha = hmod%alpha
             alphap = hmod%alphap
@@ -4939,7 +5011,6 @@ CONTAINS
          ELSE
             STOP 'HMx_ALPHA: Error, HMx_mode not specified correctly'
          END IF
-
          Mpiv = pivot_mass(hmod)
          z = hmod%z
          IF (hmod%HMx_mode == 3) THEN
@@ -4949,7 +5020,6 @@ CONTAINS
          ELSE
             STOP 'HMx_ALPHA: Error, HMx_mode not specified correctly'
          END IF
-
       ELSE IF (hmod%HMx_mode == 4) THEN
          STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_alpha
@@ -4963,7 +5033,7 @@ CONTAINS
          HMx_alpha = (A*(1.+z)**2+B*(1.+z)+C)*T**2+D*T+E
          HMx_alpha = HMx_alpha/(1.+z) ! NEW: (1+z) accounts for previous wrong definition of temperature
       ELSE
-         STOP 'HMx_ALPHA: Error, HMx_mode not specified correctly'
+         HMx_alpha = hmod%alpha
       END IF
 
       CALL fix_minimum(HMx_alpha, HMx_alpha_min)
@@ -4978,7 +5048,7 @@ CONTAINS
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: z, Mpiv, beta, betaz, betap
-
+    
       IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
          beta = hmod%beta
          betap = hmod%betap
@@ -4989,7 +5059,7 @@ CONTAINS
       ELSE IF (hmod%HMx_mode == 4) THEN
          HMx_beta = HMx_alpha(m, hmod, cosm)
       ELSE
-         STOP 'HMx_BETA: Error, HMx_mode not specified correctly'
+         HMx_beta = hmod%beta
       END IF
 
       CALL fix_minimum(HMx_beta, HMx_beta_min)
@@ -5005,7 +5075,6 @@ CONTAINS
       REAL :: z, T, A, B, C, D, eps, epsz
 
       IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-
          IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
             eps = hmod%eps
             epsz = hmod%epsz
@@ -5015,7 +5084,6 @@ CONTAINS
          ELSE
             STOP 'HMx_EPS: Error, HMx_mode not specified correctly'
          END IF
-
          z = hmod%z
          IF(hmod%HMx_mode == 3) THEN
             HMx_eps = eps*(1.+z)**epsz
@@ -5024,7 +5092,6 @@ CONTAINS
          ELSE
             STOP 'HMx_EPS: Error, HMx_mode not specified correctly'
          END IF 
-
       ELSE IF (hmod%HMx_mode == 4) THEN
          STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_eps
@@ -5036,7 +5103,7 @@ CONTAINS
          HMx_eps = A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_eps = 10**HMx_eps-1.
       ELSE
-         STOP 'HMx_EPS: Error, HMx_mode not specified correctly'
+         HMx_eps = hmod%eps
       END IF
 
       CALL fix_minimum(HMx_eps, HMx_eps_min)
@@ -5051,18 +5118,23 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: z, eps2, eps2z
 
-      IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4 .OR. hmod%HMx_mode == 5) THEN
-         eps2 = hmod%eps2
-         eps2z = hmod%eps2z
-      ELSE IF (hmod%HMx_mode == 6) THEN
-         eps2 = HMx2020_Temperature_scaling(hmod%eps2_array, hmod, cosm)
-         eps2z = HMx2020_Temperature_scaling(hmod%eps2z_array, hmod, cosm)
+      IF (hmod%HMx_mode == 1) THEN
+         HMx_eps2 = HMx_eps(hmod, cosm)
+      ELSE IF (is_in_array(hmod%HMx_mode, [3, 4, 5, 6])) THEN
+         IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4 .OR. hmod%HMx_mode == 5) THEN
+            eps2 = hmod%eps2
+            eps2z = hmod%eps2z
+         ELSE IF (hmod%HMx_mode == 6) THEN
+            eps2 = HMx2020_Temperature_scaling(hmod%eps2_array, hmod, cosm)
+            eps2z = HMx2020_Temperature_scaling(hmod%eps2z_array, hmod, cosm)
+         ELSE
+            STOP 'HMX_EPS2: Error, something went wrong'
+         END IF        
+         z = hmod%z
+         HMx_eps2 = eps2+z*eps2z
       ELSE
-         STOP 'HMx_EPS: Error, HMx_mode not specified correctly'
+         HMx_eps2 = hmod%eps2
       END IF
-      
-      z = hmod%z
-      HMx_eps2 = eps2+z*eps2z
 
    END FUNCTION HMx_eps2
 
@@ -5076,7 +5148,6 @@ CONTAINS
       REAL :: z, T, A, B, C, D, E, Mpiv, Gamma, Gammap, Gammaz
 
       IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-
          IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
             Gamma = hmod%Gamma
             Gammap = hmod%Gammap
@@ -5088,7 +5159,6 @@ CONTAINS
          ELSE
             STOP 'HMx_GAMMA: Error, HMx_mode not specified correctly'
          END IF 
-
          Mpiv = pivot_mass(hmod)
          z = hmod%z
          IF (hmod%HMx_mode == 3) THEN
@@ -5098,7 +5168,6 @@ CONTAINS
          ELSE
             STOP 'HMx_GAMMA: Error, HMx_mode not specified correctly'
          END IF
-
       ELSE IF (hmod%HMx_mode == 4) THEN
          STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_Gamma
@@ -5111,7 +5180,7 @@ CONTAINS
          !HMx_Gamma=A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_Gamma = (A*(1.+z)**2+B*(1.+z)+C)*T**2+D*T+E
       ELSE
-         STOP 'HMx_GAMMA: Error, HMx_mode not specified correctly'
+         HMx_Gamma = hmod%Gamma
       END IF
 
       CALL fix_minimum(HMx_Gamma, HMx_Gamma_min)
@@ -5129,13 +5198,9 @@ CONTAINS
       REAL :: z, Mpiv, Zamma, Zammap, Zammaz
 
       IF (.NOT. hmod%different_Gammas) THEN
-
          HMx_Zamma = HMx_Gamma(m, hmod, cosm)
-
       ELSE
-
          IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-
             IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
                Zamma = hmod%Zamma
                Zammap = hmod%Zammap
@@ -5147,7 +5212,6 @@ CONTAINS
             ELSE
                STOP 'HMx_GAMMA_PRESSURE: Error, HMx_mode not specified correctly'
             END IF 
-
             Mpiv = pivot_mass(hmod)
             z = hmod%z
             IF (hmod%HMx_mode == 3) THEN
@@ -5157,9 +5221,8 @@ CONTAINS
             ELSE
                STOP 'HMx_GAMMA_PRESSURE: Error, HMx_mode not specified correctly'
             END IF
-
          ELSE
-            STOP 'HMx_GAMMA_PRESSURE: Error, HMx_mode not specified correctly'
+            HMx_Zamma = hmod%Zamma
          END IF
 
          CALL fix_minimum(HMx_Zamma, HMx_Gamma_min)
@@ -5177,8 +5240,15 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: z, T, A, B, C, D, E, M0, M0z
 
-      IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-
+      IF (hmod%HMx_Mode == 1) THEN
+         !IF (hmod%M0 == 0.) THEN
+         !   HMx_M0 = 0.
+         !ELSE
+         !   HMx_M0 = log10(hmod%M0)+hmod%M0z*z
+         !   HMx_M0 = 10**HMx_M0
+         !END IF
+         HMx_M0 = hmod%M0*10**(hmod%M0z*hmod%z)
+      ELSE IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
          IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
             M0 = hmod%M0
             M0z = hmod%M0z
@@ -5188,7 +5258,6 @@ CONTAINS
          ELSE
             STOP 'HMx_M0: Error, HMx_mode not specified correctly'
          END IF
-
          z = hmod%z
          IF(hmod%HMx_mode == 3) THEN
             HMx_M0 = M0**((1.+z)**M0z)
@@ -5198,7 +5267,6 @@ CONTAINS
          ELSE
             STOP 'HMx_M0: Error, HMx_mode not specified correctly'
          END IF
-
       ELSE IF (hmod%HMx_mode == 4) THEN
          STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_M0
@@ -5212,7 +5280,7 @@ CONTAINS
          HMx_M0 = (A*(1.+z)**2+B*(1.+z)+C)*T**2+D*T+E
          HMx_M0 = 10**HMx_M0
       ELSE
-         STOP 'HMx_M0: Error, HMx_mode not specified correctly'
+         HMx_M0 = hmod%M0
       END IF
 
    END FUNCTION HMx_M0
@@ -5225,8 +5293,9 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: z, T, A, B, C, D, Astar, Astarz
 
-      IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-
+      IF (hmod%HMx_mode == 1) THEN
+         HMx_Astar = hmod%Astar*(1.+hmod%Astarz*hmod%z**2)
+      ELSE IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
          IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
             Astar = hmod%Astar
             Astarz = hmod%Astarz     
@@ -5236,7 +5305,6 @@ CONTAINS
          ELSE
             STOP 'HMx_ASTAR: Error, HMx_mode not specified correctly'
          END IF
-
          z = hmod%z
          IF (hmod%HMx_mode == 3) THEN
             HMx_Astar = Astar*(1.+z)**Astarz
@@ -5245,7 +5313,6 @@ CONTAINS
          ELSE
             STOP 'HMx_ASTAR: Error, HMx_mode not specified correctly'
          END IF
-
       ELSE IF (hmod%HMx_mode == 4) THEN
          STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_Astar
@@ -5256,7 +5323,7 @@ CONTAINS
          !T = log10(hmod%Theat)
          HMx_Astar = A*(1.+z)*T+B*(1.+z)+C*T+D
       ELSE
-         STOP 'HMx_ASTAR: Error, HMx_mode not specified correctly'
+         HMx_Astar = hmod%Astar
       END IF
 
       CALL fix_minimum(HMx_Astar, HMx_Astar_min)
@@ -5272,7 +5339,6 @@ CONTAINS
       REAL :: z, T, A, B, C, D, Twhim, Twhimz
 
       IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-
          IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
             Twhim = hmod%Twhim
             Twhimz = hmod%Twhimz
@@ -5282,7 +5348,6 @@ CONTAINS
          ELSE
             STOP 'HMx_TWHIM: Error, HMx_mode not specified correctly'
          END IF
-
          z = hmod%z
          IF (hmod%HMx_mode == 3) THEN
             HMx_Twhim = Twhim**((1.+z)**Twhimz)
@@ -5292,7 +5357,6 @@ CONTAINS
          ELSE
             STOP 'HMx_TWHIM: Error, HMx_mode not specified correctly'
          END IF
-
       ELSE IF (hmod%HMx_mode == 4) THEN
          STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_Twhim
@@ -5305,7 +5369,7 @@ CONTAINS
          HMx_Twhim = (A*(1.+z)**2+B*(1.+z)+C)*T+D
          HMx_Twhim = 10**HMx_Twhim
       ELSE
-         STOP 'HMx_TWHIM: Error, HMx_mode not specified correctly'
+         HMx_Twhim = hmod%Twhim
       END IF
 
    END FUNCTION HMx_Twhim
@@ -5319,21 +5383,24 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: Mpiv, z, cstar, cstarp, cstarz
 
-      IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4 .OR. hmod%HMx_mode == 5) THEN
-         cstar = hmod%cstar
-         cstarp = hmod%cstarp
-         cstarz = hmod%cstarz
-      ELSE IF (hmod%HMx_mode == 6) THEN
-         cstar = HMx2020_Temperature_scaling(hmod%cstar_array, hmod, cosm)
-         cstarp = HMx2020_Temperature_scaling(hmod%cstarp_array, hmod, cosm)
-         cstarz = HMx2020_Temperature_scaling(hmod%cstarz_array, hmod, cosm)
+      IF (is_in_array(hmod%HMx_mode, [3, 4, 5, 6])) THEN
+         IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4 .OR. hmod%HMx_mode == 5) THEN
+            cstar = hmod%cstar
+            cstarp = hmod%cstarp
+            cstarz = hmod%cstarz
+         ELSE IF (hmod%HMx_mode == 6) THEN
+            cstar = HMx2020_Temperature_scaling(hmod%cstar_array, hmod, cosm)
+            cstarp = HMx2020_Temperature_scaling(hmod%cstarp_array, hmod, cosm)
+            cstarz = HMx2020_Temperature_scaling(hmod%cstarz_array, hmod, cosm)
+         ELSE
+            STOP 'HMx_CSTAR: Error, HMx_mode not specified correctly'
+         END IF
+         Mpiv = pivot_mass(hmod)
+         z = hmod%z
+         HMx_cstar = cstar*((m/Mpiv)**cstarp)*(1.+z)**cstarz
       ELSE
-         STOP 'HMx_CSTAR: Error, HMx_mode not specified correctly'
+         HMx_cstar = hmod%cstar
       END IF
-
-      Mpiv = pivot_mass(hmod)
-      z = hmod%z
-      HMx_cstar = cstar*((m/Mpiv)**cstarp)*(1.+z)**cstarz
 
    END FUNCTION HMx_cstar
 
@@ -5360,24 +5427,27 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: Mstar, Mstarz, z
 
-      IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4 .OR. hmod%HMx_mode == 5) THEN
-         Mstar = hmod%mstar
-         Mstarz = hmod%mstarz
-      ELSE IF (hmod%HMx_mode == 6) THEN
-         Mstar = exp(HMx2020_Temperature_scaling(log(hmod%Mstar_array), hmod, cosm))
-         Mstarz = HMx2020_Temperature_scaling(hmod%Mstarz_array, hmod, cosm)
+      IF (is_in_array(hmod%HMx_mode, [3, 4, 5, 6])) THEN
+         IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4 .OR. hmod%HMx_mode == 5) THEN
+            Mstar = hmod%mstar
+            Mstarz = hmod%mstarz
+         ELSE IF (hmod%HMx_mode == 6) THEN
+            Mstar = exp(HMx2020_Temperature_scaling(log(hmod%Mstar_array), hmod, cosm))
+            Mstarz = HMx2020_Temperature_scaling(hmod%Mstarz_array, hmod, cosm)
+         ELSE
+            STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
+         END IF
+         z = hmod%z
+         IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4) THEN
+            HMx_Mstar = Mstar**((1.+z)**Mstarz)
+         ELSE IF(hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
+            !HMx_Mstar = Mstar*(exp(Mstarz)**z)
+            HMx_Mstar = Mstar*exp(Mstarz*z)
+         ELSE  
+            STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
+         END IF
       ELSE
-         STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
-      END IF
-
-      z = hmod%z
-      IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4) THEN
-         HMx_Mstar = Mstar**((1.+z)**Mstarz)
-      ELSE IF(hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-         !HMx_Mstar = Mstar*(exp(Mstarz)**z)
-         HMx_Mstar = Mstar*exp(Mstarz*z)
-      ELSE  
-         STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
+         HMx_Mstar = hmod%Mstar
       END IF
 
    END FUNCTION HMx_Mstar
@@ -5420,23 +5490,26 @@ CONTAINS
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: eta, etaz, z
 
-      IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4 .OR. hmod%HMx_mode == 5) THEN
-         eta = hmod%eta
-         etaz = hmod%etaz
-      ELSE IF (hmod%HMx_mode == 6) THEN
-         eta = HMx2020_Temperature_scaling(hmod%eta_array, hmod, cosm)
-         etaz = HMx2020_Temperature_scaling(hmod%etaz_array, hmod, cosm)        
+      IF (is_in_array(hmod%HMx_mode, [3, 4, 5, 6])) THEN
+         IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4 .OR. hmod%HMx_mode == 5) THEN
+            eta = hmod%eta
+            etaz = hmod%etaz
+         ELSE IF (hmod%HMx_mode == 6) THEN
+            eta = HMx2020_Temperature_scaling(hmod%eta_array, hmod, cosm)
+            etaz = HMx2020_Temperature_scaling(hmod%etaz_array, hmod, cosm)        
+         ELSE
+            STOP 'HMx_ETA: Error, HMx_mode not specified correctly'
+         END IF
+         z = hmod%z
+         IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4) THEN
+            HMx_eta = eta*(1.+z)**etaz
+         ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
+            HMx_eta = eta+z*etaz
+         ELSE
+            STOP 'HMx_ETA: Error, HMx_mode not specified correctly'
+         END IF
       ELSE
-         STOP 'HMx_ETA: Error, HMx_mode not specified correctly'
-      END IF
-
-      z = hmod%z
-      IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4) THEN
-         HMx_eta = eta*(1.+z)**etaz
-      ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-         HMx_eta = eta+z*etaz
-      ELSE
-         STOP 'HMx_ETA: Error, HMx_mode not specified correctly'
+         HMx_eta = hmod%eta
       END IF
 
       IF (HMx_eta > HMx_eta_min) HMx_eta = HMx_eta_min
@@ -6480,6 +6553,111 @@ CONTAINS
 
    END FUNCTION mass_r
 
+   REAL FUNCTION baryonify_wk(wk, m, hmod, cosm)
+
+      ! Change DMONLY halo window to account for feedback mass loss and star formation
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: wk
+      REAL, INTENT(IN) :: m
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: wkn, sb
+
+      wkn = wk
+      sb = HMcode_sbar(cosm, hmod)
+      wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm) ! Account for gas expulsion
+      !wkn = wkn*(1.-sb)+sb*m/comoving_matter_density(cosm) ! MEAD: WRONG
+      wkn = wkn+sb*m/comoving_matter_density(cosm)       ! Account for star formation
+
+      baryonify_wk = wkn
+
+   END FUNCTION baryonify_wk
+
+   REAL FUNCTION unbaryonify_wk(wk, m, hmod, cosm)
+
+      ! Inverse of baryonify_wk
+      ! This is only used if windows need to be rebuilt for the two-halo term
+      ! It will not be used if the two-halo term is linear theory, or dewiggled linear
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: wk
+      REAL, INTENT(IN) :: m
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: wko, sb
+
+      wko = wk
+      sb = HMcode_sbar(cosm, hmod)
+      !wko = (wko-sb*m/comoving_matter_density(cosm))/(1.-sb) ! MEAD: WRONG
+      wko = (wko-sb*m/comoving_matter_density(cosm))     ! Subtract stars
+      wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm) ! Remove gas expulsion
+
+      unbaryonify_wk = wko
+
+   END FUNCTION unbaryonify_wk
+
+   REAL FUNCTION DMONLY_halo_mass_fraction(m, hmod, cosm)
+
+      ! Simple baryon model where high-mass haloes have a mass fraction of 1 and low-mass haloes have Omega_c/Omega_m
+      ! This also accounts for massive neutrinos since it is written in terms of Om_c and Om_b (rather than Om_m)
+      ! TODO: This is independent of k, so probably should be computed outside and k dependent function for speed
+      ! TODO: Could just precompute this once for each M in the halomod init function
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: m
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: r, fc, fb, fs, mb, n
+
+      mb = HMcode_mbar(cosm, hmod)
+      n = hmod%nbar ! Power-law index
+      r = (m/mb)**n ! If m>>m0 then r becomes large, if m<<m0 then r=0  
+      fb = cosm%Om_b/cosm%Om_m!-HMcode_sbar(cosm, hmod) ! Halo baryon fraction                              
+      fc = cosm%Om_c/cosm%Om_m ! Halo CDM fraction
+      fs = HMcode_sbar(cosm, hmod) ! Halo star fraction
+      !DMONLY_halo_mass_fraction = fc+fb*r/(1.+r) ! MEAD: Wrong
+      DMONLY_halo_mass_fraction = fc+(fb-fs)*r/(1.+r) ! Remaining halo mass fraction
+
+   END FUNCTION DMONLY_halo_mass_fraction
+
+   REAL FUNCTION HMcode_DMONLY_baryon_model(T, a1, a0)
+
+      REAL, INTENT(IN) :: T
+      REAL, INTENT(IN) :: a1
+      REAL, INTENT(IN) :: a0
+      REAL, PARAMETER :: Tmid = 7.8
+
+      HMcode_DMONLY_baryon_model = a1*(log10(T)-Tmid)+a0
+
+   END FUNCTION HMcode_DMONLY_baryon_model
+
+   REAL FUNCTION HMcode_mbar(cosm, hmod)
+
+      TYPE(cosmology), INTENT(IN) :: cosm
+      TYPE(halomod) :: hmod
+      REAL :: mbar, mbarz, z
+
+      mbar = 10.**HMcode_DMONLY_baryon_model(cosm%Theat, hmod%mbar_T, log10(hmod%mbar))
+      mbarz = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%mbarz_T, hmod%mbarz)
+      z = hmod%z
+      HMcode_mbar = mbar*10**(mbarz*z)
+
+   END FUNCTION HMcode_mbar
+
+   REAL FUNCTION HMcode_sbar(cosm, hmod)
+
+      TYPE(cosmology), INTENT(IN) :: cosm
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: sbar, sbarz, z
+
+      sbar = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%sbar_T, hmod%sbar)
+      sbarz = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%sbarz_T, hmod%sbarz)
+      z = hmod%z
+      !HMcode_sbar = sbar*(1.+sbarz*z**2)
+      HMcode_sbar = sbar*10**(z*sbarz)
+
+      CALL fix_maximum(HMcode_sbar, cosm%Om_b/cosm%Om_m)
+
+   END FUNCTION HMcode_sbar
+
    REAL FUNCTION win(real_space, ifield, k, m, rv, rs, hmod, cosm)
 
       ! Selects the halo profile type
@@ -6654,111 +6832,9 @@ CONTAINS
          win_DMONLY = baryonify_wk(win_DMONLY, m, hmod, cosm)
       ELSE IF (hmod%DMONLY_neutrino_halo_mass_correction) THEN
          win_DMONLY = win_DMONLY*(1.-cosm%f_nu)
-      END IF    
+      END IF
 
    END FUNCTION win_DMONLY
-
-   REAL FUNCTION baryonify_wk(wk, m, hmod, cosm)
-
-      ! Change DMONLY halo window to account for feedback mass loss and star formation
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: wk
-      REAL, INTENT(IN) :: m
-      TYPE(halomod), INTENT(IN) :: hmod
-      TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: wkn, sb
-
-      wkn = wk
-      sb = HMcode_sbar(cosm, hmod)
-      wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm)   ! Account for 'gas expulsion'   
-      wkn = wkn*(1.-sb)+sb*m/comoving_matter_density(cosm) ! Account for star formation
-
-      baryonify_wk = wkn
-
-   END FUNCTION baryonify_wk
-
-   REAL FUNCTION unbaryonify_wk(wk, m, hmod, cosm)
-
-      ! Inverse of baryonify_wk
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: wk
-      REAL, INTENT(IN) :: m
-      TYPE(halomod), INTENT(IN) :: hmod
-      TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: wko, sb
-
-      wko = wk
-      sb = HMcode_sbar(cosm, hmod)
-      wko = (wko-sb*m/comoving_matter_density(cosm))/(1.-sb) ! Subtract 'stars'
-      wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm)     ! Remove 'gas expulsion'
-
-      unbaryonify_wk = wko
-
-   END FUNCTION unbaryonify_wk
-
-   REAL FUNCTION DMONLY_halo_mass_fraction(m, hmod, cosm)
-
-      ! Simple baryon model where high-mass haloes have a mass fraction of 1 and low-mass haloes have Omega_c/Omega_m
-      ! This also accounts for massive neutrinos since it is written in terms of Om_c and Om_b (rather than Om_m)
-      ! TODO: This is independent of k, so probably should be computed outside and k dependent function for speed
-      ! TODO: Could just precompute this once for each M in the halomod init function
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: m
-      TYPE(halomod), INTENT(IN) :: hmod
-      TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: r, fc, fb, mb, n
-
-      mb = HMcode_mbar(cosm, hmod)
-      n = hmod%nbar   
-      r = (m/mb)**n ! If m>>m0 then r becomes large, if m<<m0 then r=0  
-      fb = cosm%Om_b/cosm%Om_m ! Halo baryon fraction                              
-      fc = cosm%Om_c/cosm%Om_m ! Halo CDM fraction
-      DMONLY_halo_mass_fraction = fc+fb*r/(1.+r) ! Remaining halo mass fraction
-
-   END FUNCTION DMONLY_halo_mass_fraction
-
-   REAL FUNCTION HMcode_DMONLY_baryon_model(T, a1, a0)
-
-      REAL, INTENT(IN) :: T
-      REAL, INTENT(IN) :: a1
-      REAL, INTENT(IN) :: a0
-      REAL, PARAMETER :: Tmid = 7.8
-
-      HMcode_DMONLY_baryon_model = a1*(log10(T)-Tmid)+a0
-
-   END FUNCTION HMcode_DMONLY_baryon_model
-
-   REAL FUNCTION HMcode_mbar(cosm, hmod)
-
-      TYPE(cosmology), INTENT(IN) :: cosm
-      TYPE(halomod) :: hmod
-      REAL :: mbar, mbarz, z
-
-      mbar = 10.**HMcode_DMONLY_baryon_model(cosm%Theat, hmod%mbar_T, log10(hmod%mbar))
-      mbarz = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%mbarz_T, hmod%mbarz)
-      z = hmod%z
-      HMcode_mbar = mbar*10**(mbarz*z)
-
-      !WRITE(*, *) z, log10(HMcode_mbar), log10(cosm%Theat)
-      !STOP
-
-   END FUNCTION HMcode_mbar
-
-   REAL FUNCTION HMcode_sbar(cosm, hmod)
-
-      TYPE(cosmology), INTENT(IN) :: cosm
-      TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: sbar, sbarz, z
-
-      sbar = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%sbar_T, hmod%sbar)
-      sbarz = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%sbarz_T, hmod%sbarz)
-      z = hmod%z
-      HMcode_sbar = sbar*(1.+sbarz*z**2)
-
-      !WRITE(*, *) z, HMcode_sbar, log10(cosm%Theat)
-      !STOP
-
-   END FUNCTION HMcode_sbar
 
    REAL FUNCTION win_matter(real_space, k, m, rv, rs, hmod, cosm)
 
@@ -10149,7 +10225,6 @@ CONTAINS
          ! From Schneider & Teyssier (2015)
          M0 = HMx_M0(hmod, cosm)
          beta = HMx_gbeta(hmod, cosm)
-         !halo_bound_gas_fraction = (cosm%om_b/cosm%om_m)/(1.+(m/M0)**(-beta))
          x = (m/M0)**beta
          halo_bound_gas_fraction = maxgas*x/(1.+x)
       ELSE IF (hmod%frac_bound_gas == 3) THEN
