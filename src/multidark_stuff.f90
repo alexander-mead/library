@@ -232,7 +232,7 @@ CONTAINS
          STOP 'MULTIDARK_SNAPSHOTS: Error, no snapshot corresponding to your scale factor'
       END IF
 
-   END FUNCTION
+   END FUNCTION multidark_snapshot
 
    REAL FUNCTION multidark_scale_factor(s)
 
@@ -253,6 +253,6 @@ CONTAINS
          STOP 'MULTIDARK_SCALE_FACTOR: Error, no scale factor correpsponding to snapshot'
       END IF
 
-   END FUNCTION
+   END FUNCTION multidark_scale_factor
 
 END MODULE multidark_stuff
