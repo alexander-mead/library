@@ -36,18 +36,20 @@ MODULE interpolate
    PUBLIC :: interpolator1D
    PUBLIC :: interpolator2D
 
+   ! Interpolation methods
    INTEGER, PARAMETER :: iinterp_polynomial = 1
    INTEGER, PARAMETER :: iinterp_Lagrange = 2
    INTEGER, PARAMETER :: iinterp_centred = 3
 
-   INTEGER, PARAMETER :: ifind_interpolator_default = ifind_split
-
+   ! Extrapolation methods
    INTEGER, PARAMETER :: iextrap_no = 0
    INTEGER, PARAMETER :: iextrap_standard = 1
    INTEGER, PARAMETER :: iextrap_linear = 2
    INTEGER, PARAMETER :: iextrap_zero = 3
    INTEGER, PARAMETER :: iextrap_nearest = 4
 
+   ! Default schemes
+   INTEGER, PARAMETER :: ifind_interpolator_default = ifind_split
    INTEGER, PARAMETER :: ifind_inverse_interpolator = ifind_split
    INTEGER, PARAMETER :: iinterp_inverse_interpolator = iinterp_Lagrange
 
@@ -60,11 +62,13 @@ MODULE interpolate
    INTERFACE init_interpolator
       MODULE PROCEDURE init_interpolator_1D
       MODULE PROCEDURE init_interpolator_2D
+      MODULE PROCEDURE init_interpolator_3D
    END INTERFACE init_interpolator
 
    INTERFACE evaluate_interpolator
       MODULE PROCEDURE evaluate_interpolator_1D
       MODULE PROCEDURE evaluate_interpolator_2D
+      MODULE PROCEDURE evaluate_interpolator_3D
    END INTERFACE evaluate_interpolator
 
    INTERFACE inverse_interpolator
@@ -97,6 +101,21 @@ MODULE interpolate
       LOGICAL :: logx, logy, logf
       LOGICAL :: store
    END TYPE interpolator2D
+
+   TYPE interpolator3D
+      REAL, ALLOCATABLE :: x(:), y(:), z(:)
+      REAL, ALLOCATABLE :: f(:, :, :)
+      !REAL, ALLOCATABLE :: x0(:, :), y0(:, :), xl0(:, :), yl0(:, :)
+      !REAL, ALLOCATABLE :: ax0(:, :), ax1(:, :), ax2(:, :), ax3(:, :)
+      !REAL, ALLOCATABLE :: ay0(:, :), ay1(:, :), ay2(:, :), ay3(:, :)
+      !REAL, ALLOCATABLE :: bx0(:, :), bx1(:, :), by0(:, :), by1(:, :)
+      REAL :: xmin, xmax, ymin, ymax, zmin, zmax
+      INTEGER :: iorder, iextrap
+      INTEGER :: ifindx, ifindy, ifindz
+      INTEGER :: nx, ny, nz
+      LOGICAL :: logx, logy, logz, logf
+      LOGICAL :: store
+   END TYPE interpolator3D
 
 CONTAINS
 
@@ -774,7 +793,7 @@ CONTAINS
 
    END FUNCTION find_2D
 
-   REAL FUNCTION find_3D(x, xin, y, yin, z, zin, fin, nx, ny, nz, iorder, ifind, iinterp)
+   REAL FUNCTION find_3D(x, xin, y, yin, z, zin, fin, nx, ny, nz, iorder, ifindx, ifindy, ifindz, iinterp)
 
       ! A 3D interpolation routine to find value f(x,y,z) given a function evalated on arrays
       ! The linear version implemented here is also know as 'trilinear interpolation'
@@ -789,7 +808,9 @@ CONTAINS
       REAL, INTENT(IN) :: zin(nz)
       REAL, INTENT(IN) :: fin(nx, ny, nz)
       INTEGER, INTENT(IN) :: iorder
-      INTEGER, INTENT(IN) :: ifind
+      INTEGER, INTENT(IN) :: ifindx
+      INTEGER, INTENT(IN) :: ifindy
+      INTEGER, INTENT(IN) :: ifindz
       INTEGER, INTENT(IN) :: iinterp
       REAL :: xx(3), x12(3, 2), Dx(3)
       INTEGER :: ix(3), ix12(3, 2), nnx(3)
@@ -816,9 +837,9 @@ CONTAINS
       IF(iorder == 0) THEN
 
          DO d = 1, 3
-            IF(d==1) ix(d) = find_table_integer(x, xin, ifind)
-            IF(d==2) ix(d) = find_table_integer(y, yin, ifind)
-            IF(d==3) ix(d) = find_table_integer(z, zin, ifind)
+            IF(d==1) ix(d) = find_table_integer(x, xin, ifindx)
+            IF(d==2) ix(d) = find_table_integer(y, yin, ifindy)
+            IF(d==3) ix(d) = find_table_integer(z, zin, ifindz)
          END DO
 
          DO d = 1, 3
@@ -847,9 +868,9 @@ CONTAINS
          DO d = 1, 3
 
             ! Get the integer coordinates of the 'cube' corners that encompass the point in each dimensions
-            IF(d == 1) ix(1) = find_table_integer(x, xin, ifind)
-            IF(d == 2) ix(2) = find_table_integer(y, yin, ifind)
-            IF(d == 3) ix(3) = find_table_integer(z, zin, ifind)
+            IF(d == 1) ix(1) = find_table_integer(x, xin, ifindx)
+            IF(d == 2) ix(2) = find_table_integer(y, yin, ifindy)
+            IF(d == 3) ix(3) = find_table_integer(z, zin, ifindz)
 
             ! Correct for the case of these integers coordinates being at the edge of the box
             IF(ix(d) == 0) THEN
@@ -1368,15 +1389,15 @@ CONTAINS
       ! TODO: Linear extrapolation only needs to do rows ix = 1, nx-1, nx and same for y
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                    ! Input data x
-      REAL, INTENT(IN) :: y(:)                    ! Input data x
-      REAL, INTENT(IN) :: f(:, :)                 ! Input data f(x,y)
+      REAL, INTENT(IN) :: y(:)                    ! Input data y
+      REAL, INTENT(IN) :: f(:, :)                 ! Input data f(x, y)
       TYPE(interpolator2D), INTENT(OUT) :: interp ! Interpolator type
       INTEGER, INTENT(IN) :: iorder               ! Order at which to create interpolator     
       INTEGER, INTENT(IN) :: iextrap              ! Should interpolator extrapolate beyond x and y?
       LOGICAL, INTENT(IN) :: store                ! Should we store polynomial coefficients?
       LOGICAL, OPTIONAL, INTENT(IN) :: logx       ! Should interpolator take the logarithm of x?
-      LOGICAL, OPTIONAL, INTENT(IN) :: logy       ! Should interpolator take the logarithm of x?
-      LOGICAL, OPTIONAL, INTENT(IN) :: logf       ! Should interpolator take the logarithm of y?
+      LOGICAL, OPTIONAL, INTENT(IN) :: logy       ! Should interpolator take the logarithm of y?
+      LOGICAL, OPTIONAL, INTENT(IN) :: logf       ! Should interpolator take the logarithm of f?
       INTEGER :: ix, iy, nx, ny
       INTEGER :: jx(4), jy(4)
       INTEGER :: i
@@ -1799,5 +1820,171 @@ CONTAINS
       IF (interp%logf) evaluate_interpolator_2D = exp(evaluate_interpolator_2D)
 
    END FUNCTION evaluate_interpolator_2D
+
+   SUBROUTINE init_interpolator_3D(x, y, z, f, interp, iorder, iextrap, store, logx, logy, logz, logf)
+
+      ! Initialise a 3D interpolator
+      USE basic_operations
+      REAL, INTENT(IN) :: x(:)                    ! Input data x
+      REAL, INTENT(IN) :: y(:)                    ! Input data y
+      REAL, INTENT(IN) :: z(:)                    ! Input data z
+      REAL, INTENT(IN) :: f(:, :, :)              ! Input data f(x, y, z)
+      TYPE(interpolator3D), INTENT(OUT) :: interp ! Interpolator type
+      INTEGER, INTENT(IN) :: iorder               ! Order at which to create interpolator     
+      INTEGER, INTENT(IN) :: iextrap              ! Should interpolator extrapolate beyond x and y?
+      LOGICAL, INTENT(IN) :: store                ! Should we store polynomial coefficients?
+      LOGICAL, OPTIONAL, INTENT(IN) :: logx       ! Should interpolator take the logarithm of x?
+      LOGICAL, OPTIONAL, INTENT(IN) :: logy       ! Should interpolator take the logarithm of y?
+      LOGICAL, OPTIONAL, INTENT(IN) :: logz       ! Should interpolator take the logarithm of z?
+      LOGICAL, OPTIONAL, INTENT(IN) :: logf       ! Should interpolator take the logarithm of f?
+      INTEGER :: nx, ny, nz
+      INTEGER, PARAMETER :: ifind_default = ifind_interpolator_default
+
+      CALL if_allocated_deallocate(interp%x)
+      CALL if_allocated_deallocate(interp%y)
+      CALL if_allocated_deallocate(interp%z)
+      CALL if_allocated_deallocate(interp%f)
+
+      IF (iorder > 3 .OR. iorder < 0) STOP 'INIT_INTERPOLATOR_2D: Error, this order is not supported'
+
+      ! Sort out x axis
+      nx = size(x)
+      IF(nx /= size(f, 1)) STOP 'INIT_INTERPOLATOR_2D: Error, x should be the same size as first dimension of f'
+      interp%nx = nx
+      ALLOCATE(interp%x(nx))
+      IF(present_and_correct(logx)) THEN
+         interp%x = log(x)
+         interp%logx = .TRUE.
+      ELSE
+         interp%x = x
+         interp%logx = .FALSE.
+      END IF
+      IF (regular_spacing(interp%x)) THEN
+         interp%ifindx = ifind_linear
+      ELSE
+         interp%ifindx = ifind_default
+      END IF
+
+      ! Sort out y axis
+      ny = size(y)
+      IF(ny /= size(f, 2)) STOP 'INIT_INTERPOLATOR_3D: Error, y should be the same size as second dimension of f'
+      interp%ny = ny
+      ALLOCATE(interp%y(ny))
+      IF(present_and_correct(logy)) THEN
+         interp%y = log(y)
+         interp%logy = .TRUE.
+      ELSE
+         interp%y = y
+         interp%logy = .FALSE.
+      END IF
+      IF (regular_spacing(interp%y)) THEN
+         interp%ifindy = ifind_linear
+      ELSE
+         interp%ifindy = ifind_default
+      END IF
+
+      ! Sort out z axis
+      nz = size(z)
+      IF(nz /= size(f, 3)) STOP 'INIT_INTERPOLATOR_3D: Error, z should be the same size as third dimension of f'
+      interp%nz = nz
+      ALLOCATE(interp%z(nz))
+      IF(present_and_correct(logz)) THEN
+         interp%z = log(z)
+         interp%logz = .TRUE.
+      ELSE
+         interp%z = z
+         interp%logz = .FALSE.
+      END IF
+      IF (regular_spacing(interp%z)) THEN
+         interp%ifindz = ifind_linear
+      ELSE
+         interp%ifindz = ifind_default
+      END IF
+
+      ! Sort out f
+      ALLOCATE(interp%f(nx, ny, nz))
+      IF(present_and_correct(logf)) THEN
+         interp%f = log(f)
+         interp%logf = .TRUE.
+      ELSE
+         interp%f = f
+         interp%logf = .FALSE.
+      END IF
+
+      ! Reverse arrays if necessary
+      IF (interp%x(1) > interp%x(nx)) THEN
+         CALL reverse_array(interp%x)
+         CALL reverse_array(interp%f, 1)
+      END IF
+      IF (interp%y(1) > interp%y(ny)) THEN
+         CALL reverse_array(interp%y)
+         CALL reverse_array(interp%f, 2)
+      END IF
+      IF (interp%z(1) > interp%z(nz)) THEN
+         CALL reverse_array(interp%z)
+         CALL reverse_array(interp%f, 3)
+      END IF
+
+      ! Set the interp%xmin, xmax, ymin, ymax values
+      interp%xmin = interp%x(1)
+      interp%xmax = interp%x(nx)
+      interp%ymin = interp%y(1)
+      interp%ymax = interp%y(ny)
+      interp%zmin = interp%z(1)
+      interp%zmax = interp%z(nz)
+      IF (interp%logx) THEN
+         interp%xmin = exp(interp%xmin)
+         interp%xmax = exp(interp%xmax)
+      END IF
+      IF (interp%logy) THEN
+         interp%ymin = exp(interp%ymin)
+         interp%ymax = exp(interp%ymax)
+      END IF
+      IF (interp%logz) THEN
+         interp%zmin = exp(interp%zmin)
+         interp%zmax = exp(interp%zmax)
+      END IF
+
+      ! Set internal variables
+      interp%iorder = iorder
+      interp%iextrap = iextrap
+      interp%store = store
+
+   END SUBROUTINE init_interpolator_3D
+
+   REAL FUNCTION evaluate_interpolator_3D(x, y, z, interp)
+
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: y
+      REAL, INTENT(IN) :: z
+      TYPE(interpolator3D), INTENT(IN) :: interp
+      REAL :: xx, yy, zz
+      INTEGER :: nx, ny, nz
+      INTEGER, PARAMETER :: iinterp = iinterp_polynomial ! No Lagrange polynomials in 3D
+      LOGICAL, PARAMETER :: xycubic = .FALSE.
+
+      xx = x
+      IF (interp%logx) xx = log(xx)
+      nx = interp%nx
+
+      yy = y
+      IF (interp%logy) yy = log(yy)
+      ny = interp%ny
+
+      zz = z
+      IF (interp%logz) zz = log(zz)
+      nz = interp%nz
+
+      evaluate_interpolator_3D = find(xx, interp%x, yy, interp%y, zz, interp%z, interp%f, &
+                  interp%nx, interp%ny, interp%nz, &
+                  interp%iorder, &
+                  interp%ifindx, &
+                  interp%ifindy, &
+                  interp%ifindz, &
+                  iinterp)
+
+      IF (interp%logf) evaluate_interpolator_3D = exp(evaluate_interpolator_3D)
+
+   END FUNCTION evaluate_interpolator_3D
 
 END MODULE interpolate
