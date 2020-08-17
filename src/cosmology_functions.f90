@@ -7461,6 +7461,7 @@ CONTAINS
          beta = 0.8291+0.9854*rn+0.3400*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10), fnu term is new  
          mu = 10**(-3.54419+0.19086*rn)
          nu = 10**(0.95897+1.2857*rn)
+         ! These numbers match exactly what is in CAMB
          !aa = 10**(1.4861+1.83693*rn+1.67618*rn**2+0.7940*rn**3+0.1670756*rn**4-0.620695*rncur)
          !bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.940*rncur)
          !cc = 10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)
@@ -7532,6 +7533,7 @@ CONTAINS
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Smith (C3)
          pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)      ! Smith (C2)
       ELSE IF (ihf == HALOFIT_Bird .OR. ihf == HALOFIT_Bird_paper) THEN
+      !ELSE IF (ihf == HALOFIT_Bird_paper) THEN
          ! Bird et al. (2012)
          fy = y/4.+y**2/8.
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Bird equation (A2)
@@ -7547,7 +7549,9 @@ CONTAINS
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Takahashi equation (A3i)
          pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)      ! Takahashi equation (A2)
       ELSE IF (ihf == HALOFIT_CAMB) THEN
+      !ELSE IF (ihf == HALOFIT_CAMB .OR. ihf == HALOFIT_Bird) THEN
          ! Unpublished CAMB stuff from halofit.f90
+         ! Note that this is used for ALL HALOFIT versions in CAMB, even Smith and Bird versions
          fy = y/4.+y**2/8.
          ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam))
          ph = ph/(1.+mu*y**(-1)+nu*y**(-2))    
