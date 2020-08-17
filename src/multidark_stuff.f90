@@ -141,7 +141,7 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: m(:, :)
       INTEGER, INTENT(OUT) :: n
       INTEGER :: i, j, crap
-      INTEGER, PARAMETER :: nmass=2 ! Sometimes 6, sometimes 2 ! TODO: Header
+      INTEGER, PARAMETER :: nmass = 2 ! Sometimes 6, sometimes 2 ! TODO: Header
 
       n = file_length(infile, verbose=.FALSE.)
       n = n-1 ! Remove comment line
@@ -150,10 +150,10 @@ CONTAINS
       WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: ', trim(infile)
       WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Number of haloes:', n
       OPEN (7, file=infile, status='old')
-      READ(7,*) ! Comment line
+      READ (7, *) ! Comment line
       DO i = 1, n
          !READ (7, *) crap, x(1, i), x(2, i), x(3, i), (m(j, i), j = 1,nmass)
-         READ (7, *) crap, (x(j, i), j = 1, 3), (m(j, i), j = 1, nmass)
+         READ (7, *) crap, (x(j, i), j=1, 3), (m(j, i), j=1, nmass)
       END DO
       CLOSE (7)
       WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Done'
@@ -168,9 +168,9 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN) :: outfile
       REAL, INTENT(IN) :: x(3, n)
       REAL, INTENT(IN) :: m(6, n)
-      INTEGER, INTENT(IN) :: idx(n)  
+      INTEGER, INTENT(IN) :: idx(n)
       INTEGER :: i, j, k
-      INTEGER, PARAMETER :: nmass=2 ! Sometimes 6, sometimes 2 ! TODO: Header
+      INTEGER, PARAMETER :: nmass = 2 ! Sometimes 6, sometimes 2 ! TODO: Header
 
       ! Write out the little catalogue
       WRITE (*, *) 'WRITE_MULTIDARK_HALO_CATALOGUE: Writing outfile: ', trim(outfile)
@@ -178,7 +178,7 @@ CONTAINS
       DO i = 1, n
          j = idx(n+1-i)
          !WRITE (7, *) x(1, j), x(2, j), x(3, j), m(1, j), m(2, j), m(3, j), m(4, j), m(5, j), m(6, j)
-         WRITE (7, *) (x(k, j), k = 1, 3), (m(k, j), k = 1, nmass)
+         WRITE (7, *) (x(k, j), k=1, 3), (m(k, j), k=1, nmass)
       END DO
       CLOSE (7)
       WRITE (*, *) 'WRITE_MULTIDARK_HALO_CATALOGUE: Done'
@@ -218,17 +218,17 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
 
-      IF(a==1.001) THEN
-         multidark_snapshot=85
-      ELSE IF(a==0.652) THEN
-         multidark_snapshot=62
-      ELSE IF(a==0.591) THEN
-         multidark_snapshot=58
-      ELSE IF(a==0.500) THEN
-         multidark_snapshot=52
-      ELSE IF(a==0.257) THEN
-         multidark_snapshot=36
-      ELSE  
+      IF (a == 1.001) THEN
+         multidark_snapshot = 85
+      ELSE IF (a == 0.652) THEN
+         multidark_snapshot = 62
+      ELSE IF (a == 0.591) THEN
+         multidark_snapshot = 58
+      ELSE IF (a == 0.500) THEN
+         multidark_snapshot = 52
+      ELSE IF (a == 0.257) THEN
+         multidark_snapshot = 36
+      ELSE
          STOP 'MULTIDARK_SNAPSHOTS: Error, no snapshot corresponding to your scale factor'
       END IF
 
@@ -239,16 +239,16 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: s
 
-      IF(s==85) THEN
-         multidark_scale_factor=1.001
-      ELSE IF(s==62) THEN
-         multidark_scale_factor=0.652
-      ELSE IF(s==58) THEN
-         multidark_scale_factor=0.591
-      ELSE IF(s==52) THEN
-         multidark_scale_factor=0.500
-      ELSE IF(s==36) THEN
-         multidark_scale_factor=0.257
+      IF (s == 85) THEN
+         multidark_scale_factor = 1.001
+      ELSE IF (s == 62) THEN
+         multidark_scale_factor = 0.652
+      ELSE IF (s == 58) THEN
+         multidark_scale_factor = 0.591
+      ELSE IF (s == 52) THEN
+         multidark_scale_factor = 0.500
+      ELSE IF (s == 36) THEN
+         multidark_scale_factor = 0.257
       ELSE
          STOP 'MULTIDARK_SCALE_FACTOR: Error, no scale factor correpsponding to snapshot'
       END IF
