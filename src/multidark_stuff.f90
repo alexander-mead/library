@@ -153,7 +153,7 @@ CONTAINS
       READ(7,*) ! Comment line
       DO i = 1, n
          !READ (7, *) crap, x(1, i), x(2, i), x(3, i), (m(j, i), j = 1,nmass)
-         READ (7, *) crap, (x(j, i) j = 1, 3), (m(j, i), j = 1, nmass)
+         READ (7, *) crap, (x(j, i), j = 1, 3), (m(j, i), j = 1, nmass)
       END DO
       CLOSE (7)
       WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Done'
@@ -169,7 +169,7 @@ CONTAINS
       REAL, INTENT(IN) :: x(3, n)
       REAL, INTENT(IN) :: m(6, n)
       INTEGER, INTENT(IN) :: idx(n)  
-      INTEGER :: i, j
+      INTEGER :: i, j, k
       INTEGER, PARAMETER :: nmass=2 ! Sometimes 6, sometimes 2 ! TODO: Header
 
       ! Write out the little catalogue
@@ -178,7 +178,7 @@ CONTAINS
       DO i = 1, n
          j = idx(n+1-i)
          !WRITE (7, *) x(1, j), x(2, j), x(3, j), m(1, j), m(2, j), m(3, j), m(4, j), m(5, j), m(6, j)
-         WRITE (7, *) (x(k, j) k = 1, 3), (m(k, j), k = 1, nmass)
+         WRITE (7, *) (x(k, j), k = 1, 3), (m(k, j), k = 1, nmass)
       END DO
       CLOSE (7)
       WRITE (*, *) 'WRITE_MULTIDARK_HALO_CATALOGUE: Done'
