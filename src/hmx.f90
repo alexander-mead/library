@@ -345,12 +345,8 @@ MODULE HMx
       REAL :: ST_p, ST_q, ST_A, Amf, Amfz
       LOGICAL :: has_mass_function
 
-      ! Infinite redshift as far as the Dolag correction is concerned
-      !REAL :: zinf_Dolag
-
       ! Non-linear halo bias parameters
-      REAL, ALLOCATABLE :: bnl(:, :, :), k_bnl(:), nu_bnl(:)
-      INTEGER :: nk_bnl, nnu_bnl
+      TYPE(interpolator3D) :: bnl
       LOGICAL :: has_bnl = .FALSE.
 
    END TYPE halomod
@@ -437,9 +433,9 @@ MODULE HMx
    LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
    LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Fix a minimum value for B_NL
    REAL, PARAMETER :: min_bnl = -1.                 ! Minimum value that BNL is allowed to be (could be below -1 ...)
-   INTEGER, PARAMETER :: iorder_bnl = 1             ! 1 - Linear interpolation
-   INTEGER, PARAMETER :: ifind_bnl = 3              ! 3 - Midpoint finding scheme
-   INTEGER, PARAMETER :: imeth_bnl = 1              ! 1 - Polynomial method
+   INTEGER, PARAMETER :: iorder_bnl = 1             ! Linear interpolation
+   INTEGER, PARAMETER :: iextrap_bnl = iextrap_std  ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage mode?
    REAL, PARAMETER :: eps_ztol_bnl = 1e-2           ! How far off can the redshift be?
    CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_BDMV'
@@ -4212,24 +4208,19 @@ CONTAINS
       REAL, INTENT(IN) :: rv1
       REAL, INTENT(IN) :: rv2
       TYPE(halomod), INTENT(INOUT) :: hmod
-      INTEGER  :: nk, nnu
       REAL :: kk
-      INTEGER, PARAMETER :: iorder = iorder_bnl ! 1 - Linear interpolation
-      INTEGER, PARAMETER :: ifind = ifind_bnl   ! 3 - Midpoint finding scheme
-      INTEGER, PARAMETER :: imeth = imeth_bnl   ! 1 - Polynomial method
       REAL, PARAMETER :: kmin = kmin_bnl        ! Below this wavenumber set BNL to zero
-      REAL, PARAMETER :: numin = numin_bnl      ! Below this halo mass set  BNL to zero
-      REAL, PARAMETER :: numax = numax_bnl      ! Above this halo mass set  BNL to zero
+      REAL, PARAMETER :: numin = numin_bnl      ! Below this halo mass set BNL to zero
+      REAL, PARAMETER :: numax = numax_bnl      ! Above this halo mass set BNL to zero
       REAL, PARAMETER :: min_value = min_bnl    ! Minimum value that BNL is allowed to be (could be below -1)
       LOGICAL, PARAMETER :: halo_exclusion = exclusion_bnl
       LOGICAL, PARAMETER :: fix_min = fix_minimum_bnl
-
 
       IF (.NOT. hmod%has_bnl) CALL init_BNL(hmod)
 
       ! Ensure that k is not outside array boundary at high end
       kk = k
-      CALL fix_maximum(kk, hmod%k_bnl(hmod%nk_bnl))
+      CALL fix_maximum(kk, hmod%bnl%xmax)
 
       IF (kk < kmin) THEN
          BNL = 0.
@@ -4238,9 +4229,7 @@ CONTAINS
       ELSE IF (nu1 > numax .OR. nu2 > numax) THEN
          BNL = 0.
       ELSE
-         nk = hmod%nk_bnl
-         nnu = hmod%nnu_bnl
-         BNL = find(log(kk), log(hmod%k_bnl), nu1, hmod%nu_bnl, nu2, hmod%nu_bnl, hmod%bnl, nk, nnu, nnu, iorder, ifind, imeth)
+         BNL = evaluate_interpolator(kk, nu1, nu2, hmod%bnl)
       END IF
 
       ! Halo exclusion
@@ -4260,6 +4249,7 @@ CONTAINS
       INTEGER :: i, ibin, jbin, ik
       INTEGER :: nbin, nk
       REAL :: crap
+      REAL, ALLOCATABLE :: k(:), nu(:), B(:, :, :)
       CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext
       CHARACTER(len=256), PARAMETER :: base = base_bnl
       REAL, PARAMETER :: eps = eps_ztol_bnl
@@ -4281,17 +4271,16 @@ CONTAINS
          STOP 'INIT_BNL: Error, your redshift is not supported'
       END IF
 
+      ! Read in the nu values of the bins
       infile = trim(inbase)//'_binstats.dat'
       nbin = file_length(infile)
       WRITE (*, *) 'INIT_BNL: Number of nu bins: ', nbin
-      hmod%nnu_bnl = nbin
-      IF(ALLOCATED(hmod%nu_bnl)) DEALLOCATE(hmod%nu_bnl)
-      ALLOCATE (hmod%nu_bnl(nbin))
+      ALLOCATE(nu(nbin))
       WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
       OPEN (7, file=infile)
       DO i = 1, nbin
-         READ (7, *) crap, crap, crap, crap, crap, hmod%nu_bnl(i)
-         WRITE (*, *) 'INIT_BNL: nu bin', i, hmod%nu_bnl(i)
+         READ (7, *) crap, crap, crap, crap, crap, nu(i)
+         WRITE (*, *) 'INIT_BNL: nu bin', i, nu(i)
       END DO
       CLOSE (7)
       WRITE (*, *) 'INIT_BNL: Done with nu'
@@ -4299,11 +4288,8 @@ CONTAINS
       ! Read in k and Bnl(k,nu1,nu2)
       infile = trim(inbase)//'_bin1_bin1_power.dat'
       nk = file_length(infile)
-      hmod%nk_bnl = nk
       WRITE (*, *) 'INIT_BNL: Number of k values: ', nk
-      IF(ALLOCATED(hmod%k_bnl)) DEALLOCATE(hmod%k_bnl)
-      IF(ALLOCATED(hmod%bnl)) DEALLOCATE(hmod%bnl)
-      ALLOCATE (hmod%k_bnl(nk), hmod%bnl(nk, nbin, nbin))
+      ALLOCATE(k(nk), B(nk, nbin, nbin))
       DO ibin = 1, nbin
          DO jbin = 1, nbin
             fbase = trim(inbase)//'_bin'
@@ -4313,15 +4299,26 @@ CONTAINS
             WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
             OPEN (7, file=infile)
             DO ik = 1, nk
-               READ (7, *) hmod%k_bnl(ik), crap, crap, crap, crap, hmod%bnl(ik, ibin, jbin)
+               READ (7, *) k(ik), crap, crap, crap, crap, B(ik, ibin, jbin)
             END DO
             CLOSE (7)
          END DO
       END DO
 
-      ! Convert from Y to B_NL
-      hmod%bnl = hmod%bnl-1.
+      ! Convert from Y_NL to B_NL
+      B = B-1.
 
+      ! Initialise interpolator
+      CALL init_interpolator(k, nu, nu, B, hmod%Bnl, &
+         iorder = iorder_bnl, &
+         iextrap = iextrap_bnl, &
+         store = store_bnl, &
+         logx = .TRUE., &
+         logy = .FALSE., &
+         logz = .FALSE., &
+         logf = .FALSE.)
+
+      ! Change flag
       hmod%has_bnl = .TRUE.
 
       WRITE (*, *) 'INIT_BNL: Done'

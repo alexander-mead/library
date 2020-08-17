@@ -27,14 +27,15 @@ MODULE interpolate
 
    ! Switches for extrapolation
    PUBLIC :: iextrap_no
-   PUBLIC :: iextrap_standard
-   PUBLIC :: iextrap_linear
+   PUBLIC :: iextrap_std
+   PUBLIC :: iextrap_lin
    PUBLIC :: iextrap_zero
-   PUBLIC :: iextrap_nearest
+   PUBLIC :: iextrap_near
 
    ! Types
    PUBLIC :: interpolator1D
    PUBLIC :: interpolator2D
+   PUBLIC :: interpolator3D
 
    ! Interpolation methods
    INTEGER, PARAMETER :: iinterp_polynomial = 1
@@ -43,10 +44,10 @@ MODULE interpolate
 
    ! Extrapolation methods
    INTEGER, PARAMETER :: iextrap_no = 0
-   INTEGER, PARAMETER :: iextrap_standard = 1
-   INTEGER, PARAMETER :: iextrap_linear = 2
+   INTEGER, PARAMETER :: iextrap_std = 1
+   INTEGER, PARAMETER :: iextrap_lin = 2
    INTEGER, PARAMETER :: iextrap_zero = 3
-   INTEGER, PARAMETER :: iextrap_nearest = 4
+   INTEGER, PARAMETER :: iextrap_near = 4
 
    ! Default schemes
    INTEGER, PARAMETER :: ifind_interpolator_default = ifind_split
@@ -1118,7 +1119,7 @@ CONTAINS
       IF (interp%store) THEN
 
          ! Allocate arrays for the interpolator coefficients
-         IF (iextrap == iextrap_linear) THEN
+         IF (iextrap == iextrap_lin) THEN
             nn = n+1
          ELSE
             nn = n-1
@@ -1157,9 +1158,9 @@ CONTAINS
          ! Loop over all n-1 sections of the input data
          DO i = 0, n
 
-            IF ((i == 0 .OR. i == n) .AND. iextrap /= iextrap_linear) CYCLE
+            IF ((i == 0 .OR. i == n) .AND. iextrap /= iextrap_lin) CYCLE
 
-            IF (iorder == 1 .OR. ((i == 0 .OR. i == n) .AND. iextrap == iextrap_linear)) THEN
+            IF (iorder == 1 .OR. ((i == 0 .OR. i == n) .AND. iextrap == iextrap_lin)) THEN
 
                IF (i == 0) THEN
                   i1 = 1
@@ -1266,7 +1267,7 @@ CONTAINS
             END IF
 
             ! Fill the polynomial coefficients in the interpolation type
-            IF (iextrap == iextrap_linear) THEN
+            IF (iextrap == iextrap_lin) THEN
                ii = i+1
             ELSE
                ii = i
@@ -1303,14 +1304,14 @@ CONTAINS
          IF (xx < interp%x(1)) THEN
             IF (interp%iextrap == iextrap_no) THEN
                STOP 'EVALUATE_INTERPOLATOR_1D: Error, desired x value is below range'
-            ELSE IF(interp%iextrap == iextrap_standard) THEN
+            ELSE IF(interp%iextrap == iextrap_std) THEN
                i = 1
-            ELSE IF (interp%iextrap == iextrap_linear) THEN
+            ELSE IF (interp%iextrap == iextrap_lin) THEN
                i = 0
             ELSE IF (interp%iextrap == iextrap_zero) THEN
                evaluate_interpolator_1D = 0.
                RETURN
-            ELSE IF (interp%iextrap == iextrap_nearest) THEN
+            ELSE IF (interp%iextrap == iextrap_near) THEN
                evaluate_interpolator_1D = interp%f(1)
                IF (interp%logf) evaluate_interpolator_1D = exp(evaluate_interpolator_1D)
                RETURN
@@ -1322,14 +1323,14 @@ CONTAINS
          ELSE IF (xx > interp%x(n)) THEN
             IF (interp%iextrap == iextrap_no) THEN
                STOP 'EVALUATE_INTERPOLATOR_1D: Error, desired x value is above range'
-            ELSE IF (interp%iextrap == iextrap_standard) THEN
+            ELSE IF (interp%iextrap == iextrap_std) THEN
                i = n-1
-            ELSE IF(interp%iextrap == iextrap_linear) THEN
+            ELSE IF(interp%iextrap == iextrap_lin) THEN
                i = n
             ELSE IF (interp%iextrap == iextrap_zero) THEN
                evaluate_interpolator_1D = 0.
                RETURN
-            ELSE IF (interp%iextrap == iextrap_nearest) THEN
+            ELSE IF (interp%iextrap == iextrap_near) THEN
                evaluate_interpolator_1D = interp%f(n)
                RETURN
             ELSE
@@ -1339,7 +1340,7 @@ CONTAINS
             i = find_table_integer(xx, interp%x, interp%ifind)
          END IF
 
-         IF (interp%iextrap == iextrap_linear) i = i+1
+         IF (interp%iextrap == iextrap_lin) i = i+1
 
          ! Evaluate the interpolation
          IF (interp%iorder == 1) THEN
@@ -1511,7 +1512,7 @@ CONTAINS
          interp%ay2 = 0.
          interp%ay3 = 0.
          
-         IF ((interp%iorder == 1) .OR. (iextrap == iextrap_linear)) THEN
+         IF ((interp%iorder == 1) .OR. (iextrap == iextrap_lin)) THEN
 
             DO iy = 1, ny
 
@@ -1574,7 +1575,7 @@ CONTAINS
                END DO
             END DO
 
-            IF ((iextrap == iextrap_linear) .AND. (iorder > 1)) THEN
+            IF ((iextrap == iextrap_lin) .AND. (iorder > 1)) THEN
 
                interp%bx0 = interp%ax0
                interp%by0 = interp%ay0
@@ -1700,7 +1701,7 @@ CONTAINS
             ELSE IF (interp%iextrap == iextrap_zero) THEN
                evaluate_interpolator_2D = 0.
                RETURN
-            ELSE IF (interp%iextrap == iextrap_nearest) THEN
+            ELSE IF (interp%iextrap == iextrap_near) THEN
                ix = find_table_integer(xx, interp%x, interp%ifindx)
                iy = find_table_integer(yy, interp%y, interp%ifindy)
                evaluate_interpolator_2D = interp%f(ix, iy)
@@ -1764,7 +1765,7 @@ CONTAINS
          DO i = 1, mx
             j = jx(i)
             xxx(i) = interp%x(j)
-            IF (interp%iorder .NE. 1 .AND. interp%iextrap == iextrap_linear .AND. outy) THEN
+            IF (interp%iorder .NE. 1 .AND. interp%iextrap == iextrap_lin .AND. outy) THEN
                y0 = interp%yl0(j, iy)
                a3 = 0.
                a2 = 0.
@@ -1785,7 +1786,7 @@ CONTAINS
             DO i = 1, my
                j = jy(i)
                yyy(i) = interp%y(j)
-               IF (interp%iorder .NE. 1 .AND. interp%iextrap == iextrap_linear .AND. outx) THEN
+               IF (interp%iorder .NE. 1 .AND. interp%iextrap == iextrap_lin .AND. outx) THEN
                   x0 = interp%xl0(ix, j)
                   a3 = 0.
                   a2 = 0.
@@ -1975,13 +1976,60 @@ CONTAINS
       IF (interp%logz) zz = log(zz)
       nz = interp%nz
 
-      evaluate_interpolator_3D = find(xx, interp%x, yy, interp%y, zz, interp%z, interp%f, &
-                  interp%nx, interp%ny, interp%nz, &
-                  interp%iorder, &
-                  interp%ifindx, &
-                  interp%ifindy, &
-                  interp%ifindz, &
-                  iinterp)
+      IF (interp%store) THEN
+
+         IF (outside_array_range(xx, interp%x) .OR. outside_array_range(yy, interp%y) .OR. outside_array_range(zz, interp%z)) THEN
+
+            IF (interp%iextrap == iextrap_no) THEN
+               STOP 'EVALUATE_INTERPOLATOR_3D: Error, you have requested a point outside the range of the interpolator'
+            ELSE IF (interp%iextrap == iextrap_zero) THEN
+               evaluate_interpolator_3D = 0.
+            ELSE IF (interp%iextrap == iextrap_near) THEN
+               STOP 'EVALUATE_INTERPOLATOR_3D: Error, nearest extrapolation not implemented yet'
+            ELSE IF (interp%iextrap == iextrap_lin) THEN
+               STOP 'EVALUATE_INTERPOLATOR_3D: Error, linear extrapolation not implemented yet'
+            ELSE IF (interp%iextrap == iextrap_std) THEN
+               STOP 'EVALUATE_INTERPOLATOR_3D: Error, standard extrapolation not implemented yet'
+            ELSE
+               STOP 'EVALUATE_INTERPOLATOR_3D: Something went wrong with extrapolation methods'
+            END IF
+
+         ELSE
+
+            STOP 'EVALUATE_INTERPOLATOR_3D: Storage of interpolator not implemented yet'
+
+         END IF
+
+      ELSE
+
+         IF (is_in_array(interp%iextrap, [iextrap_lin, iextrap_no, iextrap_zero, iextrap_near]) .AND. &
+            (outside_array_range(xx, interp%x) .OR. outside_array_range(yy, interp%y) .OR. outside_array_range(zz, interp%z))) THEN
+
+            IF (interp%iextrap == iextrap_no) THEN
+               STOP 'EVALUATE_INTERPOLATOR_3D: Error, you have requested a point outside the range of the interpolator'
+            ELSE IF (interp%iextrap == iextrap_zero) THEN
+               evaluate_interpolator_3D = 0.
+            ELSE IF (interp%iextrap == iextrap_lin) THEN
+               STOP 'EVALUATE_INTERPOLATOR_3D: Error, linear extrapolation not implemented yet'
+            ELSE IF (interp%iextrap == iextrap_near) THEN
+               STOP 'EVALUATE_INTERPOLATOR_3D: Error, nearest extrapolation not implemented yet'
+            ELSE
+               STOP 'EVALUATE_INTERPOLATOR_3D: Something went wrong with extrapolation methods'
+            END IF
+
+         ELSE
+
+            evaluate_interpolator_3D = find(xx, interp%x, yy, interp%y, zz, interp%z, interp%f, &
+                        interp%nx, interp%ny, interp%nz, &
+                        interp%iorder, &
+                        interp%ifindx, &
+                        interp%ifindy, &
+                        interp%ifindz, &
+                        iinterp)
+
+         END IF
+
+      END IF
 
       IF (interp%logf) evaluate_interpolator_3D = exp(evaluate_interpolator_3D)
 

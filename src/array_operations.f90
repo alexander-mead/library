@@ -41,6 +41,7 @@ MODULE array_operations
    PUBLIC :: fill_array
    !PUBLIC :: fill_array_double ! TODO: Delete
    PUBLIC :: fill_array_log
+   PUBLIC :: outside_array_range
 
 !!$  ! These interfaces did not work if -fdefault-real-8 and -fdefault-real-8 were set
 !!$  INTERFACE fill_array
@@ -114,6 +115,21 @@ MODULE array_operations
    END INTERFACE safe_allocate
 
 CONTAINS
+
+   LOGICAL FUNCTION outside_array_range(x, xtab)
+
+      ! Assumes xtab is an array of x values going from low to high
+      ! Returns TRUE if x is outside the range of xtab (either low or high) and FALSE if within
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: xtab(:)
+
+      IF (x < xtab(1) .OR. x > xtab(size(xtab))) THEN
+         outside_array_range = .TRUE.
+      ELSE
+         outside_array_range = .FALSE.
+      END IF
+
+   END FUNCTION outside_array_range
 
    SUBROUTINE insert_in_array(x, i, a)
 

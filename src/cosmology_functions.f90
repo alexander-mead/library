@@ -259,12 +259,12 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amin_Xde = 1e-4    ! Minimum scale factor for direction integration to get Xde
    REAL, PARAMETER :: amax_Xde = 1.      ! Maximum scale factor for direction integration to get Xde
    INTEGER, PARAMETER :: n_Xde = 128     ! Number of points for Xde interpolation
-   LOGICAL, PARAMETER :: tabulate_Xde = .TRUE.        ! Tabulate Xde for interpolation
-   REAL, PARAMETER :: acc_integration_Xde = acc_cosm  ! Accuracy for direct integration of dark energy density
-   INTEGER, PARAMETER :: iorder_integration_Xde = 3   ! Polynomial order for time integration
-   INTEGER, PARAMETER :: iorder_interp_Xde = 3        ! Polynomial order for time interpolation
-   INTEGER, PARAMETER :: iextrap_Xde = iextrap_linear ! Extrapolation scheme
-   LOGICAL, PARAMETER :: store_Xde = .TRUE.           ! Storage in interpolator
+   LOGICAL, PARAMETER :: tabulate_Xde = .TRUE.       ! Tabulate Xde for interpolation
+   REAL, PARAMETER :: acc_integration_Xde = acc_cosm ! Accuracy for direct integration of dark energy density
+   INTEGER, PARAMETER :: iorder_integration_Xde = 3  ! Polynomial order for time integration
+   INTEGER, PARAMETER :: iorder_interp_Xde = 3       ! Polynomial order for time interpolation
+   INTEGER, PARAMETER :: iextrap_Xde = iextrap_lin   ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_Xde = .TRUE.          ! Storage in interpolator
 
    ! Modified gravity
    INTEGER, PARAMETER :: img_none = 0     ! Standard gravity
@@ -274,24 +274,24 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: img_fR_lin = 4   ! Linearised f(R) (only affects spherical model and HMcode)
 
    ! Distance
-   REAL, PARAMETER :: amin_distance = 1e-4                   ! Minimum scale factor in look-up table
-   REAL, PARAMETER :: amax_distance = 1.                     ! Maximum scale factor in look-up table
-   INTEGER, PARAMETER :: n_distance = 128                    ! Number of scale factor entries in look-up table
-   REAL, PARAMETER :: atay_distance = 1e-5                   ! Below this do a Taylor expansion to avoid divergence
-   INTEGER, PARAMETER :: iorder_integration_distance = 3     ! Polynomial order for distance integration
-   INTEGER, PARAMETER :: iorder_interp_distance = 3          ! Polynomial order for distance interpolation
-   INTEGER, PARAMETER :: iextrap_distance = iextrap_standard ! Extrapolation scheme
-   LOGICAL, PARAMETER :: store_distance = .TRUE.             ! Pre-calculate interpolation coefficients?
+   REAL, PARAMETER :: amin_distance = 1e-4               ! Minimum scale factor in look-up table
+   REAL, PARAMETER :: amax_distance = 1.                 ! Maximum scale factor in look-up table
+   INTEGER, PARAMETER :: n_distance = 128                ! Number of scale factor entries in look-up table
+   REAL, PARAMETER :: atay_distance = 1e-5               ! Below this do a Taylor expansion to avoid divergence
+   INTEGER, PARAMETER :: iorder_integration_distance = 3 ! Polynomial order for distance integration
+   INTEGER, PARAMETER :: iorder_interp_distance = 3      ! Polynomial order for distance interpolation
+   INTEGER, PARAMETER :: iextrap_distance = iextrap_std  ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_distance = .TRUE.         ! Pre-calculate interpolation coefficients?
 
    ! Time
-   REAL, PARAMETER :: amin_time = 1e-4                   ! Minimum scale factor in look-up table
-   REAL, PARAMETER :: amax_time = 1.                     ! Maximum scale factor in look-up table
-   INTEGER, PARAMETER :: n_time = 128                    ! Number of scale factor entries in look-up table
-   REAL, PARAMETER :: atay_time = 1e-5                   ! Below this do a Taylor expansion to avoid divergence
-   INTEGER, PARAMETER :: iorder_integration_time = 3     ! Polynomial order for time integration
-   INTEGER, PARAMETER :: iorder_interp_time = 3          ! Polynomial order for time interpolation
-   INTEGER, PARAMETER :: iextrap_time = iextrap_standard ! Extrapolation scheme
-   LOGICAL, PARAMETER :: store_time = .TRUE.             ! Pre-calculate interpolation coefficients?
+   REAL, PARAMETER :: amin_time = 1e-4               ! Minimum scale factor in look-up table
+   REAL, PARAMETER :: amax_time = 1.                 ! Maximum scale factor in look-up table
+   INTEGER, PARAMETER :: n_time = 128                ! Number of scale factor entries in look-up table
+   REAL, PARAMETER :: atay_time = 1e-5               ! Below this do a Taylor expansion to avoid divergence
+   INTEGER, PARAMETER :: iorder_integration_time = 3 ! Polynomial order for time integration
+   INTEGER, PARAMETER :: iorder_interp_time = 3      ! Polynomial order for time interpolation
+   INTEGER, PARAMETER :: iextrap_time = iextrap_std  ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_time = .TRUE.         ! Pre-calculate interpolation coefficients?
 
    ! Linear power
    REAL, PARAMETER :: kmin_abs_plin = 0.       ! Power below this wavenumber is set to zero [h/Mpc]
@@ -321,7 +321,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Order for interpolation
    INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
    INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
-   INTEGER, PARAMETER :: iextrap_plin = iextrap_linear   ! Extrapolation scheme
+   INTEGER, PARAMETER :: iextrap_plin = iextrap_lin   ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_plin = .TRUE.             ! Pre-calculate interpolation coefficients
 
    ! CAMB interface
@@ -340,9 +340,9 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: method_cold = method_cold_EH ! Choose method heree
 
    ! CAMB cold transfer function
-   INTEGER, PARAMETER :: iextrap_Tcold = iextrap_linear ! Extrapolation scheme for cold interpolation
-   INTEGER, PARAMETER :: iorder_interp_Tcold = 3        ! Order for cold interpolatin
-   LOGICAL, PARAMETER :: store_Tcold = .TRUE.           ! Storage for cold interpolation
+   INTEGER, PARAMETER :: iextrap_Tcold = iextrap_lin ! Extrapolation scheme for cold interpolation
+   INTEGER, PARAMETER :: iorder_interp_Tcold = 3     ! Order for cold interpolatin
+   LOGICAL, PARAMETER :: store_Tcold = .TRUE.        ! Storage for cold interpolation
 
    ! Wiggle extraction methods
    INTEGER, PARAMETER :: wiggle_Lagrange = 1   ! Lagrange polynomial fixed through set points TODO: Remove
@@ -395,27 +395,27 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_integral_grow = 3  ! Polynomial order for growth integral solving (wCDM only)
 
    ! Growth interpolation
-   REAL, PARAMETER :: amin_growth = 1e-3               ! Minimum value to store
-   REAL, PARAMETER :: amax_growth = 1.                 ! Maximum value to store
-   INTEGER, PARAMETER :: n_growth = 128                ! Number of entries for interpolation tables
-   INTEGER, PARAMETER :: iorder_interp_grow = 3        ! Polynomial order for growth interpolation
-   INTEGER, PARAMETER :: iextrap_grow = iextrap_linear ! Extrapolation scheme
-   LOGICAL, PARAMETER :: store_grow = .TRUE.           ! Pre-calculate interpolation coefficients?
+   REAL, PARAMETER :: amin_growth = 1e-3            ! Minimum value to store
+   REAL, PARAMETER :: amax_growth = 1.              ! Maximum value to store
+   INTEGER, PARAMETER :: n_growth = 128             ! Number of entries for interpolation tables
+   INTEGER, PARAMETER :: iorder_interp_grow = 3     ! Polynomial order for growth interpolation
+   INTEGER, PARAMETER :: iextrap_grow = iextrap_lin ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_grow = .TRUE.        ! Pre-calculate interpolation coefficients?
 
    ! Growth rate interpolation
-   INTEGER, PARAMETER :: iorder_interp_rate = 3        ! Polynomial order for growth rate interpolation for ODE solution
-   INTEGER, PARAMETER :: iextrap_rate = iextrap_linear ! Extrapolation scheme
-   LOGICAL, PARAMETER :: store_rate = .TRUE.           ! Pre-calculate interpolation coefficients?
+   INTEGER, PARAMETER :: iorder_interp_rate = 3     ! Polynomial order for growth rate interpolation for ODE solution
+   INTEGER, PARAMETER :: iextrap_rate = iextrap_lin ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_rate = .TRUE.        ! Pre-calculate interpolation coefficients?
 
    ! Growth rate index
    REAL, PARAMETER :: growth_index_default = 6./11. ! Default indes value (perturbation theory for LCDM)
    REAL, PARAMETER :: growth_index_limit = 0.01     ! Scale factor below which to use default value
 
    ! Accumualted growth integration and interpolation
-   INTEGER, PARAMETER :: iorder_integration_agrow = 3   ! Polynomial order for growth interpolation for ODE solution
-   INTEGER, PARAMETER :: iorder_interp_agrow = 3        ! Polynomial order for growth interpolation for ODE solution
-   INTEGER, PARAMETER :: iextrap_agrow = iextrap_linear ! Extrapolation scheme
-   LOGICAL, PARAMETER :: store_agrow = .TRUE.           ! Pre-calculate interpolation coefficients?
+   INTEGER, PARAMETER :: iorder_integration_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
+   INTEGER, PARAMETER :: iorder_interp_agrow = 3      ! Polynomial order for growth interpolation for ODE solution
+   INTEGER, PARAMETER :: iextrap_agrow = iextrap_lin  ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_agrow = .TRUE.         ! Pre-calculate interpolation coefficients?
 
    ! sigma(R) integration
    REAL, PARAMETER :: alpha_sigma = 3.     ! Exponent to increase speed (1 is terrible, 2, 3, 4 all okay)
@@ -433,7 +433,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange ! Method for sigma(R) interpolation
    INTEGER, PARAMETER :: sigma_store = flag_ucold         ! Which version of sigma should be tabulated (0 for none)
-   INTEGER, PARAMETER :: iextrap_sigma = iextrap_standard ! Extrapolation for sigma(R) interpolator
+   INTEGER, PARAMETER :: iextrap_sigma = iextrap_std      ! Extrapolation for sigma(R) interpolator
    LOGICAL, PARAMETER :: store_sigma = .TRUE.             ! Pre-calculate interpolation coefficients?
 
    ! sigma_v(R) integration
@@ -461,18 +461,18 @@ MODULE cosmology_functions
    REAL, PARAMETER :: dinf_spherical = 1e8       ! Value considered to be 'infinite' for the perturbation
 
    ! delta_c
-   INTEGER, PARAMETER :: iorder_interp_dc = 3          ! Polynomial order for delta_c interpolation
-   INTEGER, PARAMETER :: ifind_interp_dc = 3           ! Finding scheme for delta_c interpolation
-   INTEGER, PARAMETER :: imeth_interp_dc = 2           ! Method for delta_c interpolation
-   INTEGER, PARAMETER :: iextrap_dc = iextrap_standard ! Extrapolation scheme
-   LOGICAL, PARAMETER :: store_dc = .TRUE.             ! Pre-calculate interpolation coefficients?
+   INTEGER, PARAMETER :: iorder_interp_dc = 3     ! Polynomial order for delta_c interpolation
+   INTEGER, PARAMETER :: ifind_interp_dc = 3      ! Finding scheme for delta_c interpolation
+   INTEGER, PARAMETER :: imeth_interp_dc = 2      ! Method for delta_c interpolation
+   INTEGER, PARAMETER :: iextrap_dc = iextrap_std ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_dc = .TRUE.        ! Pre-calculate interpolation coefficients?
 
    ! Delta_v
-   INTEGER, PARAMETER :: iorder_interp_Dv = 3          ! Polynomial order for Delta_v interpolation
-   INTEGER, PARAMETER :: ifind_interp_Dv = 3           ! Finding scheme for Delta_v interpolation
-   INTEGER, PARAMETER :: imeth_interp_Dv = 2           ! Method for Delta_v interpolation
-   INTEGER, PARAMETER :: iextrap_Dv = iextrap_standard ! Extrapolation scheme
-   LOGICAL, PARAMETER :: store_Dv = .TRUE.             ! Pre-calculate interpolation coefficients?
+   INTEGER, PARAMETER :: iorder_interp_Dv = 3     ! Polynomial order for Delta_v interpolation
+   INTEGER, PARAMETER :: ifind_interp_Dv = 3      ! Finding scheme for Delta_v interpolation
+   INTEGER, PARAMETER :: imeth_interp_Dv = 2      ! Method for Delta_v interpolation
+   INTEGER, PARAMETER :: iextrap_Dv = iextrap_std ! Extrapolation scheme
+   LOGICAL, PARAMETER :: store_Dv = .TRUE.        ! Pre-calculate interpolation coefficients?
 
    ! Halofit
    INTEGER, PARAMETER :: HALOFIT_Smith = 1       ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
