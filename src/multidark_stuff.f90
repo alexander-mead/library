@@ -73,7 +73,6 @@ CONTAINS
          READ (7, *)
       END DO
       DO i = 1, n
-         !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm
          READ (7, *) (data(j), j=1, columns)
          mm = data(column_mv) ! Read virial mass
          pid = nint(data(column_pid))
@@ -97,7 +96,6 @@ CONTAINS
       DO i = 1, n
          ! Virial mass is column 11, x,y,z positions are columns 18,19,20
          ! Halo is unique iff pid=-1 (pid is column 6)
-         !READ(7,*) c, c, c, c, c, pid, c, c, c, c, mm, c, c, c, c, c, c, xx, yy, zz
          READ (7, *) (data(j), j=1, columns)
          mm = data(column_mv)
          pid = nint(data(column_pid))
@@ -107,15 +105,12 @@ CONTAINS
             x(1, p) = data(column_x)
             x(2, p) = data(column_y)
             x(3, p) = data(column_z)
-            !WRITE(*,*) x(1,p), x(2,p), x(3,p)
             m(1, p) = data(column_mv)
             m(2, p) = data(column_mvu)
             m(3, p) = data(column_m200)
             m(4, p) = data(column_m200c)
             m(5, p) = data(column_m500c)
             m(6, p) = data(column_m2500c)
-            !WRITE(*,*) m(1,p)
-            !WRITE(*,*)
          END IF
       END DO
       CLOSE (7)
@@ -137,31 +132,6 @@ CONTAINS
 
    END SUBROUTINE read_multidark_haloes
 
-   ! SUBROUTINE read_multidark_halo_catalogue(infile, x, m, n)
-
-   !    IMPLICIT NONE
-   !    CHARACTER(len=*), INTENT(IN) :: infile
-   !    REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
-   !    REAL, ALLOCATABLE, INTENT(OUT) :: m(:, :)
-   !    INTEGER, INTENT(OUT) :: n
-   !    INTEGER :: i, j
-   !    INTEGER, PARAMETER :: nmass=6 ! Sometimes 6, sometimes 2
-
-   !    n = file_length(infile, verbose=.FALSE.)
-   !    ALLOCATE (x(3, n), m(nmass, n))
-
-   !    WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: ', trim(infile)
-   !    WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Number of haloes:', n
-   !    OPEN (7, file=infile, status='old')
-   !    DO i = 1, n
-   !       READ (7, *) x(1, i), x(2, i), x(3, i), (m(j, i), j = 1,nmass)
-   !    END DO
-   !    CLOSE (7)
-   !    WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Done'
-   !    WRITE (*, *)
-
-   ! END SUBROUTINE read_multidark_halo_catalogue
-
    SUBROUTINE read_multidark_halo_catalogue(infile, x, m, n)
 
       ! New version for halo catalogues downloaded via https://www.cosmosim.org/query
@@ -171,7 +141,7 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: m(:, :)
       INTEGER, INTENT(OUT) :: n
       INTEGER :: i, j, crap
-      INTEGER, PARAMETER :: nmass=2 ! Sometimes 6, sometimes 2
+      INTEGER, PARAMETER :: nmass=2 ! Sometimes 6, sometimes 2 ! TODO: Header
 
       n = file_length(infile, verbose=.FALSE.)
       n = n-1 ! Remove comment line
@@ -182,7 +152,8 @@ CONTAINS
       OPEN (7, file=infile, status='old')
       READ(7,*) ! Comment line
       DO i = 1, n
-         READ (7, *) crap, x(1, i), x(2, i), x(3, i), (m(j, i), j = 1,nmass)
+         !READ (7, *) crap, x(1, i), x(2, i), x(3, i), (m(j, i), j = 1,nmass)
+         READ (7, *) crap, (x(j, i) j = 1, 3), (m(j, i), j = 1, nmass)
       END DO
       CLOSE (7)
       WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Done'
@@ -199,13 +170,15 @@ CONTAINS
       REAL, INTENT(IN) :: m(6, n)
       INTEGER, INTENT(IN) :: idx(n)  
       INTEGER :: i, j
+      INTEGER, PARAMETER :: nmass=2 ! Sometimes 6, sometimes 2 ! TODO: Header
 
       ! Write out the little catalogue
       WRITE (*, *) 'WRITE_MULTIDARK_HALO_CATALOGUE: Writing outfile: ', trim(outfile)
       OPEN (7, file=outfile)
       DO i = 1, n
          j = idx(n+1-i)
-         WRITE (7, *) x(1, j), x(2, j), x(3, j), m(1, j), m(2, j), m(3, j), m(4, j), m(5, j), m(6, j)
+         !WRITE (7, *) x(1, j), x(2, j), x(3, j), m(1, j), m(2, j), m(3, j), m(4, j), m(5, j), m(6, j)
+         WRITE (7, *) (x(k, j) k = 1, 3), (m(k, j), k = 1, nmass)
       END DO
       CLOSE (7)
       WRITE (*, *) 'WRITE_MULTIDARK_HALO_CATALOGUE: Done'
