@@ -74,8 +74,9 @@ MODULE array_operations
    END INTERFACE add_to_array
 
    INTERFACE reverse_array
-      MODULE PROCEDURE reverse_array_1
-      MODULE PROCEDURE reverse_array_2
+      MODULE PROCEDURE reverse_array_1D
+      MODULE PROCEDURE reverse_array_2D
+      MODULE PROCEDURE reverse_array_3D
    END INTERFACE reverse_array
 
    INTERFACE splay
@@ -683,7 +684,7 @@ CONTAINS
 !!$
 !!$  END SUBROUTINE reduceto
 
-   SUBROUTINE reverse_array_1(a)
+   SUBROUTINE reverse_array_1D(a)
 
       ! Reverses the contents of array
       REAL, INTENT(INOUT) :: a(:)
@@ -698,18 +699,19 @@ CONTAINS
          a(i) = hold(n-i+1)
       END DO
 
-   END SUBROUTINE reverse_array_1
+   END SUBROUTINE reverse_array_1D
 
-   SUBROUTINE reverse_array_2(a, dim)
+   SUBROUTINE reverse_array_2D(a, dim)
 
       ! Reverses the contents of array
       REAL, INTENT(INOUT) :: a(:, :)
       INTEGER, INTENT(IN) :: dim
-      INTEGER :: ix, iy, nx, ny
+      INTEGER :: ix, iy
+      INTEGER :: nx, ny
       REAL, ALLOCATABLE :: b(:, :)
 
       IF ((dim /= 1) .AND. (dim /= 2)) THEN
-         STOP 'REVERSE_ARRAY_2: Error, dim must be either 1 or 2'
+         STOP 'REVERSE_ARRAY_2D: Error, dim must be either 1 or 2'
       END IF
 
       b = a
@@ -724,12 +726,49 @@ CONTAINS
             ELSE IF (dim == 2) THEN
                a(ix, iy) = b(ix, ny-iy+1)
             ELSE
-               STOP 'REVERSE_ARRAY_2: Error, something went wrong'
+               STOP 'REVERSE_ARRAY_2D: Error, something went wrong'
             END IF
          END DO
       END DO
 
-   END SUBROUTINE reverse_array_2
+   END SUBROUTINE reverse_array_2D
+
+   SUBROUTINE reverse_array_3D(a, dim)
+
+      ! Reverses the contents of array
+      REAL, INTENT(INOUT) :: a(:, :, :)
+      INTEGER, INTENT(IN) :: dim
+      INTEGER :: ix, iy, iz
+      INTEGER :: nx, ny, nz
+      REAL, ALLOCATABLE :: b(:, :, :)
+
+      IF ((dim /= 1) .AND. (dim /= 2) .AND. (dim /= 3)) THEN
+         STOP 'REVERSE_ARRAY_3D: Error, dim must be either 1, 2, or 3'
+      END IF
+
+      b = a
+
+      nx = size(a, 1)
+      ny = size(a, 2)
+      nz = size(a, 3)
+
+      DO iz = 1, nz
+         DO iy = 1, ny
+            DO ix = 1, nx
+               IF (dim == 1) THEN
+                  a(ix, iy, iz) = b(nx-ix+1, iy, iz)
+               ELSE IF (dim == 2) THEN
+                  a(ix, iy, iz) = b(ix, ny-iy+1, iz)
+               ELSE IF (dim == 3) THEN
+                  a(ix, iy, iz) = b(ix, iy, nz-iz+1)
+               ELSE
+                  STOP 'REVERSE_ARRAY_3D: Error, something went wrong'
+               END IF
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE reverse_array_3D
 
    SUBROUTINE remove_array_element(i, a)
 
