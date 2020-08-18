@@ -821,13 +821,14 @@ CONTAINS
 
       ! If the value required is off the table edge then this will halt
 
+      ! iorder = 0 => nearest-neighbour interpolation
       ! iorder = 1 => linear interpolation
 
       ! ifind = 1 => find x in xtab by crudely searching from x(1) to x(n)
       ! ifind = 2 => find x in xtab quickly assuming the table is linearly spaced
       ! ifind = 3 => find x in xtab using midpoint splitting (iterations=ceiling(log2(n)))
 
-      ! iinterp = 1 => Uses cubic polynomials for interpolation
+      ! iinterp = 1 => Use polynomials for interpolation
 
       IF (iinterp .NE. 1) STOP 'FIND_3D: No Lagrange polynomials for you, only regular polynomails, iinterp=1'
 
@@ -838,13 +839,13 @@ CONTAINS
       IF(iorder == 0) THEN
 
          DO d = 1, 3
-            IF(d==1) ix(d) = find_table_integer(x, xin, ifindx)
-            IF(d==2) ix(d) = find_table_integer(y, yin, ifindy)
-            IF(d==3) ix(d) = find_table_integer(z, zin, ifindz)
+            IF(d == 1) ix(d) = find_table_integer(x, xin, ifindx)
+            IF(d == 2) ix(d) = find_table_integer(y, yin, ifindy)
+            IF(d == 3) ix(d) = find_table_integer(z, zin, ifindz)
          END DO
 
          DO d = 1, 3
-            IF(ix(d)==0) ix(d)=1
+            IF(ix(d) == 0) ix(d)=1
          END DO
 
          find_3D = fin(ix(1), ix(2), ix(3))
@@ -879,19 +880,19 @@ CONTAINS
             ELSE IF(ix(d) == nnx(d)) THEN
                ix(d) = nnx(d)-1
             END IF
-            ix12(d,1) = ix(d)
-            ix12(d,2) = ix(d)+1
+            ix12(d, 1) = ix(d)
+            ix12(d, 2) = ix(d)+1
 
             ! Get the function value at the corners of the 'cube'
             IF(d == 1) THEN
-               x12(d,1) = xin(ix12(d,1))
-               x12(d,2) = xin(ix12(d,2))
+               x12(d, 1) = xin(ix12(d, 1))
+               x12(d, 2) = xin(ix12(d, 2))
             ELSE IF(d == 2) THEN
-               x12(d,1) = yin(ix12(d,1))
-               x12(d,2) = yin(ix12(d,2))
+               x12(d, 1) = yin(ix12(d, 1))
+               x12(d, 2) = yin(ix12(d, 2))
             ELSE IF(d == 3) THEN
-               x12(d,1) = zin(ix12(d,1))
-               x12(d,2) = zin(ix12(d,2))
+               x12(d, 1) = zin(ix12(d, 1))
+               x12(d, 2) = zin(ix12(d, 2))
             END IF
 
          END DO 
@@ -902,19 +903,19 @@ CONTAINS
                DO i = 1, 2
 
                   ! Evaluate the function at the cube corners
-                  F(i, j, k) = fin(ix12(1,i), ix12(2,j), ix12(3,k))
+                  F(i, j, k) = fin(ix12(1, i), ix12(2, j), ix12(3, k))
 
                   ! Calculate the volume of the solid in the opposite corner
                   ii = 3-i ! Swaps 1 <--> 2 (e.g., ii is 2 if i is 1 and visa versa)
                   jj = 3-j ! Swaps 1 <--> 2
                   kk = 3-k ! Swaps 1 <--> 2
                   DO d = 1, 3
-                     IF(d==1) THEN
-                        di=ii
-                     ELSE IF(d==2) THEN
-                        di=jj
-                     ELSE IF(d==3) THEN
-                        di=kk
+                     IF(d == 1) THEN
+                        di = ii
+                     ELSE IF(d == 2) THEN
+                        di = jj
+                     ELSE IF(d == 3) THEN
+                        di = kk
                      ELSE
                         STOP 'FIND_3D: Error, something is very wrong'
                      END IF
@@ -1961,6 +1962,7 @@ CONTAINS
       TYPE(interpolator3D), INTENT(IN) :: interp
       REAL :: xx, yy, zz
       INTEGER :: nx, ny, nz
+      INTEGER :: iorder
       INTEGER, PARAMETER :: iinterp = iinterp_polynomial ! No Lagrange polynomials in 3D
       LOGICAL, PARAMETER :: xycubic = .FALSE.
 
@@ -1978,27 +1980,27 @@ CONTAINS
 
       IF (interp%store) THEN
 
-         IF (outside_array_range(xx, interp%x) .OR. outside_array_range(yy, interp%y) .OR. outside_array_range(zz, interp%z)) THEN
+         ! IF (outside_array_range(xx, interp%x) .OR. outside_array_range(yy, interp%y) .OR. outside_array_range(zz, interp%z)) THEN
 
-            IF (interp%iextrap == iextrap_no) THEN
-               STOP 'EVALUATE_INTERPOLATOR_3D: Error, you have requested a point outside the range of the interpolator'
-            ELSE IF (interp%iextrap == iextrap_zero) THEN
-               evaluate_interpolator_3D = 0.
-            ELSE IF (interp%iextrap == iextrap_near) THEN
-               STOP 'EVALUATE_INTERPOLATOR_3D: Error, nearest extrapolation not implemented yet'
-            ELSE IF (interp%iextrap == iextrap_lin) THEN
-               STOP 'EVALUATE_INTERPOLATOR_3D: Error, linear extrapolation not implemented yet'
-            ELSE IF (interp%iextrap == iextrap_std) THEN
-               STOP 'EVALUATE_INTERPOLATOR_3D: Error, standard extrapolation not implemented yet'
-            ELSE
-               STOP 'EVALUATE_INTERPOLATOR_3D: Something went wrong with extrapolation methods'
-            END IF
+         !    IF (interp%iextrap == iextrap_no) THEN
+         !       STOP 'EVALUATE_INTERPOLATOR_3D: Error, you have requested a point outside the range of the interpolator'
+         !    ELSE IF (interp%iextrap == iextrap_zero) THEN
+         !       evaluate_interpolator_3D = 0.
+         !    ELSE IF (interp%iextrap == iextrap_near) THEN
+         !       STOP 'EVALUATE_INTERPOLATOR_3D: Error, nearest extrapolation not implemented yet'
+         !    ELSE IF (interp%iextrap == iextrap_lin) THEN
+         !       STOP 'EVALUATE_INTERPOLATOR_3D: Error, linear extrapolation not implemented yet'
+         !    ELSE IF (interp%iextrap == iextrap_std) THEN
+         !       STOP 'EVALUATE_INTERPOLATOR_3D: Error, standard extrapolation not implemented yet'
+         !    ELSE
+         !       STOP 'EVALUATE_INTERPOLATOR_3D: Something went wrong with extrapolation methods'
+         !    END IF
 
-         ELSE
+         ! ELSE
 
-            STOP 'EVALUATE_INTERPOLATOR_3D: Storage of interpolator not implemented yet'
+         STOP 'EVALUATE_INTERPOLATOR_3D: Storage of interpolator not implemented yet'
 
-         END IF
+         ! END IF
 
       ELSE
 
@@ -2009,25 +2011,28 @@ CONTAINS
                STOP 'EVALUATE_INTERPOLATOR_3D: Error, you have requested a point outside the range of the interpolator'
             ELSE IF (interp%iextrap == iextrap_zero) THEN
                evaluate_interpolator_3D = 0.
+               RETURN
             ELSE IF (interp%iextrap == iextrap_lin) THEN
-               STOP 'EVALUATE_INTERPOLATOR_3D: Error, linear extrapolation not implemented yet'
+               iorder = 1
             ELSE IF (interp%iextrap == iextrap_near) THEN
-               STOP 'EVALUATE_INTERPOLATOR_3D: Error, nearest extrapolation not implemented yet'
+               iorder = 0
             ELSE
                STOP 'EVALUATE_INTERPOLATOR_3D: Something went wrong with extrapolation methods'
             END IF
 
          ELSE
 
+            iorder = interp%iorder
+
+         END IF
+
             evaluate_interpolator_3D = find(xx, interp%x, yy, interp%y, zz, interp%z, interp%f, &
                         interp%nx, interp%ny, interp%nz, &
-                        interp%iorder, &
+                        iorder, &
                         interp%ifindx, &
                         interp%ifindy, &
                         interp%ifindz, &
                         iinterp)
-
-         END IF
 
       END IF
 
