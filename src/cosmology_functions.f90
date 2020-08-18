@@ -613,6 +613,7 @@ CONTAINS
       names(98) = 'WMAP9 (BAHAMAS AGN 8.0; CAMB)'
       names(99) = 'Boring but with no-wiggle linear power'
       names(238) = 'Random Mira Titan cosmology with constant dark energy'
+      names(239) = 'Bolshoi: Planck'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1107,8 +1108,8 @@ CONTAINS
          ! Boring; EdS; z=1 normalisation for Mead 2017; LCDM
          cosm%sig8 = 0.65380
       ELSE IF (icosmo == 37 .OR. icosmo == 43 .OR. icosmo == 44) THEN
-         ! 37 - Multidark: WMAP5
-         ! 43 - Multidark: WMAP5 with altered sigma_8
+         ! 37 - Multidark: WMAP5 (also Bolshoi)
+         ! 43 - Multidark: WMAP5 with lowered sigma_8
          ! 44 - Multidark: WMAP5 with Eisenstein & Hu transfer function
          cosm%h = 0.70
          cosm%Om_b = 0.0469
@@ -1377,6 +1378,14 @@ CONTAINS
       ELSE IF (icosmo == 99) THEN
          ! No wiggle linear power
          cosm%itk = itk_nw
+      ELSE IF (icosmo == 239) THEN
+         ! Bolshoi: Planck (https://www.cosmosim.org/cms/simulations/bolshoip/)
+         cosm%Om_m = 0.30711
+         cosm%Om_v = 1.-cosm%Om_m
+         cosm%h = 0.70
+         cosm%Om_b = 0.048
+         cosm%ns = 0.96
+         cosm%sig8 = 0.82
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1691,7 +1700,6 @@ CONTAINS
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 2 [eV]:', cosm%m_nu(2)
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 3 [eV]:', cosm%m_nu(3)
          WRITE (*, fmt=format) 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
-         WRITE (*, fmt=format) 'COSMOLOGY:', 'log10(T_AGN/K):', log10(cosm%Theat)
          WRITE (*, *) dashes
          !WRITE (*, *) 'COSMOLOGY: Dark energy'
          IF (cosm%iw == iw_LCDM) THEN
@@ -1746,7 +1754,7 @@ CONTAINS
                WRITE(*, fmt=format) 'COSMOLOGY:', 'nfR:', cosm%nfR
             END IF
             WRITE (*, *) dashes
-         END IF        
+         END IF
          IF(cosm%itk == itk_none) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: Pure power law'
          ELSE IF(cosm%itk == itk_EH) THEN
@@ -1784,6 +1792,9 @@ CONTAINS
             WRITE (*, fmt=format) 'COSMOLOGY:', 'k_bu [Mpc/h]:', cosm%k_bump
             WRITE (*, fmt=format) 'COSMOLOGY:', 'sigma bu:', cosm%sigma_bump
          END IF
+         WRITE (*, *) dashes
+         WRITE (*, *) 'COSMOLOGY: Baryon feedback'
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'log10(T_AGN/K):', log10(cosm%Theat)
          WRITE (*, *) dashes
          WRITE (*, *) 'COSMOLOGY: Derived parameters'
          WRITE (*, fmt=format) 'COSMOLOGY:', 'omega_m:', cosm%omega_m
