@@ -2757,16 +2757,20 @@ CONTAINS
       CALL fill_array(amin, amax, a, n)
       ALLOCATE(Xde(n))
 
-      WRITE(*, *) 'INIT_XDE: minimum a:', amin
-      WRITE(*, *) 'INIT_XDE: maximum a:', amax
-      WRITE(*, *) 'INIT_XDE: number of a:', n
+      IF (cosm%verbose) THEN
+         WRITE(*, *) 'INIT_XDE: minimum a:', amin
+         WRITE(*, *) 'INIT_XDE: maximum a:', amax
+         WRITE(*, *) 'INIT_XDE: number of a:', n
+      END IF
 
       DO i = 1, n
          Xde(i) = Xde_integral(a(i), cosm)
       END DO
 
-      WRITE(*, *) 'INIT_XDE: minimum X_de:', Xde(n)
-      WRITE(*, *) 'INIT_XDE: maximum X_de:', Xde(1)
+      IF (cosm%verbose) THEN
+         WRITE(*, *) 'INIT_XDE: minimum X_de:', Xde(n)
+         WRITE(*, *) 'INIT_XDE: maximum X_de:', Xde(1)
+      END IF
 
       CALL init_interpolator(a, Xde, cosm%Xde, &
          iorder = iorder_interp_Xde, &
@@ -2780,8 +2784,10 @@ CONTAINS
       !cosm%n_Xde = n
       cosm%has_Xde = .TRUE.
 
-      WRITE(*, *) 'INIT_XDE: Done'
-      WRITE(*, *)
+      IF (cosm%verbose) THEN
+         WRITE(*, *) 'INIT_XDE: Done'
+         WRITE(*, *)
+      END IF
 
    END SUBROUTINE init_Xde
 
