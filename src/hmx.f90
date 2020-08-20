@@ -434,12 +434,13 @@ MODULE HMx
    LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Fix a minimum value for B_NL
    REAL, PARAMETER :: min_bnl = -1.                 ! Minimum value that BNL is allowed to be (could be below -1 ...)
    INTEGER, PARAMETER :: iorder_bnl = 1             ! Linear interpolation
-   INTEGER, PARAMETER :: iextrap_bnl = iextrap_std  ! Extrapolation scheme
-   LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage mode?
+   INTEGER, PARAMETER :: iextrap_bnl = iextrap_std  ! Standard extrapolation
+   LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
    REAL, PARAMETER :: eps_ztol_bnl = 1e-2           ! How far off can the redshift be?
-   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar'
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_BDMV'
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/BNL_rockstar_lowsig8'
+   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_rockstar'
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_BDMV'
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_lowsig8_rockstar'
 
    ! Field types
    INTEGER, PARAMETER :: field_dmonly = 1
@@ -1673,13 +1674,13 @@ CONTAINS
          hmod%response_baseline = HMcode2016
       ELSE IF (ihm == 48) THEN
          ! Non-linear halo bias for standard halo model with virial haloes
-         hmod%ibias = 3   ! Non-linear halo bias
-         !hmod%i1hdamp=3 ! One-halo damping like k^4
+         hmod%ibias = 3 ! Non-linear halo bias
+         !hmod%i1hdamp = 3 ! One-halo damping like k^4
       ELSE IF (ihm == 49) THEN
          ! Non-linear halo bias and Tinker mass function and virial mass haloes
-         hmod%imf = 3     ! Tinker mass function and bias
-         hmod%ibias = 3   ! Non-linear halo bias
-         !hmod%i1hdamp=3 ! One-halo damping like k^4
+         hmod%imf = 3   ! Tinker mass function and bias
+         hmod%ibias = 3 ! Non-linear halo bias
+         !hmod%i1hdamp = 3 ! One-halo damping like k^4
       ELSE IF(ihm == 52) THEN
          ! Standard halo model but with Mead (2017) spherical-collapse fitting function
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
