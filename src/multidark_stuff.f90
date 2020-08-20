@@ -239,7 +239,9 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: s
 
-      IF (s == 85) THEN
+      IF (s == 416) THEN
+         multidark_scale_factor = 1. ! This is actually Bolshoi, this is a bit lazy
+      ELSE IF (s == 85) THEN
          multidark_scale_factor = 1.001
       ELSE IF (s == 62) THEN
          multidark_scale_factor = 0.652
