@@ -1103,17 +1103,18 @@ CONTAINS
       INTEGER :: i
 
       ! Allocate the array, and deallocate it if it is full
-      !IF (ALLOCATED(arr)) DEALLOCATE (arr)
-      !ALLOCATE (arr(n))'
       CALL safe_allocate(arr, n)
       arr = 0.
 
       IF (n == 1) THEN
+         IF (min /= max) STOP 'FILL_ARRAY: If array filled with a single value then min and max must be equal'
          arr(1) = min
       ELSE IF (n > 1) THEN
          DO i = 1, n
             arr(i) = progression(min, max, i, n)
          END DO
+      ELSE
+         STOP 'FILL_ARRAY: Error, n cannot be negative'
       END IF
 
    END SUBROUTINE fill_array
