@@ -1359,8 +1359,7 @@ CONTAINS
       IF (present_and_correct(linear_k_range)) THEN
          CALL fill_array(kmin, kmax, kbin, nk+1)
       ELSE
-         CALL fill_array(log(kmin), log(kmax), kbin, nk+1)
-         kbin = exp(kbin)
+         CALL fill_array_log(kmin, kmax, kbin, nk+1)
       END IF
 
       ! Explicitly extend the first and last bins to be sure to include *all* modes
@@ -1504,8 +1503,7 @@ CONTAINS
       IF (present_and_correct(linear_k_range)) THEN
          CALL fill_array(kmin, kmax, kbin, nk+1)
       ELSE
-         CALL fill_array(log(kmin), log(kmax), kbin, nk+1)
-         kbin = exp(kbin)
+         CALL fill_array_log(kmin, kmax, kbin, nk+1)
       END IF
 
       ! Explicitly extend the first and last bins to be sure to include *all* modes
