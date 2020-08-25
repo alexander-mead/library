@@ -6,8 +6,8 @@ MODULE sorting
 
    PUBLIC :: index
    PUBLIC :: sort
-   PUBLIC :: check_sorted
-   PUBLIC :: check_sorted_index
+   PUBLIC :: sorted
+   PUBLIC :: sorted_index
    PUBLIC :: reindex
    PUBLIC :: isort_bubble
    PUBLIC :: isort_stupid
@@ -59,21 +59,21 @@ CONTAINS
       REAL, INTENT(INOUT) :: a(:)
       REAL :: hold
       INTEGER :: i, n
-      LOGICAL :: sorted
+      LOGICAL :: is_sorted
 
       n = size(a)
 
       DO
-         sorted = .TRUE.
+         is_sorted = .TRUE.
          DO i = 1, n-1
             IF (a(i) > a(i+1)) THEN
                hold = a(i+1)
                a(i+1) = a(i)
                a(i) = hold
-               sorted = .FALSE.
+               is_sorted = .FALSE.
             END IF
          END DO
-         IF (sorted) EXIT
+         IF (is_sorted) EXIT
       END DO
 
    END SUBROUTINE bubble_sort
@@ -293,7 +293,7 @@ CONTAINS
 
    END SUBROUTINE stupid_index_int
 
-   LOGICAL FUNCTION check_sorted(a)
+   LOGICAL FUNCTION sorted(a)
 
       ! Checks if array 'a' is sorted from highest to lowest
       REAL, INTENT(IN) :: a(:) ! Input array to check
@@ -301,18 +301,18 @@ CONTAINS
 
       n = size(a)
 
-      check_sorted = .TRUE.
+      sorted = .TRUE.
 
       DO i = 1, n-1
          IF (a(i) > a(i+1)) THEN
-            check_sorted = .FALSE.
+            sorted = .FALSE.
             EXIT
          END IF
       END DO
 
-   END FUNCTION check_sorted
+   END FUNCTION sorted
 
-   LOGICAL FUNCTION check_sorted_index(a, j)
+   LOGICAL FUNCTION sorted_index(a, j)
 
       ! Checks if array indices for 'a' are sorted from highest to lowest
       REAL, INTENT(IN) :: a(:)    ! Input array to check
@@ -322,16 +322,16 @@ CONTAINS
       n = size(a)
       IF (n /= size(j)) STOP 'CHECK_SORTED_INDEX: Error a and j should be same size'
 
-      check_sorted_index = .TRUE.
+      sorted_index = .TRUE.
 
       DO i = 1, n-1
          IF (a(j(i)) > a(j(i+1))) THEN
-            check_sorted_index = .FALSE.
+            sorted_index = .FALSE.
             EXIT
          END IF
       END DO
 
-   END FUNCTION check_sorted_index
+   END FUNCTION sorted_index
 
    SUBROUTINE reindex(a, j)
 
