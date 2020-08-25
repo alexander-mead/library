@@ -42,6 +42,7 @@ MODULE array_operations
    !PUBLIC :: fill_array_double ! TODO: Delete
    PUBLIC :: fill_array_log
    PUBLIC :: outside_array_range
+   PUBLIC :: sum_logical
 
 !!$  ! These interfaces did not work if -fdefault-real-8 and -fdefault-real-8 were set
 !!$  INTERFACE fill_array
@@ -1483,5 +1484,17 @@ CONTAINS
       END DO
 
    END FUNCTION regular_spacing
+
+   INTEGER FUNCTION sum_logical(a)
+
+      LOGICAL, INTENT(IN) :: a(:)
+      INTEGER :: i
+
+      sum_logical = 0
+      DO i = 1, size(a)
+         IF (a(i)) sum_logical = sum_logical+1
+      END DO
+
+   END FUNCTION
 
 END MODULE array_operations
