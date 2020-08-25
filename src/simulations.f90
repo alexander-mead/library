@@ -22,6 +22,7 @@ MODULE simulations
    PUBLIC :: Zeldovich_ICs
    PUBLIC :: replace
    PUBLIC :: sharp_Fourier_density_contrast
+   PUBLIC :: power_spectrum_particles
 
    PUBLIC :: generate_randoms
    PUBLIC :: generate_poor_glass
@@ -313,7 +314,6 @@ CONTAINS
       INTEGER, INTENT(IN) :: m, nk
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:), Pk(:), sig(:)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
-      !DOUBLE COMPLEX :: dk(m, m, m)
       COMPLEX :: dk(m, m, m)
       REAL :: kmin, kmax
 
@@ -530,7 +530,7 @@ CONTAINS
       ! Loop over all particles
       DO i = 1, n
          DO j = 1, 3
-            ix(j) = NGP_cell(x(j, i), L, m) ! Find the integer-coordinates for which cell you are in
+            ix(j) = NGP_cell(x(j, i), L, m) ! Find the integer-coordinates for the cell
          END DO
          v(:, i) = s(:, ix(1), ix(2), ix(3)) ! Assign the velocity
       END DO
