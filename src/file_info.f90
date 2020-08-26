@@ -7,6 +7,7 @@ MODULE file_info
    PUBLIC :: file_length
    PUBLIC :: count_number_of_lines
    PUBLIC :: check_file_exists
+   PUBLIC :: file_exists
 
 CONTAINS
 
