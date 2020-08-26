@@ -135,7 +135,7 @@ MODULE cosmology_functions
    PUBLIC :: CAMB_nonlinear_HALOFIT_Takahashi 
    PUBLIC :: CAMB_nonlinear_HMcode2015
    PUBLIC :: CAMB_nonlinear_HMcode2016
-   PUBLIC :: CAMB_nonlinear_HMcode2016_neutrinofix
+   PUBLIC :: CAMB_nonlinear_HMcode2020
 
    ! HALOFIT
    PUBLIC :: calculate_HALOFIT_a
@@ -321,13 +321,13 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Order for interpolation
    INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
    INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
-   INTEGER, PARAMETER :: iextrap_plin = iextrap_lin   ! Extrapolation scheme
+   INTEGER, PARAMETER :: iextrap_plin = iextrap_lin      ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_plin = .TRUE.             ! Pre-calculate interpolation coefficients
 
    ! CAMB interface
-   REAL, PARAMETER :: pk_min_CAMB = 1e-10     ! Minimum value of power at low k (remove k with less than this) 
-   REAL, PARAMETER :: nmax_CAMB = 2.          ! How many times more to go than kmax due to inaccuracy near k limit
-   LOGICAL, PARAMETER :: rebin_CAMB = .FALSE. ! Should we rebin CAMB or just use default k?
+   REAL, PARAMETER :: pk_min_CAMB = 1e-10                      ! Minimum value of power at low k (remove k with less than this) 
+   REAL, PARAMETER :: nmax_CAMB = 2.                           ! How many times more to go than kmax due to inaccuracy near k limit
+   LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.                  ! Should we rebin CAMB or just use default k?
    INTEGER, PARAMETER :: iorder_rebin_CAMB = 3                 ! Polynomial order for interpolation on CAMB rebinning
    INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation on CAMB rebinning (*definitely* not linear)
    INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Method for interpolation on CAMB rebinning
@@ -354,11 +354,11 @@ MODULE cosmology_functions
    REAL, PARAMETER :: kwig_points(4) = [0.008, 0.01, 0.8, 1.] ! Points in k for Lagrange polynomial TODO: Remove
 
    ! Linear power spectrum smoothing methods  
-   REAL, PARAMETER :: wiggle_dx = 0.20      ! Smoothing half-width if using top-hat smoothing
-   REAL, PARAMETER :: wiggle_sigma = 0.25   ! Smoothing width if using Gaussian smoothing  
+   REAL, PARAMETER :: wiggle_dx = 0.20                     ! Smoothing half-width if using top-hat smoothing
+   REAL, PARAMETER :: wiggle_sigma = 0.25                  ! Smoothing width if using Gaussian smoothing  
    INTEGER, PARAMETER :: wiggle_smooth = dewiggle_Gaussian ! Type of smoothing to use
    LOGICAL, PARAMETER :: divide_by_nowiggle = .TRUE.       ! Should we reduce dynamic range with EH no-wiggle?
-   REAL, PARAMETER :: knorm_nowiggle = 0.03 ! Wavenumber at which to force linear and nowiggle to be identical [Mpc/h]
+   REAL, PARAMETER :: knorm_nowiggle = 0.03                ! Wavenumber at which to force linear and nowiggle to be identical [Mpc/h]
 
    ! Wiggle extraction and interpolation
    REAL, PARAMETER :: kmin_wiggle = 5e-3                   ! Minimum wavenumber to calulate wiggle [Mpc/h]
@@ -380,7 +380,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: alpha_hi_xi = 1.5        ! High r value of alpha for conventional integration
 
    ! Growth ODE
-   REAL, PARAMETER :: aini_growth = 1e-4                      ! Starting value for growth integratiton (should start | Omega_m(a)=1)
+   REAL, PARAMETER :: aini_growth = 1e-4                     ! Starting value for growth integratiton (should start | Omega_m(a)=1)
    REAL, PARAMETER :: afin_growth = 1.                       ! Finishing value for growth integratiton (should be a=1)
    REAL, PARAMETER :: acc_ODE_growth = acc_cosm              ! Accuracy parameter for growth ODE solving
    INTEGER, PARAMETER :: imeth_ODE_growth = 3                ! Method for solving growth ODE
@@ -412,8 +412,8 @@ MODULE cosmology_functions
    REAL, PARAMETER :: growth_index_limit = 0.01     ! Scale factor below which to use default value
 
    ! Accumualted growth integration and interpolation
-   INTEGER, PARAMETER :: iorder_integration_agrow = 3 ! Polynomial order for growth interpolation for ODE solution
-   INTEGER, PARAMETER :: iorder_interp_agrow = 3      ! Polynomial order for growth interpolation for ODE solution
+   INTEGER, PARAMETER :: iorder_integration_agrow = 3 ! Polynomial order for accumulated growth integration
+   INTEGER, PARAMETER :: iorder_interp_agrow = 3      ! Polynomial order for interpolation of accumulated growth
    INTEGER, PARAMETER :: iextrap_agrow = iextrap_lin  ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_agrow = .TRUE.         ! Pre-calculate interpolation coefficients?
 
@@ -484,12 +484,12 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
 
    ! CAMB non-linear
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1          ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2           ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4      ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8             ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5             ! Mead et al. (2016; https://arxiv.org/abs/1602.02154)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016_neutrinofix = 9 ! Unpublished Takahashi with Bird
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1     ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2      ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4 ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8        ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5        ! Mead et al. (2016; https://arxiv.org/abs/1602.02154)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2020 = 9        ! Mead et al. (2020; xxxx.xxxxx)
 
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
@@ -2056,7 +2056,7 @@ CONTAINS
       ! TODO: Need to think about normalisation parameters as primary vs. seconary  
       ! cosm%A = 391.0112 ! Appropriate for sigma_8=0.8 in the boring model (for tests)
       cosm%A = cosm%A*cosm%sig8/sigma8_initial
-      cosm%As = cosm%As*cosm%A**2 
+      cosm%As = cosm%As*(cosm%sig8/sigma8_initial)**2
 
       ! Replace the k-cut if necessary
       IF (cosm%box) THEN
@@ -5748,6 +5748,8 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
       CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini' 
 
+      IF(cosm%itk .NE. itk_CAMB) STOP 'GET_CAMB_POWER: Normalisation will not work unless itk_CAMB is set'
+
       IF (cosm%verbose) THEN
          WRITE(*,*) 'GET_CAMB_POWER: Running CAMB'
          WRITE(*,*) 'GET_CAMB_POWER: kpiv [1/Mpc]:', real(cosm%kpiv)
@@ -5774,10 +5776,6 @@ CONTAINS
          h = cosm%h
       END IF
 
-      !IF (cosm%Om_v .NE. 0) THEN
-      !   WRITE(*, *) 'GET_CAMB_POWER: Omega_v:', cosm%Om_v
-      !   STOP 'GET_CAMB_POWER: Need to provide Omega_w to CAMB, not Omega_v'
-      !END IF
       IF (.NOT. is_in_array(cosm%iw, [iw_LCDM, iw_wCDM, iw_waCDM])) STOP 'GET_CAMB_POWER: Can only cope with LCDM, wCDM or w(a)CDM'
 
       ! Physical density parameters that CAMB requires
@@ -5843,7 +5841,7 @@ CONTAINS
          WRITE (7, *) 'nu_mass_fractions = 1'
       END IF
 
-      ! Primoridial power spectrum properties
+      ! Primordial power spectrum properties
       WRITE (7, *) 'initial_power_num = 1'
       WRITE (7, *) 'scalar_spectral_index(1) =', cosm%ns
       WRITE (7, *) 'scalar_nrun(1) = 0'
@@ -5887,8 +5885,8 @@ CONTAINS
       WRITE (7, *) 'do_lensing_bispectrum = F'
       WRITE (7, *) 'do_primordial_bispectrum = F'
 
-      ! Verbosity
-      WRITE (7, *) 'feedback_level = 2'
+      ! Verbosity (0 writes nothing; 1 writes some useful stuff; 2 writes HMcode stuff)
+      WRITE (7, *) 'feedback_level = 0'
 
       ! Print out a comment describing file headers
       WRITE (7, *) 'output_file_headers = T'
@@ -6031,14 +6029,14 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: matterpower = trim(root)//'_matterpower_'
       CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
       CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini'
-      LOGICAL, PARAMETER :: non_linear = .FALSE.       ! Should not use non-linear when trying to get linear theory
-      INTEGER, PARAMETER :: halofit_version = 0        ! Irrelevant here
-      REAL, PARAMETER :: kmin_rebin = kmin_plin
-      REAL, PARAMETER :: kmax_rebin = kmax_plin
-      INTEGER, PARAMETER :: nk = nk_plin
-      REAL, PARAMETER :: amin = amin_plin              ! Minimum scale factor to get from CAMB
-      REAL, PARAMETER :: amax = amax_plin              ! Maximum scale factor to get from CAMB
-      LOGICAL, PARAMETER :: rebin = rebin_CAMB         ! Should we rebin CAMB input P(k)?
+      LOGICAL, PARAMETER :: non_linear = .FALSE. ! Should not use non-linear when trying to get linear theory
+      INTEGER, PARAMETER :: halofit_version = 0  ! Irrelevant here because we are getting linear spectrum
+      REAL, PARAMETER :: kmin_rebin = kmin_plin  ! Minimum k if rebinning [h/Mpc]
+      REAL, PARAMETER :: kmax_rebin = kmax_plin  ! Maximum k if rebinning [h/Mpc] 
+      INTEGER, PARAMETER :: nk = nk_plin         ! Number of k if rebinning
+      REAL, PARAMETER :: amin = amin_plin        ! Minimum scale factor to get from CAMB
+      REAL, PARAMETER :: amax = amax_plin        ! Maximum scale factor to get from CAMB
+      LOGICAL, PARAMETER :: rebin = rebin_CAMB   ! Should we rebin CAMB input P(k)?
 
       IF (cosm%verbose) THEN
          WRITE(*,*) 'INIT_CAMB_LINEAR: Getting linear power from CAMB'
