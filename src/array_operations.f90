@@ -23,7 +23,7 @@ MODULE array_operations
    PUBLIC :: fill_pixels
    PUBLIC :: binning
    PUBLIC :: merge_arrays
-   PUBLIC :: mask
+   PUBLIC :: create_mask
    PUBLIC :: apply_mask
    PUBLIC :: smooth_array_tophat
    PUBLIC :: smooth_array_Gaussian
@@ -269,7 +269,7 @@ CONTAINS
    SUBROUTINE if_allocated_deallocate_real_2D(x)
 
       ! Deallocates an array if it is already allocated
-      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :)
 
       IF(ALLOCATED(x)) DEALLOCATE(x)
 
@@ -278,7 +278,7 @@ CONTAINS
    SUBROUTINE if_allocated_deallocate_real_3D(x)
 
       ! Deallocates an array if it is already allocated
-      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:,:,:)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :, :)
 
       IF(ALLOCATED(x)) DEALLOCATE(x)
 
@@ -675,32 +675,6 @@ CONTAINS
 
    END SUBROUTINE reduce_array
 
-!!$  SUBROUTINE reduceto(arr1,n)
-!!$
-!!$    ! Reduces the array from whatever size to size 'n'
-!!$    ! TODO: Remove
-!!$    IMPLICIT NONE
-!!$    REAL, ALLOCATABLE, INTENT(INOUT) :: arr1(:)
-!!$    INTEGER, INTENT(IN) :: n
-!!$    REAL, ALLOCATABLE :: hold(:)
-!!$    INTEGER :: i, j
-!!$
-!!$    ALLOCATE(hold(n))
-!!$
-!!$    DO i=1,n
-!!$       j=1+ceiling(real((n-1)*(i-1))/real(n-1))
-!!$       hold(i)=arr1(j)
-!!$    END DO
-!!$
-!!$    DEALLOCATE(arr1)
-!!$    ALLOCATE(arr1(n))
-!!$
-!!$    arr1=hold
-!!$
-!!$    DEALLOCATE(hold)
-!!$
-!!$  END SUBROUTINE reduceto
-
    SUBROUTINE reverse_array_1D(a)
 
       ! Reverses the contents of array
@@ -948,7 +922,7 @@ CONTAINS
    FUNCTION splay_2D(a, n1, n2)
 
       ! This splays out a 2D array 'a' into a 1d array 'b' of the same size (n1*n2)
-      ! TODO: Ugly order of arguments
+      ! TODO: Ugly order of arguments (convert to subroutine?)
       INTEGER, INTENT(IN) :: n1, n2
       REAL :: splay_2D(n1*n2)
       REAL, INTENT(IN) :: a(n1, n2)
@@ -970,7 +944,7 @@ CONTAINS
 
       ! This splays out a 3D array 'a' into a 1d array 'b' of the same size (n1*n2*n3)
       ! TODO: Should i, j, k order of loops be reversed?
-      ! TODO: Ugly order of arguments
+      ! TODO: Ugly order of arguments (convert to subroutine?)
       INTEGER, INTENT(IN) :: n1, n2, n3
       REAL :: splay_3D(n1*n2*n3)
       REAL, INTENT(IN) :: a(n1, n2, n3)
@@ -992,12 +966,15 @@ CONTAINS
 
    SUBROUTINE binning(a, a1, a2, b, c, ilog)
 
-      ! Bin numbers in array a in bins b with height c between a1 and a2
+      ! Histogram? bin numbers in array a in bins b with height c between a1 and a2
+      ! TODO: Is this a repeat of a different subroutine called histogram in statistics.f90?
       REAL, INTENT(IN) :: a(:)
+      REAL, INTENT(IN) :: a1
+      REAL, INTENT(IN) :: a2
       REAL, INTENT(OUT) :: b(:)
       REAL, INTENT(OUT) :: c(:)
       INTEGER, INTENT(IN) :: ilog
-      REAL :: a1, a2, min, max
+      REAL :: min, max
       REAL, ALLOCATABLE :: binlim(:)
       INTEGER :: i, j, n
 
@@ -1072,7 +1049,7 @@ CONTAINS
    FUNCTION concatenate_arrays(a, b)
 
       ! Concatenate arrays a and b to form new array with length SIZE(a)+SIZE(b)
-      ! TODO: Ugly definition for type of function  
+      ! TODO: Ugly definition for type of function (convert to subroutine?)
       REAL, INTENT(IN) :: a(:)
       REAL, INTENT(IN) :: b(:)
       REAL :: concatenate_arrays(size(a)+size(b))
@@ -1173,8 +1150,7 @@ CONTAINS
       IF(i2 < i1) STOP 'INTEGER_SEQUENCE: Error, i2 is less than i1'
 
       n = i2-i1+1
-      !CALL if_allocated_deallocate(is)
-      !ALLOCATE(is(n))
+
       CALL safe_allocate(is, n)
       DO j = 1, n
          i = i1+j-1
@@ -1188,42 +1164,43 @@ CONTAINS
       ! Fill an array between min and max as if the values should correspond to central pixel values
       ! e.g., 3 pixel values between 0 and 1 would be 1/6, 1/2 and 5/6
       ! This means that min and max are not included in the array
-      REAL, INTENT(IN) :: min ! Minimum value bordering array
-      REAL, INTENT(IN) :: max ! Maximum value bordering array
+      REAL, INTENT(IN) :: min                  ! Minimum value bordering array
+      REAL, INTENT(IN) :: max                  ! Maximum value bordering array
       REAL, ALLOCATABLE, INTENT(OUT) :: arr(:) ! Output array
-      INTEGER, INTENT(IN) :: n ! Number of pixels in array
+      INTEGER, INTENT(IN) :: n                 ! Number of pixels in array
       REAL :: mmin, mmax, pixel_size
 
       pixel_size = (max-min)/real(n) ! Calculate the pixel size
-      mmin = min+pixel_size/2. ! Offset minimum value by half a pixel into the region
-      mmax = max-pixel_size/2. ! Offset maximum value by half a pixel into the region
+      mmin = min+pixel_size/2.       ! Offset minimum value by half a pixel into the region
+      mmax = max-pixel_size/2.       ! Offset maximum value by half a pixel into the region
 
       CALL fill_array(mmin, mmax, arr, n) ! Linearly fill array
 
    END SUBROUTINE fill_pixels
 
-   SUBROUTINE mask(okay, m, n, min, max)
+   SUBROUTINE create_mask(min, max, m, mask)
 
-      ! Flags objects that make the cut as 'okay'
-      INTEGER, INTENT(IN) :: n
-      LOGICAL, INTENT(OUT) :: okay(n)
-      REAL, INTENT(IN) :: m(n)
+      ! Flags objects that make the cut as true in mask
       REAL, INTENT(IN) :: min
       REAL, INTENT(IN) :: max
-      INTEGER :: i, o
+      REAL, INTENT(IN) :: m(:)
+      LOGICAL, INTENT(OUT) :: mask(:)
+      INTEGER :: i, o, n
+
+      n = size(m)
+      IF (n /= size(mask)) STOP 'CREATE_MASK: Error, real and logical array should be the same size'
 
       WRITE (*, *) 'MASK: Imposing property cut'
       WRITE (*, *) 'MASK: Minimum value:', min
       WRITE (*, *) 'MASK: Maximum value:', max
       WRITE (*, *) 'MASK: Original number of objects', n
 
-      okay = .FALSE.
-
+      mask = .FALSE.
       DO i = 1, n
-         IF (m(i) >= min .AND. m(i) <= max) okay(i) = .TRUE.
+         IF (m(i) >= min .AND. m(i) <= max) mask(i) = .TRUE.
       END DO
 
-      o = count(okay)
+      o = count(mask)
 
       WRITE (*, *) 'MASK: Final number of objects:', o
       WRITE (*, *) 'MASK: Fraction remaining:', real(o)/real(n)
@@ -1231,17 +1208,19 @@ CONTAINS
       WRITE (*, *) 'MASK: Done'
       WRITE (*, *)
 
-   END SUBROUTINE mask
+   END SUBROUTINE create_mask
 
    SUBROUTINE apply_mask_1D(x, a, nx, xmask)
 
-      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
-      REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
+      ! Use the xmask to resize arrays x and a(x) according to only true elements of the mask
+      ! TODO: Ugly argument list
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:) ! Input x array
+      REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Input a(x) array
       INTEGER, INTENT(INOUT) :: nx
       LOGICAL, INTENT(IN) :: xmask(nx)
       INTEGER :: i, ii, nx_new
       REAL :: a_old(nx), x_old(nx) ! Not necessary, could use x, but makes easier to read
-      INTEGER :: nx_old ! Not necessary, could use n, but makes easier to read
+      INTEGER :: nx_old            ! Not necessary, could use n, but makes easier to read
       REAL, ALLOCATABLE :: a_new(:), x_new(:)
 
       IF(size(a) .NE. nx) STOP 'APPLY_MASK_1D: Error, you have specified array dimension incorrectly'
@@ -1275,9 +1254,11 @@ CONTAINS
 
    SUBROUTINE apply_mask_2D(x, y, a, nx, ny, xmask, ymask)
 
+      ! Use xmask and ymask to resize arrays x, y and a(x, y) according to only true elements of the masks
+      ! TODO: Ugly argument list
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: y(:)
-      REAL, ALLOCATABLE, INTENT(INOUT) :: a(:,:)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: a(:, :)
       INTEGER, INTENT(INOUT) :: nx
       INTEGER, INTENT(INOUT) :: ny
       LOGICAL, INTENT(IN) :: xmask(nx)
@@ -1285,7 +1266,7 @@ CONTAINS
       INTEGER :: i, ii, j, jj, nx_new, ny_new
       REAL :: x_old(nx), y_old(ny), a_old(nx, ny) ! Not necessary, could use x, but makes easier to read
       INTEGER :: nx_old, ny_old ! Not necessary, could use n, but makes easier to read
-      REAL, ALLOCATABLE :: x_new(:), y_new(:), a_new(:,:)
+      REAL, ALLOCATABLE :: x_new(:), y_new(:), a_new(:, :)
 
       IF(size(a(:,1)) .NE. nx) THEN
          WRITE(*, *) 'APPLY_MASK_2D: nx:', nx
@@ -1362,6 +1343,7 @@ CONTAINS
 
    SUBROUTINE unique_index(array, n, unique, m, match)
 
+      ! Create an indexing scheme to only the unique elements
       INTEGER, INTENT(IN) :: n                       ! Number of entries in input array
       INTEGER, INTENT(IN) :: array(n)                ! Array to find the unique indices of
       INTEGER, ALLOCATABLE, INTENT(OUT) :: unique(:) ! Output array of unique indices
@@ -1423,7 +1405,7 @@ CONTAINS
    LOGICAL FUNCTION is_in_array_character(x, a)
 
       ! Test to see if integer value x is in a(n)
-      ! This is very useful in IF statements where otherwise there would be a long chain of .OR.s
+      ! This is very useful in IF statements where otherwise there would be a long chain of .OR.'s
       CHARACTER(len=*), INTENT(IN) :: x
       CHARACTER(len=*), INTENT(IN) :: a(:)
       INTEGER :: i
@@ -1440,7 +1422,7 @@ CONTAINS
 
    LOGICAL FUNCTION repeated_entries(a)
 
-      ! Checks for repeated entries in a(n)
+      ! Checks for repeated entries in a(n) either true or false
       INTEGER, INTENT(IN) :: a(:)
       INTEGER :: i, j, n
 
@@ -1487,6 +1469,7 @@ CONTAINS
 
    INTEGER FUNCTION sum_logical(a)
 
+      ! Count the number of true entries in a logical array
       LOGICAL, INTENT(IN) :: a(:)
       INTEGER :: i
 
@@ -1495,6 +1478,6 @@ CONTAINS
          IF (a(i)) sum_logical = sum_logical+1
       END DO
 
-   END FUNCTION
+   END FUNCTION sum_logical
 
 END MODULE array_operations

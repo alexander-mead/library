@@ -291,7 +291,7 @@ CONTAINS
 
    LOGICAL FUNCTION requal(x, y, eps)
 
-      ! Tests if two REAL numbers are within some tolerance of each other
+      ! Tests if two real numbers are within some tolerance of each other
       ! If they are, then they should be considered equal
       ! Adapted from https://stackoverflow.com/questions/4915462/how-should-i-do-floating-point-comparison/4915891#4915891
       REAL, INTENT(IN) :: x
