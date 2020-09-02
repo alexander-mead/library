@@ -13,7 +13,7 @@ rmax=0.015
 
 set log x
 
-set multiplot layout 2, 1 margins 0.06,0.98,0.06,0.98
+set multiplot layout 2, 1 margins 0.08, 0.98, 0.1, 0.98
 
 set key top left
 

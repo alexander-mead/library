@@ -21,7 +21,7 @@ PROGRAM cosmology_functions_demo
    LOGICAL, PARAMETER :: test_correlation = .FALSE.
    LOGICAL, PARAMETER :: test_sigma = .TRUE.
    LOGICAL, PARAMETER :: test_sigmaV = .TRUE.
-   LOGICAL, PARAMETER :: test_neff = .FALSE.
+   LOGICAL, PARAMETER :: test_neff = .TRUE.
    LOGICAL, PARAMETER :: test_ncur = .FALSE.
 
    REAL, PARAMETER :: amin = 1e-5
