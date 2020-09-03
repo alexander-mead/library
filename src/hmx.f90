@@ -292,7 +292,7 @@ MODULE HMx
       INTEGER :: nk
 
       ! HMcode parameters and experimental parameters
-      REAL :: knl, rnl, mnl, Rh, Mh, Mp, sigv, Rhh!, neff, ncur
+      REAL :: knl, rnl, mnl, Rh, Mh, Mp, sigv, Rhh, neff!, ncur
       !REAL :: sig_eta, sig_deltac, sig_fdamp, sigV_kstar, sigV_fdamp, sigV_all, sig8_all
 
       ! Saturation parameters (e.g., WDM)
@@ -606,7 +606,7 @@ CONTAINS
       names(25) = 'Villaescusa-Navarro HI halomodel'
       names(26) = 'Delta-function mass function'
       names(27) = 'Press & Schecter mass function'
-      names(28) = 'One-parameter baryon test'
+      names(28) = 'HMcode (2016) with one-parameter OWLS AGN model'
       names(29) = 'Adding in cold gas'
       names(30) = 'Adding in hot gas'
       names(31) = 'HMcode (2016) with damped BAO'
@@ -683,6 +683,8 @@ CONTAINS
       names(102) = 'HMcode (2020) baryon model'
       names(103) = 'HMcode (2020) baryon model response'
       names(104) = 'HMcode (2020) baryon model using HMx language'
+      names(105) = 'Standard but with tweaked baryon parameters'
+      names(106) = 'Non-linear bias with tweaked baryon parameters'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -736,6 +738,7 @@ CONTAINS
       !  8 - Warren et al. (2006; astro-ph/0506395)
       !  9 - Reed et al. (2007; astro-ph/0607150)
       ! 10 - Bhattacharya et al. (2011; 1005.2239)
+      ! 11 - Tinker et al. (2010) but with no halo bias
       hmod%imf = 2
 
       ! Concentration-mass relation
@@ -1268,7 +1271,8 @@ CONTAINS
          ELSE IF (ihm == 28) THEN
             ! HMcode (2016) with one-parameter baryon model
             hmod%one_parameter_baryons = .TRUE.
-            hmod%As = 3.13
+            !hmod%As = 3.13 ! Default value
+            hmod%As = 2.00 ! AGN-ish
          ELSE IF (ihm == 31) THEN
             ! HMcode (2016) with damped BAO
             hmod%ip2h = 3
@@ -1823,9 +1827,9 @@ CONTAINS
          hmod%iDolag = 3  ! 3 - Dolag c(M) correction with sensible z evolution
          hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
          hmod%ieta = 3    ! 3 - HMcode 2020 eta bloating
+         hmod%zD = 10.    ! 10 vs 100 makes a difference for EDE-type cosmologies
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
-         hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
-         hmod%zD = 10. ! 100 vs 10 makes a difference for EDE-type cosmologies
+         hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass       
          IF (ihm == 78) THEN
             ! Model 1: 0.00704 for Cosmic Emu (old de-wiggle)
             !hmod%f0 = 0.2221080
@@ -2048,6 +2052,14 @@ CONTAINS
          ! Standard halo model but with spherical-collapse calculation
          hmod%idc = 5 ! Collapse calculation for delta_c
          hmod%iDv = 5 ! Collapse calculation for Delta_v
+      ELSE IF (ihm == 105 .OR. ihm == 106) THEN
+         ! Slightly adjusted standard and non-linear bias model
+         ! Adjusted to get hydro power large-scale amplitude more correct
+         hmod%imf = 3 ! Tinker mass function and bias         
+         hmod%Astar = 0.0320 ! Stellar mass fraction
+         IF (ihm == 106) THEN
+            hmod%ibias = 3 ! Non-linear halo bias
+         END IF
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2153,6 +2165,7 @@ CONTAINS
       hmod%nu = hmod%dc/hmod%sig
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: M, R, rv, sigma, nu tables filled'
+      IF (hmod%nu(1) > 1.) WRITE(*, *) 'INIT_HALOMOD: Warning, lowest nu value stored is greater than unity'
 
       ! For spectra with finite variance we have cut-off masses etc.
       IF(cosm%warm) THEN
@@ -2165,7 +2178,6 @@ CONTAINS
 
       ! Write some useful information to the screen
       IF (verbose) THEN
-         WRITE (*, *) 'INIT_HALOMOD: virial radius tables filled'
          WRITE (*, *) 'INIT_HALOMOD: Minimum nu:', REAL(hmod%nu(1))
          WRITE (*, *) 'INIT_HALOMOD: Maximum nu:', REAL(hmod%nu(hmod%n))
          WRITE (*, *) 'INIT_HALOMOD: Minimum sigma:', REAL(hmod%sig(hmod%n))
@@ -2226,10 +2238,13 @@ CONTAINS
       END IF
 
       ! Calculate the effective spectral index at the collapse scale
-      ! TODO: Not necessary for some halo models
-      !hmod%neff = effective_index(hmod%flag_sigma, hmod, cosm)
+      ! TODO: Not necessary for some halo models; does this affect speed?
+      hmod%neff = effective_index(hmod%flag_sigma, hmod, cosm)
       !hmod%ncur = effective_curvature(hmod%flag_sigma, hmod, cosm)
-      !IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Collapse n_eff:', REAL(hmod%neff)
+      IF (verbose) THEN
+         WRITE (*, *) 'INIT_HALOMOD: Collapse n_eff:', REAL(hmod%neff)
+         !WRITE (*, *) 'INIT_HALOMOD: Collapse curvature:', REAL(hmod%ncur)
+      END IF
 
       ! Calculate the amplitude of the the one-halo term
       ! TODO: Not necessary for some halo models
@@ -2367,6 +2382,7 @@ CONTAINS
          IF (hmod%imf == 8)  WRITE (*, *) 'HALOMODEL: Warren et al. (2006) mass function'
          IF (hmod%imf == 9)  WRITE (*, *) 'HALOMODEL: Reed et al. (2007) mass function'
          IF (hmod%imf == 10) WRITE (*, *) 'HALOMODEL: Bhattacharya et al. (2011) mass function'
+         IF (hmod%imf == 11) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with no halo bias'
 
          ! Concentration-mass relation
          IF (hmod%iconc == 1)  WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -2558,7 +2574,7 @@ CONTAINS
             WRITE (*, fmt=fmt) 'Sheth & Tormen p:', hmod%ST_p
             WRITE (*, fmt=fmt) 'Sheth & Tormen q:', hmod%ST_q
             WRITE (*, fmt=fmt) 'Sheth & Tormen A:', hmod%ST_A
-         ELSE IF (hmod%imf == 3) THEN
+         ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11) THEN
             WRITE (*, fmt=fmt) 'Tinker alpha:', hmod%Tinker_alpha
             WRITE (*, fmt=fmt) 'Tinker beta:', hmod%Tinker_beta
             WRITE (*, fmt=fmt) 'Tinker gamma:', hmod%Tinker_gamma
@@ -4259,7 +4275,11 @@ CONTAINS
 
       ! Read in the nu values from the binstats file
       IF (requal(hmod%z, 0.00, eps)) THEN
-         inbase = trim(base)//'_85'
+         IF(string_in_string('Bolshoi', base)) THEN
+            inbase = trim(base)//'_416'
+         ELSE         
+            inbase = trim(base)//'_85'
+         END IF
       ELSE IF (requal(hmod%z, 0.53, eps)) THEN
          inbase = trim(base)//'_62'
       ELSE IF (requal(hmod%z, 0.69, eps)) THEN
@@ -4857,8 +4877,8 @@ CONTAINS
 
       IF (hmod%itrans == 1) THEN
          ! From HMcode (2015, 2016)
-         !neff = hmod%neff
-         n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
+         n_eff = hmod%neff
+         !n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0
          ELSE
@@ -4866,8 +4886,8 @@ CONTAINS
          END IF
       ELSE IF (hmod%itrans == 2) THEN
          ! Specially for HMx, exponentiated HMcode (2016) result
-         !neff = hmod%neff
-         n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
+         n_eff = hmod%neff
+         !n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**1.5
          ELSE
@@ -4875,8 +4895,8 @@ CONTAINS
          END IF
       ELSE IF (hmod%itrans == 3) THEN
          ! Exponentiated HMcode (2016) result
-         !n_eff = hmod%neff
-         n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
+         n_eff = hmod%neff
+         !n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
          IF(hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0**2.5
          ELSE
@@ -4885,7 +4905,8 @@ CONTAINS
       ELSE IF (hmod%itrans == 5) THEN
          ! HMcode 2020             
          !x = sigma(8., hmod%a, flag_ucold, cosm)
-         n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
+         !n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
+         n_eff = hmod%neff
          !y = effective_curvature(hmod%flag_sigma, hmod, cosm)
          IF (hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0
@@ -5581,7 +5602,8 @@ CONTAINS
       INTEGER, PARAMETER :: imeth = 2
 
       IF (hmod%nu(1) > 1.) THEN
-         ! This catches some very strange values
+         ! This catches some very strange values for cosmologies where the non-linear radius can be very large
+         ! TODO: This is fucked! Should do something much more sensible
          r_nl = hmod%rr(1)
       ELSE
          r_nl = exp(find(log(1.), log(hmod%nu), log(hmod%rr), hmod%n, iorder, ifind, imeth))
@@ -6564,7 +6586,6 @@ CONTAINS
       wkn = wk
       sb = HMcode_sbar(cosm, hmod)
       wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm) ! Account for gas expulsion
-      !wkn = wkn*(1.-sb)+sb*m/comoving_matter_density(cosm) ! MEAD: WRONG
       wkn = wkn+sb*m/comoving_matter_density(cosm)       ! Account for star formation
 
       baryonify_wk = wkn
@@ -6585,7 +6606,6 @@ CONTAINS
 
       wko = wk
       sb = HMcode_sbar(cosm, hmod)
-      !wko = (wko-sb*m/comoving_matter_density(cosm))/(1.-sb) ! MEAD: WRONG
       wko = (wko-sb*m/comoving_matter_density(cosm))     ! Subtract stars
       wko = wko/DMONLY_halo_mass_fraction(m, hmod, cosm) ! Remove gas expulsion
 
@@ -6611,7 +6631,6 @@ CONTAINS
       fb = cosm%Om_b/cosm%Om_m!-HMcode_sbar(cosm, hmod) ! Halo baryon fraction                              
       fc = cosm%Om_c/cosm%Om_m ! Halo CDM fraction
       fs = HMcode_sbar(cosm, hmod) ! Halo star fraction
-      !DMONLY_halo_mass_fraction = fc+fb*r/(1.+r) ! MEAD: Wrong
       DMONLY_halo_mass_fraction = fc+(fb-fs)*r/(1.+r) ! Remaining halo mass fraction
 
    END FUNCTION DMONLY_halo_mass_fraction
@@ -9344,7 +9363,7 @@ CONTAINS
          b_nu = b_st(nu, hmod)
       ELSE IF (hmod%imf == 3) THEN
          b_nu = b_Tinker2010(nu, hmod)
-      ELSE IF (hmod%imf == 4) THEN
+      ELSE IF (hmod%imf == 4 .OR. hmod%imf == 11) THEN
          b_nu = 1.
       ELSE IF (hmod%imf == 5) THEN
          b_nu = b_Jenkins(nu, hmod)
@@ -9603,7 +9622,7 @@ CONTAINS
          g_nu = g_ps(nu, hmod)
       ELSE IF (hmod%imf == 2 .OR. hmod%imf == 6) THEN
          g_nu = g_st(nu, hmod)
-      ELSE IF (hmod%imf == 3) THEN
+      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11) THEN
          g_nu = g_Tinker2010(nu, hmod)
       ELSE IF (hmod%imf == 4) THEN
          STOP 'G_NU: Error, this function should not be used for delta-mass-function'
@@ -9846,7 +9865,7 @@ CONTAINS
 
       IF (hmod%imf == 2) THEN
          CALL init_ST(hmod)
-      ELSE IF (hmod%imf == 3) THEN
+      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11) THEN
          CALL init_Tinker2010(hmod)
       ELSE IF (hmod%imf == 7) THEN
          CALL init_Tinker2008(hmod)
