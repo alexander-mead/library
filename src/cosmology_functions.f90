@@ -431,9 +431,8 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: na_sigma = 16                    ! Number of a values for sigma(R,a) tables
    INTEGER, PARAMETER :: iorder_interp_sigma = 3          ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
-   INTEGER, PARAMETER :: iinterp_sigma = iinterp_Lagrange ! Method for sigma(R) interpolation
    INTEGER, PARAMETER :: sigma_store = flag_ucold         ! Which version of sigma should be tabulated (0 for none)
-   INTEGER, PARAMETER :: iextrap_sigma = iextrap_std      ! Extrapolation for sigma(R) interpolator
+   INTEGER, PARAMETER :: iextrap_sigma = iextrap_lin      ! Extrapolation for sigma(R) interpolator
    LOGICAL, PARAMETER :: store_sigma = .TRUE.             ! Pre-calculate interpolation coefficients?
 
    ! sigma_v(R) integration
@@ -614,6 +613,11 @@ CONTAINS
       names(99) = 'Boring but with no-wiggle linear power'
       names(238) = 'Random Mira Titan cosmology with constant dark energy'
       names(239) = 'Bolshoi: Planck'
+      names(241) = 'CAMB fail cosmology 1'
+      names(242) = 'CAMB fail cosmology 2'
+      names(243) = 'CAMB fail cosmology 3'
+      names(244) = 'CAMB fail cosmology 4'
+      names(245) = 'CAMB fail cosmology 5'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1386,6 +1390,50 @@ CONTAINS
          cosm%Om_b = 0.048
          cosm%ns = 0.96
          cosm%sig8 = 0.82
+      ELSE IF (is_in_array(icosmo, [241, 242, 243, 244, 245])) THEN
+         cosm%itk = itk_CAMB
+         IF (icosmo == 241) THEN
+            ! CAMB fail cosmology 1 
+            ! Fails because spectral shape ensures very little halo formation has occured at high z
+            ! nu(rmin) > 1 and therefore r_nl is not well computed      
+            cosm%Om_m = 0.22296
+            cosm%Om_v = 1.-cosm%Om_m
+            cosm%h = 0.65160
+            cosm%Om_b = 0.05432
+            cosm%ns = 0.70149
+            cosm%sig8 = 0.62306
+         ELSE IF (icosmo == 242) THEN
+            ! CAMB fail cosmology 2
+            cosm%Om_m = 0.16793
+            cosm%Om_v = 1.-cosm%Om_m
+            cosm%h = 0.69341
+            cosm%Om_b = 0.05574
+            cosm%ns = 0.81903
+            cosm%sig8 = 0.73592
+         ELSE IF (icosmo == 243) THEN
+            ! CAMB fail cosmology 3
+            cosm%Om_m = 0.16644
+            cosm%Om_v = 1.-cosm%Om_m
+            cosm%h = 0.82246
+            cosm%Om_b = 0.054119
+            cosm%ns = 0.84478
+            cosm%sig8 = 0.62890
+            cosm%w = -0.91698
+            cosm%wa = -0.36060
+            cosm%iw = iw_waCDM
+         ELSE IF (icosmo == 244) THEN
+            ! CAMB fail cosmology 4
+            ! Very EDE
+            cosm%Om_m = 0.38575
+            cosm%Om_v = 1.-cosm%Om_m
+            cosm%h = 0.73793
+            cosm%Om_b = 0.059615
+            cosm%ns = 1.02491
+            cosm%sig8 = 0.75155
+            cosm%w = -0.99745
+            cosm%wa = 0.98281
+            cosm%iw = iw_waCDM
+         END IF
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1693,7 +1741,7 @@ CONTAINS
          WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_w:', cosm%Om_w
          WRITE (*, fmt=format) 'COSMOLOGY:', 'h:', cosm%h
          WRITE (*, fmt=format) 'COSMOLOGY:', 'T_CMB [K]:', cosm%T_CMB
-         WRITE (*, fmt=format) 'COSMOLOGY:', 'z_CMB:', cosm%z_CMB
+         !WRITE (*, fmt=format) 'COSMOLOGY:', 'z_CMB:', cosm%z_CMB
          WRITE (*, fmt=format) 'COSMOLOGY:', 'n_eff:', cosm%neff
          WRITE (*, fmt=format) 'COSMOLOGY:', 'Y_H:', cosm%YH
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 1 [eV]:', cosm%m_nu(1)
@@ -3478,7 +3526,7 @@ CONTAINS
 
    REAL FUNCTION Tk_bump_Mexico(k, cosm)
 
-      ! Put a Gaussian bump in a linear power spectrum
+      ! Put a Gaussian bump in a linear power spectrum, no factor of 2 in the exponential
       IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -3630,18 +3678,20 @@ CONTAINS
       INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: kmax, pmax
-      INTEGER, PARAMETER :: iorder = iorder_interp_plin ! Order for interpolation (3 - cubic)
-      INTEGER, PARAMETER :: ifind = ifind_interp_plin   ! Finding scheme in table (3 - Mid-point method)
-      INTEGER, PARAMETER :: iinterp = iinterp_plin      ! Method for polynomials (2 - Lagrange polynomials)
+      REAL, PARAMETER :: kmin_zero = kmin_abs_plin      ! Below this wavenumber the power is fixed to zero
+      REAL, PARAMETER :: kmax_zero = kmax_abs_plin      ! Above this wavenumber the power is fixed to zero
+      INTEGER, PARAMETER :: iorder = iorder_interp_plin ! Order for interpolation
+      INTEGER, PARAMETER :: ifind = ifind_interp_plin   ! Finding scheme in table
+      INTEGER, PARAMETER :: iinterp = iinterp_plin      ! Method for polynomials
 
       ! This line generates a recursion
       IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm)
 
-      IF (k <= kmin_abs_plin) THEN
+      IF (k <= kmin_zero) THEN
          ! If plin happens to be foolishly called for very low k
          ! This call should never happen, but may in integrals
          plin = 0.
-      ELSE IF (k > kmax_abs_plin) THEN
+      ELSE IF (k > kmax_zero) THEN
          ! Avoids some issues if plin is called for absurdly high k values
          ! For some reason crashes can occur if this is the case
          plin = 0.
@@ -3670,7 +3720,7 @@ CONTAINS
             END IF
          ELSE
             ! In this case get the power from the transfer function
-            plin = (grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*(k**(cosm%ns+3))
+            plin = (grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*k**(cosm%ns+3)
          END IF
       END IF
       plin = plin*cosm%A**2
@@ -3804,8 +3854,6 @@ CONTAINS
       REAL, INTENT(IN) :: a ! Scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       INTEGER, PARAMETER :: iorder = iorder_interp_sigma ! Order for interpolation 
-      INTEGER, PARAMETER :: ifind = ifind_interp_sigma   ! Finding scheme in table
-      INTEGER, PARAMETER :: imeth = iinterp_sigma        ! Method for polynomials
 
       IF (cosm%scale_dependent_growth) THEN
          find_sigma = evaluate_interpolator(R, a, cosm%sigmaa)
@@ -5739,14 +5787,14 @@ CONTAINS
       REAL, ALLOCATABLE :: Pk_CAMB(:), Tk_CAMB(:,:)
       REAL :: Om_c, Om_b, Om_nu, h, ombh2, omch2, omnuh2
       CHARACTER(len=256) :: infile
-      REAL, PARAMETER :: kmax = kmax_plin ! Maximum wavenumber to get the power to
+      REAL, PARAMETER :: kmax = kmax_plin ! Maximum wavenumber to get the power to [h/Mpc]
       REAL, PARAMETER :: nmax = nmax_CAMB ! Multiplicative factor to go beyond kmax
       CHARACTER(len=256), PARAMETER :: camb = 'camb'
       CHARACTER(len=256), PARAMETER :: dir = '/Users/Mead/Physics/CAMB_files/tmp/'
       CHARACTER(len=256), PARAMETER :: root = trim(dir)//'temp'
       CHARACTER(len=256), PARAMETER :: matterpower = trim(root)//'_matterpower_'
       CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
-      CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini' 
+      CHARACTER(len=256), PARAMETER :: params = trim(root)//'_create_params.ini' 
 
       IF(cosm%itk .NE. itk_CAMB) STOP 'GET_CAMB_POWER: Normalisation will not work unless itk_CAMB is set'
 
@@ -5886,7 +5934,7 @@ CONTAINS
       WRITE (7, *) 'do_primordial_bispectrum = F'
 
       ! Verbosity (0 writes nothing; 1 writes some useful stuff; 2 writes HMcode stuff)
-      WRITE (7, *) 'feedback_level = 0'
+      WRITE (7, *) 'feedback_level = 2'
 
       ! Print out a comment describing file headers
       WRITE (7, *) 'output_file_headers = T'
@@ -6005,8 +6053,8 @@ CONTAINS
       !CALL apply_mask(k, nkk, kkeep)
 
       ALLOCATE(aa(na)) ! Define because a is INTENT(IN)
-      aa=a   ! Define because a is INTENT(IN)
-      naa=na ! Define because na is INTENT(IN)
+      aa=a             ! Define because a is INTENT(IN)
+      naa=na           ! Define because na is INTENT(IN)
       CALL apply_mask(k, aa, Pk, nk, naa, kkeep, akeep) ! This will change nk
       IF((naa .NE. na) .OR. (size(aa) .NE. size(a))) STOP 'PRUNE_CAMB: Error, something went wrong'
 
@@ -7638,12 +7686,9 @@ CONTAINS
 
    END FUNCTION Delta_Pk
 
-SUBROUTINE init_wiggle(cosm)
+   SUBROUTINE init_wiggle(cosm)
 
       ! Isolate the power spectrum wiggle
-      ! TODO: Smoothing should be over one wiggle period, not just fixed ns
-      ! TODO: Convert this to some-sort of wiggle T(k), rather than an addition thing?
-      ! TODO: This does not work very well
       USE special_functions
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -7786,6 +7831,9 @@ SUBROUTINE init_wiggle(cosm)
       INTEGER :: ik, ia, nk, na
       REAL :: Pk_lin, Pk_nw_norm
       REAL, PARAMETER :: knorm = knorm_nowiggle
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = ifind_split
+      INTEGER, PARAMETER :: iinterp = iinterp_Lagrange
 
       ! Allocate arrays
       nk = size(k)
@@ -7798,13 +7846,13 @@ SUBROUTINE init_wiggle(cosm)
          Pk_nw(ik, :) = Pk_nowiggle(k(ik), cosm)
       END DO
 
-      ! Calculate the no-wiggle power spectrum at every wavenumber and Force spectra to agree at the minimum wavenumber
+      ! Calculate the no-wiggle power spectrum at every wavenumber and force spectra to agree at the minimum wavenumber
       DO ia = 1, na
          Pk_lin = Plin(knorm, a(ia), flag_matter, cosm)
          Pk_nw_norm = find(knorm, k, Pk_nw(:, ia), nk, &
-            iorder=3, &
-            ifind=ifind_split, &
-            iinterp=iinterp_Lagrange)
+            iorder, &
+            ifind, &
+            iinterp)
          Pk_nw(:, ia) = Pk_nw(:, ia)*Pk_lin/Pk_nw_norm
       END DO
 
