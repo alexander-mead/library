@@ -161,16 +161,18 @@ MODULE cosmology_functions
 
       ! Primary parameters
       CHARACTER(len=256) :: name            ! Name for cosmological model
-      REAL :: Om_m, Om_b, Om_v, Om_w, m_nu  ! Densities
+      REAL :: Om_m, Om_b, Om_v, Om_w        ! Densities
       REAL :: h, ns, w, wa, m_wdm, YH       ! Cosmological parameters
       REAL :: a1, a2, nstar, ws, am, dm, wm ! Dark-energy parameters
-      REAL :: z_CMB, T_CMB, neff            ! CMB/radiation parameters
+      REAL :: z_CMB, T_CMB                  ! CMB/radiation parameters
+      REAL :: neff, m_nu                    ! Neutrinos
       REAL :: H0rc, fr0, nfR                ! Modified gravity parameters
       REAL :: Om_m_pow, Om_b_pow, h_pow     ! Cosmological parameters used for P(k) if different from background
       REAL :: b0, b1, b2, b3, b4            ! BDE parameters
       REAL :: A_bump, k_bump, sigma_bump    ! Power-spectrum bump   
       REAL :: Theat                         ! AGN temperature
       REAL :: Lbox                          ! Box size [Mpc/h]
+      INTEGER :: n_nu                       ! Number of massive neutrinos
       INTEGER :: bump                       ! Type of bump to add to P(k)
       INTEGER :: norm_method                ! Power normalisation scheme
       INTEGER :: iw                         ! Switch for dark-energy type
@@ -387,7 +389,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_ODE_interpolation_growth = 3 ! Polynomial order for growth interpolation for ODE solution
    INTEGER, PARAMETER :: ifind_ODE_interpolation_growth = 3  ! Finding scheme for growth interpolation for ODE solution
    INTEGER, PARAMETER :: imeth_ODE_interpolation_growth = 2  ! Method for growth interpolation for ODE solution
-   LOGICAL, PARAMETER :: only_cold_growth = .FALSE.          ! Should smooth neutrinos be accounted for in growth calculations?
+   LOGICAL, PARAMETER :: cold_growth = .FALSE.               ! Should smooth neutrinos be accounted for in growth calculations?
    LOGICAL, PARAMETER :: EDE_growth_ics = .TRUE.             ! Should we try to account for EDE in growth initial conditions?
 
    ! Growth integral (LCDM only)
@@ -613,11 +615,6 @@ CONTAINS
       names(99) = 'Boring but with no-wiggle linear power'
       names(238) = 'Random Mira Titan cosmology with constant dark energy'
       names(239) = 'Bolshoi: Planck'
-      names(241) = 'CAMB fail cosmology 1'
-      names(242) = 'CAMB fail cosmology 2'
-      names(243) = 'CAMB fail cosmology 3'
-      names(244) = 'CAMB fail cosmology 4'
-      names(245) = 'CAMB fail cosmology 5'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -768,54 +765,51 @@ CONTAINS
       cosm%itk = itk_EH ! Default to Eisenstein & Hu
 
       ! Boring default cosmology
-      cosm%Om_m = 0.3
-      cosm%Om_b = 0.05
-      cosm%Om_v = 1.-cosm%Om_m
-      cosm%Om_w = 0.
-      cosm%m_nu = 0.
-      cosm%h = 0.7
-      cosm%ns = 0.96
-      cosm%w = -1.
-      cosm%wa = 0.
+      cosm%Om_m = 0.3    ! Total matter (CDM + baryons + massive neutrino) density
+      cosm%Om_b = 0.05   ! Baryon density
+      cosm%Om_v = 0.7    ! Vacuum density
+      cosm%Om_w = 0.     ! Dark-energy density (in addition to vacuum density)
+      cosm%m_nu = 0.     ! Neutrino mass
+      cosm%h = 0.7       ! Dimensionless Hubble parameter
+      cosm%ns = 0.96     ! Spectral index
+      cosm%w = -1.       ! Dark energy equation of state
+      cosm%wa = 0.       ! Dark energy time-varying equation of state
       cosm%T_CMB = 2.725 ! CMB temperature [K]
-      cosm%z_CMB = 1087. ! Redshift of the last-scatting surface
+      cosm%z_CMB = 1087. ! Redshift of the last-scatting surface TODO: Should be derived
       cosm%neff = 3.046  ! Effective number of relativistic neutrinos
       cosm%YH = 0.76     ! Hydrogen mass fraction
+      cosm%N_nu = 3      ! Number of massive neutrinos (currently 3 degenerate species is the only option)
 
       ! Dark energy
-      cosm%iw = iw_LCDM
+      cosm%iw = iw_LCDM ! Dark energy type
 
       ! Modified gravity
-      cosm%img = img_none
-      cosm%H0rc = 0. ! Note that zero is very strong
-      cosm%fR0 = 0.
-      cosm%nfR = 0
+      cosm%img = img_none ! Modified gravity type
+      cosm%H0rc = 0.      ! Note that zero is very strong
+      cosm%fR0 = 0.       ! f(R) amplitude parameter
+      cosm%nfR = 0        ! f(R) index parameter
 
       ! Warm dark matter
-      cosm%warm = .FALSE.
-      cosm%m_wdm = 0. ! Particle mass [keV]
+      cosm%warm = .FALSE. ! Is CDM actually WDM?
+      cosm%m_wdm = 0.     ! WDM particle mass [keV]
 
       ! AGN
-      cosm%Theat = 10**7.8 ! AGN temperature
+      cosm%Theat = 10**7.8 ! AGN temperature for feedback model
 
       !! Normalisation !!
 
-      ! Overall power normalisaiton, should always be set to 1 and then will be changed later
+      ! Overall power normalisaiton, should initially be set to 1 and then will be changed later
       cosm%A = 1.
 
-      ! Large-scale structure normalisation
-      cosm%norm_method = norm_sigma8
-      cosm%sig8 = 0.8              
-
-      ! Large-scale structure normalisation at a specific wavenumber
-      !cosm%norm_method = norm_value
-      cosm%kval = 0.001
-      cosm%pval = 0.1973236854e-06 ! Power value to get sig8 = 0.8 for a boring cosmology
-
-      ! As CMB normalisation
-      !cosm%norm_method = norm_As
-      cosm%kpiv = 0.05 ! Wavenumber at which to define the normalisation
-      cosm%As = 2.1e-9 ! This is a generally sensible value
+      ! Power spectrum normalisation
+      cosm%norm_method = norm_sigma8 ! Normalise using sigma_8
+      !cosm%norm_method = norm_value ! Large-scale structure normalisation at a specific wavenumber at z=0
+      !cosm%norm_method = norm_As    ! As CMB normalisation
+      cosm%sig8 = 0.8                ! Sigma(R=8, z=0) normalisation if norm_method = norm_sigma8
+      cosm%kval = 0.001              ! Wavenumber for normalisation if norm_method = norm_value
+      cosm%pval = 0.1973236854e-06   ! Power value to get sig8 = 0.8 for a boring cosmology if norm_method = norm_value
+      cosm%kpiv = 0.05               ! Wavenumber at which to define the normalisation if norm_method = norm_As
+      cosm%As = 2.1e-9               ! This is a generally sensible value if norm_method = norm_As
       
       !! !!
 
@@ -1190,65 +1184,68 @@ CONTAINS
          cosm%h = 0.702
          cosm%w = -1.
       ELSE IF (is_in_array(icosmo, [51, 52, 53, 54, 55])) THEN
-         ! CAMB test problem cosmologies
+         ! CAMB fail cosmologies for HMcode comparisons
          cosm%itk = itk_CAMB
          cosm%iw = iw_waCDM
          cosm%Om_v = 0.
-         IF(icosmo == 51) THEN
-            ! CAMB difference cosmology 1 (low sig8; low ns; low h)
-            cosm%Om_m = 0.16947
-            cosm%Om_b = 0.03972
+         IF (icosmo == 51) THEN
+            ! Weird wiggle
+            ! HMcode (2016, 2020) both fail
+            cosm%Om_m = 0.16793
             cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.61272
-            cosm%ns = 0.70918
-            cosm%h = 0.54980
-            cosm%M_nu = 0.
-            cosm%w = -1.
-            cosm%wa = 0.
-         ELSE IF(icosmo == 52) THEN
-            ! CAMB difference cosmology 2 (low sig8; low ns; low h)
-            cosm%Om_m = 0.16021
-            cosm%Om_b = 0.05953
+            cosm%h = 0.69341
+            cosm%Om_b = 0.05574
+            cosm%ns = 0.81903
+            cosm%sig8 = 0.73592
+         ELSE IF (icosmo == 52) THEN
+            ! Quite weird wiggle
+            ! HMcode (2016, 2020) both fail
+            cosm%Om_m = 0.16644
             cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.69869
-            cosm%ns = 0.70630
-            cosm%h = 0.52845
-            cosm%M_nu = 0.0
-            cosm%w = -1.
-            cosm%wa = 0.
-         ELSE IF(icosmo == 53) THEN
-            ! CAMB difference cosmology 3 (low sig8; low ns; low h)
-            cosm%Om_m = 0.17575
-            cosm%Om_b = 0.03993
+            cosm%h = 0.82246
+            cosm%Om_b = 0.054119
+            cosm%ns = 0.84478
+            cosm%sig8 = 0.62890
+            cosm%w = -0.91698
+            cosm%wa = -0.36060
+         ELSE IF (icosmo == 53) THEN
+            ! BAO wiggle damping slightly wrong; high neutrino and baryon fractions
+            ! HMcode (2020) fails but (2016) passes
+            cosm%Om_m = 0.19165
             cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.61299
-            cosm%ns = 0.72517
-            cosm%h = 0.44980
-            cosm%M_nu = 0.
-            cosm%w = -1.
-            cosm%wa = 0.
-         ELSE IF(icosmo == 54) THEN
-            ! CAMB difference cosmology 4 (low sig8; low ns; low h)
-            cosm%Om_m = 0.15586
-            cosm%Om_b = 0.05109
-            cosm%Om_w = 1.-cosm%Om_m
-            cosm%sig8 = 0.65709
-            cosm%ns = 0.70027
-            cosm%h = 0.44819
-            cosm%M_nu = 0.20378
-            cosm%w = -1.01372
-            cosm%wa = -0.90823
-         ELSE IF(icosmo == 55) THEN
-            ! CAMB difference cosmology 5 (low h; high Om_b/Om_m)
+            cosm%h = 0.50576
+            cosm%Om_b = 0.05983
+            cosm%ns = 0.79467
+            cosm%sig8 = 0.8839
+            cosm%w = -1.28965
+            cosm%wa = -0.71800
+            cosm%f_nu = 0.11069
+            cosm%m_nu = neutrino_constant(cosm)*cosm%f_nu*cosm%Om_m*cosm%h**2
+         ELSE IF (icosmo == 54) THEN
+            ! Weird wiggle; low h; high baryon fraction
+            ! HMcode (2016, 2020) both fail
             cosm%Om_m = 0.18504
             cosm%Om_b = 0.06696
             cosm%Om_w = 1.-cosm%Om_m
             cosm%sig8 = 0.77520
             cosm%ns = 0.98360
             cosm%h = 0.42278
-            cosm%M_nu = 0.07639
+            cosm%m_nu = 0.07639
             cosm%w = -1.26075
             cosm%wa = -0.07341
+         ELSE IF (icosmo == 55) THEN
+            ! Small-scale suppression
+            ! HMcode (2020) fails but (2016) passes
+            cosm%Om_m = 0.28330
+            cosm%Om_b = 0.04034
+            cosm%Om_w = 1.-cosm%Om_m
+            cosm%sig8 = 0.7213
+            cosm%ns = 1.18159
+            cosm%h = 0.99249
+            cosm%f_nu = 0.010366
+            cosm%m_nu = neutrino_constant(cosm)*cosm%f_nu*cosm%Om_m*cosm%h**2
+            cosm%w = -0.73926
+            cosm%wa = 0.61511
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with CAMB difference cosmologies'
          END IF
@@ -1357,7 +1354,7 @@ CONTAINS
          cosm%ns = 1.
       ELSE IF (icosmo == 83) THEN
          ! Boring cosmology but with very exciting neutrino mass
-         cosm%m_nu = 1.0
+         cosm%m_nu = 1.
          cosm%itk = itk_CAMB
       ELSE IF (is_in_array(icosmo, [84, 85, 86, 87, 88, 89])) THEN
          ! f(R) models
@@ -1390,50 +1387,6 @@ CONTAINS
          cosm%Om_b = 0.048
          cosm%ns = 0.96
          cosm%sig8 = 0.82
-      ELSE IF (is_in_array(icosmo, [241, 242, 243, 244, 245])) THEN
-         cosm%itk = itk_CAMB
-         IF (icosmo == 241) THEN
-            ! CAMB fail cosmology 1 
-            ! Fails because spectral shape ensures very little halo formation has occured at high z
-            ! nu(rmin) > 1 and therefore r_nl is not well computed      
-            cosm%Om_m = 0.22296
-            cosm%Om_v = 1.-cosm%Om_m
-            cosm%h = 0.65160
-            cosm%Om_b = 0.05432
-            cosm%ns = 0.70149
-            cosm%sig8 = 0.62306
-         ELSE IF (icosmo == 242) THEN
-            ! CAMB fail cosmology 2
-            cosm%Om_m = 0.16793
-            cosm%Om_v = 1.-cosm%Om_m
-            cosm%h = 0.69341
-            cosm%Om_b = 0.05574
-            cosm%ns = 0.81903
-            cosm%sig8 = 0.73592
-         ELSE IF (icosmo == 243) THEN
-            ! CAMB fail cosmology 3
-            cosm%Om_m = 0.16644
-            cosm%Om_v = 1.-cosm%Om_m
-            cosm%h = 0.82246
-            cosm%Om_b = 0.054119
-            cosm%ns = 0.84478
-            cosm%sig8 = 0.62890
-            cosm%w = -0.91698
-            cosm%wa = -0.36060
-            cosm%iw = iw_waCDM
-         ELSE IF (icosmo == 244) THEN
-            ! CAMB fail cosmology 4
-            ! Very EDE
-            cosm%Om_m = 0.38575
-            cosm%Om_v = 1.-cosm%Om_m
-            cosm%h = 0.73793
-            cosm%Om_b = 0.059615
-            cosm%ns = 1.02491
-            cosm%sig8 = 0.75155
-            cosm%w = -0.99745
-            cosm%wa = 0.98281
-            cosm%iw = iw_waCDM
-         END IF
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1512,6 +1465,7 @@ CONTAINS
 
       ! Massive neutrinos
       ! TODO: Add support for separate species
+      IF (cosm%N_nu /= 3) STOP 'INIT_COSMOLOGY: This currently only supports 3 degenerate massive neutrino species'
       IF (cosm%m_nu == 0.) THEN
          cosm%Om_nu = cosm%Om_nu_rad
          cosm%a_nu = 1. ! TODO: Should this be larger?
@@ -1546,13 +1500,13 @@ CONTAINS
 
       ! Check neutrino mass fraction is not too high
       IF (cosm%f_nu > f_nu_limit) STOP 'INIT_COSMOLOGY: Error, neutrino mass fraction is too high'
-      IF ((cosm%m_nu .NE. 0.) .AND. cosm%a_nu > a_nu_limit) THEN
+      IF ((cosm%m_nu .NE. 0.) .AND. (cosm%a_nu > a_nu_limit)) THEN
          WRITE(*, *) 'INIT_COSMOLOGY: Neutrino mass [eV]:', cosm%m_nu
          STOP 'INIT_COSMOLOGY: Error, neutrinos are too light'
       END IF
 
       ! Decide on scale-dependent growth
-      IF ((cosm%m_nu .NE. 0.) .OR. cosm%img == img_fR .OR. cosm%img == img_fR_lin) THEN
+      IF ((cosm%m_nu .NE. 0.) .OR. (cosm%img == img_fR) .OR. (cosm%img == img_fR_lin)) THEN
          cosm%scale_dependent_growth = .TRUE.
       ELSE
          cosm%scale_dependent_growth = .FALSE.
@@ -1577,8 +1531,8 @@ CONTAINS
       END IF
 
       ! Would need to modify formulas to make this compatable
-      IF ((cosm%img == img_fR .OR. cosm%img == img_fR_lin) .AND. cosm%Om_w .NE. 0) THEN
-         STOP 'INIT_COSMOLOGY: f(R) grvity not compatible with dark energy'
+      IF (((cosm%img == img_fR) .OR. (cosm%img == img_fR_lin)) .AND. (cosm%Om_w /= 0.)) THEN
+         STOP 'INIT_COSMOLOGY: f(R) grvity not currently compatible with dark energy'
       END IF
 
       ! Derived cosmological parameters
@@ -2040,7 +1994,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       ! Check that transfer function is okay for massive neutrinos
-      IF ((cosm%m_nu .NE. 0) .AND. is_in_array(cosm%itk, [itk_none, itk_DEFW, itk_EH, itk_nw])) THEN
+      IF ((cosm%m_nu /= 0.) .AND. is_in_array(cosm%itk, [itk_none, itk_DEFW, itk_EH, itk_nw])) THEN
          STOP 'INIT_COSMOLOGY: You cannot use a linear power fitting function for massive neutrino cosmologies'
       END IF
 
@@ -2336,7 +2290,6 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      !Hubble2_norad = Hubble2(a, cosm)-cosm%Om_r*a**(-4)
       IF (a > cosm%a_nu) THEN
          Hubble2_norad = Hubble2(a, cosm)-cosm%Om_g*a**(-4)
       ELSE
@@ -2402,7 +2355,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_COLD_NORAD: Error, cosmology is not initialised'
+      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_M_NORAD: Error, cosmology is not initialised'
       IF (a > cosm%a_nu) THEN
          Omega_m_norad = cosm%Om_m*X_m(a)/Hubble2_norad(a, cosm)
       ELSE
@@ -2423,19 +2376,6 @@ CONTAINS
 
    END FUNCTION Omega_c
 
-   REAL FUNCTION Omega_cold_norad(a, cosm)
-
-      ! This calculates Omega_cold variations with scale factor, but ignoring photon and neutrino components
-      ! This ensures that Omega_m_norad(a->0) -> 1
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_COLD_NORAD: Error, cosmology is not initialised'
-      Omega_cold_norad = (cosm%Om_c*X_c(a)+cosm%Om_b*X_b(a))/Hubble2_norad(a, cosm)
-
-   END FUNCTION Omega_cold_norad
-
    REAL FUNCTION Omega_b(a, cosm)
 
       ! This calculates Omega_b variations with scale factor (note this is not proportional to a^-3 always)
@@ -2447,6 +2387,19 @@ CONTAINS
       Omega_b = cosm%Om_b*X_b(a)/Hubble2(a, cosm)
 
    END FUNCTION Omega_b
+
+   REAL FUNCTION Omega_cold_norad(a, cosm)
+
+      ! This calculates Omega_c variations with scale factor, but ignoring photon and neutrino components
+      ! This ensures that Omega_m_norad(a->0) -> 1
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_COLD_NORAD: Error, cosmology is not initialised'
+      Omega_cold_norad = (cosm%Om_c*X_c(a)+cosm%Om_b*X_b(a))/Hubble2_norad(a, cosm)
+
+   END FUNCTION Omega_cold_norad
 
    REAL FUNCTION Omega_r(a, cosm)
 
@@ -2901,11 +2854,8 @@ CONTAINS
          END IF
       END IF
 
-      ! Remove neutrinos
-      ! This will convert nu to CDM since Omega_c is a derived parameter
-      IF (remove_neutrinos) THEN
-         convert_cosmology%m_nu = 0.
-      END IF
+      ! Remove neutrinos will convert nu to CDM since Omega_c is a derived parameter
+      IF (remove_neutrinos) convert_cosmology%m_nu = 0.
     
       ! Ensure the new cosmology is not verbose
       convert_cosmology%verbose = .FALSE.
@@ -3544,7 +3494,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       INTEGER, PARAMETER :: method = method_cold
 
-      IF (cosm%trivial_cold .OR. method == method_cold_none .OR. cosm%m_nu == 0.) THEN
+      IF (cosm%trivial_cold .OR. (method == method_cold_none) .OR. (cosm%m_nu == 0.)) THEN
          ! Assuming the cold spectrum is exactly the matter spectrum
          Tcold = 1. 
       ELSE IF (method== method_cold_total) THEN
@@ -3613,7 +3563,7 @@ CONTAINS
          BigT = cosm%T_CMB/2.7
 
          ! The matter-radiation equality redshift
-         zeq = (2.5e4)*cosm%om_m*(cosm%h**2.)*(BigT**(-4.))
+         zeq = (2.5e4)*cosm%Om_m*(cosm%h**2)*BigT**(-4)
 
          ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m ~ 1)
          ! Note that I previously used the 'wrong' growth rate below in that I took the EdS result
@@ -3626,12 +3576,12 @@ CONTAINS
 
          ! Wave number relative to the horizon scale at equality (equation 5)
          ! Extra factor of h becauase all my k are in units of h/Mpc
-         q = k*cosm%h*BigT**2./(cosm%om_m*cosm%h**2.)
+         q = k*cosm%h*BigT**2/(cosm%om_m*cosm%h**2.)
 
          ! Free streaming scale (equation 14)
          ! Note that Eisenstein & Hu (1999) only consider the case of 3 neutrinos
          ! with Nnu of these being massive with the mass split evenly between Nnu species.
-         yfs = 17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(real(N_massive_nu)*q/cosm%f_nu)**2.
+         yfs = 17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(cosm%N_nu*q/cosm%f_nu)**2.
 
          ! These are (almost) the scale-dependent growth functions for each component in Eisenstein & Hu (1999)
          ! Some part is missing, but this cancels when they are divided by each other, which is all I need them for.
@@ -4170,7 +4120,7 @@ CONTAINS
       REAL, PARAMETER :: gamma_default = growth_index_default
       REAL, PARAMETER :: gamma_limit = growth_index_limit
 
-      IF (only_cold_growth) THEN
+      IF (cold_growth) THEN
          Om_m = Omega_cold_norad(a, cosm)
       ELSE
          Om_m = Omega_m_norad(a, cosm)
@@ -4219,7 +4169,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (only_cold_growth) THEN
+      IF (cold_growth) THEN
          Om_m = Omega_cold_norad(a, cosm)
       ELSE
          Om_m = Omega_m_norad(a, cosm)
@@ -4315,13 +4265,13 @@ CONTAINS
       ! Set the initial conditions to be in the cold matter growing mode
       ! Note that for massive neutrinos or EDE there is no asymptotic g(a) ~ a limit
       IF (EDE_growth_ics) THEN
-         IF (only_cold_growth) THEN
+         IF (cold_growth) THEN
             f = 1.-Omega_cold_norad(aini, cosm)+cosm%f_nu
          ELSE
             f = 1.-Omega_m_norad(aini, cosm)
          END IF
       ELSE
-         IF (only_cold_growth) THEN
+         IF (cold_growth) THEN
             f = cosm%f_nu
          ELSE
             f = 0.
@@ -4458,7 +4408,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: Om_m, f1, f2
 
-      IF (only_cold_growth) THEN
+      IF (cold_growth) THEN
          Om_m = Omega_cold_norad(a, cosm)
       ELSE
          Om_m = Omega_m_norad(a, cosm)
@@ -4481,7 +4431,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: Om_m, f1, f2, f3
 
-      IF (only_cold_growth) THEN
+      IF (cold_growth) THEN
          Om_m = Omega_cold_norad(a, cosm)
       ELSE
          Om_m = Omega_m_norad(a, cosm)
@@ -4643,7 +4593,7 @@ CONTAINS
    REAL FUNCTION dc_NakamuraSuto(a, cosm)
 
       ! Nakamura & Suto (1997; arXiv:astro-ph/9612074) fitting formula for spherical-collapse in LCDM
-      ! TODO: Use Omega_cold or Omega_m here?
+      ! TODO: Use Omega_cold or Omega_m here? Tests fail if this is changed, so makes a difference
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4658,7 +4608,7 @@ CONTAINS
 
       ! Bryan & Norman (1998; arXiv:astro-ph/9710107) spherical over-density fitting function
       ! Here overdensity is defined relative to the background matter density, rather than the critical density
-      ! TODO: Use Omega_cold or Omega_m here?
+      ! TODO: Use Omega_cold or Omega_m here? Tests fail if this is changed, so makes a difference
       IMPLICIT NONE
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4700,7 +4650,7 @@ CONTAINS
       REAL, PARAMETER :: p23 = 0.0646
       INTEGER, PARAMETER :: a2 = 0
 
-      IF(cosm%m_nu .NE. 0.) THEN
+      IF (cosm%m_nu /= 0.) THEN
          cosm_LCDM = convert_cosmology(cosm, make_lambda=.FALSE., make_flat=.FALSE., remove_neutrinos=.TRUE.)
       ELSE
          cosm_LCDM = cosm
@@ -4739,7 +4689,7 @@ CONTAINS
       REAL, PARAMETER :: p43 = -15.87
       INTEGER, PARAMETER :: a4 = 2
 
-      IF (cosm%m_nu .NE. 0.) THEN
+      IF (cosm%m_nu /= 0.) THEN
          cosm_LCDM = convert_cosmology(cosm, make_lambda=.FALSE., make_flat=.FALSE., remove_neutrinos=.TRUE.)
       ELSE
          cosm_LCDM = cosm
@@ -5825,6 +5775,7 @@ CONTAINS
       END IF
 
       IF (.NOT. is_in_array(cosm%iw, [iw_LCDM, iw_wCDM, iw_waCDM])) STOP 'GET_CAMB_POWER: Can only cope with LCDM, wCDM or w(a)CDM'
+      IF (cosm%N_nu /= 3) STOP 'GET_CAMB_POWER: This currently only supports 3 degenerate massive neutrino species'
 
       ! Physical density parameters that CAMB requires
       ombh2 = Om_b*h**2
@@ -5874,7 +5825,6 @@ CONTAINS
       WRITE (7, *) 'helium_fraction = ', cosm%YHe
 
       ! Neutrinos
-      !WRITE(7,*) 'massless_neutrinos = ', cosm%neff-real(cosm%N_massive_nu)
       WRITE (7, *) 'share_delta_neff = T'
       IF (omnuh2 == 0.) THEN
          ! Massless neutrinos
@@ -5883,9 +5833,9 @@ CONTAINS
          WRITE (7, *) 'massive_neutrinos = 0'
       ELSE
          ! Three equal-mass neutrinos
-         WRITE (7, *) 'massless_neutrinos = ', cosm%neff-3.
+         WRITE (7, *) 'massless_neutrinos = ', cosm%neff-cosm%N_nu
          WRITE (7, *) 'nu_mass_eigenstates = 1'
-         WRITE (7, *) 'massive_neutrinos = 3'
+         WRITE (7, *) 'massive_neutrinos = ', cosm%N_nu
          WRITE (7, *) 'nu_mass_fractions = 1'
       END IF
 
@@ -6047,10 +5997,6 @@ CONTAINS
             kkeep(i) = .FALSE.
          END IF
       END DO
-
-      ! Prune arrays
-      !nkk=nk ! Define because this will be overwritten and we do not want to change nk yet
-      !CALL apply_mask(k, nkk, kkeep)
 
       ALLOCATE(aa(na)) ! Define because a is INTENT(IN)
       aa=a             ! Define because a is INTENT(IN)
@@ -7312,8 +7258,8 @@ CONTAINS
       cosm%iw = iw_waCDM
       cosm%Om_m = om_m/cosm%h**2
       cosm%Om_b = om_b/cosm%h**2
-      !cosm%m_nu=neutrino_constant*om_nu/3. ! Split equally over three neutrinos
       cosm%m_nu = neutrino_constant(cosm)*om_nu
+      cosm%N_nu = 3
       cosm%Om_w = 1.-cosm%Om_m
       cosm%Om_v = 0.
 
