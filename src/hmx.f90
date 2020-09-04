@@ -98,7 +98,7 @@ MODULE HMx
    PUBLIC :: HMcode2018
    PUBLIC :: HMcode2019
    PUBLIC :: HMcode2020
-   PUBLIC :: HMcode2020_baryons
+   PUBLIC :: HMcode2020_feedback
 
    ! HMx versions
    PUBLIC :: HMx2020_matter_with_temperature_scaling
@@ -559,7 +559,7 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2018 = 53
    INTEGER, PARAMETER :: HMcode2019 = 15
    INTEGER, PARAMETER :: HMcode2020 = 79
-   INTEGER, PARAMETER :: HMcode2020_baryons = 103
+   INTEGER, PARAMETER :: HMcode2020_feedback = 103
 
    ! HMx versions
    INTEGER, PARAMETER :: HMx2020_matter_with_temperature_scaling = 60
@@ -3088,7 +3088,7 @@ CONTAINS
          HMcode2018, &
          HMcode2019, &
          HMcode2020, &
-         HMcode2020_baryons &
+         HMcode2020_feedback &
          ])) THEN
             is_HMcode = .TRUE.
          ELSE
