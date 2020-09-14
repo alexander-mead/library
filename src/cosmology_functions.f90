@@ -339,7 +339,10 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: method_cold_total = 1        ! Assume neutrinos are completely hot
    INTEGER, PARAMETER :: method_cold_EH = 2           ! Eisenstein & Hu approximation
    INTEGER, PARAMETER :: method_cold_CAMB = 3         ! Taken from CAMB
-   INTEGER, PARAMETER :: method_cold = method_cold_EH ! Choose method heree
+   INTEGER, PARAMETER :: method_cold = method_cold_EH ! Choose method here
+
+   ! EH cold transfer function
+   LOGICAL, PARAMETER :: Tcold_EdS_growth = .FALSE. ! Use the (incorrect) EdS growth function in the fitting function
 
    ! CAMB cold transfer function
    INTEGER, PARAMETER :: iextrap_Tcold = iextrap_lin ! Extrapolation scheme for cold interpolation
@@ -3543,8 +3546,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
       REAL :: BigT
-      INTEGER, PARAMETER :: N_massive_nu = 3
-      LOGICAL, PARAMETER :: wrong_growth = .FALSE.
+      LOGICAL, PARAMETER :: EdS_growth = Tcold_EdS_growth
 
       IF (cosm%m_nu == 0.) THEN
 
@@ -3568,11 +3570,12 @@ CONTAINS
          ! The growth function normalised such that D=(1.+z_eq)/(1+z) at early times (when Omega_m ~ 1)
          ! Note that I previously used the 'wrong' growth rate below in that I took the EdS result
          ! NOTE: The two different options below gives per-cent level differences for CAMB vs HMx comparison
-         IF (wrong_growth) THEN
-            D = (1.+zeq)/(1.+z)
+         IF (EdS_growth) THEN
+            D = a ! Einstein-de Sitter growth function
          ELSE
-            D = (1.+zeq)*ungrow(a, cosm)
+            D = ungrow(a, cosm) ! Standard growth function normalised g(a<<1) = a
          END IF
+         D = (1.+zeq)*D
 
          ! Wave number relative to the horizon scale at equality (equation 5)
          ! Extra factor of h becauase all my k are in units of h/Mpc
