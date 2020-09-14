@@ -1467,7 +1467,7 @@ CONTAINS
 !!$    END IF
 
       ! Massive neutrinos
-      ! TODO: Add support for separate species
+      ! TODO: Add support for separate neutrino species and masses
       IF (cosm%N_nu /= 3) STOP 'INIT_COSMOLOGY: This currently only supports 3 degenerate massive neutrino species'
       IF (cosm%m_nu == 0.) THEN
          cosm%Om_nu = cosm%Om_nu_rad
@@ -3554,6 +3554,8 @@ CONTAINS
          Tcold_EH = 1.
 
       ELSE
+
+         IF (cosm%N_nu /= 3) STOP 'TCOLD_EH: This fitting function is only valid for 3 degenerate massive neutrino species'
 
          ! Get the redshift
          z = redshift_a(a)
