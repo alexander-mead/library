@@ -234,18 +234,18 @@ MODULE cosmology_functions
    REAL, PARAMETER :: w_g = 1./3. ! Photons
    REAL, PARAMETER :: w_v = -1.   ! Vacuum energy
 
-   ! Neutrino methods
-   INTEGER, PARAMETER :: neutrino_basic = 1
-   INTEGER, PARAMETER :: neutrino_Komatsu = 2
-   INTEGER, PARAMETER :: neutrino_method = neutrino_Komatsu
+   ! Neutrino energy-density evolution methods
+   INTEGER, PARAMETER :: neutrino_basic = 1                 ! Basic approximation that ensures relativistic and non-relativisit limits
+   INTEGER, PARAMETER :: neutrino_Komatsu = 2               ! Accurate approximation from WMAP7 paper
+   INTEGER, PARAMETER :: neutrino_method = neutrino_Komatsu ! Select neutrino method
 
    ! Parameters from WMAP7 Komatsu et al. 2011 paper
    REAL, PARAMETER :: A_Komatsu = 0.3173 ! Acutally 180*zeta(3)/7*pi^4
    REAL, PARAMETER :: p_Komatsu = 1.83   ! Fitted
 
    ! Neutrinos
-   REAL, PARAMETER :: f_nu_limit = 0.5
-   REAL, PARAMETER :: a_nu_limit = 0.2
+   REAL, PARAMETER :: f_nu_limit = 0.5 ! If f_nu is larger than this then stop the calculation
+   REAL, PARAMETER :: a_nu_limit = 0.2 ! If neutrinos are too hot then stop the calculation
 
    ! Dark energy density
    INTEGER, PARAMETER :: iw_LCDM = 1  ! Vacuum dark energy
@@ -258,9 +258,9 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iw_BDE = 8   ! Bound dark energy (1812.01133)  
 
    ! Dark energy integration and interpolation
-   REAL, PARAMETER :: amin_Xde = 1e-4    ! Minimum scale factor for direction integration to get Xde
-   REAL, PARAMETER :: amax_Xde = 1.      ! Maximum scale factor for direction integration to get Xde
-   INTEGER, PARAMETER :: n_Xde = 128     ! Number of points for Xde interpolation
+   REAL, PARAMETER :: amin_Xde = 1e-4                ! Minimum scale factor for direction integration to get Xde
+   REAL, PARAMETER :: amax_Xde = 1.                  ! Maximum scale factor for direction integration to get Xde
+   INTEGER, PARAMETER :: n_Xde = 128                 ! Number of points for Xde interpolation
    LOGICAL, PARAMETER :: tabulate_Xde = .TRUE.       ! Tabulate Xde for interpolation
    REAL, PARAMETER :: acc_integration_Xde = acc_cosm ! Accuracy for direct integration of dark energy density
    INTEGER, PARAMETER :: iorder_integration_Xde = 3  ! Polynomial order for time integration
@@ -309,18 +309,18 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
    INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB
    INTEGER, PARAMETER :: norm_none = 4         ! Power spectrum does not need to be normalised
-   INTEGER, PARAMETER :: flag_matter = 1      ! Flag to get the total matter power spectrum
-   INTEGER, PARAMETER :: flag_cold = 2       ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
-   INTEGER, PARAMETER :: flag_ucold = 3 ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
+   INTEGER, PARAMETER :: flag_matter = 1       ! Flag to get the total matter power spectrum
+   INTEGER, PARAMETER :: flag_cold = 2         ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
+   INTEGER, PARAMETER :: flag_ucold = 3        ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
 
    ! Linear power interpolation
-   REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used in interpolation [h/Mpc]
-   REAL, PARAMETER :: kmax_plin = 1e2                    ! Maximum wavenumber used in interpolation [h/Mpc]
-   INTEGER, PARAMETER :: nk_plin = 128                   ! Number of k to use in interpolation
+   REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used [h/Mpc]
+   REAL, PARAMETER :: kmax_plin = 1e2                    ! Maximum wavenumber used [h/Mpc]
+   INTEGER, PARAMETER :: nk_plin = 128                   ! Number of k points to use
    REAL, PARAMETER :: amin_plin = 0.1                    ! Minimum a value for Pk growth if scale dependent
    REAL, PARAMETER :: amax_plin = 1.0                    ! Maximum a value for Pk growth if scale dependent
    INTEGER, PARAMETER :: na_plin = 16                    ! Number of a values if growth is scale dependent
-   INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Order for interpolation
+   INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Polynomail order
    INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
    INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
    INTEGER, PARAMETER :: iextrap_plin = iextrap_lin      ! Extrapolation scheme
@@ -329,12 +329,13 @@ MODULE cosmology_functions
    ! CAMB interface
    REAL, PARAMETER :: pk_min_CAMB = 1e-10                      ! Minimum value of power at low k (remove k with less than this) 
    REAL, PARAMETER :: nmax_CAMB = 2.                           ! How many times more to go than kmax due to inaccuracy near k limit
-   LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.                  ! Should we rebin CAMB or just use default k?
+   LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.                  ! Should we rebin CAMB or just use default k spacing?
    INTEGER, PARAMETER :: iorder_rebin_CAMB = 3                 ! Polynomial order for interpolation on CAMB rebinning
    INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation on CAMB rebinning (*definitely* not linear)
    INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Method for interpolation on CAMB rebinning
 
-   ! Cold transfer function method
+   ! Cold transfer function methods
+   ! TODO: Should I use CAMB if possible and EH otherwise?
    INTEGER, PARAMETER :: method_cold_none = 0         ! Cold transfer function is equal to matter
    INTEGER, PARAMETER :: method_cold_total = 1        ! Assume neutrinos are completely hot
    INTEGER, PARAMETER :: method_cold_EH = 2           ! Eisenstein & Hu approximation
@@ -349,14 +350,9 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interp_Tcold = 3     ! Order for cold interpolatin
    LOGICAL, PARAMETER :: store_Tcold = .TRUE.        ! Storage for cold interpolation
 
-   ! Wiggle extraction methods
-   INTEGER, PARAMETER :: wiggle_Lagrange = 1   ! Lagrange polynomial fixed through set points TODO: Remove
-   INTEGER, PARAMETER :: wiggle_smoothing = 2  ! Smooth array to get smooth power spectrum TODO: Remove
+   ! Wiggle smoothing extraction methods
    INTEGER, PARAMETER :: dewiggle_tophat = 1   ! Top-hat smoothing
    INTEGER, PARAMETER :: dewiggle_Gaussian = 2 ! Gaussian smoothing
-
-   ! Wiggle Lagrange polynomial options
-   REAL, PARAMETER :: kwig_points(4) = [0.008, 0.01, 0.8, 1.] ! Points in k for Lagrange polynomial TODO: Remove
 
    ! Linear power spectrum smoothing methods  
    REAL, PARAMETER :: wiggle_dx = 0.20                     ! Smoothing half-width if using top-hat smoothing
@@ -370,7 +366,6 @@ MODULE cosmology_functions
    REAL, PARAMETER :: kmax_wiggle = 5.                     ! Maximum wavenumber to calulate wiggle [Mpc/h]
    INTEGER, PARAMETER :: nk_wiggle = 512                   ! Number of k points to store wiggle
    LOGICAL, PARAMETER :: store_wiggle = .TRUE.             ! Pre-calculate interpolation coefficients 
-   INTEGER, PARAMETER :: imethod_wiggle = wiggle_smoothing ! Choose method for wiggle
    INTEGER, PARAMETER :: iorder_interp_wiggle = 3          ! Order for wiggle interpolator
    INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero     ! Should be zeros because interpolator stores only wiggle
 
@@ -478,22 +473,22 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iextrap_Dv = iextrap_std ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_Dv = .TRUE.        ! Pre-calculate interpolation coefficients?
 
-   ! Halofit
+   ! HALOFIT
    INTEGER, PARAMETER :: HALOFIT_Smith = 1       ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
    INTEGER, PARAMETER :: HALOFIT_Bird = 2        ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
    INTEGER, PARAMETER :: HALOFIT_Takahashi = 3   ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
-   INTEGER, PARAMETER :: HALOFIT_CAMB = 4        ! Version as used in CAMB  (date; ???)
-   INTEGER, PARAMETER :: HALOFIT_CLASS = 5       ! Version as used in CLASS (date; ???)
+   INTEGER, PARAMETER :: HALOFIT_CAMB = 4        ! Version as used in CAMB  (2020)
+   INTEGER, PARAMETER :: HALOFIT_CLASS = 5       ! Version as used in CLASS (2020)
    INTEGER, PARAMETER :: HALOFIT_Smith_paper = 6 ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664)
    INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
 
-   ! CAMB non-linear
+   ! CAMB non-linear numbering schemes
    INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1     ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
    INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2      ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
    INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4 ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
    INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8        ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
    INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5        ! Mead et al. (2016; https://arxiv.org/abs/1602.02154)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2020 = 9        ! Mead et al. (2020; xxxx.xxxxx)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2020 = 9        ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
 
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
@@ -618,6 +613,16 @@ CONTAINS
       names(99) = 'Boring but with no-wiggle linear power'
       names(238) = 'Random Mira Titan cosmology with constant dark energy'
       names(239) = 'Bolshoi: Planck'
+      names(240) = 'HMcode test: Open'
+      names(241) = 'HMcode test: Low w'
+      names(242) = 'HMcode test: High w'
+      names(243) = 'HMcode test: Medium-mass neutrinos'
+      names(244) = 'HMcode test: High-mass neutrinos'
+      names(245) = 'HMcode test: Low spectral index'
+      names(246) = 'HMcode test: High spectral index'
+      names(247) = 'HMcode test: Low baryon fraction'
+      names(248) = 'HMcode test: High baryon fraction'
+      names(249) = 'HMcode test: Early dark energy'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1174,7 +1179,6 @@ CONTAINS
          cosm%sig8 = 0.794
          cosm%ns = 0.967
          cosm%h = 0.717
-         cosm%w = -1.
       ELSE IF(icosmo == 50) THEN
          ! CFHTLenS best-fitting cosmology (Kilbinger 2013; combined with WMAP 7)
          ! From first line in Table 3 of https://arxiv.org/pdf/1212.3338.pdf
@@ -1185,7 +1189,6 @@ CONTAINS
          cosm%sig8 = 0.815
          cosm%ns = 0.966
          cosm%h = 0.702
-         cosm%w = -1.
       ELSE IF (is_in_array(icosmo, [51, 52, 53, 54, 55])) THEN
          ! CAMB fail cosmologies for HMcode comparisons
          cosm%itk = itk_CAMB
@@ -1237,8 +1240,9 @@ CONTAINS
             cosm%w = -1.26075
             cosm%wa = -0.07341
          ELSE IF (icosmo == 55) THEN
-            ! Small-scale suppression
+            ! Small-scale suppression, EDE-ish
             ! HMcode (2020) fails but (2016) passes
+            ! Solved by synchronising initial time for growth ODE 
             cosm%Om_m = 0.28330
             cosm%Om_b = 0.04034
             cosm%Om_w = 1.-cosm%Om_m
@@ -1390,6 +1394,55 @@ CONTAINS
          cosm%Om_b = 0.048
          cosm%ns = 0.96
          cosm%sig8 = 0.82
+      ELSE IF (is_in_array(icosmo, [240, 241, 242, 243, 244, 245, 246, 247, 248, 249])) THEN
+         ! HMcode test cosmologies
+         ! 240 - Open
+         ! 241 - Low w
+         ! 242 - High w
+         ! 243 - Medium-mass neutrinos
+         ! 244 - High-mass neutrinos
+         ! 245 - Low spectral index
+         ! 246 - High spectral index
+         ! 247 - Low baryon fraction
+         ! 248 - High baryon fraction
+         ! 249 - Early dark energy
+         cosm%itk = itk_CAMB
+         IF (icosmo == 240) THEN
+            ! 240 -  Open
+            cosm%Om_v = 0.
+         ELSE IF (icosmo == 241 .OR. icosmo == 242) THEN
+            ! 241 - Low w
+            ! 242 - High w
+            cosm%iw = iw_wCDM
+            cosm%Om_w = cosm%Om_v
+            cosm%Om_v = 0.
+            IF (icosmo == 241) cosm%w = -0.7
+            IF (icosmo == 242) cosm%w = -1.3
+         ELSE IF (icosmo == 243) THEN
+            ! 243 - Medium-mass neutrinos
+            cosm%m_nu = 0.3
+         ELSE IF (icosmo == 244) THEN
+            ! 244 - High-mass neutrinos
+            cosm%m_nu = 0.9
+         ELSE IF (icosmo == 245) THEN
+            ! 245 - Low spectral index
+            cosm%ns = 0.7
+         ELSE IF (icosmo == 246) THEN
+            ! 246 - High spectral index
+            cosm%ns = 1.3
+         ELSE IF (icosmo == 247) THEN
+            ! 247 - Low baryon fraction
+            cosm%Om_b = 0.01
+         ELSE IF (icosmo == 248) THEN
+            ! 247 - High baryon fraction
+            cosm%Om_b = 0.1
+         ELSE IF (icosmo == 249) THEN
+            ! 248 - Early dark energy
+            cosm%iw = iw_waCDM
+            cosm%wa = 0.9
+            cosm%Om_w = cosm%Om_v
+            cosm%Om_v = 0.
+         END IF
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1705,6 +1758,7 @@ CONTAINS
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 2 [eV]:', cosm%m_nu(2)
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 3 [eV]:', cosm%m_nu(3)
          WRITE (*, fmt=format) 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
+         IF (cosm%m_nu /= 0.) WRITE (*, fmt=format) 'COSMOLOGY:', 'N_nu:', cosm%N_nu
          WRITE (*, *) dashes
          !WRITE (*, *) 'COSMOLOGY: Dark energy'
          IF (cosm%iw == iw_LCDM) THEN
@@ -2935,15 +2989,12 @@ CONTAINS
       REAL, INTENT(IN) :: r ! Comoving distance [Mpc/h]
       TYPE(cosmology), INTENT(IN) :: cosm
 
-      IF (cosm%k == 0.) THEN
-         f_k = r
+      IF (cosm%k > 0.) THEN
+         f_k = sin(sqrt(cosm%k)*r)/sqrt(cosm%k)
       ELSE IF (cosm%k < 0.) THEN
          f_k = sinh(sqrt(-cosm%k)*r)/sqrt(-cosm%k)
-      !ELSE IF (cosm%k > 0.) THEN
       ELSE
-         f_k = sin(sqrt(cosm%k)*r)/sqrt(cosm%k)
-      ! ELSE
-      !    STOP 'F_K: Something went wrong'
+         f_k = r
       END IF
 
    END FUNCTION f_k
@@ -3537,7 +3588,7 @@ CONTAINS
 
       ! Calculates the ratio of T(k) for cold vs. all matter
       ! Cold perturbation defined such that 1+delta = rho_cold/rho_matter
-      ! Uses approximations in Eisenstein & Hu (1999; astro-ph/9710252)
+      ! Uses approximations from Eisenstein & Hu (1999; astro-ph/9710252)
       ! Note that this assumes that there are exactly 3 species of neutrinos
       ! Nnu<=3 of these being massive, and with the mass split evenly between the number of massive species.
       IMPLICIT NONE
@@ -7643,16 +7694,12 @@ CONTAINS
       USE special_functions
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: logkv(4), logpv(4)
       REAL, ALLOCATABLE :: k(:), Pk(:), Pka(:, :)
-      REAL, ALLOCATABLE :: logk(:), logPk(:)
       REAL, ALLOCATABLE :: Pk_smooth(:), Pk_wiggle(:)
       REAL, ALLOCATABLE :: Pk_smooth_a(:, :)
-      INTEGER :: i
       REAL, PARAMETER :: kmin = kmin_wiggle
       REAL, PARAMETER :: kmax = kmax_wiggle
       INTEGER, PARAMETER  :: nk = nk_wiggle
-      INTEGER, PARAMETER :: iorder = iorder_interp_wiggle
 
       ! Words
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Starting'
@@ -7681,35 +7728,8 @@ CONTAINS
          WRITE(*, *) 'INIT_WIGGLE: Splitting into wiggle and broad-band'
       END IF
 
-      IF(imethod_wiggle == wiggle_Lagrange) THEN
-
-         ! Log arrays
-         logPk = log(Pk)
-         logk = log(k)
-
-         ! Fix p values
-         logkv = log(kwig_points)
-         DO i = 1, 4
-            logpv(i) = find(logkv(i), logk, logPk, nk, iorder=3, ifind=3, iinterp=2)
-         END DO
-
-         ! Create new smooth spectrum that has no wiggles
-         DO i = 1, nk
-            IF (logk(i) <= logkv(1) .OR. logk(i) >= logkv(4)) THEN
-               Pk_smooth(i) = Pk(i)
-            ELSE
-               Pk_smooth(i) = exp(Lagrange_polynomial(logk(i), logkv, logpv))
-            END IF
-         END DO
-
-      ELSE IF (imethod_wiggle == wiggle_smoothing) THEN
-
-         CALL calculate_psmooth(k, [1.], reshape(Pk, [nk, 1]), Pk_smooth_a, cosm)
-         Pk_smooth = Pk_smooth_a(:, 1)
-
-      ELSE
-         STOP 'INIT_WIGGLE: Error, wiggle method is not specified correctly'
-      END IF
+      CALL calculate_psmooth(k, [1.], reshape(Pk, [nk, 1]), Pk_smooth_a, cosm)
+      Pk_smooth = Pk_smooth_a(:, 1)
 
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Isolating wiggle'
 
