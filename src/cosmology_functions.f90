@@ -207,7 +207,7 @@ MODULE cosmology_functions
       REAL, ALLOCATABLE :: log_a_plin(:), log_plina(:, :) ! Arrays for input linear P(k, a) TODO: Remove
       TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde ! 1D interpolators
       TYPE(interpolator1D) :: plin, wiggle
-      TYPE(interpolator2D) :: sigmaa, plina, Tcold ! 2D interpolators 
+      TYPE(interpolator2D) :: sigmaa, plina, Tcold, wigglea ! 2D interpolators 
       INTEGER :: nk_plin, na_plin ! Number of array entries
       LOGICAL :: analytical_power                                                          
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
@@ -320,7 +320,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amin_plin = 0.1                    ! Minimum a value for Pk growth if scale dependent
    REAL, PARAMETER :: amax_plin = 1.0                    ! Maximum a value for Pk growth if scale dependent
    INTEGER, PARAMETER :: na_plin = 16                    ! Number of a values if growth is scale dependent
-   INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Polynomail order
+   INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Polynomial order
    INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
    INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
    INTEGER, PARAMETER :: iextrap_plin = iextrap_lin      ! Extrapolation scheme
@@ -330,13 +330,13 @@ MODULE cosmology_functions
    REAL, PARAMETER :: pk_min_CAMB = 1e-10                      ! Minimum value of power at low k (remove k with less than this) 
    REAL, PARAMETER :: nmax_CAMB = 2.                           ! How many times more to go than kmax due to inaccuracy near k limit
    LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.                  ! Should we rebin CAMB or just use default k spacing?
-   INTEGER, PARAMETER :: iorder_rebin_CAMB = 3                 ! Polynomial order for interpolation on CAMB rebinning
-   INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation on CAMB rebinning (*definitely* not linear)
-   INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Method for interpolation on CAMB rebinning
+   INTEGER, PARAMETER :: iorder_rebin_CAMB = 3                 ! Polynomial order for interpolation if rebinning P(k)
+   INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation if rebinning P(k) (*definitely* not linear)
+   INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Interpolation scheme if rebinning P(k)
 
    ! Cold transfer function methods
    ! TODO: Should I use CAMB if possible and EH otherwise?
-   INTEGER, PARAMETER :: method_cold_none = 0         ! Cold transfer function is equal to matter
+   INTEGER, PARAMETER :: method_cold_none = 0         ! Assume cold power is indentical to matter
    INTEGER, PARAMETER :: method_cold_total = 1        ! Assume neutrinos are completely hot
    INTEGER, PARAMETER :: method_cold_EH = 2           ! Eisenstein & Hu approximation
    INTEGER, PARAMETER :: method_cold_CAMB = 3         ! Taken from CAMB
@@ -355,11 +355,13 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: dewiggle_Gaussian = 2 ! Gaussian smoothing
 
    ! Linear power spectrum smoothing methods  
+   ! TODO: Setting scale_grow_wiggle to .FALSE. may save time for massive-nu models
    REAL, PARAMETER :: wiggle_dx = 0.20                     ! Smoothing half-width if using top-hat smoothing
    REAL, PARAMETER :: wiggle_sigma = 0.25                  ! Smoothing width if using Gaussian smoothing  
    INTEGER, PARAMETER :: wiggle_smooth = dewiggle_Gaussian ! Type of smoothing to use
    LOGICAL, PARAMETER :: divide_by_nowiggle = .TRUE.       ! Should we reduce dynamic range with EH no-wiggle?
    REAL, PARAMETER :: knorm_nowiggle = 0.03                ! Wavenumber at which to force linear and nowiggle to be identical [Mpc/h]
+   LOGICAL, PARAMETER :: scale_grow_wiggle = .TRUE.        ! Treat the wiggle as being different at different 'a'
 
    ! Wiggle extraction and interpolation
    REAL, PARAMETER :: kmin_wiggle = 5e-3                   ! Minimum wavenumber to calulate wiggle [Mpc/h]
@@ -474,7 +476,7 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: store_Dv = .TRUE.        ! Pre-calculate interpolation coefficients?
 
    ! HALOFIT
-   INTEGER, PARAMETER :: HALOFIT_Smith = 1       ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
+   INTEGER, PARAMETER :: HALOFIT_Smith = 1       ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
    INTEGER, PARAMETER :: HALOFIT_Bird = 2        ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
    INTEGER, PARAMETER :: HALOFIT_Takahashi = 3   ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
    INTEGER, PARAMETER :: HALOFIT_CAMB = 4        ! Version as used in CAMB  (2020)
@@ -483,7 +485,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
 
    ! CAMB non-linear numbering schemes
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1     ! Smith et al. (https://www.roe.ac.uk/~jap/haloes/)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1     ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
    INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2      ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
    INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4 ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
    INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8        ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
@@ -492,7 +494,7 @@ MODULE cosmology_functions
 
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
-   INTEGER, PARAMETER :: jmax_integration = 30 ! Maximum number of points: 2^(j-1)
+   INTEGER, PARAMETER :: jmax_integration = 30 ! Maximum number of points: 2^(j-1) TODO: Could lower to make time-out faster
 
 CONTAINS
 
@@ -1197,6 +1199,7 @@ CONTAINS
          IF (icosmo == 51) THEN
             ! Weird wiggle
             ! HMcode (2016, 2020) both fail
+            ! Solved by increasing accuracy of sigma(R) integration; interaction between BAO and T(k)?
             cosm%Om_m = 0.16793
             cosm%Om_w = 1.-cosm%Om_m
             cosm%h = 0.69341
@@ -1206,6 +1209,7 @@ CONTAINS
          ELSE IF (icosmo == 52) THEN
             ! Quite weird wiggle
             ! HMcode (2016, 2020) both fail
+            ! Solved by increasing accuracy of sigma(R) integration; interaction between BAO and T(k)?
             cosm%Om_m = 0.16644
             cosm%Om_w = 1.-cosm%Om_m
             cosm%h = 0.82246
@@ -1230,6 +1234,7 @@ CONTAINS
          ELSE IF (icosmo == 54) THEN
             ! Weird wiggle; low h; high baryon fraction
             ! HMcode (2016, 2020) both fail
+            ! Solved by increasing accuracy of sigma(R) integration; interaction between BAO and T(k)?
             cosm%Om_m = 0.18504
             cosm%Om_b = 0.06696
             cosm%Om_w = 1.-cosm%Om_m
@@ -1758,7 +1763,7 @@ CONTAINS
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 2 [eV]:', cosm%m_nu(2)
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 3 [eV]:', cosm%m_nu(3)
          WRITE (*, fmt=format) 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
-         IF (cosm%m_nu /= 0.) WRITE (*, fmt=format) 'COSMOLOGY:', 'N_nu:', cosm%N_nu
+         IF (cosm%m_nu /= 0.) WRITE (*, fmt='(A11,A16,I11.5)') 'COSMOLOGY:', 'N_nu:', cosm%N_nu
          WRITE (*, *) dashes
          !WRITE (*, *) 'COSMOLOGY: Dark energy'
          IF (cosm%iw == iw_LCDM) THEN
@@ -7694,9 +7699,11 @@ CONTAINS
       USE special_functions
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, ALLOCATABLE :: k(:), Pk(:), Pka(:, :)
-      REAL, ALLOCATABLE :: Pk_smooth(:), Pk_wiggle(:)
-      REAL, ALLOCATABLE :: Pk_smooth_a(:, :)
+      REAL, ALLOCATABLE :: k(:), a(:), Pk(:, :)
+      REAL, ALLOCATABLE :: Pk_smooth(:, :), Pk_wiggle(:, :)
+      INTEGER  :: na
+      REAL, PARAMETER :: amin = amin_plin
+      REAL, PARAMETER :: amax = amax_plin
       REAL, PARAMETER :: kmin = kmin_wiggle
       REAL, PARAMETER :: kmax = kmax_wiggle
       INTEGER, PARAMETER  :: nk = nk_wiggle
@@ -7706,21 +7713,28 @@ CONTAINS
 
       ! Checks
       IF (cosm%box) STOP 'INIT_WIGGLE: Error, cannot extract wiggle from truncated linear power'
+      IF (cosm%scale_dependent_growth .AND. (.NOT. cosm%has_power)) THEN
+         STOP 'INIT_WIGGLE: This will not work for scale-dependent growth unless you have tabulated power'
+      END IF
 
       ! This is no longer necessary
       !IF (.NOT. cosm%has_power) CALL init_analytical_linear(cosm)
 
-      ! Allocate arrays
-      ALLOCATE (Pk(nk), Pk_wiggle(nk), Pk_smooth(nk))
-
       ! Allocate array for k
       CALL fill_array_log(kmin, kmax, k, nk)
+      IF (scale_grow_wiggle .AND. cosm%scale_dependent_growth) THEN
+         na = na_plin
+         CALL fill_array_log(amin, amax, a, na)
+      ELSE
+         na = 1
+         a = [1.]      
+      END IF
 
       ! Get the linear power spectrum
       IF(.NOT. cosm%is_normalised) STOP 'INIT_WIGGLE: Error, linear power must be normalised'
-      CALL calculate_plin(k, [1.], Pka, nk, 1, cosm)
-      Pk = Pka(:, 1)  
+      CALL calculate_plin(k, a, Pk, nk, na, cosm)
 
+      ! Write details to screen
       IF (cosm%verbose) THEN
          WRITE(*, *) 'INIT_WIGGLE: kmin [h/Mpc]:', k(1)
          WRITE(*, *) 'INIT_WIGGLE: kmax [h/Mpc]:', k(nk)
@@ -7728,22 +7742,32 @@ CONTAINS
          WRITE(*, *) 'INIT_WIGGLE: Splitting into wiggle and broad-band'
       END IF
 
-      CALL calculate_psmooth(k, [1.], reshape(Pk, [nk, 1]), Pk_smooth_a, cosm)
-      Pk_smooth = Pk_smooth_a(:, 1)
-
-      IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Isolating wiggle'
+      ! Calculate the smooth power spectrum
+      IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Calculating smooth power spectrum'
+      CALL calculate_psmooth(k, a, Pk, Pk_smooth, cosm)
 
       ! Isolate the wiggle
-      Pk_wiggle = Pk-Pk_smooth  
+      IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Isolating wiggle'   
+      Pk_wiggle = Pk-Pk_smooth
 
+      ! Init interpolator
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Initialising interpolator'
-
-      CALL init_interpolator(k, Pk_wiggle, cosm%wiggle, &
-         iorder = iorder_interp_wiggle, &
-         iextrap = iextrap_wiggle, &
-         store = store_wiggle, &
-         logx = .TRUE., &
-         logf = .FALSE.)
+      IF (scale_grow_wiggle .AND. cosm%scale_dependent_growth) THEN
+         CALL init_interpolator(k, a, Pk_wiggle, cosm%wigglea, &
+            iorder = iorder_interp_wiggle, &
+            iextrap = iextrap_wiggle, &
+            store = store_wiggle, &
+            logx = .TRUE., &
+            logy = .TRUE., &
+            logf = .FALSE.)
+      ELSE
+         CALL init_interpolator(k, Pk_wiggle(:, 1), cosm%wiggle, &
+            iorder = iorder_interp_wiggle, &
+            iextrap = iextrap_wiggle, &
+            store = store_wiggle, &
+            logx = .TRUE., &
+            logf = .FALSE.)
+      END IF
 
       ! Set the flag
       cosm%has_wiggle = .TRUE.
@@ -7769,13 +7793,18 @@ CONTAINS
       IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm) 
       IF (.NOT. cosm%has_wiggle) CALL init_wiggle(cosm)  
       p_linear = plin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle   
-      p_wiggle = evaluate_interpolator(k, cosm%wiggle)
       IF (sigv > 0.) THEN
          f = exp(-(k*sigv)**2)
       ELSE
          f = 0.
       END IF
-      p_dewiggle = p_linear+(f-1.)*p_wiggle*grow(a, cosm)**2
+      IF (scale_grow_wiggle .AND. cosm%scale_dependent_growth) THEN
+         p_wiggle = evaluate_interpolator(k, a, cosm%wigglea)
+         p_dewiggle = p_linear+(f-1.)*p_wiggle
+      ELSE
+         p_wiggle = evaluate_interpolator(k, cosm%wiggle)
+         p_dewiggle = p_linear+(f-1.)*p_wiggle*grow(a, cosm)**2
+      END IF
 
    END FUNCTION p_dewiggle
 
