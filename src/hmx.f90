@@ -293,7 +293,6 @@ MODULE HMx
 
       ! HMcode parameters and experimental parameters
       REAL :: knl, rnl, mnl, Rh, Mh, Mp, sigv, Rhh, neff!, ncur
-      !REAL :: sig_eta, sig_deltac, sig_fdamp, sigV_kstar, sigV_fdamp, sigV_all, sig8_all
 
       ! Saturation parameters (e.g., WDM)
       REAL :: nu_saturation
@@ -351,21 +350,21 @@ MODULE HMx
 
    END TYPE halomod
 
-   ! Window integration
+   ! Halo window function integration
    REAL, PARAMETER :: acc_win = 1e-3           ! Window-function integration accuracy parameter
    INTEGER, PARAMETER :: imeth_win = 12        ! Window-function integration method
    INTEGER, PARAMETER :: winint_order = 3      ! Window-function integration order
    REAL, PARAMETER :: winint_test_seconds = 1. ! Approximately how many seconds should each timing test take
-   INTEGER, PARAMETER :: nmeth_win = 13        ! Number of different winint methods
+   INTEGER, PARAMETER :: nmeth_win = 13        ! Total number of different winint methods
    INTEGER, PARAMETER :: nlim_bumps = 2        ! Do the bumps approximation after this number of bumps
    LOGICAL, PARAMETER :: winint_exit = .FALSE. ! Exit when the contributions to the integral become small
 
    ! Delta_v
-   REAL, PARAMETER :: M0_Dv_default = 1e14
+   REAL, PARAMETER :: M0_Dv_default = 1e14 ! If Delta_v is halo-mass dependent (e.g., MG) then write it at this mass
 
    ! Mass function
-   INTEGER, PARAMETER :: iorder_derivative_mass_function = 3
-   INTEGER, PARAMETER :: ifind_derivative_mass_function = ifind_split
+   INTEGER, PARAMETER :: iorder_derivative_mass_function = 3          ! Polynomial order to calculate halo-mass function via numerical derivative
+   INTEGER, PARAMETER :: ifind_derivative_mass_function = ifind_split ! Finding scheme for derivative
 
    ! Diagnostics
    REAL, PARAMETER :: mmin_diag = 1e10 ! Minimum halo mass for diagnostic tests [Msun/h]
@@ -415,10 +414,10 @@ MODULE HMx
    ! TODO: Hydro tests passed if 1e-4, but I worry a bit, also it was a fairly minor speed up (25%)
    ! TODO: Also, not obvious that a constant frac_min is correct because some species have low abundance
    ! but we ususally care about perturbations to this abundance
-   REAL, PARAMETER :: frac_min_delta = 0.  ! Be very careful with this
-   INTEGER, PARAMETER :: iorder_delta = 3
-   INTEGER, PARAMETER :: ifind_delta = 3
-   INTEGER, PARAMETER :: imeth_delta = 2
+   REAL, PARAMETER :: frac_min_delta = 0. ! Be very careful with this
+   INTEGER, PARAMETER :: iorder_delta = 3 !
+   INTEGER, PARAMETER :: ifind_delta = 3  !
+   INTEGER, PARAMETER :: imeth_delta = 2  !
 
    ! Halo types
    LOGICAL, PARAMETER :: verbose_galaxies = .FALSE. ! Verbosity when doing the galaxies initialisation
@@ -476,6 +475,7 @@ MODULE HMx
    INTEGER, PARAMETER :: field_neutrino = 31
    INTEGER, PARAMETER :: field_n = 31
 
+   ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
    INTEGER, PARAMETER :: param_eps = 2
    INTEGER, PARAMETER :: param_gamma = 3
@@ -1831,26 +1831,6 @@ CONTAINS
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass       
          IF (ihm == 78) THEN
-            ! Model 1: 0.00704 for Cosmic Emu (old de-wiggle)
-            !hmod%f0 = 0.2221080
-            !hmod%f1 = 0.7354185
-            !hmod%ks = 0.0598368
-            !hmod%kp = -0.5832631
-            !hmod%alp0 = 2.1592118
-            !hmod%alp1 = 1.6949669
-            !hmod%kd = 0.0638063
-            !hmod%kdp = -0.5481986
-            !hmod%nd = 2.8940349
-            ! Model 2: 0.00975 for Cosmic Emu
-            !hmod%f0 = 0.2125526
-            !hmod%f1 = 0.5941393
-            !hmod%ks = 0.0395327
-            !hmod%kp = -1.0752429
-            !hmod%alp0 = 2.3677969
-            !hmod%alp1 = 1.7706090
-            !hmod%kd = 0.0481365
-            !hmod%kdp = -0.9141222
-            !hmod%nd = 2.8346948
             ! Model 3: 0.00926 for Cosmic Emu
             hmod%f0 = 0.1995332
             hmod%f1 = 0.4271555
@@ -1863,60 +1843,7 @@ CONTAINS
             hmod%kdp = -1.0887362
             hmod%nd = 2.7259666
          ELSE IF (ihm == 79 .OR. ihm == 102) THEN
-            ! Model 1: 0.0155 to both Franken Emu and Mira Titan (old dewiggle)
-            ! hmod%f0 = 0.3029326
-            ! hmod%f1 = 0.9871813
-            ! hmod%ks = 0.1009522
-            ! hmod%kp = -0.6087461
-            ! hmod%kd = 0.0999463
-            ! hmod%kdp = -0.7043082
-            ! hmod%nd = 3.0978275
-            ! hmod%eta0 = 0.2076059
-            ! hmod%eta1 = -0.0395534
-            ! hmod%alp0 = 2.2627289
-            ! hmod%alp1 = 1.7735738
-            ! hmod%Amf = 1.3698191
-            ! hmod%ST_p = 0.2851119
-            ! hmod%ST_q = 0.8421921
-            ! hmod%As = 3.8870756
-            ! hmod%dcnu = 0.2551262
-            ! hmod%Dvnu = 0.5504368
-            ! Model 2: 0.0153 to Franken Emu
-            !hmod%f0 = 0.2471384
-            !hmod%f1 = 0.8797992
-            !hmod%ks = 0.0647618
-            !hmod%kp = -0.5616775
-            !hmod%kd = 0.0680499
-            !hmod%kdp = -0.5113562
-            !hmod%nd = 3.0079345
-            !hmod%eta0 = 0.2315305
-            !hmod%eta1 = 0.0391207
-            !hmod%alp0 = 2.6450652
-            !hmod%alp1 = 1.8686415
-            !hmod%alp0 = 1.
-            !hmod%alp1 = 0.
-            !hmod%alp2 = 0.
-            !hmod%Amf = 1.6641112
-            !hmod%ST_p = 0.3281193
-            !hmod%ST_q = 0.8334210
-            !hmod%As = 3.7711354
-            ! Model 3: 0.0194 to Franken Emu + Mira Titan
-            ! hmod%f0 = 0.2934852
-            ! hmod%f1 = 0.9822699
-            ! hmod%ks = 0.0753932
-            ! hmod%kp = -0.6239208
-            ! hmod%kd = 0.0813509
-            ! hmod%kdp = -0.5613598
-            ! hmod%nd = 3.1091039
-            ! hmod%eta0 = 0.2193618
-            ! hmod%eta1 = 0.0074750
-            ! hmod%alp0 = 2.3982007
-            ! hmod%alp1 = 1.8232834
-            ! hmod%Amf = 1.3324437
-            ! hmod%ST_p = 0.2543736
-            ! hmod%ST_q = 0.8714454
-            ! hmod%As = 3.6576695
-            ! Model 4: 0.0168 to Franken Emu
+            ! Published model: 0.0168 to Franken Emu
             hmod%f0 = 0.2695822
             hmod%f1 = 0.9403087
             hmod%ks = 0.0561778
@@ -1929,20 +1856,6 @@ CONTAINS
             hmod%alp0 = 1.8751465
             hmod%alp1 = 1.6029913
             hmod%As = 5.1958429
-            ! Model 5: x.xxxx for Franken Emu
-            !hmod%f0 = 0.1995332
-            !hmod%f1 = 0.4271555
-            !hmod%ks = 0.0300269
-            !hmod%kp = -1.3693749
-            !hmod%alp0 = 1.1786775
-            !hmod%alp1 = 0.2668017
-            !hmod%alp2 = 0.4473270
-            !hmod%kd = 0.0414780
-            !hmod%kdp = -1.0887362
-            !hmod%nd = 2.7259666
-            !hmod%eta0 = 0.
-            !hmod%eta1 = 0.
-            !hmod%As = 4.
          END IF
          IF (ihm == 102) THEN
             ! 102 - HMcode baryon recipe
