@@ -685,7 +685,7 @@ CONTAINS
       ! Returns the 'sine integral' function: Si(x)=int_0^x sin(t)/t dt
       USE precision
       REAL, INTENT(IN) :: x
-      REAL(dp) :: x2, y, f, g, si8
+      REAL :: x2, y, f, g, si8
       REAL, PARAMETER :: x0 = 4. ! Transition between two different approximations
 
       ! Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
@@ -739,7 +739,7 @@ CONTAINS
       ! Returns the 'cosine integral' function Ci(x): -int_x^inf cos(t)/t dt
       USE precision
       REAL, INTENT(IN) :: x
-      REAL(dp) :: x2, y, f, g, ci8
+      REAL :: x2, y, f, g, ci8
       REAL, PARAMETER :: x0 = 4. ! Transition between two different approximations
 
       ! Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
