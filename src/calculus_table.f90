@@ -260,8 +260,9 @@ CONTAINS
             a = y(i+1)
             b = y(i)
             h = x(i+1)-x(i)
-            sum = sum+(a+b)*h/2.d0
+            sum = sum+(a+b)*h
          END DO
+         sum=sum/2.
 
       ELSE IF (iorder == 2) THEN
 
@@ -354,7 +355,7 @@ CONTAINS
 
       END IF
 
-      integrate_table_1D = real(sum)
+      integrate_table_1D = sum
 
    END FUNCTION integrate_table_1D
 
