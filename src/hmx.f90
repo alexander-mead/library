@@ -1876,28 +1876,18 @@ CONTAINS
             hmod%DMONLY_baryon_recipe = .TRUE.
             hmod%response_baseline = HMcode2020
             hmod%response_denominator = 77
-            !hmod%As = 3.42
-            !hmod%mbar = 10**13.83
-            !hmod%mbarz = -0.254
-            !hmod%sbar = 0.0231
-            !hmod%sbarz = 1.076
-            !hmod%As_T = -0.293
-            !hmod%mbar_T = 1.800
-            !hmod%mbarz_T = -0.219
-            !hmod%sbar_T = -0.0061
-            !hmod%sbarz_T = 0.106
             hmod%As = 3.44
-            hmod%Az = -0.0671
-            hmod%mbar = 10**13.87
-            hmod%mbarz = -0.108
-            hmod%sbar = 0.0201
-            hmod%sbarz = 0.409
             hmod%As_T = -0.496
+            hmod%Az = -0.0671
             hmod%Az_T = -0.0371
-            hmod%mbar_T = 1.81
-            hmod%mbarz_T = 0.195
+            hmod%sbar = 0.0201
             hmod%sbar_T = -0.0030
+            hmod%sbarz = 0.409
             hmod%sbarz_T = 0.0224
+            hmod%mbar = 10**13.87
+            hmod%mbar_T = 1.81
+            hmod%mbarz = -0.108
+            hmod%mbarz_T = 0.195
          END IF
          IF (ihm == 104) THEN
             ! 104 - HMx response baryon model
@@ -6581,7 +6571,6 @@ CONTAINS
       sbar = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%sbar_T, hmod%sbar)
       sbarz = HMcode_DMONLY_baryon_model(cosm%Theat, hmod%sbarz_T, hmod%sbarz)
       z = hmod%z
-      !HMcode_sbar = sbar*(1.+sbarz*z**2)
       HMcode_sbar = sbar*10**(z*sbarz)
 
       CALL fix_maximum(HMcode_sbar, cosm%Om_b/cosm%Om_m)
