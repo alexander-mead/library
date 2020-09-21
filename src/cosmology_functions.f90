@@ -136,6 +136,7 @@ MODULE cosmology_functions
    PUBLIC :: CAMB_nonlinear_HMcode2015
    PUBLIC :: CAMB_nonlinear_HMcode2016
    PUBLIC :: CAMB_nonlinear_HMcode2020
+   PUBLIC :: CAMB_nonlinear_HMcode2020_feedback
 
    ! HALOFIT
    PUBLIC :: calculate_HALOFIT_a
@@ -485,12 +486,13 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
 
    ! CAMB non-linear numbering schemes
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1     ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2      ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4 ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8        ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5        ! Mead et al. (2016; https://arxiv.org/abs/1602.02154)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2020 = 9        ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1        ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2         ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4    ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8           ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5           ! Mead et al. (2016; https://arxiv.org/abs/1602.02154)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2020 = 9           ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
+   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2020_feedback = 10 ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
 
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
@@ -625,6 +627,14 @@ CONTAINS
       names(247) = 'HMcode test: Low baryon fraction'
       names(248) = 'HMcode test: High baryon fraction'
       names(249) = 'HMcode test: Early dark energy'
+      names(250) = 'HMcode test: Low AGN temperature'
+      names(251) = 'HMcode test: High AGN temperature'
+      names(252) = 'HMcode test:'
+      names(253) = 'Random nu-w(a)CDM cosmology with random AGN temperature'
+      names(254) = 'Random LCDM cosmology with random AGN temperature'
+      names(255) = 'Random nu-LCDM cosmology with random AGN temperature'
+      names(256) = 'Random w(a)CDM cosmology with random AGN temperature'
+      names(257) = 'Random wCDM cosmology with random AGN temperature'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1221,6 +1231,7 @@ CONTAINS
          ELSE IF (icosmo == 53) THEN
             ! BAO wiggle damping slightly wrong; high neutrino and baryon fractions
             ! HMcode (2020) fails but (2016) passes
+            ! Solved by making the BAO wiggle extraction scale-dependent in HMx
             cosm%Om_m = 0.19165
             cosm%Om_w = 1.-cosm%Om_m
             cosm%h = 0.50576
@@ -1399,7 +1410,7 @@ CONTAINS
          cosm%Om_b = 0.048
          cosm%ns = 0.96
          cosm%sig8 = 0.82
-      ELSE IF (is_in_array(icosmo, [240, 241, 242, 243, 244, 245, 246, 247, 248, 249])) THEN
+      ELSE IF (is_in_array(icosmo, [240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252])) THEN
          ! HMcode test cosmologies
          ! 240 - Open
          ! 241 - Low w
@@ -1411,6 +1422,9 @@ CONTAINS
          ! 247 - Low baryon fraction
          ! 248 - High baryon fraction
          ! 249 - Early dark energy
+         ! 250 - Low feedback temperature
+         ! 251 - High feedback temperature
+         ! 252 - 
          cosm%itk = itk_CAMB
          IF (icosmo == 240) THEN
             ! 240 -  Open
@@ -1439,15 +1453,30 @@ CONTAINS
             ! 247 - Low baryon fraction
             cosm%Om_b = 0.01
          ELSE IF (icosmo == 248) THEN
-            ! 247 - High baryon fraction
+            ! 248 - High baryon fraction
             cosm%Om_b = 0.1
          ELSE IF (icosmo == 249) THEN
-            ! 248 - Early dark energy
+            ! 249 - Early dark energy
             cosm%iw = iw_waCDM
             cosm%wa = 0.9
             cosm%Om_w = cosm%Om_v
             cosm%Om_v = 0.
+         ELSE IF (icosmo == 250) THEN
+            ! 250 - Low AGN temperature
+            cosm%Theat = 10**7.6
+         ELSE IF (icosmo == 251) THEN
+            ! 251 - High AGN temperature
+            cosm%Theat = 10**8.0
          END IF
+      ELSE IF (is_in_array(icosmo, [253, 254, 255, 256, 257])) THEN
+         ! Random nu-w(a)CDM with random feedback temperature
+         IF(icosmo == 253) CALL random_cosmology(cosm)
+         IF(icosmo == 254) CALL random_LCDM_cosmology(cosm)
+         IF(icosmo == 255) CALL random_nuLCDM_cosmology(cosm)
+         IF(icosmo == 256) CALL random_waCDM_cosmology(cosm)
+         IF(icosmo == 257) CALL random_wCDM_cosmology(cosm)
+         CALL random_AGN_temperature(cosm)
+         cosm%itk = itk_CAMB
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -5945,7 +5974,7 @@ CONTAINS
       WRITE (7, *) 'do_primordial_bispectrum = F'
 
       ! Verbosity (0 writes nothing; 1 writes some useful stuff; 2 writes HMcode stuff)
-      WRITE (7, *) 'feedback_level = 2'
+      WRITE (7, *) 'feedback_level = 0'
 
       ! Print out a comment describing file headers
       WRITE (7, *) 'output_file_headers = T'
@@ -5976,6 +6005,9 @@ CONTAINS
       WRITE (7, *) 'accuracy_boost = 1'
       WRITE (7, *) 'l_accuracy_boost = 1'
       WRITE (7, *) 'l_sample_boost = 1'
+
+      ! HMcode baryonic feedback
+      WRITE(7, *) 'HMcode_logT_AGN  =', log10(cosm%Theat)
 
       ! Close file
       CLOSE (7)
@@ -6349,37 +6381,40 @@ CONTAINS
 
    END SUBROUTINE init_external_linear
 
+   SUBROUTINE random_AGN_temperature(cosm)
+
+      USE random_numbers
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: logT_AGN
+      REAL, PARAMETER :: logT_AGN_min = 7.5
+      REAL, PARAMETER :: logT_AGN_max = 8.1
+
+      logT_AGN = random_uniform(logT_AGN_min, logT_AGN_max)
+      cosm%Theat = 10**logT_AGN
+
+   END SUBROUTINE random_AGN_temperature
+
    SUBROUTINE random_cosmology(cosm)
 
       ! Generate some random cosmological parameters
       USE random_numbers
-      IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-
       REAL, PARAMETER :: Om_c_min = 0.1
       REAL, PARAMETER :: Om_c_max = 0.5
-
       REAL, PARAMETER :: Om_b_min = 0.02
       REAL, PARAMETER :: Om_b_max = 0.07
-
       REAL, PARAMETER :: h_min = 0.4
       REAL, PARAMETER :: h_max = 1.0
-
       REAL, PARAMETER :: n_min = 0.7
       REAL, PARAMETER :: n_max = 1.3
-
       REAL, PARAMETER :: w_min = -1.3
       REAL, PARAMETER :: w_max = -0.7
-
       REAL, PARAMETER :: wa_min=-1.
       REAL, PARAMETER :: wa_max=1.
-
       REAL, PARAMETER :: sig8_min = 0.6
       REAL, PARAMETER :: sig8_max = 0.9
-
       REAL, PARAMETER :: mnu_min = 0.01
       REAL, PARAMETER :: mnu_max = 0.60
-
       REAL, PARAMETER :: w_lim = 0.
 
       !CALL RNG_set(seed=0)
@@ -6478,22 +6513,16 @@ CONTAINS
       USE random_numbers
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
-
       REAL, PARAMETER :: om_m_min = 0.120
       REAL, PARAMETER :: om_m_max = 0.155
-
       REAL, PARAMETER :: om_b_min = 0.0215
       REAL, PARAMETER :: om_b_max = 0.0235
-
       REAL, PARAMETER :: n_min = 0.85
       REAL, PARAMETER :: n_max = 1.05
-
       REAL, PARAMETER :: h_min = 0.55
       REAL, PARAMETER :: h_max = 0.85
-
       REAL, PARAMETER :: w_min = -1.3
       REAL, PARAMETER :: w_max = -0.7
-
       REAL, PARAMETER :: sig8_min = 0.616
       REAL, PARAMETER :: sig8_max = 0.9
 
@@ -6525,28 +6554,20 @@ CONTAINS
       IMPLICIT NONE
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: om_m, om_b, om_nu
-
       REAL, PARAMETER :: om_m_min = 0.120
       REAL, PARAMETER :: om_m_max = 0.155
-
       REAL, PARAMETER :: om_b_min = 0.0215
       REAL, PARAMETER :: om_b_max = 0.0235
-
       REAL, PARAMETER :: om_nu_min = 1e-4
       REAL, PARAMETER :: om_nu_max = 1e-2
-
       REAL, PARAMETER :: n_min = 0.85
       REAL, PARAMETER :: n_max = 1.05
-
       REAL, PARAMETER :: h_min = 0.55
       REAL, PARAMETER :: h_max = 0.85
-
       REAL, PARAMETER :: w_min = -1.3
       REAL, PARAMETER :: w_max = -0.7
-
       REAL, PARAMETER :: wa_min = -1.73
       REAL, PARAMETER :: wa_max = 1.28
-
       REAL, PARAMETER :: sig8_min = 0.7
       REAL, PARAMETER :: sig8_max = 0.9
 
