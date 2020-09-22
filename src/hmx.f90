@@ -5506,7 +5506,7 @@ CONTAINS
 
       IF (hmod%nu(1) > 1.) THEN
          ! This catches some very strange values for cosmologies where the non-linear radius can be very large
-         ! TODO: This is fucked! Should do something much more sensible
+         ! TODO: This is probably a terrible idea. Should do something much more sensible
          r_nl = hmod%rr(1)
       ELSE
          r_nl = exp(find(log(1.), log(hmod%nu), log(hmod%rr), hmod%n, iorder, ifind, imeth))
