@@ -382,6 +382,11 @@ MODULE HMx
    INTEGER, PARAMETER :: iorder_1halo_integration = 1    ! Order for 1-halo integration (basic because of wiggles)
    LOGICAL, PARAMETER :: calculate_Omega_stars = .FALSE. ! Calculate Omega_* in halomod_init
 
+   ! Non-linear radius: solves nu(R_nl)=1
+   INTEGER, PARAMETER :: iorder_inversion_rnl = 3                 ! Order for interpolation inversion
+   INTEGER, PARAMETER :: ifind_inversion_rnl = ifind_split        ! Finding scheme for table
+   INTEGER, PARAMETER :: iinterp_inversion_rnl = iinterp_Lagrange ! Interpolation method
+
    ! Voids
    REAL, PARAMETER :: void_underdensity = -1.      ! Void underdensity
    REAL, PARAMETER :: void_compensation = 1.1      ! How much larger than the void is the compensation region?
@@ -5500,16 +5505,16 @@ CONTAINS
 
       ! Calculates R_nl where nu(R_nl)=1.
       TYPE(halomod), INTENT(INOUT) :: hmod
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: ifind = 3
-      INTEGER, PARAMETER :: imeth = 2
+      INTEGER, PARAMETER :: iorder = iorder_inversion_rnl
+      INTEGER, PARAMETER :: ifind = ifind_inversion_rnl
+      INTEGER, PARAMETER :: iinterp = iinterp_inversion_rnl
 
       IF (hmod%nu(1) > 1.) THEN
          ! This catches some very strange values for cosmologies where the non-linear radius can be very large
          ! TODO: This is probably a terrible idea. Should do something much more sensible
          r_nl = hmod%rr(1)
       ELSE
-         r_nl = exp(find(log(1.), log(hmod%nu), log(hmod%rr), hmod%n, iorder, ifind, imeth))
+         r_nl = exp(find(log(1.), log(hmod%nu), log(hmod%rr), hmod%n, iorder, ifind, iinterp))
       END IF
 
    END FUNCTION r_nl
