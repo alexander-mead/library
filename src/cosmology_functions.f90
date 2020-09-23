@@ -121,12 +121,12 @@ MODULE cosmology_functions
    PUBLIC :: flag_ucold
    PUBLIC :: norm_sigma8
    PUBLIC :: norm_none
-   PUBLIC :: itk_none
-   PUBLIC :: itk_EH
-   PUBLIC :: itk_nw
-   PUBLIC :: itk_DEFW
-   PUBLIC :: itk_CAMB
-   PUBLIC :: itk_external
+   PUBLIC :: iTk_none
+   PUBLIC :: iTk_EH
+   PUBLIC :: iTk_nw
+   PUBLIC :: iTk_DEFW
+   PUBLIC :: iTk_CAMB
+   PUBLIC :: iTk_external
 
    ! CAMB interface
    PUBLIC :: get_CAMB_power
@@ -178,7 +178,8 @@ MODULE cosmology_functions
       INTEGER :: norm_method                ! Power normalisation scheme
       INTEGER :: iw                         ! Switch for dark-energy type
       INTEGER :: img                        ! Switch for modified gravity
-      INTEGER :: itk                        ! Switch for transfer function type
+      INTEGER :: iTk                        ! Switch for transfer function type
+      INTEGER :: iTc                        ! Switch for cold transfer function type
       LOGICAL :: box                        ! Constrain the calculation to take place in a box?    
       LOGICAL :: warm                       ! Is DM warm?
       LOGICAL :: power_Omegas               ! Are the Omegas for the background different from those for the perturbations?
@@ -201,7 +202,6 @@ MODULE cosmology_functions
       REAL :: gnorm                      ! Growth-factor normalisation
       REAL :: kbox                       ! Wavenumber of box mode
       LOGICAL :: scale_dependent_growth  ! Is the linear growth scale dependent in this cosmology?
-      LOGICAL :: trivial_cold            ! Is the cold spectrum trivially related to the matter spectrum?    
       
       ! Look-up tables that are filled during a calculation
       REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:)     ! Arrays for input linear P(k) TODO: Remove
@@ -300,12 +300,12 @@ MODULE cosmology_functions
    REAL, PARAMETER :: kmin_abs_plin = 0.       ! Power below this wavenumber is set to zero [h/Mpc]
    REAL, PARAMETER :: kmax_abs_plin = 1e8      ! Power above this wavenumber is set to zero [h/Mpc]
    LOGICAL, PARAMETER :: plin_extrap = .FALSE. ! Extrapolate high-k power assuming P(k) ~ ln(k)^2 k^(n-3)?
-   INTEGER, PARAMETER :: itk_none = 0          ! Pure power-law spectrum
-   INTEGER, PARAMETER :: itk_EH = 1            ! Eisenstein & Hu linear spectrum
-   INTEGER, PARAMETER :: itk_CAMB = 2          ! CAMB linear spectrum
-   INTEGER, PARAMETER :: itk_DEFW = 3          ! DEFW linear spectrum
-   INTEGER, PARAMETER :: itk_external = 4      ! DEFW linear spectrum
-   INTEGER, PARAMETER :: itk_nw = 5            ! No-wiggle Eisenstein & Hu linear spectrum
+   INTEGER, PARAMETER :: iTk_none = 0          ! Pure power-law spectrum
+   INTEGER, PARAMETER :: iTk_EH = 1            ! Eisenstein & Hu linear spectrum
+   INTEGER, PARAMETER :: iTk_CAMB = 2          ! CAMB linear spectrum
+   INTEGER, PARAMETER :: iTk_DEFW = 3          ! DEFW linear spectrum
+   INTEGER, PARAMETER :: iTk_external = 4      ! DEFW linear spectrum
+   INTEGER, PARAMETER :: iTk_nw = 5            ! No-wiggle Eisenstein & Hu linear spectrum
    INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
    INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
    INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB
@@ -336,12 +336,10 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Interpolation scheme if rebinning P(k)
 
    ! Cold transfer function methods
-   ! TODO: Should I use CAMB if possible and EH otherwise?
-   INTEGER, PARAMETER :: method_cold_none = 0         ! Assume cold power is indentical to matter
-   INTEGER, PARAMETER :: method_cold_total = 1        ! Assume neutrinos are completely hot
-   INTEGER, PARAMETER :: method_cold_EH = 2           ! Eisenstein & Hu approximation
-   INTEGER, PARAMETER :: method_cold_CAMB = 3         ! Taken from CAMB
-   INTEGER, PARAMETER :: method_cold = method_cold_EH ! Choose method here
+   INTEGER, PARAMETER :: iTc_none = 0  ! Assume cold power is indentical to matter
+   INTEGER, PARAMETER :: iTc_total = 1 ! Assume neutrinos are completely hot
+   INTEGER, PARAMETER :: iTc_EH = 2    ! Eisenstein & Hu approximation
+   INTEGER, PARAMETER :: iTc_CAMB = 3  ! Taken from CAMB
 
    ! EH cold transfer function
    LOGICAL, PARAMETER :: Tcold_EdS_growth = .FALSE. ! Use the (incorrect) EdS growth function in the fitting function
@@ -635,6 +633,7 @@ CONTAINS
       names(255) = 'Random nu-LCDM cosmology with random AGN temperature'
       names(256) = 'Random w(a)CDM cosmology with random AGN temperature'
       names(257) = 'Random wCDM cosmology with random AGN temperature'
+      names(258) = 'CAMB test cosmology'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -782,7 +781,8 @@ CONTAINS
       cosm%name = names(icosmo)
 
       ! Linear power spectrum
-      cosm%itk = itk_EH ! Default to Eisenstein & Hu
+      cosm%iTk = iTk_EH ! Default to Eisenstein & Hu (1998)
+      cosm%iTc = iTc_EH ! Default to Eisenstein & Hu (1999)
 
       ! Boring default cosmology
       cosm%Om_m = 0.3    ! Total matter (CDM + baryons + massive neutrino) density
@@ -798,7 +798,7 @@ CONTAINS
       cosm%z_CMB = 1087. ! Redshift of the last-scatting surface TODO: Should be derived
       cosm%neff = 3.046  ! Effective number of relativistic neutrinos
       cosm%YH = 0.76     ! Hydrogen mass fraction
-      cosm%N_nu = 3      ! Number of massive neutrinos (currently 3 degenerate species is the only option)
+      cosm%N_nu = 3      ! Integer number of (currently degenerate) massive neutrinos
 
       ! Dark energy
       cosm%iw = iw_LCDM ! Dark energy type
@@ -885,7 +885,7 @@ CONTAINS
          ! Boring - do nothing
       ELSE IF (icosmo == 2) THEN
          ! cosmo-OWLS - WMAP7 (1312.5462)
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
          cosm%Om_m = 0.272
          cosm%Om_b = 0.0455
          cosm%Om_v = 1.-cosm%Om_m
@@ -894,7 +894,7 @@ CONTAINS
          cosm%ns = 0.967
       ELSE IF (icosmo == 3) THEN
          ! Planck 2013 (cosmo-OWLS/BAHAMAS; 1312.5462/1603.02702; no neutrinos)
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
          cosm%Om_m = 0.3175
          cosm%Om_b = 0.0490
          cosm%Om_v = 1.-cosm%Om_m
@@ -916,9 +916,9 @@ CONTAINS
          ! 97 - WMAP9 (as 4: T_AGN 7.6 but with CAMB Tk)
          ! 98 - WMAP9 (as 4: T_AGN 8.0 but with CAMB Tk)
          IF (is_in_array(icosmo, [4, 61, 62, 70, 71])) THEN
-            cosm%itk = itk_EH
+            cosm%iTk = iTk_EH
          ELSE
-            cosm%itk = itk_CAMB
+            cosm%iTk = iTk_CAMB
          END IF
          cosm%h = 0.7000
          cosm%Om_b = 0.0463
@@ -1077,19 +1077,19 @@ CONTAINS
       ELSE IF (icosmo == 10 .OR. icosmo == 24 .OR. icosmo == 238) THEN
          ! Random Mira Titan cosmology
          CALL random_Mira_Titan_cosmology(cosm)
-         cosm%itk = itk_CAMB ! Set to CAMB linear power
+         cosm%iTk = iTk_CAMB ! Set to CAMB linear power
          IF (icosmo == 10)  cosm%m_nu = 0. ! No massive neutrinos
          IF (icosmo == 238) cosm%wa = 0.   ! No time-varying dark energy
       ELSE IF (icosmo == 25) THEN
          ! Random Franken Emu cosmology
          CALL random_Franken_Emu_cosmology(cosm)
-         cosm%itk = itk_CAMB ! Set to CAMB linear power
+         cosm%iTk = iTk_CAMB ! Set to CAMB linear power
       ELSE IF (icosmo == 26) THEN
          ! Boring with CAMB linear spectrum
-         cosm%itk = itk_CAMB ! Set to CAMB linear power
+         cosm%iTk = iTk_CAMB ! Set to CAMB linear power
       ELSE IF (icosmo == 27) THEN
          ! Illustris; L = 75 Mpc/h
-         cosm%itk = itk_CAMB ! Set to CAMB linear power
+         cosm%iTk = iTk_CAMB ! Set to CAMB linear power
          cosm%Om_m = 0.3089
          cosm%Om_b = 0.0486
          cosm%Om_v = 1.-cosm%Om_m
@@ -1135,13 +1135,13 @@ CONTAINS
          cosm%Om_v = 1.-cosm%Om_m
          cosm%ns = 0.95
          cosm%sig8 = 0.82 ! Seems wrong at z=0, data more like sigma_8 = 0.80
-         cosm%itk = itk_CAMB ! CAMB
+         cosm%iTk = iTk_CAMB ! CAMB
          IF(icosmo == 43) cosm%sig8 = 0.80 ! Check to see if better matches with lower sigma_8
-         IF(icosmo == 44) cosm%itk = itk_EH ! Eisenstein & Hu T(k)
+         IF(icosmo == 44) cosm%iTk = iTk_EH ! Eisenstein & Hu T(k)
       ELSE IF (icosmo == 38) THEN
          ! Random cosmic emu model
          CALL random_Cosmic_Emu_cosmology(cosm)
-         cosm%itk = itk_CAMB ! Set to CAMB linear power
+         cosm%iTk = iTk_CAMB ! Set to CAMB linear power
       ELSE IF (is_in_array(icosmo, [39, 40, 45, 46, 47, 48])) THEN
          ! Random cosmologies
          IF(icosmo == 39) THEN
@@ -1160,9 +1160,9 @@ CONTAINS
             STOP 'ASSIGN_COSMOLOGY: Error, something went wrong with random cosmology'
          END IF
          IF(icosmo == 39) THEN
-            cosm%itk = itk_EH
+            cosm%iTk = iTk_EH
          ELSE
-            cosm%itk = itk_CAMB
+            cosm%iTk = iTk_CAMB
          END IF
       ELSE IF (icosmo == 41) THEN
          ! SCDM with high neutrino mass
@@ -1172,7 +1172,7 @@ CONTAINS
       ELSE IF (icosmo == 56 .OR. icosmo == 42) THEN
          ! 56 - Planck 2018 (Plik, from Table 1 of https://arxiv.org/abs/1807.06209)
          ! 42 - Same, but with neutrino mass fixed to zero and nothing else changed
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
          cosm%h = 0.6732
          cosm%ns = 0.96605
          cosm%m_nu = 0.06
@@ -1203,7 +1203,7 @@ CONTAINS
          cosm%h = 0.702
       ELSE IF (is_in_array(icosmo, [51, 52, 53, 54, 55])) THEN
          ! CAMB fail cosmologies for HMcode comparisons
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
          cosm%iw = iw_waCDM
          cosm%Om_v = 0.
          IF (icosmo == 51) THEN
@@ -1310,7 +1310,7 @@ CONTAINS
          cosm%Om_v = 1.-cosm%Om_m
          cosm%norm_method = norm_value
          cosm%pval = 1.995809e-7 ! Gives sigma8 = 0.8 for no bump   
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
          IF (is_in_array(icosmo, [66, 67, 68, 72, 73, 74, 79, 80, 81])) THEN
             cosm%bump = 2
             cosm%A_bump = 0.15
@@ -1324,14 +1324,14 @@ CONTAINS
       ELSE IF (icosmo == 60) THEN
          ! Boring cosmology but with exciting neutrino mass
          cosm%m_nu = 0.3
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
       ELSE IF (is_in_array(icosmo, [63, 64, 65])) THEN
          ! BAHAMAS Planck 2015 cosmologies
          ! Note well that these cosmologies all have a  neutrino mass
          ! 63 - Planck 2015 with 0.06eV neutrinos (BAHAMAS; Table 1 of 1712.02411)
          ! 64 - Planck 2015 with 0.06eV neutrinos but with 10^7.6 AGN temperature
          ! 65 - Planck 2015 with 0.06eV neutrinos but with 10^8.0 AGN temperature
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
          cosm%m_nu = 0.06
          cosm%h = 0.6787
          cosm%Om_b = 0.0482
@@ -1343,7 +1343,7 @@ CONTAINS
          IF (icosmo == 65) cosm%Theat = 10**8.0
       ELSE IF (icosmo == 93) THEN
          ! 93 - BAHAMAS Planck 2015 but with 0.12eV neutrinos (other parameters changed too)
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
          cosm%m_nu = 0.12
          cosm%h = 0.6768
          cosm%Om_b = 0.0488
@@ -1353,7 +1353,7 @@ CONTAINS
          cosm%sig8 = 0.7943
       ELSE IF (icosmo == 94) THEN
          ! 94 - BAHAMAS Planck 2015 but with 0.24eV neutrinos (other parameters changed too)
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
          cosm%m_nu = 0.24
          cosm%h = 0.6723
          cosm%Om_b = 0.0496
@@ -1363,7 +1363,7 @@ CONTAINS
          cosm%sig8 = 0.7664
       ELSE IF (icosmo == 95) THEN
          ! 95 - BAHAMAS Planck 2015 but with 0.48eV neutrinos (other parameters changed too)
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
          cosm%m_nu = 0.48
          cosm%h = 0.6643
          cosm%Om_b = 0.0513
@@ -1373,12 +1373,12 @@ CONTAINS
          cosm%sig8 = 0.7030
       ELSE IF (icosmo == 82) THEN
          ! Harrison - Zel'dovich
-         cosm%itk = itk_none
+         cosm%iTk = iTk_none
          cosm%ns = 1.
       ELSE IF (icosmo == 83) THEN
          ! Boring cosmology but with very exciting neutrino mass
          cosm%m_nu = 1.
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
       ELSE IF (is_in_array(icosmo, [84, 85, 86, 87, 88, 89])) THEN
          ! f(R) models
          IF (is_in_array(icosmo, [84, 85, 86])) THEN
@@ -1401,7 +1401,7 @@ CONTAINS
          END IF
       ELSE IF (icosmo == 99) THEN
          ! No wiggle linear power
-         cosm%itk = itk_nw
+         cosm%iTk = iTk_nw
       ELSE IF (icosmo == 239) THEN
          ! Bolshoi: Planck (https://www.cosmosim.org/cms/simulations/bolshoip/)
          cosm%Om_m = 0.30711
@@ -1425,7 +1425,7 @@ CONTAINS
          ! 250 - Low feedback temperature
          ! 251 - High feedback temperature
          ! 252 - 
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
          IF (icosmo == 240) THEN
             ! 240 -  Open
             cosm%Om_v = 0.
@@ -1476,19 +1476,33 @@ CONTAINS
          IF(icosmo == 256) CALL random_waCDM_cosmology(cosm)
          IF(icosmo == 257) CALL random_wCDM_cosmology(cosm)
          CALL random_AGN_temperature(cosm)
-         cosm%itk = itk_CAMB
+         cosm%iTk = iTk_CAMB
+      ELSE IF (icosmo == 258) THEN
+         ! Test cosmology from camb_test.py
+         cosm%iTk = iTk_CAMB
+         cosm%norm_method = norm_As
+         cosm%h = 0.675
+         cosm%Om_b = 0.022/cosm%h**2
+         cosm%Om_c = 0.122/cosm%h**2
+         cosm%m_nu = 0.07
+         cosm%N_nu = 3
+         cosm%Om_nu = cosm%m_nu/(neutrino_constant(cosm)*cosm%h**2)
+         cosm%Om_m = cosm%Om_b+cosm%Om_c+cosm%Om_nu
+         cosm%Om_v = 1.-cosm%Om_m
+         cosm%ns = 0.965
+         cosm%As = 2e-9
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
-         cosm%itk = itk_CAMB ! Set to CAMB linear power
+         cosm%iTk = iTk_CAMB ! Set to CAMB linear power
       ELSE IF (icosmo >= 200 .AND. icosmo <= 237) THEN
          ! Franken Emu nodes (which are the same as Franken Emu nodes)
          CALL Franken_Emu_node_cosmology(icosmo-200, cosm)
-         cosm%itk = itk_CAMB ! Set to CAMB linear power
+         cosm%iTk = iTk_CAMB ! Set to CAMB linear power
       ELSE IF (icosmo >= 300 .AND. icosmo <= 337) THEN
          ! Cosmic Emu nodes (which are the same as Franken Emu nodes)
          CALL Cosmic_Emu_node_cosmology(icosmo-300, cosm)
-         cosm%itk = itk_CAMB ! Set to CAMB linear power
+         cosm%iTk = iTk_CAMB ! Set to CAMB linear power
       ELSE
          STOP 'ASSIGN_COSMOLOGY: Error, icosmo not specified correctly'
       END IF
@@ -1513,6 +1527,9 @@ CONTAINS
       ! Is statements
       cosm%is_init = .FALSE.
       cosm%is_normalised = .FALSE.
+
+      ! TODO: Force the cold transfer function to come from CAMB if possible?
+      !IF (cosm%iTk == iTk_CAMB) cosm%iTc = iTc_CAMB
       
       ! Overall power normalisaiton, should initially be unity
       cosm%A = 1. 
@@ -1555,7 +1572,6 @@ CONTAINS
 
       ! Massive neutrinos
       ! TODO: Add support for separate neutrino species and masses
-      IF (cosm%N_nu /= 3) STOP 'INIT_COSMOLOGY: This currently only supports 3 degenerate massive neutrino species'
       IF (cosm%m_nu == 0.) THEN
          cosm%Om_nu = cosm%Om_nu_rad
          cosm%a_nu = 1. ! TODO: Should this be larger?
@@ -1603,16 +1619,12 @@ CONTAINS
       END IF
 
       ! Decide on triviality of the cold spectrum
-      IF (cosm%m_nu .NE. 0) THEN
-         cosm%trivial_cold = .FALSE.
-      ELSE
-         cosm%trivial_cold = .TRUE.
-      END IF
+      IF (cosm%m_nu == 0.) cosm%iTc = iTc_none
 
       ! Write to screen
       IF (cosm%verbose) THEN
          IF (cosm%scale_dependent_growth) WRITE (*, *) 'INIT_COSMOLOGY: Scale-dependent growth'
-         IF (.NOT. cosm%trivial_cold)     WRITE (*, *) 'INIT_COSMOLOGY: Non-trivial cold spectrum'
+         IF (cosm%iTc == iTc_none)        WRITE (*, *) 'INIT_COSMOLOGY: Trivial cold spectrum'
       END IF
 
       ! Would need to include MGCAMB to make this work
@@ -1742,20 +1754,17 @@ CONTAINS
       cosm%has_power = .FALSE.
 
       ! Switch analytical transfer function
-      !IF (cosm%itk == itk_EH .OR. cosm%itk == itk_DEFW .OR. cosm%itk == itk_none) THEN
-      IF (is_in_array(cosm%itk, [itk_EH, itk_DEFW, itk_none, itk_nw])) THEN
+      IF (is_in_array(cosm%iTk, [iTk_EH, iTk_DEFW, iTk_none, iTk_nw])) THEN
          cosm%analytical_power = .TRUE.
       ELSE
          cosm%analytical_power = .FALSE.
       END IF
 
       ! TILMAN: Added this
-      IF (cosm%itk == itk_external) THEN
+      IF (cosm%iTk == iTk_external) THEN
          cosm%has_power = .TRUE.
+         CALL init_external_linear(cosm)
       END IF
-
-      ! TILMAN: Added this
-      IF (cosm%itk == itk_external) CALL init_external_linear(cosm)
 
       ! Write finishing message to screen
       IF (cosm%verbose) THEN
@@ -1794,7 +1803,6 @@ CONTAINS
          WRITE (*, fmt=format) 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
          IF (cosm%m_nu /= 0.) WRITE (*, fmt='(A11,A16,I11.5)') 'COSMOLOGY:', 'N_nu:', cosm%N_nu
          WRITE (*, *) dashes
-         !WRITE (*, *) 'COSMOLOGY: Dark energy'
          IF (cosm%iw == iw_LCDM) THEN
             WRITE (*, *) 'COSMOLOGY: Dark energy: Vacuum'
             WRITE (*, fmt=format) 'COSMOLOGY:', 'w:', -1.
@@ -1848,20 +1856,20 @@ CONTAINS
             END IF
             WRITE (*, *) dashes
          END IF
-         IF(cosm%itk == itk_none) THEN
+         IF(cosm%iTk == iTk_none) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: Pure power law'
-         ELSE IF(cosm%itk == itk_EH) THEN
+         ELSE IF(cosm%iTk == iTk_EH) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: Eisenstein & Hu'
-         ELSE IF(cosm%itk == itk_nw) THEN
+         ELSE IF(cosm%iTk == iTk_nw) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: No-wiggle'
-         ELSE IF(cosm%itk == itk_CAMB) THEN
+         ELSE IF(cosm%iTk == iTk_CAMB) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: CAMB'
-         ELSE IF(cosm%itk == itk_DEFW) THEN
+         ELSE IF(cosm%iTk == iTk_DEFW) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: DEFW'
-         ELSE IF(cosm%itk == itk_external) THEN
+         ELSE IF(cosm%iTk == iTk_external) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: External'
          ELSE
-            STOP 'COSMOLOGY: Error, itk not set properly'
+            STOP 'COSMOLOGY: Error, iTk not set properly'
          END IF   
          WRITE (*, fmt=format) 'COSMOLOGY:', 'n_s:', cosm%ns  
          IF(cosm%norm_method == norm_sigma8) THEN
@@ -2085,18 +2093,18 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       ! Check that transfer function is okay for massive neutrinos
-      IF ((cosm%m_nu /= 0.) .AND. is_in_array(cosm%itk, [itk_none, itk_DEFW, itk_EH, itk_nw])) THEN
+      IF ((cosm%m_nu /= 0.) .AND. is_in_array(cosm%iTk, [iTk_none, iTk_DEFW, iTk_EH, iTk_nw])) THEN
          STOP 'INIT_COSMOLOGY: You cannot use a linear power fitting function for massive neutrino cosmologies'
       END IF
 
       ! Check that transfer function is okay for modified gravity
-      IF ((cosm%img .NE. img_none) .AND. cosm%itk == itk_CAMB) THEN
+      IF ((cosm%img .NE. img_none) .AND. cosm%iTk == iTk_CAMB) THEN
          STOP 'INIT_COSMOLOGY: Modified gravity not compatible with using a CAMB transfer function'
       END IF
 
       ! Get the CAMB power if necessary
-      IF (cosm%itk == itk_CAMB) CALL init_CAMB_linear(cosm)
-      !IF (cosm%itk == itk_external) CALL init_external_linear(cosm) ! This is now done in init_cosmology
+      IF (cosm%iTk == iTk_CAMB) CALL init_CAMB_linear(cosm)
+      !IF (cosm%iTk == iTk_external) CALL init_external_linear(cosm) ! This is now done in init_cosmology
       !IF (cosm%analytical_power) CALL init_analytical_linear(cosm) ! If you want to create interpolator for analytical P(k)
       IF (cosm%img == img_fR .OR. cosm%img == img_fR_lin) CALL init_fR_linear(cosm)
 
@@ -2108,9 +2116,9 @@ CONTAINS
          CALL normalise_power_sigma8(cosm)
       ELSE IF (cosm%norm_method == norm_value) THEN
          CALL normalise_power_value(cosm)
-      ELSE IF (cosm%itk == itk_CAMB .AND. cosm%norm_method == norm_As) THEN
+      ELSE IF (cosm%iTk == iTk_CAMB .AND. cosm%norm_method == norm_As) THEN
          ! Do nothing because the CAMB will have done the normalisation correctly
-      ELSE IF (cosm%itk == itk_external .AND. cosm%norm_method == norm_none) THEN
+      ELSE IF (cosm%iTk == iTk_external .AND. cosm%norm_method == norm_none) THEN
          ! No need to do anything
       ELSE
          STOP 'NORMALISE_POWER: Error, normalisation method not specified correctly'
@@ -3350,17 +3358,17 @@ CONTAINS
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       TYPE(cosmology), INTENT(IN) :: cosm
 
-      IF (cosm%itk == itk_none) THEN
+      IF (cosm%iTk == iTk_none) THEN
          Tk_matter = 1.
-      ELSE IF (cosm%itk == itk_EH) THEN
+      ELSE IF (cosm%iTk == iTk_EH) THEN
          Tk_matter = Tk_EH(k, cosm)
-      ELSE IF (cosm%itk == itk_DEFW) THEN
+      ELSE IF (cosm%iTk == iTk_DEFW) THEN
          Tk_matter = Tk_DEFW(k, cosm)
-      ELSE IF (cosm%itk == itk_nw) THEN
+      ELSE IF (cosm%iTk == iTk_nw) THEN
          Tk_matter = Tk_nw(k, cosm)
       ELSE
-         WRITE (*, *) 'TK: itk:', cosm%itk
-         STOP 'TK: Error, itk specified incorrectly'
+         WRITE (*, *) 'TK: iTk:', cosm%iTk
+         STOP 'TK: Error, iTk specified incorrectly'
       END IF
 
       ! Additional weirdness
@@ -3580,23 +3588,22 @@ CONTAINS
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       REAL, INTENT(IN) :: a ! Scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      INTEGER, PARAMETER :: method = method_cold
 
-      IF (cosm%trivial_cold .OR. (method == method_cold_none) .OR. (cosm%m_nu == 0.)) THEN
+      IF ((cosm%iTc == iTc_none) .OR. (cosm%m_nu == 0.)) THEN
          ! Assuming the cold spectrum is exactly the matter spectrum
          Tcold = 1. 
-      ELSE IF (method== method_cold_total) THEN
+      ELSE IF (cosm%iTc == iTc_total) THEN
          ! This approximation assumes that the neutrinos are as clustered as the rest of the mass
          ! This is only true on scales greater than the neutrino free-streaming scale
          Tcold = (cosm%Om_c+cosm%Om_b)/cosm%Om_m 
-      ELSE IF (method == method_cold_EH) THEN
+      ELSE IF (cosm%iTc == iTc_EH) THEN
          ! Use the Eisenstein and Hu approximation
          Tcold = Tcold_EH(k, a, cosm)
-      ELSE IF (method == method_cold_CAMB) THEN
+      ELSE IF (cosm%iTc == iTc_CAMB) THEN
          ! Use look-up tables from CAMB transfer functions
          Tcold = evaluate_interpolator(k, a, cosm%Tcold)
       ELSE
-         STOP 'TCOLD: Error, method not specified correctly'
+         STOP 'TCOLD: Error, cold transfer function method not specified correctly'
       END IF
 
    END FUNCTION Tcold
@@ -3640,8 +3647,6 @@ CONTAINS
 
       ELSE
 
-         IF (cosm%N_nu /= 3) STOP 'TCOLD_EH: This fitting function is only valid for 3 degenerate massive neutrino species'
-
          ! Get the redshift
          z = redshift_a(a)
 
@@ -3666,12 +3671,12 @@ CONTAINS
 
          ! Wave number relative to the horizon scale at equality (equation 5)
          ! Extra factor of h becauase all my k are in units of h/Mpc
-         q = k*cosm%h*BigT**2/(cosm%om_m*cosm%h**2.)
+         q = k*cosm%h*BigT**2/(cosm%om_m*cosm%h**2)
 
          ! Free streaming scale (equation 14)
          ! Note that Eisenstein & Hu (1999) only consider the case of 3 neutrinos
          ! with Nnu of these being massive with the mass split evenly between Nnu species.
-         yfs = 17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(cosm%N_nu*q/cosm%f_nu)**2.
+         yfs = 17.2*cosm%f_nu*(1.+0.488*cosm%f_nu**(-7./6.))*(cosm%N_nu*q/cosm%f_nu)**2
 
          ! These are (almost) the scale-dependent growth functions for each component in Eisenstein & Hu (1999)
          ! Some part is missing, but this cancels when they are divided by each other, which is all I need them for.
@@ -5834,9 +5839,9 @@ CONTAINS
       CHARACTER(len=256), PARAMETER :: root = trim(dir)//'temp'
       CHARACTER(len=256), PARAMETER :: matterpower = trim(root)//'_matterpower_'
       CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
-      CHARACTER(len=256), PARAMETER :: params = trim(root)//'_create_params.ini' 
+      CHARACTER(len=256), PARAMETER :: params = trim(root)//'_create_params.ini'
 
-      IF(cosm%itk .NE. itk_CAMB) STOP 'GET_CAMB_POWER: Normalisation will not work unless itk_CAMB is set'
+      IF(cosm%iTk .NE. iTk_CAMB) STOP 'GET_CAMB_POWER: Normalisation will not work unless iTk_CAMB is set'
 
       IF (cosm%verbose) THEN
          WRITE(*,*) 'GET_CAMB_POWER: Running CAMB'
@@ -5865,7 +5870,6 @@ CONTAINS
       END IF
 
       IF (.NOT. is_in_array(cosm%iw, [iw_LCDM, iw_wCDM, iw_waCDM])) STOP 'GET_CAMB_POWER: Can only cope with LCDM, wCDM or w(a)CDM'
-      IF (cosm%N_nu /= 3) STOP 'GET_CAMB_POWER: This currently only supports 3 degenerate massive neutrino species'
 
       ! Physical density parameters that CAMB requires
       ombh2 = Om_b*h**2
@@ -5922,10 +5926,9 @@ CONTAINS
          WRITE (7, *) 'nu_mass_eigenstates = 0'
          WRITE (7, *) 'massive_neutrinos = 0'
       ELSE
-         ! Three equal-mass neutrinos
          WRITE (7, *) 'massless_neutrinos = ', cosm%neff-cosm%N_nu
-         WRITE (7, *) 'nu_mass_eigenstates = 1'
          WRITE (7, *) 'massive_neutrinos = ', cosm%N_nu
+         WRITE (7, *) 'nu_mass_eigenstates = 1'         
          WRITE (7, *) 'nu_mass_fractions = 1'
       END IF
 
@@ -5974,7 +5977,11 @@ CONTAINS
       WRITE (7, *) 'do_primordial_bispectrum = F'
 
       ! Verbosity (0 writes nothing; 1 writes some useful stuff; 2 writes HMcode stuff)
-      WRITE (7, *) 'feedback_level = 0'
+      IF (cosm%verbose) THEN
+         WRITE (7, *) 'feedback_level = 1'
+      ELSE
+         WRITE (7, *) 'feedback_level = 0'
+      END IF
 
       ! Print out a comment describing file headers
       WRITE (7, *) 'output_file_headers = T'
@@ -6150,7 +6157,7 @@ CONTAINS
          Pk(ik, :) = Pk(ik, :)*fac**2
       END DO
 
-      IF (method_cold == method_cold_CAMB) THEN
+      IF (cosm%iTc == iTc_CAMB) THEN
 
          DO ik = 1, nTc
             k = kTc(ik)
