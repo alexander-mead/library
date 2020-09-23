@@ -1571,7 +1571,7 @@ CONTAINS
 !!$    END IF
 
       ! Massive neutrinos
-      ! TODO: Add support for separate neutrino species and masses
+      ! TODO: Add support for non-degenerate neutrino species and masses
       IF (cosm%m_nu == 0.) THEN
          cosm%Om_nu = cosm%Om_nu_rad
          cosm%a_nu = 1. ! TODO: Should this be larger?
