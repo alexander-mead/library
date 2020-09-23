@@ -2049,9 +2049,6 @@ CONTAINS
       ! Halo masses
       CALL fill_array(log(hmod%mmin), log(hmod%mmax), hmod%log_m, hmod%n)
       hmod%m = exp(hmod%log_m)
-      !DO i = 1, hmod%n
-      !   hmod%mr(i) = hmod%m(i)*(1.-cosm%f_nu)*(1.-halo_ejected_gas_fraction(hmod%m(i), hmod, cosm))
-      !END DO
 
       ! Lagrangian and virial radius
       hmod%rr = radius_m(hmod%m, cosm)
