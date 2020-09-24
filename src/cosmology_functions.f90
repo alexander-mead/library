@@ -128,15 +128,17 @@ MODULE cosmology_functions
    PUBLIC :: iTk_CAMB
    PUBLIC :: iTk_external
 
+   PUBLIC :: init_external_linear_power_tables
+
    ! CAMB interface
    PUBLIC :: get_CAMB_power
-   PUBLIC :: CAMB_nonlinear_HALOFIT_Smith
-   PUBLIC :: CAMB_nonlinear_HALOFIT_Bird
-   PUBLIC :: CAMB_nonlinear_HALOFIT_Takahashi 
-   PUBLIC :: CAMB_nonlinear_HMcode2015
-   PUBLIC :: CAMB_nonlinear_HMcode2016
-   PUBLIC :: CAMB_nonlinear_HMcode2020
-   PUBLIC :: CAMB_nonlinear_HMcode2020_feedback
+   PUBLIC :: CAMB_HALOFIT_Smith
+   PUBLIC :: CAMB_HALOFIT_Bird
+   PUBLIC :: CAMB_HALOFIT_Takahashi 
+   PUBLIC :: CAMB_HMcode2015
+   PUBLIC :: CAMB_HMcode2016
+   PUBLIC :: CAMB_HMcode2020
+   PUBLIC :: CAMB_HMcode2020_feedback
 
    ! HALOFIT
    PUBLIC :: calculate_HALOFIT_a
@@ -485,13 +487,13 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
 
    ! CAMB non-linear numbering schemes
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Smith = 1        ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Bird = 2         ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HALOFIT_Takahashi = 4    ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2015 = 8           ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2016 = 5           ! Mead et al. (2016; https://arxiv.org/abs/1602.02154)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2020 = 9           ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
-   INTEGER, PARAMETER :: CAMB_nonlinear_HMcode2020_feedback = 10 ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
+   INTEGER, PARAMETER :: CAMB_HALOFIT_Smith = 1        ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
+   INTEGER, PARAMETER :: CAMB_HALOFIT_Bird = 2         ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: CAMB_HALOFIT_Takahashi = 4    ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
+   INTEGER, PARAMETER :: CAMB_HMcode2015 = 8           ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
+   INTEGER, PARAMETER :: CAMB_HMcode2016 = 5           ! Mead et al. (2016; https://arxiv.org/abs/1602.02154)
+   INTEGER, PARAMETER :: CAMB_HMcode2020 = 9           ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
+   INTEGER, PARAMETER :: CAMB_HMcode2020_feedback = 10 ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
 
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
@@ -6172,6 +6174,39 @@ CONTAINS
       cosm%has_power = .TRUE.
 
    END SUBROUTINE init_linear
+
+   SUBROUTINE init_external_linear_power_tables(cosm, k, a, plin_tab)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, DIMENSION(:), INTENT(IN) :: k, a
+      REAL, DIMENSION(:,:), INTENT(IN) :: plin_tab
+
+      INTEGER :: nk, na, i
+
+      nk = SIZE(k)
+      na = SIZE(a)
+
+      IF(nk /= SIZE(plin_tab, 1) .OR. na /= SIZE(plin_tab, 2)) THEN
+         write(*,*) "Sizes of k, a, and plin_tab are inconsistent", nk, na, SHAPE(plin_tab)
+         cosm%status = 1
+         RETURN
+      ENDIF
+
+      cosm%nk_plin = nk
+      cosm%na_plin = na
+
+      if(.not. allocated(cosm%log_k_plin)) allocate(cosm%log_k_plin(nk))
+      if(.not. allocated(cosm%log_a_plin)) allocate(cosm%log_a_plin(na))
+      if(.not. allocated(cosm%log_plin)) allocate(cosm%log_plin(nk))
+      if(.not. allocated(cosm%log_plina)) allocate(cosm%log_plina(nk, na))
+      cosm%log_k_plin = log(k)
+      cosm%log_plin = log(plin_tab(:,na)*k**3/(2*pi**2))
+      cosm%log_a_plin = log(a)
+      forall (i=1:nk) cosm%log_plina(i,:) = log(plin_tab(i,:)*k(i)**3/(2*pi**2))
+
+      cosm%itk = itk_external
+      cosm%has_power = .true.
+
+   END SUBROUTINE init_external_linear_power_tables
 
    SUBROUTINE init_external_linear(cosm)
 
