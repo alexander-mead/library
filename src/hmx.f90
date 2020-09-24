@@ -575,7 +575,6 @@ CONTAINS
    SUBROUTINE assign_halomod(ihm, hmod, verbose)
 
       ! TODO: nhalomod should not be necessary
-      IMPLICIT NONE
       INTEGER, INTENT(INOUT) :: ihm
       TYPE(halomod), INTENT(OUT) :: hmod
       LOGICAL, INTENT(IN) :: verbose
@@ -1404,18 +1403,11 @@ CONTAINS
          hmod%response_baseline = HMcode2016
          hmod%alp0 = 3.24
          hmod%alp1 = 1.85
-         IF (ihm == 17) THEN
-            ! AGN 7.6
-            !hmod%Theat = 10**7.6
-            STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
-         ELSE IF (ihm == 18) THEN
-            ! AGN tuned
-            !hmod%Theat = 10**7.8
-            STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
-         ELSE IF (ihm == 19) THEN
-            ! AGN 8.0
-            !hmod%Theat = 10**8.0
-            STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+         IF (ihm == 17 .OR. ihm == 18 .OR. ihm == 19) THEN
+            ! 17 - AGN 7.6
+            ! 18 - AGN 7.8
+            ! 19 - AGN 8.0
+            STOP 'ASSIGN_HALOMOD: Halo model Theat no longer supported'
          END IF
       ELSE IF (ihm == 20) THEN
          ! Standard halo model but as response with HMcode
@@ -1984,8 +1976,7 @@ CONTAINS
    SUBROUTINE init_halomod(a, hmod, cosm, verbose)
 
       ! Halo-model initialisation routine
-      ! The computes other tables necessary for the one-halo integral
-      IMPLICIT NONE
+      ! Computes look-up tables necessary for the two- and one-halo integrals
       REAL, INTENT(IN) :: a
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1996,6 +1987,7 @@ CONTAINS
       REAL, PARAMETER :: gblim = gb_integral_limit
       LOGICAL, PARAMETER :: check_mf = check_mass_function
       LOGICAL, PARAMETER :: calculate_stars = calculate_Omega_stars
+      INTEGER, PARAMETER :: flag_sigmaV = flag_matter
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Initialising calculation'
 
@@ -2018,8 +2010,7 @@ CONTAINS
       ! Calculate sigma_v
       ! TODO: This is really a 'cosmology' thing
       ! TODO: This is only necessary for some halo models
-      hmod%sigv = sigmaV(0., a, flag_matter, cosm)
-      !hmod%sigv = sigmaV(0., a, flag_ucold, cosm)      
+      hmod%sigv = sigmaV(0., a, flag_sigmaV, cosm)     
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigv)
 
       IF (cosm%img == img_fR) THEN
@@ -2029,7 +2020,7 @@ CONTAINS
       END IF
 
       ! Calcuate delta_c and Delta_v
-      ! Sometimes these calculations rely on the sigmas that should be calculated before this
+      ! Sometimes these calculations rely on the sigma that should be calculated before this
       hmod%dc = delta_c(hmod, cosm)
       hmod%Dv = Delta_v(M0_Dv_default, hmod, cosm)
       IF (verbose) THEN         
@@ -2047,8 +2038,8 @@ CONTAINS
       END IF
 
       ! Halo masses
-      CALL fill_array(log(hmod%mmin), log(hmod%mmax), hmod%log_m, hmod%n)
-      hmod%m = exp(hmod%log_m)
+      CALL fill_array_log(hmod%mmin, hmod%mmax, hmod%m, hmod%n)
+      hmod%log_m = log(hmod%m)
 
       ! Lagrangian and virial radius
       hmod%rr = radius_m(hmod%m, cosm)
@@ -2093,45 +2084,38 @@ CONTAINS
          WRITE (*, *) 'INIT_HALOMOD: Maximum R_v [Mpc/h]:', REAL(hmod%rv(hmod%n))
          WRITE (*, *) 'INIT_HALOMOD: Minimum log10(M) [Msun/h]:', REAL(log10(hmod%m(1)))
          WRITE (*, *) 'INIT_HALOMOD: Maximum log10(M) [Msun/h]:', REAL(log10(hmod%m(hmod%n)))
-      END IF
+      END IF      
 
-      IF (hmod%imf == 4) THEN
+      ! Calculate missing mass things if necessary
+      ! Do nothing for delta-function mass function (imf = 4)
+      IF ((hmod%imf .NE. 4) .AND. (hmod%i2hcor /= 0)) THEN   
 
-         ! Do nothing for delta-function mass function
+         IF (check_mf) hmod%gmin = 1.-integrate_g_nu(hmod%nu(1), hmod%large_nu, hmod)
+         IF (check_mf) hmod%gmax = integrate_g_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
+         hmod%gbmin = 1.-integrate_gb_nu(hmod%nu(1), hmod%large_nu, hmod)
+         IF (check_mf) hmod%gbmax = integrate_gb_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
+         IF (check_mf) hmod%gnorm = integrate_g_mu(hmod%small_nu, hmod%large_nu, hmod)
 
-      ELSE
+         IF (verbose) THEN
+            IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Missing g(nu) at low end:', REAL(hmod%gmin)
+            IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Missing g(nu) at high end:', REAL(hmod%gmax)
+            WRITE (*, *) 'INIT_HALOMOD: Missing g(nu)b(nu) at low end:', REAL(hmod%gbmin)
+            IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Missing g(nu)b(nu) at high end:', REAL(hmod%gbmax)
+            IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Total g(nu) integration:', REAL(hmod%gnorm)
+         END IF
 
-         ! Calculate missing mass things if necessary
-         IF (hmod%i2hcor /= 0) THEN
-
-            IF (check_mf) hmod%gmin = 1.-integrate_g_nu(hmod%nu(1), hmod%large_nu, hmod)
-            IF (check_mf) hmod%gmax = integrate_g_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
-            hmod%gbmin = 1.-integrate_gb_nu(hmod%nu(1), hmod%large_nu, hmod)
-            IF (check_mf) hmod%gbmax = integrate_gb_nu(hmod%nu(hmod%n), hmod%large_nu, hmod)
-            IF (check_mf) hmod%gnorm = integrate_g_mu(hmod%small_nu, hmod%large_nu, hmod)
-
-            IF (verbose) THEN
-               IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Missing g(nu) at low end:', REAL(hmod%gmin)
-               IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Missing g(nu) at high end:', REAL(hmod%gmax)
-               WRITE (*, *) 'INIT_HALOMOD: Missing g(nu)b(nu) at low end:', REAL(hmod%gbmin)
-               IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Missing g(nu)b(nu) at high end:', REAL(hmod%gbmax)
-               IF (check_mf) WRITE (*, *) 'INIT_HALOMOD: Total g(nu) integration:', REAL(hmod%gnorm)
-            END IF
-
-            IF (check_mf) THEN
-               IF (hmod%gmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'
-               IF (hmod%gmax < glim) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
-               IF (hmod%gbmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
-               IF (hmod%gbmax < gblim) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at high end is less than zero'
-            END IF
-
+         IF (check_mf) THEN
+            IF (hmod%gmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'
+            IF (hmod%gmax < glim) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
+            IF (hmod%gbmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
+            IF (hmod%gbmax < gblim) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at high end is less than zero'
          END IF
 
       END IF
 
       ! Find non-linear radius and scale
       ! This is defined as nu(M_star)=1 *not* sigma(M_star)=1, so depends on delta_c
-      ! TODO: Is this always necessary?
+      ! TODO: Is this necessary for all halo models?
       hmod%rnl = r_nl(hmod)
       hmod%mnl = mass_r(hmod%rnl, cosm)
       hmod%knl = 1./hmod%rnl
@@ -2214,7 +2198,6 @@ CONTAINS
    SUBROUTINE print_halomod(hmod, cosm, verbose)
 
       ! This subroutine writes out the physical halo-model parameters at some redshift
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
@@ -2648,7 +2631,6 @@ CONTAINS
    SUBROUTINE assign_init_halomod(ihm, a, hmod, cosm, verbose)
 
       ! Both assigns and initialises the halo model
-      IMPLICIT NONE
       INTEGER, INTENT(INOUT) :: ihm
       REAL, INTENT(IN) :: a
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -2663,10 +2645,9 @@ CONTAINS
 
    REAL FUNCTION integrate_g_mu(nu1, nu2, hmod)
 
-      ! Integrate g(nu) between nu1 and nu2; this is the fraction of mass in the Universe in haloes between nu1 and nu2
+      ! Integrate g(nu) between nu1 and nu2; this is the fraction of mass in the universe in haloes between nu1 and nu2
       ! Integrating this over all nu should give unity
       ! TODO: Explicity remove divergence by making functions where alpha*mu^(alpha-1) is multiplied by g(nu)
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model    
       REAL :: mu1, mu2
@@ -2687,7 +2668,6 @@ CONTAINS
       ! Integrate g(nu) between nu1 and nu2; this is the fraction of mass in the Universe in haloes between nu1 and nu2
       ! Previously called 'mass_interval'
       ! Integrating this over all nu should give unity
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2699,7 +2679,6 @@ CONTAINS
    REAL FUNCTION integrate_g_nu_on_M(nu1, nu2, hmod)
 
       ! Integrate g(nu)/M between nu1 and nu2; this is the number density of haloes in the Universe between nu1 and nu2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2714,7 +2693,6 @@ CONTAINS
       ! Previously called 'bias_interval'
       ! This is the unnormalised mass-weighted mean bias in the range nu1 to nu2
       ! Integrating this over all nu should give unity
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2729,7 +2707,6 @@ CONTAINS
       ! Previously called 'bias_interval'
       ! This is the unnormalised mass-weighted mean bias in the range nu1 to nu2
       ! Integrating this over all nu should give unity
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2743,7 +2720,6 @@ CONTAINS
       ! Integrate nu*g(nu) between nu1 and nu2
       ! Previously called 'nu interval'
       ! This is the unnormalised mass-weighted nu in the range nu1 to nu2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2757,7 +2733,6 @@ CONTAINS
       ! Integrate nu*g(nu) between nu1 and nu2
       ! Previously called 'nu interval'
       ! This is the unnormalised mass-weighted nu in the range nu1 to nu2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2771,7 +2746,6 @@ CONTAINS
       ! Integrate nu*g(nu) between nu1 and nu2
       ! Previously called 'nu interval'
       ! This is the unnormalised mass-weighted nu in the range nu1 to nu2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2783,7 +2757,6 @@ CONTAINS
    REAL FUNCTION mean_bias_number_weighted(nu1, nu2, hmod)
 
       ! Calculate the mean number-weighted bias in the range nu1 to nu2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2795,7 +2768,6 @@ CONTAINS
    REAL FUNCTION mean_nu_number_weighted(nu1, nu2, hmod)
 
       ! Calculate the mean number-weighted nu in the range nu1 to nu2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2807,7 +2779,6 @@ CONTAINS
    REAL FUNCTION mean_halo_mass_number_weighted(nu1, nu2, hmod)
 
       ! Calculate the mean number-weighted halo mass in the range nu1 to nu2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2819,7 +2790,6 @@ CONTAINS
    REAL FUNCTION mean_bias_mass_weighted(nu1, nu2, hmod)
 
       ! Calculate the mean mass-weighted bias in the range nu1 to nu2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2831,7 +2801,6 @@ CONTAINS
    REAL FUNCTION mean_nu_mass_weighted(nu1, nu2, hmod)
 
       ! Calculate the mean mass-weighted nu in the range nu1 to nu2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2843,7 +2812,6 @@ CONTAINS
    REAL FUNCTION mean_halo_mass_mass_weighted(nu1, nu2, hmod)
 
       ! Calculate the mean mass-weighted halo mass in the range nu1 to nu2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2         ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       INTEGER, PARAMETER :: iorder = iorder_integration ! Order for integration
@@ -2856,7 +2824,6 @@ CONTAINS
 
       ! Calculate N(m) where N is the number density of haloes above mass m
       ! Obtained by integrating the mass function
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu1, nu2           ! Range in nu
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
@@ -2872,7 +2839,6 @@ CONTAINS
       ! Name function for halo types
       ! TODO: This must be able to be combined with set_halo_type
       ! TODO: Can this be in the header? Is this even necessary?
-      IMPLICIT NONE
       CHARACTER(len=256) :: halo_type
       INTEGER :: i
 
@@ -2916,7 +2882,6 @@ CONTAINS
 
       ! Set the halo types
       ! TODO: This must be able to be combined with halo_type
-      IMPLICIT NONE
       INTEGER, INTENT(OUT) :: ip
       INTEGER :: i
 
@@ -2936,7 +2901,6 @@ CONTAINS
    SUBROUTINE calculate_HMcode(k, a, Pk, nk, na, cosm, version)
 
       ! Get the HMcode prediction for a cosmology for a range of k and a
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
       INTEGER, INTENT(IN) :: na                  ! Number of scale factors
       REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
@@ -2953,7 +2917,6 @@ CONTAINS
    SUBROUTINE calculate_HMcode_full(k, a, pow_li, pow_2h, pow_1h, pow_hm, nk, na, cosm, version)
 
       ! Get the HMcode prediction for a cosmology for a range of k and a
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
       INTEGER, INTENT(IN) :: na                  ! Number of scale factors
       REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
@@ -2980,7 +2943,7 @@ CONTAINS
 
    LOGICAL FUNCTION is_HMcode(i)
 
-      IMPLICIT NONE
+      ! Returns TRUE if integer corresponds to a recognised HMcode version
       INTEGER, INTENT(IN) :: i
 
       IF(is_in_array(i, [&
@@ -3006,7 +2969,6 @@ CONTAINS
 
       ! Get the halo model prediction for matter--matter for cosmology for a range of k and a
       ! Assumes DMONLY halo profiles etc.
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
       INTEGER, INTENT(IN) :: na                  ! Number of scale factors
       REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
@@ -3024,7 +2986,6 @@ CONTAINS
 
       ! Get the halo model prediction for matter--matter for cosmology for a range of k and a
       ! Assumes DMONLY halo profiles etc.
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
       INTEGER, INTENT(IN) :: na                  ! Number of scale factors
       REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
@@ -3055,7 +3016,6 @@ CONTAINS
       ! Get the halo model prediction for matter--matter for cosmology for a range of k and a
       ! Assumes DMONLY halo profiles etc.
       ! TODO: Can I directly put in 2D arrays into routine that expects 4D if some dimensions are length 1?
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
       INTEGER, INTENT(IN) :: na                  ! Number of scale factors
       REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
@@ -3082,8 +3042,7 @@ CONTAINS
    SUBROUTINE calculate_HMx(ifield, k, a, pow, nf, nk, na, cosm, ihm)
 
       ! Public facing function, calculates the halo model power for k and a range
-      ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed or (a,k,:,:)?
-      IMPLICIT NONE
+      ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed?
       INTEGER, INTENT(IN) :: nf         ! Number of different fields
       INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
       INTEGER, INTENT(IN) :: nk         ! Number of k points
@@ -3103,7 +3062,6 @@ CONTAINS
 
       ! Public facing function, calculates the halo model power for k and a range
       ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed or (a,k,:,:)?
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nf         ! Number of different fields
       INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
       INTEGER, INTENT(IN) :: nk         ! Number of k points
@@ -3153,8 +3111,7 @@ CONTAINS
 
       ! Public facing function, calculates the halo model power for k and a range
       ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed?
-      ! TODO: Remove
-      IMPLICIT NONE
+      ! TODO: Remove (but note that Tilman uses this)
       INTEGER, INTENT(IN) :: nf         ! Number of different fields
       INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
       INTEGER, INTENT(IN) :: nk         ! Number of k points
@@ -3220,8 +3177,6 @@ CONTAINS
    SUBROUTINE calculate_HMx_a(ifield, nf, k, nk, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
 
       ! Calculate halo model Pk(a) for a k range
-      IMPLICIT NONE
-
       INTEGER, INTENT(IN) :: nf
       INTEGER, INTENT(IN) :: ifield(nf)
       INTEGER, INTENT(IN) :: nk
@@ -3351,7 +3306,6 @@ CONTAINS
    LOGICAL FUNCTION is_matter_field(i)
 
       ! TRUE if the input field is matter and corresponds to dmonly, matter, CDM, gas or star (or consituents)
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i
 
       IF (is_in_array(i, [&
@@ -3378,9 +3332,8 @@ CONTAINS
 
    SUBROUTINE calculate_HMx_ka(ifield, wk0, nf, k, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm)
 
-      ! Gets the one- and two-halo terms and combines them
+      ! Gets the two- and one-halo terms and combines them
       ! TODO: Include profile scatter in two-halo term
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nf
       INTEGER, INTENT(IN) :: ifield(nf)
       REAL, INTENT(IN) :: wk0(:, :)
@@ -3465,7 +3418,6 @@ CONTAINS
    SUBROUTINE init_windows(k, fields, nf, wk, nm, hmod, cosm)
 
       ! Fill the window functions for all the different fields
-      IMPLICIT NONE
       REAL, INTENT(IN) :: k
       INTEGER, INTENT(IN) :: nf
       INTEGER, INTENT(IN) :: fields(nf)
@@ -3545,7 +3497,6 @@ CONTAINS
       ! Refills the window functions for the two-halo term if this is necessary
       ! This is for contributions due to unbound gas, and the effect of this on electron pressure
       ! TODO: Have I inculded the halo bias corresponding to the free component correctly?
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nf
       INTEGER, INTENT(IN) :: fields(nf)
       INTEGER, INTENT(IN) :: nm
@@ -3648,7 +3599,7 @@ CONTAINS
 
    FUNCTION wk_product_scatter(n, ifield, k, hmod, cosm)
 
-      IMPLICIT NONE
+      ! Calculate W(k)^2 while assuming some scatter in c(M)
       INTEGER, INTENT(IN) :: n
       REAL :: wk_product_scatter(n)
       INTEGER, INTENT(IN) :: ifield(2)
@@ -3667,10 +3618,39 @@ CONTAINS
 
    END FUNCTION wk_product_scatter
 
+   REAL FUNCTION scatter_integrand(c, mean_c, sigma_lnc, ih, k, m, rv, hmod, cosm)
+
+      ! Integrand for computing halo profiles with scatter
+      REAL, INTENT(IN) :: c
+      REAL, INTENT(IN) :: mean_c
+      REAL, INTENT(IN) :: sigma_lnc
+      INTEGER, INTENT(IN) :: ih(2)
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: rv
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: wk(2), pc, rs
+      INTEGER :: j
+      LOGICAL, PARAMETER :: real_space = .FALSE. ! Fourier profiles
+
+      ! Halo profiles
+      DO j = 1, 2
+         rs = rv/c
+         wk(j) = win(real_space, ih(j), k, m, rv, rs, hmod, cosm)
+      END DO
+
+      ! Probability distribution
+      pc = lognormal_distribution(c, mean_c, sigma_lnc)
+
+      ! The full integrand
+      scatter_integrand = wk(1)*wk(2)*pc
+
+   END FUNCTION scatter_integrand
+
    REAL FUNCTION p_2h(ih, wk, n, k, pli, hmod, cosm)
 
-      ! Produces the 'two-halo' power
-      IMPLICIT NONE
+      ! Calculates the 'two-halo' power
       INTEGER, INTENT(IN) :: ih(2)
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: wk(n, 2)
@@ -3858,7 +3838,7 @@ CONTAINS
 
    SUBROUTINE I_2h(ih, int, wk, n, hmod, cosm, ibias)
 
-      IMPLICIT NONE
+      ! Integral for the two-halo power
       INTEGER, INTENT(IN) :: ih
       REAL, INTENT(OUT) :: int
       INTEGER, INTENT(IN) :: n
@@ -3871,8 +3851,6 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = iorder_2halo_integration
 
       rhom = comoving_matter_density(cosm)
-
-      ! ...otherwise you need to do an integral
 
       DO i = 1, n
 
@@ -3923,7 +3901,6 @@ CONTAINS
    REAL FUNCTION p_1h(wk_product, n, k, hmod, cosm)
 
       ! Calculates the one-halo term
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: wk_product(n)
       REAL, INTENT(IN) :: k
@@ -4001,7 +3978,7 @@ CONTAINS
 
    REAL FUNCTION p_hm(k, pow_2h, pow_1h, hmod)
 
-      IMPLICIT NONE
+      ! Combines the two- and one-halo terms into the full halo-model power spectrum
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: pow_2h
       REAL, INTENT(IN) :: pow_1h
@@ -4009,7 +3986,7 @@ CONTAINS
       REAL :: alpha, pow, con
 
       ! alpha is set to one sometimes, which is just the standard halo-model sum of terms
-      ! No need to have an IF statement around this
+      ! TODO: No need to have an IF statement around this?
       IF (hmod%itrans == 1 .OR. hmod%itrans == 2 .OR. hmod%itrans == 3 .OR. hmod%itrans == 5) THEN
 
          ! If either term is less than zero then we need to be careful
@@ -4039,7 +4016,6 @@ CONTAINS
          con = 1. ! Constant for the transition
          pow = 1. ! Power for the transition
          p_hm = pow_2h+sigmoid_log(con*(1.*k/hmod%knl), pow)*(pow_1h-pow_2h)
-         !p_hm=pow_2h+0.5*(1.+tanh(con*(k-hmod%knl)))*(pow_1h-pow_2h)
 
       ELSE
 
@@ -4057,7 +4033,7 @@ CONTAINS
 
    REAL FUNCTION p_1void(k, hmod)
 
-      IMPLICIT NONE
+      ! Calculate the one-void power spectrum
       REAL, INTENT(IN) :: k
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: dc, wk, V, rvoid, rcomp, nu
@@ -4123,7 +4099,7 @@ CONTAINS
 
    REAL FUNCTION BNL(k, nu1, nu2, rv1, rv2, hmod)
 
-      IMPLICIT NONE
+      ! Non-linear halo bias function
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: nu1
       REAL, INTENT(IN) :: nu2
@@ -4165,8 +4141,8 @@ CONTAINS
 
    SUBROUTINE init_BNL(hmod)
 
+      ! Initialisation for the non-linear halo bias term
       ! TODO: Interpolate between redshifts
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       INTEGER :: i, ibin, jbin, ik
       INTEGER :: nbin, nk
@@ -4255,7 +4231,6 @@ CONTAINS
    REAL FUNCTION T_1h(k1, k2, ih, hmod, cosm)
 
       ! Halo model one-halo trispectrum
-      IMPLICIT NONE
       REAL, INTENT(IN) :: k1, k2
       INTEGER, INTENT(IN) :: ih(2)
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -4283,7 +4258,7 @@ CONTAINS
          uk2(i, :) = wk2(i, :)*rhom/m
       END DO
 
-      ! Not sure if this is the correct k and field combinations
+      ! TODO: Not sure if this is the correct k and field combinations
       uk_quad = uk1(:, 1)*uk1(:, 2)*uk2(:, 1)*uk2(:, 2)
       !uk_quad=uk1(:,1)*uk1(:,1)*uk2(:,2)*uk2(:,2) ! Could be this
       !uk_quad=uk1(:,1)*uk2(:,2)
@@ -4316,7 +4291,6 @@ CONTAINS
    SUBROUTINE halo_diagnostics(hmod, cosm, dir)
 
       ! Writes out to file a whole set of halo diagnostics
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       CHARACTER(len=*), INTENT(IN) :: dir
@@ -4375,7 +4349,6 @@ CONTAINS
    SUBROUTINE halo_definitions(hmod, cosm, dir)
 
       ! Writes out to files the different halo definitions
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       CHARACTER(len=*), INTENT(IN) :: dir
@@ -4426,8 +4399,7 @@ CONTAINS
 
    SUBROUTINE halo_properties(hmod, dir)
 
-      !Writes out to files the different halo definitions
-      IMPLICIT NONE
+      ! Writes out the halo properties
       TYPE(halomod), INTENT(INOUT) :: hmod
       CHARACTER(len=*), INTENT(IN) :: dir
       CHARACTER(len=256) :: output
@@ -4465,7 +4437,6 @@ CONTAINS
    SUBROUTINE write_halo_fractions(hmod, cosm, outfile)
 
       ! Writes out the halo mass fractions
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       CHARACTER(len=*), INTENT(IN) :: outfile
@@ -4495,7 +4466,6 @@ CONTAINS
    SUBROUTINE write_halo_profiles(m, hmod, cosm, outfile)
 
       ! Writes out the halo density profiles
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4538,8 +4508,7 @@ CONTAINS
 
    SUBROUTINE write_halo_transforms(m, hmod, cosm, outfile)
 
-      ! Writes out to file the Fourier transform of the halo density profiles
-      IMPLICIT NONE
+      ! Writes out the Fourier transform of the halo density profiles
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4629,7 +4598,6 @@ CONTAINS
    REAL FUNCTION Delta_v(M, hmod, cosm)
 
       ! Virialised overdensity
-      IMPLICIT NONE
       REAL, INTENT(IN) :: M
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -4699,7 +4667,6 @@ CONTAINS
    REAL FUNCTION HMcode_kstar(hmod, cosm)
 
       ! Calculates the one-halo damping wave number [h/Mpc]
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: sigv, sig8
@@ -4724,7 +4691,6 @@ CONTAINS
    REAL FUNCTION HMcode_fdamp(hmod, cosm)
 
       ! Calculates the linear-theory damping factor
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: sig, sigv
@@ -4758,7 +4724,6 @@ CONTAINS
    REAL FUNCTION HMcode_kdamp(hmod, cosm)
 
       ! 2-halo term damping wavenumber
-      IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: sig8
@@ -4771,7 +4736,6 @@ CONTAINS
    REAL FUNCTION HMcode_alpha(hmod, cosm)
 
       ! Calculates the alpha to smooth the two- to one-halo transition
-      IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: n_eff!, x, sig8, y
@@ -4808,21 +4772,15 @@ CONTAINS
             HMcode_alpha = (hmod%alp0*hmod%alp1**n_eff)**2.5
          END IF
       ELSE IF (hmod%itrans == 5) THEN
-         ! HMcode 2020             
-         !x = sigma(8., hmod%a, flag_ucold, cosm)
+         ! HMcode 2020
+         ! TODO: Same as itrans=2 above
          !n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
          n_eff = hmod%neff
-         !y = effective_curvature(hmod%flag_sigma, hmod, cosm)
          IF (hmod%alp1 == 0.) THEN
             HMcode_alpha = hmod%alp0
          ELSE
-            HMcode_alpha = hmod%alp0*(hmod%alp1**n_eff)    ! Relation 1
+            HMcode_alpha = hmod%alp0*(hmod%alp1**n_eff)
          END IF
-         !HMcode_alpha = hmod%alp0+x*hmod%alp1       ! Relation 2
-         !HMcode_alpha = hmod%alp0*abs(x)**hmod%alp1 ! Relation 3
-         !HMcode_alpha = hmod%alp0+hmod%alp1*x+hmod%alp2*x**2
-         !HMcode_alpha = hmod%alp0+hmod%alp1*x+hmod%alp2*y
-         !HMcode_alpha = hmod%alp0*(hmod%alp1**x)+hmod%alp2*y
       ELSE
          HMcode_alpha = 1.
       END IF
@@ -4836,7 +4794,6 @@ CONTAINS
    REAL FUNCTION HMcode_eta(hmod, cosm)
 
       ! Calculates the eta that comes into the bastardised one-halo term
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: eta0, sig
@@ -4867,7 +4824,6 @@ CONTAINS
    REAL FUNCTION HMcode_A(hmod, cosm)
 
       ! Halo concentration pre-factor
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: sig, As, Az
@@ -4901,9 +4857,7 @@ CONTAINS
    REAL FUNCTION pivot_mass(hmod)
 
       ! Returns the 'pivot mass' [Msun/h]
-      IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
-      !REAL, PARAMETER :: simple_pivot_mass = 1e14
 
       IF (hmod%simple_pivot) THEN
          !pivot_mass = simple_pivot_mass
@@ -4917,7 +4871,6 @@ CONTAINS
    REAL FUNCTION HMx_alpha(m, hmod, cosm)
 
       ! Static gas temperature
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -4967,7 +4920,6 @@ CONTAINS
    REAL FUNCTION HMx_beta(m, hmod, cosm)
 
       ! Hot gas temperature
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -4993,7 +4945,6 @@ CONTAINS
    REAL FUNCTION HMx_eps(hmod, cosm)
 
       ! Halo concentration epsilon
-      IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: z, T, A, B, C, D, eps, epsz
@@ -5037,7 +4988,6 @@ CONTAINS
    REAL FUNCTION HMx_eps2(hmod, cosm)
 
       ! Halo concentration epsilon
-      IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: z, eps2, eps2z
@@ -5064,8 +5014,7 @@ CONTAINS
 
    REAL FUNCTION HMx_Gamma(m, hmod, cosm)
 
-      ! Komatsu-Seljak index
-      IMPLICIT NONE
+      ! Komatsu-Seljak gas profile index
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -5114,8 +5063,7 @@ CONTAINS
 
    REAL FUNCTION HMx_Zamma(m, hmod, cosm)
 
-      ! Komatsu-Seljak index()
-      IMPLICIT NONE
+      ! Komatsu-Seljak index for pressure profile if different from gas density
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -5159,18 +5107,11 @@ CONTAINS
    REAL FUNCTION HMx_M0(hmod, cosm)
 
       ! Gas fraction turn-over mass
-      IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: z, T, A, B, C, D, E, M0, M0z
 
       IF (hmod%HMx_Mode == 1) THEN
-         !IF (hmod%M0 == 0.) THEN
-         !   HMx_M0 = 0.
-         !ELSE
-         !   HMx_M0 = log10(hmod%M0)+hmod%M0z*z
-         !   HMx_M0 = 10**HMx_M0
-         !END IF
          HMx_M0 = hmod%M0*10**(hmod%M0z*hmod%z)
       ELSE IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
          IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
@@ -5186,7 +5127,6 @@ CONTAINS
          IF(hmod%HMx_mode == 3) THEN
             HMx_M0 = M0**((1.+z)**M0z)
          ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
-            !HMx_M0 = M0*(exp(M0z)**z)
             HMx_M0 = M0*exp(M0z*z)
          ELSE
             STOP 'HMx_M0: Error, HMx_mode not specified correctly'
@@ -5199,8 +5139,6 @@ CONTAINS
          D = hmod%D_M0
          E = hmod%E_M0
          z = hmod%z
-         !T = log10(hmod%Theat)
-         !HMx_M0=A*(1.+z)*T+B*(1.+z)+C*T+D
          HMx_M0 = (A*(1.+z)**2+B*(1.+z)+C)*T**2+D*T+E
          HMx_M0 = 10**HMx_M0
       ELSE
@@ -5212,7 +5150,6 @@ CONTAINS
    REAL FUNCTION HMx_Astar(hmod, cosm)
 
       ! Star fraction ampltiude
-      IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: z, T, A, B, C, D, Astar, Astarz
@@ -5257,7 +5194,6 @@ CONTAINS
    REAL FUNCTION HMx_Twhim(hmod, cosm)
 
       ! WHIM temperature
-      IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: z, T, A, B, C, D, Twhim, Twhimz
@@ -5301,7 +5237,6 @@ CONTAINS
    REAL FUNCTION HMx_cstar(m, hmod, cosm)
 
       ! Stellar-density concentration
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -5331,7 +5266,6 @@ CONTAINS
    REAL FUNCTION HMx_sstar(hmod, cosm)
 
       ! Star fraction width
-      IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: crap
@@ -5345,8 +5279,7 @@ CONTAINS
 
    REAL FUNCTION HMx_Mstar(hmod, cosm)
 
-      ! Peak halo mass for star-formation efficiency
-      IMPLICIT NONE    
+      ! Peak halo mass for star-formation efficiency   
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: Mstar, Mstarz, z
@@ -5378,8 +5311,7 @@ CONTAINS
 
    REAL FUNCTION HMx_fcold(hmod, cosm)
 
-      ! Cold gas fraction
-      IMPLICIT NONE
+      ! Cold-gas fraction
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: crap
@@ -5393,8 +5325,7 @@ CONTAINS
 
    REAL FUNCTION HMx_fhot(hmod, cosm)
 
-      ! Hot gas fraction
-      IMPLICIT NONE
+      ! Hot-gas fraction
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: crap
@@ -5409,7 +5340,6 @@ CONTAINS
    REAL FUNCTION HMx_eta(hmod, cosm)
 
       ! Satellite galaxy fraction
-      IMPLICIT NONE
       TYPE(cosmology), INTENT(IN) :: cosm
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: eta, etaz, z
@@ -5443,7 +5373,6 @@ CONTAINS
    REAL FUNCTION HMx_ibeta(m, hmod, cosm)
 
       ! Isothermal-beta profile index
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -5465,7 +5394,6 @@ CONTAINS
    REAL FUNCTION HMx_gbeta(hmod, cosm)
 
       ! Power-law decline for halo gas fractions
-      IMPLICIT NONE
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: gbeta, gbetaz, z, crap
@@ -5483,7 +5411,6 @@ CONTAINS
 
    REAL FUNCTION HMx2020_Temperature_scaling(array, hmod, cosm)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: array(3) ! Array containing three values of the parameter to be found   
       TYPE(halomod), INTENT(IN) :: hmod ! Halomodel
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -5501,6 +5428,7 @@ CONTAINS
    REAL FUNCTION r_nl(hmod)
 
       ! Calculates R_nl where nu(R_nl)=1.
+      ! TODO: Fix the nu(1) issue
       TYPE(halomod), INTENT(INOUT) :: hmod
       INTEGER, PARAMETER :: iorder = iorder_inversion_rnl
       INTEGER, PARAMETER :: ifind = ifind_inversion_rnl
@@ -5518,14 +5446,14 @@ CONTAINS
 
    SUBROUTINE allocate_halomod(hmod)
 
-      ! Allocates memory for the look-up tables
-      IMPLICIT NONE
+      ! Allocates memory for the look-up tables and sets arrays to zero
       TYPE(halomod), INTENT(INOUT) :: hmod
       INTEGER :: n
 
       ! Number of entries in look-up table
       n = hmod%n
 
+      ! Allocate all arrays
       ALLOCATE (hmod%log_m(n))
       ALLOCATE (hmod%zc(n), hmod%m(n), hmod%c(n), hmod%rv(n))!, hmod%mr(n))
       ALLOCATE (hmod%nu(n), hmod%rr(n), hmod%sigf(n), hmod%sig(n))
@@ -5565,7 +5493,6 @@ CONTAINS
    SUBROUTINE deallocate_halomod(hmod)
 
       ! Deallocates the look-up tables
-      IMPLICIT NONE
       TYPE(halomod) :: hmod
 
       ! Deallocates look-up tables
@@ -5580,7 +5507,6 @@ CONTAINS
    REAL FUNCTION Omega_stars(hmod, cosm)
 
       ! Calculate the cosmological density in star mass
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -5597,7 +5523,6 @@ CONTAINS
    SUBROUTINE init_galaxies(hmod, cosm)
 
       ! Calculate the number densities of galaxies
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: nu_min, nu_max
@@ -5621,7 +5546,6 @@ CONTAINS
    SUBROUTINE init_HI(hmod, cosm)
 
       ! Calculates the background HI density by integrating the HI mass function
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: nu_min, nu_max
@@ -5645,7 +5569,6 @@ CONTAINS
    REAL FUNCTION nu_R(R, hmod, cosm)
 
       ! Calculates nu(R) where R is the comoving Lagrangian halo radius
-      IMPLICIT NONE
       REAL, INTENT(IN) :: R
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -5657,7 +5580,6 @@ CONTAINS
    REAL FUNCTION nu_M(M, hmod, cosm)
 
       ! Calculates nu(M) where M is the halo mass
-      IMPLICIT NONE
       REAL, INTENT(IN) :: M
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -5671,7 +5593,6 @@ CONTAINS
    REAL FUNCTION M_nu(nu, hmod)
 
       ! Calculates M(nu) where M is the halo mass and nu is the peak height
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       INTEGER, PARAMETER :: iorder = 3
@@ -5689,7 +5610,6 @@ CONTAINS
    REAL FUNCTION rhobar_central_integrand(nu, hmod, cosm)
 
       ! Integrand for the number density of central galaxies
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Could remove
@@ -5705,7 +5625,6 @@ CONTAINS
    REAL FUNCTION rhobar_satellite_integrand(nu, hmod, cosm)
 
       ! Integrand for the number density of satellite galaxies
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Could remove
@@ -5721,7 +5640,6 @@ CONTAINS
    REAL FUNCTION rhobar_star_integrand(nu, hmod, cosm)
 
       ! Integrand for the matter density of stars
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -5735,7 +5653,6 @@ CONTAINS
    REAL FUNCTION rhobar_HI_integrand(nu, hmod, cosm)
 
       ! Integrand for the HI mass density
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -5752,7 +5669,6 @@ CONTAINS
       ! Integrand here is a function of mass, i.e. I(M); R = rho * Int I(M)dM
       ! TODO: This function is comparatively slow and should be accelerated somehow
       ! TODO: This uses integrate_hmod_cosm_exp, which is weird, surely can use some transformed integrand instead?
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu_min, nu_max
       REAL, EXTERNAL :: integrand
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -5774,8 +5690,7 @@ CONTAINS
 
    REAL FUNCTION one_halo_amplitude(hmod, cosm)
 
-      !Calculates the amplitude of the shot-noise plateau of the one-halo term [Mpc/h]^3
-      IMPLICIT NONE
+      ! Calculates the amplitude of the shot-noise plateau of the one-halo term [Mpc/h]^3
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: integrand(hmod%n), g, m
@@ -5785,7 +5700,7 @@ CONTAINS
          ! Special case for delta-function mass function
          one_halo_amplitude = hmod%hmass
       ELSE
-         !Calculates the value of the integrand at all nu values!
+         ! Calculates the value of the integrand at all nu values!
          DO i = 1, hmod%n
             g = g_nu(hmod%nu(i), hmod)
             m = hmod%m(i)
@@ -5800,8 +5715,8 @@ CONTAINS
 
    REAL FUNCTION one_halo_modified_amplitude(hmod, cosm)
 
-      !Calculates the amplitude of the shot-noise plateau of the one-halo term [Mpc/h]^3
-      IMPLICIT NONE
+      ! Calculates the amplitude of the shot-noise plateau of the one-halo term [Mpc/h]^3
+      ! TODO: Is this necesarry? How is this different from one_halo_amplitude?
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: integrand(hmod%n), g, m
@@ -5826,8 +5741,8 @@ CONTAINS
 
    REAL FUNCTION mass_function(m, hmod, cosm)
 
-      ! Calculates the halo mass function, what I call n(M); some people call dn/dM [(Msun/h)^-1(Mpc/h)^-3]
-      IMPLICIT NONE
+      ! Calculates the halo mass function, what I call n(M); some people call dn/dM 
+      ! In either case the units are [(Msun/h)^-1(Mpc/h)^-3]
       REAL, INTENT(IN) :: m                  ! Halo mass [Msun/h]
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
@@ -5843,8 +5758,7 @@ CONTAINS
    REAL FUNCTION multiplicity_function(m, hmod, cosm)
 
       ! Returns the dimensionless multiplicity function: M^2n(M)/rho; n(M) = dn/dM sometimes
-      ! TODO: Is there a way to avoid unstable numerical derivative here?
-      IMPLICIT NONE
+      ! TODO: Is there a way to avoid unstable an numerical derivative here?
       REAL, INTENT(IN) :: m                  ! Halo mass [Msun/h]
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
@@ -5865,7 +5779,6 @@ CONTAINS
    REAL FUNCTION halo_bias(m, hmod, cosm)
 
       ! Calculate b(M)
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m                  ! Halo mass [Msun/h]
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
@@ -5878,7 +5791,7 @@ CONTAINS
 
    SUBROUTINE convert_mass_definitions(hmod, cosm)
 
-      IMPLICIT NONE
+      ! Convert defintion of halo from M_i to M_j, where i=200 and j=500 (for example) 
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: rhom, rhoc, Dv, a
@@ -5907,19 +5820,18 @@ CONTAINS
 
    SUBROUTINE convert_mass_definition(r1, c1, m1, D1, rho1, r2, c2, m2, D2, rho2, n)
 
-      !Converts mass definition from Delta_1 rho_1 overdense to Delta_2 rho_2 overdense
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n  ! Number of entries in tables
-      REAL, INTENT(IN) :: r1(n) ! Array of initial virial radii [Mpc/h]
-      REAL, INTENT(IN) :: c1(n) ! Array of initial halo concentration
-      REAL, INTENT(IN) :: m1(n) ! Array of initial halo mass [Msun/h]
-      REAL, INTENT(IN) :: D1 ! Initial halo overdensity definition (e.g., 200, 500)
-      REAL, INTENT(IN) :: rho1 ! Initial halo overdensity defintion (critical or mass)
+      ! Converts mass definition from Delta_1 rho_1 overdense to Delta_2 rho_2 overdense
+      INTEGER, INTENT(IN) :: n   ! Number of entries in tables
+      REAL, INTENT(IN) :: r1(n)  ! Array of initial virial radii [Mpc/h]
+      REAL, INTENT(IN) :: c1(n)  ! Array of initial halo concentration
+      REAL, INTENT(IN) :: m1(n)  ! Array of initial halo mass [Msun/h]
+      REAL, INTENT(IN) :: D1     ! Initial halo overdensity definition (e.g., 200, 500)
+      REAL, INTENT(IN) :: rho1   ! Initial halo overdensity defintion (critical or mass)
       REAL, INTENT(OUT) :: r2(n) ! Output array of virial radii with new definition [Mpc/h]
       REAL, INTENT(OUT) :: c2(n) ! Output array of halo concentration with new definition
       REAL, INTENT(OUT) :: m2(n) ! Output array of halo mass with new definition [Msun/h]
-      REAL, INTENT(IN) :: D2 ! Final halo overdensity definition (e.g., 200, 500)
-      REAL, INTENT(IN) :: rho2 ! Final halo overdensity defintion (critical or mass)
+      REAL, INTENT(IN) :: D2     ! Final halo overdensity definition (e.g., 200, 500)
+      REAL, INTENT(IN) :: rho2   ! Final halo overdensity defintion (critical or mass)
       REAL :: f(n)
       REAL :: rmin, rmax, rs
       REAL, ALLOCATABLE :: r(:)
@@ -5931,10 +5843,10 @@ CONTAINS
          WRITE (*, *) 'CONVERT_MASS_DEFINITION: Final overdensity:', D2
       END IF
 
-      !Make an array of general 'r' values for the solution later
-      rmin = r1(1)/10. !Should be sufficient for reasonable cosmologies
-      rmax = r1(n)*10. !Should be sufficient for reasonable cosmologies
-      CALL fill_array(log(rmin), log(rmax), r, n) !Necessary to log space
+      ! Make an array of general 'r' values for the solution later
+      rmin = r1(1)/10. ! Should be sufficient for reasonable cosmologies
+      rmax = r1(n)*10. ! Should be sufficient for reasonable cosmologies
+      CALL fill_array(log(rmin), log(rmax), r, n) ! Necessary to log space
       r = exp(r)
 
       IF (verbose_convert_mass) THEN
@@ -5943,7 +5855,7 @@ CONTAINS
          WRITE (*, *) 'CONVERT_MASS_DEFINITION: nr:', n
       END IF
 
-      !Now use the find algorithm to invert L(r_i)=R(r_j) so that r_j=R^{-1}[L(r_i)]
+      ! Now use the find algorithm to invert L(r_i)=R(r_j) so that r_j=R^{-1}[L(r_i)]
       IF (verbose_convert_mass) THEN
          WRITE (*, *) '========================================================================================================'
          WRITE (*, *) '         M_old         rv_old          c_old    M_new/M_old    r_new/r_old    c_new/c_old  M`_new/M`_old'
@@ -5991,7 +5903,6 @@ CONTAINS
 
       ! The NFW 'mass' factor that crops up all the time
       ! This is X(c) in M(r) = M X(r/rs) / X(c)
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
 
       NFW_factor = log(1.+x)-x/(1.+x)
@@ -6000,8 +5911,7 @@ CONTAINS
 
    ELEMENTAL REAL FUNCTION radius_m(m, cosm)
 
-      ! The comoving radius corresponding to mass M in a homogeneous universe
-      IMPLICIT NONE
+      ! Comoving radius corresponding to mass M in a homogeneous universe
       REAL, INTENT(IN) :: m
       TYPE(cosmology), INTENT(IN) :: cosm
 
@@ -6011,8 +5921,7 @@ CONTAINS
 
    REAL FUNCTION virial_radius(m, hmod, cosm)
 
-      ! The comoving halo virial radius
-      IMPLICIT NONE
+      ! Comoving halo virial radius of a halo of mass M
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -6025,7 +5934,6 @@ CONTAINS
 
       ! Power spectrum effective slope at the non-linear scale
       ! Defined as -3. + d ln sigma^2 / d ln r, so pertains to P(k) not Delta^2(k)
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: flag_sigma
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -6044,7 +5952,6 @@ CONTAINS
 
       ! Power spectrum effective curvature at the non-linear scale
       ! Defined as d^2 ln sigma^2 / d ln r^2, so pertains to P(k) not Delta^2(k)
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: flag_sigma
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -6056,7 +5963,7 @@ CONTAINS
 
    SUBROUTINE fill_halo_concentration(hmod, cosm)
 
-      IMPLICIT NONE
+      ! Fill look-up table with halo concentrations as a function of halo mass
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: mnl, m, zc, z, a, fg, rr, nu
@@ -6138,7 +6045,6 @@ CONTAINS
       ! Note very carefully that all modifications to the halo concentration must go in here
       ! This is very important because they need to be undone for DMONLY haloes
       ! Please be extremely careful
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -6157,7 +6063,6 @@ CONTAINS
    SUBROUTINE Dolag_correction(hmod, cosm)
 
       ! Applies the Dolag et al. (2004; astro-ph/0309771) correction to concentration-mass relation
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: g_LCDM, g_wCDM, gc_LCDM, gc_wCDM, ginf_LCDM, ginf_wCDM
@@ -6244,7 +6149,7 @@ CONTAINS
 
    REAL FUNCTION conc_Bullock(z, zc)
 
-      IMPLICIT NONE
+      ! Calculate the Bullock (2001; astro-ph/9908159) concentration
       REAL, INTENT(IN) :: z
       REAL, INTENT(IN) :: zc
       REAL, PARAMETER :: A = 4. ! Pre-factor for Bullock relation
@@ -6257,13 +6162,11 @@ CONTAINS
 
       ! This fills up the halo collapse redshift table as per Bullock relations
       ! TODO: Convert to using solve root-finding routines
-      IMPLICIT NONE
       REAL, INTENT(IN) :: z
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: dc, af, zf, RHS, a, rf, sig, growz, f
       INTEGER :: i
-      !REAL, PARAMETER :: f = 0.01**(1./3.) ! This is the f=0.01 parameter in the Bullock realtion sigma(fM,z)
 
       a = scale_factor_z(z)
 
@@ -6308,8 +6211,7 @@ CONTAINS
 
    FUNCTION conc_Bullock_simple(m, mstar)
 
-      ! The simple concentration-mass relation from Bullock et al. (2001; astro-ph/9908159v3 equation 18)
-      IMPLICIT NONE
+      ! The simple concentration-mass relation from Bullock et al. (2001; astro-ph/9908159 equation 18)
       REAL :: conc_Bullock_simple
       REAL, INTENT(IN) :: m, mstar
 
@@ -6320,8 +6222,8 @@ CONTAINS
    REAL FUNCTION conc_Duffy_full_M200c(m, z)
 
       ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: m, z
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: z
 
       REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 5.71
@@ -6336,8 +6238,8 @@ CONTAINS
    REAL FUNCTION conc_Duffy_relaxed_M200c(m, z)
 
       ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: m, z
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: z
 
       REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 6.71
@@ -6352,8 +6254,8 @@ CONTAINS
    REAL FUNCTION conc_Duffy_full_virial(m, z)
 
       ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: m, z
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: z
 
       REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 7.85
@@ -6368,8 +6270,8 @@ CONTAINS
    REAL FUNCTION conc_Duffy_relaxed_virial(m, z)
 
       ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: m, z
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: z
 
       REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 9.23
@@ -6384,8 +6286,8 @@ CONTAINS
    REAL FUNCTION conc_Duffy_full_M200(m, z)
 
       ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: m, z
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: z
 
       REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 10.14
@@ -6400,8 +6302,8 @@ CONTAINS
    REAL FUNCTION conc_Duffy_relaxed_M200(m, z)
 
       ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: m, z
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: z
 
       REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
       REAL, PARAMETER :: A = 11.93
@@ -6417,7 +6319,6 @@ CONTAINS
 
       ! Concentration-mass relation from Child et al. (2018; 1804.10199); equation (18)
       ! Applicable for M200c
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       REAL, INTENT(IN) :: mnl
       REAL :: f
@@ -6437,7 +6338,6 @@ CONTAINS
       ! Diemer & Joyce (2019) concentration-mass relation
       ! Parameters taken from 'mean' column of Table 2
       ! Relation is for M200c halo-boundary definition
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: fg
@@ -6469,7 +6369,6 @@ CONTAINS
    REAL FUNCTION mass_r(r, cosm)
 
       ! Calculates the mass contains in a sphere of comoving radius 'r' in a homogeneous universe
-      IMPLICIT NONE
       REAL, INTENT(IN) :: r
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
@@ -6481,7 +6380,6 @@ CONTAINS
    REAL FUNCTION baryonify_wk(wk, m, hmod, cosm)
 
       ! Change DMONLY halo window to account for feedback mass loss and star formation
-      IMPLICIT NONE
       REAL, INTENT(IN) :: wk
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
@@ -6502,7 +6400,6 @@ CONTAINS
       ! Inverse of baryonify_wk
       ! This is only used if windows need to be rebuilt for the two-halo term
       ! It will not be used if the two-halo term is linear theory, or dewiggled linear
-      IMPLICIT NONE
       REAL, INTENT(IN) :: wk
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
@@ -6524,7 +6421,6 @@ CONTAINS
       ! This also accounts for massive neutrinos since it is written in terms of Om_c and Om_b (rather than Om_m)
       ! TODO: This is independent of k, so probably should be computed outside and k dependent function for speed
       ! TODO: Could just precompute this once for each M in the halomod init function
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -6542,6 +6438,7 @@ CONTAINS
 
    REAL FUNCTION HMcode_DMONLY_baryon_model(T, a1, a0)
 
+      ! Scaling for the HMcode-2020 temperature dependence of the baryon parameters
       REAL, INTENT(IN) :: T
       REAL, INTENT(IN) :: a1
       REAL, INTENT(IN) :: a0
@@ -6553,6 +6450,7 @@ CONTAINS
 
    REAL FUNCTION HMcode_mbar(cosm, hmod)
 
+      ! HMcode-2020 baryonic halo mass
       TYPE(cosmology), INTENT(IN) :: cosm
       TYPE(halomod) :: hmod
       REAL :: mbar, mbarz, z
@@ -6566,6 +6464,7 @@ CONTAINS
 
    REAL FUNCTION HMcode_sbar(cosm, hmod)
 
+      ! HMcode-2020 star formation fraction
       TYPE(cosmology), INTENT(IN) :: cosm
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: sbar, sbarz, z
@@ -6582,7 +6481,6 @@ CONTAINS
    REAL FUNCTION win(real_space, ifield, k, m, rv, rs, hmod, cosm)
 
       ! Selects the halo profile type
-      IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space
       INTEGER, INTENT(IN) :: ifield
       REAL, INTENT(IN) :: k
@@ -6687,7 +6585,6 @@ CONTAINS
 
       ! Halo profile for all matter under the assumption that it is all CDM
       ! TODO: Possibly remove this since DMONLY should really be set by the halo_model ihm
-      IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -6759,8 +6656,7 @@ CONTAINS
 
    REAL FUNCTION win_matter(real_space, k, m, rv, rs, hmod, cosm)
 
-      ! The halo profile of all the matter
-      IMPLICIT NONE
+      ! The halo profile of all the matter density
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -6781,8 +6677,7 @@ CONTAINS
 
    REAL FUNCTION win_CDM(real_space, k, m, rv, rs, hmod, cosm)
 
-      ! The halo profile for CDM
-      IMPLICIT NONE
+      ! The halo profile for CDM density
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -6833,7 +6728,6 @@ CONTAINS
    REAL FUNCTION win_gas(real_space, itype, k, m, rv, rs, hmod, cosm)
 
       ! Halo profile for gas density
-      IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space
       INTEGER, INTENT(IN) :: itype
       REAL, INTENT(IN) :: k
@@ -6853,7 +6747,6 @@ CONTAINS
    REAL FUNCTION win_bound_gas(real_space, itype, k, m, rv, rs, hmod, cosm)
 
       ! Halo profile for bound gas density
-      IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space
       INTEGER, INTENT(IN) :: itype
       REAL, INTENT(IN) :: k
@@ -6874,8 +6767,7 @@ CONTAINS
 
    REAL FUNCTION win_normal_bound_gas(real_space, itype, k, m, rv, rs, hmod, cosm)
 
-      ! Halo profile for the bound gas component
-      IMPLICIT NONE
+      ! Halo profile for the bound gas density
       LOGICAL, INTENT(IN) :: real_space
       INTEGER, INTENT(IN) :: itype
       REAL, INTENT(IN) :: k
@@ -6991,8 +6883,7 @@ CONTAINS
 
    REAL FUNCTION win_cold_bound_gas(real_space, itype, k, m, rv, rs, hmod, cosm)
 
-      ! Halo profile for the cold gas component
-      IMPLICIT NONE
+      ! Halo profile for the cold gas density
       LOGICAL, INTENT(IN) :: real_space
       INTEGER, INTENT(IN) :: itype
       REAL, INTENT(IN) :: k
@@ -7061,7 +6952,7 @@ CONTAINS
 
    REAL FUNCTION win_hot_bound_gas(real_space, itype, k, m, rv, rs, hmod, cosm)
 
-      IMPLICIT NONE
+      ! Halo profile for hot bound gas density
       LOGICAL, INTENT(IN) :: real_space
       INTEGER, INTENT(IN) :: itype
       REAL, INTENT(IN) :: k
@@ -7155,8 +7046,7 @@ CONTAINS
 
    REAL FUNCTION win_ejected_gas(real_space, itype, k, m, rv, rs, hmod, cosm)
 
-      ! Halo profile for the free gas component
-      IMPLICIT NONE
+      ! Halo profile for the ejected gas component
       LOGICAL, INTENT(IN) :: real_space
       INTEGER, INTENT(IN) :: itype
       REAL, INTENT(IN) :: k
@@ -7261,24 +7151,19 @@ CONTAINS
                beta = (c-(1.+c)*log(1.+c))/((1.+c)*log(1.+c))
                beta = beta/(HMx_Gamma(m, hmod, cosm)-1.) ! This is the power-law index at the virial radius for the KS gas profile
                p1 = beta
-               !WRITE(*,*) 'Beta:', beta, log10(m)
                IF (beta <= -3.) beta = -2.9 ! If beta<-3 then there is only a finite amount of gas allowed in the free component
 
                ! Calculate the density at the boundary of the KS profile
                rhov = win_normal_bound_gas(.TRUE., 2, rv, m, rv, rs, hmod, cosm)
-               !WRITE(*,*) 'rho_v:', rhov
 
                ! Calculate A as in rho(r)=A*r**beta
                A = rhov/rho(rv, 0., rv, rv, rs, p1, p2, irho_density)
-               !WRITE(*,*) 'A:', A
 
                ! Set the minimum radius for the power-law to be the virial radius
                rmin = rv
-               !WRITE(*,*) 'rmin:', rmin
 
                ! Set the maximum radius so that it joins to KS profile seamlessly
                thing = (beta+3.)*frac/(4.*pi*A)+(rhov*rv**3)/A
-               !WRITE(*,*) 'thing:', thing
                IF (thing > 0.) THEN
                   ! This then fixes the condition of contiunity in amplitude and gradient
                   rmax = thing**(1./(beta+3.))
@@ -7287,7 +7172,6 @@ CONTAINS
                   ! There may be no sohmodion if there is a lot of free gas and if beta<-3
                   rmax = 10.*rv
                END IF
-               !WRITE(*,*) 'rmax 2:', rmax
 
             END IF
 
@@ -7388,7 +7272,7 @@ CONTAINS
 
    REAL FUNCTION win_stars(real_space, k, m, rv, rs, hmod, cosm)
 
-      IMPLICIT NONE
+      ! Halo profile for the stellar density
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7407,8 +7291,7 @@ CONTAINS
 
    REAL FUNCTION win_central_stars(real_space, k, m, rv, rs, hmod, cosm)
 
-      ! Halo profile for stars
-      IMPLICIT NONE
+      ! Halo profile for central stellar density
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7489,8 +7372,7 @@ CONTAINS
 
    REAL FUNCTION win_satellite_stars(real_space, k, m, rv, rs, hmod, cosm)
 
-      ! Halo profile for stars
-      IMPLICIT NONE
+      ! Halo profile for the satellite stellar density
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7557,8 +7439,7 @@ CONTAINS
 
    REAL FUNCTION win_neutrino(real_space, k, m, rv, rs, hmod, cosm)
 
-      ! Halo profile for the halo neutrino component
-      IMPLICIT NONE
+      ! Halo profile for the collapsed halo neutrino density
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7609,8 +7490,7 @@ CONTAINS
 
    REAL FUNCTION win_electron_pressure(real_space, k, m, rv, rs, hmod, cosm)
 
-      !Halo electron pressure profile function for the sum of bound + unbound electron gas
-      IMPLICIT NONE
+      ! Halo electron pressure profile function for the sum of bound + unbound electron gas
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7633,8 +7513,7 @@ CONTAINS
 
    REAL FUNCTION win_void(real_space, k, m, rv, rs, hmod, cosm)
 
-      !Void profile
-      IMPLICIT NONE
+      ! Void profile
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7654,7 +7533,7 @@ CONTAINS
       rmax = rv
 
       IF (hmod%halo_void == 1) THEN
-         !Top-hat void
+         ! Top-hat void
          irho = 2
          rmin = 0.
          rmax = 10.*rv
@@ -7674,8 +7553,7 @@ CONTAINS
 
    REAL FUNCTION win_compensated_void(real_space, k, m, rv, rs, hmod, cosm)
 
-      !Profile for compensated voids
-      IMPLICIT NONE
+      ! Profile for compensated voids
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7695,7 +7573,7 @@ CONTAINS
       rmax = rv
 
       IF (hmod%halo_compensated_void == 1) THEN
-         !Top-hat
+         ! Top-hat
          irho = 2
          rmin = 0.
          rmax = 10.*rv
@@ -7716,7 +7594,6 @@ CONTAINS
    REAL FUNCTION win_galaxies(real_space, k, m, rv, rs, hmod, cosm)
 
       ! Halo profile for all galaxies
-      IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7731,8 +7608,7 @@ CONTAINS
 
    REAL FUNCTION win_centrals(real_space, k, m, rv, rs, hmod, cosm)
 
-      !Halo profile for central galaxies
-      IMPLICIT NONE
+      ! Halo profile for central galaxies
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7781,7 +7657,6 @@ CONTAINS
    REAL FUNCTION win_haloes(real_space, mmin, mmax, k, m, rv, rs, hmod, cosm)
 
       ! Halo profile function for haloes
-      IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: mmin
       REAL, INTENT(IN) :: mmax
@@ -7840,7 +7715,6 @@ CONTAINS
    REAL FUNCTION win_satellites(real_space, k, m, rv, rs, hmod, cosm)
 
       ! Halo profile for satellite galaxies
-      IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7889,7 +7763,6 @@ CONTAINS
    REAL FUNCTION win_CIB(real_space, nu, k, m, rv, rs, hmod, cosm)
 
       ! Halo profile for all matter under the assumption that it is all CDM
-      IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: nu
       REAL, INTENT(IN) :: k
@@ -7944,7 +7817,6 @@ CONTAINS
 
       ! Grey body irradiance [W m^-2 Hz^-1 Sr^-1]
       USE physics
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu          ! Observing frequency [Hz]
       REAL, INTENT(IN) :: T           ! Grey body temperature [K]
       REAL, INTENT(IN) :: beta        ! Power-law index
@@ -7958,7 +7830,6 @@ CONTAINS
    REAL FUNCTION N_centrals(m, hmod)
 
       ! The number of central galaxies as a function of halo mass
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
 
@@ -7973,7 +7844,6 @@ CONTAINS
    REAL FUNCTION N_satellites(m, hmod)
 
       ! The number of satellite galxies as a function of halo mass
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
 
@@ -7988,7 +7858,6 @@ CONTAINS
    REAL FUNCTION N_galaxies(m, hmod)
 
       ! The number of central galaxies as a function of halo mass
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
 
@@ -7999,7 +7868,6 @@ CONTAINS
    REAL FUNCTION win_HI(real_space, k, m, rv, rs, hmod, cosm)
 
       ! Returns the real or Fourier space HI halo profile
-      IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space ! Real space or Fourier space
       REAL, INTENT(IN) :: k  ! Comoving wave vector (or radius)
       REAL, INTENT(IN) :: m  ! Halo mass
@@ -8081,8 +7949,7 @@ CONTAINS
       ! Halo physical virial temperature [K]
       ! Calculates the temperature as if pristine gas falls into the halo
       ! Energy is equally distributed between the particles
-      IMPLICIT NONE
-      REAL :: M              ! virial mass
+      REAL, INTENT(IN) :: M  ! virial mass
       REAL, INTENT(IN) :: rv ! virial radius
       REAL, INTENT(IN) :: a  ! scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! cosmology
@@ -8100,7 +7967,6 @@ CONTAINS
       ! Note *very* well that this is for *electron* pressure (see Arnaud 2010 and my notes on this)
       ! Note that is is also the physical pressure, and relates to the comoving pressure via (1+z)^3
       ! The units of the pressure profile are [eV/cm^3]
-      IMPLICIT NONE
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -8150,7 +8016,7 @@ CONTAINS
 
    END FUNCTION UPP
 
-   FUNCTION rho(r, rmin, rmax, rv, rs, p1, p2, irho)
+   REAL FUNCTION rho(r, rmin, rmax, rv, rs, p1, p2, irho)
 
       ! This is an UNNORMALISED halo profile of any sort
 
@@ -8186,8 +8052,6 @@ CONTAINS
       ! 27 - Modified NFW (Padmanabhan & Refregier 2018)
       ! 28 - Shell
 
-      IMPLICIT NONE
-      REAL :: rho
       REAL, INTENT(IN) :: r, rmin, rmax, rv, rs, p1, p2 ! Standard profile parameters
       INTEGER, INTENT(IN) :: irho
       REAL :: y, ct, t, c, beta, Gamma, r500c, rt, A, re, rstar, B, rb, r0, alpha, rh, eta0
@@ -8361,7 +8225,6 @@ CONTAINS
       ! This is the value of rho(r)*r^2 at r=0
       ! For most profiles this is zero, BUT not if rho(r->0) -> r^-2
       ! Note if rho(r->0) -> r^n with n<-2 then the profile mass would diverge!
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: irho
 
       IF (irho == 0) THEN
@@ -8378,7 +8241,7 @@ CONTAINS
 
    END FUNCTION rhor2at0
 
-   FUNCTION normalisation(rmin, rmax, rv, rs, p1, p2, irho)
+   REAL FUNCTION normalisation(rmin, rmax, rv, rs, p1, p2, irho)
 
       ! This calculates the normalisation of a halo
       ! This is the integral of 4pir^2*rho(r)*dr between rmin and rmax
@@ -8415,8 +8278,6 @@ CONTAINS
       ! 27 - No
       ! 28 - Shell (M = 4pi*rv^3)
 
-      IMPLICIT NONE
-      REAL :: normalisation
       REAL, INTENT(IN) :: rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: irho
       REAL :: cmax, re, rstar, beta, rb, c, b
@@ -8496,7 +8357,6 @@ CONTAINS
 
    REAL FUNCTION norm_NFW(rs, c)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: rs
       REAL, INTENT(IN) :: c
 
@@ -8543,7 +8403,6 @@ CONTAINS
       ! Calculates the normalised spherical Fourier Transform of the density profile
       ! Note that this means win_norm(k->0)=1
       ! and that win must be between 0 and 1
-      IMPLICIT NONE
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: rmin
       REAL, INTENT(IN) :: rmax
@@ -8622,7 +8481,6 @@ CONTAINS
 
    SUBROUTINE winint_speed_tests(k, nk, rmin, rmax, rv, rs, p1, p2, irho, base, ext)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk, irho
       REAL, INTENT(IN) :: k(nk), rmin, rmax, rv, rs, p1, p2
       CHARACTER(len=*), INTENT(IN) :: base
@@ -8706,7 +8564,6 @@ CONTAINS
    SUBROUTINE winint_diagnostics(rmin, rmax, rv, rs, p1, p2, irho, outfile)
 
       ! Write out the winint integrand as a function of k
-      IMPLICIT NONE
       REAL, INTENT(IN) :: rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: irho
       CHARACTER(len=256), INTENT(IN) :: outfile
@@ -8751,7 +8608,6 @@ CONTAINS
    REAL FUNCTION winint(k, rmin, rmax, rv, rs, p1, p2, irho, imeth)
 
       ! Calculates W(k,M)
-      IMPLICIT NONE
       REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: irho, imeth
 
@@ -8785,7 +8641,6 @@ CONTAINS
    REAL FUNCTION integrate_window_normal(a, b, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
 
       ! Integration routine using 'normal' method to calculate the normalised halo FT
-      IMPLICIT NONE
       REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: irho
       INTEGER, INTENT(IN) :: iorder
@@ -8877,9 +8732,8 @@ CONTAINS
 
    REAL FUNCTION integrate_window_store(a, b, k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc)
 
-      !Integrates between a and b until desired accuracy is reached
-      !Stores information to reduce function calls
-      IMPLICIT NONE
+      ! Integrates between a and b until desired accuracy is reached
+      ! Stores information to reduce function calls
       REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
       REAL, INTENT(IN) :: acc
       INTEGER, INTENT(IN) :: iorder, irho
@@ -8895,12 +8749,12 @@ CONTAINS
 
       IF (a == b) THEN
 
-         !Fix the answer to zero if the integration limits are identical
+         ! Fix the answer to zero if the integration limits are identical
          integrate_window_store = 0.
 
       ELSE
 
-         !Reset the sum variables for the integration
+         ! Reset the sum variables for the integration
          sum_2n = 0.d0
          sum_n = 0.d0
          sum_old = 0.d0
@@ -8908,16 +8762,16 @@ CONTAINS
 
          DO j = 1, jmax
 
-            !Note, you need this to be 1+2**n for some integer n
-            !j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+            ! Note, you need this to be 1+2**n for some integer n
+            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
             n = 1+2**(j-1)
 
-            !Calculate the dx interval for this value of 'n'
+            ! Calculate the dx interval for this value of 'n'
             dx = (b-a)/REAL(n-1)
 
             IF (j == 1) THEN
 
-               !The first go is just the trapezium of the end points
+               ! The first go is just the trapezium of the end points
                f1 = winint_integrand(a, rmin, rmax, rv, rs, p1, p2, irho)*sinc(a*k)
                f2 = winint_integrand(b, rmin, rmax, rv, rs, p1, p2, irho)*sinc(b*k)
                sum_2n = 0.5*(f1+f2)*dx
@@ -8925,17 +8779,17 @@ CONTAINS
 
             ELSE
 
-               !Loop over only new even points to add these to the integral
+               ! Loop over only new even points to add these to the integral
                DO i = 2, n, 2
                   x = progression(a, b, i, n)
                   fx = winint_integrand(x, rmin, rmax, rv, rs, p1, p2, irho)*sinc(x*k)
                   sum_2n = sum_2n+fx
                END DO
 
-               !Now create the total using the old and new parts
+               ! Now create the total using the old and new parts
                sum_2n = sum_n/2.+sum_2n*dx
 
-               !Now calculate the new sum depending on the integration order
+               ! Now calculate the new sum depending on the integration order
                IF (iorder == 1) THEN
                   sum_new = sum_2n
                ELSE IF (iorder == 3) THEN
@@ -8977,7 +8831,6 @@ CONTAINS
    REAL FUNCTION winint_bumps(k, rmin, rmax, rv, rs, p1, p2, irho, iorder, acc, imeth)
 
       ! Integration routine to calculate the normalised halo FT
-      IMPLICIT NONE
       REAL, INTENT(IN) :: k, rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: irho
       INTEGER, INTENT(IN) :: iorder, imeth
@@ -8990,7 +8843,7 @@ CONTAINS
       IF (rmin /= 0.) STOP 'WININT_BUMPS: Error, rmin must be zero'
 
       ! Calculate the number of nodes of sinc(k*rmax) for 0<=r<=rmax
-      n = FLOOR(k*rmax/pi)
+      n = floor(k*rmax/pi)
 
       ! Set the sum variable to zero
       sum = 0.
@@ -9050,7 +8903,6 @@ CONTAINS
 
       ! Approximate forms for the integral over the sine bump times a polynomial
       USE special_functions
-      IMPLICIT NONE
       REAL, INTENT(IN) :: rn, rm
       INTEGER, INTENT(IN) :: i
       REAL, INTENT(IN) :: k
@@ -9120,7 +8972,6 @@ CONTAINS
       ! An attempt to do an automatic combination of approximation and proper integration
       ! It turned out to be very slow
       USE special_functions
-      IMPLICIT NONE
       REAL, INTENT(IN) :: rn, rm
       INTEGER, INTENT(IN) :: i
       REAL, INTENT(IN) :: k
@@ -9162,12 +9013,10 @@ CONTAINS
 
    END FUNCTION winint_hybrid
 
-   FUNCTION winint_integrand(r, rmin, rmax, rv, rs, p1, p2, irho)
+   REAL FUNCTION winint_integrand(r, rmin, rmax, rv, rs, p1, p2, irho)
 
       !The integrand for the W(k) integral
       !Note that the sinc function is *not* included
-      IMPLICIT NONE
-      REAL :: winint_integrand
       REAL, INTENT(IN) :: r, rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: irho
 
@@ -9182,8 +9031,9 @@ CONTAINS
    REAL FUNCTION win_NFW(k, rv, rs)
 
       ! The analytic normalised (W(k=0)=1) Fourier Transform of the NFW profile
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k, rv, rs
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: rs
       REAL :: c, ks
       REAL :: p1, p2, p3
       REAL :: rmin, rmax
@@ -9207,8 +9057,10 @@ CONTAINS
 
       ! The analytic normalised (W(k=0)=1) Fourier Transform of the cored NFW profile
       ! Appendix A of Copeland, Taylor & Hall (1712.07112)
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k, rv, rs, rb
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: rs
+      REAL, INTENT(IN) :: rb
       REAL :: b, c
       REAL :: rmin, rmax
       INTEGER, PARAMETER :: irho = 24
@@ -9229,8 +9081,9 @@ CONTAINS
    REAL FUNCTION F_NFW(k, rv, c)
 
       ! Equation (A3; top) from Copeland, Taylor & Hall (1712.07112)
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k, rv, c
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: c
       REAL :: ks
 
       ks = k*rv/c
@@ -9242,8 +9095,9 @@ CONTAINS
    REAL FUNCTION G_NFW(k, rv, c)
 
       ! Equation (A3; bottom) from Copeland, Taylor & Hall (1712.07112)
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k, rv, c
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: c
       REAL :: ks
 
       ks = k*rv/c
@@ -9255,7 +9109,6 @@ CONTAINS
    REAL FUNCTION b_nu(nu, hmod)
 
       ! Bias function selection
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
 
@@ -9288,7 +9141,6 @@ CONTAINS
    REAL FUNCTION b_ps(nu, hmod)
 
       ! Press & Scheter (1974) halo bias
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
 
@@ -9302,7 +9154,6 @@ CONTAINS
       ! Comes from peak-background split
       ! Haloes defined with SO relative to mean matter density with SC Delta_v relation
       ! A redshift dependent delta_c is used for barrier height, again from SC
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: dc, p, q
@@ -9328,7 +9179,6 @@ CONTAINS
 
       ! Peak-background split applied to Tinker et al. (2008) mass function
       ! Note that the 2008 mass function is not normalised correctly, so this will not have the integral constraint
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: dc, sig!, bdash, cdash
@@ -9352,7 +9202,6 @@ CONTAINS
    REAL FUNCTION b_Tinker2010(nu, hmod)
 
       ! Tinker et al. (2010; 1001.3162) halo bias
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: dc
@@ -9373,7 +9222,6 @@ CONTAINS
 
       ! Bias from applying peak-background split to Jenkins (2001) mass function
       ! Haloes defined with FoF with b = 0.2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: x
@@ -9391,7 +9239,7 @@ CONTAINS
 
    REAL FUNCTION b_Warren(nu, hmod)
 
-      IMPLICIT NONE
+      ! Bias from peak-backgound split applied to Warren et al. (2006) mass function
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: sig, dc
@@ -9407,7 +9255,7 @@ CONTAINS
 
    REAL FUNCTION b_Reed(nu, hmod)
 
-      IMPLICIT NONE
+      ! Halo bias from peak-backgound split applied to Reed et al. (2007) mass function
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: crap
@@ -9424,7 +9272,6 @@ CONTAINS
 
       ! Bhattacharya et al. (2011; 1005.2239) mass function for FoF b = 0.2 haloes
       ! Bias derived using the peak-background split
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: f1, f2, f3, dc
@@ -9443,8 +9290,7 @@ CONTAINS
 
    REAL FUNCTION b2_nu(nu, hmod)
 
-      ! Bias function selection
-      IMPLICIT NONE
+      ! Second-order bias function selection
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
 
@@ -9463,7 +9309,6 @@ CONTAINS
    REAL FUNCTION b2_ps(nu, hmod)
 
       ! Press & Schechter (1974) second order bias
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: eps1, eps2, E1, E2, dc
@@ -9489,16 +9334,11 @@ CONTAINS
    REAL FUNCTION b2_st(nu, hmod)
 
       ! Sheth, Mo & Tormen (2001) second-order bias
-      IMPLICIT NONE
+      ! Notation follows from Cooray & Sheth (2002) pp 25-26
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: eps1, eps2, E1, E2, dc, p, q
-
-      ! Notation follows from Cooray & Sheth (2002) pp 25-26
-
       REAL, PARAMETER :: a2 = -17./21.
-      !REAL, PARAMETER :: p = 0.3
-      !REAL, PARAMETER :: q = 0.707
 
       p = hmod%ST_p
       q = hmod%ST_q
@@ -9516,7 +9356,6 @@ CONTAINS
    REAL RECURSIVE FUNCTION g_nu(nu, hmod)
 
       ! Mass function
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
 
@@ -9550,13 +9389,10 @@ CONTAINS
 
    REAL FUNCTION HMcode_AMF(hmod)
 
+      ! HMcode mass function amplitude
       TYPE(halomod), INTENT(IN) :: hmod
-      !REAL :: x
   
       HMcode_AMF = hmod%Amf+hmod%Amfz*hmod%z
-
-      !x = hmod%ncur
-      !HMcode_AMF = hmod%Amf+hmod%Amfz*x
 
    END FUNCTION HMcode_AMF
 
@@ -9565,7 +9401,6 @@ CONTAINS
       ! Mass function g(nu) times dnu/dmu = alpha*mu^(alpha-1); nu=mu^alpha
       ! This transformation makes the integral easier at low nu
       ! TODO: Implement a Taylor expansion for low nu/mu
-      IMPLICIT NONE
       REAL, INTENT(IN) :: mu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: nu, alpha
@@ -9581,7 +9416,6 @@ CONTAINS
    REAL FUNCTION g_ps(nu, hmod)
 
       ! Press & Scheter (1974) mass function!
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: crap
@@ -9601,7 +9435,6 @@ CONTAINS
       ! Haloes defined with SO relative to mean matter density with SC Delta_v relation
       ! A redshift dependent delta_c is used for barrier height, again from SC
       ! TODO: Implement a Taylor expansion for low nu
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: p, q, A
@@ -9628,7 +9461,6 @@ CONTAINS
    REAL FUNCTION g_Tinker2008(nu, hmod)
 
       ! Tinker et al. (2008; 0803.2706) mass function
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: bigA, a, b, c, sig
@@ -9648,7 +9480,6 @@ CONTAINS
    REAL FUNCTION g_Tinker2010(nu, hmod)
 
       ! Tinker et al. (2010; 1001.3162) mass function
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: alpha, beta, gamma, phi, eta
@@ -9668,7 +9499,6 @@ CONTAINS
 
       ! Mass function from astro-ph/0005260
       ! Haloes defined with FoF with b = 0.2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: x, crap
@@ -9686,7 +9516,6 @@ CONTAINS
 
       ! Warren et al. (2006; astro-ph/0506395) mass function for FoF = 0.2 haloes
       ! The paper claims that this relates to ~ 280x mean matter density haloes
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: sig
@@ -9706,7 +9535,6 @@ CONTAINS
 
       ! Reed et al. (2007; astro-ph/0607150) mass function
       ! NOTE: Paper contains typos in formulae in equations (10) and (12) be very careful
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: omeg, sig, G1, G2, f1, f2, f3, ne
@@ -9741,7 +9569,6 @@ CONTAINS
 
       ! Bhattacharya et al. (2011; 1005.2239) mass function for FoF b = 0.2 haloes
       ! Normalised such that all mass is in haloes
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: f1, f2, f3, crap
@@ -9764,7 +9591,6 @@ CONTAINS
    SUBROUTINE init_mass_function(hmod)
 
       ! Initialise anything to do with the halo mass function
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
 
       IF (hmod%imf == 2) THEN
@@ -9782,7 +9608,6 @@ CONTAINS
    SUBROUTINE init_ST(hmod)
 
       ! Normalises ST mass function
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: p, q
 
@@ -9799,7 +9624,6 @@ CONTAINS
    SUBROUTINE init_Tinker2008(hmod)
 
       ! Initialise the parameters of the Tinker et al. (2010) mass function and bias
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: bigA, a, b, c
       REAL :: z, log_Dv, alpha
@@ -9852,7 +9676,6 @@ CONTAINS
    SUBROUTINE init_Tinker2010(hmod)
 
       ! Initialise the parameters of the Tinker et al. (2010) mass function and bias
-      IMPLICIT NONE
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: alpha, beta, Gamma, phi, eta
       REAL :: z, log_Dv
@@ -9926,7 +9749,6 @@ CONTAINS
    REAL FUNCTION gb_nu(nu, hmod)
 
       ! g(nu)*b(nu); useful as an integrand
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu               ! Proxy mass variable
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
 
@@ -9937,7 +9759,6 @@ CONTAINS
    REAL FUNCTION gb_nu_on_M(nu, hmod)
 
       ! g(nu)*b(nu)/M(nu); useful as an integrand
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu               ! Proxy mass variable
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
 
@@ -9948,7 +9769,6 @@ CONTAINS
    REAL FUNCTION nug_nu(nu, hmod)
 
       ! nu*g(nu); useful as an integrand
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu               ! Proxy mass variable
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
 
@@ -9959,7 +9779,6 @@ CONTAINS
    REAL FUNCTION Mg_nu(nu, hmod)
 
       ! M(nu)*g(nu); useful as an integrand
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu               ! Proxy mass variable
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
 
@@ -9970,7 +9789,6 @@ CONTAINS
    REAL FUNCTION nug_nu_on_M(nu, hmod)
 
       ! nu*g(nu)/M(nu); useful as an integrand
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu               ! Proxy mass variable
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
 
@@ -9981,7 +9799,6 @@ CONTAINS
    REAL FUNCTION g_nu_on_M(nu, hmod)
 
       ! g(nu)/M(nu); useful as an integrand
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu               ! Proxy mass variable
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
 
@@ -9992,7 +9809,6 @@ CONTAINS
    FUNCTION wk_isothermal(x)
 
       ! The normlaised Fourier Transform of an isothermal profile
-      IMPLICIT NONE
       REAL :: wk_isothermal
       REAL, INTENT(IN) :: x
 
@@ -10012,7 +9828,6 @@ CONTAINS
    FUNCTION wk_isothermal_2(x, y)
 
       ! The normlaised Fourier Transform of an isothemral profile from x -> y
-      IMPLICIT NONE
       REAL :: wk_isothermal_2
       REAL, INTENT(IN) :: x, y
 
@@ -10023,7 +9838,6 @@ CONTAINS
    REAL FUNCTION halo_fraction(itype, m, hmod, cosm)
 
       ! Mass fraction of a type within a halo
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: itype
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -10063,7 +9877,6 @@ CONTAINS
    REAL FUNCTION halo_CDM_fraction(m, hmod, cosm)
 
       ! Mass fraction of a halo in CDM
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10081,7 +9894,6 @@ CONTAINS
    REAL FUNCTION halo_neutrino_fraction(m, hmod, cosm)
 
       ! Mass fraction of a halo in neutrinos
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10099,7 +9911,6 @@ CONTAINS
    REAL FUNCTION halo_gas_fraction(m, hmod, cosm)
 
       ! Mass fraction of a halo in gas
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10119,7 +9930,6 @@ CONTAINS
       ! Mass fraction of a halo in bound gas
       ! This function should NOT reference halo_star_fraction() otherwise infinite recursion generated
       ! TODO: may be wise to have the prefactor in all of these equations be: (Om_b/Om_m - f_*)
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10179,7 +9989,6 @@ CONTAINS
    REAL FUNCTION halo_normal_bound_gas_fraction(m, hmod, cosm)
 
       ! Mass fraction of total gas that is static and bound in haloes
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10202,7 +10011,6 @@ CONTAINS
    REAL FUNCTION halo_cold_bound_gas_fraction(m, hmod, cosm)
 
       ! Mass fraction of total gas that is cold and bound in haloes
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10227,7 +10035,6 @@ CONTAINS
    REAL FUNCTION halo_hot_bound_gas_fraction(m, hmod, cosm)
 
       ! Mass fraction of total gas that is hot and bound in haloes
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10253,7 +10060,6 @@ CONTAINS
 
       ! Mass fraction of a halo in free gas
       ! This fucntion can reference halo_bound_gas_fraction() and halo_star_fraction()
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10277,7 +10083,6 @@ CONTAINS
       ! Mass fraction of a halo in stars
       ! This fucntion can reference halo_bound_gas_fraction()
       ! TODO: Remove calls to halo_bound_gas fraction to remove infinite recursions
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10324,7 +10129,6 @@ CONTAINS
    REAL FUNCTION halo_central_star_fraction(m, hmod, cosm)
 
       ! Mass fraction of a halo in central stars
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10358,7 +10162,6 @@ CONTAINS
    REAL FUNCTION halo_satellite_star_fraction(m, hmod, cosm)
 
       ! Mass fraction of a halo in satellite stars
-      IMPLICIT NONE
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -10371,7 +10174,6 @@ CONTAINS
 
       ! Dimensionless M_HI/M_halo
       ! TODO: This should probably be related to the cold gas fraction
-      IMPLICIT NONE
       REAL, INTENT(IN) :: M ! Host-halo mass
       TYPE(halomod), INTENT(INOUT) :: hmod ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
@@ -10460,7 +10262,6 @@ CONTAINS
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
       REAL, EXTERNAL :: f
@@ -10570,7 +10371,6 @@ CONTAINS
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
       REAL, EXTERNAL :: f
@@ -10683,7 +10483,6 @@ CONTAINS
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
       REAL, EXTERNAL :: f
@@ -10796,7 +10595,6 @@ CONTAINS
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
-      IMPLICIT NONE
       REAL, INTENT(IN) :: c
       REAL, INTENT(IN) :: dc
       INTEGER, INTENT(IN) :: ih(2)
@@ -10903,40 +10701,9 @@ CONTAINS
 
    END FUNCTION integrate_scatter
 
-   REAL FUNCTION scatter_integrand(c, mean_c, sigma_lnc, ih, k, m, rv, hmod, cosm)
-
-      ! Integrand for computing halo profiles with scatter
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: c
-      REAL, INTENT(IN) :: mean_c
-      REAL, INTENT(IN) :: sigma_lnc
-      INTEGER, INTENT(IN) :: ih(2)
-      REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: rv
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: wk(2), pc, rs
-      INTEGER :: j
-      LOGICAL, PARAMETER :: real_space = .FALSE. ! Fourier profiles
-
-      ! Halo profiles
-      DO j = 1, 2
-         rs = rv/c
-         wk(j) = win(real_space, ih(j), k, m, rv, rs, hmod, cosm)
-      END DO
-
-      ! Probability distribution
-      pc = lognormal_distribution(c, mean_c, sigma_lnc)
-
-      ! The full integrand
-      scatter_integrand = wk(1)*wk(2)*pc
-
-   END FUNCTION scatter_integrand
-
    SUBROUTINE write_power(k, pow_li, pow_2h, pow_1h, pow_hm, nk, output, verbose)
 
-      IMPLICIT NONE
+      ! Write power spectrum of all terms
       INTEGER, INTENT(IN) :: nk
       REAL, INTENT(IN) :: k(nk)
       REAL, INTENT(IN) :: pow_li(nk)
@@ -10967,7 +10734,7 @@ CONTAINS
 
    SUBROUTINE write_power_fields(k, pow_li, pow_2h, pow_1h, pow_hm, nk, fields, nf, base, verbose)
 
-      IMPLICIT NONE
+      ! Write power spectrum when differnet fields are present
       INTEGER, INTENT(IN) :: nk
       INTEGER, INTENT(IN) :: nf
       REAL, INTENT(IN) :: k(nk)
@@ -11001,7 +10768,7 @@ CONTAINS
 
    SUBROUTINE write_power_a_multiple(k, a, pow_li, pow_2h, pow_1h, pow_hm, nk, na, base, verbose)
 
-      IMPLICIT NONE
+      ! Write power spectrum over k and a for all halo-model terms
       INTEGER, INTENT(IN) :: nk
       INTEGER, INTENT(IN) :: na
       REAL, INTENT(IN) :: k(nk)
@@ -11045,7 +10812,7 @@ CONTAINS
 
    SUBROUTINE write_power_a(k, a, pow, nk, na, output, verbose)
 
-      IMPLICIT NONE
+      ! Write power spectrum over k and a
       INTEGER, INTENT(IN) :: nk
       INTEGER, INTENT(IN) :: na
       REAL, INTENT(IN) :: k(nk)
