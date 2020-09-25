@@ -101,8 +101,8 @@ MODULE HMx
    PUBLIC :: HMcode2020_feedback
 
    ! HMx versions
-   PUBLIC :: HMx2020_matter_with_temperature_scaling
-   PUBLIC :: HMx2020_matter_pressure_with_temperature_scaling
+   PUBLIC :: HMx2020_matter_w_temp_scaling
+   PUBLIC :: HMx2020_matter_pressure_w_temp_scaling
 
    ! HMx functions
    PUBLIC :: HMx_alpha
@@ -567,8 +567,8 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2020_feedback = 103
 
    ! HMx versions
-   INTEGER, PARAMETER :: HMx2020_matter_with_temperature_scaling = 60
-   INTEGER, PARAMETER :: HMx2020_matter_pressure_with_temperature_scaling = 61
+   INTEGER, PARAMETER :: HMx2020_matter_w_temp_scaling = 60
+   INTEGER, PARAMETER :: HMx2020_matter_pressure_w_temp_scaling = 61
 
 CONTAINS
 
@@ -1736,8 +1736,8 @@ CONTAINS
             hmod%eta = -0.35052
             hmod%mstarz = -0.30727
          ELSE IF (ihm == 59 &
-                  .OR. ihm == HMx2020_matter_with_temperature_scaling &
-                  .OR. ihm == HMx2020_matter_pressure_with_temperature_scaling) THEN      
+                  .OR. ihm == HMx2020_matter_w_temp_scaling &
+                  .OR. ihm == HMx2020_matter_pressure_w_temp_scaling) THEN      
             ! 59 - HMx2020 with temperature scaling that fits stars
             ! 60 - HMx2020 with temperature scaling that fits matter (stars fixed)
             ! 61 - HMx2020 with temperature scaling that fits matter, pressure (stars fixed)
@@ -1748,14 +1748,14 @@ CONTAINS
             hmod%Astarz_array = [-0.0093, -0.0088, -0.0082]
             hmod%eta_array = [-0.3428, -0.3556, -0.3505]
             hmod%Mstarz_array = [-0.3664, -0.3521, -0.3073]           
-            IF(ihm == HMx2020_matter_with_temperature_scaling) THEN
+            IF(ihm == HMx2020_matter_w_temp_scaling) THEN
                ! 60 - Additionally fits matter-matter
                hmod%eps_array = [0.2841, 0.2038, 0.0526]
                hmod%Gamma_array = 1.+[0.2363, 0.3376, 0.6237]
                hmod%M0_array = 10**[13.0020, 13.3658, 14.0226]
                hmod%epsz_array = [-0.0046, -0.0047, 0.0365]
             END IF
-            IF(ihm == HMx2020_matter_pressure_with_temperature_scaling) THEN
+            IF(ihm == HMx2020_matter_pressure_w_temp_scaling) THEN
                ! 61 - Additionally fits matter, pressure
                hmod%alpha_array = [0.76425, 0.84710, 1.03136]
                hmod%eps_array = [-0.10017, -0.10650, -0.12533]
@@ -3161,10 +3161,10 @@ CONTAINS
       REAL, INTENT(IN) :: k(nk)         ! k array [h/Mpc]
       INTEGER, INTENT(IN) :: na         ! Number of a points
       REAL, INTENT(IN) :: a(na)         ! a array
-      REAL, ALLOCATABLE, INTENT(OUT) :: pow_li(:, :)       ! Pow(k,a)
-      REAL, ALLOCATABLE, INTENT(OUT) :: pow_2h(:, :, :, :) ! Pow(f1,f2,k,a)
-      REAL, ALLOCATABLE, INTENT(OUT) :: pow_1h(:, :, :, :) ! Pow(f1,f2,k,a)
-      REAL, ALLOCATABLE, INTENT(OUT) :: pow_hm(:, :, :, :) ! Pow(f1,f2,k,a)
+      REAL, INTENT(OUT) :: pow_li(:, :)       ! Pow(k,a)
+      REAL, INTENT(OUT) :: pow_2h(:, :, :, :) ! Pow(f1,f2,k,a)
+      REAL, INTENT(OUT) :: pow_1h(:, :, :, :) ! Pow(f1,f2,k,a)
+      REAL, INTENT(OUT) :: pow_hm(:, :, :, :) ! Pow(f1,f2,k,a)
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       LOGICAL, INTENT(IN) :: verbose
@@ -3174,15 +3174,6 @@ CONTAINS
 
       ! To avoid splurge of stuff printed to screen
       verbose2 = verbose
-
-      ! Deallocate arrays if they are already allocated
-      IF (ALLOCATED(pow_li)) DEALLOCATE (pow_li)
-      IF (ALLOCATED(pow_2h)) DEALLOCATE (pow_2h)
-      IF (ALLOCATED(pow_1h)) DEALLOCATE (pow_1h)
-      IF (ALLOCATED(pow_hm)) DEALLOCATE (pow_hm)
-
-      ! Allocate power arrays
-      ALLOCATE (pow_li(nk, na), pow_2h(nf, nf, nk, na), pow_1h(nf, nf, nk, na), pow_hm(nf, nf, nk, na))
 
       ! Do the halo-model calculation by looping over scale factor index
       ! TODO: Why does this loop backwards. Is it to do with the write-to-screen command?
