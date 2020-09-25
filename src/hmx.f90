@@ -3073,7 +3073,7 @@ CONTAINS
       LOGICAL :: verbose
       LOGICAL, PARAMETER :: verbose_here = .FALSE.
 
-      CALL assign_halomod(ihm ,hmod, verbose_here)
+      CALL assign_halomod(ihm, hmod, verbose_here)
 
       ALLOCATE(pow_li(nk, na), pow_2h(nf, nf, nk, na), pow_1h(nf, nf, nk, na), pow_hm(nf, nf, nk, na))
 
