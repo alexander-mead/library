@@ -1811,7 +1811,7 @@ CONTAINS
          ! 104 - Baryon model using HMx language
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
-         hmod%itrans = 5  ! 5 - HMcode 2020 alpha smoothing
+         hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
          hmod%i2hdamp = 3 ! 3 - fdamp for perturbation theory      
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
          hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
@@ -2422,7 +2422,7 @@ CONTAINS
          IF (hmod%itrans == 2) WRITE (*, *) 'HALOMODEL: Experimental smoothed transition'
          IF (hmod%itrans == 3) WRITE (*, *) 'HALOMODEL: Experimental smoothed transition for HMx (2.5 exponent)'
          IF (hmod%itrans == 4) WRITE (*, *) 'HALOMODEL: Tanh transition with k_nl'
-         IF (hmod%itrans == 5) WRITE (*, *) 'HALOMODEL: HMcode (2020) smoothed transition'
+         IF (hmod%itrans == 5) WRITE (*, *) 'HALOMODEL: Experimental smoothed transition 2'
 
          ! Response
          IF (hmod%response_baseline .NE. 0) THEN
@@ -3104,21 +3104,21 @@ CONTAINS
    SUBROUTINE calculate_HMx_old(ifield, nf, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
 
       ! Public facing function, calculates the halo model power for k and a range
-      ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed?
-      ! TODO: Remove
-      INTEGER, INTENT(IN) :: nf         ! Number of different fields
-      INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
-      INTEGER, INTENT(IN) :: nk         ! Number of k points
-      REAL, INTENT(IN) :: k(nk)         ! k array [h/Mpc]
-      INTEGER, INTENT(IN) :: na         ! Number of a points
-      REAL, INTENT(IN) :: a(na)         ! a array
-      REAL, INTENT(OUT) :: pow_li(:, :)       ! Pow(k,a)
-      REAL, INTENT(OUT) :: pow_2h(:, :, :, :) ! Pow(f1,f2,k,a)
-      REAL, INTENT(OUT) :: pow_1h(:, :, :, :) ! Pow(f1,f2,k,a)
-      REAL, INTENT(OUT) :: pow_hm(:, :, :, :) ! Pow(f1,f2,k,a)
-      TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      LOGICAL, INTENT(IN) :: verbose
+      ! TODO: Change (:, :, k, a) to (k, a, :, :) for speed?
+      ! TODO: Change name to calculate_HMx_manual? Tilman needs this routine still so do not remove it
+      INTEGER, INTENT(IN) :: nf               ! Number of different fields
+      INTEGER, INTENT(IN) :: ifield(nf)       ! Indices for different fields
+      INTEGER, INTENT(IN) :: nk               ! Number of k points
+      REAL, INTENT(IN) :: k(nk)               ! k array [h/Mpc]
+      INTEGER, INTENT(IN) :: na               ! Number of a points
+      REAL, INTENT(IN) :: a(na)               ! a array
+      REAL, INTENT(OUT) :: pow_li(:, :)       ! Pow(k, a)
+      REAL, INTENT(OUT) :: pow_2h(:, :, :, :) ! Pow(f1, f2, k, a)
+      REAL, INTENT(OUT) :: pow_1h(:, :, :, :) ! Pow(f1, f2, k, a)
+      REAL, INTENT(OUT) :: pow_hm(:, :, :, :) ! Pow(f1, f2, k, a)
+      TYPE(halomod), INTENT(INOUT) :: hmod    ! Halo model
+      TYPE(cosmology), INTENT(INOUT) :: cosm  ! Cosmology
+      LOGICAL, INTENT(IN) :: verbose          ! Verbosity
       REAL :: z
       INTEGER :: i, j
       LOGICAL :: verbose2
@@ -4760,8 +4760,7 @@ END FUNCTION scatter_integrand
             HMcode_alpha = (hmod%alp0*hmod%alp1**n_eff)**2.5
          END IF
       ELSE IF (hmod%itrans == 5) THEN
-         ! HMcode 2020 
-         ! TODO: Same as itrans=2 above            
+         ! Experimental smoothed transition           
          !x = sigma(8., hmod%a, flag_ucold, cosm)
          !n_eff = effective_index(hmod%flag_sigma, hmod, cosm)
          n_eff = hmod%neff
