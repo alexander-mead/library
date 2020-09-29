@@ -435,9 +435,9 @@ MODULE HMx
    REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass force  BNL to zero
    REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass force  BNL to zero
    LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
-   LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Fix a minimum value for B_NL
+   LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Force a minimum value for B_NL
    REAL, PARAMETER :: min_bnl = -1.                 ! Minimum value that BNL is allowed to be (could be below -1 ...)
-   INTEGER, PARAMETER :: iorder_bnl = 1             ! Linear interpolation
+   INTEGER, PARAMETER :: iorder_bnl = 1             ! 1 -  Linear interpolation
    INTEGER, PARAMETER :: iextrap_bnl = iextrap_std  ! Standard extrapolation
    LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
    REAL, PARAMETER :: eps_ztol_bnl = 1e-2           ! How far off can the redshift be?
