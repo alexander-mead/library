@@ -70,9 +70,9 @@ CONTAINS
 
    CHARACTER(len=8) FUNCTION real_to_string(x, pre_decimal, post_decimal)
 
-      REAL, INTENT(IN) :: x
-      INTEGER, INTENT(IN) :: pre_decimal
-      INTEGER, INTENT(IN) :: post_decimal
+      REAL, INTENT(IN) :: x               ! Real number to convert to string
+      INTEGER, INTENT(IN) :: pre_decimal  ! Number of characters pre decimal point
+      INTEGER, INTENT(IN) :: post_decimal ! Number of characters post decimal point
       CHARACTER(len=8) :: fmt
 
       IF (pre_decimal < 0 .OR. post_decimal < 0) THEN
