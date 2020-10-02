@@ -11,6 +11,7 @@ PROGRAM cosmology_functions_demo
    REAL :: t1, t2, t3, t4, xi
    REAL :: crap
    REAL :: sigv, sigv100
+   REAL :: P_11, P_13, P_22
    INTEGER :: i
    CHARACTER(len=256) :: cosmo
 
@@ -23,6 +24,7 @@ PROGRAM cosmology_functions_demo
    LOGICAL, PARAMETER :: test_sigmaV = .TRUE.
    LOGICAL, PARAMETER :: test_neff = .TRUE.
    LOGICAL, PARAMETER :: test_ncur = .FALSE.
+   LOGICAL, PARAMETER :: test_loop = .FALSE.
 
    REAL, PARAMETER :: amin = 1e-5
    REAL, PARAMETER :: amax = 1
@@ -278,6 +280,16 @@ PROGRAM cosmology_functions_demo
       WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Time for ncur [s]:', t2-t1
       WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: ncur done'
       WRITE (*, *)
+   END IF
+
+   IF (test_loop) THEN
+      k = 0.1
+      a = 1.
+      P_11 = plin(k, a, flag_matter, cosm)
+      P_13 = P_SPT_13(k, a, cosm)
+      P_22 = 0.
+      WRITE(*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Loop:', P_11, P_13, P_22
+      WRITE(*, *)
    END IF
 
 END PROGRAM cosmology_functions_demo
