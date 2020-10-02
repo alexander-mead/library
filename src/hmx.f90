@@ -337,16 +337,16 @@ MODULE HMx
       CHARACTER(len=256) :: name
       INTEGER :: HMx_mode
 
-      ! Mass function and bias parameters
+      ! Halo mass function and linear halo bias
       REAL :: Tinker_bigA, Tinker_a, Tinker_b, Tinker_c
       REAL :: Tinker_alpha, Tinker_beta, Tinker_gamma, Tinker_phi, Tinker_eta
       REAL :: alpha_numu
       REAL :: ST_p, ST_q, ST_A, Amf, Amfz
       LOGICAL :: has_mass_function
 
-      ! Non-linear halo bias parameters
-      TYPE(interpolator3D) :: bnl
-      LOGICAL :: has_bnl = .FALSE.
+      ! Non-linear halo bias
+      TYPE(interpolator3D) :: bnl, bnl_lownu
+      LOGICAL :: has_bnl
 
    END TYPE halomod
 
@@ -438,13 +438,15 @@ MODULE HMx
    LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Force a minimum value for B_NL
    REAL, PARAMETER :: min_bnl = -1.                 ! Minimum value that BNL is allowed to be (could be below -1 ...)
    INTEGER, PARAMETER :: iorder_bnl = 1             ! 1 -  Linear interpolation
-   INTEGER, PARAMETER :: iextrap_bnl = iextrap_std  ! Standard extrapolation
+   INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin  ! Linear extrapolation
    LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
    REAL, PARAMETER :: eps_ztol_bnl = 1e-2           ! How far off can the redshift be?
-   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_rockstar'
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_BDMV'
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_rockstar'
+   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_BDMV'
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_lowsig8_rockstar'
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
+   LOGICAL, PARAMETER :: stitch_bnl = .FALSE.
+   CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
 
    ! Field types
    INTEGER, PARAMETER :: field_dmonly = 1
@@ -4115,7 +4117,11 @@ END FUNCTION scatter_integrand
       ELSE IF (nu1 > numax .OR. nu2 > numax) THEN
          BNL = 0.
       ELSE
-         BNL = evaluate_interpolator(kk, nu1, nu2, hmod%bnl)
+         IF (stitch_bnl .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
+            BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu)
+         ELSE
+            BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl)
+         END IF
       END IF
 
       ! Halo exclusion
@@ -4132,81 +4138,114 @@ END FUNCTION scatter_integrand
       ! Initialisation for the non-linear halo bias term
       ! TODO: Interpolate between redshifts
       TYPE(halomod), INTENT(INOUT) :: hmod
-      INTEGER :: i, ibin, jbin, ik
-      INTEGER :: nbin, nk
+      INTEGER :: i, j, ibin, jbin, ik
+      INTEGER :: nbin, nk, nbnl
       REAL :: crap
       REAL, ALLOCATABLE :: k(:), nu(:), B(:, :, :)
-      CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext
-      CHARACTER(len=256), PARAMETER :: base = base_bnl
+      CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext, base
       REAL, PARAMETER :: eps = eps_ztol_bnl
 
       WRITE (*, *) 'INIT_BNL: Running'
 
-      ! Read in the nu values from the binstats file
-      IF (requal(hmod%z, 0.00, eps)) THEN
-         IF(string_in_string('Bolshoi', base)) THEN
-            inbase = trim(base)//'_416'
-         ELSE         
-            inbase = trim(base)//'_85'
-         END IF
-      ELSE IF (requal(hmod%z, 0.53, eps)) THEN
-         inbase = trim(base)//'_62'
-      ELSE IF (requal(hmod%z, 0.69, eps)) THEN
-         inbase = trim(base)//'_58'
-      ELSE IF (requal(hmod%z, 1.00, eps)) THEN
-         inbase = trim(base)//'_52'
-      ELSE IF (requal(hmod%z, 2.89, eps)) THEN
-         inbase = trim(base)//'_36'
+      IF (stitch_bnl) THEN
+         nbnl = 2
       ELSE
-         STOP 'INIT_BNL: Error, your redshift is not supported'
+         nbnl = 1
       END IF
 
-      ! Read in the nu values of the bins
-      infile = trim(inbase)//'_binstats.dat'
-      nbin = file_length(infile)
-      WRITE (*, *) 'INIT_BNL: Number of nu bins: ', nbin
-      ALLOCATE(nu(nbin))
-      WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
-      OPEN (7, file=infile)
-      DO i = 1, nbin
-         READ (7, *) crap, crap, crap, crap, crap, nu(i)
-         WRITE (*, *) 'INIT_BNL: nu bin', i, nu(i)
-      END DO
-      CLOSE (7)
-      WRITE (*, *) 'INIT_BNL: Done with nu'
+      DO j = 1, nbnl
 
-      ! Read in k and Bnl(k,nu1,nu2)
-      infile = trim(inbase)//'_bin1_bin1_power.dat'
-      nk = file_length(infile)
-      WRITE (*, *) 'INIT_BNL: Number of k values: ', nk
-      ALLOCATE(k(nk), B(nk, nbin, nbin))
-      DO ibin = 1, nbin
-         DO jbin = 1, nbin
-            fbase = trim(inbase)//'_bin'
-            fmid = '_bin'
-            fext = '_power.dat'
-            infile = number_file2(fbase, ibin, fmid, jbin, fext)
-            WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
-            OPEN (7, file=infile)
-            DO ik = 1, nk
-               READ (7, *) k(ik), crap, crap, crap, crap, B(ik, ibin, jbin)
-            END DO
-            CLOSE (7)
+         IF (j == 1) THEN
+            base = base_bnl
+         ELSE IF (j == 2) THEN
+            base = base_bnl_lownu
+         ELSE
+            STOP 'INIT_BNL: Error, something went very wrong'
+         END IF
+
+         ! Read in the nu values from the binstats file
+         IF (requal(hmod%z, 0.00, eps)) THEN
+            IF(string_in_string('Bolshoi', base)) THEN
+               inbase = trim(base)//'_416'
+            ELSE         
+               inbase = trim(base)//'_85'
+            END IF
+         ELSE IF (requal(hmod%z, 0.53, eps)) THEN
+            inbase = trim(base)//'_62'
+         ELSE IF (requal(hmod%z, 0.69, eps)) THEN
+            inbase = trim(base)//'_58'
+         ELSE IF (requal(hmod%z, 1.00, eps)) THEN
+            inbase = trim(base)//'_52'
+         ELSE IF (requal(hmod%z, 2.89, eps)) THEN
+            inbase = trim(base)//'_36'
+         ELSE
+            STOP 'INIT_BNL: Error, your redshift is not supported'
+         END IF
+
+         ! Read in the nu values of the bins
+         infile = trim(inbase)//'_binstats.dat'
+         nbin = file_length(infile)
+         WRITE (*, *) 'INIT_BNL: Number of nu bins: ', nbin
+         IF(ALLOCATED(nu)) DEALLOCATE(nu)
+         ALLOCATE(nu(nbin))
+         WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
+         OPEN (7, file=infile)
+         DO i = 1, nbin
+            READ (7, *) crap, crap, crap, crap, crap, nu(i)
+            WRITE (*, *) 'INIT_BNL: nu bin', i, nu(i)
          END DO
+         CLOSE (7)
+         WRITE (*, *) 'INIT_BNL: Done with nu'
+
+         ! Read in k and Bnl(k, nu1, nu2)
+         infile = trim(inbase)//'_bin1_bin1_power.dat'
+         nk = file_length(infile)
+         WRITE (*, *) 'INIT_BNL: Number of k values: ', nk
+         IF(ALLOCATED(k)) DEALLOCATE(k)
+         IF(ALLOCATED(B)) DEALLOCATE(B)
+         ALLOCATE(k(nk), B(nk, nbin, nbin))
+         DO ibin = 1, nbin
+            DO jbin = 1, nbin
+               fbase = trim(inbase)//'_bin'
+               fmid = '_bin'
+               fext = '_power.dat'
+               infile = number_file2(fbase, ibin, fmid, jbin, fext)
+               WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
+               OPEN (7, file=infile)
+               DO ik = 1, nk
+                  READ (7, *) k(ik), crap, crap, crap, crap, B(ik, ibin, jbin)
+               END DO
+               CLOSE (7)
+            END DO
+         END DO
+
+         ! Convert from Y_NL to B_NL
+         B = B-1.
+
+         ! Initialise interpolator
+         IF (j == 1) THEN
+            CALL init_interpolator(k, nu, nu, B, hmod%Bnl, &
+               iorder = iorder_bnl, &
+               iextrap = iextrap_bnl, &
+               store = store_bnl, &
+               logx = .TRUE., &
+               logy = .FALSE., &
+               logz = .FALSE., &
+               logf = .FALSE.)
+         ELSE IF (j == 2) THEN
+            CALL init_interpolator(k, nu, nu, B, hmod%Bnl_lownu, &
+               iorder = iorder_bnl, &
+               iextrap = iextrap_bnl, &
+               store = store_bnl, &
+               logx = .TRUE., &
+               logy = .FALSE., &
+               logz = .FALSE., &
+               logf = .FALSE.)
+         ELSE
+            STOP 'INIT_BNL: Error, something went very wrong'
+         END IF
+
       END DO
-
-      ! Convert from Y_NL to B_NL
-      B = B-1.
-
-      ! Initialise interpolator
-      CALL init_interpolator(k, nu, nu, B, hmod%Bnl, &
-         iorder = iorder_bnl, &
-         iextrap = iextrap_bnl, &
-         store = store_bnl, &
-         logx = .TRUE., &
-         logy = .FALSE., &
-         logz = .FALSE., &
-         logf = .FALSE.)
 
       ! Change flag
       hmod%has_bnl = .TRUE.
