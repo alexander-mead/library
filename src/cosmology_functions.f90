@@ -151,6 +151,9 @@ MODULE cosmology_functions
    PUBLIC :: HALOFIT_Takahashi
    PUBLIC :: HALOFIT_CAMB
    PUBLIC :: HALOFIT_CLASS
+
+   ! Perturbation theory
+   PUBLIC :: P_SPT_13
    
    INTERFACE integrate_cosm
       MODULE PROCEDURE integrate_cosm_1
@@ -7801,5 +7804,53 @@ CONTAINS
       END IF
 
    END SUBROUTINE calculate_psmooth
+
+   REAL FUNCTION P_SPT_13(k, a, cosm)
+
+      ! The P_13 contribution to the non-linear power from SPT
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: P_11
+      REAL, PARAMETER :: ymin = 0.
+      REAL, PARAMETER :: ymax = 1.
+      INTEGER, PARAMETER :: flag = flag_matter
+      REAL, PARAMETER :: acc = acc_cosm
+      INTEGER, PARAMETER :: iorder = 3
+
+      STOP 'P_SPT_13: This does not work'
+
+      ! Equation (C14) of https://arxiv.org/abs/astro-ph/0609547
+      P_SPT_13 = integrate_cosm(ymin, ymax, P_13_integrand, k, a, cosm, acc_cosm, iorder)
+      P_11 = Plin(k, a, flag, cosm)
+      P_SPT_13 = P_11*P_SPT_13
+
+   END FUNCTION P_SPT_13
+
+   REAL FUNCTION P_13_integrand(y, k, a, cosm)
+
+      ! Integrand to compute the SPT P_13 contribution
+      ! I think that this integral is a mess
+      REAL, INTENT(IN) :: y
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: x, q, f1, f2, P_11
+      INTEGER, PARAMETER :: flag = flag_matter
+
+      ! Equation (C14) of https://arxiv.org/abs/astro-ph/0609547
+      ! Transformed x = -1.+1./y to make integration interval finite
+      IF (y == 0. .OR. y == 1.) THEN
+         P_13_integrand = 0.
+      ELSE
+         x = -1.+1./y
+         q = x*k
+         P_11 = Pk_Delta(Plin(q, a, flag, cosm), k)
+         f1 = (12./x**2-158.+100.*x**2-42.*x**4)
+         f2 = 3.*(7.*x**2+2.)*(x**2-1.)/x**3
+         P_13_integrand = P_11*(f1+f2)/(252.*y**2)
+      END IF
+
+   END FUNCTION P_13_integrand
 
 END MODULE cosmology_functions
