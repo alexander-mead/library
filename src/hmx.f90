@@ -441,11 +441,12 @@ MODULE HMx
    INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin  ! Linear extrapolation
    LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
    REAL, PARAMETER :: eps_ztol_bnl = 1e-2           ! How far off can the redshift be?
+   LOGICAL, PARAMETER :: stitch_bnl = .FALSE.       ! Do we stich a low-nu B_NL measurement to a high-nu one
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_rockstar'
-   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_BDMV'
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_BDMV'
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_lowsig8_rockstar'
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
-   LOGICAL, PARAMETER :: stitch_bnl = .FALSE.
+   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL_measured_plin/M512/MDR1_BDMV'
    CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
 
    ! Field types
