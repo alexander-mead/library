@@ -311,6 +311,9 @@ MODULE HMx
       LOGICAL :: DMONLY_baryon_recipe, DMONLY_neutrino_halo_mass_correction
       LOGICAL :: DMONLY_neutrinos_affect_virial_radius
 
+      ! HMcode (2015) one-parameter baryon model (A, eta0)
+      LOGICAL :: one_parameter_baryons
+
       ! HMcode (2020) parameters
       REAL :: kd, kdp, Ap, Ac, kp, nd, alp2, fM, fD, zD, Az
       REAL :: mbar, nbar, sbar, mbarz, sbarz
@@ -326,8 +329,7 @@ MODULE HMx
       INTEGER :: frac_central_stars, frac_stars, frac_HI
       INTEGER :: frac_bound_gas, frac_cold_bound_gas, frac_hot_bound_gas
 
-      LOGICAL :: one_parameter_baryons
-
+      ! Different 'has' logicals
       LOGICAL :: has_HI, has_galaxies, has_mass_conversions, safe_negative
 
       LOGICAL :: simple_pivot
@@ -345,7 +347,8 @@ MODULE HMx
       LOGICAL :: has_mass_function
 
       ! Non-linear halo bias
-      TYPE(interpolator3D) :: bnl, bnl_lownu
+      TYPE(interpolator3D) :: bnl, bnl_lownu, bnl_lowk, bnl_lownu_lowk
+      INTEGER :: iextrap_bnl
       LOGICAL :: has_bnl
 
    END TYPE halomod
@@ -431,23 +434,27 @@ MODULE HMx
    ! Non-linear halo bias
    LOGICAL, PARAMETER :: add_I_11 = .TRUE.          ! Add integral below numin, numin in halo model calculation
    LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE. ! Add integral below numin in halo model calculation
-   REAL, PARAMETER :: kmin_bnl = 3e-2               ! Below this wavenumber force BNL to zero
-   REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass force  BNL to zero
-   REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass force  BNL to zero
+   REAL, PARAMETER :: kmin_bnl = 3e-2               ! Below this wavenumber force B_NL to zero
+   REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass force  B_NL to zero
+   REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass force  B_NL to zero
    LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
    LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Force a minimum value for B_NL
-   REAL, PARAMETER :: min_bnl = -1.                 ! Minimum value that BNL is allowed to be (could be below -1 ...)
-   INTEGER, PARAMETER :: iorder_bnl = 1             ! 1 -  Linear interpolation
+   REAL, PARAMETER :: min_bnl = -1.                 ! Minimum value that B_NL is allowed to be (could be below -1 ...)
+   INTEGER, PARAMETER :: iorder_bnl = 1             ! 1 - Linear interpolation
    INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin  ! Linear extrapolation
    LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
    REAL, PARAMETER :: eps_ztol_bnl = 1e-2           ! How far off can the redshift be?
-   LOGICAL, PARAMETER :: stitch_bnl = .FALSE.       ! Do we stich a low-nu B_NL measurement to a high-nu one
+   LOGICAL, PARAMETER :: stitch_bnl_nu = .TRUE.     ! Do we stich a low and high nu B_NL measurements
+   LOGICAL, PARAMETER :: stitch_bnl_k = .TRUE.      ! Do we stich a low and high k B_NL measurements
+   REAL, PARAMETER :: k_stitch_bnl = 0.1            ! Wavenumber at which to stitch the B_NL measurements together [h/Mpc] 
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_rockstar'
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_BDMV'
+   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_BDMV'
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_lowsig8_rockstar'
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
-   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL_measured_plin/M512/MDR1_BDMV'
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL_measured_plin/M512/MDR1_BDMV'
    CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
+   CHARACTER(len=256), PARAMETER :: base_bnl_lowk = '/Users/Mead/Physics/Multidark/data/BNL_measured_plin/M512/MDR1_BDMV'
+   CHARACTER(len=256), PARAMETER :: base_bnl_lownu_lowk = '/Users/Mead/Physics/Multidark/data/BNL_measured_pnl/M512/Bolshoi_BDMV'
 
    ! Field types
    INTEGER, PARAMETER :: field_dmonly = 1
@@ -691,7 +698,8 @@ CONTAINS
       names(103) = 'HMcode (2020) baryon model response'
       names(104) = 'HMcode (2020) baryon model using HMx language'
       names(105) = 'Standard but with tweaked baryon parameters'
-      names(106) = 'Non-linear bias with tweaked baryon parameters'
+      names(106) = 'Non-linear halo bias with tweaked baryon parameters'
+      names(107) = 'Non-linear halo bias with extrapolation'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1190,6 +1198,9 @@ CONTAINS
       hmod%saturation = .FALSE.
       hmod%nu_saturation = 0.
 
+      ! Extrapolation for non-linear halo bias
+      hmod%iextrap_bnl = iextrap_bnl
+
       IF (ihm == -1) THEN
          WRITE (*, *) 'ASSIGN_HALOMOD: Choose your halo model'
          DO i = 1, nhalomod
@@ -1675,11 +1686,13 @@ CONTAINS
          ! Non-linear halo bias for standard halo model with virial haloes
          hmod%ibias = 3 ! Non-linear halo bias
          !hmod%i1hdamp = 3 ! One-halo damping like k^4
-      ELSE IF (ihm == 49) THEN
-         ! Non-linear halo bias and Tinker mass function and virial mass haloes
+      ELSE IF (ihm == 49 .OR. ihm == 107) THEN
+         ! 49 - Non-linear halo bias and Tinker mass function and virial mass haloes
+         ! 107 - As 49 but with no extrapolation
          hmod%imf = 3   ! Tinker mass function and bias
          hmod%ibias = 3 ! Non-linear halo bias
          !hmod%i1hdamp = 3 ! One-halo damping like k^4
+         IF (ihm == 107) hmod%iextrap_bnl = iextrap_zero
       ELSE IF(ihm == 52) THEN
          ! Standard halo model but with Mead (2017) spherical-collapse fitting function
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
@@ -4099,6 +4112,7 @@ END FUNCTION scatter_integrand
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: kk
       REAL, PARAMETER :: kmin = kmin_bnl        ! Below this wavenumber set BNL to zero
+      REAL, PARAMETER :: kstitch = k_stitch_bnl !
       REAL, PARAMETER :: numin = numin_bnl      ! Below this halo mass set BNL to zero
       REAL, PARAMETER :: numax = numax_bnl      ! Above this halo mass set BNL to zero
       REAL, PARAMETER :: min_value = min_bnl    ! Minimum value that BNL is allowed to be (could be below -1)
@@ -4111,6 +4125,7 @@ END FUNCTION scatter_integrand
       kk = k
       CALL fix_maximum(kk, hmod%bnl%xmax)
 
+      ! Decide on which interpolator to evalute or if to set BNL to zero
       IF (kk < kmin) THEN
          BNL = 0.
       ELSE IF (nu1 < numin .OR. nu2 < numin) THEN
@@ -4118,10 +4133,18 @@ END FUNCTION scatter_integrand
       ELSE IF (nu1 > numax .OR. nu2 > numax) THEN
          BNL = 0.
       ELSE
-         IF (stitch_bnl .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
-            BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu)
+         IF (stitch_bnl_k .AND. k < kstitch) THEN
+            IF (stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
+               BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu_lowk)
+            ELSE
+               BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lowk)
+            END IF
          ELSE
-            BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl)
+            IF (stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
+               BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu)
+            ELSE
+               BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl)
+            END IF
          END IF
       END IF
 
@@ -4139,8 +4162,9 @@ END FUNCTION scatter_integrand
       ! Initialisation for the non-linear halo bias term
       ! TODO: Interpolate between redshifts
       TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(interpolator3D) :: bnl_interp
       INTEGER :: i, j, ibin, jbin, ik
-      INTEGER :: nbin, nk, nbnl
+      INTEGER :: nbin, nk
       REAL :: crap
       REAL, ALLOCATABLE :: k(:), nu(:), B(:, :, :)
       CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext, base
@@ -4148,25 +4172,25 @@ END FUNCTION scatter_integrand
 
       WRITE (*, *) 'INIT_BNL: Running'
 
-      IF (stitch_bnl) THEN
-         nbnl = 2
-      ELSE
-         nbnl = 1
-      END IF
+      ! Loop over possible different BNL inputs
+      DO j = 1, 4
 
-      DO j = 1, nbnl
-
+         ! Choose input file type
          IF (j == 1) THEN
             base = base_bnl
-         ELSE IF (j == 2) THEN
+         ELSE IF (j == 2 .AND. stitch_bnl_nu) THEN
             base = base_bnl_lownu
+         ELSE IF (j == 3 .AND. stitch_bnl_k) THEN
+            base = base_bnl_lowk
+         ELSE IF (j == 4 .AND. (stitch_bnl_k .AND. stitch_bnl_nu)) THEN
+            base = base_bnl_lownu_lowk
          ELSE
-            STOP 'INIT_BNL: Error, something went very wrong'
+            CYCLE
          END IF
 
          ! Read in the nu values from the binstats file
          IF (requal(hmod%z, 0.00, eps)) THEN
-            IF(string_in_string('Bolshoi', base)) THEN
+            IF(snippet_in_string('Bolshoi', base)) THEN
                inbase = trim(base)//'_416'
             ELSE         
                inbase = trim(base)//'_85'
@@ -4224,26 +4248,26 @@ END FUNCTION scatter_integrand
          B = B-1.
 
          ! Initialise interpolator
+         CALL init_interpolator(k, nu, nu, B, Bnl_interp, &
+            iorder = iorder_bnl, &
+            iextrap = hmod%iextrap_bnl, &
+            store = store_bnl, &
+            logx = .TRUE., &
+            logy = .FALSE., &
+            logz = .FALSE., &
+            logf = .FALSE.)
+
+         ! Fill the correct interpolator
          IF (j == 1) THEN
-            CALL init_interpolator(k, nu, nu, B, hmod%Bnl, &
-               iorder = iorder_bnl, &
-               iextrap = iextrap_bnl, &
-               store = store_bnl, &
-               logx = .TRUE., &
-               logy = .FALSE., &
-               logz = .FALSE., &
-               logf = .FALSE.)
+            hmod%Bnl = Bnl_interp
          ELSE IF (j == 2) THEN
-            CALL init_interpolator(k, nu, nu, B, hmod%Bnl_lownu, &
-               iorder = iorder_bnl, &
-               iextrap = iextrap_bnl, &
-               store = store_bnl, &
-               logx = .TRUE., &
-               logy = .FALSE., &
-               logz = .FALSE., &
-               logf = .FALSE.)
+            hmod%Bnl_lownu = Bnl_interp
+         ELSE IF (j == 3) THEN
+            hmod%Bnl_lowk = Bnl_interp
+         ELSE IF (j == 4) THEN
+            hmod%Bnl_lownu_lowk = Bnl_interp
          ELSE
-            STOP 'INIT_BNL: Error, something went very wrong'
+            STOP 'INIT_BNL: Error, something went wrong with init loop'
          END IF
 
       END DO
