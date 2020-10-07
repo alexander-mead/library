@@ -17,6 +17,7 @@ MODULE simulations
    PUBLIC :: create_mass_function
    PUBLIC :: halo_mass_cut
    PUBLIC :: halo_mass_weights
+   PUBLIC :: compute_and_write_power_spectrum
    PUBLIC :: write_power_spectrum
    PUBLIC :: write_density_slice_ascii
    PUBLIC :: Zeldovich_ICs
@@ -266,9 +267,9 @@ CONTAINS
 
    END SUBROUTINE halo_mass_weights
 
-   SUBROUTINE write_power_spectrum(x, n, L, m, nk, outfile)
+   SUBROUTINE compute_and_write_power_spectrum(x, n, L, m, nk, outfile)
 
-      ! Write the power spectrum out in some standard format
+      ! Compute and write the power spectrum out in some standard format
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(3, n)    
@@ -277,7 +278,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: nk
       CHARACTER(len=*), INTENT(IN) :: outfile
       INTEGER :: i
-      REAL, ALLOCATABLE :: k(:), Pk(:), sig(:)
+      REAL, ALLOCATABLE :: k(:), Pk(:), sig(:), shotk(:)
       INTEGER, ALLOCATABLE :: nbin(:)
       REAL :: shot
 
@@ -285,19 +286,39 @@ CONTAINS
       ! This is only correct if all particles have the same mass
       CALL power_spectrum_particles(x, n, L, m, nk, k, Pk, nbin, sig)
 
-      ! Write to screen
-      WRITE (*, *) 'WRITE_POWER_SPECTRUM: Outfile: ', trim(outfile)
-
       ! Compute the shot noise assuming all particles have equal mass
       shot = shot_noise_simple(L, n)
+      shotk = shot_noise_k(k, shot)
+
+      CALL write_power_spectrum(k, Pk, shotk, nbin, sig, outfile)
+
+   END SUBROUTINE compute_and_write_power_spectrum
+
+   SUBROUTINE write_power_spectrum(k, Pk, shot, nbin, sig, outfile)
+
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: Pk(:)
+      REAL, INTENT(IN) :: shot(:)
+      INTEGER, INTENT(IN) :: nbin(:)
+      REAL, INTENT(IN) :: sig(:)
+      CHARACTER(len=*), INTENT(IN) :: outfile
+      INTEGER :: nk
+      INTEGER :: u
+      INTEGER :: ik
+
+      nk = size(k)
+
+      ! Write to screen
+      WRITE (*, *) 'WRITE_POWER_SPECTRUM: Outfile: ', trim(outfile)
+      WRITE (*, *) 'WRITE_POWER_SPECTRUM: Number of k points:', nk
 
       ! Write to file in standard format
-      OPEN (7, file=outfile)
-      DO i = 1, nk
-         IF (nbin(i) == 0) CYCLE
-         WRITE (7, *) k(i), Pk(i), shot_noise_k(k(i), shot), nbin(i), sig(i)
+      OPEN (newunit=u, file=outfile)
+      DO ik = 1, nk
+         IF (nbin(ik) == 0) CYCLE
+         WRITE (u, *) k(ik), Pk(ik), shot(ik), nbin(ik), sig(ik)
       END DO
-      CLOSE (7)
+      CLOSE (u)
 
       ! Write to screen
       WRITE (*, *) 'WRITE_POWER_SPECTRUM: Done'
@@ -1643,7 +1664,7 @@ CONTAINS
 
    END FUNCTION shot_noise_mass
 
-   REAL FUNCTION shot_noise_k(k, shot)
+   ELEMENTAL REAL FUNCTION shot_noise_k(k, shot)
 
       ! Calculates shot noise as Delta^2(k) from a constant-P(k) thing with units [(Mpc/h)^3]
       ! This shot noise is then dimensionless, exactly like Delta^2(k)
@@ -1653,6 +1674,7 @@ CONTAINS
       REAL, INTENT(IN) :: shot ! The constant shot-noise term: P(k) [(Mpc/h)^3]
 
       shot_noise_k = shot*4.*pi*(k/twopi)**3
+      !shot_noise_k = Delta_Pk(shot, k)
 
    END FUNCTION shot_noise_k
 
