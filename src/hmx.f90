@@ -688,7 +688,7 @@ CONTAINS
       names(93) = 'Standard but with Warren (2006) mass function'
       names(94) = 'Standard but with Reed (2007) mass function'
       names(95) = 'HMcode (2016) with neutrino halo-mass correction and CAMB mass range'
-      names(96) = 'Standard but with Bhattacharya (2011) mass function'
+      names(96) = 'Standard but with Philcox (2020) mass function'
       names(97) = 'Standard but with sigma calculated for all matter'
       names(98) = 'Standard but with no DMONLY correction for neutrinos'
       names(99) = 'Standard but with sigma calculated for normalised cold matter'
@@ -700,6 +700,7 @@ CONTAINS
       names(105) = 'Standard but with tweaked baryon parameters'
       names(106) = 'Non-linear halo bias with tweaked baryon parameters'
       names(107) = 'Non-linear halo bias with extrapolation'
+      names(108) = 'Standard but with Bhattacharya et al. (2011) mass fucuntion'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -754,6 +755,9 @@ CONTAINS
       !  9 - Reed et al. (2007; astro-ph/0607150)
       ! 10 - Bhattacharya et al. (2011; 1005.2239)
       ! 11 - Tinker et al. (2010) but with no halo bias
+      ! 12 - Sheth & Tormen (2002)
+      ! 13 - Sheth & Tormen form, but with free parameters
+      ! 14 - Philcox et al. (2020)
       hmod%imf = 2
 
       ! Concentration-mass relation
@@ -1179,8 +1183,10 @@ CONTAINS
 
       ! Sheth & Tormen (1999) mass function parameters
       hmod%ST_p = 0.3
-      hmod%ST_q = 0.707
-      hmod%Amf = 1.0
+      hmod%ST_q = 0.707 ! 0.75 is proposed in Sheth & Tormen (2002)
+
+      ! Mass function amplitude (not very physical)
+      hmod%Amf = 1.0    
 
       ! Index to make the mass function integration easier
       ! Should be related to how the mass function diverges at low nu
@@ -1944,9 +1950,9 @@ CONTAINS
          ! Reed (2007) mass function
          hmod%imf = 9
       ELSE IF (ihm == 96) THEN
-         ! Bhattacharya (2011) mass function
+         ! Philcox et al. (2020) mass function
          ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
-         hmod%imf = 10
+         hmod%imf = 14
       ELSE IF (ihm == 97) THEN
          ! Sigma calculated from total matter power
          hmod%flag_sigma = flag_matter
@@ -1971,6 +1977,10 @@ CONTAINS
          IF (ihm == 106) THEN
             hmod%ibias = 3 ! Non-linear halo bias
          END IF
+      ELSE IF (ihm == 107) THEN
+         ! Bhattacharya et al. (2011) mass function
+         ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
+         hmod%imf = 10
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2281,6 +2291,9 @@ CONTAINS
          IF (hmod%imf == 9)  WRITE (*, *) 'HALOMODEL: Reed et al. (2007) mass function'
          IF (hmod%imf == 10) WRITE (*, *) 'HALOMODEL: Bhattacharya et al. (2011) mass function'
          IF (hmod%imf == 11) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with no halo bias'
+         IF (hmod%imf == 12) WRITE (*, *) 'HALOMODEL: Sheth & Tormen (2002) mass function'
+         IF (hmod%imf == 13) WRITE (*, *) 'HALOMODEL: Sheth & Tormen form of mass function'
+         IF (hmod%imf == 14) WRITE (*, *) 'HALOMODEL: Philcox et al. (2020) mass function'
 
          ! Concentration-mass relation
          IF (hmod%iconc == 1)  WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -2468,7 +2481,7 @@ CONTAINS
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'Amplitude:', hmod%Amf
          WRITE (*, fmt=fmt) 'Amplitude z:', hmod%Amfz
-         IF (hmod%imf == 2) THEN
+         IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
             WRITE (*, fmt=fmt) 'Sheth & Tormen p:', hmod%ST_p
             WRITE (*, fmt=fmt) 'Sheth & Tormen q:', hmod%ST_q
             WRITE (*, fmt=fmt) 'Sheth & Tormen A:', hmod%ST_A
@@ -9177,7 +9190,7 @@ END FUNCTION scatter_integrand
 
       IF (hmod%imf == 1) THEN
          b_nu = b_ps(nu, hmod)
-      ELSE IF (hmod%imf == 2 .OR. hmod%imf == 6) THEN
+      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
          b_nu = b_st(nu, hmod)
       ELSE IF (hmod%imf == 3) THEN
          b_nu = b_Tinker2010(nu, hmod)
@@ -9191,7 +9204,7 @@ END FUNCTION scatter_integrand
          b_nu = b_Warren(nu, hmod)
       ELSE IF (hmod%imf == 9) THEN
          b_nu = b_Reed(nu, hmod)
-      ELSE IF (hmod%imf == 10) THEN
+      ELSE IF (hmod%imf == 10 .OR. hmod%imf == 14) THEN
          b_nu = b_Bhattacharya(nu, hmod)
       ELSE
          STOP 'B_NU: Error, imf not specified correctly'
@@ -9219,17 +9232,8 @@ END FUNCTION scatter_integrand
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: dc, p, q
 
-      IF (hmod%imf == 2) THEN
-         p = hmod%ST_p
-         q = hmod%ST_q       
-      ELSE IF (hmod%imf == 6) THEN
-         ! Despali et al. (2016)      
-         p = 0.2579
-         q = 0.7663
-      ELSE
-         STOP 'B_ST: Error, imf set incorrectly'
-      END IF
-
+      p = hmod%ST_p
+      q = hmod%ST_q
       dc = hmod%dc
 
       b_st = 1.+(q*(nu**2)-1.+2.*p/(1.+(q*nu**2)**p))/dc
@@ -9336,9 +9340,22 @@ END FUNCTION scatter_integrand
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: f1, f2, f3, dc
-      REAL, PARAMETER :: a = 0.774
-      REAL, PARAMETER :: p = 0.637
-      REAL, PARAMETER :: q = 1.663
+      REAL :: a, p, q
+
+      IF (hmod%imf == 10) THEN
+         ! Bhattacharya et al. (2011)
+         STOP 'G_BHATTACHARYA: Check this carefully'
+         a = 0.788/(1.+hmod%z)**0.01
+         p = 0.807
+         q = 1.795
+      ELSE IF (hmod%imf == 14) THEN
+         ! Philcox et al. (2020)
+         a = 0.774
+         p = 0.637
+         q = 1.663
+      ELSE
+         STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
+      END IF
 
       f1 = a*nu**2
       f2 = 2*p/(1.+(a*nu**2)**p)
@@ -9355,44 +9372,15 @@ END FUNCTION scatter_integrand
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      IF (hmod%imf == 1) THEN
-         b2_nu = b2_ps(nu, hmod)
-      ELSE IF (hmod%imf == 2) THEN
-         b2_nu = b2_st(nu, hmod)
-      ELSE IF (hmod%imf == 3) THEN
-         STOP 'B2_NU: Error, second-order bias not specified for Tinker mass function'
+      IF (is_in_array(hmod%imf, [1, 2, 6, 12, 13])) THEN
+         b2_nu = b2_ST(nu, hmod)
       ELSE
-         STOP 'B2_NU: Error, imf not specified correctly'
+         STOP 'B2_NU: Error, second-order bias not specified this mass function'
       END IF
 
    END FUNCTION b2_nu
 
-   REAL FUNCTION b2_ps(nu, hmod)
-
-      ! Press & Schechter (1974) second order bias
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: eps1, eps2, E1, E2, dc
-
-      REAL, PARAMETER :: a2 = -17./21.
-      REAL, PARAMETER :: p = 0.0
-      REAL, PARAMETER :: q = 1.0
-
-      dc = hmod%dc
-
-      STOP 'B2_PS: Check this very carefully'
-      ! I just took the ST form and set p=0 and q=1
-
-      eps1 = (q*nu**2-1.)/dc
-      eps2 = (q*nu**2)*(q*nu**2-3.)/dc**2
-      E1 = (2.*p)/(dc*(1.+(q*nu**2)**p))
-      E2 = ((1.+2.*p)/dc+2.*eps1)*E1
-
-      b2_ps = 2.*(1.+a2)*(eps1+E1)+eps2+E2
-
-   END FUNCTION b2_ps
-
-   REAL FUNCTION b2_st(nu, hmod)
+   REAL FUNCTION b2_ST(nu, hmod)
 
       ! Sheth, Mo & Tormen (2001) second-order bias
       ! Notation follows from Cooray & Sheth (2002) pp 25-26
@@ -9401,8 +9389,18 @@ END FUNCTION scatter_integrand
       REAL :: eps1, eps2, E1, E2, dc, p, q
       REAL, PARAMETER :: a2 = -17./21.
 
-      p = hmod%ST_p
-      q = hmod%ST_q
+      IF (hmod%imf == 1) THEN
+         ! Press & Schecter (1974)
+         p = 0.
+         q = 1.
+         STOP 'B2_ST: Check this very carefully for Press & Schecter form'
+      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
+         p = hmod%ST_p
+         q = hmod%ST_q      
+      ELSE
+         STOP 'B2_ST: Error, incorrect mass function'
+      END IF
+
       dc = hmod%dc
 
       eps1 = (q*nu**2-1.)/dc
@@ -9410,9 +9408,9 @@ END FUNCTION scatter_integrand
       E1 = (2.*p)/(dc*(1.+(q*nu**2)**p))
       E2 = ((1.+2.*p)/dc+2.*eps1)*E1
 
-      b2_st = 2.*(1.+a2)*(eps1+E1)+eps2+E2
+      b2_ST = 2.*(1.+a2)*(eps1+E1)+eps2+E2
 
-   END FUNCTION b2_st
+   END FUNCTION b2_ST
 
    REAL RECURSIVE FUNCTION g_nu(nu, hmod)
 
@@ -9424,7 +9422,7 @@ END FUNCTION scatter_integrand
 
       IF (hmod%imf == 1) THEN
          g_nu = g_ps(nu, hmod)
-      ELSE IF (hmod%imf == 2 .OR. hmod%imf == 6) THEN
+      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
          g_nu = g_st(nu, hmod)
       ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11) THEN
          g_nu = g_Tinker2010(nu, hmod)
@@ -9438,7 +9436,7 @@ END FUNCTION scatter_integrand
          g_nu = g_Warren(nu, hmod)
       ELSE IF (hmod%imf == 9) THEN
          g_nu = g_Reed(nu, hmod)
-      ELSE IF (hmod%imf == 10) THEN
+      ELSE IF (hmod%imf == 10 .OR. hmod%imf == 14) THEN
          g_nu = g_Bhattacharya(nu, hmod)
       ELSE
          STOP 'G_NU: Error, imf specified incorrectly'
@@ -9473,7 +9471,7 @@ END FUNCTION scatter_integrand
 
    END FUNCTION g_mu
 
-   REAL FUNCTION g_ps(nu, hmod)
+   REAL FUNCTION g_PS(nu, hmod)
 
       ! Press & Scheter (1974) mass function!
       REAL, INTENT(IN) :: nu
@@ -9484,11 +9482,11 @@ END FUNCTION scatter_integrand
       ! Stop compile-time warnings
       crap = hmod%a
 
-      g_ps = A*exp(-(nu**2)/2.)
+      g_PS = A*exp(-(nu**2)/2.)
 
-   END FUNCTION g_ps
+   END FUNCTION g_PS
 
-   REAL FUNCTION g_st(nu, hmod)
+   REAL FUNCTION g_ST(nu, hmod)
 
       ! Sheth & Tormen (1999) mass function, equation (10) in arXiv:9901122
       ! Note I use nu=dc/sigma(M) while Sheth & Tormen (1999) use nu=(dc/sigma)^2
@@ -9500,23 +9498,13 @@ END FUNCTION scatter_integrand
       REAL :: p, q, A
 
       ! Mass-function parameters
-      IF (hmod%imf == 2) THEN
-         ! Sheth & Tormen (1999)
-         A = hmod%ST_A
-         p = hmod%ST_p
-         q = hmod%ST_q
-      ELSE IF (hmod%imf == 6) THEN
-         ! Despali et al. (2016) 
-         A = 0.3298 ! Note that this is not normalised
-         p = 0.2579
-         q = 0.7663   
-      ELSE
-         STOP 'G_ST: Error, imf not specified correclty'
-      END IF
+      A = hmod%ST_A
+      p = hmod%ST_p
+      q = hmod%ST_q
 
       g_st = A*(1.+((q*nu**2)**(-p)))*exp(-q*nu**2/2.)
 
-   END FUNCTION g_st
+   END FUNCTION g_ST
 
    REAL FUNCTION g_Tinker2008(nu, hmod)
 
@@ -9631,14 +9619,26 @@ END FUNCTION scatter_integrand
       ! Normalised such that all mass is in haloes
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: f1, f2, f3, crap
-      REAL, PARAMETER :: bigA = 0.33873
-      REAL, PARAMETER :: a = 0.774
-      REAL, PARAMETER :: p = 0.637
-      REAL, PARAMETER :: q = 1.663
+      REAL :: f1, f2, f3
+      REAL :: bigA, a, p, q, z
 
-      ! Prevent compile-time warnings
-      crap = hmod%A
+      IF (hmod%imf == 10) THEN
+         ! Bhattacharya et al. (2011)
+         STOP 'G_BHATTACHARYA: Check this carefully'
+         z = hmod%z
+         bigA = 0.333/(1.+z)**0.11
+         a = 0.788/(1.+z)**0.01
+         p = 0.807
+         q = 1.795
+      ELSE IF (hmod%imf == 14) THEN
+         ! Philcox et al. (2020)
+         bigA = 0.33873 ! Where exactly does this come from?
+         a = 0.774
+         p = 0.637
+         q = 1.663
+      ELSE
+         STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
+      END IF
 
       f1 = bigA*sqrt(2./pi)*exp(-a*nu**2/2.)
       f2 = 1.+(a*nu**2)**(-p)
@@ -9653,7 +9653,7 @@ END FUNCTION scatter_integrand
       ! Initialise anything to do with the halo mass function
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      IF (hmod%imf == 2) THEN
+      IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
          CALL init_ST(hmod)
       ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11) THEN
          CALL init_Tinker2010(hmod)
@@ -9669,15 +9669,40 @@ END FUNCTION scatter_integrand
 
       ! Normalises ST mass function
       TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: p, q
+      REAL :: p, q, A
 
       ! ST parameters
-      p = hmod%ST_p
-      q = hmod%ST_q
+      IF (hmod%imf == 2) THEN
+         ! Sheth & Tormen (1999)
+         p = 0.3
+         q = 0.707
+      ELSE IF (hmod%imf == 6) THEN
+         ! Despali et al. (2016)      
+         p = 0.2579
+         q = 0.7663
+         A = 0.3298
+      ELSE IF (hmod%imf == 12) THEN
+         ! Sheth & Tormen (2002)
+         p = 0.3
+         q = 0.75
+      ELSE IF (hmod%imf == 13) THEN
+         ! Sheth & Tormen form
+         p = hmod%ST_p
+         q = hmod%ST_q
+      ELSE
+         STOP 'INIT_ST: Error, imf set incorrectly'
+      END IF
 
       ! Normalisation of ST mass function (involves Gamma function)
-      !hmod%ST_A = 1./(sqrt(pi/(2.*q))+(1./sqrt(q))*(2.**(-p-0.5))*Gamma(0.5-p))
-      hmod%ST_A = sqrt(2.*q)/(sqrt(pi)+Gamma(0.5-p)/2**p)
+      IF (is_in_array(hmod%imf, [2, 6, 13])) THEN
+         !hmod%ST_A = 1./(sqrt(pi/(2.*q))+(1./sqrt(q))*(2.**(-p-0.5))*Gamma(0.5-p))
+         A = sqrt(2.*q)/(sqrt(pi)+Gamma(0.5-p)/2**p)
+      END IF
+
+      ! Set the parameters
+      hmod%ST_A = A
+      hmod%ST_p = p
+      hmod%ST_q = q
 
    END SUBROUTINE init_ST
 
