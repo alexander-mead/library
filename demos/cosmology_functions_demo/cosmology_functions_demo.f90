@@ -11,7 +11,7 @@ PROGRAM cosmology_functions_demo
    REAL :: t1, t2, t3, t4, xi
    REAL :: crap
    REAL :: sigv, sigv100
-   REAL :: P_11, P_13, P_22
+   REAL :: P_lin, P_1loop, P_22, P_13
    INTEGER :: i
    CHARACTER(len=256) :: cosmo
 
@@ -24,7 +24,7 @@ PROGRAM cosmology_functions_demo
    LOGICAL, PARAMETER :: test_sigmaV = .TRUE.
    LOGICAL, PARAMETER :: test_neff = .TRUE.
    LOGICAL, PARAMETER :: test_ncur = .FALSE.
-   LOGICAL, PARAMETER :: test_loop = .FALSE.
+   LOGICAL, PARAMETER :: test_loop = .TRUE.
 
    REAL, PARAMETER :: amin = 1e-5
    REAL, PARAMETER :: amax = 1
@@ -33,6 +33,10 @@ PROGRAM cosmology_functions_demo
    REAL, PARAMETER :: kmin = 1e-4
    REAL, PARAMETER :: kmax = 1e3
    INTEGER, PARAMETER :: nk = 256
+
+   REAL, PARAMETER :: kmin_SPT = 1e-2
+   REAL, PARAMETER :: kmax_SPT = 0.5
+   INTEGER, PARAMETER :: nk_SPT = 64
 
    REAL, PARAMETER :: rmin = 1e-4
    REAL, PARAMETER :: rmax = 1e3
@@ -283,13 +287,19 @@ PROGRAM cosmology_functions_demo
    END IF
 
    IF (test_loop) THEN
-      k = 0.1
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing SPT'
       a = 1.
-      P_11 = plin(k, a, flag_matter, cosm)
-      P_13 = P_SPT_13(k, a, cosm)
-      P_22 = 0.
-      WRITE(*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Loop:', P_11, P_13, P_22
-      WRITE(*, *)
+      OPEN(10, file='data/spt.dat')
+      DO i = 1, nk_SPT
+         k = progression_log(kmin_SPT, kmax_SPT, i, nk_SPT)
+         !WRITE(*, *) i, k
+         P_lin = plin(k, a, flag_matter, cosm)
+         P_1loop = P_SPT(k, a, flag_matter, cosm)
+         WRITE(10, *) k, P_lin, P_1loop
+      END DO
+      CLOSE(10)
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: SPT done'
+      WRITE (*, *)
    END IF
 
 END PROGRAM cosmology_functions_demo

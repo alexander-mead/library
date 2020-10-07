@@ -153,13 +153,15 @@ MODULE cosmology_functions
    PUBLIC :: HALOFIT_CLASS
 
    ! Perturbation theory
-   PUBLIC :: P_SPT_13
+   PUBLIC :: P_SPT
    
    INTERFACE integrate_cosm
-      MODULE PROCEDURE integrate_cosm_1
-      MODULE PROCEDURE integrate_cosm_2
-      MODULE PROCEDURE integrate_cosm_3
-      MODULE PROCEDURE integrate_cosm_4
+      MODULE PROCEDURE integrate_1_cosm
+      MODULE PROCEDURE integrate_2_cosm
+      MODULE PROCEDURE integrate_3_cosm
+      MODULE PROCEDURE integrate_3_flag_cosm
+      MODULE PROCEDURE integrate_4_flag_cosm
+      !MODULE PROCEDURE integrate_5_flag_cosm
    END INTERFACE integrate_cosm
 
    ! Contains cosmological parameters that only need to be calculated once
@@ -498,6 +500,14 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: CAMB_HMcode2020 = 9           ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
    INTEGER, PARAMETER :: CAMB_HMcode2020_feedback = 10 ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
 
+   ! Standard perturbation theory (SPT)
+   REAL, PARAMETER :: kmin_integrate_SPT = 1e-4    ! -9.2 in Komatsu code
+   REAL, PARAMETER :: kmax_integrate_SPT = 20.     ! e^3 ~ 20. in Komatsu code
+   REAL, PARAMETER :: eps_multiple_SPT = 0.17      ! 0.17 in Komatsu code
+   REAL, PARAMETER :: q_on_k_limit_F3 = 100.       ! Limit for Taylor expansion in F3 kernel
+   REAL, PARAMETER :: acc_integrate_SPT = acc_cosm ! Accuracy for integraation
+   INTEGER, PARAMETER :: iorder_integrate_SPT = 3  ! Order for integration
+
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
    INTEGER, PARAMETER :: jmax_integration = 30 ! Maximum number of points: 2^(j-1) TODO: Could lower to make time-out faster
@@ -639,6 +649,8 @@ CONTAINS
       names(256) = 'Random w(a)CDM cosmology with random AGN temperature'
       names(257) = 'Random wCDM cosmology with random AGN temperature'
       names(258) = 'CAMB test cosmology'
+      names(259) = 'Boring but with low sigma_8 = 0.5'
+      names(260) = 'Boring bit with high sigma_8 = 1.2'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1496,6 +1508,12 @@ CONTAINS
          cosm%Om_v = 1.-cosm%Om_m
          cosm%ns = 0.965
          cosm%As = 2e-9
+      ELSE IF (icosmo ==  259) THEN
+         ! Boring but with low sigma_8
+         cosm%sig8 = 0.5
+      ELSE IF (icosmo ==  260) THEN
+         ! Boring but with high sigma_8
+         cosm%sig8 = 1.2
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -5230,7 +5248,7 @@ CONTAINS
 
    END SUBROUTINE ODE_advance_cosmology
 
-   REAL RECURSIVE FUNCTION integrate_cosm_1(a, b, f, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_1_cosm(a, b, f, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -5260,7 +5278,7 @@ CONTAINS
       IF (a == b) THEN
 
          ! Fix the answer to zero if the integration limits are identical
-         integrate_cosm_1 = 0.
+         integrate_1_cosm = 0.
 
       ELSE
 
@@ -5332,13 +5350,13 @@ CONTAINS
 
          END DO
 
-         integrate_cosm_1 = real(sum_new)
+         integrate_1_cosm = real(sum_new)
 
       END IF
 
-   END FUNCTION integrate_cosm_1
+   END FUNCTION integrate_1_cosm
 
-   REAL RECURSIVE FUNCTION integrate_cosm_2(a, b, f, y, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_2_cosm(a, b, f, y, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -5370,7 +5388,7 @@ CONTAINS
       IF (a == b) THEN
 
          ! Fix the answer to zero if the integration limits are identical
-         integrate_cosm_2 = 0.
+         integrate_2_cosm = 0.
 
       ELSE
 
@@ -5442,13 +5460,13 @@ CONTAINS
 
          END DO
          
-         integrate_cosm_2 = real(sum_new)
+         integrate_2_cosm = real(sum_new)
 
       END IF
 
-   END FUNCTION integrate_cosm_2
+   END FUNCTION integrate_2_cosm
 
-   REAL RECURSIVE FUNCTION integrate_cosm_3(a, b, f, y, z, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_3_cosm(a, b, f, y, z, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -5482,7 +5500,7 @@ CONTAINS
       IF (a == b) THEN
 
          ! Fix the answer to zero if the integration limits are identical
-         integrate_cosm_3 = 0.
+         integrate_3_cosm = 0.
 
       ELSE
 
@@ -5554,13 +5572,13 @@ CONTAINS
 
          END DO
 
-         integrate_cosm_3 = real(sum_new)
+         integrate_3_cosm = real(sum_new)
 
       END IF
 
-   END FUNCTION integrate_cosm_3
+   END FUNCTION integrate_3_cosm
 
-   REAL RECURSIVE FUNCTION integrate_cosm_4(a, b, f, y, z, flag, cosm, acc, iorder)
+   REAL RECURSIVE FUNCTION integrate_3_flag_cosm(a, b, f, y, z, flag, cosm, acc, iorder)
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
@@ -5596,7 +5614,7 @@ CONTAINS
       IF (a == b) THEN
 
          ! Fix the answer to zero if the integration limits are identical
-         integrate_cosm_4 = 0.
+         integrate_3_flag_cosm = 0.
 
       ELSE
 
@@ -5668,11 +5686,245 @@ CONTAINS
 
          END DO
 
-         integrate_cosm_4 = real(sum_new)
+         integrate_3_flag_cosm = real(sum_new)
 
       END IF
 
-   END FUNCTION integrate_cosm_4
+   END FUNCTION integrate_3_flag_cosm
+
+   REAL RECURSIVE FUNCTION integrate_4_flag_cosm(a, b, f, y, z, z1, flag, cosm, acc, iorder)
+
+      ! Integrates between a and b until desired accuracy is reached
+      ! Stores information to reduce function calls
+      REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
+      REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
+      REAL, EXTERNAL :: f
+      REAL, INTENT(IN) :: y ! Second argument in 'f'
+      REAL, INTENT(IN) :: z ! Third argument in 'f'
+      REAL, INTENT(IN) :: z1 ! Fourth argument in 'f'
+      INTEGER, INTENT(IN) :: flag ! Flag argument in 'f'
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      REAL, INTENT(IN) :: acc ! Accuracy
+      INTEGER, INTENT(IN) :: iorder ! Order for integration
+      INTEGER :: i, j
+      INTEGER :: n
+      REAL :: x, dx
+      REAL :: f1, f2, fx
+      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
+
+      INTERFACE
+         FUNCTION f(x_interface, y_interface, z_interface, z1_interface, flag_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: y_interface
+            REAL, INTENT(IN) :: z_interface
+            REAL, INTENT(IN) :: z1_interface
+            INTEGER, INTENT(IN) :: flag_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION f
+      END INTERFACE
+
+      IF (a == b) THEN
+
+         ! Fix the answer to zero if the integration limits are identical
+         integrate_4_flag_cosm = 0.
+
+      ELSE
+
+         ! Set the sum variable for the integration
+         sum_2n = 0.d0
+         sum_n = 0.d0
+         sum_old = 0.d0
+         sum_new = 0.d0
+
+         DO j = 1, jmax
+
+            ! Note, you need this to be 1+2**n for some integer n
+            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+            n = 1+2**(j-1)
+
+            ! Calculate the dx interval for this value of 'n'
+            dx = (b-a)/real(n-1)
+
+            IF (j == 1) THEN
+
+               ! The first go is just the trapezium of the end points
+               f1 = f(a, y, z, z1, flag, cosm)
+               f2 = f(b, y, z, z1, flag, cosm)
+               sum_2n = 0.5d0*(f1+f2)*dx
+               sum_new = sum_2n
+
+            ELSE
+
+               ! Loop over only new even points to add these to the integral
+               DO i = 2, n, 2
+                  x = a+(b-a)*real(i-1)/real(n-1)
+                  fx = f(x, y, z, z1, flag, cosm)
+                  sum_2n = sum_2n+fx
+               END DO
+
+               ! Now create the total using the old and new parts
+               sum_2n = sum_n/2.d0+sum_2n*dx
+
+               ! Now calculate the new sum depending on the integration order
+               IF (iorder == 1) THEN
+                  sum_new = sum_2n
+               ELSE IF (iorder == 3) THEN
+                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
+               ELSE
+                  STOP 'INTEGRATE_COSM_4: Error, iorder specified incorrectly'
+               END IF
+
+            END IF
+
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
+            ELSE IF (j == jmax) THEN
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_4: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_n = sum_2n
+               sum_2n = 0.d0
+            END IF
+
+         END DO
+
+         integrate_4_flag_cosm = real(sum_new)
+
+      END IF
+
+   END FUNCTION integrate_4_flag_cosm
+
+   ! REAL RECURSIVE FUNCTION integrate_5_flag_cosm(a, b, f, y, z, z1, z2, flag, cosm, acc, iorder)
+
+   !    ! Integrates between a and b until desired accuracy is reached
+   !    ! Stores information to reduce function calls
+   !    REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
+   !    REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
+   !    REAL, EXTERNAL :: f
+   !    REAL, INTENT(IN) :: y ! Second argument in 'f'
+   !    REAL, INTENT(IN) :: z ! Third argument in 'f'
+   !    REAL, INTENT(IN) :: z1 ! Fourth argument in 'f'
+   !    REAL, INTENT(IN) :: z2 ! Fifth argument in 'f'
+   !    INTEGER, INTENT(IN) :: flag ! Flag argument in 'f'
+   !    TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+   !    REAL, INTENT(IN) :: acc ! Accuracy
+   !    INTEGER, INTENT(IN) :: iorder ! Order for integration
+   !    INTEGER :: i, j
+   !    INTEGER :: n
+   !    REAL :: x, dx
+   !    REAL :: f1, f2, fx
+   !    DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+   !    LOGICAL :: pass
+   !    INTEGER, PARAMETER :: jmin = jmin_integration
+   !    INTEGER, PARAMETER :: jmax = jmax_integration
+
+   !    INTERFACE
+   !       FUNCTION f(x_interface, y_interface, z_interface, z1_interface, z2_interface, flag_interface, cosm_interface)
+   !          IMPORT :: cosmology
+   !          REAL, INTENT(IN) :: x_interface
+   !          REAL, INTENT(IN) :: y_interface
+   !          REAL, INTENT(IN) :: z_interface
+   !          REAL, INTENT(IN) :: z1_interface
+   !          REAL, INTENT(IN) :: z2_interface
+   !          INTEGER, INTENT(IN) :: flag_interface
+   !          TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+   !       END FUNCTION f
+   !    END INTERFACE
+
+   !    IF (a == b) THEN
+
+   !       ! Fix the answer to zero if the integration limits are identical
+   !       integrate_5_flag_cosm = 0.
+
+   !    ELSE
+
+   !       ! Set the sum variable for the integration
+   !       sum_2n = 0.d0
+   !       sum_n = 0.d0
+   !       sum_old = 0.d0
+   !       sum_new = 0.d0
+
+   !       DO j = 1, jmax
+
+   !          ! Note, you need this to be 1+2**n for some integer n
+   !          ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+   !          n = 1+2**(j-1)
+
+   !          ! Calculate the dx interval for this value of 'n'
+   !          dx = (b-a)/real(n-1)
+
+   !          IF (j == 1) THEN
+
+   !             ! The first go is just the trapezium of the end points
+   !             f1 = f(a, y, z, z1, z2, flag, cosm)
+   !             f2 = f(b, y, z, z1, z2, flag, cosm)
+   !             sum_2n = 0.5d0*(f1+f2)*dx
+   !             sum_new = sum_2n
+
+   !          ELSE
+
+   !             ! Loop over only new even points to add these to the integral
+   !             DO i = 2, n, 2
+   !                x = a+(b-a)*real(i-1)/real(n-1)
+   !                fx = f(x, y, z, z1, z2, flag, cosm)
+   !                sum_2n = sum_2n+fx
+   !             END DO
+
+   !             ! Now create the total using the old and new parts
+   !             sum_2n = sum_n/2.d0+sum_2n*dx
+
+   !             ! Now calculate the new sum depending on the integration order
+   !             IF (iorder == 1) THEN
+   !                sum_new = sum_2n
+   !             ELSE IF (iorder == 3) THEN
+   !                sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
+   !             ELSE
+   !                STOP 'INTEGRATE_COSM_4: Error, iorder specified incorrectly'
+   !             END IF
+
+   !          END IF
+
+   !          IF (sum_old == 0.d0 .OR. j<jmin) THEN
+   !             pass = .FALSE.
+   !          ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+   !             pass = .TRUE.
+   !          ELSE IF (j == jmax) THEN
+   !             pass = .FALSE.
+   !             STOP 'INTEGRATE_COSM_4: Integration timed out'
+   !          ELSE
+   !             pass = .FALSE.
+   !          END IF
+
+   !          IF (pass) THEN
+   !             EXIT
+   !          ELSE
+   !             ! Integral has not converged so store old sums and reset sum variables
+   !             sum_old = sum_new
+   !             sum_n = sum_2n
+   !             sum_2n = 0.d0
+   !          END IF
+
+   !       END DO
+
+   !       integrate_5_flag_cosm = real(sum_new)
+
+   !    END IF
+
+   ! END FUNCTION integrate_5_flag_cosm
 
    SUBROUTINE get_CAMB_power(a, na, k_Pk, Pk, nkPk, k_Tc, Tc, nkTc, non_linear, halofit_version, cosm)
 
@@ -7805,52 +8057,211 @@ CONTAINS
 
    END SUBROUTINE calculate_psmooth
 
-   REAL FUNCTION P_SPT_13(k, a, cosm)
+   REAL FUNCTION P_SPT(k, a, flag, cosm)
 
-      ! The P_13 contribution to the non-linear power from SPT
+      ! Returns the one-loop SPT power spectrum in Delta^2(k) form
+      ! Scales exactly as g(a)^4
+      ! Note factor of 2 from P_13
+      ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/compute_pkd.f90
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: P_11
-      REAL, PARAMETER :: ymin = 0.
-      REAL, PARAMETER :: ymax = 1.
-      INTEGER, PARAMETER :: flag = flag_matter
-      REAL, PARAMETER :: acc = acc_cosm
-      INTEGER, PARAMETER :: iorder = 3
+      REAL, PARAMETER :: kmin = kmin_integrate_SPT
+      REAL, PARAMETER :: kmax = kmax_integrate_SPT
 
-      STOP 'P_SPT_13: This does not work'
-
-      ! Equation (C14) of https://arxiv.org/abs/astro-ph/0609547
-      P_SPT_13 = integrate_cosm(ymin, ymax, P_13_integrand, k, a, cosm, acc_cosm, iorder)
-      P_11 = Plin(k, a, flag, cosm)
-      P_SPT_13 = P_11*P_SPT_13
-
-   END FUNCTION P_SPT_13
-
-   REAL FUNCTION P_13_integrand(y, k, a, cosm)
-
-      ! Integrand to compute the SPT P_13 contribution
-      ! I think that this integral is a mess
-      REAL, INTENT(IN) :: y
-      REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: x, q, f1, f2, P_11
-      INTEGER, PARAMETER :: flag = flag_matter
-
-      ! Equation (C14) of https://arxiv.org/abs/astro-ph/0609547
-      ! Transformed x = -1.+1./y to make integration interval finite
-      IF (y == 0. .OR. y == 1.) THEN
-         P_13_integrand = 0.
+      IF (k < kmin) THEN
+         P_SPT = 0.
+      ELSE IF (k > kmax) THEN
+         STOP 'P_SPT: You are trying to evalulate SPT for too large a wavenumber'
       ELSE
-         x = -1.+1./y
-         q = x*k
-         P_11 = Pk_Delta(Plin(q, a, flag, cosm), k)
-         f1 = (12./x**2-158.+100.*x**2-42.*x**4)
-         f2 = 3.*(7.*x**2+2.)*(x**2-1.)/x**3
-         P_13_integrand = P_11*(f1+f2)/(252.*y**2)
+         ! Total one-loop SPT power spectrum (note factor of 2 in front of P_13)
+         P_SPT = P_22_SPT(k, a, flag, cosm)+2.*P_13_SPT(k, a, flag, cosm)
       END IF
 
+   END FUNCTION P_SPT
+
+   REAL FUNCTION P_22_SPT(k, a, flag, cosm)
+
+      ! The P_22 contribution to the one-loop power from SPT
+      ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/pkd.f90
+      ! Routine called PkD in Komatsu code
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: eps, lnkmin, lnkmax, epsi, f(4)
+      INTEGER :: i
+      REAL, PARAMETER :: kmin = kmin_integrate_SPT
+      REAL, PARAMETER :: kmax = kmax_integrate_SPT
+      REAL, PARAMETER :: eps_multiple = eps_multiple_SPT
+      REAL, PARAMETER :: acc = acc_integrate_SPT
+      INTEGER, PARAMETER :: iorder = iorder_integrate_SPT
+
+      ! A wavenumber close to k
+      eps = k*eps_multiple
+      
+      ! Loop over the 4 segments of the P_22 integral
+      DO i = 1, 4
+
+         ! Set boundary conditions for each segment
+         IF (i == 1) THEN
+            lnkmin = log(kmin)
+            lnkmax = log(eps)
+            epsi = 0.
+         ELSE IF (i == 2) THEN
+            lnkmin = lnkmax
+            lnkmax = log(k-eps)
+            epsi = 0.
+         ELSE IF (i == 3) THEN
+            lnkmin = lnkmax
+            lnkmax = log(k+eps)
+            epsi = eps
+         ELSE IF (i == 4) THEN
+            lnkmin = lnkmax
+            lnkmax = log(kmax)
+            epsi = 0.
+         ELSE
+            STOP 'P_22_SPT: Something went very wrong'
+         END IF
+
+         ! Do the integration (note that this is a nested integral)
+         f(i) = integrate_cosm(lnkmin, lnkmax, P_22_integrand, k, a, epsi, flag, cosm, acc, iorder)
+
+      END DO
+
+      ! Sum contributions to create final result
+      P_22_SPT = 2.*(2.*f(1)+f(2)+f(3)+f(4))/(2.*pi)**2 ! Line 71 in Komatsu code
+      P_22_SPT = Delta_Pk(P_22_SPT, k)                  ! Convert from P(k) to Delta^2(k)
+
+   END FUNCTION P_22_SPT
+
+   REAL FUNCTION P_22_integrand(lnq, k, a, eps, flag, cosm)
+
+      ! Integrand for the P_22 term in standard perturbation theory
+      ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/pkd.f90
+      ! Function called dp22dq_d in Komatsu code
+      ! TODO: Clean up fudge for mu integration limits
+      REAL, INTENT(IN) :: lnq
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      REAL, INTENT(IN) :: eps
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: q, mumax
+      REAL, PARAMETER :: mumin = -1.
+      REAL, PARAMETER :: acc = acc_integrate_SPT
+      INTEGER, PARAMETER :: iorder = iorder_integrate_SPT
+
+      ! Convert from log(q) integration variable
+      q = exp(lnq)
+
+      ! Set the maximum integration limit on mu (bit of a fudge)
+      IF (eps == 0.) THEN
+         mumax = 1.
+      ELSE
+         mumax = (k**2+q**2-eps**2)/(2.*k*q)
+      END IF
+
+      ! Do the integration and correct by factors
+      P_22_integrand = integrate_cosm(mumin, mumax, P_22_inner_integrand, q, k, a, flag, cosm, acc, iorder)
+      P_22_integrand = P_22_integrand*plin(q, a, flag, cosm)*(2.*pi**2)
+
+   END FUNCTION P_22_integrand
+
+   REAL FUNCTION P_22_inner_integrand(mu, q, k, a, flag, cosm)
+
+      ! Inner integral over mu that appears in P_22 from SPT
+      ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/pkd.f90
+      ! Function called dFFdmu in Komatsu code
+      REAL, INTENT(IN) :: mu
+      REAL, INTENT(IN) :: q
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: p
+
+      p = sqrt(k**2+q**2-2.*k*q*mu)
+      P_22_inner_integrand = Pk_Delta(plin(p, a, flag, cosm), p)*F2_SPT(k, q, mu)**2
+
+   END FUNCTION P_22_inner_integrand
+
+   REAL FUNCTION P_13_SPT(k, a, flag, cosm)
+
+      ! The P_13 contribution to the non-linear power from SPT
+      ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/pkd.f90     
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm 
+      REAL, PARAMETER :: kmin = kmin_integrate_SPT
+      REAL, PARAMETER :: kmax = kmax_integrate_SPT
+      REAL, PARAMETER :: acc = acc_integrate_SPT
+      INTEGER, PARAMETER :: iorder = iorder_integrate_SPT
+
+      P_13_SPT = integrate_cosm(log(kmin), log(kmax), P_13_integrand, k, a, flag, cosm, acc, iorder)
+      P_13_SPT = 0.5*P_13_SPT*Plin(k, a, flag, cosm)/(2.*pi)**2
+
+   END FUNCTION P_13_SPT
+
+   REAL FUNCTION P_13_integrand(lnq, k, a, flag, cosm)
+
+      ! Integrand for the P_13 term in standard perturbation theory
+      ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/pkd.f90
+      ! Called dp13dq_d in Komatsu code
+      REAL, INTENT(IN) :: lnq
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: q
+
+      q = exp(lnq)
+      P_13_integrand = q*F3_SPT(k, q)*Pk_Delta(plin(q, a, flag, cosm), q)
+
    END FUNCTION P_13_integrand
+
+   REAL FUNCTION F2_SPT(k, q, mu)
+
+      ! F2 kernel from standard perturbation theory
+      ! vec{p} = vec{k} - vec{q}
+      ! F2(vec{q},vec{k}-vec{q}) in Eq.(52) of Smith, Scoccimarro & Sheth (2006)
+      ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/pkd.f90
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: q
+      REAL, INTENT(IN) :: mu
+      DOUBLE PRECISION :: p, kp, kq, pq
+
+      kq = k*q*mu
+      kp = k**2.-kq
+      pq = kq-q**2 
+      p  = sqrt(k**2+q**2-2*kq)
+      F2_SPT = 5./7. &
+         + (1./2.)*pq/(p*q)*((p/q)+(q/p)) &
+         + (2./7.)*pq**2/(p*q)**2
+
+   END FUNCTION F2_SPT
+
+   REAL FUNCTION F3_SPT(k, q)
+
+      ! F3 kernel from standard perturbation theory
+      ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/pkd.f90
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: q
+      REAL, PARAMETER :: q_on_k_limit = q_on_k_limit_F3
+
+      ! Ref: Eq.[2.25] of Makino, Sasaki and Suto, PRD, 46, 585 (1992)
+      IF (q/k < q_on_k_limit) THEN
+         F3_SPT = k**2./252.*( &
+            12.*(k/q)**2-158.+100.*(q/k)**2-42*(q/k)**4 &
+            +(3./k**5/q**3)*(q**2-k**2)**3*(7.*q**2+2.*k**2) &
+            *log((k+q)/abs(k-q)))
+      ELSE
+         ! Asymptotic value for q/k->infinity, accurate to 2e-5 at q/k=100
+         F3_SPT = (-122./315.)*k**2
+      END IF
+
+   END FUNCTION F3_SPT
 
 END MODULE cosmology_functions
