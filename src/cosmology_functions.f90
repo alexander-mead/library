@@ -4948,867 +4948,6 @@ CONTAINS
 
    END SUBROUTINE init_spherical_collapse
 
-   SUBROUTINE ODE_spherical(x, v, kk, t, cosm, ti, tf, xi, vi, fx, fv, n, imeth, ilog)
-
-      ! Solves 2nd order ODE x''(t) from ti to tf and creates arrays of x, v, t values
-      ! ODE solver has a fixed number of time steps
-      REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
-      REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
-      REAL, INTENT(IN) :: kk
-      REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, INTENT(IN) :: ti
-      REAL, INTENT(IN) :: tf
-      REAL, INTENT(IN) :: xi
-      REAL, INTENT(IN) :: vi
-      REAL, EXTERNAL :: fx
-      REAL, EXTERNAL :: fv
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: imeth
-      LOGICAL, INTENT(IN) :: ilog
-      DOUBLE PRECISION, ALLOCATABLE :: x8(:), v8(:), t8(:)
-      INTEGER :: i
-
-      INTERFACE
-
-         !fx is what x' is equal to
-         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: v_interface
-            REAL, INTENT(IN) :: k_interface
-            REAL, INTENT(IN) :: t_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION fx
-
-         ! fv is what v' is equal to
-         FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: v_interface
-            REAL, INTENT(IN) :: k_interface
-            REAL, INTENT(IN) :: t_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION fv
-
-      END INTERFACE
-
-      ! Allocate arrays
-      ALLOCATE (x8(n), v8(n), t8(n))
-
-      ! Need to be set to zero for this to work in the spherical-collapse case
-      x8 = 0.d0
-      v8 = 0.d0
-      t8 = 0.d0
-
-      ! xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
-      x8(1) = xi
-      v8(1) = vi
-
-      ! Fill time array
-      IF (ilog) THEN
-         CALL fill_array_log(ti, tf, t8, n)
-      ELSE
-         CALL fill_array(ti, tf, t8, n)
-      END IF
-
-      DO i = 1, n-1
-
-         CALL ODE_advance_cosmology(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, imeth, kk, cosm)
-
-         ! Needed to escape from the ODE solver when the perturbation is ~collapsed
-         IF (x8(i+1) > dinf_spherical) EXIT
-
-      END DO
-
-      IF (ALLOCATED(x)) DEALLOCATE (x)
-      IF (ALLOCATED(v)) DEALLOCATE (v)
-      IF (ALLOCATED(t)) DEALLOCATE (t)
-      ALLOCATE (x(n), v(n), t(n))
-      x = real(x8)
-      v = real(v8)
-      t = real(t8)
-
-   END SUBROUTINE ODE_spherical
-
-   SUBROUTINE ODE_adaptive_cosmology(x, v, kk, t, cosm, ti, tf, xi, vi, fx, fv, acc, imeth, ilog)
-
-      ! Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
-      ! Adaptive, such that time steps are increased until convergence is achieved
-      REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
-      REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
-      REAL, INTENT(IN) :: kk
-      REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, INTENT(IN) :: ti
-      REAL, INTENT(IN) :: tf
-      REAL, INTENT(IN) :: xi
-      REAL, INTENT(IN) :: vi
-      REAL, EXTERNAL :: fx
-      REAL, EXTERNAL :: fv
-      REAL, INTENT(IN) :: acc ! Desired accuracy
-      INTEGER, INTENT(IN) :: imeth
-      LOGICAL, INTENT(IN) :: ilog
-      DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)
-      INTEGER :: i, j, n, k, np, ifail, kn
-      INTEGER, PARAMETER :: jmax = 30
-      INTEGER, PARAMETER :: ninit = 100
-
-      INTERFACE
-
-         ! fx is what x' is equal to
-         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: v_interface
-            REAL, INTENT(IN) :: k_interface
-            REAL, INTENT(IN) :: t_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION fx
-
-         ! fv is what v' is equal to
-         FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: v_interface
-            REAL, INTENT(IN) :: k_interface
-            REAL, INTENT(IN) :: t_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION fv
-
-      END INTERFACE
-
-      DO j = 1, jmax
-
-         n = 1+ninit*(2**(j-1))
-
-         ALLOCATE (x8(n), v8(n), t8(n))
-
-         x8 = 0.d0
-         v8 = 0.d0
-         t8 = 0.d0
-
-         ! xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
-         x8(1) = xi
-         v8(1) = vi
-
-         ! Fill time array
-         IF (ilog) THEN
-            CALL fill_array_log(ti, tf, t8, n)
-         ELSE
-            CALL fill_array(ti, tf, t8, n)
-         END IF
-
-         ifail = 0
-
-         DO i = 1, n-1
-            CALL ODE_advance_cosmology(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, imeth, kk, cosm)
-         END DO
-
-         IF (j == 1) ifail = 1
-
-         IF (j .NE. 1) THEN
-
-            np = 1+(n-1)/2
-
-            DO k = 1, 1+(n-1)/2
-
-               kn = 2*k-1
-
-               IF (ifail == 0) THEN
-
-                  IF (xh(k) > acc .AND. x8(kn) > acc .AND. (abs(xh(k)/x8(kn))-1.) > acc) ifail = 1
-                  IF (vh(k) > acc .AND. v8(kn) > acc .AND. (abs(vh(k)/v8(kn))-1.) > acc) ifail = 1
-
-                  IF (ifail == 1) THEN
-                     DEALLOCATE (xh, th, vh)
-                     EXIT
-                  END IF
-
-               END IF
-            END DO
-
-         END IF
-
-         IF (ifail == 0) THEN
-            IF (ALLOCATED(x)) DEALLOCATE (x)
-            IF (ALLOCATED(v)) DEALLOCATE (v)
-            IF (ALLOCATED(t)) DEALLOCATE (t)
-            ALLOCATE (x(n), v(n), t(n))
-            x = real(x8)
-            v = real(v8)
-            t = real(t8)
-            EXIT
-         END IF
-
-         ALLOCATE (xh(n), th(n), vh(n))
-         xh = x8
-         vh = v8
-         th = t8
-         DEALLOCATE (x8, t8, v8)
-
-      END DO
-
-   END SUBROUTINE ODE_adaptive_cosmology
-
-   SUBROUTINE ODE_advance_cosmology(x1, x2, v1, v2, t1, t2, fx, fv, imeth, k, cosm)
-
-      ! Advance the ODE system from t1 to t2
-      DOUBLE PRECISION, INTENT(IN) :: x1
-      DOUBLE PRECISION, INTENT(OUT) :: x2
-      DOUBLE PRECISION, INTENT(IN) :: v1
-      DOUBLE PRECISION, INTENT(OUT) :: v2
-      DOUBLE PRECISION, INTENT(IN) :: t1
-      DOUBLE PRECISION, INTENT(IN) :: t2
-      REAL, EXTERNAL :: fx
-      REAL, EXTERNAL :: fv
-      INTEGER, INTENT(IN) :: imeth
-      REAL, INTENT(IN) :: k
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: x, v, t, dt
-      REAL :: kx1, kx2, kx3, kx4
-      REAL :: kv1, kv2, kv3, kv4
-
-      ! ODE integration methods
-      ! imeth = 1: Crude
-      ! imeth = 2: Mid-point
-      ! imeth = 3: Fourth order Runge-Kutta
-
-      INTERFACE
-
-         ! fx is what x' is equal to
-         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: v_interface
-            REAL, INTENT(IN) :: k_interface
-            REAL, INTENT(IN) :: t_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION fx
-
-         ! fv is what v' is equal to
-         FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: v_interface
-            REAL, INTENT(IN) :: k_interface
-            REAL, INTENT(IN) :: t_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION fv
-
-      END INTERFACE
-
-      ! TODO: Is this necessary?
-      x = real(x1)
-      v = real(v1)
-      t = real(t1)
-
-      ! Time step
-      dt = real(t2-t1)
-
-      IF (imeth == 1) THEN
-
-         ! Crude method!
-         kx1 = dt*fx(x, v, k, t, cosm)
-         kv1 = dt*fv(x, v, k, t, cosm)
-
-         x2 = x1+kx1
-         v2 = v1+kv1
-
-      ELSE IF (imeth == 2) THEN
-
-         ! Mid-point method!
-         kx1 = dt*fx(x, v, k, t, cosm)
-         kv1 = dt*fv(x, v, k, t, cosm)
-         kx2 = dt*fx(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
-         kv2 = dt*fv(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
-
-         x2 = x1+kx2
-         v2 = v1+kv2
-
-      ELSE IF (imeth == 3) THEN
-
-         ! RK4 (Holy Christ, this is so fast compared to above methods)!
-         kx1 = dt*fx(x, v, k, t, cosm)
-         kv1 = dt*fv(x, v, k, t, cosm)
-         kx2 = dt*fx(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
-         kv2 = dt*fv(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
-         kx3 = dt*fx(x+kx2/2., v+kv2/2., k, t+dt/2., cosm)
-         kv3 = dt*fv(x+kx2/2., v+kv2/2., k, t+dt/2., cosm)
-         kx4 = dt*fx(x+kx3, v+kv3, k, t+dt, cosm)
-         kv4 = dt*fv(x+kx3, v+kv3, k, t+dt, cosm)
-
-         x2 = x1+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
-         v2 = v1+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
-
-      ELSE
-
-         STOP 'ODE_ADVANCE: Error, imeth specified incorrectly'
-
-      END IF
-
-   END SUBROUTINE ODE_advance_cosmology
-
-   REAL RECURSIVE FUNCTION integrate_1_cosm(a, b, f, cosm, acc, iorder)
-
-      ! Integrates between a and b until desired accuracy is reached
-      ! Stores information to reduce function calls
-      REAL, INTENT(IN) :: a ! Integration lower limit
-      REAL, INTENT(IN) :: b ! Integration upper limit
-      REAL, EXTERNAL :: f
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL, INTENT(IN) :: acc ! Accuracy
-      INTEGER, INTENT(IN) :: iorder ! Order for integration
-      INTEGER :: i, j
-      INTEGER :: n
-      REAL :: x, dx
-      REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-      LOGICAL :: pass
-      INTEGER, PARAMETER :: jmin = jmin_integration
-      INTEGER, PARAMETER :: jmax = jmax_integration
-
-      INTERFACE
-         FUNCTION f(x_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION f
-      END INTERFACE
-
-      IF (a == b) THEN
-
-         ! Fix the answer to zero if the integration limits are identical
-         integrate_1_cosm = 0.
-
-      ELSE
-
-         ! Set the sum variable for the integration
-         sum_2n = 0.d0
-         sum_n = 0.d0
-         sum_old = 0.d0
-         sum_new = 0.d0
-
-         DO j = 1, jmax
-
-            ! Note, you need this to be 1+2**n for some integer n
-            !j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-            n = 1+2**(j-1)
-
-            ! Calculate the dx interval for this value of 'n'
-            dx = (b-a)/real(n-1)
-
-            IF (j == 1) THEN
-
-               ! The first go is just the trapezium of the end points
-               f1 = f(a, cosm)
-               f2 = f(b, cosm)
-               sum_2n = 0.5d0*(f1+f2)*dx
-               sum_new = sum_2n
-
-            ELSE
-
-               ! Loop over only new even points to add these to the integral
-               DO i = 2, n, 2
-                  x = a+(b-a)*real(i-1)/real(n-1)
-                  fx = f(x, cosm)
-                  sum_2n = sum_2n+fx
-               END DO
-
-               ! Now create the total using the old and new parts
-               sum_2n = sum_n/2.d0+sum_2n*dx
-
-               ! Now calculate the new sum depending on the integration order
-               IF (iorder == 1) THEN
-                  sum_new = sum_2n
-               ELSE IF (iorder == 3) THEN
-                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
-               ELSE
-                  STOP 'INTEGRATE_COSM_1: Error, iorder specified incorrectly'
-               END IF
-
-            END IF
-
-            IF (sum_old == 0.d0 .OR. j<jmin) THEN
-               pass = .FALSE.
-            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
-               pass = .TRUE.
-            ELSE IF (j == jmax) THEN
-               pass = .FALSE.
-               STOP 'INTEGRATE_COSM_1: Integration timed out'
-            ELSE
-               pass = .FALSE.
-            END IF
-
-            IF (pass) THEN
-               EXIT
-            ELSE
-               ! Integral has not converged so store old sums and reset sum variables
-               sum_old = sum_new
-               sum_n = sum_2n
-               sum_2n = 0.d0
-            END IF
-
-         END DO
-
-         integrate_1_cosm = real(sum_new)
-
-      END IF
-
-   END FUNCTION integrate_1_cosm
-
-   REAL RECURSIVE FUNCTION integrate_2_cosm(a, b, f, y, cosm, acc, iorder)
-
-      ! Integrates between a and b until desired accuracy is reached
-      ! Stores information to reduce function calls
-      REAL, INTENT(IN) :: a ! Integration lower limit for first arguement in 'f'
-      REAL, INTENT(IN) :: b ! Integration upper limit for first arguement in 'f'
-      REAL, EXTERNAL :: f
-      REAL, INTENT(IN) :: y ! Second argument in 'f'
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL, INTENT(IN) :: acc ! Accuracy
-      INTEGER, INTENT(IN) :: iorder ! Order for integration
-      INTEGER :: i, j
-      INTEGER :: n
-      REAL :: x, dx
-      REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-      LOGICAL :: pass
-      INTEGER, PARAMETER :: jmin = jmin_integration
-      INTEGER, PARAMETER :: jmax = jmax_integration
-
-      INTERFACE
-         FUNCTION f(x_interface, y_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: y_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION f
-      END INTERFACE
-
-      IF (a == b) THEN
-
-         ! Fix the answer to zero if the integration limits are identical
-         integrate_2_cosm = 0.
-
-      ELSE
-
-         ! Set the sum variable for the integration
-         sum_2n = 0.d0
-         sum_n = 0.d0
-         sum_old = 0.d0
-         sum_new = 0.d0
-
-         DO j = 1, jmax
-
-            ! Note, you need this to be 1+2**n for some integer n
-            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-            n = 1+2**(j-1)
-
-            ! Calculate the dx interval for this value of 'n'
-            dx = (b-a)/real(n-1)
-
-            IF (j == 1) THEN
-
-               ! The first go is just the trapezium of the end points
-               f1 = f(a, y, cosm)
-               f2 = f(b, y, cosm)
-               sum_2n = 0.5d0*(f1+f2)*dx
-               sum_new = sum_2n
-
-            ELSE
-
-               ! Loop over only new even points to add these to the integral
-               DO i = 2, n, 2
-                  x = a+(b-a)*real(i-1)/real(n-1)
-                  fx = f(x, y, cosm)
-                  sum_2n = sum_2n+fx
-               END DO
-
-               ! Now create the total using the old and new parts
-               sum_2n = sum_n/2.d0+sum_2n*dx
-
-               ! Now calculate the new sum depending on the integration order
-               IF (iorder == 1) THEN
-                  sum_new = sum_2n
-               ELSE IF (iorder == 3) THEN
-                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
-               ELSE
-                  STOP 'INTEGRATE_COSM_2: Error, iorder specified incorrectly'
-               END IF
-
-            END IF
-
-            IF (sum_old == 0.d0 .OR. j<jmin) THEN
-               pass = .FALSE.
-            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
-               pass = .TRUE.
-            ELSE IF (j == jmax) THEN
-               pass = .FALSE.
-               STOP 'INTEGRATE_COSM_2: Integration timed out'
-            ELSE
-               pass = .FALSE.
-            END IF
-
-            IF (pass) THEN
-               EXIT
-            ELSE
-               ! Integral has not converged so store old sums and reset sum variables
-               sum_old = sum_new
-               sum_n = sum_2n
-               sum_2n = 0.d0
-            END IF
-
-         END DO
-         
-         integrate_2_cosm = real(sum_new)
-
-      END IF
-
-   END FUNCTION integrate_2_cosm
-
-   REAL RECURSIVE FUNCTION integrate_3_cosm(a, b, f, y, z, cosm, acc, iorder)
-
-      ! Integrates between a and b until desired accuracy is reached
-      ! Stores information to reduce function calls
-      REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
-      REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
-      REAL, EXTERNAL :: f
-      REAL, INTENT(IN) :: y ! Second argument in 'f'
-      REAL, INTENT(IN) :: z ! Third argument in 'f'
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL, INTENT(IN) :: acc ! Accuracy
-      INTEGER, INTENT(IN) :: iorder ! Order for integration
-      INTEGER :: i, j
-      INTEGER :: n
-      REAL :: x, dx
-      REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-      LOGICAL :: pass
-      INTEGER, PARAMETER :: jmin = jmin_integration
-      INTEGER, PARAMETER :: jmax = jmax_integration
-
-      INTERFACE
-         FUNCTION f(x_interface, y_interface, z_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: y_interface
-            REAL, INTENT(IN) :: z_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION f
-      END INTERFACE
-
-      IF (a == b) THEN
-
-         ! Fix the answer to zero if the integration limits are identical
-         integrate_3_cosm = 0.
-
-      ELSE
-
-         ! Set the sum variable for the integration
-         sum_2n = 0.d0
-         sum_n = 0.d0
-         sum_old = 0.d0
-         sum_new = 0.d0
-
-         DO j = 1, jmax
-
-            ! Note, you need this to be 1+2**n for some integer n
-            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-            n = 1+2**(j-1)
-
-            ! Calculate the dx interval for this value of 'n'
-            dx = (b-a)/real(n-1)
-
-            IF (j == 1) THEN
-
-               ! The first go is just the trapezium of the end points
-               f1 = f(a, y, z, cosm)
-               f2 = f(b, y, z, cosm)
-               sum_2n = 0.5d0*(f1+f2)*dx
-               sum_new = sum_2n
-
-            ELSE
-
-               ! Loop over only new even points to add these to the integral
-               DO i = 2, n, 2
-                  x = a+(b-a)*real(i-1)/real(n-1)
-                  fx = f(x, y, z, cosm)
-                  sum_2n = sum_2n+fx
-               END DO
-
-               ! Now create the total using the old and new parts
-               sum_2n = sum_n/2.d0+sum_2n*dx
-
-               ! Now calculate the new sum depending on the integration order
-               IF (iorder == 1) THEN
-                  sum_new = sum_2n
-               ELSE IF (iorder == 3) THEN
-                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
-               ELSE
-                  STOP 'INTEGRATE_COSM_3: Error, iorder specified incorrectly'
-               END IF
-
-            END IF
-
-            IF (sum_old == 0.d0 .OR. j<jmin) THEN
-               pass = .FALSE.     
-            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
-               pass = .TRUE.
-            ELSE IF (j == jmax) THEN
-               pass = .FALSE.
-               STOP 'INTEGRATE_COSM_3: Integration timed out'
-            ELSE
-               pass = .FALSE.
-            END IF
-
-            IF (pass) THEN
-               EXIT
-            ELSE
-               ! Integral has not converged so store old sums and reset sum variables
-               sum_old = sum_new
-               sum_n = sum_2n
-               sum_2n = 0.d0
-            END IF
-
-         END DO
-
-         integrate_3_cosm = real(sum_new)
-
-      END IF
-
-   END FUNCTION integrate_3_cosm
-
-   REAL RECURSIVE FUNCTION integrate_3_flag_cosm(a, b, f, y, z, flag, cosm, acc, iorder)
-
-      ! Integrates between a and b until desired accuracy is reached
-      ! Stores information to reduce function calls
-      REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
-      REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
-      REAL, EXTERNAL :: f
-      REAL, INTENT(IN) :: y ! Second argument in 'f'
-      REAL, INTENT(IN) :: z ! Third argument in 'f'
-      INTEGER, INTENT(IN) :: flag ! Flag argument in 'f'
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL, INTENT(IN) :: acc ! Accuracy
-      INTEGER, INTENT(IN) :: iorder ! Order for integration
-      INTEGER :: i, j
-      INTEGER :: n
-      REAL :: x, dx
-      REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-      LOGICAL :: pass
-      INTEGER, PARAMETER :: jmin = jmin_integration
-      INTEGER, PARAMETER :: jmax = jmax_integration
-
-      INTERFACE
-         FUNCTION f(x_interface, y_interface, z_interface, flag_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: y_interface
-            REAL, INTENT(IN) :: z_interface
-            INTEGER, INTENT(IN) :: flag_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION f
-      END INTERFACE
-
-      IF (a == b) THEN
-
-         ! Fix the answer to zero if the integration limits are identical
-         integrate_3_flag_cosm = 0.
-
-      ELSE
-
-         ! Set the sum variable for the integration
-         sum_2n = 0.d0
-         sum_n = 0.d0
-         sum_old = 0.d0
-         sum_new = 0.d0
-
-         DO j = 1, jmax
-
-            ! Note, you need this to be 1+2**n for some integer n
-            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-            n = 1+2**(j-1)
-
-            ! Calculate the dx interval for this value of 'n'
-            dx = (b-a)/real(n-1)
-
-            IF (j == 1) THEN
-
-               ! The first go is just the trapezium of the end points
-               f1 = f(a, y, z, flag, cosm)
-               f2 = f(b, y, z, flag, cosm)
-               sum_2n = 0.5d0*(f1+f2)*dx
-               sum_new = sum_2n
-
-            ELSE
-
-               ! Loop over only new even points to add these to the integral
-               DO i = 2, n, 2
-                  x = a+(b-a)*real(i-1)/real(n-1)
-                  fx = f(x, y, z, flag, cosm)
-                  sum_2n = sum_2n+fx
-               END DO
-
-               ! Now create the total using the old and new parts
-               sum_2n = sum_n/2.d0+sum_2n*dx
-
-               ! Now calculate the new sum depending on the integration order
-               IF (iorder == 1) THEN
-                  sum_new = sum_2n
-               ELSE IF (iorder == 3) THEN
-                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
-               ELSE
-                  STOP 'INTEGRATE_COSM_4: Error, iorder specified incorrectly'
-               END IF
-
-            END IF
-
-            IF (sum_old == 0.d0 .OR. j<jmin) THEN
-               pass = .FALSE.
-            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
-               pass = .TRUE.
-            ELSE IF (j == jmax) THEN
-               pass = .FALSE.
-               STOP 'INTEGRATE_COSM_4: Integration timed out'
-            ELSE
-               pass = .FALSE.
-            END IF
-
-            IF (pass) THEN
-               EXIT
-            ELSE
-               ! Integral has not converged so store old sums and reset sum variables
-               sum_old = sum_new
-               sum_n = sum_2n
-               sum_2n = 0.d0
-            END IF
-
-         END DO
-
-         integrate_3_flag_cosm = real(sum_new)
-
-      END IF
-
-   END FUNCTION integrate_3_flag_cosm
-
-   REAL RECURSIVE FUNCTION integrate_4_flag_cosm(a, b, f, y, z, z1, flag, cosm, acc, iorder)
-
-      ! Integrates between a and b until desired accuracy is reached
-      ! Stores information to reduce function calls
-      REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
-      REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
-      REAL, EXTERNAL :: f
-      REAL, INTENT(IN) :: y ! Second argument in 'f'
-      REAL, INTENT(IN) :: z ! Third argument in 'f'
-      REAL, INTENT(IN) :: z1 ! Fourth argument in 'f'
-      INTEGER, INTENT(IN) :: flag ! Flag argument in 'f'
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL, INTENT(IN) :: acc ! Accuracy
-      INTEGER, INTENT(IN) :: iorder ! Order for integration
-      INTEGER :: i, j
-      INTEGER :: n
-      REAL :: x, dx
-      REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-      LOGICAL :: pass
-      INTEGER, PARAMETER :: jmin = jmin_integration
-      INTEGER, PARAMETER :: jmax = jmax_integration
-
-      INTERFACE
-         FUNCTION f(x_interface, y_interface, z_interface, z1_interface, flag_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: y_interface
-            REAL, INTENT(IN) :: z_interface
-            REAL, INTENT(IN) :: z1_interface
-            INTEGER, INTENT(IN) :: flag_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION f
-      END INTERFACE
-
-      IF (a == b) THEN
-
-         ! Fix the answer to zero if the integration limits are identical
-         integrate_4_flag_cosm = 0.
-
-      ELSE
-
-         ! Set the sum variable for the integration
-         sum_2n = 0.d0
-         sum_n = 0.d0
-         sum_old = 0.d0
-         sum_new = 0.d0
-
-         DO j = 1, jmax
-
-            ! Note, you need this to be 1+2**n for some integer n
-            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-            n = 1+2**(j-1)
-
-            ! Calculate the dx interval for this value of 'n'
-            dx = (b-a)/real(n-1)
-
-            IF (j == 1) THEN
-
-               ! The first go is just the trapezium of the end points
-               f1 = f(a, y, z, z1, flag, cosm)
-               f2 = f(b, y, z, z1, flag, cosm)
-               sum_2n = 0.5d0*(f1+f2)*dx
-               sum_new = sum_2n
-
-            ELSE
-
-               ! Loop over only new even points to add these to the integral
-               DO i = 2, n, 2
-                  x = a+(b-a)*real(i-1)/real(n-1)
-                  fx = f(x, y, z, z1, flag, cosm)
-                  sum_2n = sum_2n+fx
-               END DO
-
-               ! Now create the total using the old and new parts
-               sum_2n = sum_n/2.d0+sum_2n*dx
-
-               ! Now calculate the new sum depending on the integration order
-               IF (iorder == 1) THEN
-                  sum_new = sum_2n
-               ELSE IF (iorder == 3) THEN
-                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
-               ELSE
-                  STOP 'INTEGRATE_COSM_4: Error, iorder specified incorrectly'
-               END IF
-
-            END IF
-
-            IF (sum_old == 0.d0 .OR. j<jmin) THEN
-               pass = .FALSE.
-            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
-               pass = .TRUE.
-            ELSE IF (j == jmax) THEN
-               pass = .FALSE.
-               STOP 'INTEGRATE_COSM_4: Integration timed out'
-            ELSE
-               pass = .FALSE.
-            END IF
-
-            IF (pass) THEN
-               EXIT
-            ELSE
-               ! Integral has not converged so store old sums and reset sum variables
-               sum_old = sum_new
-               sum_n = sum_2n
-               sum_2n = 0.d0
-            END IF
-
-         END DO
-
-         integrate_4_flag_cosm = real(sum_new)
-
-      END IF
-
-   END FUNCTION integrate_4_flag_cosm
-
    SUBROUTINE get_CAMB_power(a, na, k_Pk, Pk, nkPk, k_Tc, Tc, nkTc, non_linear, halofit_version, cosm)
 
       ! Runs CAMB to get a power spectrum
@@ -8190,5 +7329,866 @@ CONTAINS
       P_IR = P_dw*(P_lin+P_loop)/P_lin
 
    END FUNCTION P_IR
+
+   SUBROUTINE ODE_spherical(x, v, kk, t, cosm, ti, tf, xi, vi, fx, fv, n, imeth, ilog)
+
+      ! Solves 2nd order ODE x''(t) from ti to tf and creates arrays of x, v, t values
+      ! ODE solver has a fixed number of time steps
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
+      REAL, INTENT(IN) :: kk
+      REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, INTENT(IN) :: ti
+      REAL, INTENT(IN) :: tf
+      REAL, INTENT(IN) :: xi
+      REAL, INTENT(IN) :: vi
+      REAL, EXTERNAL :: fx
+      REAL, EXTERNAL :: fv
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: imeth
+      LOGICAL, INTENT(IN) :: ilog
+      DOUBLE PRECISION, ALLOCATABLE :: x8(:), v8(:), t8(:)
+      INTEGER :: i
+
+      INTERFACE
+
+         !fx is what x' is equal to
+         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION fx
+
+         ! fv is what v' is equal to
+         FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION fv
+
+      END INTERFACE
+
+      ! Allocate arrays
+      ALLOCATE (x8(n), v8(n), t8(n))
+
+      ! Need to be set to zero for this to work in the spherical-collapse case
+      x8 = 0.d0
+      v8 = 0.d0
+      t8 = 0.d0
+
+      ! xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
+      x8(1) = xi
+      v8(1) = vi
+
+      ! Fill time array
+      IF (ilog) THEN
+         CALL fill_array_log(ti, tf, t8, n)
+      ELSE
+         CALL fill_array(ti, tf, t8, n)
+      END IF
+
+      DO i = 1, n-1
+
+         CALL ODE_advance_cosmology(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, imeth, kk, cosm)
+
+         ! Needed to escape from the ODE solver when the perturbation is ~collapsed
+         IF (x8(i+1) > dinf_spherical) EXIT
+
+      END DO
+
+      IF (ALLOCATED(x)) DEALLOCATE (x)
+      IF (ALLOCATED(v)) DEALLOCATE (v)
+      IF (ALLOCATED(t)) DEALLOCATE (t)
+      ALLOCATE (x(n), v(n), t(n))
+      x = real(x8)
+      v = real(v8)
+      t = real(t8)
+
+   END SUBROUTINE ODE_spherical
+
+   SUBROUTINE ODE_adaptive_cosmology(x, v, kk, t, cosm, ti, tf, xi, vi, fx, fv, acc, imeth, ilog)
+
+      ! Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
+      ! Adaptive, such that time steps are increased until convergence is achieved
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
+      REAL, INTENT(IN) :: kk
+      REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, INTENT(IN) :: ti
+      REAL, INTENT(IN) :: tf
+      REAL, INTENT(IN) :: xi
+      REAL, INTENT(IN) :: vi
+      REAL, EXTERNAL :: fx
+      REAL, EXTERNAL :: fv
+      REAL, INTENT(IN) :: acc ! Desired accuracy
+      INTEGER, INTENT(IN) :: imeth
+      LOGICAL, INTENT(IN) :: ilog
+      DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)
+      INTEGER :: i, j, n, k, np, ifail, kn
+      INTEGER, PARAMETER :: jmax = 30
+      INTEGER, PARAMETER :: ninit = 100
+
+      INTERFACE
+
+         ! fx is what x' is equal to
+         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION fx
+
+         ! fv is what v' is equal to
+         FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION fv
+
+      END INTERFACE
+
+      DO j = 1, jmax
+
+         n = 1+ninit*(2**(j-1))
+
+         ALLOCATE (x8(n), v8(n), t8(n))
+
+         x8 = 0.d0
+         v8 = 0.d0
+         t8 = 0.d0
+
+         ! xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
+         x8(1) = xi
+         v8(1) = vi
+
+         ! Fill time array
+         IF (ilog) THEN
+            CALL fill_array_log(ti, tf, t8, n)
+         ELSE
+            CALL fill_array(ti, tf, t8, n)
+         END IF
+
+         ifail = 0
+
+         DO i = 1, n-1
+            CALL ODE_advance_cosmology(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, imeth, kk, cosm)
+         END DO
+
+         IF (j == 1) ifail = 1
+
+         IF (j .NE. 1) THEN
+
+            np = 1+(n-1)/2
+
+            DO k = 1, 1+(n-1)/2
+
+               kn = 2*k-1
+
+               IF (ifail == 0) THEN
+
+                  IF (xh(k) > acc .AND. x8(kn) > acc .AND. (abs(xh(k)/x8(kn))-1.) > acc) ifail = 1
+                  IF (vh(k) > acc .AND. v8(kn) > acc .AND. (abs(vh(k)/v8(kn))-1.) > acc) ifail = 1
+
+                  IF (ifail == 1) THEN
+                     DEALLOCATE (xh, th, vh)
+                     EXIT
+                  END IF
+
+               END IF
+            END DO
+
+         END IF
+
+         IF (ifail == 0) THEN
+            IF (ALLOCATED(x)) DEALLOCATE (x)
+            IF (ALLOCATED(v)) DEALLOCATE (v)
+            IF (ALLOCATED(t)) DEALLOCATE (t)
+            ALLOCATE (x(n), v(n), t(n))
+            x = real(x8)
+            v = real(v8)
+            t = real(t8)
+            EXIT
+         END IF
+
+         ALLOCATE (xh(n), th(n), vh(n))
+         xh = x8
+         vh = v8
+         th = t8
+         DEALLOCATE (x8, t8, v8)
+
+      END DO
+
+   END SUBROUTINE ODE_adaptive_cosmology
+
+   SUBROUTINE ODE_advance_cosmology(x1, x2, v1, v2, t1, t2, fx, fv, imeth, k, cosm)
+
+      ! Advance the ODE system from t1 to t2
+      DOUBLE PRECISION, INTENT(IN) :: x1
+      DOUBLE PRECISION, INTENT(OUT) :: x2
+      DOUBLE PRECISION, INTENT(IN) :: v1
+      DOUBLE PRECISION, INTENT(OUT) :: v2
+      DOUBLE PRECISION, INTENT(IN) :: t1
+      DOUBLE PRECISION, INTENT(IN) :: t2
+      REAL, EXTERNAL :: fx
+      REAL, EXTERNAL :: fv
+      INTEGER, INTENT(IN) :: imeth
+      REAL, INTENT(IN) :: k
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: x, v, t, dt
+      REAL :: kx1, kx2, kx3, kx4
+      REAL :: kv1, kv2, kv3, kv4
+
+      ! ODE integration methods
+      ! imeth = 1: Crude
+      ! imeth = 2: Mid-point
+      ! imeth = 3: Fourth order Runge-Kutta
+
+      INTERFACE
+
+         ! fx is what x' is equal to
+         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION fx
+
+         ! fv is what v' is equal to
+         FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: v_interface
+            REAL, INTENT(IN) :: k_interface
+            REAL, INTENT(IN) :: t_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION fv
+
+      END INTERFACE
+
+      ! TODO: Is this necessary?
+      x = real(x1)
+      v = real(v1)
+      t = real(t1)
+
+      ! Time step
+      dt = real(t2-t1)
+
+      IF (imeth == 1) THEN
+
+         ! Crude method!
+         kx1 = dt*fx(x, v, k, t, cosm)
+         kv1 = dt*fv(x, v, k, t, cosm)
+
+         x2 = x1+kx1
+         v2 = v1+kv1
+
+      ELSE IF (imeth == 2) THEN
+
+         ! Mid-point method!
+         kx1 = dt*fx(x, v, k, t, cosm)
+         kv1 = dt*fv(x, v, k, t, cosm)
+         kx2 = dt*fx(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
+         kv2 = dt*fv(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
+
+         x2 = x1+kx2
+         v2 = v1+kv2
+
+      ELSE IF (imeth == 3) THEN
+
+         ! RK4 (Holy Christ, this is so fast compared to above methods)!
+         kx1 = dt*fx(x, v, k, t, cosm)
+         kv1 = dt*fv(x, v, k, t, cosm)
+         kx2 = dt*fx(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
+         kv2 = dt*fv(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
+         kx3 = dt*fx(x+kx2/2., v+kv2/2., k, t+dt/2., cosm)
+         kv3 = dt*fv(x+kx2/2., v+kv2/2., k, t+dt/2., cosm)
+         kx4 = dt*fx(x+kx3, v+kv3, k, t+dt, cosm)
+         kv4 = dt*fv(x+kx3, v+kv3, k, t+dt, cosm)
+
+         x2 = x1+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
+         v2 = v1+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
+
+      ELSE
+
+         STOP 'ODE_ADVANCE: Error, imeth specified incorrectly'
+
+      END IF
+
+   END SUBROUTINE ODE_advance_cosmology
+
+   REAL RECURSIVE FUNCTION integrate_1_cosm(a, b, f, cosm, acc, iorder)
+
+      ! Integrates between a and b until desired accuracy is reached
+      ! Stores information to reduce function calls
+      REAL, INTENT(IN) :: a ! Integration lower limit
+      REAL, INTENT(IN) :: b ! Integration upper limit
+      REAL, EXTERNAL :: f
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      REAL, INTENT(IN) :: acc ! Accuracy
+      INTEGER, INTENT(IN) :: iorder ! Order for integration
+      INTEGER :: i, j
+      INTEGER :: n
+      REAL :: x, dx
+      REAL :: f1, f2, fx
+      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
+
+      INTERFACE
+         FUNCTION f(x_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION f
+      END INTERFACE
+
+      IF (a == b) THEN
+
+         ! Fix the answer to zero if the integration limits are identical
+         integrate_1_cosm = 0.
+
+      ELSE
+
+         ! Set the sum variable for the integration
+         sum_2n = 0.d0
+         sum_n = 0.d0
+         sum_old = 0.d0
+         sum_new = 0.d0
+
+         DO j = 1, jmax
+
+            ! Note, you need this to be 1+2**n for some integer n
+            !j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+            n = 1+2**(j-1)
+
+            ! Calculate the dx interval for this value of 'n'
+            dx = (b-a)/real(n-1)
+
+            IF (j == 1) THEN
+
+               ! The first go is just the trapezium of the end points
+               f1 = f(a, cosm)
+               f2 = f(b, cosm)
+               sum_2n = 0.5d0*(f1+f2)*dx
+               sum_new = sum_2n
+
+            ELSE
+
+               ! Loop over only new even points to add these to the integral
+               DO i = 2, n, 2
+                  x = a+(b-a)*real(i-1)/real(n-1)
+                  fx = f(x, cosm)
+                  sum_2n = sum_2n+fx
+               END DO
+
+               ! Now create the total using the old and new parts
+               sum_2n = sum_n/2.d0+sum_2n*dx
+
+               ! Now calculate the new sum depending on the integration order
+               IF (iorder == 1) THEN
+                  sum_new = sum_2n
+               ELSE IF (iorder == 3) THEN
+                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
+               ELSE
+                  STOP 'INTEGRATE_COSM_1: Error, iorder specified incorrectly'
+               END IF
+
+            END IF
+
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
+            ELSE IF (j == jmax) THEN
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_1: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_n = sum_2n
+               sum_2n = 0.d0
+            END IF
+
+         END DO
+
+         integrate_1_cosm = real(sum_new)
+
+      END IF
+
+   END FUNCTION integrate_1_cosm
+
+   REAL RECURSIVE FUNCTION integrate_2_cosm(a, b, f, y, cosm, acc, iorder)
+
+      ! Integrates between a and b until desired accuracy is reached
+      ! Stores information to reduce function calls
+      REAL, INTENT(IN) :: a ! Integration lower limit for first arguement in 'f'
+      REAL, INTENT(IN) :: b ! Integration upper limit for first arguement in 'f'
+      REAL, EXTERNAL :: f
+      REAL, INTENT(IN) :: y ! Second argument in 'f'
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      REAL, INTENT(IN) :: acc ! Accuracy
+      INTEGER, INTENT(IN) :: iorder ! Order for integration
+      INTEGER :: i, j
+      INTEGER :: n
+      REAL :: x, dx
+      REAL :: f1, f2, fx
+      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
+
+      INTERFACE
+         FUNCTION f(x_interface, y_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: y_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION f
+      END INTERFACE
+
+      IF (a == b) THEN
+
+         ! Fix the answer to zero if the integration limits are identical
+         integrate_2_cosm = 0.
+
+      ELSE
+
+         ! Set the sum variable for the integration
+         sum_2n = 0.d0
+         sum_n = 0.d0
+         sum_old = 0.d0
+         sum_new = 0.d0
+
+         DO j = 1, jmax
+
+            ! Note, you need this to be 1+2**n for some integer n
+            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+            n = 1+2**(j-1)
+
+            ! Calculate the dx interval for this value of 'n'
+            dx = (b-a)/real(n-1)
+
+            IF (j == 1) THEN
+
+               ! The first go is just the trapezium of the end points
+               f1 = f(a, y, cosm)
+               f2 = f(b, y, cosm)
+               sum_2n = 0.5d0*(f1+f2)*dx
+               sum_new = sum_2n
+
+            ELSE
+
+               ! Loop over only new even points to add these to the integral
+               DO i = 2, n, 2
+                  x = a+(b-a)*real(i-1)/real(n-1)
+                  fx = f(x, y, cosm)
+                  sum_2n = sum_2n+fx
+               END DO
+
+               ! Now create the total using the old and new parts
+               sum_2n = sum_n/2.d0+sum_2n*dx
+
+               ! Now calculate the new sum depending on the integration order
+               IF (iorder == 1) THEN
+                  sum_new = sum_2n
+               ELSE IF (iorder == 3) THEN
+                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
+               ELSE
+                  STOP 'INTEGRATE_COSM_2: Error, iorder specified incorrectly'
+               END IF
+
+            END IF
+
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
+            ELSE IF (j == jmax) THEN
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_2: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_n = sum_2n
+               sum_2n = 0.d0
+            END IF
+
+         END DO
+         
+         integrate_2_cosm = real(sum_new)
+
+      END IF
+
+   END FUNCTION integrate_2_cosm
+
+   REAL RECURSIVE FUNCTION integrate_3_cosm(a, b, f, y, z, cosm, acc, iorder)
+
+      ! Integrates between a and b until desired accuracy is reached
+      ! Stores information to reduce function calls
+      REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
+      REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
+      REAL, EXTERNAL :: f
+      REAL, INTENT(IN) :: y ! Second argument in 'f'
+      REAL, INTENT(IN) :: z ! Third argument in 'f'
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      REAL, INTENT(IN) :: acc ! Accuracy
+      INTEGER, INTENT(IN) :: iorder ! Order for integration
+      INTEGER :: i, j
+      INTEGER :: n
+      REAL :: x, dx
+      REAL :: f1, f2, fx
+      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
+
+      INTERFACE
+         FUNCTION f(x_interface, y_interface, z_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: y_interface
+            REAL, INTENT(IN) :: z_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION f
+      END INTERFACE
+
+      IF (a == b) THEN
+
+         ! Fix the answer to zero if the integration limits are identical
+         integrate_3_cosm = 0.
+
+      ELSE
+
+         ! Set the sum variable for the integration
+         sum_2n = 0.d0
+         sum_n = 0.d0
+         sum_old = 0.d0
+         sum_new = 0.d0
+
+         DO j = 1, jmax
+
+            ! Note, you need this to be 1+2**n for some integer n
+            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+            n = 1+2**(j-1)
+
+            ! Calculate the dx interval for this value of 'n'
+            dx = (b-a)/real(n-1)
+
+            IF (j == 1) THEN
+
+               ! The first go is just the trapezium of the end points
+               f1 = f(a, y, z, cosm)
+               f2 = f(b, y, z, cosm)
+               sum_2n = 0.5d0*(f1+f2)*dx
+               sum_new = sum_2n
+
+            ELSE
+
+               ! Loop over only new even points to add these to the integral
+               DO i = 2, n, 2
+                  x = a+(b-a)*real(i-1)/real(n-1)
+                  fx = f(x, y, z, cosm)
+                  sum_2n = sum_2n+fx
+               END DO
+
+               ! Now create the total using the old and new parts
+               sum_2n = sum_n/2.d0+sum_2n*dx
+
+               ! Now calculate the new sum depending on the integration order
+               IF (iorder == 1) THEN
+                  sum_new = sum_2n
+               ELSE IF (iorder == 3) THEN
+                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
+               ELSE
+                  STOP 'INTEGRATE_COSM_3: Error, iorder specified incorrectly'
+               END IF
+
+            END IF
+
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.     
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
+            ELSE IF (j == jmax) THEN
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_3: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_n = sum_2n
+               sum_2n = 0.d0
+            END IF
+
+         END DO
+
+         integrate_3_cosm = real(sum_new)
+
+      END IF
+
+   END FUNCTION integrate_3_cosm
+
+   REAL RECURSIVE FUNCTION integrate_3_flag_cosm(a, b, f, y, z, flag, cosm, acc, iorder)
+
+      ! Integrates between a and b until desired accuracy is reached
+      ! Stores information to reduce function calls
+      REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
+      REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
+      REAL, EXTERNAL :: f
+      REAL, INTENT(IN) :: y ! Second argument in 'f'
+      REAL, INTENT(IN) :: z ! Third argument in 'f'
+      INTEGER, INTENT(IN) :: flag ! Flag argument in 'f'
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      REAL, INTENT(IN) :: acc ! Accuracy
+      INTEGER, INTENT(IN) :: iorder ! Order for integration
+      INTEGER :: i, j
+      INTEGER :: n
+      REAL :: x, dx
+      REAL :: f1, f2, fx
+      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
+
+      INTERFACE
+         FUNCTION f(x_interface, y_interface, z_interface, flag_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: y_interface
+            REAL, INTENT(IN) :: z_interface
+            INTEGER, INTENT(IN) :: flag_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION f
+      END INTERFACE
+
+      IF (a == b) THEN
+
+         ! Fix the answer to zero if the integration limits are identical
+         integrate_3_flag_cosm = 0.
+
+      ELSE
+
+         ! Set the sum variable for the integration
+         sum_2n = 0.d0
+         sum_n = 0.d0
+         sum_old = 0.d0
+         sum_new = 0.d0
+
+         DO j = 1, jmax
+
+            ! Note, you need this to be 1+2**n for some integer n
+            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+            n = 1+2**(j-1)
+
+            ! Calculate the dx interval for this value of 'n'
+            dx = (b-a)/real(n-1)
+
+            IF (j == 1) THEN
+
+               ! The first go is just the trapezium of the end points
+               f1 = f(a, y, z, flag, cosm)
+               f2 = f(b, y, z, flag, cosm)
+               sum_2n = 0.5d0*(f1+f2)*dx
+               sum_new = sum_2n
+
+            ELSE
+
+               ! Loop over only new even points to add these to the integral
+               DO i = 2, n, 2
+                  x = a+(b-a)*real(i-1)/real(n-1)
+                  fx = f(x, y, z, flag, cosm)
+                  sum_2n = sum_2n+fx
+               END DO
+
+               ! Now create the total using the old and new parts
+               sum_2n = sum_n/2.d0+sum_2n*dx
+
+               ! Now calculate the new sum depending on the integration order
+               IF (iorder == 1) THEN
+                  sum_new = sum_2n
+               ELSE IF (iorder == 3) THEN
+                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
+               ELSE
+                  STOP 'INTEGRATE_COSM_4: Error, iorder specified incorrectly'
+               END IF
+
+            END IF
+
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
+            ELSE IF (j == jmax) THEN
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_4: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_n = sum_2n
+               sum_2n = 0.d0
+            END IF
+
+         END DO
+
+         integrate_3_flag_cosm = real(sum_new)
+
+      END IF
+
+   END FUNCTION integrate_3_flag_cosm
+
+   REAL RECURSIVE FUNCTION integrate_4_flag_cosm(a, b, f, y, z, z1, flag, cosm, acc, iorder)
+
+      ! Integrates between a and b until desired accuracy is reached
+      ! Stores information to reduce function calls
+      REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
+      REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
+      REAL, EXTERNAL :: f
+      REAL, INTENT(IN) :: y ! Second argument in 'f'
+      REAL, INTENT(IN) :: z ! Third argument in 'f'
+      REAL, INTENT(IN) :: z1 ! Fourth argument in 'f'
+      INTEGER, INTENT(IN) :: flag ! Flag argument in 'f'
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+      REAL, INTENT(IN) :: acc ! Accuracy
+      INTEGER, INTENT(IN) :: iorder ! Order for integration
+      INTEGER :: i, j
+      INTEGER :: n
+      REAL :: x, dx
+      REAL :: f1, f2, fx
+      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
+
+      INTERFACE
+         FUNCTION f(x_interface, y_interface, z_interface, z1_interface, flag_interface, cosm_interface)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_interface
+            REAL, INTENT(IN) :: y_interface
+            REAL, INTENT(IN) :: z_interface
+            REAL, INTENT(IN) :: z1_interface
+            INTEGER, INTENT(IN) :: flag_interface
+            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+         END FUNCTION f
+      END INTERFACE
+
+      IF (a == b) THEN
+
+         ! Fix the answer to zero if the integration limits are identical
+         integrate_4_flag_cosm = 0.
+
+      ELSE
+
+         ! Set the sum variable for the integration
+         sum_2n = 0.d0
+         sum_n = 0.d0
+         sum_old = 0.d0
+         sum_new = 0.d0
+
+         DO j = 1, jmax
+
+            ! Note, you need this to be 1+2**n for some integer n
+            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+            n = 1+2**(j-1)
+
+            ! Calculate the dx interval for this value of 'n'
+            dx = (b-a)/real(n-1)
+
+            IF (j == 1) THEN
+
+               ! The first go is just the trapezium of the end points
+               f1 = f(a, y, z, z1, flag, cosm)
+               f2 = f(b, y, z, z1, flag, cosm)
+               sum_2n = 0.5d0*(f1+f2)*dx
+               sum_new = sum_2n
+
+            ELSE
+
+               ! Loop over only new even points to add these to the integral
+               DO i = 2, n, 2
+                  x = a+(b-a)*real(i-1)/real(n-1)
+                  fx = f(x, y, z, z1, flag, cosm)
+                  sum_2n = sum_2n+fx
+               END DO
+
+               ! Now create the total using the old and new parts
+               sum_2n = sum_n/2.d0+sum_2n*dx
+
+               ! Now calculate the new sum depending on the integration order
+               IF (iorder == 1) THEN
+                  sum_new = sum_2n
+               ELSE IF (iorder == 3) THEN
+                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
+               ELSE
+                  STOP 'INTEGRATE_COSM_4: Error, iorder specified incorrectly'
+               END IF
+
+            END IF
+
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
+            ELSE IF (j == jmax) THEN
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_4: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_n = sum_2n
+               sum_2n = 0.d0
+            END IF
+
+         END DO
+
+         integrate_4_flag_cosm = real(sum_new)
+
+      END IF
+
+   END FUNCTION integrate_4_flag_cosm
 
 END MODULE cosmology_functions
