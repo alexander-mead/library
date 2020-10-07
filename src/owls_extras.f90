@@ -588,27 +588,27 @@ CONTAINS
       USE string_operations
       CHARACTER(len=*), INTENT(IN) :: sim
 
-      IF (string_in_string('Planck2013', sim)) THEN
+      IF (snippet_in_string('Planck2013', sim)) THEN
          VD20_get_cosmology = 3
-      ELSE IF (string_in_string('nu0_WMAP9', sim) .OR. &
-               string_in_string('nu0_v2_WMAP9', sim) .OR. &
-               string_in_string('nu0_v3_WMAP9', sim)) THEN
+      ELSE IF (snippet_in_string('nu0_WMAP9', sim) .OR. &
+               snippet_in_string('nu0_v2_WMAP9', sim) .OR. &
+               snippet_in_string('nu0_v3_WMAP9', sim)) THEN
          VD20_get_cosmology = 96
-      ELSE IF (string_in_string('nu0.06_WMAP9', sim)) THEN
+      ELSE IF (snippet_in_string('nu0.06_WMAP9', sim)) THEN
          VD20_get_cosmology = 75
-      ELSE IF (string_in_string('nu0.12_WMAP9', sim)) THEN
+      ELSE IF (snippet_in_string('nu0.12_WMAP9', sim)) THEN
          VD20_get_cosmology = 76
-      ELSE IF (string_in_string('nu0.24_WMAP9', sim)) THEN
+      ELSE IF (snippet_in_string('nu0.24_WMAP9', sim)) THEN
          VD20_get_cosmology = 77
-      ELSE IF (string_in_string('nu0.48_WMAP9', sim)) THEN
+      ELSE IF (snippet_in_string('nu0.48_WMAP9', sim)) THEN
          VD20_get_cosmology = 78
-      ELSE IF (string_in_string('nu0.06_Planck2015', sim)) THEN
+      ELSE IF (snippet_in_string('nu0.06_Planck2015', sim)) THEN
          VD20_get_cosmology = 63
-      ELSE IF (string_in_string('nu0.12_Planck2015', sim)) THEN
+      ELSE IF (snippet_in_string('nu0.12_Planck2015', sim)) THEN
          VD20_get_cosmology = 93
-      ELSE IF (string_in_string('nu0.24_Planck2015', sim)) THEN
+      ELSE IF (snippet_in_string('nu0.24_Planck2015', sim)) THEN
          VD20_get_cosmology = 94
-      ELSE IF (string_in_string('nu0.48_Planck2015', sim)) THEN
+      ELSE IF (snippet_in_string('nu0.48_Planck2015', sim)) THEN
          VD20_get_cosmology = 95
       ELSE
          WRITE(*, *) 'VD20_GET_COSMOLOGY: Simulation name: ', trim(sim)
