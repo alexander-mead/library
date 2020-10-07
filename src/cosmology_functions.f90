@@ -154,6 +154,8 @@ MODULE cosmology_functions
 
    ! Perturbation theory
    PUBLIC :: P_SPT
+   PUBLIC :: P_SPT_approx
+   PUBLIC :: P_IR
    
    INTERFACE integrate_cosm
       MODULE PROCEDURE integrate_1_cosm
@@ -161,7 +163,6 @@ MODULE cosmology_functions
       MODULE PROCEDURE integrate_3_cosm
       MODULE PROCEDURE integrate_3_flag_cosm
       MODULE PROCEDURE integrate_4_flag_cosm
-      !MODULE PROCEDURE integrate_5_flag_cosm
    END INTERFACE integrate_cosm
 
    ! Contains cosmological parameters that only need to be calculated once
@@ -5808,124 +5809,6 @@ CONTAINS
 
    END FUNCTION integrate_4_flag_cosm
 
-   ! REAL RECURSIVE FUNCTION integrate_5_flag_cosm(a, b, f, y, z, z1, z2, flag, cosm, acc, iorder)
-
-   !    ! Integrates between a and b until desired accuracy is reached
-   !    ! Stores information to reduce function calls
-   !    REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
-   !    REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
-   !    REAL, EXTERNAL :: f
-   !    REAL, INTENT(IN) :: y ! Second argument in 'f'
-   !    REAL, INTENT(IN) :: z ! Third argument in 'f'
-   !    REAL, INTENT(IN) :: z1 ! Fourth argument in 'f'
-   !    REAL, INTENT(IN) :: z2 ! Fifth argument in 'f'
-   !    INTEGER, INTENT(IN) :: flag ! Flag argument in 'f'
-   !    TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-   !    REAL, INTENT(IN) :: acc ! Accuracy
-   !    INTEGER, INTENT(IN) :: iorder ! Order for integration
-   !    INTEGER :: i, j
-   !    INTEGER :: n
-   !    REAL :: x, dx
-   !    REAL :: f1, f2, fx
-   !    DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-   !    LOGICAL :: pass
-   !    INTEGER, PARAMETER :: jmin = jmin_integration
-   !    INTEGER, PARAMETER :: jmax = jmax_integration
-
-   !    INTERFACE
-   !       FUNCTION f(x_interface, y_interface, z_interface, z1_interface, z2_interface, flag_interface, cosm_interface)
-   !          IMPORT :: cosmology
-   !          REAL, INTENT(IN) :: x_interface
-   !          REAL, INTENT(IN) :: y_interface
-   !          REAL, INTENT(IN) :: z_interface
-   !          REAL, INTENT(IN) :: z1_interface
-   !          REAL, INTENT(IN) :: z2_interface
-   !          INTEGER, INTENT(IN) :: flag_interface
-   !          TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-   !       END FUNCTION f
-   !    END INTERFACE
-
-   !    IF (a == b) THEN
-
-   !       ! Fix the answer to zero if the integration limits are identical
-   !       integrate_5_flag_cosm = 0.
-
-   !    ELSE
-
-   !       ! Set the sum variable for the integration
-   !       sum_2n = 0.d0
-   !       sum_n = 0.d0
-   !       sum_old = 0.d0
-   !       sum_new = 0.d0
-
-   !       DO j = 1, jmax
-
-   !          ! Note, you need this to be 1+2**n for some integer n
-   !          ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-   !          n = 1+2**(j-1)
-
-   !          ! Calculate the dx interval for this value of 'n'
-   !          dx = (b-a)/real(n-1)
-
-   !          IF (j == 1) THEN
-
-   !             ! The first go is just the trapezium of the end points
-   !             f1 = f(a, y, z, z1, z2, flag, cosm)
-   !             f2 = f(b, y, z, z1, z2, flag, cosm)
-   !             sum_2n = 0.5d0*(f1+f2)*dx
-   !             sum_new = sum_2n
-
-   !          ELSE
-
-   !             ! Loop over only new even points to add these to the integral
-   !             DO i = 2, n, 2
-   !                x = a+(b-a)*real(i-1)/real(n-1)
-   !                fx = f(x, y, z, z1, z2, flag, cosm)
-   !                sum_2n = sum_2n+fx
-   !             END DO
-
-   !             ! Now create the total using the old and new parts
-   !             sum_2n = sum_n/2.d0+sum_2n*dx
-
-   !             ! Now calculate the new sum depending on the integration order
-   !             IF (iorder == 1) THEN
-   !                sum_new = sum_2n
-   !             ELSE IF (iorder == 3) THEN
-   !                sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
-   !             ELSE
-   !                STOP 'INTEGRATE_COSM_4: Error, iorder specified incorrectly'
-   !             END IF
-
-   !          END IF
-
-   !          IF (sum_old == 0.d0 .OR. j<jmin) THEN
-   !             pass = .FALSE.
-   !          ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
-   !             pass = .TRUE.
-   !          ELSE IF (j == jmax) THEN
-   !             pass = .FALSE.
-   !             STOP 'INTEGRATE_COSM_4: Integration timed out'
-   !          ELSE
-   !             pass = .FALSE.
-   !          END IF
-
-   !          IF (pass) THEN
-   !             EXIT
-   !          ELSE
-   !             ! Integral has not converged so store old sums and reset sum variables
-   !             sum_old = sum_new
-   !             sum_n = sum_2n
-   !             sum_2n = 0.d0
-   !          END IF
-
-   !       END DO
-
-   !       integrate_5_flag_cosm = real(sum_new)
-
-   !    END IF
-
-   ! END FUNCTION integrate_5_flag_cosm
-
    SUBROUTINE get_CAMB_power(a, na, k_Pk, Pk, nkPk, k_Tc, Tc, nkTc, non_linear, halofit_version, cosm)
 
       ! Runs CAMB to get a power spectrum
@@ -7936,15 +7819,15 @@ CONTAINS
 
    END SUBROUTINE init_wiggle
 
-   REAL FUNCTION p_dewiggle(k, a, flag, sigv, cosm)
+   REAL FUNCTION p_dewiggle(k, a, sigv, cosm)
 
-      ! Call the dewiggled power spectrum, which is linear but with damped wiggles
+      ! Calculate the dewiggled power spectrum, which is linear but with damped wiggles
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
-      INTEGER, INTENT(IN) :: flag
       REAL, INTENT(IN) :: sigv
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: p_wiggle, f, p_linear
+      INTEGER, PARAMETER :: flag = flag_matter
    
       IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm) 
       IF (.NOT. cosm%has_wiggle)    CALL init_wiggle(cosm)  
@@ -8057,7 +7940,7 @@ CONTAINS
 
    END SUBROUTINE calculate_psmooth
 
-   REAL FUNCTION P_SPT(k, a, flag, cosm)
+   REAL FUNCTION P_SPT(k, a, cosm)
 
       ! Returns the one-loop SPT power spectrum in Delta^2(k) form
       ! Scales exactly as g(a)^4
@@ -8065,10 +7948,10 @@ CONTAINS
       ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/compute_pkd.f90
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
-      INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: kmin = kmin_integrate_SPT
       REAL, PARAMETER :: kmax = kmax_integrate_SPT
+      INTEGER, PARAMETER :: flag = flag_matter
 
       IF (k < kmin) THEN
          P_SPT = 0.
@@ -8080,6 +7963,26 @@ CONTAINS
       END IF
 
    END FUNCTION P_SPT
+
+   REAL FUNCTION P_SPT_approx(k, a, cosm)
+
+      ! An approximation to the SPT result, particularly valid around the pre-virialisation bit
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: ratio
+      REAL, PARAMETER :: A1 = 0.0317
+      REAL, PARAMETER :: k1 = 0.08
+      REAL, PARAMETER :: A3 = 0.491
+      REAL, PARAMETER :: k3 = 0.2
+      REAL, PARAMETER :: sig8 = 0.8
+      INTEGER, PARAMETER :: flag = flag_matter
+
+      ratio = -A1*(k/k1)+A3*(k/k3)**3
+      ratio = ratio*(grow(a, cosm)*cosm%sig8/sig8)**2
+      P_SPT_approx = ratio*plin(k, a, flag, cosm)
+
+   END FUNCTION P_SPT_approx
 
    REAL FUNCTION P_22_SPT(k, a, flag, cosm)
 
@@ -8263,5 +8166,29 @@ CONTAINS
       END IF
 
    END FUNCTION F3_SPT
+
+   REAL FUNCTION P_IR(k, a, sigv, R, cosm, approx)
+
+      USE basic_operations
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      REAL, INTENT(IN) :: sigv
+      REAL, INTENT(IN) :: R
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      LOGICAL, OPTIONAL, INTENT(IN) :: approx
+      REAL :: P_dw, P_lin, P_loop
+      INTEGER, PARAMETER :: flag = flag_matter
+
+      P_dw = p_dewiggle(k, a, sigv, cosm)
+      P_lin = plin(k, a, flag, cosm)
+      IF (present_and_correct(approx)) THEN
+         P_loop = P_SPT_approx(k, a, cosm)
+      ELSE  
+         P_loop = P_SPT(k, a, cosm)
+      END IF
+      P_loop = P_loop*exp(-(k*R)**2)
+      P_IR = P_dw*(P_lin+P_loop)/P_lin
+
+   END FUNCTION P_IR
 
 END MODULE cosmology_functions

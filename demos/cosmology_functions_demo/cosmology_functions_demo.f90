@@ -11,7 +11,7 @@ PROGRAM cosmology_functions_demo
    REAL :: t1, t2, t3, t4, xi
    REAL :: crap
    REAL :: sigv, sigv100
-   REAL :: P_lin, P_1loop, P_22, P_13
+   REAL :: P_lin, P_loop, P_pt, P_apx
    INTEGER :: i
    CHARACTER(len=256) :: cosmo
 
@@ -25,6 +25,7 @@ PROGRAM cosmology_functions_demo
    LOGICAL, PARAMETER :: test_neff = .TRUE.
    LOGICAL, PARAMETER :: test_ncur = .FALSE.
    LOGICAL, PARAMETER :: test_loop = .TRUE.
+   LOGICAL, PARAMETER :: test_IR = .TRUE.
 
    REAL, PARAMETER :: amin = 1e-5
    REAL, PARAMETER :: amax = 1
@@ -36,7 +37,7 @@ PROGRAM cosmology_functions_demo
 
    REAL, PARAMETER :: kmin_SPT = 1e-2
    REAL, PARAMETER :: kmax_SPT = 0.5
-   INTEGER, PARAMETER :: nk_SPT = 64
+   INTEGER, PARAMETER :: nk_SPT = 128
 
    REAL, PARAMETER :: rmin = 1e-4
    REAL, PARAMETER :: rmax = 1e3
@@ -177,7 +178,7 @@ PROGRAM cosmology_functions_demo
          k = progression_log(kmin, kmax, i, nk)
          WRITE(10, *) k, &
                plin(k, a, flag_matter, cosm), &
-               p_dewiggle(k, a, flag_matter, sigv, cosm)
+               p_dewiggle(k, a, sigv, cosm)
       END DO
       CLOSE(10)
       IF (verbose) THEN
@@ -286,6 +287,7 @@ PROGRAM cosmology_functions_demo
       WRITE (*, *)
    END IF
 
+   ! Test SPT
    IF (test_loop) THEN
       WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing SPT'
       a = 1.
@@ -294,11 +296,30 @@ PROGRAM cosmology_functions_demo
          k = progression_log(kmin_SPT, kmax_SPT, i, nk_SPT)
          !WRITE(*, *) i, k
          P_lin = plin(k, a, flag_matter, cosm)
-         P_1loop = P_SPT(k, a, flag_matter, cosm)
-         WRITE(10, *) k, P_lin, P_1loop
+         P_loop = P_SPT(k, a, cosm)
+         P_apx = P_SPT_approx(k, a, cosm)
+         WRITE(10, *) k, P_lin, P_loop, P_apx
       END DO
       CLOSE(10)
       WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: SPT done'
+      WRITE (*, *)
+   END IF
+
+   ! Test IR resummed spectra
+   IF (test_IR) THEN
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: Testing and writing IR resummed power'
+      a = 1.
+      sigv = sigmaV(0., 1.0, flag_matter, cosm)
+      R = sigv
+      OPEN(10, file='data/IR.dat')
+      DO i = 1, nk_SPT
+         k = progression_log(kmin_SPT, kmax_SPT, i, nk_SPT)
+         P_lin = plin(k, a, flag_matter, cosm)
+         P_pt = P_IR(k, a, sigv, R, cosm, approx=.FALSE.)
+         WRITE(10, *) k, P_lin, P_pt
+      END DO
+      CLOSE(10)
+      WRITE (*, *) 'COSMOLOGY_FUNCTIONS_DEMO: IR resummed done'
       WRITE (*, *)
    END IF
 

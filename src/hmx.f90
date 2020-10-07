@@ -3697,7 +3697,7 @@ END FUNCTION scatter_integrand
       ELSE IF (hmod%ip2h == 3) THEN
 
          ! Damped BAO linear theory
-         p_2h = p_dewiggle(k, hmod%a, flag_matter, hmod%sigv, cosm)
+         p_2h = p_dewiggle(k, hmod%a, hmod%sigv, cosm)
 
       ELSE IF (hmod%ip2h == 4) THEN
 
