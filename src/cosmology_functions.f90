@@ -7966,7 +7966,7 @@ CONTAINS
 
    REAL FUNCTION P_SPT_approx(k, a, cosm)
 
-      ! An approximation to the SPT result, particularly valid around the pre-virialisation bit
+      ! An approximation to the SPT result, valid for k < 0.15 h/Mpc ish
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
