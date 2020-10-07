@@ -701,6 +701,7 @@ CONTAINS
       names(106) = 'Non-linear halo bias with tweaked baryon parameters'
       names(107) = 'Non-linear halo bias with extrapolation'
       names(108) = 'Standard but with Bhattacharya et al. (2011) mass fucuntion'
+      names(109) = 'Standard but with IR resummed two-halo term'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -720,6 +721,7 @@ CONTAINS
       ! 2 - Standard from Seljak (2000)
       ! 3 - Linear theory with damped wiggles
       ! 4 - No two-halo term
+      ! 5 - IR resummed linear theory
       hmod%ip2h = 2
 
       ! Method to correct the two-halo integral
@@ -1977,10 +1979,13 @@ CONTAINS
          IF (ihm == 106) THEN
             hmod%ibias = 3 ! Non-linear halo bias
          END IF
-      ELSE IF (ihm == 107) THEN
+      ELSE IF (ihm == 108) THEN
          ! Bhattacharya et al. (2011) mass function
          ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
          hmod%imf = 10
+      ELSE IF (ihm == 109) THEN
+         ! IR resummed two-halo term
+         hmod%ip2h = 5
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2262,6 +2267,7 @@ CONTAINS
          IF (hmod%ip2h == 2) WRITE (*, *) 'HALOMODEL: Standard two-halo term (Seljak 2000)'
          IF (hmod%ip2h == 3) WRITE (*, *) 'HALOMODEL: Linear two-halo term with damped wiggles'
          IF (hmod%ip2h == 4) WRITE (*, *) 'HALOMODEL: No two-halo term'
+         IF (hmod%ip2h == 5) WRITE (*, *) 'HALOMODEL: IR resummed two-halo term'
 
          ! Order to go to in halo bias
          IF (hmod%ip2h == 2) THEN
@@ -3690,20 +3696,13 @@ END FUNCTION scatter_integrand
       rhom = comoving_matter_density(cosm)
 
       IF (hmod%ip2h == 1) THEN
-
-         ! Simply linear theory
-         p_2h = pli
-
-      ELSE IF (hmod%ip2h == 3) THEN
-
-         ! Damped BAO linear theory
-         p_2h = p_dewiggle(k, hmod%a, hmod%sigv, cosm)
-
-      ELSE IF (hmod%ip2h == 4) THEN
-
-         ! No two-halo term
-         p_2h = 0.
-
+         p_2h = pli ! Linear theory
+      ELSE IF (hmod%ip2h == 3) THEN  
+         p_2h = p_dewiggle(k, hmod%a, hmod%sigv, cosm) ! Damped BAO linear theory
+      ELSE IF (hmod%ip2h == 4) THEN    
+         p_2h = 0. ! No two-halo term
+      ELSE IF (hmod%ip2h == 5) THEN
+         p_2h = P_IR(k, hmod%a, hmod%sigv, hmod%sigv, cosm, approx=.FALSE.) ! IR resummation
       ELSE IF (hmod%ip2h == 2) THEN
 
          IF (hmod%imf == 4) THEN
@@ -3820,7 +3819,7 @@ END FUNCTION scatter_integrand
 
       ! Get the normalisation correct for non-matter fields if you are using linear theory or damped BAO
       ! TODO: Does not seem to work with smoothed components.
-      IF (hmod%ip2h == 1 .OR. hmod%ip2h == 3) THEN
+      IF (hmod%ip2h == 1 .OR. hmod%ip2h == 3 .OR. hmod%ip2h == 5) THEN
          DO j = 1, 2
             IF (ih(j) == field_dmonly .OR. ih(j) == field_matter) THEN
                I2hs(j) = 1.
