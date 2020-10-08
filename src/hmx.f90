@@ -701,7 +701,7 @@ CONTAINS
       names(106) = 'Non-linear halo bias with tweaked baryon parameters'
       names(107) = 'Non-linear halo bias with extrapolation'
       names(108) = 'Standard but with Bhattacharya et al. (2011) mass fucuntion'
-      names(109) = 'Standard but with one-loop, dewiggled, damped two-halo term'
+      names(109) = 'Perturbation theory two-halo term'
       names(110) = 'Standard but with one-loop SPT for two-halo term'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
@@ -1827,14 +1827,15 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
-      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104])) THEN
+      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 109])) THEN
          ! HMcode (2020)
          !  77 - Unfitted
          !  78 - Fitted to Cosmic Emu for k<1
-         !  79 - Fitted
+         !  79 - Fitted and published model
          ! 102 - Fitted with baryon model
          ! 103 - Baryon model in response
          ! 104 - Baryon model using HMx language
+         ! 109 - Perturbation-theory two-halo term
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
@@ -1847,8 +1848,11 @@ CONTAINS
          hmod%ieta = 3    ! 3 - HMcode 2020 eta bloating
          hmod%zD = 10.    ! 10 vs 100 makes a difference for EDE-type cosmologies
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
-         hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass       
-         IF (ihm == 78) THEN
+         hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass   
+         IF (ihm == 109) THEN 
+            hmod%ip2h = 5    ! 5 - One-loop SPT, dewiggled and damped
+            hmod%ks = 0.03   ! One-halo damping wavenumber   
+         ELSE IF (ihm == 78) THEN
             ! Model 3: 0.00926 for Cosmic Emu
             hmod%f0 = 0.1995332
             hmod%f1 = 0.4271555
@@ -1985,9 +1989,6 @@ CONTAINS
          ! Bhattacharya et al. (2011) mass function
          ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
          hmod%imf = 10
-      ELSE IF (ihm == 109) THEN
-         ! One-loop SPT, dewiggle and damp
-         hmod%ip2h = 5
       ELSE IF (ihm == 110) THEN
          ! One-loop SPT
          hmod%ip2h = 6
@@ -3707,7 +3708,7 @@ END FUNCTION scatter_integrand
       ELSE IF (hmod%ip2h == 4) THEN    
          p_2h = 0. ! No two-halo term
       ELSE IF (hmod%ip2h == 5) THEN
-         p_2h = P_SPT_dewiggle_damp(k, hmod%a, hmod%sigv, hmod%sigv, cosm, approx=.FALSE.) ! IR resummation
+         p_2h = P_SPT_dewiggle_damp(k, hmod%a, hmod%sigv, 6.*hmod%rnl, cosm, approx=.FALSE.) ! IR resummation
       ELSE IF (hmod%ip2h == 6) THEN
          p_2h = pli+P_SPT(k, hmod%a, cosm) ! One-loop SPT
       ELSE IF (hmod%ip2h == 2) THEN
@@ -4018,9 +4019,10 @@ END FUNCTION scatter_integrand
                p_hm = pow_2h+pow_1h
             ELSE
                WRITE (*, *) 'P_HM: k [h/Mpc]:', k
+               WRITE (*, *) 'P_HM: a:', hmod%a
                WRITE (*, *) 'P_HM: Two-halo term:', pow_2h
                WRITE (*, *) 'P_HM: One-halo term:', pow_1h
-               STOP 'P_HM: Error, either pow_2h or pow_1h is negative, which is a problem for smoothed transition'
+               STOP 'P_HM: Error, either two- or one-halo term negative, which is a problem for smoothed transition'
             END IF
 
          ELSE
