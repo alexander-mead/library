@@ -3709,7 +3709,7 @@ END FUNCTION scatter_integrand
       ELSE IF (hmod%ip2h == 5) THEN
          p_2h = P_SPT_dewiggle_damp(k, hmod%a, hmod%sigv, hmod%sigv, cosm, approx=.FALSE.) ! IR resummation
       ELSE IF (hmod%ip2h == 6) THEN
-         p_2h = P_SPT(k, hmod%a, cosm) ! One-loop SPT
+         p_2h = pli+P_SPT(k, hmod%a, cosm) ! One-loop SPT
       ELSE IF (hmod%ip2h == 2) THEN
 
          IF (hmod%imf == 4) THEN
