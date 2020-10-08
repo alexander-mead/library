@@ -513,7 +513,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: kmax_interpolate_SPT = 0.5   ! Maximum wavenumber for interpolator [h/Mpc]
    INTEGER, PARAMETER :: nk_interpolate_SPT = 64   ! Number of wavenumber points in interpolator
    INTEGER, PARAMETER :: iorder_interp_SPT = 3     ! Order for interpolation
-   INTEGER, PARAMETER :: iextrap_SPT = iextrap_lin ! Extrapolation scheme for interpolation
+   INTEGER, PARAMETER :: iextrap_SPT = iextrap_std ! Extrapolation scheme for interpolation
    LOGICAL, PARAMETER :: store_interp_SPT = .TRUE. ! Store coefficients for interpolation?
 
    ! General cosmological integrations
@@ -7147,7 +7147,11 @@ CONTAINS
       IF (interp_SPT .AND. (.NOT. cosm%has_SPT)) CALL init_SPT(cosm)
 
       IF (cosm%has_SPT) THEN
-         P_SPT = (grow(a, cosm)**2)*plin(k, a, flag, cosm)*evaluate_interpolator(k, cosm%rspt)
+         IF (k < cosm%rspt%xmin) THEN
+            P_SPT = 0.
+         ELSE
+            P_SPT = (grow(a, cosm)**2)*plin(k, a, flag, cosm)*evaluate_interpolator(k, cosm%rspt)
+         END IF
       ELSE
          IF (k < kmin) THEN
             P_SPT = 0.
