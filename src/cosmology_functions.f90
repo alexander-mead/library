@@ -505,7 +505,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: kmin_integrate_SPT = 1e-4    ! Minimum wavenumber for integration [h/Mpc]: -9.2 in Komatsu code
    REAL, PARAMETER :: kmax_integrate_SPT = 20.     ! Maximum wavenumber for integration [h/Mpc]: e^3 ~ 20. in Komatsu code
    REAL, PARAMETER :: eps_multiple_SPT = 0.17      ! Multiple of wavenumber to take care in P_22 around pole: 0.17 in Komatsu code
-   REAL, PARAMETER :: q_on_k_limit_F3 = 100.       ! Limit of q/k for Taylor expansion in F3 kernel
+   REAL, PARAMETER :: q_on_k_limit_F3 = 100.       ! Limit of q/k for Taylor expansion in F3 kernel: 1e2 in Komatsu code
    REAL, PARAMETER :: acc_integrate_SPT = acc_cosm ! Accuracy for integration
    INTEGER, PARAMETER :: iorder_integrate_SPT = 3  ! Order for integration
    LOGICAL, PARAMETER :: interp_SPT = .TRUE.       ! Use interpolator for SPT?
@@ -659,6 +659,7 @@ CONTAINS
       names(258) = 'CAMB test cosmology'
       names(259) = 'Boring but with low sigma_8 = 0.5'
       names(260) = 'Boring bit with high sigma_8 = 1.2'
+      names(261) = 'Millenium WMAP 1'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1515,6 +1516,14 @@ CONTAINS
       ELSE IF (icosmo ==  260) THEN
          ! Boring but with high sigma_8
          cosm%sig8 = 1.2
+      ELSE IF (icosmo == 261) THEN
+         ! Millenium - WMAP 1
+         cosm%Om_m = 0.25
+         cosm%Om_v = 1.-cosm%Om_m
+         cosm%Om_b = 0.045
+         cosm%h = 0.73
+         cosm%sig8 = 0.9
+         cosm%ns = 1.
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
