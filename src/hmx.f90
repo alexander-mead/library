@@ -701,7 +701,8 @@ CONTAINS
       names(106) = 'Non-linear halo bias with tweaked baryon parameters'
       names(107) = 'Non-linear halo bias with extrapolation'
       names(108) = 'Standard but with Bhattacharya et al. (2011) mass fucuntion'
-      names(109) = 'Standard but with IR resummed two-halo term'
+      names(109) = 'Standard but with one-loop, dewiggled, damped two-halo term'
+      names(110) = 'Standard but with one-loop SPT for two-halo term'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -721,7 +722,8 @@ CONTAINS
       ! 2 - Standard from Seljak (2000)
       ! 3 - Linear theory with damped wiggles
       ! 4 - No two-halo term
-      ! 5 - IR resummed linear theory
+      ! 5 - One-loop SPT, dewiggle and damp
+      ! 6 - One-loop SPT
       hmod%ip2h = 2
 
       ! Method to correct the two-halo integral
@@ -1984,8 +1986,11 @@ CONTAINS
          ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
          hmod%imf = 10
       ELSE IF (ihm == 109) THEN
-         ! IR resummed two-halo term
+         ! One-loop SPT, dewiggle and damp
          hmod%ip2h = 5
+      ELSE IF (ihm == 110) THEN
+         ! One-loop SPT
+         hmod%ip2h = 6
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2267,7 +2272,8 @@ CONTAINS
          IF (hmod%ip2h == 2) WRITE (*, *) 'HALOMODEL: Standard two-halo term (Seljak 2000)'
          IF (hmod%ip2h == 3) WRITE (*, *) 'HALOMODEL: Linear two-halo term with damped wiggles'
          IF (hmod%ip2h == 4) WRITE (*, *) 'HALOMODEL: No two-halo term'
-         IF (hmod%ip2h == 5) WRITE (*, *) 'HALOMODEL: IR resummed two-halo term'
+         IF (hmod%ip2h == 5) WRITE (*, *) 'HALOMODEL: One-loop SPT, dewiggle and damp'
+         IF (hmod%ip2h == 6) WRITE (*, *) 'HALOMODEL: One-loop SPT'
 
          ! Order to go to in halo bias
          IF (hmod%ip2h == 2) THEN
@@ -3396,8 +3402,7 @@ CONTAINS
 
          ! If linear theory is used for two-halo term we must recalculate the window functions
          ! For the two-halo term we need the k->0 limit
-         IF (hmod%ip2h == 1 .OR. hmod%ip2h == 3) THEN
-            !CALL init_windows(0., ifield, nf, wk, hmod%n, hmod, cosm)
+         IF (is_in_array(hmod%ip2h, [1, 3, 5, 6])) THEN
             wk = wk0
          ELSE
             ! If we are worrying about halo profiles that somehow change between one- and two-halo evaulations then we need this
@@ -3702,7 +3707,9 @@ END FUNCTION scatter_integrand
       ELSE IF (hmod%ip2h == 4) THEN    
          p_2h = 0. ! No two-halo term
       ELSE IF (hmod%ip2h == 5) THEN
-         p_2h = P_IR(k, hmod%a, hmod%sigv, hmod%sigv, cosm, approx=.FALSE.) ! IR resummation
+         p_2h = P_SPT_dewiggle_damp(k, hmod%a, hmod%sigv, hmod%sigv, cosm, approx=.FALSE.) ! IR resummation
+      ELSE IF (hmod%ip2h == 6) THEN
+         p_2h = P_SPT(k, hmod%a, cosm) ! One-loop SPT
       ELSE IF (hmod%ip2h == 2) THEN
 
          IF (hmod%imf == 4) THEN
@@ -3812,14 +3819,12 @@ END FUNCTION scatter_integrand
          END IF
 
       ELSE
-
          STOP 'P_2H: Error, ip2h not specified correclty'
-
       END IF
 
       ! Get the normalisation correct for non-matter fields if you are using linear theory or damped BAO
       ! TODO: Does not seem to work with smoothed components.
-      IF (hmod%ip2h == 1 .OR. hmod%ip2h == 3 .OR. hmod%ip2h == 5) THEN
+      IF (is_in_array(hmod%ip2h, [1, 3, 5, 6])) THEN
          DO j = 1, 2
             IF (ih(j) == field_dmonly .OR. ih(j) == field_matter) THEN
                I2hs(j) = 1.
@@ -10933,5 +10938,29 @@ END FUNCTION scatter_integrand
       END IF
 
    END SUBROUTINE write_power_a
+
+   REAL FUNCTION P_SPT_dewiggle_damp(k, a, sigv, R, cosm, approx)
+
+      USE basic_operations
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      REAL, INTENT(IN) :: sigv
+      REAL, INTENT(IN) :: R
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      LOGICAL, OPTIONAL, INTENT(IN) :: approx
+      REAL :: P_dw, P_lin, P_loop
+      INTEGER, PARAMETER :: flag = flag_matter
+
+      P_dw = p_dewiggle(k, a, sigv, cosm)
+      P_lin = plin(k, a, flag, cosm)
+      IF (present_and_correct(approx)) THEN
+         P_loop = P_SPT_approx(k, a, cosm)
+      ELSE  
+         P_loop = P_SPT(k, a, cosm)
+      END IF
+      P_loop = P_loop*exp(-(k*R)**2)
+      P_SPT_dewiggle_damp = P_dw*(P_lin+P_loop)/P_lin
+
+   END FUNCTION P_SPT_dewiggle_damp
 
 END MODULE HMx
