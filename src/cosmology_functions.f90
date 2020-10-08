@@ -155,7 +155,7 @@ MODULE cosmology_functions
    ! Perturbation theory
    PUBLIC :: P_SPT
    PUBLIC :: P_SPT_approx
-   PUBLIC :: P_IR
+   PUBLIC :: P_SPT_sum
    
    INTERFACE integrate_cosm
       MODULE PROCEDURE integrate_1_cosm
@@ -215,12 +215,12 @@ MODULE cosmology_functions
       REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:)     ! Arrays for input linear P(k) TODO: Remove
       REAL, ALLOCATABLE :: log_a_plin(:), log_plina(:, :) ! Arrays for input linear P(k, a) TODO: Remove
       TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde ! 1D interpolators
-      TYPE(interpolator1D) :: plin, wiggle
+      TYPE(interpolator1D) :: plin, wiggle, rspt
       TYPE(interpolator2D) :: sigmaa, plina, Tcold, wigglea ! 2D interpolators 
       INTEGER :: nk_plin, na_plin ! Number of array entries
       LOGICAL :: analytical_power                                                          
-      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power, has_time, has_Xde  ! What has been calculated
-      LOGICAL :: has_wiggle
+      LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power ! Interpolator status
+      LOGICAL :: has_wiggle, has_SPT, has_time, has_Xde ! Interpolator status
       LOGICAL :: is_init, is_normalised ! Flags to check if things have been done 
 
       ! Verbose
@@ -502,12 +502,19 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: CAMB_HMcode2020_feedback = 10 ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
 
    ! Standard perturbation theory (SPT)
-   REAL, PARAMETER :: kmin_integrate_SPT = 1e-4    ! -9.2 in Komatsu code
-   REAL, PARAMETER :: kmax_integrate_SPT = 20.     ! e^3 ~ 20. in Komatsu code
-   REAL, PARAMETER :: eps_multiple_SPT = 0.17      ! 0.17 in Komatsu code
-   REAL, PARAMETER :: q_on_k_limit_F3 = 100.       ! Limit for Taylor expansion in F3 kernel
-   REAL, PARAMETER :: acc_integrate_SPT = acc_cosm ! Accuracy for integraation
+   REAL, PARAMETER :: kmin_integrate_SPT = 1e-4    ! Minimum wavenumber for integration [h/Mpc]: -9.2 in Komatsu code
+   REAL, PARAMETER :: kmax_integrate_SPT = 20.     ! Maximum wavenumber for integration [h/Mpc]: e^3 ~ 20. in Komatsu code
+   REAL, PARAMETER :: eps_multiple_SPT = 0.17      ! Multiple of wavenumber to take care in P_22 around pole: 0.17 in Komatsu code
+   REAL, PARAMETER :: q_on_k_limit_F3 = 100.       ! Limit of q/k for Taylor expansion in F3 kernel
+   REAL, PARAMETER :: acc_integrate_SPT = acc_cosm ! Accuracy for integration
    INTEGER, PARAMETER :: iorder_integrate_SPT = 3  ! Order for integration
+   LOGICAL, PARAMETER :: interp_SPT = .TRUE.       ! Use interpolator for SPT?
+   REAL, PARAMETER :: kmin_interpolate_SPT = 5e-3  ! Minimum wavenumber for interpolator [h/Mpc]
+   REAL, PARAMETER :: kmax_interpolate_SPT = 0.5   ! Maximum wavenumber for interpolator [h/Mpc]
+   INTEGER, PARAMETER :: nk_interpolate_SPT = 64   ! Number of wavenumber points in interpolator
+   INTEGER, PARAMETER :: iorder_interp_SPT = 3     ! Order for interpolation
+   INTEGER, PARAMETER :: iextrap_SPT = iextrap_lin ! Extrapolation scheme for interpolation
+   LOGICAL, PARAMETER :: store_interp_SPT = .TRUE. ! Store coefficients for interpolation?
 
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
@@ -881,14 +888,7 @@ CONTAINS
       cosm%analytical_power = .FALSE.
 
       ! Interpolators
-      cosm%has_distance = .FALSE.
-      cosm%has_growth = .FALSE.
-      cosm%has_sigma = .FALSE.
-      cosm%has_spherical = .FALSE.
-      cosm%has_power = .FALSE.
-      cosm%has_time = .FALSE.
-      cosm%has_Xde = .FALSE.
-      cosm%has_wiggle = .FALSE.
+      CALL reset_interpolator_status(cosm)
 
       ! Omegas for power spectrum if different from background cosmological parameters; false by default
       cosm%Om_m_pow = 0.
@@ -1768,14 +1768,7 @@ CONTAINS
       cosm%horizon = 0.
 
       ! Interpolators
-      cosm%has_time = .FALSE.
-      cosm%has_growth = .FALSE.
-      cosm%has_sigma = .FALSE.
-      cosm%has_distance = .FALSE.
-      cosm%has_spherical = .FALSE.
-      cosm%has_Xde = .FALSE.
-      cosm%has_wiggle = .FALSE.
-      cosm%has_power = .FALSE.
+      CALL reset_interpolator_status(cosm)
 
       ! Switch analytical transfer function
       IF (is_in_array(cosm%iTk, [iTk_EH, iTk_DEFW, iTk_none, iTk_nw])) THEN
@@ -1963,6 +1956,22 @@ CONTAINS
       CALL print_cosmology(cosm)
 
    END SUBROUTINE assign_init_cosmology
+
+   SUBROUTINE reset_interpolator_status(cosm)
+
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      cosm%has_distance = .FALSE.
+      cosm%has_growth = .FALSE.
+      cosm%has_sigma = .FALSE.
+      cosm%has_spherical = .FALSE.
+      cosm%has_power = .FALSE.
+      cosm%has_time = .FALSE.
+      cosm%has_Xde = .FALSE.
+      cosm%has_wiggle = .FALSE.
+      cosm%has_SPT = .FALSE.
+
+   END SUBROUTINE reset_interpolator_status
 
    REAL FUNCTION neutrino_constant(cosm)
 
@@ -7079,29 +7088,92 @@ CONTAINS
 
    END SUBROUTINE calculate_psmooth
 
-   REAL FUNCTION P_SPT(k, a, cosm)
+   SUBROUTINE init_SPT(cosm)
+
+      ! Initialise interpolator for SPT
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, ALLOCATABLE :: k(:), Rk(:)
+      INTEGER :: ik
+      REAL, PARAMETER :: kmin = kmin_interpolate_SPT
+      REAL, PARAMETER :: kmax = kmax_interpolate_SPT
+      INTEGER, PARAMETER :: nk = nk_interpolate_SPT
+      REAL, PARAMETER :: a = 1.
+      INTEGER, PARAMETER :: flag = flag_matter
+      INTEGER, PARAMETER :: iorder = iorder_interp_SPT
+      INTEGER, PARAMETER :: iextrap = iextrap_SPT
+      LOGICAL, PARAMETER :: store = store_interp_SPT
+
+      IF(cosm%verbose) THEN
+         WRITE(*, *) 'INIT_SPT: Initialising interpolator for SPT'
+         WRITE(*, *) 'INIT_SPT: Calculating ratio with linear power at a =', a
+         WRITE(*, *) 'INIT_SPT: Minimum wavenumber [h/Mpc]:', kmin
+         WRITE(*, *) 'INIT_SPT: Minimum wavenumber [h/Mpc]:', kmax
+         WRITE(*, *) 'INIT_SPT: Number of k points:', nk
+      END IF
+
+      ! Fill wavenumber array
+      CALL fill_array_log(kmin, kmax, k, nk)
+
+      ! Calculate SPT power and create ratio with respect to linear power
+      ALLOCATE(Rk(nk))
+      DO ik = 1, nk
+         Rk(ik) = P_SPT_sum(k(ik), a, flag, cosm)/plin(k(ik), a, flag, cosm)
+      END DO
+
+      ! Initialise the interpolator
+      CALL init_interpolator(k, Rk, cosm%rspt, iorder, iextrap, store, logx=.TRUE., logf=.FALSE.)
+      cosm%has_SPT = .TRUE.
+
+      IF(cosm%verbose) THEN
+         WRITE(*, *) 'INIT_SPT: Done'
+         WRITE(*, *)
+      END IF
+
+   END SUBROUTINE init_SPT
+
+   RECURSIVE REAL FUNCTION P_SPT(k, a, cosm)
 
       ! Returns the one-loop SPT power spectrum in Delta^2(k) form
       ! Scales exactly as g(a)^4
-      ! Note factor of 2 from P_13
-      ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/compute_pkd.f90
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, PARAMETER :: kmin = kmin_integrate_SPT
       REAL, PARAMETER :: kmax = kmax_integrate_SPT
       INTEGER, PARAMETER :: flag = flag_matter
+      LOGICAL, PARAMETER :: interp = interp_SPT
 
-      IF (k < kmin) THEN
-         P_SPT = 0.
-      ELSE IF (k > kmax) THEN
-         STOP 'P_SPT: You are trying to evalulate SPT for too large a wavenumber'
+      ! Fill interpolator if necessary
+      IF (interp_SPT .AND. (.NOT. cosm%has_SPT)) CALL init_SPT(cosm)
+
+      IF (cosm%has_SPT) THEN
+         P_SPT = (grow(a, cosm)**2)*plin(k, a, flag, cosm)*evaluate_interpolator(k, cosm%rspt)
       ELSE
-         ! Total one-loop SPT power spectrum (note factor of 2 in front of P_13)
-         P_SPT = P_22_SPT(k, a, flag, cosm)+2.*P_13_SPT(k, a, flag, cosm)
+         IF (k < kmin) THEN
+            P_SPT = 0.
+         ELSE IF (k > kmax) THEN
+            STOP 'P_SPT: You are trying to evalulate SPT for too large a wavenumber'
+         ELSE
+            P_SPT = P_SPT_sum(k, a, flag, cosm)
+         END IF
       END IF
 
    END FUNCTION P_SPT
+
+   REAL FUNCTION P_SPT_sum(k, a, flag, cosm)
+
+      ! One-loop power spectrum from summing P_13 and P_22; Delta^2(k)
+      ! Scales exactly as g(a)^4
+      ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/compute_pkd.f90 
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      ! Note factor of 2 in front of P_13
+      P_SPT_sum = P_22_SPT(k, a, flag, cosm)+2.*P_13_SPT(k, a, flag, cosm)
+
+   END FUNCTION P_SPT_sum
 
    REAL FUNCTION P_SPT_approx(k, a, cosm)
 
@@ -7110,14 +7182,15 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: ratio
-      REAL, PARAMETER :: A1 = 0.0317
-      REAL, PARAMETER :: k1 = 0.08
-      REAL, PARAMETER :: A3 = 0.491
-      REAL, PARAMETER :: k3 = 0.2
+      REAL, PARAMETER :: A1 = -0.0374
+      REAL, PARAMETER :: A2 = -0.0054
+      REAL, PARAMETER :: A3 = 0.0643
+      REAL, PARAMETER :: kn = 0.1
       REAL, PARAMETER :: sig8 = 0.8
       INTEGER, PARAMETER :: flag = flag_matter
 
-      ratio = -A1*(k/k1)+A3*(k/k3)**3
+      !ratio = A1*(k/k1)+A3*(k/k3)**3
+      ratio = A1*(k/kn)+A2*(k/kn)**2+A3*(k/kn)**3
       ratio = ratio*(grow(a, cosm)*cosm%sig8/sig8)**2
       P_SPT_approx = ratio*plin(k, a, flag, cosm)
 
@@ -7305,30 +7378,6 @@ CONTAINS
       END IF
 
    END FUNCTION F3_SPT
-
-   REAL FUNCTION P_IR(k, a, sigv, R, cosm, approx)
-
-      USE basic_operations
-      REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: a
-      REAL, INTENT(IN) :: sigv
-      REAL, INTENT(IN) :: R
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      LOGICAL, OPTIONAL, INTENT(IN) :: approx
-      REAL :: P_dw, P_lin, P_loop
-      INTEGER, PARAMETER :: flag = flag_matter
-
-      P_dw = p_dewiggle(k, a, sigv, cosm)
-      P_lin = plin(k, a, flag, cosm)
-      IF (present_and_correct(approx)) THEN
-         P_loop = P_SPT_approx(k, a, cosm)
-      ELSE  
-         P_loop = P_SPT(k, a, cosm)
-      END IF
-      P_loop = P_loop*exp(-(k*R)**2)
-      P_IR = P_dw*(P_lin+P_loop)/P_lin
-
-   END FUNCTION P_IR
 
    SUBROUTINE ODE_spherical(x, v, kk, t, cosm, ti, tf, xi, vi, fx, fv, n, imeth, ilog)
 
