@@ -1851,7 +1851,8 @@ CONTAINS
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass   
          IF (ihm == 109) THEN 
             hmod%ip2h = 5    ! 5 - One-loop SPT, dewiggled and damped
-            hmod%ks = 0.03   ! One-halo damping wavenumber   
+            hmod%ks = 0.03   ! One-halo damping wavenumber  
+            hmod%itrans = 0  ! REVERT: For some reason two-halo term is negative at high z and high k 
          ELSE IF (ihm == 78) THEN
             ! Model 3: 0.00926 for Cosmic Emu
             hmod%f0 = 0.1995332
