@@ -277,7 +277,6 @@ CONTAINS
       INTEGER, INTENT(IN) :: m
       INTEGER, INTENT(IN) :: nk
       CHARACTER(len=*), INTENT(IN) :: outfile
-      INTEGER :: i
       REAL, ALLOCATABLE :: k(:), Pk(:), sig(:), shotk(:)
       INTEGER, ALLOCATABLE :: nbin(:)
       REAL :: shot
