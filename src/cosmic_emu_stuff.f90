@@ -28,6 +28,7 @@ MODULE cosmic_emu_stuff
    REAL, PARAMETER :: kmin_rebin_CosmicEmu = 1e-2
    REAL, PARAMETER :: kmax_rebin_CosmicEmu = 1.
    !REAL, PARAMETER :: kmax_rebin_CosmicEmu = 2.7 ! This is the maximum
+   !REAL, PARAMETER :: kmax_rebin_CosmicEmu = 0.2 ! Perturbation-theory studies
    INTEGER, PARAMETER :: nk_rebin_CosmicEmu = 128
 
    REAL, PARAMETER :: kmin_rebin_FrankenEmu = 1e-2
