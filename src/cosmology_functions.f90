@@ -108,7 +108,7 @@ MODULE cosmology_functions
    PUBLIC :: plin
    PUBLIC :: calculate_plin
    PUBLIC :: calculate_psmooth
-   PUBLIC :: p_dewiggle
+   PUBLIC :: P_dewiggle
    PUBLIC :: Tk_nw
    PUBLIC :: sigma8
    PUBLIC :: sigma
@@ -6976,33 +6976,33 @@ CONTAINS
 
    END SUBROUTINE init_wiggle
 
-   REAL FUNCTION p_dewiggle(k, a, sigv, cosm)
+   REAL FUNCTION P_dewiggle(k, a, sigv, cosm)
 
       ! Calculate the dewiggled power spectrum, which is linear but with damped wiggles
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: sigv
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: p_wiggle, f, p_linear
+      REAL :: P_wiggle, f, P_linear
       INTEGER, PARAMETER :: flag = flag_matter
    
       IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm) 
       IF (.NOT. cosm%has_wiggle)    CALL init_wiggle(cosm)  
-      p_linear = plin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle   
+      P_linear = plin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle   
       IF (sigv > 0.) THEN
          f = exp(-(k*sigv)**2)
       ELSE
          f = 0.
       END IF
       IF (scale_grow_wiggle .AND. cosm%scale_dependent_growth) THEN
-         p_wiggle = evaluate_interpolator(k, a, cosm%wigglea)
-         p_dewiggle = p_linear+(f-1.)*p_wiggle
+         P_wiggle = evaluate_interpolator(k, a, cosm%wigglea)
+         P_dewiggle = P_linear+(f-1.)*P_wiggle
       ELSE
-         p_wiggle = evaluate_interpolator(k, cosm%wiggle)
-         p_dewiggle = p_linear+(f-1.)*p_wiggle*grow(a, cosm)**2
+         P_wiggle = evaluate_interpolator(k, cosm%wiggle)
+         P_dewiggle = P_linear+(f-1.)*P_wiggle*grow(a, cosm)**2
       END IF
 
-   END FUNCTION p_dewiggle
+   END FUNCTION P_dewiggle
 
    REAL FUNCTION Pk_nowiggle(k, cosm)
 
