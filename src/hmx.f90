@@ -229,6 +229,11 @@ MODULE HMx
    PUBLIC :: param_HMcode_zD
    PUBLIC :: param_HMcode_Az
 
+   ! Fitting parameters - PT
+   PUBLIC :: param_PT_A
+   PUBLIC :: param_PT_alpha
+   PUBLIC :: param_PT_beta
+
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
 
@@ -236,7 +241,7 @@ MODULE HMx
       REAL :: z, a
 
       ! Switches
-      INTEGER :: ip2h, ibias, imf, iconc, iDolag, iAs, i2hcor
+      INTEGER :: ip2h, ip1h, ibias, imf, iconc, iDolag, iAs, i2hcor
       INTEGER :: idc, iDv, ieta, i2hdamp, i1hdamp, itrans, ikdamp
       
       ! Flags for sigma 
@@ -350,6 +355,9 @@ MODULE HMx
       TYPE(interpolator3D) :: bnl, bnl_lownu, bnl_lowk, bnl_lownu_lowk
       INTEGER :: iextrap_bnl
       LOGICAL :: has_bnl
+
+      ! Perturbation theory
+      REAL :: PT_alpha, PT_beta, PT_A
 
    END TYPE halomod
 
@@ -562,7 +570,10 @@ MODULE HMx
    INTEGER, PARAMETER :: param_HMcode_fD = 69
    INTEGER, PARAMETER :: param_HMcode_zD = 70
    INTEGER, PARAMETER :: param_HMcode_Az = 71
-   INTEGER, PARAMETER :: param_n = 71
+   INTEGER, PARAMETER :: param_PT_A = 72
+   INTEGER, PARAMETER :: param_PT_alpha = 73
+   INTEGER, PARAMETER :: param_PT_beta = 74
+   INTEGER, PARAMETER :: param_n = 74
 
    ! HMcode versions
    INTEGER, PARAMETER :: HMcode2015 = 7
@@ -701,8 +712,9 @@ CONTAINS
       names(106) = 'Non-linear halo bias with tweaked baryon parameters'
       names(107) = 'Non-linear halo bias with extrapolation'
       names(108) = 'Standard but with Bhattacharya et al. (2011) mass fucuntion'
-      names(109) = 'Perturbation theory two-halo term'
+      names(109) = 'Perturbation theory inspired two-halo term'
       names(110) = 'Standard but with one-loop SPT for two-halo term'
+      names(111) = 'Perturbation theory inspired and fitted two-halo term'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -725,6 +737,11 @@ CONTAINS
       ! 5 - One-loop SPT, dewiggle and damp
       ! 6 - One-loop SPT
       hmod%ip2h = 2
+
+      ! One-halo term
+      ! 0 - No one-halo term
+      ! 1 - Standard one-halo term
+      hmod%ip1h = 1
 
       ! Method to correct the two-halo integral
       ! 0 - Do nothing
@@ -1210,6 +1227,11 @@ CONTAINS
 
       ! Extrapolation for non-linear halo bias
       hmod%iextrap_bnl = iextrap_bnl
+
+      ! Perturbation theory
+      hmod%PT_A = 1.
+      hmod%PT_alpha = 1.
+      hmod%PT_beta = 1.
 
       IF (ihm == -1) THEN
          WRITE (*, *) 'ASSIGN_HALOMOD: Choose your halo model'
@@ -1827,7 +1849,7 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
-      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 109])) THEN
+      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104])) THEN
          ! HMcode (2020)
          !  77 - Unfitted
          !  78 - Fitted to Cosmic Emu for k<1
@@ -1835,7 +1857,6 @@ CONTAINS
          ! 102 - Fitted with baryon model
          ! 103 - Baryon model in response
          ! 104 - Baryon model using HMx language
-         ! 109 - Perturbation-theory two-halo term
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
@@ -1849,11 +1870,7 @@ CONTAINS
          hmod%zD = 10.    ! 10 vs 100 makes a difference for EDE-type cosmologies
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass   
-         IF (ihm == 109) THEN 
-            hmod%ip2h = 5    ! 5 - One-loop SPT, dewiggled and damped
-            hmod%ks = 0.03   ! One-halo damping wavenumber  
-            hmod%itrans = 0  ! REVERT: For some reason two-halo term is negative at high z and high k 
-         ELSE IF (ihm == 78) THEN
+         IF (ihm == 78) THEN
             ! Model 3: 0.00926 for Cosmic Emu
             hmod%f0 = 0.1995332
             hmod%f1 = 0.4271555
@@ -1990,9 +2007,22 @@ CONTAINS
          ! Bhattacharya et al. (2011) mass function
          ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
          hmod%imf = 10
+      ELSE IF (ihm == 109 .OR. ihm == 111) THEN 
+         ! 109 - PT inspired thing
+         ! 111 - Fitted PT inspired thing
+         hmod%ip2h = 5    ! 5 - One-loop SPT, dewiggled and damped
+         hmod%ks = 0.03   ! One-halo damping wavenumber
+         hmod%kd = hmod%ks   
+         hmod%itrans = 0  ! REVERT: For some reason two-halo term is negative at high z and high k
+         hmod%ip1h = 0    ! No one-halo term
+         IF (ihm == 111) THEN
+            hmod%PT_A = 0.781
+            hmod%PT_alpha = 0.414
+            hmod%PT_beta = 0.479
+         END IF
       ELSE IF (ihm == 110) THEN
          ! One-loop SPT
-         hmod%ip2h = 6
+         hmod%ip2h = 4
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2250,7 +2280,7 @@ CONTAINS
          WRITE (*, *) 'HALOMODEL: Large value of nu:', hmod%large_nu
          WRITE (*, *) dashes
 
-          ! delta_c
+         ! delta_c
          IF (hmod%idc == 1) WRITE (*, *) 'HALOMODEL: Fixed delta_c = 1.686'
          IF (hmod%idc == 2) WRITE (*, *) 'HALOMODEL: delta_c from Nakamura & Suto (1997) fitting function'
          IF (hmod%idc == 3) WRITE (*, *) 'HALOMODEL: delta_c from HMcode (2016) power spectrum fit'
@@ -2270,13 +2300,17 @@ CONTAINS
          IF (hmod%iDv == 9) WRITE (*, *) 'HALOMODEL: Delta_v = 178 fixed'
 
          ! Form of the two-halo term
+         IF (hmod%ip2h == 0) WRITE (*, *) 'HALOMODEL: No two-halo term'
          IF (hmod%ip2h == 1) WRITE (*, *) 'HALOMODEL: Linear two-halo term'
          IF (hmod%ip2h == 2) WRITE (*, *) 'HALOMODEL: Standard two-halo term (Seljak 2000)'
-         IF (hmod%ip2h == 3) WRITE (*, *) 'HALOMODEL: Linear two-halo term with damped wiggles'
-         IF (hmod%ip2h == 4) WRITE (*, *) 'HALOMODEL: No two-halo term'
+         IF (hmod%ip2h == 3) WRITE (*, *) 'HALOMODEL: Linear two-halo term with damped wiggles' 
+         IF (hmod%ip2h == 4) WRITE (*, *) 'HALOMODEL: One-loop SPT'  
          IF (hmod%ip2h == 5) WRITE (*, *) 'HALOMODEL: One-loop SPT, dewiggle and damp'
-         IF (hmod%ip2h == 6) WRITE (*, *) 'HALOMODEL: One-loop SPT'
 
+         ! Form of the one-halo term
+         IF (hmod%ip1h == 0) WRITE (*, *) 'HALOMODEL: No one-halo term'
+         IF (hmod%ip1h == 1) WRITE (*, *) 'HALOMODEL: Standard one-halo term'
+         
          ! Order to go to in halo bias
          IF (hmod%ip2h == 2) THEN
             IF (hmod%ibias == 1) WRITE (*, *) 'HALOMODEL: Linear halo bias'
@@ -2481,18 +2515,28 @@ CONTAINS
                WRITE (*, *) 'HALOMODEL: Response applies to all spectra'
             END IF
          END IF
+         WRITE (*, *) dashes
 
          ! Numerical parameters
-         WRITE (*, *) dashes
          WRITE (*, *) 'HALOMODEL: Standard parameters'
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'redshift:', hmod%z
          WRITE (*, fmt=fmt) 'scale factor:', hmod%a
-         WRITE (*, fmt=fmt) 'Dv:', hmod%Dv
-         WRITE (*, fmt=fmt) 'dc:', hmod%dc
          WRITE (*, *) dashes
+
+         ! Perturbation theory
+         WRITE (*, *) 'HALOMODEL: Perturbation theory'
+         WRITE (*, *) dashes
+         WRITE (*, fmt=fmt) 'A:', hmod%PT_A
+         WRITE (*, fmt=fmt) 'alpha:', hmod%PT_alpha
+         WRITE (*, fmt=fmt) 'beta:', hmod%PT_beta
+         WRITE (*, *) dashes
+
+         ! Halo-mass function
          WRITE (*, *) 'HALOMODEL: Mass function parameters'
          WRITE (*, *) dashes
+         WRITE (*, fmt=fmt) 'Delta_v:', hmod%Dv
+         WRITE (*, fmt=fmt) 'delta_c:', hmod%dc
          WRITE (*, fmt=fmt) 'Amplitude:', hmod%Amf
          WRITE (*, fmt=fmt) 'Amplitude z:', hmod%Amfz
          IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
@@ -2514,10 +2558,14 @@ CONTAINS
             WRITE (*, fmt=fmt) 'Tinker c:', hmod%Tinker_c
          END IF
          WRITE (*, *) dashes
+
+         ! Halo parameters
          WRITE (*, *) 'HALOMODEL: Halo parameters'
-         WRITE (*, *) dashes
+         WRITE (*, *) dashes       
          WRITE (*, fmt=fmt) 'Dolag zc:', hmod%zD
          WRITE (*, *) dashes
+
+         ! HMcode parameters
          WRITE (*, *) 'HALOMODEL: HMcode parameters'
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'Dv0:', hmod%Dv0
@@ -2557,6 +2605,8 @@ CONTAINS
             WRITE (*, fmt=fmt) 's_bar z:', hmod%sbarz
          END IF
          WRITE (*, *) dashes
+
+         ! HMcode variables
          WRITE (*, *) 'HALOMODEL: HMcode variables'
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'k*:', hmod%HMcode_kstar
@@ -2566,6 +2616,8 @@ CONTAINS
          WRITE (*, fmt=fmt) 'eta:', hmod%HMcode_eta
          WRITE (*, fmt=fmt) 'A:', hmod%HMcode_A
          WRITE (*, *) dashes
+
+         ! HMx
          WRITE (*, *) 'HALOMODEL: HMx parameters'
          WRITE (*, *) dashes
          IF (hmod%HMx_mode == 4) STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
@@ -2650,6 +2702,8 @@ CONTAINS
             STOP 'PRINT_HALOMOD: Something went wrong'
          END IF
          WRITE (*, *) dashes
+
+         ! HOD
          WRITE (*, *) 'HALOMODEL: HOD parameters'
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'log10(M_halo_min) [Msun/h]:', log10(hmod%mhalo_min)
@@ -3648,33 +3702,33 @@ CONTAINS
 
    REAL FUNCTION scatter_integrand(c, mean_c, sigma_lnc, ih, k, m, rv, hmod, cosm)
 
-   ! Integrand for computing halo profiles with scatter
-   REAL, INTENT(IN) :: c
-   REAL, INTENT(IN) :: mean_c
-   REAL, INTENT(IN) :: sigma_lnc
-   INTEGER, INTENT(IN) :: ih(2)
-   REAL, INTENT(IN) :: k
-   REAL, INTENT(IN) :: m
-   REAL, INTENT(IN) :: rv
-   TYPE(halomod), INTENT(INOUT) :: hmod
-   TYPE(cosmology), INTENT(INOUT) :: cosm
-   REAL :: wk(2), pc, rs
-   INTEGER :: j
-   LOGICAL, PARAMETER :: real_space = .FALSE. ! Fourier profiles
+      ! Integrand for computing halo profiles with scatter
+      REAL, INTENT(IN) :: c
+      REAL, INTENT(IN) :: mean_c
+      REAL, INTENT(IN) :: sigma_lnc
+      INTEGER, INTENT(IN) :: ih(2)
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: rv
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: wk(2), pc, rs
+      INTEGER :: j
+      LOGICAL, PARAMETER :: real_space = .FALSE. ! Fourier profiles
 
-   ! Halo profiles
-   DO j = 1, 2
-      rs = rv/c
-      wk(j) = win(real_space, ih(j), k, m, rv, rs, hmod, cosm)
-   END DO
+      ! Halo profiles
+      DO j = 1, 2
+         rs = rv/c
+         wk(j) = win(real_space, ih(j), k, m, rv, rs, hmod, cosm)
+      END DO
 
-   ! Probability distribution
-   pc = lognormal_distribution(c, mean_c, sigma_lnc)
+      ! Probability distribution
+      pc = lognormal_distribution(c, mean_c, sigma_lnc)
 
-   ! The full integrand
-   scatter_integrand = wk(1)*wk(2)*pc
+      ! The full integrand
+      scatter_integrand = wk(1)*wk(2)*pc
 
-END FUNCTION scatter_integrand
+   END FUNCTION scatter_integrand
 
    REAL FUNCTION p_2h(ih, wk, n, k, pli, hmod, cosm)
 
@@ -3703,16 +3757,28 @@ END FUNCTION scatter_integrand
       rhom = comoving_matter_density(cosm)
 
       IF (hmod%ip2h == 1) THEN
-         p_2h = pli ! Linear theory
-      ELSE IF (hmod%ip2h == 3) THEN  
-         p_2h = p_dewiggle(k, hmod%a, hmod%sigv, cosm) ! Damped BAO linear theory
+
+         ! Linear theory
+         p_2h = pli 
+
+      ELSE IF (hmod%ip2h == 3) THEN 
+         
+         ! Damped BAO linear theory
+         p_2h = P_dewiggle(k, hmod%a, hmod%PT_beta*hmod%sigv, cosm) 
+
       ELSE IF (hmod%ip2h == 4) THEN    
-         p_2h = 0. ! No two-halo term
+         
+         ! One-loop SPT
+         p_2h = pli+P_SPT(k, hmod%a, cosm) 
+
       ELSE IF (hmod%ip2h == 5) THEN
-         p_2h = P_SPT_dewiggle_damp(k, hmod%a, hmod%sigv, 6.*hmod%rnl, cosm, approx=.FALSE.) ! IR resummation
-      ELSE IF (hmod%ip2h == 6) THEN
-         p_2h = pli+P_SPT(k, hmod%a, cosm) ! One-loop SPT
+
+         ! IR resummation ish thing
+         p_2h = P_PTish(k, hmod%a, hmod%PT_beta*hmod%sigv, hmod%PT_A, hmod%PT_alpha*hmod%sigv, cosm, approx=.FALSE.) 
+
       ELSE IF (hmod%ip2h == 2) THEN
+
+         ! Standard two-halo term
 
          IF (hmod%imf == 4) THEN
 
@@ -3936,65 +4002,76 @@ END FUNCTION scatter_integrand
       INTEGER, PARAMETER :: ifind_df = ifind_delta
       INTEGER, PARAMETER :: imeth_df = imeth_delta
 
-      ! Matter density
-      rhom = comoving_matter_density(cosm)
+      IF (hmod%ip1h == 0) THEN
 
-      IF (hmod%imf == 4) THEN
+         ! Set the one-halo term to zero
+         p_1h = 0.
 
-         ! In this case the mass function is a delta function...
+      ELSE IF (hmod%ip1h == 1) THEN
 
-         m0 = hmod%hmass
-         wk0_product = find(log(m0), hmod%log_m, wk_product, n, iorder_delta, ifind_delta, imeth_delta)
-         p_1h = rhom*wk0_product/m0
+         ! Matter density
+         rhom = comoving_matter_density(cosm)
+
+         IF (hmod%imf == 4) THEN
+
+            ! In this case the mass function is a delta function...
+
+            m0 = hmod%hmass
+            wk0_product = find(log(m0), hmod%log_m, wk_product, n, iorder_delta, ifind_delta, imeth_delta)
+            p_1h = rhom*wk0_product/m0
+
+         ELSE
+
+            ! ...otherwise you need to do an integral
+
+            ! Calculates the value of the integrand at all nu values!
+            DO i = 1, n
+               g = g_nu(hmod%nu(i), hmod)
+               m = hmod%m(i)
+               integrand(i) = g*wk_product(i)/m
+            END DO
+
+            ! Carries out the integration
+            p_1h = rhom*integrate_table(hmod%nu, integrand, 1, n, iorder_hm)
+
+         END IF
+
+         ! Convert from P(k) -> Delta^2(k)
+         p_1h = p_1h*(4.*pi)*(k/twopi)**3
+
+         IF (hmod%i1hdamp == 0) THEN
+            ! Do nothing
+         ELSE IF (hmod%i1hdamp == 1) THEN
+            ! Damping of the 1-halo term at very large scales
+            ks = hmod%HMcode_kstar
+            IF (ks == 0. .OR. ((k/ks)**2 > HMcode_ks_limit)) THEN
+               ! Prevents problems if k/ks is very large
+               fac = 0.
+            ELSE
+               fac = exp(-((k/ks)**2))
+            END IF
+            p_1h = p_1h*(1.-fac)
+         ELSE IF (hmod%i1hdamp == 2 .OR. hmod%i1hdamp == 3) THEN
+            ! Note that the power here should be 4 because it multiplies Delta^2(k) ~ k^3 at low k (NOT 7)
+            ! Want f(k<<ks) ~ k^4; f(k>>ks) = 1
+            ks = hmod%HMcode_kstar
+            IF (ks == 0.) THEN
+               fac = 1.
+            ELSE
+               fac = (k/ks)**4/(1.+(k/ks)**4)
+            END IF
+            p_1h = p_1h*fac
+         ELSE
+            STOP 'P_1H: Error, i1hdamp not specified correctly'
+         END IF
+
+         ! Renormalise the one-halo term if that is desirous
+         IF(hmod%DMONLY_baryon_recipe .AND. renormalise_onehalo) THEN
+            p_1h = p_1h*hmod%Rh/hmod%Rhh
+         END IF
 
       ELSE
-
-         ! ...otherwise you need to do an integral
-
-         ! Calculates the value of the integrand at all nu values!
-         DO i = 1, n
-            g = g_nu(hmod%nu(i), hmod)
-            m = hmod%m(i)
-            integrand(i) = g*wk_product(i)/m
-         END DO
-
-         ! Carries out the integration
-         p_1h = rhom*integrate_table(hmod%nu, integrand, 1, n, iorder_hm)
-
-      END IF
-
-      ! Convert from P(k) -> Delta^2(k)
-      p_1h = p_1h*(4.*pi)*(k/twopi)**3
-
-      IF (hmod%i1hdamp == 0) THEN
-         ! Do nothing
-      ELSE IF (hmod%i1hdamp == 1) THEN
-         ! Damping of the 1-halo term at very large scales
-         ks = hmod%HMcode_kstar
-         IF (ks == 0. .OR. ((k/ks)**2 > HMcode_ks_limit)) THEN
-            ! Prevents problems if k/ks is very large
-            fac = 0.
-         ELSE
-            fac = exp(-((k/ks)**2))
-         END IF
-         p_1h = p_1h*(1.-fac)
-      ELSE IF (hmod%i1hdamp == 2 .OR. hmod%i1hdamp == 3) THEN
-         ! Note that the power here should be 4 because it multiplies Delta^2(k) ~ k^3 at low k (NOT 7)
-         ! Want f(k<<ks) ~ k^4; f(k>>ks) = 1
-         ks = hmod%HMcode_kstar
-         IF (ks == 0.) THEN
-            fac = 1.
-         ELSE
-            fac = (k/ks)**4/(1.+(k/ks)**4)
-         END IF
-         p_1h = p_1h*fac
-      ELSE
-         STOP 'P_1H: Error, i1hdamp not specified correctly'
-      END IF
-
-      ! Renormalise the one-halo term if that is desirous
-      IF(hmod%DMONLY_baryon_recipe .AND. renormalise_onehalo) THEN
-         p_1h = p_1h*hmod%Rh/hmod%Rhh
+         STOP 'P_1H: Error, ip1h in halomod not set correctly'
       END IF
 
    END FUNCTION p_1h
@@ -10942,13 +11019,14 @@ END FUNCTION scatter_integrand
 
    END SUBROUTINE write_power_a
 
-   REAL FUNCTION P_SPT_dewiggle_damp(k, a, sigv, R, cosm, approx)
+   REAL FUNCTION P_PTish(k, a, sigv, Amp, R, cosm, approx)
 
       USE basic_operations
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: sigv
       REAL, INTENT(IN) :: R
+      REAL, INTENT(IN) :: Amp
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, OPTIONAL, INTENT(IN) :: approx
       REAL :: P_dw, P_lin, P_loop
@@ -10961,9 +11039,9 @@ END FUNCTION scatter_integrand
       ELSE  
          P_loop = P_SPT(k, a, cosm)
       END IF
-      P_loop = P_loop*exp(-(k*R)**2)
-      P_SPT_dewiggle_damp = P_dw*(P_lin+P_loop)/P_lin
+      P_loop = Amp*P_loop*exp(-(k*R)**2)
+      P_PTish = P_dw*(P_lin+P_loop)/P_lin
 
-   END FUNCTION P_SPT_dewiggle_damp
+   END FUNCTION P_PTish
 
 END MODULE HMx
