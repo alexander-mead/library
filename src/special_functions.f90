@@ -818,6 +818,27 @@ CONTAINS
 
    END FUNCTION Bessel
 
+   REAL FUNCTION spherical_Bessel(x, n)
+
+      ! Copied from https://en.wikipedia.org/wiki/Bessel_function
+      REAL, INTENT(IN) :: x
+      INTEGER, INTENT(IN) :: n
+
+      IF (n == 0) THEN
+         spherical_Bessel = sinc(x)
+      ELSE IF (n == 1) THEN
+         spherical_Bessel = sin(x)/x**2-cos(x)/x
+      ELSE IF (n == 2) THEN
+         spherical_Bessel = (3./x**2-1.)*sin(x)/x-3.*cos(x)/x**2
+      ELSE IF (n == 3) THEN
+         spherical_Bessel = (15./x**3-6./x)*sin(x)/x-(15./x**2-1.)*cos(x)/x
+      ELSE
+         WRITE(*, *) 'SPHERICAL_BESSEL: n:', n
+         STOP 'SPHERICAL_BESSEL: Error, value of n not supported'
+      END IF
+
+   END FUNCTION spherical_Bessel
+
    REAL FUNCTION Gaussian_distribution(x, mu, sigma)
 
       ! Returns the integral-normalised Gaussian
