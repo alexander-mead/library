@@ -821,6 +821,7 @@ CONTAINS
    REAL FUNCTION spherical_Bessel(x, n)
 
       ! Copied from https://en.wikipedia.org/wiki/Bessel_function
+      ! TODO: |x|<<1 limits
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
 
