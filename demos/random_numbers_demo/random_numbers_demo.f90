@@ -31,6 +31,7 @@ PROGRAM random_numbers_demo
    WRITE (*, *) '6 - Lorentzian distribution'
    WRITE (*, *) '7 - Uniform integer distribution'
    WRITE (*, *) '8 - Log-normal distribution'
+   WRITE (*, *) '9 - Poisson distribution'
    READ (*, *) iran
    WRITE (*, *)
 
@@ -77,6 +78,11 @@ PROGRAM random_numbers_demo
       mean = 2.
       sig = 1.
       continuous = .TRUE.
+   ELSE IF (iran == 9) THEN
+      binmin = 0.
+      binmax = 16.
+      mean = 4.
+      continuous = .FALSE.
    ELSE
       STOP 'RANDOM_NUMBERS_TEST: Error, demonstration not chosen correctly'
    END IF
@@ -97,14 +103,15 @@ PROGRAM random_numbers_demo
       x(i) = (binval(i)+binval(i+1))/2.
 
       !Draw the function values corresponding to the bin mean
-      IF (iran == 1) func(i) = uniform(x(i), 0., 1.)
-      IF (iran == 2) func(i) = Rayleigh(x(i), sig)
-      IF (iran == 3) func(i) = exponential(x(i), mean)
-      IF (iran == 4) func(i) = Gaussian(x(i), mean, sig)
-      IF (iran == 5) func(i) = polynomial(x(i), pn)
-      IF (iran == 6) func(i) = Lorentzian(x(i))
+      IF (iran == 1) func(i) = uniform_distribution(x(i), 0., 1.)
+      IF (iran == 2) func(i) = Rayleigh_distribution(x(i), sig)
+      IF (iran == 3) func(i) = exponential_distribution(x(i), mean)
+      IF (iran == 4) func(i) = Gaussian_distribution(x(i), mean, sig)
+      IF (iran == 5) func(i) = polynomial_distribution(x(i), pn)
+      IF (iran == 6) func(i) = Lorentzian_distribution(x(i))
       IF (iran == 7) func(i) = 1.
-      IF (iran == 8) func(i) = lognormal(x(i), mean, sig)
+      IF (iran == 8) func(i) = lognormal_distribution(x(i), mean, sig)
+      IF (iran == 9) func(i) = Poisson_distribution(NINT(x(i)), mean)
 
    END DO
 
@@ -121,6 +128,7 @@ PROGRAM random_numbers_demo
       IF (iran == 6) rn = random_Lorentzian()
       IF (iran == 7) ri = random_integer(1, 9)
       IF (iran == 8) rn = random_lognormal(mean, sig)
+      IF (iran == 9) ri = random_Poisson(mean)
 
       IF (i <= 20) WRITE (*, fmt='(I10,F14.7)') i, rn
 

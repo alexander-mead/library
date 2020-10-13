@@ -24,6 +24,7 @@ MODULE random_numbers
    PUBLIC :: random_exponential
    PUBLIC :: random_polynomial
    PUBLIC :: random_theta
+   PUBLIC :: random_Poisson
 
    ! Draw from any real-number distribution
    PUBLIC :: accept_reject
@@ -70,7 +71,6 @@ CONTAINS
 
    SUBROUTINE random_generator_seed(seed, verbose)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: seed
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
 
@@ -96,7 +96,6 @@ CONTAINS
 
       ! Picks an integer with uniform random probability between i1 and i2 spaced with 1
       ! TODO: Retire rand, replace with random_number
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i1 ! Lower bound
       INTEGER, INTENT(IN) :: i2 ! Upper bound
       !REAL(kind=4) :: rand            ! Necessary to define for ifort and the *4 is necessary
@@ -110,10 +109,10 @@ CONTAINS
 
    INTEGER FUNCTION dice(dmin, dmax, ndice)
 
-      IMPLICIT NONE
+      ! Get a total for rolling ndice
       INTEGER, INTENT(IN) :: dmin  ! Minimum value on di
-      INTEGER, INTENT(IN) :: dmax  ! Maximum value on di (assumes all integers on di between dmin and dmax)
-      INTEGER, INTENT(IN) :: ndice ! Number of dice to roll
+      INTEGER, INTENT(IN) :: dmax  ! Maximum value on di (assumes all integers on di between dmin and dmax) 
+      INTEGER, INTENT(IN) :: ndice ! Number of dice to roll   
       INTEGER :: i
 
       IF (ndice < 0) STOP 'DICE: Error, number of rolls must be positive'
@@ -129,7 +128,6 @@ CONTAINS
    INTEGER FUNCTION random_sign()
 
       ! Returns either +1 or -1 with equal probability
-      IMPLICIT NONE
 
       random_sign = random_integer(0, 1)
       IF (random_sign == 0) random_sign = -1
@@ -139,13 +137,7 @@ CONTAINS
    REAL FUNCTION random_unit()
 
       ! Produces a uniform-random number between 0 and 1
-      ! TODO: Retire rand, replace with random_number inbuilt function
-      IMPLICIT NONE
-      !REAL(kind=4) :: rand ! Necessary for ifort and the *4 is necessary
-      !INTEGER, PARAMETER :: seed = 0
 
-      ! rand is some inbuilt function
-      !random_number = rand(seed)
       CALL random_number(random_unit)
 
    END FUNCTION random_unit
@@ -153,7 +145,6 @@ CONTAINS
    REAL FUNCTION random_uniform(x1, x2)
 
       ! Produces a uniform random number between x1 and x2
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x1 ! Lower bound
       REAL, INTENT(IN) :: x2 ! Upper bound
 
@@ -165,7 +156,6 @@ CONTAINS
 
       ! Produces a Rayleigh-distributed random number
       USE constants
-      IMPLICIT NONE
       REAL, INTENT(IN) :: sigma        ! Sigma parameters (*not* root-variance for the distribution)
       REAL, PARAMETER :: small = 1e-10 ! To avoid ever getting a log(0) call
 
@@ -178,7 +168,6 @@ CONTAINS
 
       ! Produces a Lorentzian-distributed random number
       USE constants
-      IMPLICIT NONE
 
       random_Lorentzian = tan(random_uniform(zero, pi/2.))
 
@@ -189,7 +178,6 @@ CONTAINS
       ! Gets a pair of independent Gaussian random numbers
       ! This uses the Box-Muller method (https://en.wikipedia.org/wiki/Box-Muller_transform)
       USE constants
-      IMPLICIT NONE
       REAL :: random_Gaussian_pair(2)
       REAL, INTENT(IN) :: mean  ! Mean of the distribution
       REAL, INTENT(IN) :: sigma ! Root-variance of the distribution
@@ -208,7 +196,6 @@ CONTAINS
 
       ! Gets a single Gaussian random number
       ! This is wasteful as there is a second, independent Gaussian random number
-      IMPLICIT NONE
       REAL, INTENT(IN) :: mean  ! Mean of the distribution
       REAL, INTENT(IN) :: sigma ! Root-variance of the distribution
       REAL :: G(2)
@@ -221,7 +208,6 @@ CONTAINS
    REAL FUNCTION random_lognormal(mean_x, sigma_lnx)
 
       ! Gets a single log-normal random number
-      IMPLICIT NONE
       REAL, INTENT(IN) :: mean_x    ! Mean of the distribution
       REAL, INTENT(IN) :: sigma_lnx ! Root-variance of natural log of the distribution
       REAL :: mu, sigma
@@ -235,7 +221,6 @@ CONTAINS
    REAL FUNCTION random_exponential(mean)
 
       ! Produces a exponentially-distributed random number
-      IMPLICIT NONE
       REAL, INTENT(IN) :: mean         ! Mean of the distribution
       REAL, PARAMETER :: small = 1e-10 ! Needed because problems here if log(0) is ever called
 
@@ -246,7 +231,6 @@ CONTAINS
    REAL FUNCTION random_polynomial(n)
 
       ! Generate a polynomailly distributed number [x:0->1]
-      IMPLICIT NONE
       REAL, INTENT(IN) :: n ! Order for the polynomial [-1:inf]
 
       IF (n <= -1) STOP 'RANDOM_POLYNOMIAL: Error, n is less than or equal to -1'
@@ -258,7 +242,6 @@ CONTAINS
    REAL FUNCTION random_theta()
 
       ! A random spherical-polar angle such that the solid-angle is uniformally populated
-      IMPLICIT NONE
 
       random_theta = acos(random_uniform(-1., 1.))
 
@@ -269,7 +252,6 @@ CONTAINS
       ! Simple one-dimensional accept-reject algorithm for drawing random numbers from func(x1->x2)
       ! TODO: Increase to n-dimensions
       ! TODO: Include more complicated bounding structure (at the moment it is just a box)
-      IMPLICIT NONE
       REAL, EXTERNAL :: func   ! Function to sample from
       REAL, INTENT(IN) :: x1   ! Lower bound for function
       REAL, INTENT(IN) :: x2   ! Upper bound for function
@@ -303,5 +285,31 @@ CONTAINS
       END DO
 
    END FUNCTION accept_reject
+
+   INTEGER FUNCTION random_Poisson(mean)
+
+      ! Generate a random number from a Poisson distribution 
+      REAL, INTENT(IN) :: mean
+      INTEGER :: k
+      REAL :: L, p
+
+      L = exp(-mean)
+
+      k = 0
+      p = 1.
+      DO
+         p = p*random_unit()
+         !WRITE(*, *) L, p
+         IF (p < L) THEN
+            EXIT
+         ELSE
+            k = k+1
+         END IF
+         !STOP
+      END DO
+
+      random_Poisson = k
+
+   END FUNCTION random_Poisson
 
 END MODULE random_numbers
