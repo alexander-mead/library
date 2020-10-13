@@ -820,22 +820,40 @@ CONTAINS
 
    REAL FUNCTION spherical_Bessel(x, n)
 
+      ! Spherical Bessel function of order n: j_n(x)
+      ! Unlike the standard Bessel functions, these are expressible in terms of sin(x) and cos(x)
       ! Copied from https://en.wikipedia.org/wiki/Bessel_function
-      ! TODO: |x|<<1 limits
+      ! Limits from https://www.wolframalpha.com/input/?i=series+expand+j_0%28x%29
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
+      REAL, PARAMETER :: dx = 1e-3
 
-      IF (n == 0) THEN
-         spherical_Bessel = sinc(x)
-      ELSE IF (n == 1) THEN
-         spherical_Bessel = sin(x)/x**2-cos(x)/x
-      ELSE IF (n == 2) THEN
-         spherical_Bessel = (3./x**2-1.)*sin(x)/x-3.*cos(x)/x**2
-      ELSE IF (n == 3) THEN
-         spherical_Bessel = (15./x**3-6./x)*sin(x)/x-(15./x**2-1.)*cos(x)/x
+      IF (abs(x) < dx) THEN
+         IF (n == 0) THEN
+            spherical_Bessel = 1.-x**2/6.
+         ELSE IF (n == 1) THEN
+            spherical_Bessel = x/3.-x**3/30.
+         ELSE IF (n == 2) THEN
+            spherical_Bessel = x**2/15.-x**4/210.
+         ELSE IF (n == 3) THEN
+            spherical_Bessel = x**3/105.-x**5/1890.
+         ELSE
+            WRITE(*, *) 'SPHERICAL_BESSEL: n:', n
+            STOP 'SPHERICAL_BESSEL: Error, value of n not supported'
+         END IF
       ELSE
-         WRITE(*, *) 'SPHERICAL_BESSEL: n:', n
-         STOP 'SPHERICAL_BESSEL: Error, value of n not supported'
+         IF (n == 0) THEN
+            spherical_Bessel = sin(x)/x
+         ELSE IF (n == 1) THEN
+            spherical_Bessel = sin(x)/x**2-cos(x)/x
+         ELSE IF (n == 2) THEN
+            spherical_Bessel = (3./x**2-1.)*sin(x)/x-3.*cos(x)/x**2
+         ELSE IF (n == 3) THEN
+            spherical_Bessel = (15./x**3-6./x)*sin(x)/x-(15./x**2-1.)*cos(x)/x
+         ELSE
+            WRITE(*, *) 'SPHERICAL_BESSEL: n:', n
+            STOP 'SPHERICAL_BESSEL: Error, value of n not supported'
+         END IF
       END IF
 
    END FUNCTION spherical_Bessel
