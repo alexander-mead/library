@@ -154,7 +154,7 @@ CONTAINS
       READ (7, *) ! Comment line
       DO i = 1, n
          !READ (7, *) crap, x(1, i), x(2, i), x(3, i), (m(j, i), j = 1,nmass)
-         READ (7, *) crap, (x(j, i), j=1, 3), (m(j, i), j=1, nmass)
+         READ (7, *) crap, (x(j, i), j=1,3), (m(j, i), j=1,nmass)
       END DO
       CLOSE (7)
       WRITE (*, *) 'READ_MULTIDARK_HALO_CATALOGUE: Done'
