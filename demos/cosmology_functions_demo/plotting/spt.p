@@ -57,7 +57,7 @@ set multiplot layout 2, 1 margins 0.1, 0.98, 0.1, 0.98
    plot file u 1:2 w l lc 1 lw 3 ti 'Linear',\
       file u 1:($2+$3) w l lc 2 lw 4 ti 'Linear plus one loop (integrated)',\
       file u 1:($2+$4) w l lc 3 lw 2 ti 'Linear plus one loop (interpolated)',\
-      file u 1:($2+$5) w l lc 4 lw 3 ti 'Approximate linear plus one loop',\
+      file u 1:($2+$5) w l lc 4 lw 3 ti 'Linear plus one loop (approximate)',\
       file u 1:($2*R($1)) w p pt 7 ps .5 lc 4 dt 2 lw 3 ti 'Fitted functional form'
 
    set xlabel klab
