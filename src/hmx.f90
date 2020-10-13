@@ -326,7 +326,7 @@ MODULE HMx
 
       ! Halo types
       INTEGER :: halo_DMONLY, halo_CDM, halo_normal_bound_gas, halo_cold_bound_gas, halo_hot_bound_gas, halo_ejected_gas
-      INTEGER :: halo_central_stars, halo_satellite_stars, halo_HI, halo_neutrino
+      INTEGER :: halo_central_stars, halo_satellite_stars, halo_HI, halo_neutrino, halo_satellites
       INTEGER :: halo_void, halo_compensated_void, electron_pressure
 
       ! Halo components
@@ -440,9 +440,10 @@ MODULE HMx
    LOGICAL, PARAMETER :: verbose_HI = .TRUE.        ! Verbosity when doing the HI initialisation
 
    ! Non-linear halo bias
+   LOGICAL, PARAMETER :: z_dependent_bnl = .FALSE.  ! Is the non-linear bias correction taken to be z dependent?
    LOGICAL, PARAMETER :: add_I_11 = .TRUE.          ! Add integral below numin, numin in halo model calculation
    LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE. ! Add integral below numin in halo model calculation
-   REAL, PARAMETER :: kmin_bnl = 3e-2               ! Below this wavenumber force B_NL to zero
+   REAL, PARAMETER :: kmin_bnl = 8e-2               ! Below this wavenumber force B_NL to zero
    REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass force  B_NL to zero
    REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass force  B_NL to zero
    LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
@@ -960,6 +961,11 @@ CONTAINS
       ! 4 - NFW with internal exponential hole
       ! 5 - Modified NFW
       hmod%halo_HI = 1
+
+      ! Satellite galaxy halo profile
+      ! 1 - NFW
+      ! 2 - Isothermal
+      hmod%halo_satellites = 1
 
       ! Electron pressure
       ! 1 - UPP (Arnaud et al. 2010)
@@ -2010,11 +2016,11 @@ CONTAINS
       ELSE IF (ihm == 109 .OR. ihm == 111) THEN 
          ! 109 - PT inspired thing
          ! 111 - Fitted PT inspired thing
-         hmod%ip2h = 5    ! 5 - One-loop SPT, dewiggled and damped
-         hmod%ks = 0.03   ! One-halo damping wavenumber
-         hmod%kd = hmod%ks   
-         hmod%itrans = 0  ! REVERT: For some reason two-halo term is negative at high z and high k
-         hmod%ip1h = 0    ! No one-halo term
+         hmod%ip2h = 5   ! 5 - One-loop SPT, dewiggled and damped
+         hmod%ks = 0.03  ! One-halo damping wavenumber
+         hmod%kd = 0.03  ! Two-halo damping wavenumber
+         hmod%itrans = 0 ! REVERT: For some reason two-halo term is negative at high z and high k
+         hmod%ip1h = 0   ! No one-halo term
          IF (ihm == 111) THEN
             hmod%PT_A = 0.781
             hmod%PT_alpha = 0.414
@@ -2441,6 +2447,10 @@ CONTAINS
          IF (hmod%halo_HI == 3) WRITE (*, *) 'HALOMODEL: HI profile: Polynomial with hole (Villaescusa-Navarro et al. 2018)'
          IF (hmod%halo_HI == 4) WRITE (*, *) 'HALOMODEL: HI profile: Modified NFW with hole (Villaescusa-Navarro et al. 2018)'
          IF (hmod%halo_HI == 5) WRITE (*, *) 'HALOMODEL: HI profile: Modified NFW (Padmanabhan & Refregier 2017)'
+
+         ! Satellite galaxy halo profile
+         IF (hmod%halo_satellites == 1) WRITE (*, *) 'HALOMODEL: Satellite galaxy profile: NFW'
+         IF (hmod%halo_satellites == 2) WRITE (*, *) 'HALOMODEL: Satellite galaxy profile: Isothermal'
 
          ! Electron pressure profile
          IF (hmod%electron_pressure == 1) WRITE (*, *) 'HALOMODEL: Electron pressure: Using UPP'
@@ -4286,7 +4296,7 @@ CONTAINS
          END IF
 
          ! Read in the nu values from the binstats file
-         IF (requal(hmod%z, 0.00, eps)) THEN
+         IF ((.NOT. z_dependent_bnl) .OR. requal(hmod%z, 0.00, eps)) THEN
             IF(snippet_in_string('Bolshoi', base)) THEN
                inbase = trim(base)//'_416'
             ELSE         
@@ -5688,9 +5698,9 @@ CONTAINS
       hmod%n_s = rhobar_tracer(nu_min, nu_max, rhobar_satellite_integrand, hmod, cosm)
       hmod%n_g = hmod%n_c+hmod%n_s
       IF (verbose_galaxies) THEN
-         WRITE (*, *) 'INIT_GALAXIES: Comoving density of central galaxies [(Mpc/h)^-3]:', REAL(hmod%n_c)
-         WRITE (*, *) 'INIT_GALAXIES: Comoving density of satellite galaxies [(Mpc/h)^-3]:', REAL(hmod%n_s)
-         WRITE (*, *) 'INIT_GALAXIES: Comoving density of all galaxies [(Mpc/h)^-3]:', REAL(hmod%n_g)
+         WRITE (*, *) 'INIT_GALAXIES: Comoving number density of central galaxies [(Mpc/h)^-3]:', REAL(hmod%n_c)
+         WRITE (*, *) 'INIT_GALAXIES: Comoving number density of satellite galaxies [(Mpc/h)^-3]:', REAL(hmod%n_s)
+         WRITE (*, *) 'INIT_GALAXIES: Comoving number density of all galaxies [(Mpc/h)^-3]:', REAL(hmod%n_g)
          WRITE (*, *)
       END IF
 
@@ -7746,69 +7756,6 @@ CONTAINS
 
    END FUNCTION win_compensated_void
 
-   REAL FUNCTION win_galaxies(real_space, k, m, rv, rs, hmod, cosm)
-
-      ! Halo profile for all galaxies
-      LOGICAL, INTENT(IN) :: real_space
-      REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: rv
-      REAL, INTENT(IN) :: rs
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-
-      win_galaxies = win_centrals(real_space, k, m, rv, rs, hmod, cosm)+win_satellites(real_space, k, m, rv, rs, hmod, cosm)
-
-   END FUNCTION win_galaxies
-
-   REAL FUNCTION win_centrals(real_space, k, m, rv, rs, hmod, cosm)
-
-      ! Halo profile for central galaxies
-      LOGICAL, INTENT(IN) :: real_space
-      REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: rv
-      REAL, INTENT(IN) :: rs
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER :: irho
-      REAL :: r, rmin, rmax, p1, p2, N
-
-      IF (hmod%has_galaxies .EQV. .FALSE.) CALL init_galaxies(hmod, cosm)
-
-      N = N_centrals(m, hmod)
-
-      IF (N == 0.) THEN
-
-         win_centrals = 0.
-
-      ELSE
-
-         ! Default minimum and maximum radii
-         rmin = 0.
-         rmax = rv
-
-         ! Default additional halo parameters
-         p1 = 0.
-         p2 = 0.
-
-         ! Delta functions
-         irho = 0
-
-         IF (real_space) THEN
-            r = k
-            win_centrals = rho(r, rmin, rmax, rv, rs, p1, p2, irho)
-            win_centrals = win_centrals/normalisation(rmin, rmax, rv, rs, p1, p2, irho)
-         ELSE
-            win_centrals = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)/hmod%n_c
-         END IF
-
-         win_centrals = N*win_centrals
-
-      END IF
-
-   END FUNCTION win_centrals
-
    REAL FUNCTION win_haloes(real_space, mmin, mmax, k, m, rv, rs, hmod, cosm)
 
       ! Halo profile function for haloes
@@ -7843,7 +7790,7 @@ CONTAINS
 
          ! This shitty calculation really only needs to be done once
          ! This could slow down the calculation by a large amount
-         ! TODO: Ensure this is only done once
+         ! TODO: Ensure this is only done once; see init_galaxies
          nu1 = nu_M(mmin, hmod, cosm)
          nu2 = nu_M(mmax, hmod, cosm)
          nhalo = mean_halo_number_density(nu1, nu2, hmod, cosm)
@@ -7867,9 +7814,30 @@ CONTAINS
 
    END FUNCTION win_haloes
 
-   REAL FUNCTION win_satellites(real_space, k, m, rv, rs, hmod, cosm)
+   REAL FUNCTION win_galaxies(real_space, k, m, rv, rs, hmod, cosm)
 
-      ! Halo profile for satellite galaxies
+      ! Halo profile for all galaxies
+      LOGICAL, INTENT(IN) :: real_space
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: rs
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: wc, ws
+
+      IF (.NOT. hmod%has_galaxies) CALL init_galaxies(hmod, cosm)
+
+      wc = win_centrals(real_space, k, m, rv, rs, hmod, cosm)*hmod%n_c
+      ws = win_satellites(real_space, k, m, rv, rs, hmod, cosm)*hmod%n_s
+      win_galaxies = (wc+ws)/hmod%n_g
+
+   END FUNCTION win_galaxies
+
+   REAL FUNCTION win_centrals(real_space, k, m, rv, rs, hmod, cosm)
+
+      ! Halo profile for central galaxies
+      ! TODO: Where does the normalisation division by hmod%n_c go?
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -7880,7 +7848,55 @@ CONTAINS
       INTEGER :: irho
       REAL :: r, rmin, rmax, p1, p2, N
 
-      IF (hmod%has_galaxies .EQV. .FALSE.) CALL init_galaxies(hmod, cosm)
+      IF (.NOT. hmod%has_galaxies) CALL init_galaxies(hmod, cosm)
+
+      N = N_centrals(m, hmod)
+
+      IF (N == 0.) THEN
+
+         win_centrals = 0.
+
+      ELSE
+
+         ! Default minimum and maximum radii
+         rmin = 0.
+         rmax = rv
+
+         ! Default additional halo parameters
+         p1 = 0.
+         p2 = 0.
+
+         ! Delta functions
+         irho = 0
+
+         IF (real_space) THEN
+            r = k
+            win_centrals = rho(r, rmin, rmax, rv, rs, p1, p2, irho)
+            win_centrals = win_centrals/normalisation(rmin, rmax, rv, rs, p1, p2, irho)
+         ELSE
+            win_centrals = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)!/hmod%n_c
+         END IF
+         win_centrals = N*win_centrals/hmod%n_c
+
+      END IF
+
+   END FUNCTION win_centrals
+
+   REAL FUNCTION win_satellites(real_space, k, m, rv, rs, hmod, cosm)
+
+      ! Halo profile for satellite galaxies
+      ! TODO: Where does the normalisation division by hmod%n_s go?
+      LOGICAL, INTENT(IN) :: real_space
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: rs
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: irho
+      REAL :: r, rmin, rmax, p1, p2, N
+
+      IF (.NOT. hmod%has_galaxies) CALL init_galaxies(hmod, cosm)
 
       N = N_satellites(m, hmod)
 
@@ -7897,19 +7913,23 @@ CONTAINS
          ! Default maximum and minimum radii
          rmin = 0.
          rmax = rv
-
-         ! NFW profile
-         irho = 5
+         
+         IF (hmod%halo_satellites == 1) THEN
+            irho = 5 ! 5 - NFW profile
+         ELSE IF (hmod%halo_satellites == 2) THEN
+            irho = 1 ! 1 - Isothermal profile
+         ELSE
+            STOP 'WIN_SATELLITES: Error, halo profile not set correctly'
+         END IF
 
          IF (real_space) THEN
             r = k
             win_satellites = rho(r, rmin, rmax, rv, rs, p1, p2, irho)
             win_satellites = win_satellites/normalisation(rmin, rmax, rv, rs, p1, p2, irho)
          ELSE
-            win_satellites = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)/hmod%n_s
+            win_satellites = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)!/hmod%n_s
          END IF
-
-         win_satellites = N*win_satellites
+         win_satellites = N*win_satellites/hmod%n_s
 
       END IF
 
