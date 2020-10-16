@@ -16,6 +16,10 @@ MODULE gadget_stuff
    REAL, PARAMETER :: Lunit = 1e-3  ! Convert from Gadget2 kpc/h to Mpc/h
    REAL, PARAMETER :: Munit = 1e10  ! Convert from Gadget2 10^10 Msun/h to Msun/h
 
+   ! Gadget file format precisions
+   INTEGER, PARAMETER :: gadget_sp = 4
+   INTEGER, PARAMETER :: gadget_dp = 8
+
 CONTAINS
 
    SUBROUTINE write_gadget_simulation_format_Pk(k, Pk, outfile, verbose)
@@ -66,8 +70,8 @@ CONTAINS
       REAL, INTENT(OUT) :: z
       INTEGER, INTENT(OUT) :: n
       CHARACTER(len=*), INTENT(IN) :: infile
-      REAL(dp) :: mass_in(6), L_in, Om_m_in, Om_v_in, h_in, a_in, z_in
-      REAL(sp), ALLOCATABLE :: x_in(:, :), v_in(:, :)
+      REAL(gadget_dp) :: mass_in(6), L_in, Om_m_in, Om_v_in, h_in, a_in, z_in
+      REAL(gadget_sp), ALLOCATABLE :: x_in(:, :), v_in(:, :)
       INTEGER :: np(6), craps(6), crap
       LOGICAL :: lexist
 
@@ -102,7 +106,7 @@ CONTAINS
       WRITE (*, *) 'READ_GADGET: z:', z
       WRITE (*, *) 'READ_GADGET: Om_m:', Om_m
       WRITE (*, *) 'READ_GADGET: Om_v:', Om_v
-      
+      WRITE (*, *) 'READ_GADGET: h:', h
 
       ! Allocate arrays for position, velocity and particle ID number
       ALLOCATE (x_in(3, n), v_in(3, n), id(n))
@@ -129,7 +133,7 @@ CONTAINS
       x = x*Lunit
       v = v*sqrt(a)
 
-      WRITE (*, *) 'READ_GADGET: Finished reading in file'
+      WRITE (*, *) 'READ_GADGET: Finished reading file'
       WRITE (*, *)
 
    END SUBROUTINE read_gadget
@@ -137,25 +141,23 @@ CONTAINS
    SUBROUTINE write_gadget(x, v, id, L, Om_m, Om_v, h, m, a, z, outfile)
 
       ! Write particle data to a Gadget formatted particle file
-      REAL(sp), INTENT(IN) :: x(:, :)
-      REAL(sp), INTENT(IN) :: v(:, :)
+      REAL, INTENT(IN) :: x(:, :)
+      REAL, INTENT(IN) :: v(:, :)
       INTEGER, INTENT(IN) :: id(:)
-      REAL(dp), INTENT(IN) :: L
-      REAL(dp), INTENT(IN) :: Om_m
-      REAL(dp), INTENT(IN) :: Om_v
-      REAL(dp), INTENT(IN) :: h
-      REAL(dp), INTENT(IN) :: m
-      REAL(dp), INTENT(IN) :: a
-      REAL(dp), INTENT(IN) :: z
+      REAL, INTENT(IN) :: L
+      REAL, INTENT(IN) :: Om_m
+      REAL, INTENT(IN) :: Om_v
+      REAL, INTENT(IN) :: h
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: a
+      REAL, INTENT(IN) :: z
       CHARACTER(len=*), INTENT(IN) :: outfile
-      REAL(dp) :: mass(6), crap(12)
+      REAL(dp) :: mass(6), crap(12), Om_m_out, Om_v_out, h_out, L_out, a_out, z_out
       INTEGER :: np(6), crapi, n
 
-      STOP 'WRITE_GADGET: CHECK THIS CAREFULLY, IT SHOULD BE MODIFIED TO MAKE REAL*4 DATA FILE'
-
-      IF(size(x,1) /= 3 .OR. size(v,1) /= 3 ) STOP 'WRITE_GADGET: Error, input x, v arrays should be 3D'
-      n = size(x,2)
-      IF (n /= size(x,2) .OR. n /= size(v,2) .OR. n /= size(id)) THEN
+      IF(size(x, 1) /= 3 .OR. size(v, 1) /= 3 ) STOP 'WRITE_GADGET: Error, input x, v arrays should be 3D'
+      n = size(x, 2)
+      IF (n /= size(x, 2) .OR. n /= size(v, 2) .OR. n /= size(id)) THEN
          STOP 'WRITE_GADGET: Error, x, v, id do not have the same number of entries'
       END IF
 
@@ -164,16 +166,15 @@ CONTAINS
       np = 0
       np(2) = n
       mass = 0.
-      mass(2) = m/Munit ! Convert mass to Gadget units
-      !a8 = a
-      !z8 = z
-      !crapi = 0
+      mass(2) = real(m/Munit, gadget_dp) ! Convert mass to Gadget units
+      a_out = real(a, gadget_dp)
+      z_out = real(z, gadget_dp)
+      crapi = 0
       crap = 0.
-      !om_m8 = om_m
-      !om_v8 = om_v
-      !h8 = h
-      !L8 = L*Lunit
-      !Lout = L/Lunit
+      Om_m_out = real(Om_m, gadget_dp)
+      Om_v_out = real(Om_v, gadget_dp)
+      h_out = real(h, gadget_dp)
+      L_out = real(L/Lunit, gadget_dp)
 
       WRITE (*, *) 'WRITE_GADGET: Particle number:', n
       WRITE (*, *) 'WRITE_GADGET: Which is:', nint(n**(1./3.)), 'cubed'
@@ -183,11 +184,12 @@ CONTAINS
       WRITE (*, *) 'WRITE_GADGET: Particle mass log10([Msun/h]):', log10(m)
       WRITE (*, *) 'WRITE_GADGET: Om_m:', Om_m
       WRITE (*, *) 'WRITE_GADGET: Om_v:', Om_v
+      WRITE (*, *) 'WRITE_GADGET: h:', h
 
       OPEN (7, file=outfile, form='unformatted', status='replace')
-      WRITE (7) np, mass, a, z, crapi, crapi, np, crapi, crapi, L/Lunit, Om_m, Om_v, h, crap
-      WRITE (7) x/Lunit
-      WRITE (7) v/sqrt(a)
+      WRITE (7) np, mass, a_out, z_out, crapi, crapi, np, crapi, crapi, L_out, Om_m_out, Om_v_out, h_out, crap
+      WRITE (7) real(x/Lunit, gadget_sp)
+      WRITE (7) real(v/sqrt(a), gadget_sp)
       WRITE (7) id
       CLOSE (7)
 
