@@ -209,10 +209,10 @@ CONTAINS
       INTEGER :: i, j, n_store
 
       WRITE (*, *) 'HALO_MASS_CUT: Number of haloes before cut:', n
-      WRITE (*, *) 'HALO_MASS_CUT: Minimum halo mass before cut [Msun/h]:', minval(m)
-      WRITE (*, *) 'HALO_MASS_CUT: Maximum halo mass before cut [Msun/h]:', maxval(m)
-      WRITE (*, *) 'HALO_MASS_CUT: Minimum mass for cut [Msun/h]:', mmin
-      WRITE (*, *) 'HALO_MASS_CUT: Maximum mass for cut [Msun/h]:', mmax
+      WRITE (*, *) 'HALO_MASS_CUT: Minimum halo mass before cut log10([Msun/h]):', log10(minval(m))
+      WRITE (*, *) 'HALO_MASS_CUT: Maximum halo mass before cut log10([Msun/h]):', log10(maxval(m))
+      WRITE (*, *) 'HALO_MASS_CUT: Minimum mass for cut log10([Msun/h]):', log10(mmin)
+      WRITE (*, *) 'HALO_MASS_CUT: Maximum mass for cut log10([Msun/h]):', log10(mmax)
 
       ! Initially store the initial values of the inputs
       x_store = x
@@ -243,8 +243,8 @@ CONTAINS
          END IF
       END DO
 
-      WRITE (*, *) 'HALO_MASS_CUT: Minimum halo mass after cut [Msun/h]:', minval(m)
-      WRITE (*, *) 'HALO_MASS_CUT: Maximum halo mass after cut [Msun/h]:', maxval(m)
+      WRITE (*, *) 'HALO_MASS_CUT: Minimum halo mass after cut log10([Msun/h]):', log10(minval(m))
+      WRITE (*, *) 'HALO_MASS_CUT: Maximum halo mass after cut log10([Msun/h]):', log10(maxval(m))
       WRITE (*, *) 'HALO_MASS_CUT: Done'
       WRITE (*, *)
 
@@ -305,6 +305,7 @@ CONTAINS
       INTEGER :: u
       INTEGER :: ik
 
+      ! Number of k elements
       nk = size(k)
 
       ! Write to screen
