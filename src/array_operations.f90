@@ -115,6 +115,11 @@ MODULE array_operations
       PROCEDURE safe_allocate_character
    END INTERFACE safe_allocate
 
+   INTERFACE remove_array_element
+      PROCEDURE remove_array_element_real
+      PROCEDURE remove_array_element_int
+   END INTERFACE remove_array_element
+
 CONTAINS
 
    LOGICAL FUNCTION outside_array_range(x, xtab)
@@ -761,7 +766,7 @@ CONTAINS
 
    END SUBROUTINE reverse_array_3D
 
-   SUBROUTINE remove_array_element(i, a)
+   SUBROUTINE remove_array_element_real(i, a)
 
       ! Remove element i from array a(n) returning an array of size n-1
       INTEGER, INTENT(IN) :: i                 ! Element to remove
@@ -791,7 +796,39 @@ CONTAINS
       ALLOCATE (a(n-1))
       a = b
 
-   END SUBROUTINE remove_array_element
+   END SUBROUTINE remove_array_element_real
+
+   SUBROUTINE remove_array_element_int(i, a)
+
+      ! Remove element i from array a(n) returning an array of size n-1
+      INTEGER, INTENT(IN) :: i                    ! Element to remove
+      INTEGER, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Input array     
+      INTEGER :: b(size(a)-1)
+      INTEGER :: j, jj, n
+
+      n = size(a)
+
+      IF (i < 1 .OR. i > n) THEN
+         WRITE (*, *) 'Array size:', n
+         WRITE (*, *) 'Element to remove:', i
+         STOP 'REMOVE_ARRAY_ELEMENT: Error, element to remove is outside array bounds'
+      END IF
+
+      jj = 0
+      DO j = 1, n
+         IF (j == i) THEN
+            CYCLE
+         ELSE
+            jj = jj+1
+            b(jj) = a(j)
+         END IF
+      END DO
+
+      DEALLOCATE (a)
+      ALLOCATE (a(n-1))
+      a = b
+
+   END SUBROUTINE remove_array_element_int
 
    SUBROUTINE remove_repeated_array_elements(a, m)
 
