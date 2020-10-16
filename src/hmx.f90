@@ -454,7 +454,7 @@ MODULE HMx
    LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
    REAL, PARAMETER :: eps_ztol_bnl = 1e-2           ! How far off can the redshift be?
    LOGICAL, PARAMETER :: stitch_bnl_nu = .TRUE.     ! Do we stich a low and high nu B_NL measurements
-   LOGICAL, PARAMETER :: stitch_bnl_k = .TRUE.      ! Do we stich a low and high k B_NL measurements
+   !LOGICAL, PARAMETER :: stitch_bnl_k = .TRUE.      ! Do we stich a low and high k B_NL measurements
    REAL, PARAMETER :: k_stitch_bnl = 0.1            ! Wavenumber at which to stitch the B_NL measurements together [h/Mpc] 
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_rockstar'
    CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_BDMV'
@@ -462,8 +462,8 @@ MODULE HMx
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL_measured_plin/M512/MDR1_BDMV'
    CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
-   CHARACTER(len=256), PARAMETER :: base_bnl_lowk = '/Users/Mead/Physics/Multidark/data/BNL_measured_plin/M512/MDR1_BDMV'
-   CHARACTER(len=256), PARAMETER :: base_bnl_lownu_lowk = '/Users/Mead/Physics/Multidark/data/BNL_measured_pnl/M512/Bolshoi_BDMV'
+   !CHARACTER(len=256), PARAMETER :: base_bnl_lowk = '/Users/Mead/Physics/Multidark/data/BNL_measured_plin/M512/MDR1_BDMV'
+   !CHARACTER(len=256), PARAMETER :: base_bnl_lownu_lowk = '/Users/Mead/Physics/Multidark/data/BNL_measured_pnl/M512/Bolshoi_BDMV'
 
    ! Field types
    INTEGER, PARAMETER :: field_dmonly = 1
@@ -4240,18 +4240,23 @@ CONTAINS
       ELSE IF (nu1 > numax .OR. nu2 > numax) THEN
          BNL = 0.
       ELSE
-         IF (stitch_bnl_k .AND. k < kstitch) THEN
-            IF (stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
-               BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu_lowk)
-            ELSE
-               BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lowk)
-            END IF
+         ! IF (stitch_bnl_k .AND. k < kstitch) THEN
+         !    IF (stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
+         !       BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu_lowk)
+         !    ELSE
+         !       BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lowk)
+         !    END IF
+         ! ELSE
+         !    IF (stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
+         !       BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu)
+         !    ELSE
+         !       BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl)
+         !    END IF
+         ! END IF
+         IF (stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
+            BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu)
          ELSE
-            IF (stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
-               BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu)
-            ELSE
-               BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl)
-            END IF
+            BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl)
          END IF
       END IF
 
@@ -4280,17 +4285,17 @@ CONTAINS
       WRITE (*, *) 'INIT_BNL: Running'
 
       ! Loop over possible different BNL inputs
-      DO j = 1, 4
+      DO j = 1, 2
 
          ! Choose input file type
          IF (j == 1) THEN
             base = base_bnl
          ELSE IF (j == 2 .AND. stitch_bnl_nu) THEN
             base = base_bnl_lownu
-         ELSE IF (j == 3 .AND. stitch_bnl_k) THEN
-            base = base_bnl_lowk
-         ELSE IF (j == 4 .AND. (stitch_bnl_k .AND. stitch_bnl_nu)) THEN
-            base = base_bnl_lownu_lowk
+         !ELSE IF (j == 3 .AND. stitch_bnl_k) THEN
+         !   base = base_bnl_lowk
+         !ELSE IF (j == 4 .AND. (stitch_bnl_k .AND. stitch_bnl_nu)) THEN
+         !   base = base_bnl_lownu_lowk
          ELSE
             CYCLE
          END IF
@@ -8022,10 +8027,10 @@ CONTAINS
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      IF (m < hmod%mhalo_min) THEN
+      IF (m < hmod%mhalo_min .OR. m > hmod%mhalo_max) THEN
          N_satellites = 0
       ELSE
-         N_satellites = ceiling(m/hmod%mhalo_min)-1
+         N_satellites = floor(m/hmod%mhalo_min)-1
       END IF
 
    END FUNCTION N_satellites
