@@ -1594,6 +1594,8 @@ CONTAINS
       sigma = real(sigma8)
       nmodes = INT(nmodes8)
 
+      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Delta^2 at min k:', pow(1)
+      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Delta^2 at max k:', pow(nk)
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Power computed'
       WRITE (*, *)
 
