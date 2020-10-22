@@ -120,6 +120,11 @@ MODULE array_operations
       PROCEDURE remove_array_element_int
    END INTERFACE remove_array_element
 
+   INTERFACE amputate_array
+      PROCEDURE amputate_array_real
+      PROCEDURE amputate_array_int
+   END INTERFACE amputate_array
+
 CONTAINS
 
    LOGICAL FUNCTION outside_array_range(x, xtab)
@@ -619,7 +624,7 @@ CONTAINS
 
    END FUNCTION sum_double
 
-   SUBROUTINE amputate_array(a, i1, i2)
+   SUBROUTINE amputate_array_real(a, i1, i2)
 
       ! Chop an array of size a(n) down to a smaller size demarked by indices i1, i2
       ! If i1=1 and i2=n then this does nothing
@@ -657,7 +662,47 @@ CONTAINS
       ! Deallocate holding array
       DEALLOCATE (b)
 
-   END SUBROUTINE amputate_array
+   END SUBROUTINE amputate_array_real
+
+   SUBROUTINE amputate_array_int(a, i1, i2)
+
+      ! Chop an array of size a(n) down to a smaller size demarked by indices i1, i2
+      ! If i1=1 and i2=n then this does nothing
+      INTEGER, ALLOCATABLE, INTENT(INOUT) :: a(:)
+      INTEGER, INTENT(IN) :: i1
+      INTEGER, INTENT(IN) :: i2
+      REAL, ALLOCATABLE :: b(:)
+      INTEGER :: i, m, n
+
+      IF (.NOT. allocated(a)) STOP 'AMPUTATE_ARRAY: Error, array a must be initially allocated'
+      n = size(a)
+
+      IF (i2 < i1) THEN
+         STOP 'AMPUTATE: Error, i2 should be greater than i1'
+      END IF
+
+      m = i2-i1+1
+      IF (n < m) THEN
+         STOP 'AMPUTATE: Error, new array should be smaller than the old one'
+      END IF
+
+      ! Store input array and then deallocate
+      ALLOCATE (b(n))
+      b = a
+      DEALLOCATE (a)
+
+      ! Allocate new output array
+      ALLOCATE (a(m))
+
+      ! Fill new output array
+      DO i = 1, m
+         a(i) = b(i+i1-1)
+      END DO
+
+      ! Deallocate holding array
+      DEALLOCATE (b)
+
+   END SUBROUTINE amputate_array_int
 
    SUBROUTINE reduce_array(a1, a2)
 
