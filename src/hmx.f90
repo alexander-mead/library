@@ -305,7 +305,7 @@ MODULE HMx
 
       ! HOD etc.
       REAL :: mhalo_min, mhalo_max, HImin, HImax, rcore, hmass
-      REAL :: n_c, n_s, n_g, rho_HI, dlnc
+      REAL :: n_c, n_s, n_g, rho_HI, sigma_conc
 
       ! Mass function integrals
       REAL :: gmin, gmax, gbmin, gbmax, gnorm
@@ -440,7 +440,7 @@ MODULE HMx
    LOGICAL, PARAMETER :: verbose_HI = .TRUE.        ! Verbosity when doing the HI initialisation
 
    ! Non-linear halo bias
-   LOGICAL, PARAMETER :: z_dependent_bnl = .FALSE.  ! Is the non-linear bias correction taken to be z dependent?
+   LOGICAL, PARAMETER :: z_dependent_bnl = .TRUE.   ! Is the non-linear bias correction taken to be z dependent?
    LOGICAL, PARAMETER :: add_I_11 = .TRUE.          ! Add integral below numin, numin in halo model calculation
    LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE. ! Add integral below numin in halo model calculation
    REAL, PARAMETER :: kmin_bnl = 8e-2               ! Below this wavenumber force B_NL to zero
@@ -453,17 +453,11 @@ MODULE HMx
    INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin  ! Linear extrapolation
    LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
    REAL, PARAMETER :: eps_ztol_bnl = 1e-2           ! How far off can the redshift be?
-   LOGICAL, PARAMETER :: stitch_bnl_nu = .TRUE.     ! Do we stich a low and high nu B_NL measurements
-   !LOGICAL, PARAMETER :: stitch_bnl_k = .TRUE.      ! Do we stich a low and high k B_NL measurements
-   REAL, PARAMETER :: k_stitch_bnl = 0.1            ! Wavenumber at which to stitch the B_NL measurements together [h/Mpc] 
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_rockstar'
-   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_BDMV'
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/MDR1_lowsig8_rockstar'
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/BNL_measured_plin/M512/MDR1_BDMV'
-   CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/BNL/M512/Bolshoi_BDMV'
-   !CHARACTER(len=256), PARAMETER :: base_bnl_lowk = '/Users/Mead/Physics/Multidark/data/BNL_measured_plin/M512/MDR1_BDMV'
-   !CHARACTER(len=256), PARAMETER :: base_bnl_lownu_lowk = '/Users/Mead/Physics/Multidark/data/BNL_measured_pnl/M512/Bolshoi_BDMV'
+   LOGICAL, PARAMETER :: stitch_bnl_nu = .FALSE.    ! Do we stich a low and high nu B_NL measurements
+   CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL_final'  ! Directory containing BNL measurements
+   CHARACTER(len=256), PARAMETER :: catalogue = 'rockstar' ! Halo catalogue
+   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/MDR1_'//trim(catalogue)
+   CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/Bolshoi_'//trim(catalogue)
 
    ! Field types
    INTEGER, PARAMETER :: field_dmonly = 1
@@ -627,8 +621,8 @@ CONTAINS
       names(20) = 'Standard halo-model (Seljak 2000) in response'
       names(21) = 'Cored profile model'
       names(22) = 'Delta function-NFW star profile model response'
-      names(23) = 'Tinker mass function and bias; virial mass'
-      names(24) = 'Non-linear halo bias for M200c haloes with Tinker'
+      names(23) = 'Tinker (20xx) mass function; virial mass'
+      names(24) = 'Non-linear halo bias for M200c haloes with Tinker (20xx) mass function and bias'
       names(25) = 'Villaescusa-Navarro HI halomodel'
       names(26) = 'Delta-function mass function'
       names(27) = 'Press & Schecter mass function'
@@ -646,14 +640,14 @@ CONTAINS
       names(39) = 'HMx: AGN tuned'
       names(40) = 'HMx: AGN 8.0'
       names(41) = 'Put some galaxy mass in the halo/satellites'
-      names(42) = 'Tinker mass function and bias; M200c'
+      names(42) = 'Tinker (20xx) mass function and bias; M200c'
       names(43) = 'Standard halo-model (Seljak 2000) in matter response'
-      names(44) = 'Tinker mass function and bias; M200'
+      names(44) = 'Tinker (20xx) mass function and bias; M200'
       names(45) = 'No stars'
       names(46) = 'Isothermal beta model for gas'
       names(47) = 'Isothermal beta model for gas in response'
       names(48) = 'Non-linear halo bias for standard model'
-      names(49) = 'Non-linear halo bias with Tinker and virial haloes'
+      names(49) = 'Non-linear halo bias with Tinker (2010) and virial haloes'
       names(50) = 'HMcode (2016) with Dolag pow=1 bug'
       names(51) = 'HMcode (2016) with CAMB parameters'
       names(52) = 'Standard but with Mead (2017) spherical collapse'
@@ -671,51 +665,56 @@ CONTAINS
       names(64) = 'HMcode (2016) but with HMcode (2020) baryon model'
       names(65) = 'HMx2020: Baseline, no response'
       names(66) = 'HMcode (2015) with CAMB parameters'
-      names(67) = 'Standard with Dv=200 and dc=1.686'
-      names(68) = 'Standard with Bullock c(M)'
-      names(69) = 'Standard with simple Bullock c(M)'
-      names(70) = 'Standard but with no Dolag correction'
-      names(71) = 'Standard but with Dolag with 1.5 exponent'
-      names(72) = 'Standard but with linear two-halo term'
-      names(73) = 'Standard but with linear two-halo term with damped wiggles'
-      names(74) = 'Standard but with dc=1.686 fixed'
-      names(75) = 'Standard but with dc from Mead (2017) fit'
-      names(76) = 'Standard but with Dv from Mead (2017) fit'
+      names(67) = 'Dv=200 and dc=1.686'
+      names(68) = 'Bullock c(M)'
+      names(69) = 'Simple Bullock c(M)'
+      names(70) = 'No Dolag correction'
+      names(71) = 'Dolag with 1.5 exponent'
+      names(72) = 'Linear two-halo term'
+      names(73) = 'Linear two-halo term with damped wiggles'
+      names(74) = 'dc=1.686 fixed'
+      names(75) = 'dc from Mead (2017) fit'
+      names(76) = 'Dv from Mead (2017) fit'
       names(77) = 'HMcode (2020) unfitted'
       names(78) = 'HMcode (2020) fitted to Cosmic Emu k<1'
       names(79) = 'HMcode (2020) fitted'
-      names(80) = 'Standard but with Jenkins mass function' 
+      names(80) = 'Jenkins mass function' 
       names(81) = 'HMx2020: matter-only response; Model that fits stars-stars AGN 7.6'
       names(82) = 'HMx2020: matter-only response; Model that fits stars-stars AGN 7.8'
       names(83) = 'HMx2020: matter-only response; Model that fits stars-stars AGN 8.0'
       names(84) = 'HMx2020: different Gammas; Model that fits stars-stars AGN 7.6'
       names(85) = 'HMx2020: different Gammas; Model that fits stars-stars AGN 7.8'
       names(86) = 'HMx2020: different Gammas; Model that fits stars-stars AGN 8.0'
-      names(87) = 'Standard but with Despali et al. (2016) mass function'
-      names(88) = 'Standard but with Child et al. (2018) concentration-mass relation'
-      names(89) = 'Standard but with all halo gas bound'
-      names(90) = 'Standard but with z-dependent Dolag correction'
-      names(91) = 'Standard but with Tinker (2008) mass function for virial haloes'
+      names(87) = 'Despali et al. (2016) mass function'
+      names(88) = 'Child et al. (2018) concentration-mass relation'
+      names(89) = 'All halo gas bound'
+      names(90) = 'z-dependent Dolag correction'
+      names(91) = 'Tinker (2008) mass function for virial haloes'
       names(92) = 'HMcode (2016) with neutrino halo-mass correction'
-      names(93) = 'Standard but with Warren (2006) mass function'
-      names(94) = 'Standard but with Reed (2007) mass function'
+      names(93) = 'Warren (2006) mass function'
+      names(94) = 'Reed (2007) mass function'
       names(95) = 'HMcode (2016) with neutrino halo-mass correction and CAMB mass range'
-      names(96) = 'Standard but with Philcox (2020) mass function'
-      names(97) = 'Standard but with sigma calculated for all matter'
-      names(98) = 'Standard but with no DMONLY correction for neutrinos'
-      names(99) = 'Standard but with sigma calculated for normalised cold matter'
-      names(100) = 'Standard but massive neutrinos affect virial radius'
-      names(101) = 'Standard but with spherical collapse calculation'
+      names(96) = 'Philcox (2020) mass function'
+      names(97) = 'Sigma calculated for all matter'
+      names(98) = 'No DMONLY correction for neutrinos'
+      names(99) = 'sigma calculated for normalised cold matter'
+      names(100) = 'Massive neutrinos affect virial radius'
+      names(101) = 'Spherical collapse calculation'
       names(102) = 'HMcode (2020) baryon model'
       names(103) = 'HMcode (2020) baryon model response'
       names(104) = 'HMcode (2020) baryon model using HMx language'
-      names(105) = 'Standard but with tweaked baryon parameters'
+      names(105) = 'Tweaked baryon parameters'
       names(106) = 'Non-linear halo bias with tweaked baryon parameters'
       names(107) = 'Non-linear halo bias with extrapolation'
-      names(108) = 'Standard but with Bhattacharya et al. (2011) mass fucuntion'
+      names(108) = 'Bhattacharya et al. (2011) mass fucuntion'
       names(109) = 'Perturbation theory inspired two-halo term'
-      names(110) = 'Standard but with one-loop SPT for two-halo term'
+      names(110) = 'One-loop SPT for two-halo term'
       names(111) = 'Perturbation theory inspired and fitted two-halo term'
+      names(112) = 'Tinker (2008) mass function and bias with no z evolution'
+      names(113) = 'Tinker (2010) mass function and bias with no z evolution'
+      names(114) = 'Non-linear bias with Tinker (2010) with calibrated bias'
+      names(115) = 'Tinker (2010) mass function and calibrated bias'
+      names(116) = 'Tinker (2010) mass function and calibrated bias with no extrapolation'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -768,11 +767,11 @@ CONTAINS
       ! Halo mass function and bias
       !  1 - Press & Schecter (1974)
       !  2 - Sheth & Tormen (1999)
-      !  3 - Tinker et al. (2010)
+      !  3 - Tinker et al. (2010) with z dependence
       !  4 - Delta function in mass
       !  5 - Jenkins et al. (2001)
       !  6 - Despali et al. (2016)
-      !  7 - Tinker et al. (2008)
+      !  7 - Tinker et al. (2008) with z dependence
       !  8 - Warren et al. (2006; astro-ph/0506395)
       !  9 - Reed et al. (2007; astro-ph/0607150)
       ! 10 - Bhattacharya et al. (2011; 1005.2239)
@@ -780,6 +779,9 @@ CONTAINS
       ! 12 - Sheth & Tormen (2002)
       ! 13 - Sheth & Tormen form, but with free parameters
       ! 14 - Philcox et al. (2020)
+      ! 15 - Tinker et al. (2008) no z dependence
+      ! 16 - Tinker et al. (2010) no z dependence
+      ! 17 - Tinker et al. (2010) with calibrated bias
       hmod%imf = 2
 
       ! Concentration-mass relation
@@ -807,7 +809,7 @@ CONTAINS
 
       ! Virial density Delta_v
       ! 1 - Fixed 200
-      ! 2 - Bryan & Norman (1998; arXiv:astro-ph/9710107) fitting function
+      ! 2 - Bryan & Norman (1998) fitting function
       ! 3 - HMcode (2016)
       ! 4 - Mead (2017) fitting function
       ! 5 - Spherical-collapse calculation
@@ -1194,8 +1196,8 @@ CONTAINS
       ! Halo mass if the mass function is a delta function
       hmod%hmass = 1e13
 
-      ! Scatter in ln(c)
-      hmod%dlnc = 0.
+      ! Scatter in c/c
+      hmod%sigma_conc = 0.
 
       ! HOD parameters
       hmod%mhalo_min = 1e12
@@ -1400,7 +1402,7 @@ CONTAINS
          hmod%iDolag = 2
       ELSE IF (ihm == 8) THEN
          ! Include scatter in halo properties
-         hmod%dlnc = 0.25
+         hmod%sigma_conc = 0.25
       ELSE IF (ihm == 9) THEN
          ! For CCL comparison and benchmark generation
          hmod%n = 2048   ! Increase accuracy for the CCL benchmarks
@@ -1724,13 +1726,17 @@ CONTAINS
          ! Non-linear halo bias for standard halo model with virial haloes
          hmod%ibias = 3 ! Non-linear halo bias
          !hmod%i1hdamp = 3 ! One-halo damping like k^4
-      ELSE IF (ihm == 49 .OR. ihm == 107) THEN
-         ! 49 - Non-linear halo bias and Tinker mass function and virial mass haloes
+      ELSE IF (ihm == 49 .OR. ihm == 107 .OR. ihm == 114  .OR. ihm == 116) THEN
+         ! Non-linear halo bias
+         !  49 - Tinker 2010 mass function and virial mass haloes
          ! 107 - As 49 but with no extrapolation
-         hmod%imf = 3   ! Tinker mass function and bias
+         ! 114 - As 49 but with Tinker 2010 calibrated halo bias
+         ! 116 - As 49 but with Tinker 2010 calibrated halo bias and no extrapolation
+         hmod%imf = 3   ! Tinker 2010 mass function and bias
          hmod%ibias = 3 ! Non-linear halo bias
          !hmod%i1hdamp = 3 ! One-halo damping like k^4
-         IF (ihm == 107) hmod%iextrap_bnl = iextrap_zero
+         IF (ihm == 107 .OR. ihm == 116) hmod%iextrap_bnl = iextrap_zero
+         IF (ihm == 114 .OR. ihm == 116) hmod%imf = 17 ! 17 - Tinker 2010 Calibrated halo bias
       ELSE IF(ihm == 52) THEN
          ! Standard halo model but with Mead (2017) spherical-collapse fitting function
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
@@ -2029,6 +2035,12 @@ CONTAINS
       ELSE IF (ihm == 110) THEN
          ! One-loop SPT
          hmod%ip2h = 4
+      ELSE IF (ihm == 112) THEN  
+         hmod%imf = 15 ! 15 - Tinker (2008) mass function and bias with no z dependence
+      ELSE IF (ihm == 113) THEN  
+         hmod%imf = 16 ! 16 - Tinker (2010) mass function and bias with no z dependence
+      ELSE IF (ihm == 115) THEN
+         hmod%imf = 17 ! 17 - Tinker (2010) mass function with calibrated bias
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2344,10 +2356,13 @@ CONTAINS
          IF (hmod%imf == 8)  WRITE (*, *) 'HALOMODEL: Warren et al. (2006) mass function'
          IF (hmod%imf == 9)  WRITE (*, *) 'HALOMODEL: Reed et al. (2007) mass function'
          IF (hmod%imf == 10) WRITE (*, *) 'HALOMODEL: Bhattacharya et al. (2011) mass function'
-         IF (hmod%imf == 11) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with no halo bias'
+         IF (hmod%imf == 11) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with no halo bias and z dependence'
          IF (hmod%imf == 12) WRITE (*, *) 'HALOMODEL: Sheth & Tormen (2002) mass function'
          IF (hmod%imf == 13) WRITE (*, *) 'HALOMODEL: Sheth & Tormen form of mass function'
          IF (hmod%imf == 14) WRITE (*, *) 'HALOMODEL: Philcox et al. (2020) mass function'
+         IF (hmod%imf == 15) WRITE (*, *) 'HALOMODEL: Tinker et al. (2008) mass function with no z dependence'
+         IF (hmod%imf == 16) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with no z dependence'
+         IF (hmod%imf == 17) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with calibrated bias'
 
          ! Concentration-mass relation
          IF (hmod%iconc == 1)  WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -2553,7 +2568,8 @@ CONTAINS
             WRITE (*, fmt=fmt) 'Sheth & Tormen p:', hmod%ST_p
             WRITE (*, fmt=fmt) 'Sheth & Tormen q:', hmod%ST_q
             WRITE (*, fmt=fmt) 'Sheth & Tormen A:', hmod%ST_A
-         ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11) THEN
+         ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11 .OR. hmod%imf == 16 .OR. hmod%imf == 17) THEN
+            ! Tinker (2010)
             WRITE (*, fmt=fmt) 'Tinker alpha:', hmod%Tinker_alpha
             WRITE (*, fmt=fmt) 'Tinker beta:', hmod%Tinker_beta
             WRITE (*, fmt=fmt) 'Tinker gamma:', hmod%Tinker_gamma
@@ -2561,7 +2577,8 @@ CONTAINS
             WRITE (*, fmt=fmt) 'Tinker phi:', hmod%Tinker_phi
          ELSE IF (hmod%imf == 4) THEN
             WRITE (*, *) 'Halo mass log10(M) [Msun/h]:', log10(hmod%hmass)
-         ELSE IF (hmod%imf == 7) THEN
+         ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
+            ! Tinker (2008)
             WRITE (*, fmt=fmt) 'Tinker A:', hmod%Tinker_bigA
             WRITE (*, fmt=fmt) 'Tinker a:', hmod%Tinker_a
             WRITE (*, fmt=fmt) 'Tinker b:', hmod%Tinker_b
@@ -2722,7 +2739,7 @@ CONTAINS
          WRITE (*, fmt=fmt) 'log10(M_HI_max) [Msun/h]:', log10(hmod%HImax)
          WRITE (*, *) dashes
          IF (hmod%halo_DMONLY == 5) WRITE (*, fmt=fmt) 'r_core [Mpc/h]:', hmod%rcore
-         IF (hmod%dlnc /= 0.) WRITE (*, fmt=fmt) 'delta ln(c):', hmod%dlnc
+         IF (hmod%sigma_conc /= 0.) WRITE (*, fmt=fmt) 'sigma(c)/c:', hmod%sigma_conc
          WRITE (*, *)
 
       END IF
@@ -3455,7 +3472,7 @@ CONTAINS
          ! Loop over fields and get the one-halo term for each pair
          DO f1 = 1, nf
             DO f2 = f1, nf
-               IF (hmod%dlnc == 0.) THEN
+               IF (hmod%sigma_conc == 0.) THEN
                   wk_product = wk(:, f1)*wk(:, f2)
                ELSE
                   ih(1) = ifield(f1)
@@ -3705,17 +3722,17 @@ CONTAINS
          m = hmod%m(i)
          rv = hmod%rv(i)
          c = hmod%c(i)
-         wk_product_scatter(i) = integrate_scatter(c, hmod%dlnc, ifield, k, m, rv, hmod, cosm, hmod%acc, 3)
+         wk_product_scatter(i) = integrate_scatter(c, c*hmod%sigma_conc, ifield, k, m, rv, hmod, cosm, hmod%acc, 3)
       END DO
 
    END FUNCTION wk_product_scatter
 
-   REAL FUNCTION scatter_integrand(c, mean_c, sigma_lnc, ih, k, m, rv, hmod, cosm)
+   REAL FUNCTION scatter_integrand(c, mean_c, sigma_c, ih, k, m, rv, hmod, cosm)
 
       ! Integrand for computing halo profiles with scatter
       REAL, INTENT(IN) :: c
       REAL, INTENT(IN) :: mean_c
-      REAL, INTENT(IN) :: sigma_lnc
+      REAL, INTENT(IN) :: sigma_c
       INTEGER, INTENT(IN) :: ih(2)
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -3733,7 +3750,7 @@ CONTAINS
       END DO
 
       ! Probability distribution
-      pc = lognormal_distribution(c, mean_c, sigma_lnc)
+      pc = lognormal_distribution(c, mean_c, sigma_c)
 
       ! The full integrand
       scatter_integrand = wk(1)*wk(2)*pc
@@ -4025,7 +4042,6 @@ CONTAINS
          IF (hmod%imf == 4) THEN
 
             ! In this case the mass function is a delta function...
-
             m0 = hmod%hmass
             wk0_product = find(log(m0), hmod%log_m, wk_product, n, iorder_delta, ifind_delta, imeth_delta)
             p_1h = rhom*wk0_product/m0
@@ -4219,7 +4235,6 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: kk
       REAL, PARAMETER :: kmin = kmin_bnl        ! Below this wavenumber set BNL to zero
-      REAL, PARAMETER :: kstitch = k_stitch_bnl !
       REAL, PARAMETER :: numin = numin_bnl      ! Below this halo mass set BNL to zero
       REAL, PARAMETER :: numax = numax_bnl      ! Above this halo mass set BNL to zero
       REAL, PARAMETER :: min_value = min_bnl    ! Minimum value that BNL is allowed to be (could be below -1)
@@ -9298,16 +9313,16 @@ CONTAINS
       IF (.NOT. hmod%has_mass_function) CALL init_mass_function(hmod)
 
       IF (hmod%imf == 1) THEN
-         b_nu = b_ps(nu, hmod)
+         b_nu = b_PS(nu, hmod)
       ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
-         b_nu = b_st(nu, hmod)
-      ELSE IF (hmod%imf == 3) THEN
+         b_nu = b_ST(nu, hmod)
+      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 16) THEN
          b_nu = b_Tinker2010(nu, hmod)
       ELSE IF (hmod%imf == 4 .OR. hmod%imf == 11) THEN
          b_nu = 1.
       ELSE IF (hmod%imf == 5) THEN
          b_nu = b_Jenkins(nu, hmod)
-      ELSE IF (hmod%imf == 7) THEN
+      ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
          b_nu = b_Tinker2008(nu, hmod)
       ELSE IF (hmod%imf == 8) THEN
          b_nu = b_Warren(nu, hmod)
@@ -9315,23 +9330,25 @@ CONTAINS
          b_nu = b_Reed(nu, hmod)
       ELSE IF (hmod%imf == 10 .OR. hmod%imf == 14) THEN
          b_nu = b_Bhattacharya(nu, hmod)
+      ELSE IF (hmod%imf == 17) THEN
+         b_nu = b_Tinker2010_calibrated(nu, hmod)
       ELSE
          STOP 'B_NU: Error, imf not specified correctly'
       END IF
 
    END FUNCTION b_nu
 
-   REAL FUNCTION b_ps(nu, hmod)
+   REAL FUNCTION b_PS(nu, hmod)
 
       ! Press & Scheter (1974) halo bias
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      b_ps = 1.+(nu**2-1.)/hmod%dc
+      b_PS = 1.+(nu**2-1.)/hmod%dc
 
-   END FUNCTION b_ps
+   END FUNCTION b_PS
 
-   REAL FUNCTION b_st(nu, hmod)
+   REAL FUNCTION b_ST(nu, hmod)
 
       ! Sheth & Tormen (1999) halo bias (equation 12 in 9901122)
       ! Comes from peak-background split
@@ -9345,9 +9362,9 @@ CONTAINS
       q = hmod%ST_q
       dc = hmod%dc
 
-      b_st = 1.+(q*(nu**2)-1.+2.*p/(1.+(q*nu**2)**p))/dc
+      b_ST = 1.+(q*(nu**2)-1.+2.*p/(1.+(q*nu**2)**p))/dc
 
-   END FUNCTION b_st
+   END FUNCTION b_ST
 
    REAL FUNCTION b_Tinker2008(nu, hmod)
 
@@ -9355,7 +9372,7 @@ CONTAINS
       ! Note that the 2008 mass function is not normalised correctly, so this will not have the integral constraint
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: dc, sig!, bdash, cdash
+      REAL :: dc, sig
       REAL :: a, b, c
 
       a = hmod%Tinker_a
@@ -9365,21 +9382,43 @@ CONTAINS
       dc = hmod%dc
       sig = dc/nu
 
-      !bdash = b/dc
-      !cdash = c/dc**2
-      !b_Tinker2008 = 1.-(a*(bdash*nu)**a/((bdash*nu)**a+1.)-2.*cdash*nu**2)/dc
-
       b_Tinker2008 = 1.-(a*b**a/(sig**a+b**a)-2.*c/sig**2)/dc
 
    END FUNCTION b_Tinker2008
 
+   REAL FUNCTION b_Tinker2010_calibrated(nu, hmod)
+
+      ! Equation (6) from Tinker et al. (2010; 1001.3162)
+      ! Parameter values from Table 2
+      ! TODO: Could do an init function?
+      ! NOTE: Tinker takes dc = 1.686 and this does not vary with cosmology
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: y, bigA, bigB, bigC, a, b, c, dc
+
+      y = log10(hmod%Dv)
+      dc = hmod%dc
+
+      bigA = 1.+0.24*y*exp(-(4./y)**4)
+      a = 0.44*y-0.88
+      bigB = 0.183
+      b = 1.5
+      bigC = 0.019+0.107*y+0.19*exp(-(4./y)**4)
+      c = 2.4   
+
+      b_Tinker2010_calibrated = 1.-bigA*nu**a/(nu**a+dc**a)+bigB*nu**b+bigC*nu**c
+
+   END FUNCTION b_Tinker2010_calibrated
+
    REAL FUNCTION b_Tinker2010(nu, hmod)
 
-      ! Tinker et al. (2010; 1001.3162) halo bias
+      ! Tinker et al. (2010; 1001.3162) halo bias derived using the peak-background split
+      ! Equation (15)
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: dc
       REAL :: beta, gamma, phi, eta
+      REAL :: f1, f2
 
       beta = hmod%Tinker_beta
       gamma = hmod%Tinker_gamma
@@ -9388,7 +9427,9 @@ CONTAINS
 
       dc = hmod%dc
 
-      b_Tinker2010 = 1.+(gamma*nu**2-(1.+2.*eta))/dc+(2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
+      f1 = (gamma*nu**2-(1.+2.*eta))/dc
+      f2 = (2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
+      b_Tinker2010 = 1.+f1+f2
 
    END FUNCTION b_Tinker2010
 
@@ -9533,13 +9574,13 @@ CONTAINS
          g_nu = g_ps(nu, hmod)
       ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
          g_nu = g_st(nu, hmod)
-      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11) THEN
+      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11 .OR. hmod%imf == 16 .OR. hmod%imf == 17) THEN
          g_nu = g_Tinker2010(nu, hmod)
       ELSE IF (hmod%imf == 4) THEN
          STOP 'G_NU: Error, this function should not be used for delta-mass-function'
       ELSE IF (hmod%imf == 5) THEN
          g_nu = g_Jenkins(nu, hmod)
-      ELSE IF (hmod%imf == 7) THEN
+      ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
          g_nu = g_Tinker2008(nu, hmod)
       ELSE IF (hmod%imf == 8) THEN
          g_nu = g_Warren(nu, hmod)
@@ -9764,9 +9805,9 @@ CONTAINS
 
       IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
          CALL init_ST(hmod)
-      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11) THEN
+      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11 .OR. hmod%imf == 16 .OR. hmod%imf == 17) THEN
          CALL init_Tinker2010(hmod)
-      ELSE IF (hmod%imf == 7) THEN
+      ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
          CALL init_Tinker2008(hmod)
       END IF
 
@@ -9821,6 +9862,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: bigA, a, b, c
       REAL :: z, log_Dv, alpha
+      LOGICAL :: z_dependence
 
       ! Parameter arrays from Tinker (2008): Table 2
       INTEGER, PARAMETER :: n = 9 ! Number of entries in parameter lists
@@ -9836,7 +9878,14 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = 3  ! Scheme for finding (3 - Mid-point splitting)
       INTEGER, PARAMETER :: imeth = 2  ! Method for interpolation (2 - Lagrange polynomial)
 
-      LOGICAL, PARAMETER :: z_dependence = .TRUE. ! Do redshift dependence or not
+      ! Choose redshift dependence
+      IF (hmod%imf == 8) THEN
+         z_dependence = .TRUE.
+      ELSE IF (hmod%imf == 15) THEN
+         z_dependence = .FALSE.
+      ELSE
+         STOP 'INIT_TINKER2008: Error, something went terribly wrong'
+      END IF
 
       ! Get these from the halo-model structure
       z = hmod%z
@@ -9873,13 +9922,14 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: alpha, beta, Gamma, phi, eta
       REAL :: z, log_Dv
+      LOGICAL :: z_dependence
 
       ! Parameter arrays from Tinker (2010): Table 4
       ! NOTE: alpha parameters below are for normalisation assuming no redshift evolution
       ! NOTE: If parameters have explicit redshift evolution then alpha should be calculated
       INTEGER, PARAMETER :: n = 9 ! Number of entries in parameter lists
       REAL, PARAMETER :: log_Deltav(n) = log([200., 300., 400., 600., 800., 1200., 1600., 2400., 3200.])
-      REAL, PARAMETER :: alpha0(n)=[0.368,0.363,0.385,0.389,0.393,0.365,0.379,0.355,0.327]
+      REAL, PARAMETER :: alpha0(n) = [0.368, 0.363, 0.385, 0.389, 0.393, 0.365, 0.379, 0.355, 0.327]
       REAL, PARAMETER :: beta0(n) = [0.589, 0.585, 0.544, 0.543, 0.564, 0.623, 0.637, 0.673, 0.702]
       REAL, PARAMETER :: gamma0(n) = [0.864, 0.922, 0.987, 1.09, 1.20, 1.34, 1.50, 1.68, 1.81]
       REAL, PARAMETER :: phi0(n) = [-0.729, -0.789, -0.910, -1.05, -1.20, -1.26, -1.45, -1.50, -1.49]
@@ -9893,7 +9943,15 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = 3  ! Scheme for finding (3 - Mid-point splitting)
       INTEGER, PARAMETER :: imeth = 2  ! Method for interpolation (2 - Lagrange polynomial)
 
-      LOGICAL, PARAMETER :: z_dependence = .TRUE. ! Do redshift dependence or not
+      ! Choose redshift dependence
+      ! NOTE: Redshift-dependent parameters are only given for M200 haloes in Tinker (2010) paper
+      IF (hmod%imf == 3 .OR. hmod%imf == 11) THEN
+         z_dependence = .TRUE.
+      ELSE IF (hmod%imf == 16 .OR. hmod%imf == 17) THEN
+         z_dependence = .FALSE.
+      ELSE
+         STOP 'INIT_TINKER2010: Error, something went terribly wrong'
+      END IF
 
       ! Get these from the halo-model structure
       z = hmod%z
