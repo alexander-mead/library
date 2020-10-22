@@ -73,6 +73,7 @@ PROGRAM random_numbers_demo
       binmax = 10.
       continuous = .FALSE.
    ELSE IF (iran == 8) THEN
+      ! Log-normal
       binmin = 0.
       binmax = 10.
       mean = 2.

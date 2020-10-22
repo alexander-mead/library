@@ -873,20 +873,19 @@ CONTAINS
 
    END FUNCTION Gaussian_distribution
 
-   REAL FUNCTION lognormal_distribution(x, mean_x, sigma_lnx)
+   REAL FUNCTION lognormal_distribution(x, mean, sd)
 
       ! Returns integral-normalised lognormal distribution
-      REAL, INTENT(IN) :: x         ! x [0,inf]
-      REAL, INTENT(IN) :: mean_x    ! Mean value of x
-      REAL, INTENT(IN) :: sigma_lnx ! Sigma for the value of ln(x) !IMPORTANT!
+      REAL, INTENT(IN) :: x    ! x [0,inf]
+      REAL, INTENT(IN) :: mean ! Mean value of x
+      REAL, INTENT(IN) :: sd   ! Standard deviation of x
       REAL :: mu, sigma
 
-      IF (mean_x <= 0.) STOP 'LOGNORMAL_DISTRIBUTION: Error, mean_x cannot be less than or equal to zero'
-      IF (sigma_lnx < 0.) STOP 'LOGNORMAL_DISTRIBUTION: Error, sigma_lnx cannot be less than zero'
+      IF (mean <= 0.) STOP 'LOGNORMAL_DISTRIBUTION: Error, mean cannot be less than or equal to zero'
+      IF (sd < 0.)    STOP 'LOGNORMAL_DISTRIBUTION: Error, standard deviation cannot be less than zero'
 
-      sigma = sigma_lnx
-      mu = log(mean_x)-0.5*sigma**2
-
+      mu = log(mean/sqrt(1.+(sd/mean)**2))
+      sigma = sqrt(log(1.+(sd/mean)**2))
       lognormal_distribution = Gaussian_distribution(log(x), mu, sigma)/x
 
    END FUNCTION lognormal_distribution

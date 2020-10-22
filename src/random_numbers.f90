@@ -205,15 +205,15 @@ CONTAINS
 
    END FUNCTION random_Gaussian
 
-   REAL FUNCTION random_lognormal(mean_x, sigma_lnx)
+   REAL FUNCTION random_lognormal(mean, sd)
 
       ! Gets a single log-normal random number
-      REAL, INTENT(IN) :: mean_x    ! Mean of the distribution
-      REAL, INTENT(IN) :: sigma_lnx ! Root-variance of natural log of the distribution
+      REAL, INTENT(IN) :: mean ! Mean of the distribution
+      REAL, INTENT(IN) :: sd   ! Standard deviation of the distribution
       REAL :: mu, sigma
 
-      sigma = sigma_lnx
-      mu = log(mean_x)-0.5*sigma**2
+      mu = log(mean/sqrt(1.+(sd/mean)**2))
+      sigma = sqrt(log(1.+(sd/mean)**2))
       random_lognormal = exp(random_Gaussian(mu, sigma))
 
    END FUNCTION random_lognormal
