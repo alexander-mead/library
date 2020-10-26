@@ -671,7 +671,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: a(:)
       INTEGER, INTENT(IN) :: i1
       INTEGER, INTENT(IN) :: i2
-      REAL, ALLOCATABLE :: b(:)
+      INTEGER, ALLOCATABLE :: b(:)
       INTEGER :: i, m, n
 
       IF (.NOT. allocated(a)) STOP 'AMPUTATE_ARRAY: Error, array a must be initially allocated'
