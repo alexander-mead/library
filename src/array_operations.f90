@@ -125,6 +125,11 @@ MODULE array_operations
       PROCEDURE amputate_array_int
    END INTERFACE amputate_array
 
+   INTERFACE concatenate_arrays
+      PROCEDURE concatenate_arrays_real
+      PROCEDURE concatenate_arrays_int
+   END INTERFACE concatenate_arrays
+
 CONTAINS
 
    LOGICAL FUNCTION outside_array_range(x, xtab)
@@ -1128,27 +1133,49 @@ CONTAINS
 
    END SUBROUTINE merge_arrays
 
-   FUNCTION concatenate_arrays(a, b)
+   FUNCTION concatenate_arrays_real(a, b)
 
       ! Concatenate arrays a and b to form new array with length SIZE(a)+SIZE(b)
       ! TODO: Ugly definition for type of function (convert to subroutine?)
       REAL, INTENT(IN) :: a(:)
       REAL, INTENT(IN) :: b(:)
-      REAL :: concatenate_arrays(size(a)+size(b))
+      REAL :: concatenate_arrays_real(size(a)+size(b))
       INTEGER :: i, na, nb
 
       na = size(a)
       nb = size(b)
 
       DO i = 1, na
-         concatenate_arrays(i) = a(i)
+         concatenate_arrays_real(i) = a(i)
       END DO
 
       DO i = 1, nb
-         concatenate_arrays(i+na) = b(i)
+         concatenate_arrays_real(i+na) = b(i)
       END DO
 
-   END FUNCTION concatenate_arrays
+   END FUNCTION concatenate_arrays_real
+
+   FUNCTION concatenate_arrays_int(a, b)
+
+      ! Concatenate arrays a and b to form new array with length SIZE(a)+SIZE(b)
+      ! TODO: Ugly definition for type of function (convert to subroutine?)
+      INTEGER, INTENT(IN) :: a(:)
+      INTEGER, INTENT(IN) :: b(:)
+      INTEGER :: concatenate_arrays_int(size(a)+size(b))
+      INTEGER :: i, na, nb
+
+      na = size(a)
+      nb = size(b)
+
+      DO i = 1, na
+         concatenate_arrays_int(i) = a(i)
+      END DO
+
+      DO i = 1, nb
+         concatenate_arrays_int(i+na) = b(i)
+      END DO
+
+   END FUNCTION concatenate_arrays_int
 
    SUBROUTINE fill_array(min, max, arr, n)
 
