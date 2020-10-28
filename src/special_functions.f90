@@ -49,6 +49,7 @@ MODULE special_functions
    PUBLIC :: polynomial_distribution
    PUBLIC :: Rosenbrock
    PUBLIC :: Himmelblau
+   PUBLIC :: cbrt
 
    ! Silly functions
    PUBLIC :: apodise
@@ -82,11 +83,31 @@ MODULE special_functions
       MODULE PROCEDURE fix_centred_cubic_polynomial
    END INTERFACE fix_centred_polynomial
 
+   INTERFACE cbrt
+      MODULE PROCEDURE cbrt_real
+      MODULE PROCEDURE cbrt_int
+   END INTERFACE cbrt
+
 CONTAINS
+
+   ELEMENTAL REAL FUNCTION cbrt_real(x)
+
+      REAL, INTENT(IN) :: x
+
+      cbrt_real = x**(1./3.)
+
+   END FUNCTION cbrt_real
+
+   ELEMENTAL REAL FUNCTION cbrt_int(x)
+
+      INTEGER, INTENT(IN) :: x
+
+      cbrt_int = x**(1./3.)
+
+   END FUNCTION cbrt_int
 
    ELEMENTAL REAL FUNCTION linear_polynomial(x, a1, a0)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: a1
       REAL, INTENT(IN) :: a0
@@ -97,7 +118,6 @@ CONTAINS
 
    ELEMENTAL REAL FUNCTION quadratic_polynomial(x, a2, a1, a0)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: a2
       REAL, INTENT(IN) :: a1
@@ -109,7 +129,6 @@ CONTAINS
 
    ELEMENTAL REAL FUNCTION cubic_polynomial(x, a3, a2, a1, a0)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: a3
       REAL, INTENT(IN) :: a2
@@ -122,7 +141,6 @@ CONTAINS
 
    ELEMENTAL REAL FUNCTION centred_linear_polynomial(x, x0, a1, a0)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: x0
       REAL, INTENT(IN) :: a1
@@ -136,7 +154,6 @@ CONTAINS
 
    ELEMENTAL REAL FUNCTION centred_quadratic_polynomial(x, x0, a2, a1, a0)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: x0
       REAL, INTENT(IN) :: a2
@@ -151,7 +168,6 @@ CONTAINS
 
    ELEMENTAL REAL FUNCTION centred_cubic_polynomial(x, x0, a3, a2, a1, a0)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: x0
       REAL, INTENT(IN) :: a3
