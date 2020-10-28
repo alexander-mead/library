@@ -24,6 +24,7 @@ MODULE simulations
    PUBLIC :: replace
    PUBLIC :: sharp_Fourier_density_contrast
    PUBLIC :: power_spectrum_particles
+   PUBLIC :: cross_spectrum_particles
 
    PUBLIC :: generate_randoms
    PUBLIC :: generate_poor_glass
@@ -50,10 +51,13 @@ MODULE simulations
    PUBLIC :: irho_constant
    PUBLIC :: irho_isothermal
    PUBLIC :: irho_shell
+   PUBLIC :: irho_delta
 
-   INTEGER, PARAMETER :: irho_constant = 3
-   INTEGER, PARAMETER :: irho_isothermal = 6
-   INTEGER, PARAMETER :: irho_shell = 7
+   ! These should map to the integers in HMx
+   INTEGER, PARAMETER :: irho_constant = 2
+   INTEGER, PARAMETER :: irho_isothermal = 1
+   INTEGER, PARAMETER :: irho_shell = 28
+   INTEGER, PARAMETER :: irho_delta = 0
 
    INTERFACE particle_bin
       MODULE PROCEDURE particle_bin_2D
@@ -201,7 +205,8 @@ CONTAINS
    SUBROUTINE halo_mass_cut(mmin, mmax, x, m, n)
 
       IMPLICIT NONE
-      REAL, INTENT(IN) :: mmin, mmax
+      REAL, INTENT(IN) :: mmin
+      REAL, INTENT(IN) :: mmax
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :)
       REAL, ALLOCATABLE, INTENT(INOUT) :: m(:)
       INTEGER, INTENT(INOUT) :: n
@@ -250,15 +255,18 @@ CONTAINS
 
    END SUBROUTINE halo_mass_cut
 
-   SUBROUTINE halo_mass_weights(mmin, mmax, m, w, n)
+   SUBROUTINE halo_mass_weights(mmin, mmax, m, w)
 
       ! Set the weight, w(i), to one if the halo is in the mass range, zero otherwise
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: mmin, mmax
-      REAL, INTENT(IN) :: m(n)
-      REAL, INTENT(OUT) :: w(n)    
-      INTEGER :: i
+      REAL, INTENT(IN) :: mmin
+      REAL, INTENT(IN) :: mmax
+      REAL, INTENT(IN) :: m(:)
+      REAL, INTENT(OUT) :: w(:)
+      INTEGER :: i, n
+
+      n = size(m)
+      IF (n .NE. size(w)) STOP 'HALO_MASS_WEIGHTS: Error, m and w must be the same size'
 
       w = 0.
       DO i = 1, n
@@ -267,12 +275,11 @@ CONTAINS
 
    END SUBROUTINE halo_mass_weights
 
-   SUBROUTINE compute_and_write_power_spectrum(x, n, L, m, nk, outfile)
+   SUBROUTINE compute_and_write_power_spectrum(x, L, m, nk, outfile)
 
       ! Compute and write the power spectrum out in some standard format
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: x(3, n)    
+      REAL, INTENT(IN) :: x(:, :)    
       REAL, INTENT(IN) :: L
       INTEGER, INTENT(IN) :: m
       INTEGER, INTENT(IN) :: nk
@@ -280,10 +287,14 @@ CONTAINS
       REAL, ALLOCATABLE :: k(:), Pk(:), sig(:), shotk(:)
       INTEGER, ALLOCATABLE :: nbin(:)
       REAL :: shot
+      INTEGER :: n
+
+      IF (size(x, 1) .NE. 3) STOP 'COMPUTE_AND_WRITE_POWER_SPECTRUM: Error, needs to be 3D'
+      n = size(x, 2)
 
       ! Compute the power spectrum from the particle positions
       ! This is only correct if all particles have the same mass
-      CALL power_spectrum_particles(x, n, L, m, nk, k, Pk, nbin, sig)
+      CALL power_spectrum_particles(x, L, m, nk, k, Pk, nbin, sig)
 
       ! Compute the shot noise assuming all particles have equal mass
       shot = shot_noise_simple(L, n)
@@ -326,17 +337,24 @@ CONTAINS
 
    END SUBROUTINE write_power_spectrum
 
-   SUBROUTINE power_spectrum_particles(x, n, L, m, nk, k, Pk, nbin, sig)
+   SUBROUTINE power_spectrum_particles(x, L, m, nk, k, Pk, nbin, sig)
 
       USE constants
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: x(3, n), L
-      INTEGER, INTENT(IN) :: m, nk
-      REAL, ALLOCATABLE, INTENT(OUT) :: k(:), Pk(:), sig(:)
+      REAL, INTENT(IN) :: x(:, :)
+      REAL, INTENT(IN) :: L
+      INTEGER, INTENT(IN) :: m
+      INTEGER, INTENT(IN) :: nk
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: sig(:)
       COMPLEX :: dk(m, m, m)
       REAL :: kmin, kmax
+      INTEGER :: n
+
+      IF (size(x, 1) .NE. 3) STOP 'POWER_SPECTRUM_PARTICLES: Error, particles must be in 3D'
+      n = size(x, 2)
 
       ! Convert the particle positions into a density field
       ! This assumes all particles have the same mass
@@ -348,6 +366,39 @@ CONTAINS
       CALL compute_power_spectrum(dk, dk, m, L, kmin, kmax, nk, k, Pk, nbin, sig)
 
    END SUBROUTINE power_spectrum_particles
+
+   SUBROUTINE cross_spectrum_particles(x1, x2, L, m, nk, k, Pk, nbin, sig)
+
+      USE constants
+      IMPLICIT NONE
+      REAL, INTENT(IN) :: x1(:, :)
+      REAL, INTENT(IN) :: x2(:, :)
+      REAL, INTENT(IN) :: L
+      INTEGER, INTENT(IN) :: m
+      INTEGER, INTENT(IN) :: nk
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
+      INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: sig(:)
+      COMPLEX :: dk1(m, m, m), dk2(m, m, m)
+      REAL :: kmin, kmax
+      INTEGER :: n1, n2
+
+      IF ((size(x1, 1) .NE. 3) .OR. (size(x2, 1) .NE. 3)) STOP 'CROSS_SPECTRUM_PARTICLES: Error, must be 3D'
+      n1 = size(x1, 2)
+      n2 = size(x2, 2)
+
+      ! Convert the particle positions into a density field
+      ! This assumes all particles have the same weight
+      CALL sharp_Fourier_density_contrast(x1, n1, L, dk1, m)
+      CALL sharp_Fourier_density_contrast(x2, n2, L, dk2, m)
+
+      ! Compute the power spectrum from the density field
+      kmin = twopi/L
+      kmax = real(m)*pi/L
+      CALL compute_power_spectrum(dk1, dk2, m, L, kmin, kmax, nk, k, Pk, nbin, sig)
+
+   END SUBROUTINE cross_spectrum_particles
 
    SUBROUTINE sharp_Fourier_density_contrast(x, n, L, dk, m)
 
@@ -1256,6 +1307,7 @@ CONTAINS
 
       IF (verbose) THEN
          WRITE (*, *) 'CIC_3D: Binning particles and creating density field'
+         WRITE (*, *) 'CIC_3D: Number of particles:', n
          WRITE (*, *) 'CIC_3D: Binning region size:', L
          WRITE (*, *) 'CIC_3D: Cells:', m
       END IF
@@ -2066,6 +2118,8 @@ CONTAINS
          r = random_r_isothermal(rv)
       ELSE IF (irho == irho_shell) THEN
          r = rv
+      ELSE IF (irho == irho_delta) THEN
+         r = 0.
       ELSE
          STOP 'RANDOM_SPHERE: Error, irho specified incorrectly'
       END IF
