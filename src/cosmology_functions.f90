@@ -141,8 +141,9 @@ MODULE cosmology_functions
    PUBLIC :: CAMB_HMcode2020_feedback
 
    ! HALOFIT
-   PUBLIC :: calculate_HALOFIT_a
    PUBLIC :: calculate_HALOFIT
+   PUBLIC :: calculate_HALOFIT_a
+   PUBLIC :: calculate_HALOFIT_ka
    PUBLIC :: HALOFIT_init
    PUBLIC :: HALOFIT_Smith
    PUBLIC :: HALOFIT_Smith_paper
@@ -6624,7 +6625,7 @@ CONTAINS
 
       DO i = 1, n
          Pli(i) = plin(k(i), a, flag_matter, cosm)
-         CALL HALOFIT(k(i), rneff, rncur, rknl, Pli(i), Pnl(i), Pq(i), Ph(i), a, cosm, ihf)
+         CALL calculate_HALOFIT_ka(k(i), rneff, rncur, rknl, Pli(i), Pnl(i), Pq(i), Ph(i), a, cosm, ihf)
       END DO
 
    END SUBROUTINE calculate_HALOFIT_a
@@ -6667,7 +6668,7 @@ CONTAINS
 
    END SUBROUTINE wint_HALOFIT
 
-   SUBROUTINE HALOFIT(rk, rn, rncur, rknl, pli, pnl, pq, ph, a, cosm, ihf)
+   SUBROUTINE calculate_HALOFIT_ka(rk, rn, rncur, rknl, pli, pnl, pq, ph, a, cosm, ihf)
 
       ! Calculates the HALOFIT power spectrum after rn, rncur and rknl have been pre-calculated
       ! Smith et al. (2003 ;astro-ph/0207664)
@@ -6839,7 +6840,7 @@ CONTAINS
 
       pnl = pq+ph
 
-   END SUBROUTINE HALOFIT
+   END SUBROUTINE calculate_HALOFIT_ka
 
    REAL FUNCTION z_CMB(cosm)
 
