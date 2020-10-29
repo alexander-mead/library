@@ -58,6 +58,8 @@ MODULE HMx
    PUBLIC :: halo_HI_fraction ! TODO: Retire
    PUBLIC :: T_1h
    PUBLIC :: BNL
+   PUBLIC :: simple_twohalo
+   PUBLIC :: simple_onehalo
 
    ! Mean things
    PUBLIC :: mean_bias_number_weighted
@@ -345,7 +347,7 @@ MODULE HMx
       INTEGER :: HMx_mode
 
       ! Halo mass function and linear halo bias
-      REAL :: Tinker_bigA, Tinker_a, Tinker_b, Tinker_c
+      REAL :: Tinker_bigA, Tinker_bigB, Tinker_bigC, Tinker_a, Tinker_b, Tinker_c
       REAL :: Tinker_alpha, Tinker_beta, Tinker_gamma, Tinker_phi, Tinker_eta
       REAL :: alpha_numu
       REAL :: ST_p, ST_q, ST_A, Amf, Amfz
@@ -354,10 +356,14 @@ MODULE HMx
       ! Non-linear halo bias
       TYPE(interpolator3D) :: bnl, bnl_lownu, bnl_lowk, bnl_lownu_lowk
       INTEGER :: iextrap_bnl
-      LOGICAL :: has_bnl
+      LOGICAL :: has_bnl, stitch_bnl_nu
+      CHARACTER(len=256) :: bnl_cat
 
       ! Perturbation theory
       REAL :: PT_alpha, PT_beta, PT_A
+
+      ! HALOFIT
+      REAL :: HALOFIT_knl, HALOFIT_neff, HALOFIT_ncur
 
    END TYPE halomod
 
@@ -440,24 +446,26 @@ MODULE HMx
    LOGICAL, PARAMETER :: verbose_HI = .TRUE.        ! Verbosity when doing the HI initialisation
 
    ! Non-linear halo bias
-   LOGICAL, PARAMETER :: z_dependent_bnl = .TRUE.   ! Is the non-linear bias correction taken to be z dependent?
-   LOGICAL, PARAMETER :: add_I_11 = .TRUE.          ! Add integral below numin, numin in halo model calculation
-   LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE. ! Add integral below numin in halo model calculation
-   REAL, PARAMETER :: kmin_bnl = 8e-2               ! Below this wavenumber force B_NL to zero
-   REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass force  B_NL to zero
-   REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass force  B_NL to zero
-   LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
-   LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Force a minimum value for B_NL
-   REAL, PARAMETER :: min_bnl = -1.                 ! Minimum value that B_NL is allowed to be (could be below -1 ...)
-   INTEGER, PARAMETER :: iorder_bnl = 1             ! 1 - Linear interpolation
-   INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin  ! Linear extrapolation
-   LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
-   REAL, PARAMETER :: eps_ztol_bnl = 1e-2           ! How far off can the redshift be?
-   LOGICAL, PARAMETER :: stitch_bnl_nu = .FALSE.    ! Do we stich a low and high nu B_NL measurements
-   CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL_final'  ! Directory containing BNL measurements
-   CHARACTER(len=256), PARAMETER :: catalogue = 'rockstar' ! Halo catalogue
-   CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/MDR1_'//trim(catalogue)
-   CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/Bolshoi_'//trim(catalogue)
+   LOGICAL, PARAMETER :: z_dependent_bnl = .TRUE.    ! Is the non-linear bias correction taken to be z dependent?
+   LOGICAL, PARAMETER :: add_I_11 = .TRUE.           ! Add integral below numin, numin in halo model calculation
+   LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE.  ! Add integral below numin in halo model calculation
+   REAL, PARAMETER :: kmin_bnl = 8e-2                ! Below this wavenumber force B_NL to zero
+   REAL, PARAMETER :: numin_bnl = 0.                 ! Below this halo mass force  B_NL to zero
+   REAL, PARAMETER :: numax_bnl = 10.                ! Above this halo mass force  B_NL to zero
+   LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.     ! Attempt to manually include damping from halo exclusion
+   LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.   ! Force a minimum value for B_NL
+   REAL, PARAMETER :: min_bnl = -1.                  ! Minimum value that B_NL is allowed to be (could be below -1 ...)
+   INTEGER, PARAMETER :: iorder_bnl = 1              ! 1 - Linear interpolation
+   INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin   ! Linear extrapolation
+   LOGICAL, PARAMETER :: store_bnl = .FALSE.         ! Storage interpolator mode?
+   REAL, PARAMETER :: eps_ztol_bnl = 1e-2            ! How far off can the redshift be?
+   CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL'  ! Directory containing BNL measurements
+   !CHARACTER(len=256), PARAMETER :: cat = 'rockstar' ! Halo catalogue
+   !CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/Bolshoi_'//trim(cat_bnl)
+   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/MDR1_'//trim(cat_bnl)
+
+   ! HALOFIT (can be used as two-halo term)
+   INTEGER, PARAMETER :: HALOFIT_version = HALOFIT_Takahashi
 
    ! Field types
    INTEGER, PARAMETER :: field_dmonly = 1
@@ -622,7 +630,7 @@ CONTAINS
       names(21) = 'Cored profile model'
       names(22) = 'Delta function-NFW star profile model response'
       names(23) = 'Tinker (20xx) mass function; virial mass'
-      names(24) = 'Non-linear halo bias for M200c haloes with Tinker (20xx) mass function and bias'
+      names(24) = 'Non-linear halo bias for M200c haloes'
       names(25) = 'Villaescusa-Navarro HI halomodel'
       names(26) = 'Delta-function mass function'
       names(27) = 'Press & Schecter mass function'
@@ -647,7 +655,7 @@ CONTAINS
       names(46) = 'Isothermal beta model for gas'
       names(47) = 'Isothermal beta model for gas in response'
       names(48) = 'Non-linear halo bias for standard model'
-      names(49) = 'Non-linear halo bias with Tinker (2010) and virial haloes'
+      names(49) = 'Non-linear halo bias with Tinker (2010) with bias from peak-background split'
       names(50) = 'HMcode (2016) with Dolag pow=1 bug'
       names(51) = 'HMcode (2016) with CAMB parameters'
       names(52) = 'Standard but with Mead (2017) spherical collapse'
@@ -705,16 +713,22 @@ CONTAINS
       names(104) = 'HMcode (2020) baryon model using HMx language'
       names(105) = 'Tweaked baryon parameters'
       names(106) = 'Non-linear halo bias with tweaked baryon parameters'
-      names(107) = 'Non-linear halo bias with extrapolation'
+      names(107) = 'Non-linear halo bias'
       names(108) = 'Bhattacharya et al. (2011) mass fucuntion'
       names(109) = 'Perturbation theory inspired two-halo term'
       names(110) = 'One-loop SPT for two-halo term'
       names(111) = 'Perturbation theory inspired and fitted two-halo term'
-      names(112) = 'Tinker (2008) mass function and bias with no z evolution'
-      names(113) = 'Tinker (2010) mass function and bias with no z evolution'
-      names(114) = 'Non-linear bias with Tinker (2010) with calibrated bias'
-      names(115) = 'Tinker (2010) mass function and calibrated bias'
-      names(116) = 'Tinker (2010) mass function and calibrated bias with no extrapolation'
+      names(112) = 'Tinker (2008) mass function with no z evolution'
+      names(113) = 'Tinker (2010) mass function and peak-background split bias with no z evolution'
+      names(114) = 'Non-linear halo bias with no extrapolation'
+      names(115) = 'Tinker (2010) mass function'
+      names(116) = 'Non-linear halo bias with no extrapolation'
+      names(117) = 'Non-linear halo bias with Bolshoi'
+      names(118) = 'Non-linear halo bias with Bolshoi and no extrapolation'
+      names(119) = 'Non-linear power in two-halo term'
+      names(120) = 'Quasi-linear power in two-halo term'
+      names(121) = 'Non-linear power in two-halo term with Tinker (2010) mass function'
+      names(122) = 'Quasi-linear power in two-halo term with Tinker (2010) mass function'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -730,12 +744,14 @@ CONTAINS
       hmod%large_nu = 6.
 
       ! Two-halo term
+      ! 0 - No two-halo term
       ! 1 - Linear theory
       ! 2 - Standard from Seljak (2000)
       ! 3 - Linear theory with damped wiggles
-      ! 4 - No two-halo term
-      ! 5 - One-loop SPT, dewiggle and damp
-      ! 6 - One-loop SPT
+      ! 4 - One-loop SPT, dewiggle and damp
+      ! 5 - One-loop SPT
+      ! 6 - Non-linear theory from HALOFIT
+      ! 7 - Quasi-linear term from HALOFIT
       hmod%ip2h = 2
 
       ! One-halo term
@@ -782,6 +798,8 @@ CONTAINS
       ! 15 - Tinker et al. (2008) no z dependence
       ! 16 - Tinker et al. (2010) no z dependence
       ! 17 - Tinker et al. (2010) with calibrated bias
+      ! 18 - Tinker et al. (2010) with calibrated bias and no z dependence
+      ! 19 - Sheth & Tormen (1999) with calibrated bias
       hmod%imf = 2
 
       ! Concentration-mass relation
@@ -1233,8 +1251,10 @@ CONTAINS
       hmod%saturation = .FALSE.
       hmod%nu_saturation = 0.
 
-      ! Extrapolation for non-linear halo bias
+      ! Non-linear halo bias
       hmod%iextrap_bnl = iextrap_bnl
+      hmod%stitch_bnl_nu = .FALSE.
+      hmod%bnl_cat = 'rockstar'
 
       ! Perturbation theory
       hmod%PT_A = 1.
@@ -1471,22 +1491,14 @@ CONTAINS
       ELSE IF (ihm == 23) THEN
          ! Tinker (2010) mass function and bias; virial halo mass
          hmod%imf = 3 ! Tinker mass function and bias
-      ELSE IF (ihm == 24) THEN
-         ! Non-linear halo bias for M200c haloes
-         hmod%ibias = 3   ! Non-linear halo bias
-         hmod%iDv = 7     ! M200c
-         hmod%imf = 3     ! Tinker mass function and bias
-         hmod%iconc = 5   ! Duffy M200c concentrations for full sample
-         hmod%idc = 1     ! Fixed to 1.686
-         !hmod%i1hdamp=3 ! One-halo damping like k^4
       ELSE IF (ihm == 25) THEN
          ! Villaescusa-Navarro HI halo model
          hmod%imf = 3     ! Tinker mass function
          hmod%frac_HI = 3 ! HI mass fraction with z evolution (Villaescusa-Navarro et al. 1804.09180)
-         !hmod%halo_HI=3 ! Exponentially cored polynomial (Villaescusa-Navarro et al. 1804.09180)
-         !hmod%halo_HI=2 ! Delta function
+         !hmod%halo_HI = 3 ! Exponentially cored polynomial (Villaescusa-Navarro et al. 1804.09180)
+         !hmod%halo_HI = 2 ! Delta function
          hmod%halo_HI = 5 ! Modified NFW (Padmanabhan & Refregier 2017; 1607.01021)
-         hmod%ibias = 3
+         hmod%ibias = 3   ! Non-linear halo bias
       ELSE IF (ihm == 26) THEN
          ! Delta function mass function
          hmod%ip2h = 2        ! Standard two-halo term
@@ -1722,21 +1734,34 @@ CONTAINS
          ! Isothermal beta model, response
          hmod%halo_normal_bound_gas = 2
          hmod%response_baseline = HMcode2016
-      ELSE IF (ihm == 48) THEN
-         ! Non-linear halo bias for standard halo model with virial haloes
-         hmod%ibias = 3 ! Non-linear halo bias
-         !hmod%i1hdamp = 3 ! One-halo damping like k^4
-      ELSE IF (ihm == 49 .OR. ihm == 107 .OR. ihm == 114  .OR. ihm == 116) THEN
+      ELSE IF (is_in_array(ihm, [24, 48, 49, 107, 114, 116, 117, 118])) THEN
          ! Non-linear halo bias
-         !  49 - Tinker 2010 mass function and virial mass haloes
-         ! 107 - As 49 but with no extrapolation
-         ! 114 - As 49 but with Tinker 2010 calibrated halo bias
-         ! 116 - As 49 but with Tinker 2010 calibrated halo bias and no extrapolation
-         hmod%imf = 3   ! Tinker 2010 mass function and bias
+         !  24 - Tinker 2010 with M200c haloes
+         !  48 - Sheth & Tormen (1999)
+         !  49 - Tinker 2010 mass function with peak-background split halo bias
+         ! 107 - Tinker 2010 mass function with peak-background split halo bias and no extrapolation
+         ! 114 - DEFAULT: Tinker 2010
+         ! 116 - Tinker 2010 and no extrapolation
+         ! 117 - Tinker 2010 and adding Bolshoi for low-mass haloes
+         ! 118 - Tinker 2010 and adding Bolshoi for low-mass haloes and no extrapolation
          hmod%ibias = 3 ! Non-linear halo bias
-         !hmod%i1hdamp = 3 ! One-halo damping like k^4
-         IF (ihm == 107 .OR. ihm == 116) hmod%iextrap_bnl = iextrap_zero
-         IF (ihm == 114 .OR. ihm == 116) hmod%imf = 17 ! 17 - Tinker 2010 Calibrated halo bias
+         !hmod%i1hdamp = 3 ! One-halo damping like k^4         
+         IF (ihm == 48) THEN
+            hmod%imf = 2 ! Sheth & Tormen (1999)
+         ELSE IF (ihm == 49 .OR. ihm == 107) THEN
+            hmod%imf = 3  ! Tinker 2010 with peak-background split bias
+         ELSE
+            hmod%imf = 17 ! Tinker 2010 mass function and calibrated bias
+         END IF  
+         IF (ihm == 24) THEN
+            hmod%iDv = 7   ! M200c
+            hmod%iconc = 5 ! Duffy M200c concentrations for full sample
+         END IF
+         IF (ihm == 117 .OR. ihm == 118) THEN
+            hmod%stitch_bnl_nu = .TRUE.
+            hmod%bnl_cat = 'BDMV'
+         END IF
+         IF (ihm == 107 .OR. ihm == 116 .OR. ihm == 118) hmod%iextrap_bnl = iextrap_zero
       ELSE IF(ihm == 52) THEN
          ! Standard halo model but with Mead (2017) spherical-collapse fitting function
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
@@ -2010,11 +2035,9 @@ CONTAINS
       ELSE IF (ihm == 105 .OR. ihm == 106) THEN
          ! Slightly adjusted standard and non-linear bias model
          ! Adjusted to get hydro power large-scale amplitude more correct
-         hmod%imf = 3 ! Tinker mass function and bias         
+         hmod%imf = 17       ! Tinker 2010 mass function and bias         
          hmod%Astar = 0.0320 ! Stellar mass fraction
-         IF (ihm == 106) THEN
-            hmod%ibias = 3 ! Non-linear halo bias
-         END IF
+         IF (ihm == 106) hmod%ibias = 3 ! Non-linear halo bias
       ELSE IF (ihm == 108) THEN
          ! Bhattacharya et al. (2011) mass function
          ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
@@ -2034,13 +2057,23 @@ CONTAINS
          END IF
       ELSE IF (ihm == 110) THEN
          ! One-loop SPT
-         hmod%ip2h = 4
+         hmod%ip2h = 4 ! 4 - One-loop SPT in two-halo term
       ELSE IF (ihm == 112) THEN  
-         hmod%imf = 15 ! 15 - Tinker (2008) mass function and bias with no z dependence
+         hmod%imf = 15 ! 15 - Tinker (2008) mass function with no z dependence
       ELSE IF (ihm == 113) THEN  
-         hmod%imf = 16 ! 16 - Tinker (2010) mass function and bias with no z dependence
+         hmod%imf = 16 ! 16 - Tinker (2010) mass function and peak-background split bias with no z dependence
       ELSE IF (ihm == 115) THEN
-         hmod%imf = 17 ! 17 - Tinker (2010) mass function with calibrated bias
+         hmod%imf = 17 ! 17 - Tinker (2010) mass function and bias
+      ELSE IF (ihm == 119) THEN
+         hmod%ip2h = 6 ! 6 - Non-linear power in two-halo term
+      ELSE IF (ihm == 120) THEN
+         hmod%ip2h = 7 ! 7 - Quasi-linear power in two-halo term
+      ELSE IF (ihm == 121) THEN
+         hmod%ip2h = 6 ! 6 - Non-linear power in two-halo term
+         hmod%imf = 17 ! 17 - Tinker (2010) mass function and bias
+      ELSE IF (ihm == 122) THEN
+         hmod%ip2h = 7 ! 7 - Quasi-linear power in two-halo term
+         hmod%imf = 17 ! 17 - Tinker (2010) mass function and bias
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -2267,6 +2300,19 @@ CONTAINS
          WRITE (*, *) 'INIT_HALOMOD: Maximum concentration:', REAL(hmod%c(1))
       END IF
 
+      ! Initialise HALOFIT if required
+      IF (hmod%ip2h == 6 .OR. hmod%ip2h == 7) THEN
+         CALL HALOFIT_init(hmod%HALOFIT_knl, hmod%HALOFIT_neff, hmod%HALOFIT_ncur, hmod%a, cosm, verbose)
+      END IF
+
+      ! Check for second-order halo bias
+      IF (hmod%ibias == 2) STOP 'INIT_HALOMOD: Error, check the second-order halo bias calculation very carefully'
+
+      ! Check that combination of two-halo term and halo bias is valid
+      IF ((hmod%ip2h .NE. 2) .AND. is_in_array(hmod%ibias, [3, 4, 5])) THEN
+         STOP 'INIT_HALOMOD: Error, your combination of two-halo term and halo bias is not supported'
+      END IF
+
       ! Finish
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Done'
@@ -2307,15 +2353,16 @@ CONTAINS
          IF (hmod%idc == 6) WRITE (*, *) 'HALOMODEL: delta_c from HMcode (2015) power spectrum fit'
 
          ! Delta_v
-         IF (hmod%iDv == 1) WRITE (*, *) 'HALOMODEL: Delta_v = 200 fixed'
-         IF (hmod%iDv == 2) WRITE (*, *) 'HALOMODEL: Delta_v from Bryan & Norman (1998) fitting function'
-         IF (hmod%iDv == 3) WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2016) power spectrum fit'
-         IF (hmod%iDv == 4) WRITE (*, *) 'HALOMODEL: Delta_v from Mead (2017) fitting function'
-         IF (hmod%iDv == 5) WRITE (*, *) 'HALOMODEL: Delta_v from spherical-collapse calculation'
-         IF (hmod%iDv == 6) WRITE (*, *) 'HALOMODEL: Delta_v to give haloes Lagrangian radius'
-         IF (hmod%iDv == 7) WRITE (*, *) 'HALOMODEL: Delta_v for M200c'
-         IF (hmod%iDv == 8) WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2015) power spectrum fit'
-         IF (hmod%iDv == 9) WRITE (*, *) 'HALOMODEL: Delta_v = 178 fixed'
+         IF (hmod%iDv == 1)  WRITE (*, *) 'HALOMODEL: Delta_v = 200 fixed'
+         IF (hmod%iDv == 2)  WRITE (*, *) 'HALOMODEL: Delta_v from Bryan & Norman (1998) fitting function'
+         IF (hmod%iDv == 3)  WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2016) power spectrum fit'
+         IF (hmod%iDv == 4)  WRITE (*, *) 'HALOMODEL: Delta_v from Mead (2017) fitting function'
+         IF (hmod%iDv == 5)  WRITE (*, *) 'HALOMODEL: Delta_v from spherical-collapse calculation'
+         IF (hmod%iDv == 6)  WRITE (*, *) 'HALOMODEL: Delta_v to give haloes Lagrangian radius'
+         IF (hmod%iDv == 7)  WRITE (*, *) 'HALOMODEL: Delta_v for M200c'
+         IF (hmod%iDv == 8)  WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2015) power spectrum fit'
+         IF (hmod%iDv == 9)  WRITE (*, *) 'HALOMODEL: Delta_v = 178 fixed'
+         IF (hmod%iDv == 10) WRITE (*, *) 'HALOMODEL: Delta_v user defined'
 
          ! Form of the two-halo term
          IF (hmod%ip2h == 0) WRITE (*, *) 'HALOMODEL: No two-halo term'
@@ -2324,31 +2371,29 @@ CONTAINS
          IF (hmod%ip2h == 3) WRITE (*, *) 'HALOMODEL: Linear two-halo term with damped wiggles' 
          IF (hmod%ip2h == 4) WRITE (*, *) 'HALOMODEL: One-loop SPT'  
          IF (hmod%ip2h == 5) WRITE (*, *) 'HALOMODEL: One-loop SPT, dewiggle and damp'
+         IF (hmod%ip2h == 6) WRITE (*, *) 'HALOMODEL: Non-linear two-halo term from HALOFIT'
+         IF (hmod%ip2h == 7) WRITE (*, *) 'HALOMODEL: Quasi-linear two-halo term from HALOFIT'
 
          ! Form of the one-halo term
          IF (hmod%ip1h == 0) WRITE (*, *) 'HALOMODEL: No one-halo term'
          IF (hmod%ip1h == 1) WRITE (*, *) 'HALOMODEL: Standard one-halo term'
          
          ! Order to go to in halo bias
-         IF (hmod%ip2h == 2) THEN
-            IF (hmod%ibias == 1) WRITE (*, *) 'HALOMODEL: Linear halo bias'
-            IF (hmod%ibias == 2) WRITE (*, *) 'HALOMODEL: Second-order halo bias'
-            IF (hmod%ibias == 3) WRITE (*, *) 'HALOMODEL: Full non-linear halo bias'
-            IF (hmod%ibias == 4) WRITE (*, *) 'HALOMODEL: Scale-dependent halo bias fudge from Fedeli (2014b)'
-            IF (hmod%ibias == 5) WRITE (*, *) 'HALOMODEL: Scale-dependent halo bias fudge from me'
-         END IF
+         IF (hmod%ibias == 1) WRITE (*, *) 'HALOMODEL: Linear halo bias'
+         IF (hmod%ibias == 2) WRITE (*, *) 'HALOMODEL: Second-order halo bias'
+         IF (hmod%ibias == 3) WRITE (*, *) 'HALOMODEL: Full non-linear halo bias'
+         IF (hmod%ibias == 4) WRITE (*, *) 'HALOMODEL: Scale-dependent halo bias fudge from Fedeli (2014b)'
+         IF (hmod%ibias == 5) WRITE (*, *) 'HALOMODEL: Scale-dependent halo bias fudge from me'
 
          ! Correction for missing low-mass haloes
-         IF (hmod%ip2h == 2) THEN
-            IF (hmod%i2hcor == 0) WRITE (*, *) 'HALOMODEL: No two-halo correction applied for missing low-mass haloes'
-            IF (hmod%i2hcor == 1) WRITE (*, *) 'HALOMODEL: Two-halo term corrected by adding missing g(nu)b(nu)'
-            IF (hmod%i2hcor == 2) WRITE (*, *) 'HALOMODEL: Two-halo term corrected via delta function at low mass end'
-         END IF
+         IF (hmod%i2hcor == 0) WRITE (*, *) 'HALOMODEL: No two-halo correction applied for missing low-mass haloes'
+         IF (hmod%i2hcor == 1) WRITE (*, *) 'HALOMODEL: Two-halo term corrected by adding missing g(nu)b(nu)'
+         IF (hmod%i2hcor == 2) WRITE (*, *) 'HALOMODEL: Two-halo term corrected via delta function at low mass end'
 
          ! Halo mass function
          IF (hmod%imf == 1)  WRITE (*, *) 'HALOMODEL: Press & Schecter (1974) mass function'
          IF (hmod%imf == 2)  WRITE (*, *) 'HALOMODEL: Sheth & Tormen (1999) mass function'
-         IF (hmod%imf == 3)  WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function'
+         IF (hmod%imf == 3)  WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with peak-background split bias'
          IF (hmod%imf == 4)  WRITE (*, *) 'HALOMODEL: Delta function mass function'
          IF (hmod%imf == 5)  WRITE (*, *) 'HALOMODEL: Jenkins et al. (2001) mass function'
          IF (hmod%imf == 6)  WRITE (*, *) 'HALOMODEL: Despali et al. (2016) mass function'
@@ -2362,7 +2407,9 @@ CONTAINS
          IF (hmod%imf == 14) WRITE (*, *) 'HALOMODEL: Philcox et al. (2020) mass function'
          IF (hmod%imf == 15) WRITE (*, *) 'HALOMODEL: Tinker et al. (2008) mass function with no z dependence'
          IF (hmod%imf == 16) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with no z dependence'
-         IF (hmod%imf == 17) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with calibrated bias'
+         IF (hmod%imf == 17) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with calibrated halo bias'
+         IF (hmod%imf == 18) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with calibrated halo bias and no z dependence'
+         IF (hmod%imf == 19) WRITE (*, *) 'HALOMODEL: Sheth & Tormen (1999) mass function with calibrated halo bias'
 
          ! Concentration-mass relation
          IF (hmod%iconc == 1)  WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -2564,22 +2611,31 @@ CONTAINS
          WRITE (*, fmt=fmt) 'delta_c:', hmod%dc
          WRITE (*, fmt=fmt) 'Amplitude:', hmod%Amf
          WRITE (*, fmt=fmt) 'Amplitude z:', hmod%Amfz
-         IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
+         IF (is_in_array(hmod%imf, [2, 6, 12, 13, 19])) THEN
             WRITE (*, fmt=fmt) 'Sheth & Tormen p:', hmod%ST_p
             WRITE (*, fmt=fmt) 'Sheth & Tormen q:', hmod%ST_q
             WRITE (*, fmt=fmt) 'Sheth & Tormen A:', hmod%ST_A
-         ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11 .OR. hmod%imf == 16 .OR. hmod%imf == 17) THEN
-            ! Tinker (2010)
+         ELSE IF (is_in_array(hmod%imf, [3, 11, 16, 17, 18])) THEN
+            ! Tinker (2010) mass function
             WRITE (*, fmt=fmt) 'Tinker alpha:', hmod%Tinker_alpha
             WRITE (*, fmt=fmt) 'Tinker beta:', hmod%Tinker_beta
             WRITE (*, fmt=fmt) 'Tinker gamma:', hmod%Tinker_gamma
             WRITE (*, fmt=fmt) 'Tinker eta:', hmod%Tinker_eta
             WRITE (*, fmt=fmt) 'Tinker phi:', hmod%Tinker_phi
          ELSE IF (hmod%imf == 4) THEN
-            WRITE (*, *) 'Halo mass log10(M) [Msun/h]:', log10(hmod%hmass)
+            WRITE (*, *) 'Halo mass [log10(Msun/h)]:', log10(hmod%hmass)
          ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
             ! Tinker (2008)
             WRITE (*, fmt=fmt) 'Tinker A:', hmod%Tinker_bigA
+            WRITE (*, fmt=fmt) 'Tinker a:', hmod%Tinker_a
+            WRITE (*, fmt=fmt) 'Tinker b:', hmod%Tinker_b
+            WRITE (*, fmt=fmt) 'Tinker c:', hmod%Tinker_c
+         END IF
+         IF (hmod%imf == 17 .OR. hmod%imf == 18) THEN
+            ! Tinker (2010) calibrated halo bias
+            WRITE (*, fmt=fmt) 'Tinker A:', hmod%Tinker_bigA
+            WRITE (*, fmt=fmt) 'Tinker B:', hmod%Tinker_bigB
+            WRITE (*, fmt=fmt) 'Tinker C:', hmod%Tinker_bigC
             WRITE (*, fmt=fmt) 'Tinker a:', hmod%Tinker_a
             WRITE (*, fmt=fmt) 'Tinker b:', hmod%Tinker_b
             WRITE (*, fmt=fmt) 'Tinker c:', hmod%Tinker_c
@@ -2617,7 +2673,6 @@ CONTAINS
          WRITE (*, fmt=fmt) 'alpha2:', hmod%alp2
          WRITE (*, fmt=fmt) 'fM:', hmod%fM
          WRITE (*, fmt=fmt) 'fD:', hmod%fD
-         WRITE (*, fmt=fmt) 'zD:', hmod%zD
          WRITE (*, fmt=fmt) 'Dvnu:', hmod%Dvnu
          WRITE (*, fmt=fmt) 'dcnu:', hmod%dcnu
          IF (hmod%DMONLY_baryon_recipe) THEN
@@ -3773,6 +3828,7 @@ CONTAINS
       REAL :: Inl, Inl_11, Inl_21, Inl_12, Inl_22, B_NL
       REAL :: I_11, I_12(n), I_21(n), I_22(n, n)
       REAL :: I2h, I2hs(2)
+      REAL :: pq, ph, pnl
       INTEGER :: i, j
       INTEGER, PARAMETER :: iorder = iorder_delta
       INTEGER, PARAMETER :: ifind = ifind_delta
@@ -3781,27 +3837,18 @@ CONTAINS
       ! Necessary to prevent warning for some reason
       I_11 = 0.
 
+      ! Background matter density
       rhom = comoving_matter_density(cosm)
 
-      IF (hmod%ip2h == 1) THEN
+      IF (hmod%ip2h == 0) THEN
+
+         ! No two-halo term
+         p_2h = 0.
+
+      ELSE IF (hmod%ip2h == 1) THEN
 
          ! Linear theory
          p_2h = pli 
-
-      ELSE IF (hmod%ip2h == 3) THEN 
-         
-         ! Damped BAO linear theory
-         p_2h = P_dewiggle(k, hmod%a, hmod%PT_beta*hmod%sigv, cosm) 
-
-      ELSE IF (hmod%ip2h == 4) THEN    
-         
-         ! One-loop SPT
-         p_2h = pli+P_SPT(k, hmod%a, cosm) 
-
-      ELSE IF (hmod%ip2h == 5) THEN
-
-         ! IR resummation ish thing
-         p_2h = P_PTish(k, hmod%a, hmod%PT_beta*hmod%sigv, hmod%PT_A, hmod%PT_alpha*hmod%sigv, cosm, approx=.FALSE.) 
 
       ELSE IF (hmod%ip2h == 2) THEN
 
@@ -3890,15 +3937,18 @@ CONTAINS
 
             END DO
 
+            ! Calculate boundary terms
             Inl_11 = I_11*hmod%gbmin**2
             Inl_12 = integrate_table(hmod%nu, I_12, 1, n, iorder=1)*hmod%gbmin*(wk(1, 1)*rhom/hmod%m(1))
             Inl_21 = integrate_table(hmod%nu, I_21, 1, n, iorder=1)*hmod%gbmin*(wk(1, 2)*rhom/hmod%m(1))
             Inl_22 = integrate_table(hmod%nu, hmod%nu, I_22)
 
+            ! Sum all terms to get total Inl
             Inl = Inl_22
             IF (add_I_11)          Inl = Inl+Inl_11
             IF (add_I_12_and_I_21) Inl = Inl+Inl_12+Inl_21
 
+            ! This is then the complete two-halo term for non-linear bias
             p_2h = p_2h+pli*Inl
 
          ELSE IF (hmod%ibias == 4) THEN
@@ -3913,13 +3963,41 @@ CONTAINS
 
          END IF
 
+      ELSE IF (hmod%ip2h == 3) THEN 
+         
+         ! Damped BAO linear theory
+         p_2h = P_dewiggle(k, hmod%a, hmod%PT_beta*hmod%sigv, cosm) 
+
+      ELSE IF (hmod%ip2h == 4) THEN    
+         
+         ! One-loop SPT
+         p_2h = pli+P_SPT(k, hmod%a, cosm) 
+
+      ELSE IF (hmod%ip2h == 5) THEN
+
+         ! IR resummation ish thing
+         p_2h = P_PTish(k, hmod%a, hmod%PT_beta*hmod%sigv, hmod%PT_A, hmod%PT_alpha*hmod%sigv, cosm, approx=.FALSE.)
+
+      ELSE IF (hmod%ip2h == 6 .OR. hmod%ip2h == 7) THEN
+
+         CALL calculate_HALOFIT_ka(k, hmod%HALOFIT_neff, hmod%HALOFIT_ncur, hmod%HALOFIT_knl, pli, pnl, pq, ph, hmod%a, cosm, ihf=HALOFIT_version)
+         IF (hmod%ip2h == 6) THEN
+            p_2h = pnl  
+         ELSE IF (hmod%ip2h == 7) THEN
+            p_2h = pq 
+         ELSE
+            STOP 'P_2H: Error, something went wrong with HALOFIT'
+         END IF
+
       ELSE
+
          STOP 'P_2H: Error, ip2h not specified correclty'
+
       END IF
 
       ! Get the normalisation correct for non-matter fields if you are using linear theory or damped BAO
-      ! TODO: Does not seem to work with smoothed components.
-      IF (is_in_array(hmod%ip2h, [1, 3, 5, 6])) THEN
+      ! TODO: Does not seem to work with smoothed components (what are smoothed components?)
+      IF (hmod%ip2h .NE. 2) THEN
          DO j = 1, 2
             IF (ih(j) == field_dmonly .OR. ih(j) == field_matter) THEN
                I2hs(j) = 1.
@@ -3933,19 +4011,24 @@ CONTAINS
 
       ! Apply damping to the two-halo term
       IF (hmod%i2hdamp == 1 .OR. hmod%i2hdamp == 2) THEN
-         ! Two-halo damping parameters
+
+         ! HMcode 2015, 2016 damping
          sigv = hmod%sigv
          fdamp = hmod%HMcode_fdamp
          IF (fdamp .NE. 0.) THEN
             p_2h = p_2h*(1.-fdamp*(tanh(k*sigv/sqrt(abs(fdamp))))**2)
          END IF
+
       ELSE IF (hmod%i2hdamp == 3) THEN
+
+         ! HMcode 2020 damping
          fdamp = hmod%HMcode_fdamp
          kdamp = hmod%HMcode_kdamp
          ndamp = hmod%nd
          IF (kdamp .NE. 0.) THEN
             p_2h = p_2h*(1.-fdamp*((k/kdamp)**ndamp)/(1.+(k/kdamp)**ndamp))
          END IF
+
       END IF
 
    END FUNCTION p_2h
@@ -4255,20 +4338,7 @@ CONTAINS
       ELSE IF (nu1 > numax .OR. nu2 > numax) THEN
          BNL = 0.
       ELSE
-         ! IF (stitch_bnl_k .AND. k < kstitch) THEN
-         !    IF (stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
-         !       BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu_lowk)
-         !    ELSE
-         !       BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lowk)
-         !    END IF
-         ! ELSE
-         !    IF (stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
-         !       BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu)
-         !    ELSE
-         !       BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl)
-         !    END IF
-         ! END IF
-         IF (stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
+         IF (hmod%stitch_bnl_nu .AND. ((nu1 < hmod%Bnl%ymin) .OR. (nu2 < hmod%Bnl%ymin))) THEN
             BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl_lownu)
          ELSE
             BNL = evaluate_interpolator(kk, nu1, nu2, hmod%Bnl)
@@ -4296,8 +4366,14 @@ CONTAINS
       REAL, ALLOCATABLE :: k(:), nu(:), B(:, :, :)
       CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext, base
       REAL, PARAMETER :: eps = eps_ztol_bnl
+      CHARACTER(len=256) :: base_bnl, base_bnl_lownu
+      LOGICAL, PARAMETER :: verbose = .TRUE.
 
-      WRITE (*, *) 'INIT_BNL: Running'
+      ! Input files
+      base_bnl = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/MDR1_'//trim(hmod%bnl_cat)
+      base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/Bolshoi_'//trim(hmod%bnl_cat)    
+
+      IF (verbose) WRITE (*, *) 'INIT_BNL: Running'
 
       ! Loop over possible different BNL inputs
       DO j = 1, 2
@@ -4305,12 +4381,8 @@ CONTAINS
          ! Choose input file type
          IF (j == 1) THEN
             base = base_bnl
-         ELSE IF (j == 2 .AND. stitch_bnl_nu) THEN
+         ELSE IF (j == 2 .AND. hmod%stitch_bnl_nu) THEN
             base = base_bnl_lownu
-         !ELSE IF (j == 3 .AND. stitch_bnl_k) THEN
-         !   base = base_bnl_lowk
-         !ELSE IF (j == 4 .AND. (stitch_bnl_k .AND. stitch_bnl_nu)) THEN
-         !   base = base_bnl_lownu_lowk
          ELSE
             CYCLE
          END IF
@@ -4336,23 +4408,24 @@ CONTAINS
 
          ! Read in the nu values of the bins
          infile = trim(inbase)//'_binstats.dat'
+         IF (verbose) WRITE (*, *) 'INIT_BNL: Input file: ', trim(infile)
          nbin = file_length(infile)
-         WRITE (*, *) 'INIT_BNL: Number of nu bins: ', nbin
+         IF (verbose) WRITE (*, *) 'INIT_BNL: Number of nu bins:', nbin
          IF(ALLOCATED(nu)) DEALLOCATE(nu)
          ALLOCATE(nu(nbin))
-         WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
+         !WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
          OPEN (7, file=infile)
          DO i = 1, nbin
             READ (7, *) crap, crap, crap, crap, crap, nu(i)
-            WRITE (*, *) 'INIT_BNL: nu bin', i, nu(i)
+            IF (verbose) WRITE (*, *) 'INIT_BNL: nu bin', i, nu(i)
          END DO
          CLOSE (7)
-         WRITE (*, *) 'INIT_BNL: Done with nu'
+         IF (verbose) WRITE (*, *) 'INIT_BNL: Done with nu'
 
          ! Read in k and Bnl(k, nu1, nu2)
          infile = trim(inbase)//'_bin1_bin1_power.dat'
          nk = file_length(infile)
-         WRITE (*, *) 'INIT_BNL: Number of k values: ', nk
+         IF (verbose) WRITE (*, *) 'INIT_BNL: Number of k values: ', nk
          IF(ALLOCATED(k)) DEALLOCATE(k)
          IF(ALLOCATED(B)) DEALLOCATE(B)
          ALLOCATE(k(nk), B(nk, nbin, nbin))
@@ -4362,7 +4435,7 @@ CONTAINS
                fmid = '_bin'
                fext = '_power.dat'
                infile = number_file2(fbase, ibin, fmid, jbin, fext)
-               WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
+               !IF (verbose) WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
                OPEN (7, file=infile)
                DO ik = 1, nk
                   READ (7, *) k(ik), crap, crap, crap, crap, B(ik, ibin, jbin)
@@ -4402,8 +4475,10 @@ CONTAINS
       ! Change flag
       hmod%has_bnl = .TRUE.
 
-      WRITE (*, *) 'INIT_BNL: Done'
-      WRITE (*, *)
+      IF (verbose) THEN
+         WRITE (*, *) 'INIT_BNL: Done'
+         WRITE (*, *)
+      END IF
 
    END SUBROUTINE init_BNL
 
@@ -4818,6 +4893,8 @@ CONTAINS
       ELSE IF (hmod%iDv == 9) THEN
          ! 18pi^2 ~178
          Delta_v = Dv0
+      ELSE IF (hmod%iDv == 10) THEN
+         Delta_v = hmod%Dv0
       ELSE
          STOP 'DELTA_V: Error, iDv defined incorrectly'
       END IF
@@ -8219,7 +8296,7 @@ CONTAINS
       ! ================
       !  0 - Delta function at r=0
       !  1 - Isothermal: r^-2
-      !  2 - Top hat: r^0
+      !  2 - Top hat: rho ~ constant
       !  3 - Moore (1999)
       !  4 - NFW (1997)
       !  5 - Analytic NFW
@@ -9317,7 +9394,7 @@ CONTAINS
       ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
          b_nu = b_ST(nu, hmod)
       ELSE IF (hmod%imf == 3 .OR. hmod%imf == 16) THEN
-         b_nu = b_Tinker2010(nu, hmod)
+         b_nu = b_Tinker2010_peakbackground(nu, hmod)
       ELSE IF (hmod%imf == 4 .OR. hmod%imf == 11) THEN
          b_nu = 1.
       ELSE IF (hmod%imf == 5) THEN
@@ -9330,8 +9407,10 @@ CONTAINS
          b_nu = b_Reed(nu, hmod)
       ELSE IF (hmod%imf == 10 .OR. hmod%imf == 14) THEN
          b_nu = b_Bhattacharya(nu, hmod)
-      ELSE IF (hmod%imf == 17) THEN
+      ELSE IF (hmod%imf == 17 .OR. hmod%imf == 18) THEN
          b_nu = b_Tinker2010_calibrated(nu, hmod)
+      ELSE IF (hmod%imf == 19) THEN
+         b_nu = b_SMT(nu, hmod)
       ELSE
          STOP 'B_NU: Error, imf not specified correctly'
       END IF
@@ -9366,6 +9445,29 @@ CONTAINS
 
    END FUNCTION b_ST
 
+   REAL FUNCTION b_SMT(nu, hmod)
+
+      ! Sheth, Mo & Tormen (2001) halo bias
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: dc, anu2, f1, f2, f3, f4
+      REAL, PARAMETER :: a = 0.707
+      REAL, PARAMETER :: b = 0.5
+      REAL, PARAMETER :: c = 0.6
+
+      dc = hmod%dc
+
+      anu2 = a*nu**2
+
+      f1 = sqrt(a)*anu2
+      f2 = sqrt(a)*b*anu2**(1.-c)
+      f3 = anu2**c
+      f4 = anu2**c+b*(1.-c)*(1-c/2.)
+
+      b_SMT = 1.+(f1+f2-f3/f4)/(dc*sqrt(a))
+
+   END FUNCTION b_SMT
+
    REAL FUNCTION b_Tinker2008(nu, hmod)
 
       ! Peak-background split applied to Tinker et al. (2008) mass function
@@ -9394,23 +9496,22 @@ CONTAINS
       ! NOTE: Tinker takes dc = 1.686 and this does not vary with cosmology
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: y, bigA, bigB, bigC, a, b, c, dc
+      REAL :: bigA, bigB, bigC, a, b, c, dc
 
-      y = log10(hmod%Dv)
+      bigA = hmod%Tinker_bigA
+      bigB = hmod%Tinker_bigB
+      bigC = hmod%Tinker_bigC
+      a = hmod%Tinker_a
+      b = hmod%Tinker_b
+      c = hmod%Tinker_c
+
       dc = hmod%dc
-
-      bigA = 1.+0.24*y*exp(-(4./y)**4)
-      a = 0.44*y-0.88
-      bigB = 0.183
-      b = 1.5
-      bigC = 0.019+0.107*y+0.19*exp(-(4./y)**4)
-      c = 2.4   
 
       b_Tinker2010_calibrated = 1.-bigA*nu**a/(nu**a+dc**a)+bigB*nu**b+bigC*nu**c
 
    END FUNCTION b_Tinker2010_calibrated
 
-   REAL FUNCTION b_Tinker2010(nu, hmod)
+   REAL FUNCTION b_Tinker2010_peakbackground(nu, hmod)
 
       ! Tinker et al. (2010; 1001.3162) halo bias derived using the peak-background split
       ! Equation (15)
@@ -9429,9 +9530,9 @@ CONTAINS
 
       f1 = (gamma*nu**2-(1.+2.*eta))/dc
       f2 = (2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
-      b_Tinker2010 = 1.+f1+f2
+      b_Tinker2010_peakbackground = 1.+f1+f2
 
-   END FUNCTION b_Tinker2010
+   END FUNCTION b_Tinker2010_peakbackground
 
    REAL FUNCTION b_Jenkins(nu, hmod)
 
@@ -9571,10 +9672,10 @@ CONTAINS
       IF (.NOT. hmod%has_mass_function) CALL init_mass_function(hmod)
 
       IF (hmod%imf == 1) THEN
-         g_nu = g_ps(nu, hmod)
-      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
-         g_nu = g_st(nu, hmod)
-      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11 .OR. hmod%imf == 16 .OR. hmod%imf == 17) THEN
+         g_nu = g_PS(nu, hmod)
+      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13, 19])) THEN
+         g_nu = g_ST(nu, hmod)
+      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11 .OR. hmod%imf == 16 .OR. hmod%imf == 17 .OR. hmod%imf == 18) THEN
          g_nu = g_Tinker2010(nu, hmod)
       ELSE IF (hmod%imf == 4) THEN
          STOP 'G_NU: Error, this function should not be used for delta-mass-function'
@@ -9803,9 +9904,9 @@ CONTAINS
       ! Initialise anything to do with the halo mass function
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
+      IF (is_in_array(hmod%imf, [2, 6, 12, 13, 19])) THEN
          CALL init_ST(hmod)
-      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11 .OR. hmod%imf == 16 .OR. hmod%imf == 17) THEN
+      ELSE IF (is_in_array(hmod%imf, [3, 11, 16, 17, 18])) THEN
          CALL init_Tinker2010(hmod)
       ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
          CALL init_Tinker2008(hmod)
@@ -9822,7 +9923,7 @@ CONTAINS
       REAL :: p, q, A
 
       ! ST parameters
-      IF (hmod%imf == 2) THEN
+      IF (hmod%imf == 2 .OR. hmod%imf == 19) THEN
          ! Sheth & Tormen (1999)
          p = 0.3
          q = 0.707
@@ -9879,12 +9980,10 @@ CONTAINS
       INTEGER, PARAMETER :: imeth = 2  ! Method for interpolation (2 - Lagrange polynomial)
 
       ! Choose redshift dependence
-      IF (hmod%imf == 8) THEN
-         z_dependence = .TRUE.
-      ELSE IF (hmod%imf == 15) THEN
+      IF (hmod%imf == 15) THEN
          z_dependence = .FALSE.
       ELSE
-         STOP 'INIT_TINKER2008: Error, something went terribly wrong'
+         z_dependence = .TRUE.
       END IF
 
       ! Get these from the halo-model structure
@@ -9903,10 +10002,10 @@ CONTAINS
 
       ! Redshift dependence
       IF (z_dependence) THEN
-         bigA = bigA*(1.+z)**bigA_z_exp ! Equation (5)
-         a = a*(1.+z)**a_z_exp          ! Equation (6)
+         bigA = bigA*(1.+z)**bigA_z_exp                    ! Equation (5)
+         a = a*(1.+z)**a_z_exp                             ! Equation (6)
          alpha = 10**(-(0.75/log10(exp(log_Dv)/75.))**1.2) ! Equation (8)
-         b = b*(1.+z)**(-alpha)         ! Equation (7)
+         b = b*(1.+z)**(-alpha)                            ! Equation (7)
       END IF
 
       hmod%Tinker_bigA = bigA
@@ -9921,7 +10020,7 @@ CONTAINS
       ! Initialise the parameters of the Tinker et al. (2010) mass function and bias
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: alpha, beta, Gamma, phi, eta
-      REAL :: z, log_Dv
+      REAL :: z, log_Dv, y
       LOGICAL :: z_dependence
 
       ! Parameter arrays from Tinker (2010): Table 4
@@ -9945,19 +10044,18 @@ CONTAINS
 
       ! Choose redshift dependence
       ! NOTE: Redshift-dependent parameters are only given for M200 haloes in Tinker (2010) paper
-      IF (hmod%imf == 3 .OR. hmod%imf == 11) THEN
+      ! TODO: Should the Dv = 200 condition be enforced?
+      IF (hmod%Dv == 200. .AND. (hmod%imf == 3 .OR. hmod%imf == 11 .OR. hmod%imf == 17)) THEN
          z_dependence = .TRUE.
-      ELSE IF (hmod%imf == 16 .OR. hmod%imf == 17) THEN
-         z_dependence = .FALSE.
       ELSE
-         STOP 'INIT_TINKER2010: Error, something went terribly wrong'
+         z_dependence = .FALSE.
       END IF
 
       ! Get these from the halo-model structure
       z = hmod%z
       IF (z > 3.) z = 3. ! Recommendation from Tinker et al. (2010)
       IF (hmod%mass_dependent_Dv) THEN
-         STOP 'INIT_TINKER2008: Error, this does not work with mass-dependent Delta_v'
+         STOP 'INIT_TINKER2010: Error, this does not work with mass-dependent Delta_v'
       ELSE
          log_Dv = log(hmod%Dv)
       END IF
@@ -9994,6 +10092,20 @@ CONTAINS
       ! Explicitly normalise
       IF (z_dependence) THEN
          hmod%Tinker_alpha = hmod%Tinker_alpha/integrate_g_mu(hmod%small_nu, hmod%large_nu, hmod)
+      END IF
+
+      ! Calibrated bias initialisation
+      IF (hmod%imf == 17 .OR. hmod%imf == 18) THEN
+
+         y = log10(hmod%Dv)
+         
+         hmod%Tinker_bigA = 1.+0.24*y*exp(-(4./y)**4)
+         hmod%Tinker_a = 0.44*y-0.88
+         hmod%Tinker_bigB = 0.183
+         hmod%Tinker_b = 1.5
+         hmod%Tinker_bigC = 0.019+0.107*y+0.19*exp(-(4./y)**4)
+         hmod%Tinker_c = 2.4 
+
       END IF
 
    END SUBROUTINE init_Tinker2010
@@ -11126,5 +11238,30 @@ CONTAINS
       P_PTish = P_dw*(P_lin+P_loop)/P_lin
 
    END FUNCTION P_PTish
+
+   REAL FUNCTION simple_twohalo(k, Pk, rv)
+
+      ! A simple two-halo term with haloes all of the same mass and are unbiased
+      USE special_functions
+      REAL, INTENT(IN) :: k  ! Wavenumber [h/Mpc]
+      REAL, INTENT(IN) :: Pk ! Power spectrum (usually linear)
+      REAL, INTENT(IN) :: rv ! Virial radius [Mpc/h]
+
+      simple_twohalo = Pk*wk_tophat(k*rv)**2
+
+   END FUNCTION simple_twohalo
+
+   REAL FUNCTION simple_onehalo(k, rv, M, rhobar)
+
+      ! Does a simple halo-model calculation with haloes all of the same mass
+      USE special_functions
+      REAL, INTENT(IN) :: k      ! Wavenumber [h/Mpc]
+      REAL, INTENT(IN) :: rv     ! Virial radius [Mpc/h]
+      REAL, INTENT(IN) :: M      ! Halo mass [Msun/h]
+      REAL, INTENT(IN) :: rhobar ! Mean matter density [Msun/h / (Mpc/h)^3]
+
+      simple_onehalo = 4.*pi*(k/twopi)**3*(wk_tophat(k*rv)**2)*M/rhobar
+
+   END FUNCTION simple_onehalo
 
 END MODULE HMx
