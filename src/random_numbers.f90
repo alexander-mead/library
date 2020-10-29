@@ -71,8 +71,11 @@ CONTAINS
 
    SUBROUTINE random_generator_seed(seed, verbose)
 
+      ! TODO: Understand seeding properly
       INTEGER, INTENT(IN) :: seed
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
+      INTEGER :: n
+      INTEGER, ALLOCATABLE :: seedy(:)
 
       IF (present_and_correct(verbose)) THEN
          WRITE (*, *) 'RANDOM_GENERATOR_SEED: Initialising random number generator'
@@ -82,7 +85,10 @@ CONTAINS
       IF (seed == 0) THEN
          CALL random_seed()
       ELSE
-         STOP 'RANDOM_GENERATOR_SEED: Error, this does not work for non-zero seeds'
+         CALL random_seed(size=n)
+         ALLOCATE(seedy(n))
+         seedy = seed
+         CALL random_seed(put=seedy)
       END IF
 
       IF (present_and_correct(verbose)) THEN
@@ -95,13 +101,10 @@ CONTAINS
    INTEGER FUNCTION random_integer(i1, i2)
 
       ! Picks an integer with uniform random probability between i1 and i2 spaced with 1
-      ! TODO: Retire rand, replace with random_number
       INTEGER, INTENT(IN) :: i1 ! Lower bound
       INTEGER, INTENT(IN) :: i2 ! Upper bound
-      !REAL(kind=4) :: rand            ! Necessary to define for ifort and the *4 is necessary
       INTEGER, PARAMETER :: seed = 0
 
-      !random_integer = i1-1+ceiling(rand(seed)*real(1+i2-i1))
       random_integer = i1-1+ceiling(random_unit()*real(1+i2-i1))
       IF (random_integer == i1-1) random_integer = i1
 
