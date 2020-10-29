@@ -2203,6 +2203,9 @@ CONTAINS
 
    SUBROUTINE field_correlation_function(r_array, xi_array, n_array, n, d, m, L)
 
+      ! This double counts, so time could be at least halved
+      ! Also could be parrallelised
+      ! Also could just not be complete shit, but it should get the job done
       USE precision
       USE table_integer
       IMPLICIT NONE
@@ -2215,10 +2218,6 @@ CONTAINS
       DOUBLE PRECISION :: xi8_array(n)
       INTEGER :: i1, i2, i3, j1, j2, j3, i(3), j(3), k, dim
       REAL :: r, x1(3), x2(3)
-
-      ! This double counts, so time could be at least halved
-      ! Also could be parrallelised
-      ! Also could just not be complete shit, but it should get the job done
 
       rmin = r_array(1)
       rmax = r_array(n)
