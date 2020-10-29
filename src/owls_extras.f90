@@ -24,7 +24,6 @@ CONTAINS
    SUBROUTINE BAHAMAS_get_ks(mesh, k, nk)
 
       USE file_info
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: mesh
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       INTEGER, INTENT(OUT) :: nk
@@ -48,7 +47,6 @@ CONTAINS
    CHARACTER(len=64) FUNCTION BAHAMAS_dir(m)
 
       USE string_operations
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       CHARACTER(len=8) :: mesh
       CHARACTER(len=64) :: dir
@@ -66,7 +64,6 @@ CONTAINS
    CHARACTER(len=32) FUNCTION BAHAMAS_field_name(i)
 
       USE HMx
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i
 
       IF (i == field_matter) THEN
@@ -88,7 +85,6 @@ CONTAINS
 
    CHARACTER(len=256) FUNCTION BAHAMAS_power_file_name(model, m, z, ip)
 
-      IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: model
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: z
@@ -136,7 +132,6 @@ CONTAINS
 
    CHARACTER(len=256) FUNCTION BAHAMAS_error_file_name(m, z, ip)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: z
       INTEGER, INTENT(IN) :: ip(2)
@@ -187,8 +182,6 @@ CONTAINS
       USE basic_operations
       USE cosmology_functions
       USE HMx
-
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Er(:)
@@ -235,11 +228,9 @@ CONTAINS
 
    SUBROUTINE read_simulation_power_spectrum(k, Pk, Er, nk, infile, kmin, kmax, cut_nyquist, subtract_shot, verbose)
 
-      USE file_info
-      USE basic_operations
-
       ! TODO: Move this to simulations.f90
-      IMPLICIT NONE
+      USE file_info
+      USE basic_operations  
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)  ! Output simulation k and power
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:) ! Output simulation k and power
       REAL, ALLOCATABLE, INTENT(OUT) :: Er(:) ! Output simulation k and power
@@ -301,7 +292,6 @@ CONTAINS
 
       USE basic_operations
       USE array_operations
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(INOUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: Pk(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: Er(:)
@@ -334,7 +324,6 @@ CONTAINS
 
       USE basic_operations
       USE array_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: kmin
       REAL, ALLOCATABLE, INTENT(INOUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: Pk(:)
@@ -367,7 +356,6 @@ CONTAINS
 
       USE basic_operations
       USE array_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: kmax
       REAL, ALLOCATABLE, INTENT(INOUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(INOUT) :: Pk(:)
@@ -402,7 +390,6 @@ CONTAINS
       USE interpolate
       USE cosmology_functions
       USE HMx
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Ek(:)
@@ -478,7 +465,6 @@ CONTAINS
 
       USE io
       USE array_operations
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
       INTEGER, INTENT(OUT) :: nk
@@ -499,7 +485,6 @@ CONTAINS
    SUBROUTINE VD20_get_response(k, Rk, nk, z, name)
 
       USE io
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Rk(:)
       INTEGER, INTENT(OUT) :: nk
@@ -521,7 +506,6 @@ CONTAINS
 
    CHARACTER(len=256) FUNCTION VD20_dmonly_counterpart(name)
 
-      IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: name
 
       IF (trim(name) == 'BAHAMAS_Theat7.6_nu0_WMAP9') THEN

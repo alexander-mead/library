@@ -14,7 +14,6 @@ CONTAINS
 
    FUNCTION solve_quadratic(a, b, c)
 
-      IMPLICIT NONE
       REAL :: solve_quadratic(2)
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
@@ -37,7 +36,6 @@ CONTAINS
 
       ! Solves y(x)=0. for x
       USE interpolate
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: xtab(n)
       REAL, INTENT(IN) :: ytab(n)
@@ -55,7 +53,6 @@ CONTAINS
       ! Solves y(x)=0 for x, f(x) should be monotonic and cross f=0. once only
       USE basic_operations
       USE interpolate
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: xtab(n)
       REAL, INTENT(IN) :: ytab(n)

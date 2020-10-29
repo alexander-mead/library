@@ -19,7 +19,6 @@ CONTAINS
 
       ! Solves 2nd order ODE d2x/dt2 from ti to tf and creates arrays of x, v, t values
       ! I have sometimes called this ODE_crass because it has a fixed number of time steps, n
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
@@ -81,7 +80,6 @@ CONTAINS
       ! Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
       ! acc is the desired accuracy across the entire solution
       ! time steps are increased until convergence is achieved
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
@@ -207,7 +205,6 @@ CONTAINS
    SUBROUTINE ODE_advance(x1, x2, v1, v2, t1, t2, fx, fv, iode)
 
       ! Advances the ODE system from t1 to t2, updating x1 to x2 and v1 to v2
-      IMPLICIT NONE
       DOUBLE PRECISION, INTENT(IN) :: x1
       DOUBLE PRECISION, INTENT(OUT) :: x2
       DOUBLE PRECISION, INTENT(IN) :: v1

@@ -16,7 +16,6 @@ CONTAINS
    REAL FUNCTION black_body_nu(nu, T)
 
       ! The radiance from a blackbody [Wm^-2 Hz^-1 Sr^-1]
-      IMPLICIT NONE
       REAL, INTENT(IN) :: nu ! Frequency [Hz]
       REAL, INTENT(IN) :: T ! Black-body temperature [K]
       REAL :: a, x
@@ -32,7 +31,6 @@ CONTAINS
    REAL FUNCTION black_body_lambda(lambda, T)
 
       ! The radiance from a blackbody [Wm^-2 m^-1 Sr^-1]
-      IMPLICIT NONE
       REAL, INTENT(IN) :: lambda ! Wavelength [m]
       REAL, INTENT(IN) :: T ! Black-body temperature [K]
       REAL :: nu
@@ -46,7 +44,6 @@ CONTAINS
    REAL FUNCTION wein_law_nu(T)
 
       ! The peak emission frequency from a blackbody [Hz]
-      IMPLICIT NONE
       REAL, INTENT(IN) :: T ! Black-body temperature [K]
       REAL, PARAMETER :: a = 5.879e10 ! Wein constant [Hz/K]
 
@@ -57,7 +54,6 @@ CONTAINS
    REAL FUNCTION wein_law_lambda(T)
 
       ! The peak emission wavelength from a blackbody [m]
-      IMPLICIT NONE
       REAL, INTENT(IN) :: T ! Black-body temperature [K]
       REAL, PARAMETER :: b = 2.8977729e-3 ! Wein constant [Km]
 

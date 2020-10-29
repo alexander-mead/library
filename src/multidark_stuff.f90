@@ -137,7 +137,6 @@ CONTAINS
    SUBROUTINE read_multidark_halo_catalogue(infile, x, m, n)
 
       ! New version for halo catalogues downloaded via https://www.cosmosim.org/query
-      IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: infile
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
       REAL, ALLOCATABLE, INTENT(OUT) :: m(:, :)
@@ -164,7 +163,6 @@ CONTAINS
 
    SUBROUTINE write_multidark_halo_catalogue(outfile, x, m, idx, n)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       CHARACTER(len=*), INTENT(IN) :: outfile
       REAL, INTENT(IN) :: x(3, n)
@@ -188,7 +186,6 @@ CONTAINS
 
    SUBROUTINE read_multidark_particles(infile, x, n)
 
-      IMPLICIT NONE
       CHARACTER(len=*), INTENT(IN) :: infile
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
       INTEGER, INTENT(OUT) :: n
@@ -215,7 +212,6 @@ CONTAINS
 
    INTEGER FUNCTION multidark_snapshot(a)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a
 
       IF (a == 1.001) THEN
@@ -236,7 +232,6 @@ CONTAINS
 
    REAL FUNCTION multidark_scale_factor(s)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: s
 
       IF (s == 416) THEN

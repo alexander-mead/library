@@ -37,7 +37,6 @@ CONTAINS
    SUBROUTINE read_mccarthy(x, m, n, infile)
 
       ! Read in a McCarthy format particle data file
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
       REAL, ALLOCATABLE, INTENT(OUT) :: m(:)
       INTEGER, INTENT(OUT) :: n
@@ -98,7 +97,6 @@ CONTAINS
    SUBROUTINE write_mccarthy(x, m, n, outfile)
 
       ! Write a particle data file using McCarthy format
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(3, n)
       REAL, INTENT(IN) :: m(n)
@@ -124,7 +122,6 @@ CONTAINS
 
       ! Read in a McCarthy format gas file
       USE constants
-      IMPLICIT NONE
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :) ! Particle positions [Mpc/h]
       REAL, ALLOCATABLE, INTENT(OUT) :: m(:)   ! Particle mass [Msun/h]
       REAL, ALLOCATABLE, INTENT(OUT) :: kT(:)  ! Particle internal energy [eV]
@@ -208,7 +205,6 @@ CONTAINS
       ! Note very well that Pe will be the contribution to the total pressure in the volume per particle
       ! CARE: I removed factors of 'm', pressure is now contribution to entire volume, rather than the contribution per mesh cell
       USE constants
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n     ! total number of particles
       REAL, INTENT(INOUT) :: kT(n) ! particle internal energy [eV], output as electron pressure [eV/cm^3]
       REAL, INTENT(IN) :: rho(n)   ! physical gas particle SPH density [mp/cm^3]
@@ -291,7 +287,6 @@ CONTAINS
    SUBROUTINE exclude_nh(nhcut, kT, rho, n)
 
       ! Set the gas particle internal energy to zero for high-density particles that have nh > nhcut
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n      ! Total number of particles
       REAL, INTENT(IN) :: nhcut     ! Cut to impose on hydrogen number density [#/cm^3]
       REAL, INTENT(INOUT) :: kT(n)  ! Gas particle internal energy [eV]
@@ -310,12 +305,11 @@ CONTAINS
 
    CHARACTER(len=32) FUNCTION BAHAMAS_snapshot(z)
 
+      ! Set the redshift corresponding to the snapsho
       USE basic_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: z
       REAL, PARAMETER :: eps = 1e-3
-
-      ! Set the redshift
+   
       IF (requal(z, 0.0, eps)) THEN
          BAHAMAS_snapshot = 'snap32'
       ELSE IF (requal(z, 0.125, eps)) THEN
@@ -356,7 +350,6 @@ CONTAINS
    ELEMENTAL REAL FUNCTION BAHAMAS_scale_factor(isnap)
 
       USE cosmology_functions
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: isnap
       REAL :: z
 
@@ -400,10 +393,8 @@ CONTAINS
 
    SUBROUTINE BAHAMAS_scale_factors(a, n)
 
-      USE cosmology_functions
-
       ! Returns an array of all the BAHAMAS scale factors for a given set of n
-      IMPLICIT NONE
+      USE cosmology_functions    
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:)
       INTEGER, INTENT(IN) :: n
       INTEGER :: snaps(n)
