@@ -20,6 +20,7 @@ MODULE basic_operations
    PUBLIC :: first_digit
    PUBLIC :: swap
    PUBLIC :: increment
+   PUBLIC :: opt_or_def
 
    INTERFACE swap
       MODULE PROCEDURE swap_real
@@ -39,6 +40,19 @@ MODULE basic_operations
    END INTERFACE increment
 
 CONTAINS
+
+   REAL FUNCTION opt_or_def(x_def, x_opt)
+
+      REAL, INTENT(IN) :: x_def
+      REAL, OPTIONAL, INTENT(IN) :: x_opt
+
+      IF (present(x_opt)) THEN
+         opt_or_def = x_opt
+      ELSE
+         opt_or_def = x_def
+      END IF
+
+   END FUNCTION opt_or_def
 
    REAL FUNCTION progression(xmin, xmax, i, n)
 
