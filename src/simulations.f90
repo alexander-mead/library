@@ -48,16 +48,19 @@ MODULE simulations
    PUBLIC :: write_adaptive_field
 
    PUBLIC :: random_spherical_halo_particle
-   PUBLIC :: irho_constant
+   PUBLIC :: DMONLY_HMx_halo
+   PUBLIC :: irho_tophat
    PUBLIC :: irho_isothermal
    PUBLIC :: irho_shell
    PUBLIC :: irho_delta
 
+   PUBLIC :: make_HOD
+
    ! These should map to the integers in HMx
-   INTEGER, PARAMETER :: irho_constant = 2
-   INTEGER, PARAMETER :: irho_isothermal = 1
-   INTEGER, PARAMETER :: irho_shell = 28
-   INTEGER, PARAMETER :: irho_delta = 0
+   INTEGER, PARAMETER :: irho_tophat = 1
+   INTEGER, PARAMETER :: irho_isothermal = 2
+   INTEGER, PARAMETER :: irho_shell = 3
+   INTEGER, PARAMETER :: irho_delta = 4
 
    INTERFACE particle_bin
       MODULE PROCEDURE particle_bin_2D
@@ -79,6 +82,25 @@ MODULE simulations
    END INTERFACE CIC
 
 CONTAINS
+
+   INTEGER FUNCTION DMONLY_HMx_halo(irho)
+
+         ! Translates between the haloes defined here and those in HMx
+         INTEGER, INTENT(IN) :: irho
+
+         IF (irho == irho_tophat) THEN
+            DMONLY_HMx_halo = 3
+         ELSE IF (irho == irho_delta) THEN
+            DMONLY_HMx_halo = 4
+         ELSE IF (irho == irho_isothermal) THEN
+            DMONLY_HMx_halo = 6
+         ELSE IF (irho == irho_shell) THEN
+            DMONLY_HMx_halo = 7
+         ELSE
+            STOP 'DMONLT_HALO: Error, translation not possible'
+         END IF
+
+   END FUNCTION DMONLY_HMx_halo
 
    SUBROUTINE correlation_function(rmin, rmax, r, xi, n, nr, x1, x2, w1, w2, n1, n2, L)
 
@@ -337,7 +359,7 @@ CONTAINS
 
    END SUBROUTINE write_power_spectrum
 
-   SUBROUTINE power_spectrum_particles(x, L, m, nk, k, Pk, nbin, sig)
+   SUBROUTINE power_spectrum_particles(x, L, m, nk, k, Pk, nbin, sig, kmin_opt, kmax_opt)
 
       USE constants
       IMPLICIT NONE
@@ -349,8 +371,10 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: sig(:)
+      REAL, OPTIONAL, INTENT(IN) :: kmin_opt
+      REAL, OPTIONAL, INTENT(IN) :: kmax_opt
       COMPLEX :: dk(m, m, m)
-      REAL :: kmin, kmax
+      REAL :: kmin, kmax, kmin_def, kmax_def
       INTEGER :: n
 
       IF (size(x, 1) .NE. 3) STOP 'POWER_SPECTRUM_PARTICLES: Error, particles must be in 3D'
@@ -361,13 +385,27 @@ CONTAINS
       CALL sharp_Fourier_density_contrast(x, n, L, dk, m)
 
       ! Compute the power spectrum from the density field
-      kmin = twopi/L
-      kmax = real(m)*pi/L
+      !kmin = twopi/L
+      !kmax = real(m)*pi/L
+      ! IF(present(kmin)) THEN
+      !    kmin_here = kmin
+      ! ELSE
+      !    kmin_here = kmin_default
+      ! END IF
+      ! IF(present(kmax)) THEN
+      !    kmax_here = kmax
+      ! ELSE
+      !    kmax_here = kmax_default
+      ! END IF
+      kmin_def = twopi/L
+      kmax_def = pi*m/L
+      kmin = opt_or_def(kmin_def, kmin_opt)
+      kmax = opt_or_def(kmax_def, kmax_opt)
       CALL compute_power_spectrum(dk, dk, m, L, kmin, kmax, nk, k, Pk, nbin, sig)
 
    END SUBROUTINE power_spectrum_particles
 
-   SUBROUTINE cross_spectrum_particles(x1, x2, L, m, nk, k, Pk, nbin, sig)
+   SUBROUTINE cross_spectrum_particles(x1, x2, L, m, nk, k, Pk, nbin, sig, kmin_opt, kmax_opt)
 
       USE constants
       IMPLICIT NONE
@@ -380,8 +418,10 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: sig(:)
+      REAL, OPTIONAL, INTENT(IN) :: kmin_opt
+      REAL, OPTIONAL, INTENT(IN) :: kmax_opt
       COMPLEX :: dk1(m, m, m), dk2(m, m, m)
-      REAL :: kmin, kmax
+      REAL :: kmin, kmax, kmin_def, kmax_def
       INTEGER :: n1, n2
 
       IF ((size(x1, 1) .NE. 3) .OR. (size(x2, 1) .NE. 3)) STOP 'CROSS_SPECTRUM_PARTICLES: Error, must be 3D'
@@ -394,8 +434,12 @@ CONTAINS
       CALL sharp_Fourier_density_contrast(x2, n2, L, dk2, m)
 
       ! Compute the power spectrum from the density field
-      kmin = twopi/L
-      kmax = real(m)*pi/L
+      !kmin = twopi/L
+      !kmax = real(m)*pi/L
+      kmin_def = twopi/L
+      kmax_def = pi*m/L
+      kmin = opt_or_def(kmin_def, kmin_opt)
+      kmax = opt_or_def(kmax_def, kmax_opt)
       CALL compute_power_spectrum(dk1, dk2, m, L, kmin, kmax, nk, k, Pk, nbin, sig)
 
    END SUBROUTINE cross_spectrum_particles
@@ -541,13 +585,15 @@ CONTAINS
 
       ! Calculate some useful things
       ips = L/real(n**(1./3.)) ! Mean ID inter-particle spacing
-      maxf = maxval(f) ! Maximum value of 1D displacement
+      maxf = maxval(f)         ! Maximum value of 1D displacement
 
       ! Calculate the particle velocities first
-      CALL Zeldovich_velocity(x, v, n, L, vfac*f, m)
+      !CALL Zeldovich_velocity(x, v, n, L, vfac*f, m)
+      CALL Zeldovich_velocity(x, v, vfac*f, L)
 
       ! Then do the particle positions
-      CALL Zeldovich_displacement(x, n, L, f, m)
+      !CALL Zeldovich_displacement(x, n, L, f, m)
+      CALL Zeldovich_displacement(x, f, L)
 
       ! Write some useful things to the screen
       WRITE (*, *) 'ZELDOVICH_ICS: Max 1D displacement [Mpc/h]:', maxf
@@ -558,14 +604,25 @@ CONTAINS
 
    END SUBROUTINE Zeldovich_ICs
 
-   SUBROUTINE Zeldovich_displacement(x, n, L, s, m)
+   SUBROUTINE Zeldovich_displacement(x, s, L)
 
       ! Displace particles using the Zeldovich approximation given a displacement field
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n, m
-      REAL, INTENT(INOUT) :: x(3, n)
-      REAL, INTENT(IN) :: s(3, m, m, m), L  
+      ! TODO: Could do CIC reverse interpolation here
+      REAL, INTENT(INOUT) :: x(:, :)    ! Initial and final particle positions [Mpc/h]
+      REAL, INTENT(IN) :: s(:, :, :, :) ! Dispalcement field [Mpc/h]
+      REAL, INTENT(IN) :: L             ! Box size [Mpc/h]
       INTEGER :: i, j, ix(3)
+      INTEGER :: n, m
+      INTEGER, PARAMETER :: dim = 3
+
+      ! Check fields are 3D
+      IF (size(x, 1) .NE. dim) STOP 'ZELDOVICH_DISPLACEMENTS: Error, only works in three dimensions'
+      IF (size(s, 1) .NE. dim) STOP 'ZELDOVICH_DISPLACEMENTS: Error, only works in three dimensions'
+
+      ! Total number of particles
+      n = size(x, 2)
+      m = size(s, 2)
+      IF ((m .NE. size(s, 3)) .OR. (m .NE. size(s, 4))) STOP 'ZELDOVICH_DISPLACEMENTS: Error, displacement field must be square'
 
       WRITE (*, *) 'ZELDOVICH_DISPLACEMENT: Displacing particles'
 
@@ -580,18 +637,33 @@ CONTAINS
       WRITE (*, *) 'ZELDOVICH_DISPLACEMENT: Done'
       WRITE (*, *)
 
+      ! Replace particles that may have strayed
       CALL replace(x, n, L)
 
    END SUBROUTINE Zeldovich_displacement
 
-   SUBROUTINE Zeldovich_velocity(x, v, n, L, s, m)
+   SUBROUTINE Zeldovich_velocity(x, v, s, L)
 
       ! Give particles velocities from a velocity field
+      ! TODO: Could do CIC reverse interpolation here
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n, m
-      REAL, INTENT(OUT) :: v(3, n)
-      REAL, INTENT(IN) :: x(3, n), s(3, m, m, m), L   
+      REAL, INTENT(IN) :: x(:, :)       ! Particle position array [Mpc/h]
+      REAL, INTENT(OUT) :: v(:, :)      ! Particle velocity array [km/s]
+      REAL, INTENT(IN) :: s(:, :, :, :) ! Velocity field [km/s]
+      REAL, INTENT(IN) :: L             ! Box size [Mpc/h]
       INTEGER :: i, j, ix(3)
+      INTEGER :: n, m
+      INTEGER, PARAMETER :: dim = 3
+
+      IF ((dim .NE. size(x, 1)) .OR. (dim .NE. size(v, 1)) .OR. (dim .NE. size(s, 1))) THEN
+         STOP 'ZELDOVICH_VELOCITY: This only works in three dimensions'
+      END IF
+
+      ! Total number of particles
+      n = size(x, 2)
+      IF (n .NE. size(v, 2)) STOP 'ZELDOVICH_VELOCITY: Error, position and velocity arrays must be the same size'
+      m = size(s, 2)
+      IF ((m .NE. size(s, 3)) .OR. (m .NE. size(s, 4))) STOP 'ZELDOVICH_DISPLACEMENTS: Error, displacement field must be square'
 
       WRITE (*, *) 'ZELDOVICH_VELOCITY: Assigining particle velocties'
       WRITE (*, *) 'ZELDOVICH_VELOCITY: Any previous velocity set to zero'
@@ -604,7 +676,7 @@ CONTAINS
          DO j = 1, 3
             ix(j) = NGP_cell(x(j, i), L, m) ! Find the integer-coordinates for the cell
          END DO
-         v(:, i) = s(:, ix(1), ix(2), ix(3)) ! Assign the velocity
+         v(:, i) = s(:, ix(1), ix(2), ix(3)) ! Assign the velocity to the particles from the field
       END DO
 
       WRITE (*, *) 'ZELDOVICH_VELOCITY: Done'
@@ -612,15 +684,15 @@ CONTAINS
 
    END SUBROUTINE Zeldovich_velocity
 
-   SUBROUTINE generate_randoms(x, n, L)
+   SUBROUTINE generate_randoms(x, L)
 
       ! Generate random x,y,z positions in a cube of size L^3
       USE random_numbers
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(OUT) :: x(3, n)
+      REAL, INTENT(OUT) :: x(:, :)
       REAL, INTENT(IN) :: L   
       INTEGER :: i, j
+      INTEGER :: n, d
       REAL :: dx
       REAL, PARAMETER :: eps = 1e-6
 
@@ -628,12 +700,15 @@ CONTAINS
       dx = eps*L
 
       ! Write to screen
+      n = size(x, 2)
+      d = size(x, 1)
       WRITE (*, *) 'GENERATE_RANDOMS: Generating a uniform-random particle distribution'
       WRITE (*, *) 'GENERATE_RANDOMS: Number of particles:', n
+      WRITE (*, *) 'GENERATE_RANDOMS: Number of dimensions:', d
 
       ! Loop over all particles and coordinates and assign randomly
       DO i = 1, n
-         DO j = 1, 3
+         DO j = 1, d
             x(j, i) = random_uniform(0., L-dx)
          END DO
       END DO
@@ -644,16 +719,20 @@ CONTAINS
 
    END SUBROUTINE generate_randoms
 
-   SUBROUTINE generate_grid(x, n, L)
+   SUBROUTINE generate_grid(x, L)
 
       ! Generate a grid of positions in a cube of size L^3
+      ! These positions will be the locations of cube centres that tessalate the volume
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(OUT) :: x(3, n)
+      REAL, INTENT(OUT) :: x(:, :)
       REAL, INTENT(IN) :: L    
-      INTEGER :: ix, iy, iz, i, m
+      INTEGER :: ix, iy, iz, i, m, n
+      INTEGER, PARAMETER :: dim = 3
+
+      IF (size(x, 1) .NE. dim) STOP 'GENERATE_GRID: Error, this only works for a three-dimensional grid'
 
       ! Check that the particle number is cubic
+      n = size(x, 2)
       m = nint(n**(1./3.))
       IF (m**3 .NE. n) STOP 'GENERATE_GRID: Error, you need a cubic number of particles for a grid'
 
@@ -676,29 +755,35 @@ CONTAINS
          END DO
       END DO
 
+      ! Replace in case any end up on boundary
+      CALL replace(x, n, L)
+
       WRITE (*, *) 'GENERATE_GRID: Done'
       WRITE (*, *)
 
    END SUBROUTINE generate_grid
 
-   SUBROUTINE generate_poor_glass(x, n, L)
+   SUBROUTINE generate_poor_glass(x, L)
 
       ! Generate a poor man's glass in a cube of size L^3
       USE random_numbers
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(OUT) :: x(3, n) 
+      REAL, INTENT(OUT) :: x(:, :) 
       REAL, INTENT(IN) :: L
-      INTEGER :: i, j, m
+      INTEGER :: i, j, m, n
       REAL :: dx
+      INTEGER, PARAMETER :: dim = 3
+
+      IF (size(x, 1) .NE. dim) STOP 'GENERATE_POOR_GLASS: Error, this only works in three dimensions'
 
       ! First genrate a grid
-      CALL generate_grid(x, n, L)
+      CALL generate_grid(x, L)
 
       ! The cube-root of the number of particles
+      n = size(x, 2)
       m = nint(n**(1./3.))
 
-      ! How far can the particles be shifted in x,y,z
+      ! How far can the particles be shifted in x, y, z
       ! They need to stay in their initial cube region
       dx = L/real(m)
       dx = dx/2.
@@ -713,7 +798,7 @@ CONTAINS
 
       ! Loop over the particles and do the displacement
       DO i = 1, n
-         DO j = 1, 3
+         DO j = 1, dim
             x(j, i) = x(j, i)+random_uniform(-dx, dx)
          END DO
       END DO
@@ -2112,7 +2197,7 @@ CONTAINS
       REAL :: r, theta, phi
 
       ! Get radial coordinate
-      IF (irho == irho_constant) THEN
+      IF (irho == irho_tophat) THEN
          r = random_r_constant(rv)
       ELSE IF (irho == irho_isothermal) THEN
          r = random_r_isothermal(rv)
@@ -2157,5 +2242,41 @@ CONTAINS
       random_r_isothermal = random_uniform(0., rv)
 
    END FUNCTION random_r_isothermal
+
+   SUBROUTINE make_HOD(xh, nph, rv, irho, L, x, np)
+
+      ! Make an HOD realisation
+      REAL, ALLOCATABLE, INTENT(IN) :: xh(:, :) ! Halo position array [Mpc/h]
+      INTEGER, INTENT(IN) :: nph(:)             ! Number of particles in each halo
+      REAL, INTENT(IN) :: rv(:)                 ! Halo virial radii [Mpc/h]
+      INTEGER, INTENT(IN) :: irho               ! Halo profile specifier
+      REAL, INTENT(IN) :: L                     ! Simulation box size [Mpc/h]
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :) ! HOD particle position array [Mpc/h]
+      INTEGER, INTENT(OUT) :: np                ! Total number of HOD particles generated  
+      INTEGER :: i, j, k
+      INTEGER :: nh
+
+      nh = size(xh, 2)
+      IF((nh .NE. size(nph)) .OR. (nh .NE. size(rv))) THEN
+         STOP 'MAKE_HOD: Error, halo-position array, number of particles and virial radii must all be the same size'
+      END IF
+
+      ! Calculate total number of particles to generate
+      np = SUM(nph)
+      ALLOCATE (x(3, np))
+
+      ! Generate the particles
+      k = 0
+      DO i = 1, nh
+         DO j = 1, nph(i)
+            k = k + 1
+            x(:, k) = xh(:, i)+random_spherical_halo_particle(rv(i), irho)
+         END DO
+      END DO
+
+      ! Replace particles that may have strayed outside the volume
+      CALL replace(x, np, L)
+
+   END SUBROUTINE make_HOD
 
 END MODULE simulations
