@@ -93,9 +93,13 @@ CONTAINS
 
    REAL FUNCTION complex_phase(z)
             
+      ! Phase of complex number z in radians
+      ! Result lies in the range -pi to pi
+      ! Commented-out bit would return result in 0 to 2pi
       COMPLEX, INTENT(IN) :: z
 
       complex_phase = atan2(aimag(z), real(z))
+      !IF (complex_phase < 0.) complex_phase = twopi-complex_phase
 
    END FUNCTION complex_phase
 
