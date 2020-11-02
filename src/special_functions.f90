@@ -50,6 +50,7 @@ MODULE special_functions
    PUBLIC :: Rosenbrock
    PUBLIC :: Himmelblau
    PUBLIC :: cbrt
+   PUBLIC :: complex_phase
 
    ! Silly functions
    PUBLIC :: apodise
@@ -89,6 +90,14 @@ MODULE special_functions
    END INTERFACE cbrt
 
 CONTAINS
+
+   REAL FUNCTION complex_phase(z)
+            
+      COMPLEX, INTENT(IN) :: z
+
+      complex_phase = atan2(aimag(z), real(z))
+
+   END FUNCTION complex_phase
 
    ELEMENTAL REAL FUNCTION cbrt_real(x)
 
