@@ -37,13 +37,13 @@ CONTAINS
       INTERFACE
 
          ! fx is what dx/dt is equal to, this is almost always just v
-         FUNCTION fx(x, v, t)
-            REAL, INTENT(IN) :: x, v, t
+         FUNCTION fx(x_in, v_in, t_in)
+            REAL, INTENT(IN) :: x_in, v_in, t_in
          END FUNCTION fx
 
          ! fv is what dv/dt is equal to
-         FUNCTION fv(x, v, t)
-            REAL, INTENT(IN) :: x, v, t
+         FUNCTION fv(x_in, v_in, t_in)
+            REAL, INTENT(IN) :: x_in, v_in, t_in
          END FUNCTION fv
 
       END INTERFACE
@@ -101,13 +101,13 @@ CONTAINS
       INTERFACE
 
          ! fx is what dx/dt is equal to this is almost always just v
-         FUNCTION fx(x, v, t)
-            REAL, INTENT(IN) :: x, v, t
+         FUNCTION fx(x_in, v_in, t_in)
+            REAL, INTENT(IN) :: x_in, v_in, t_in
          END FUNCTION fx
 
          ! fv is what dv/dt is equal to
-         FUNCTION fv(x, v, t)
-            REAL, INTENT(IN) :: x, v, t
+         FUNCTION fv(x_in, v_in, t_in)
+            REAL, INTENT(IN) :: x_in, v_in, t_in
          END FUNCTION fv
 
       END INTERFACE
@@ -221,13 +221,13 @@ CONTAINS
       INTERFACE
 
          ! fx is what dx/dt is equal to; this is almost always just v for 2ODE
-         FUNCTION fx(x, v, t)
-            REAL, INTENT(IN) :: x, v, t
+         FUNCTION fx(x_in, v_in, t_in)
+            REAL, INTENT(IN) :: x_in, v_in, t_in
          END FUNCTION fx
 
          ! fv is what dv/dt is equal to
-         FUNCTION fv(x, v, t)
-            REAL, INTENT(IN) :: x, v, t
+         FUNCTION fv(x_in, v_in, t_in)
+            REAL, INTENT(IN) :: x_in, v_in, t_in
          END FUNCTION fv
 
       END INTERFACE
