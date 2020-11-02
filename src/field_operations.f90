@@ -1466,8 +1466,6 @@ CONTAINS
       ! Takes in a dk(m,m) array and computes the power spectrum
       ! NOTE: Leave the double complex as it allows the running to determine complex vs real
       IMPLICIT NONE
-      !DOUBLE COMPLEX, INTENT(IN) :: dk1(:, :, :) ! Fourier components of field 1
-      !DOUBLE COMPLEX, INTENT(IN) :: dk2(:, :, :) ! Fourier components of field 2
       COMPLEX, INTENT(IN) :: dk1(:, :, :) ! Fourier components of field 1
       COMPLEX, INTENT(IN) :: dk2(:, :, :) ! Fourier components of field 2
       INTEGER, INTENT(IN) :: m  ! mesh size for fields
