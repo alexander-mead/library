@@ -377,6 +377,10 @@ CONTAINS
       REAL :: kmin, kmax, kmin_def, kmax_def
       INTEGER :: n
 
+      ! Default minimum and maximum wavenumbers
+      kmin_def = twopi/L
+      kmax_def = pi*m/L
+
       IF (size(x, 1) .NE. 3) STOP 'POWER_SPECTRUM_PARTICLES: Error, particles must be in 3D'
       n = size(x, 2)
 
@@ -384,23 +388,9 @@ CONTAINS
       ! This assumes all particles have the same mass
       CALL sharp_Fourier_density_contrast(x, n, L, dk, m)
 
-      ! Compute the power spectrum from the density field
-      !kmin = twopi/L
-      !kmax = real(m)*pi/L
-      ! IF(present(kmin)) THEN
-      !    kmin_here = kmin
-      ! ELSE
-      !    kmin_here = kmin_default
-      ! END IF
-      ! IF(present(kmax)) THEN
-      !    kmax_here = kmax
-      ! ELSE
-      !    kmax_here = kmax_default
-      ! END IF
-      kmin_def = twopi/L
-      kmax_def = pi*m/L
-      kmin = opt_or_def(kmin_def, kmin_opt)
-      kmax = opt_or_def(kmax_def, kmax_opt)
+      ! Compute the power spectrum from the density field  
+      kmin = default_or_optional(kmin_def, kmin_opt)
+      kmax = default_or_optional(kmax_def, kmax_opt)
       CALL compute_power_spectrum(dk, dk, m, L, kmin, kmax, nk, k, Pk, nbin, sig)
 
    END SUBROUTINE power_spectrum_particles
@@ -408,6 +398,7 @@ CONTAINS
    SUBROUTINE cross_spectrum_particles(x1, x2, L, m, nk, k, Pk, nbin, sig, kmin_opt, kmax_opt)
 
       USE constants
+      USE FFT
       IMPLICIT NONE
       REAL, INTENT(IN) :: x1(:, :)
       REAL, INTENT(IN) :: x2(:, :)
@@ -423,7 +414,12 @@ CONTAINS
       COMPLEX :: dk1(m, m, m), dk2(m, m, m)
       REAL :: kmin, kmax, kmin_def, kmax_def
       INTEGER :: n1, n2
+      
+      ! Default minimum and maximum wavenumbers
+      kmin_def = twopi/L
+      kmax_def = pi*m/L
 
+      ! Check that array sizes make sense
       IF ((size(x1, 1) .NE. 3) .OR. (size(x2, 1) .NE. 3)) STOP 'CROSS_SPECTRUM_PARTICLES: Error, must be 3D'
       n1 = size(x1, 2)
       n2 = size(x2, 2)
@@ -433,13 +429,9 @@ CONTAINS
       CALL sharp_Fourier_density_contrast(x1, n1, L, dk1, m)
       CALL sharp_Fourier_density_contrast(x2, n2, L, dk2, m)
 
-      ! Compute the power spectrum from the density field
-      !kmin = twopi/L
-      !kmax = real(m)*pi/L
-      kmin_def = twopi/L
-      kmax_def = pi*m/L
-      kmin = opt_or_def(kmin_def, kmin_opt)
-      kmax = opt_or_def(kmax_def, kmax_opt)
+      ! Compute the power spectrum from the density field     
+      kmin = default_or_optional(kmin_def, kmin_opt)
+      kmax = default_or_optional(kmax_def, kmax_opt)
       CALL compute_power_spectrum(dk1, dk2, m, L, kmin, kmax, nk, k, Pk, nbin, sig)
 
    END SUBROUTINE cross_spectrum_particles
@@ -447,15 +439,13 @@ CONTAINS
    SUBROUTINE sharp_Fourier_density_contrast(x, n, L, dk, m)
 
       ! Bin particles and create the Fourier modes with appropriate sharpening for the binning strategy
-      USE fft
-      IMPLICIT NONE
+      ! TODO: Upgrade to support both m and mn, m arrays
+      USE FFT
       INTEGER, INTENT(IN) :: n, m
       REAL, INTENT(IN) :: x(3, n), L
-      !DOUBLE COMPLEX, INTENT(OUT) :: dk(m, m, m)
       COMPLEX, INTENT(OUT) :: dk(m, m, m)
       REAL :: w(n), dbar
       REAL :: d(m, m, m)
-      !DOUBLE COMPLEX :: dk_out(m, m, m)
       COMPLEX :: dk_out(m, m, m)
       INTEGER, PARAMETER :: ibin = 2 ! 2 - CIC binning
 
@@ -1129,15 +1119,13 @@ CONTAINS
    SUBROUTINE NGP_2D(x, n, L, w, d, m, all, verbose)
 
       ! Nearest-grid-point binning routine
-      ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
-      !USE statistics
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n       ! Total number of particles in area
       INTEGER, INTENT(IN) :: m       ! Mesh size for density field
-      REAL, INTENT(IN) :: x(2, n)     ! particle positions     
+      REAL, INTENT(IN) :: x(2, n)    ! particle positions     
       REAL, INTENT(IN) :: L          ! Area side length
       REAL, INTENT(IN) :: w(n)       ! Weight array
-      REAL, INTENT(INOUT) :: d(m, m)  ! Output of eventual 2D density field  
+      REAL, INTENT(OUT) :: d(m, m)   ! Output of eventual 2D density field  
       LOGICAL, INTENT(IN) :: all     ! Should all particles be contributing to the binning?
       LOGICAL, INTENT(IN) :: verbose ! Verbose
       INTEGER :: i, j, ix(2)
@@ -1149,6 +1137,9 @@ CONTAINS
          WRITE (*, *) 'NGP_2D: Binning region size:', L
          WRITE (*, *) 'NGP_2D: Cells:', m
       END IF
+
+      ! Fix to zero
+      d = 0.
 
       DO i = 1, n
 
@@ -1192,13 +1183,12 @@ CONTAINS
    SUBROUTINE NGP_3D(x, n, L, w, d, m, all, verbose)
 
       ! Nearest-grid-point binning routine
-      ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n, m        ! Total number of particles in area
-      REAL, INTENT(IN) :: x(3, n)      ! particle positions    
+      INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
+      REAL, INTENT(IN) :: x(3, n)     ! particle positions    
       REAL, INTENT(IN) :: L           ! Area side length
       REAL, INTENT(IN) :: w(n)        ! Weight array
-      REAL, INTENT(INOUT) :: d(m, m, m) ! Output of eventual 2D density field    
+      REAL, INTENT(OUT) :: d(m, m, m) ! Output of eventual 3D density field    
       LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
       LOGICAL, INTENT(IN) :: verbose  ! Verbose
       INTEGER :: i, j, ix(3)
@@ -1210,6 +1200,9 @@ CONTAINS
          WRITE (*, *) 'NGP_3D: Binning region size:', L
          WRITE (*, *) 'NGP_3D: Cells:', m
       END IF
+
+      ! Fix to zero
+      d = 0.
 
       DO i = 1, n
 
@@ -1253,14 +1246,13 @@ CONTAINS
    SUBROUTINE CIC_2D(x, n, L, w, d, m, all, periodic, verbose)
 
       ! Cloud-in-cell binning routine
-      ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
       USE array_operations
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n, m        ! Total number of particles in area
-      REAL, INTENT(IN) :: x(2, n)      ! 2D particle positions     
+      INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
+      REAL, INTENT(IN) :: x(2, n)     ! 2D particle positions     
       REAL, INTENT(IN) :: L           ! Area side length
       REAL, INTENT(IN) :: w(n)        ! Weight array
-      REAL, INTENT(INOUT) :: d(m, m)   ! Output of eventual 2D density field
+      REAL, INTENT(OUT) :: d(m, m)    ! Output of eventual 2D density field
       LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
       LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
       LOGICAL, INTENT(IN) :: verbose  ! Verbose
@@ -1276,8 +1268,9 @@ CONTAINS
          WRITE (*, *) 'CIC_2D: Cells:', m
       END IF
 
-      ! Needs to be set to
+      ! Needs to be set to zero
       eps = 0.
+      d = 0.
 
       DO i = 1, n
 
@@ -1373,14 +1366,13 @@ CONTAINS
    SUBROUTINE CIC_3D(x, n, L, w, d, m, all, periodic, verbose)
 
       ! Cloud-in-cell binning routine
-      ! NOTE: I changed this so that binning array is INOUT and could be not empty initially so could be added to
       USE array_operations
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n, m        ! Total number of particles in area
-      REAL, INTENT(IN) :: x(3, n)      ! 3D particle positions    
+      INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
+      REAL, INTENT(IN) :: x(3, n)     ! 3D particle positions    
       REAL, INTENT(IN) :: L           ! Area side length
       REAL, INTENT(IN) :: w(n)        ! Weight array
-      REAL, INTENT(INOUT) :: d(m, m, m) ! Output of eventual 2D density field
+      REAL, INTENT(OUT) :: d(m, m, m) ! Output of eventual 2D density field
       LOGICAL, INTENT(IN) :: all      ! Should all particles be contributing to the binning?
       LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
       LOGICAL, INTENT(IN) :: verbose  ! Verbose
@@ -1396,6 +1388,10 @@ CONTAINS
          WRITE (*, *) 'CIC_3D: Binning region size:', L
          WRITE (*, *) 'CIC_3D: Cells:', m
       END IF
+
+      ! Needs to be set to zero
+      eps = 0.
+      d = 0.
 
       DO i = 1, n
 
