@@ -20,7 +20,7 @@ MODULE basic_operations
    PUBLIC :: first_digit
    PUBLIC :: swap
    PUBLIC :: increment
-   PUBLIC :: opt_or_def
+   PUBLIC :: default_or_optional
 
    INTERFACE swap
       MODULE PROCEDURE swap_real
@@ -41,18 +41,18 @@ MODULE basic_operations
 
 CONTAINS
 
-   REAL FUNCTION opt_or_def(x_def, x_opt)
+   REAL FUNCTION default_or_optional(x_default, x_optional)
 
-      REAL, INTENT(IN) :: x_def
-      REAL, OPTIONAL, INTENT(IN) :: x_opt
+      REAL, INTENT(IN) :: x_default
+      REAL, OPTIONAL, INTENT(IN) :: x_optional
 
-      IF (present(x_opt)) THEN
-         opt_or_def = x_opt
+      IF (present(x_optional)) THEN
+         default_or_optional = x_optional
       ELSE
-         opt_or_def = x_def
+         default_or_optional = x_default
       END IF
 
-   END FUNCTION opt_or_def
+   END FUNCTION default_or_optional
 
    REAL FUNCTION progression(xmin, xmax, i, n)
 
