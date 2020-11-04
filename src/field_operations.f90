@@ -75,35 +75,10 @@ MODULE field_operations
       MODULE PROCEDURE empty_cells_3D
    END INTERFACE empty_cells
 
-CONTAINS
+   ! Full complex Fourier transforms, or assume real and therefore Hermitian arrays
+   LOGICAL, PARAMETER :: complex = .TRUE.
 
-!!$  INTEGER FUNCTION NGP_cell(x,L,m,periodic)
-!!$
-!!$    ! Find the integer coordinates of the cell that coordinate x is in
-!!$    IMPLICIT NONE
-!!$    REAL, INTENT(IN) :: x    ! Particle position
-!!$    REAL, INTENT(IN) :: L    ! Box size (could be Mpc/h or angle or something else)
-!!$    INTEGER, INTENT(IN) :: m ! Number of mesh cells in grid
-!!$    !LOGICAL, INTENT(IN) :: periodic ! Does the mesh cover a periodic volume
-!!$
-!!$    IF(x==0.) THEN
-!!$       ! Catch this edge case
-!!$       NGP_cell=1
-!!$    ELSE IF(x==L) THEN
-!!$       STOP 'NGP_CELL: Error, particle is at x=L'
-!!$    ELSE
-!!$       NGP_cell=ceiling(x*real(m)/L)
-!!$    END IF
-!!$
-!!$    IF(periodic .AND. (NGP_cell<1 .OR. NGP_cell>m)) THEN
-!!$       WRITE(*,*) 'NGP_CELL: Particle position:', x
-!!$       WRITE(*,*) 'NGP_CELL: Box size:', L
-!!$       WRITE(*,*) 'NGP_CELL: Mesh size:', m
-!!$       WRITE(*,*) 'NGP_CELL: Assigned cell:', NGP_cell
-!!$       STOP 'NGP_CELL: Error, the assigned cell position is outside the mesh'
-!!$    END IF
-!!$
-!!$  END FUNCTION NGP_cell
+CONTAINS
 
    INTEGER FUNCTION NGP_cell(x, L, m)
 
@@ -137,6 +112,7 @@ CONTAINS
    REAL FUNCTION random_mode_amplitude(k, L, logk_tab, logPk_tab, use_average)
 
       ! This calculates the Fourier amplitudes of the density field
+      ! TODO: Understand fudge factor in Rayleigh distribution
       USE interpolate
       USE constants
       USE random_numbers
@@ -148,7 +124,7 @@ CONTAINS
       LOGICAL, INTENT(IN) :: use_average
       REAL :: sigma
       INTEGER :: nk
-      LOGICAL, PARAMETER :: fudge = .TRUE. !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
+      LOGICAL, PARAMETER :: fudge = .TRUE. !! EXTREME CAUTION: FUDGE FACTOR SQRT(2) IN RAYLEIGH !!
 
       nk = size(logk_tab)
       IF (nk /= size(logPk_tab)) STOP 'RANDOM_MODE_AMPLITUDE: Error, arrays must be the same size'
@@ -162,19 +138,15 @@ CONTAINS
       ELSE
          ! Correctly assigned random mode amplitudes
          random_mode_amplitude = random_Rayleigh(sigma)
-         IF (fudge) THEN
-            ! sqrt(2) is a FUDGE (something to do with average of Rayleigh?)
-            random_mode_amplitude = random_mode_amplitude/sqrt(2.)
-         END IF
+         IF (fudge) random_mode_amplitude = random_mode_amplitude/sqrt(2.)
       END IF
-
-      !! EXTREME CAUTION: FUDGE FACTOR IN RAYLEIGH !!
 
    END FUNCTION random_mode_amplitude
 
    COMPLEX FUNCTION random_complex_phase()
 
       ! Get a complex phase with theta between 0 and 2pi
+      ! Generates a unit amplitude complex number with random phase
       USE constants
       USE random_numbers
       IMPLICIT NONE
@@ -227,8 +199,7 @@ CONTAINS
 
                   ! Sets Nyquist modes to 0.!
                   ! Maybe all modes with mod(k)>k_ny should be set to 0.?!
-                  ! Bridit Falck wrote a 'corner modes' paper about this
-                  ! https://arxiv.org/abs/1610.04862
+                  ! Bridit Falck wrote a 'corner modes' paper about this: https://arxiv.org/abs/1610.04862
                   dk(ix, iy, iz) = 0.d0
 
                ELSE
@@ -661,9 +632,6 @@ CONTAINS
       REAL :: dc(m, m)
       INTEGER :: mn
 
-      ! TODO: Test real version
-      LOGICAL, PARAMETER :: complex = .TRUE.
-
       WRITE (*, *) 'SHARPEN_2D: Correcting for binning by sharpening field'
       WRITE (*, *) 'SHARPEN_2D: Mesh size:', m
 
@@ -721,9 +689,6 @@ CONTAINS
       REAL :: dc(m, m, m)
       INTEGER :: mn
 
-      ! TODO: Test real version
-      LOGICAL, PARAMETER :: complex = .TRUE.
-
       WRITE (*, *) 'SHARPEN_3D: Correcting for binning by sharpening field'
       WRITE (*, *) 'SHARPEN_3D: Mesh size:', m
 
@@ -773,7 +738,6 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: mn
       INTEGER, INTENT(IN) :: m
-      !DOUBLE COMPLEX, INTENT(INOUT) :: dk(mn, m)
       COMPLEX, INTENT(INOUT) :: dk(mn, m)
       INTEGER, INTENT(IN) :: ibin
       INTEGER :: i, j
@@ -784,9 +748,7 @@ CONTAINS
       REAL, PARAMETER :: L = 1. ! This does not matter for this routine
 
       ! Check that the array is sensible
-      IF (mn == m) THEN
-         ! Do nothing
-      ELSE IF (mn == m/2+1) THEN
+      IF (mn == m .OR. mn == m/2+1) THEN
          ! Do nothing
       ELSE
          WRITE (*, *) 'SHARPEN_K_2D: Array first-dimension size:', mn
@@ -830,7 +792,6 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: mn
       INTEGER, INTENT(IN) :: m
-      !DOUBLE COMPLEX, INTENT(INOUT) :: dk(mn, m, m)
       COMPLEX, INTENT(INOUT) :: dk(mn, m, m)    
       INTEGER, INTENT(IN) :: ibin
       INTEGER :: i, j, k
@@ -840,10 +801,8 @@ CONTAINS
       REAL, PARAMETER :: L = 1. ! This does not matter for this routine
 
       ! Check that the array is sensible
-      IF (mn == m) THEN
-         ! Do nothing
-      ELSE IF (mn == m/2+1) THEN
-         ! Do nothing
+      IF (mn == m .OR. mn == m/2+1) THEN
+         ! Do nothing; array is sensible
       ELSE
          WRITE (*, *) 'SHARPEN_K_3D: Array first-dimension size:', mn
          WRITE (*, *) 'SHARPEN_K_3D: Array general size:', m
@@ -893,16 +852,10 @@ CONTAINS
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: L
       REAL :: kx, ky, kz, k
-      !DOUBLE COMPLEX, ALLOCATABLE :: dk(:, :)
-      !DOUBLE COMPLEX :: dkout(m, m)
-      !DOUBLE PRECISION :: dc(m, m)
       COMPLEX, ALLOCATABLE :: dk(:, :)
       COMPLEX :: dkout(m, m)
       REAL :: dc(m, m)
       INTEGER :: i, j, mn
-
-      ! TODO: Test real version
-      LOGICAL, PARAMETER :: complex = .TRUE.
 
       WRITE (*, *) 'SMOOTH_2D: Smoothing array'
       WRITE (*, *) 'SMOOTH_2D: Assuming array is periodic'
@@ -1032,16 +985,10 @@ CONTAINS
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: L
       REAL :: kx, ky, kz, kmod
-      !DOUBLE COMPLEX, ALLOCATABLE :: dk(:, :, :)
-      !DOUBLE COMPLEX :: dkout(m, m, m)
-      !DOUBLE PRECISION :: dc(m, m, m)
       COMPLEX, ALLOCATABLE :: dk(:, :, :)
       COMPLEX :: dkout(m, m, m)
       REAL :: dc(m/2+1, m, m)
       INTEGER :: i, j, k, mn
-
-      ! TODO: Test real version
-      LOGICAL, PARAMETER :: complex = .TRUE.
 
       WRITE (*, *) 'SMOOTH_3D: Smoothing array'
 
@@ -1290,8 +1237,7 @@ CONTAINS
       USE precision
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
-      REAL, INTENT(IN) :: d(m, m, m)  
-      !INTEGER*8 :: sum
+      REAL, INTENT(IN) :: d(m, m, m)
       INTEGER(int8) :: sum
       INTEGER :: i, j, k
 
@@ -1322,15 +1268,13 @@ CONTAINS
       ! Takes in a dk(m,m) array and computes the power spectrum
       ! NOTE: Leave the double complex as it allows the running to determine complex vs real
       IMPLICIT NONE
-      !DOUBLE COMPLEX, INTENT(IN) :: dk1(:, :) ! Fourier components of field 1
-      !DOUBLE COMPLEX, INTENT(IN) :: dk2(:, :) ! Fourier components of field 2
       COMPLEX, INTENT(IN) :: dk1(:, :) ! Fourier components of field 1
       COMPLEX, INTENT(IN) :: dk2(:, :) ! Fourier components of field 2
-      INTEGER, INTENT(IN) :: m  ! mesh size for fields
-      REAL, INTENT(IN) :: L     ! box size [Mpc/h]
-      REAL, INTENT(IN) :: kmin  ! minimum and maximum wavenumber [h/Mpc]
-      REAL, INTENT(IN) :: kmax  ! minimum and maximum wavenumber [h/Mpc]
-      INTEGER, INTENT(IN) :: nk ! number of k bins
+      INTEGER, INTENT(IN) :: m         ! mesh size for fields
+      REAL, INTENT(IN) :: L            ! box size [Mpc/h]
+      REAL, INTENT(IN) :: kmin         ! minimum and maximum wavenumber [h/Mpc]
+      REAL, INTENT(IN) :: kmax         ! minimum and maximum wavenumber [h/Mpc]
+      INTEGER, INTENT(IN) :: nk        ! number of k bins
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)         ! Output k values
       REAL, ALLOCATABLE, INTENT(OUT) :: pow(:)       ! Output Delta^2(k) values
       INTEGER, ALLOCATABLE, INTENT(OUT) :: nmodes(:) ! Output Number of modes contributing to the k bin
@@ -1396,7 +1340,8 @@ CONTAINS
                   CYCLE
                ELSE
                   k8(n) = k8(n)+kmod
-                  f = real(dk1(ix, iy)*conjg(dk2(ix, iy)))/(dble(m)**4) ! Note the division by m^4 here
+                  f = real(conjg(dk1(ix, iy))*dk2(ix, iy))
+                  f = f/real(m)**2 ! Note the division by m^4 here
                   pow8(n) = pow8(n)+f
                   sigma8(n) = sigma8(n)+f**2
                   nmodes8(n) = nmodes8(n)+1
@@ -1409,10 +1354,10 @@ CONTAINS
       ! Deallocate and reallocate arrays
       ! TODO: Do I need to bother deallocating these arrays?
       ! TODO: Should I pass in allocatable arrays or should they already be allocated?
-      IF (ALLOCATED(k)) DEALLOCATE (k)
-      IF (ALLOCATED(pow)) DEALLOCATE (pow)
+      IF (ALLOCATED(k))      DEALLOCATE (k)
+      IF (ALLOCATED(pow))    DEALLOCATE (pow)
       IF (ALLOCATED(nmodes)) DEALLOCATE (nmodes)
-      IF (ALLOCATED(sigma)) DEALLOCATE (sigma)
+      IF (ALLOCATED(sigma))  DEALLOCATE (sigma)
       ALLOCATE (k(nk), pow(nk), nmodes(nk), sigma(nk))
 
       ! Now create the power spectrum and k array
@@ -1456,6 +1401,7 @@ CONTAINS
    SUBROUTINE compute_power_spectrum_3D(dk1, dk2, m, L, kmin, kmax, nk, k, pow, nmodes, sigma, linear_k_range)
 
       ! Takes in a dk(m,m,m) array and computes the power spectrum
+      ! TODO: Care with large sums
       USE precision
       USE constants
       USE table_integer
@@ -1463,39 +1409,27 @@ CONTAINS
       USE fft
       USE basic_operations
 
-      ! Takes in a dk(m,m) array and computes the power spectrum
-      ! NOTE: Leave the double complex as it allows the running to determine complex vs real
       IMPLICIT NONE
       COMPLEX, INTENT(IN) :: dk1(:, :, :) ! Fourier components of field 1
       COMPLEX, INTENT(IN) :: dk2(:, :, :) ! Fourier components of field 2
-      INTEGER, INTENT(IN) :: m  ! mesh size for fields
-      REAL, INTENT(IN) :: L     ! box size [Mpc/h]
-      REAL, INTENT(IN) :: kmin  ! minimum and maximum wavenumber [h/Mpc]
-      REAL, INTENT(IN) :: kmax  ! minimum and maximum wavenumber [h/Mpc]
-      INTEGER, INTENT(IN) :: nk ! number of k bins
+      INTEGER, INTENT(IN) :: m            ! Mesh size for fields
+      REAL, INTENT(IN) :: L               ! Box size [Mpc/h]
+      REAL, INTENT(IN) :: kmin            ! Minimum wavenumber [h/Mpc]
+      REAL, INTENT(IN) :: kmax            ! Maximum wavenumber [h/Mpc]
+      INTEGER, INTENT(IN) :: nk           ! Number of k bins
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)         ! Output k values
       REAL, ALLOCATABLE, INTENT(OUT) :: pow(:)       ! Output Delta^2(k) values
       INTEGER, ALLOCATABLE, INTENT(OUT) :: nmodes(:) ! Output Number of modes contributing to the k bin
       REAL, ALLOCATABLE, INTENT(OUT) :: sigma(:)     ! Output varaicnce in bin
       LOGICAL, OPTIONAL, INTENT(IN) :: linear_k_range
       INTEGER :: i, ix, iy, iz, n, mn
-      REAL :: kx, ky, kz, kmod, Dk
+      REAL :: kx, ky, kz, kmod, Dk, f
       REAL, ALLOCATABLE :: kbin(:)
-      DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f
-      !INTEGER*8 :: nmodes8(nk)
-      INTEGER(int8) :: nmodes8(nk)
 
-      REAL, PARAMETER :: dbin = 1e-3 ! Bin slop parameter for first and last bin edges
+      REAL, PARAMETER :: dbin = 1e-3           ! Bin slop parameter for first and last bin edges
       LOGICAL, PARAMETER :: logmeank = .FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
 
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Computing isotropic power spectrum'
-
-      ! Set summation variables to 0.d0
-      k8 = 0.d0
-      pow8 = 0.d0
-      nmodes8 = 0
-      sigma8 = 0.d0
-
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Binning power'
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Mesh:', m
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Bins:', nk
@@ -1514,7 +1448,15 @@ CONTAINS
       kbin(1) = kbin(1)*(1.-dbin)
       kbin(nk+1) = kbin(nk+1)*(1.+dbin)
 
+      ! Allocate arrays and set to zero because they are used for large sums
+      ALLOCATE (k(nk), pow(nk), nmodes(nk), sigma(nk))
+      k = 0.
+      pow = 0.
+      nmodes = 0
+      sigma = 0.
+
       ! Cell location of Nyquist
+      !IF (.NOT. even(m)) STOP 'COMPUTE_POWER_SPECTRUM_3D: Error, m must be even'
       mn = m/2+1
 
       ! Loop over all independent elements of dk
@@ -1525,12 +1467,13 @@ CONTAINS
                ! Cycle for the zero mode (k=0)
                IF (ix == 1 .AND. iy == 1 .AND. iz == 1) CYCLE
 
-               ! Cycle for the repeated zero modes and Nyquist modes
+               ! Cycle for the repeated Nyquist modes
                ! I *think* this is correct to avoid double counting zero modes and Nyquist modes
-               ! For example 0,1,0 is the same as 0,-1,0
+               ! For example (0, 1, 0) is the same as (0, -1, 0)
                IF ((ix == 1 .OR. ix == mn) .AND. (iy > mn .OR. iz > mn)) CYCLE
 
-               CALL k_fft(ix, iy, iz, m, kx, ky, kz, kmod, L)
+               ! Get the wavenumbers corresponding to the array position
+               CALL k_FFT(ix, iy, iz, m, kx, ky, kz, kmod, L)
 
                ! Find integer 'n' in bins from place in table
                IF (kmod >= kbin(1) .AND. kmod <= kbin(nk+1)) THEN
@@ -1538,11 +1481,12 @@ CONTAINS
                   IF (n < 1 .OR. n > nk) THEN
                      CYCLE
                   ELSE
-                     k8(n) = k8(n)+kmod
-                     f = real(dk1(ix, iy, iz)*conjg(dk2(ix, iy, iz)))/(dble(m)**6) ! Note the division by m^6 here
-                     pow8(n) = pow8(n)+f
-                     sigma8(n) = sigma8(n)+f**2
-                     nmodes8(n) = nmodes8(n)+1
+                     k(n) = k(n)+kmod
+                     f = real(conjg(dk1(ix, iy, iz))*dk2(ix, iy, iz))
+                     f = f/real(m)**6
+                     pow(n) = pow(n)+f
+                     sigma(n) = sigma(n)+f**2
+                     nmodes(n) = nmodes(n)+1
                   END IF
                END IF
 
@@ -1550,47 +1494,33 @@ CONTAINS
          END DO
       END DO
 
-      ! Deallocate and reallocate arrays
-      ! TODO: Do I need to bother deallocating these arrays?
-      ! TODO: Should I pass in allocatable arrays or should they already be allocated?
-      IF (ALLOCATED(k))      DEALLOCATE (k)
-      IF (ALLOCATED(pow))    DEALLOCATE (pow)
-      IF (ALLOCATED(nmodes)) DEALLOCATE (nmodes)
-      IF (ALLOCATED(sigma))  DEALLOCATE (sigma)
-      ALLOCATE (k(nk), pow(nk), nmodes(nk), sigma(nk))
-
       ! Now create the power spectrum and k array
       DO i = 1, nk
-         IF (nmodes8(i) == 0) THEN
+         IF (nmodes(i) == 0) THEN
             k(i) = sqrt(kbin(i+1)*kbin(i))
-            pow8(i) = 0.d0
-            sigma8(i) = 0.d0
+            pow(i) = 0.d0
+            sigma(i) = 0.d0
          ELSE
             IF (logmeank) THEN
                k(i) = sqrt(kbin(i+1)*kbin(i))
             ELSE
-               k(i) = real(k8(i))/real(nmodes8(i))
+               k(i) = k(i)/nmodes(i)
             END IF
-            pow8(i) = pow8(i)/real(nmodes8(i)) ! Create <P(k)>
-            IF (nmodes8(i) == 1) THEN
-               sigma8(i) = 0
+            pow(i) = pow(i)/nmodes(i) ! Create <P(k)>
+            IF (nmodes(i) == 1) THEN
+               sigma(i) = 0.
             ELSE
-               sigma8(i) = sigma8(i)/real(nmodes8(i)) ! Create <P(k)^2>
-               sigma8(i) = sigma8(i)-pow8(i)**2 ! Create biased estimate of variance
-               sigma8(i) = sigma8(i)*real(nmodes8(i))/real(nmodes8(i)-1) ! Correct for bias
-               sigma8(i) = sqrt(sigma8(i)) ! Create estimate of standard deviation
-               sigma8(i) = sigma8(i)/sqrt(real(nmodes8(i))) ! Convert to error-on-the-mean
+               sigma(i) = sigma(i)/nmodes(i) ! Create <P(k)^2>
+               sigma(i) = sigma(i)-pow(i)**2 ! Create biased estimate of variance
+               sigma(i) = sigma(i)*nmodes(i)/(nmodes(i)-1) ! Correct for bias
+               sigma(i) = sqrt(sigma(i)) ! Create estimate of standard deviation
+               sigma(i) = sigma(i)/sqrt(real(nmodes(i))) ! Convert to error-on-the-mean
             END IF
             Dk = 4.*pi*(k(i)*L/twopi)**3
-            pow8(i) = pow8(i)*Dk
-            sigma8(i) = sigma8(i)*Dk
+            pow(i) = pow(i)*Dk
+            sigma(i) = sigma(i)*Dk
          END IF
       END DO
-
-      ! Convert from double precision to reals
-      pow = real(pow8)
-      sigma = real(sigma8)
-      nmodes = INT(nmodes8)
 
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Delta^2 at min k:', pow(1)
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Delta^2 at max k:', pow(nk)
@@ -1696,7 +1626,8 @@ CONTAINS
                      CYCLE
                   ELSE
                      k8(n) = k8(n)+kmod
-                     f = real(dk1(ix, iy, iz)*conjg(dk2(ix, iy, iz)))/(dble(m)**6) ! Note the division by m^6 here
+                     f = real(conjg(dk1(ix, iy, iz))*dk2(ix, iy, iz))
+                     f = f/real(m)**6
                      f = f*Legendre_polynomial(ipole, mu)*(2.*real(ipole)+1.)
                      pow8(n) = pow8(n)+f
                      sigma8(n) = sigma8(n)+f**2
