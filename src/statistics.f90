@@ -5,6 +5,7 @@ MODULE statistics
    PRIVATE
 
    PUBLIC :: mean
+   PUBLIC :: weighted_mean
    PUBLIC :: variance
    PUBLIC :: standard_deviation
    PUBLIC :: root_mean_square
@@ -18,9 +19,20 @@ CONTAINS
 
       REAL, INTENT(IN) :: x(:)
 
-      mean = sum(x)/real(size(x))
+      mean = sum(x)/size(x)
 
    END FUNCTION mean
+
+   REAL FUNCTION weighted_mean(x, w)
+
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: w(:)
+
+      IF (size(x) .NE. size(w)) STOP 'WEIGHTED_MEAN: Error, data and weight arrays must be the same size'
+
+      weighted_mean = sum(w*x)/sum(w)
+
+   END FUNCTION weighted_mean
 
    REAL FUNCTION variance(x)
 
