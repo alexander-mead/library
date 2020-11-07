@@ -714,7 +714,7 @@ CONTAINS
       names(105) = 'Tweaked baryon parameters'
       names(106) = 'Non-linear halo bias with tweaked baryon parameters'
       names(107) = 'Non-linear halo bias'
-      names(108) = 'Bhattacharya et al. (2011) mass fucuntion'
+      names(108) = 'Bhattacharya et al. (2011) mass function'
       names(109) = 'Perturbation theory inspired two-halo term'
       names(110) = 'One-loop SPT for two-halo term'
       names(111) = 'Perturbation theory inspired and fitted two-halo term'
@@ -7885,7 +7885,7 @@ CONTAINS
          rmin = 0.
          rmax = rv
 
-         ! This shitty calculation really only needs to be done once
+         ! This calculation really only needs to be done once
          ! This could slow down the calculation by a large amount
          ! TODO: Ensure this is only done once; see init_galaxies
          nu1 = nu_M(mmin, hmod, cosm)
