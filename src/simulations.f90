@@ -1035,7 +1035,7 @@ CONTAINS
 
    SUBROUTINE particle_bin_3D(x, n, L, w, d, m, ibin, all, periodic, verbose)
 
-      !Bin particle properties onto a mesh, summing as you go
+      ! Bin particle properties onto a mesh, summing as you go
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n        ! Total number of particles
       INTEGER, INTENT(IN) :: m        ! Mesh size for density field
