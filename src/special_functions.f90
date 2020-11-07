@@ -50,6 +50,7 @@ MODULE special_functions
    PUBLIC :: Rosenbrock
    PUBLIC :: Himmelblau
    PUBLIC :: cbrt
+   PUBLIC :: complex_number
    PUBLIC :: complex_phase
 
    ! Silly functions
@@ -90,6 +91,16 @@ MODULE special_functions
    END INTERFACE cbrt
 
 CONTAINS
+
+   COMPLEX FUNCTION complex_number(r, theta)
+
+      ! Complex number r*e^{i theta} in Fortran format
+      REAL, INTENT(IN) :: r
+      REAL, INTENT(IN) :: theta
+
+      complex_number = r*cos(theta)+(0., 1.)*sin(theta)
+
+   END FUNCTION complex_number
 
    REAL FUNCTION complex_phase(z)
             
