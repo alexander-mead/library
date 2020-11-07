@@ -22,6 +22,7 @@ MODULE fft
    PUBLIC :: FFT3
 
    PUBLIC :: k_FFT
+   PUBLIC :: Nyquist_cell
 
    INTERFACE FFT1
       MODULE PROCEDURE FFT1_complex_double
@@ -61,6 +62,16 @@ MODULE fft
 !!$  END INTERFACE FFTs
 
 CONTAINS
+
+   INTEGER FUNCTION Nyquist_cell(m)
+
+      ! Location of Nyquist cell for Fourier transform array of size m
+      INTEGER, INTENT(IN) :: m
+
+      IF(odd(m)) STOP 'NYQUIST_CELL: Error, need to think about Nyquist for odd FFT'
+      Nyquist_cell = 1+m/2
+
+   END FUNCTION Nyquist_cell
 
    SUBROUTINE k_FFT(ix, iy, iz, m, kx, ky, kz, kmod, L)
 
@@ -443,7 +454,7 @@ CONTAINS
       IF (odd(nz)) STOP 'FFT3_REAL_DOUBLE: Error, the array should be even'
 
       ! Create the plans for the FFT and execute
-      IF (verbose) WRITE (*, *) 'FFT3_REAL_DOUBLE: Starting FFT - creating plan and executing simulatanesouly'
+      IF (verbose) WRITE (*, *) 'FFT3_REAL_DOUBLE: Starting FFT - creating plan and executing simultanesouly'
       IF (ifb == -1) THEN
          CALL dfftw_plan_dft_r2c_3d(plan, nx, ny, nz, rspace, fspace, FFTW_ESTIMATE)
          CALL dfftw_execute_dft_r2c(plan, rspace, fspace)
