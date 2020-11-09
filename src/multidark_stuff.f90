@@ -212,10 +212,13 @@ CONTAINS
 
    INTEGER FUNCTION multidark_snapshot(a)
 
+      ! Multidark snapshot corresponding to a given scale factor
       REAL, INTENT(IN) :: a
 
       IF (a == 1.001) THEN
          multidark_snapshot = 85
+      ELSE IF (a == 0.986) THEN
+         multidark_snapshot = 84
       ELSE IF (a == 0.652) THEN
          multidark_snapshot = 62
       ELSE IF (a == 0.591) THEN
@@ -232,18 +235,80 @@ CONTAINS
 
    REAL FUNCTION multidark_scale_factor(s)
 
+      ! Multidark scale factor corresponding to a given snapshot
+      ! Inverse function of multidark_snapshot
       INTEGER, INTENT(IN) :: s
 
       IF (s == 416) THEN
-         multidark_scale_factor = 1. ! This is actually Bolshoi, this is a bit lazy
+         multidark_scale_factor = 1.000 ! This is actually Bolshoi, this is lazy
       ELSE IF (s == 85) THEN
          multidark_scale_factor = 1.001
+      ELSE IF (s == 84) THEN
+         multidark_scale_factor = 0.986
+      ELSE IF (s == 83) THEN
+         multidark_scale_factor = 0.971
+      ELSE IF (s == 82) THEN
+         multidark_scale_factor = 0.956
+      ELSE IF (s == 81) THEN
+         multidark_scale_factor = 0.940
+      ELSE IF (s == 80) THEN
+         multidark_scale_factor = 0.925
+      ELSE IF (s == 79) THEN
+         multidark_scale_factor = 0.910
+      ELSE IF (s == 78) THEN
+         multidark_scale_factor = 0.895
+      ELSE IF (s == 77) THEN
+         multidark_scale_factor = 0.880
+      ELSE IF (s == 76) THEN
+         multidark_scale_factor = 0.864
+      ELSE IF (s == 75) THEN
+         multidark_scale_factor = 0.849
+      ELSE IF (s == 74) THEN
+         multidark_scale_factor = 0.834
+      ELSE IF (s == 73) THEN
+         multidark_scale_factor = 0.819
+      ELSE IF (s == 72) THEN
+         multidark_scale_factor = 0.804
+      ELSE IF (s == 71) THEN
+         multidark_scale_factor = 0.788
+      ELSE IF (s == 70) THEN
+         multidark_scale_factor = 0.773
+      ELSE IF (s == 69) THEN
+         multidark_scale_factor = 0.758
+      ELSE IF (s == 68) THEN
+         multidark_scale_factor = 0.743
+      ELSE IF (s == 67) THEN
+         multidark_scale_factor = 0.728
+      ELSE IF (s == 66) THEN
+         multidark_scale_factor = 0.713
+      ELSE IF (s == 64) THEN
+         multidark_scale_factor = 0.682
       ELSE IF (s == 62) THEN
          multidark_scale_factor = 0.652
+      ELSE IF (s == 60) THEN
+         multidark_scale_factor = 0.621
       ELSE IF (s == 58) THEN
          multidark_scale_factor = 0.591
+      ELSE IF (s == 56) THEN
+         multidark_scale_factor = 0.561
+      ELSE IF (s == 54) THEN
+         multidark_scale_factor = 0.530
       ELSE IF (s == 52) THEN
          multidark_scale_factor = 0.500
+      ELSE IF (s == 50) THEN
+         multidark_scale_factor = 0.470
+      ELSE IF (s == 48) THEN
+         multidark_scale_factor = 0.439
+      ELSE IF (s == 46) THEN
+         multidark_scale_factor = 0.409
+      ELSE IF (s == 44) THEN
+         multidark_scale_factor = 0.378
+      ELSE IF (s == 42) THEN
+         multidark_scale_factor = 0.348
+      ELSE IF (s == 40) THEN
+         multidark_scale_factor = 0.318
+      ELSE IF (s == 38) THEN
+         multidark_scale_factor = 0.287
       ELSE IF (s == 36) THEN
          multidark_scale_factor = 0.257
       ELSE
