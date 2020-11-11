@@ -412,10 +412,10 @@ MODULE HMx
    LOGICAL, PARAMETER :: simple_voids = .FALSE.    ! Use simple voids or not
 
    ! HMcode
-   REAL, PARAMETER :: HMcode_fdamp_min = 0.   ! Minimum value for f_damp parameter
+   REAL, PARAMETER :: HMcode_fdamp_min = 0.00 ! Minimum value for f_damp parameter
    REAL, PARAMETER :: HMcode_fdamp_max = 0.99 ! Maximum value for f_damp parameter
-   REAL, PARAMETER :: HMcode_alpha_min = 0.5  ! Minimum value for alpha transition parameter
-   REAL, PARAMETER :: HMcode_alpha_max = 2.0  ! Maximum value for alpha transition parameter
+   REAL, PARAMETER :: HMcode_alpha_min = 0.50 ! Minimum value for alpha transition parameter
+   REAL, PARAMETER :: HMcode_alpha_max = 2.00 ! Maximum value for alpha transition parameter
    REAL, PARAMETER :: HMcode_ks_limit = 7.    ! Limit for (k/k*)^2 in one-halo term
 
    ! HMcode baryon model
@@ -446,7 +446,8 @@ MODULE HMx
    LOGICAL, PARAMETER :: verbose_HI = .TRUE.        ! Verbosity when doing the HI initialisation
 
    ! Non-linear halo bias
-   LOGICAL, PARAMETER :: z_dependent_bnl = .TRUE.    ! Is the non-linear bias correction taken to be z dependent?
+   LOGICAL, PARAMETER :: fixed_bnl = .FALSE.         ! Is the non-linear bias correction taken at fixed z = 0?
+   LOGICAL, PARAMETER :: bnl_assign_sig8 = .TRUE.    ! If not fixed, do we assign based on sig8 or a?
    LOGICAL, PARAMETER :: add_I_11 = .TRUE.           ! Add integral below numin, numin in halo model calculation
    LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE.  ! Add integral below numin in halo model calculation
    REAL, PARAMETER :: kmin_bnl = 8e-2                ! Below this wavenumber force B_NL to zero
@@ -454,11 +455,10 @@ MODULE HMx
    REAL, PARAMETER :: numax_bnl = 10.                ! Above this halo mass force  B_NL to zero
    LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.     ! Attempt to manually include damping from halo exclusion
    LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.   ! Force a minimum value for B_NL
-   REAL, PARAMETER :: min_bnl = -1.                  ! Minimum value that B_NL is allowed to be (could be below -1 ...)
+   REAL, PARAMETER :: min_bnl = -1.                  ! Minimum value for B_NL (could be below -1; cross spectra can be negative)
    INTEGER, PARAMETER :: iorder_bnl = 1              ! 1 - Linear interpolation
    INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin   ! Linear extrapolation
    LOGICAL, PARAMETER :: store_bnl = .FALSE.         ! Storage interpolator mode?
-   REAL, PARAMETER :: eps_ztol_bnl = 1e-2            ! How far off can the redshift be?
    CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL'  ! Directory containing BNL measurements
    !CHARACTER(len=256), PARAMETER :: cat = 'rockstar' ! Halo catalogue
    !CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/Bolshoi_'//trim(cat_bnl)
@@ -3913,7 +3913,7 @@ CONTAINS
                   u1 = rhom*wk(i, 1)/m1
 
                   ! Get the non-linear bias
-                  B_NL = BNL(k, nu1, nu2, rv1, rv2, hmod)
+                  B_NL = BNL(k, nu1, nu2, rv1, rv2, hmod, cosm)
 
                   ! Bottom-right quadrant (later multiplied by missing part of integrand)
                   IF (i == 1 .AND. j == 1) THEN
@@ -4307,7 +4307,7 @@ CONTAINS
 
    END FUNCTION p_1void
 
-   REAL FUNCTION BNL(k, nu1, nu2, rv1, rv2, hmod)
+   REAL FUNCTION BNL(k, nu1, nu2, rv1, rv2, hmod, cosm)
 
       ! Non-linear halo bias function
       REAL, INTENT(IN) :: k
@@ -4316,6 +4316,7 @@ CONTAINS
       REAL, INTENT(IN) :: rv1
       REAL, INTENT(IN) :: rv2
       TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: kk
       REAL, PARAMETER :: kmin = kmin_bnl        ! Below this wavenumber set BNL to zero
       REAL, PARAMETER :: numin = numin_bnl      ! Below this halo mass set BNL to zero
@@ -4324,7 +4325,7 @@ CONTAINS
       LOGICAL, PARAMETER :: halo_exclusion = exclusion_bnl
       LOGICAL, PARAMETER :: fix_min = fix_minimum_bnl
 
-      IF (.NOT. hmod%has_bnl) CALL init_BNL(hmod)
+      IF (.NOT. hmod%has_bnl) CALL init_BNL(hmod, cosm)
 
       ! Ensure that k is not outside array boundary at high end
       kk = k
@@ -4354,20 +4355,23 @@ CONTAINS
 
    END FUNCTION BNL
 
-   SUBROUTINE init_BNL(hmod)
+   SUBROUTINE init_BNL(hmod, cosm)
 
       ! Initialisation for the non-linear halo bias term
       ! TODO: Interpolate between redshifts
+      USE multidark_stuff
       TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
       TYPE(interpolator3D) :: bnl_interp
       INTEGER :: i, j, ibin, jbin, ik
       INTEGER :: nbin, nk
-      REAL :: crap
+      INTEGER :: snap
+      REAL :: crap, sig8
       REAL, ALLOCATABLE :: k(:), nu(:), B(:, :, :)
       CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext, base
-      REAL, PARAMETER :: eps = eps_ztol_bnl
       CHARACTER(len=256) :: base_bnl, base_bnl_lownu
       LOGICAL, PARAMETER :: verbose = .TRUE.
+      INTEGER, PARAMETER :: flag = flag_ucold
 
       ! Input files
       base_bnl = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/MDR1_'//trim(hmod%bnl_cat)
@@ -4387,24 +4391,26 @@ CONTAINS
             CYCLE
          END IF
 
-         ! Read in the nu values from the binstats file
-         IF ((.NOT. z_dependent_bnl) .OR. requal(hmod%z, 0.00, eps)) THEN
+         ! Get the required snapshot
+         IF (fixed_bnl) THEN
             IF(snippet_in_string('Bolshoi', base)) THEN
-               inbase = trim(base)//'_416'
+               snap = 416
             ELSE         
-               inbase = trim(base)//'_85'
+               snap = 85
             END IF
-         ELSE IF (requal(hmod%z, 0.53, eps)) THEN
-            inbase = trim(base)//'_62'
-         ELSE IF (requal(hmod%z, 0.69, eps)) THEN
-            inbase = trim(base)//'_58'
-         ELSE IF (requal(hmod%z, 1.00, eps)) THEN
-            inbase = trim(base)//'_52'
-         ELSE IF (requal(hmod%z, 2.89, eps)) THEN
-            inbase = trim(base)//'_36'
          ELSE
-            STOP 'INIT_BNL: Error, your redshift is not supported'
+            IF(snippet_in_string('Bolshoi', base)) THEN
+               STOP 'INIT_BNL: Searching BNL does not work with Bolshoi yet'
+            ELSE
+               IF (bnl_assign_sig8) THEN
+                  sig8 = sigma(8., hmod%a, flag_ucold, cosm)
+                  snap = nearest_multidark_snapshot_sig8(sig8)
+               ELSE
+                  snap = nearest_multidark_snapshot(hmod%a)
+               END IF
+            END IF
          END IF
+         inbase = trim(base)//'_'//integer_to_string(snap)
 
          ! Read in the nu values of the bins
          infile = trim(inbase)//'_binstats.dat'
@@ -4413,7 +4419,6 @@ CONTAINS
          IF (verbose) WRITE (*, *) 'INIT_BNL: Number of nu bins:', nbin
          IF(ALLOCATED(nu)) DEALLOCATE(nu)
          ALLOCATE(nu(nbin))
-         !WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
          OPEN (7, file=infile)
          DO i = 1, nbin
             READ (7, *) crap, crap, crap, crap, crap, nu(i)
