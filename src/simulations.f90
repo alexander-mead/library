@@ -2205,7 +2205,7 @@ CONTAINS
       END IF
 
       ! Get the isotropic angles
-      theta = random_theta()
+      theta = random_spherical_theta()
       phi = random_uniform(0., twopi)
 
       ! Create the x, y, z coordinates from r, theta, phi
