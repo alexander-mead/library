@@ -6,6 +6,7 @@ MODULE table_integer
 
    ! Routines
    PUBLIC :: find_table_integer
+   PUBLIC :: nearest_table_integer
 
    ! Constants
    PUBLIC :: ifind_linear
@@ -19,10 +20,36 @@ MODULE table_integer
 
 CONTAINS
 
+   INTEGER FUNCTION nearest_table_integer(x, xtab, ifind)
+
+      ! Finds the integer table position in xtab closest to x
+      ! Assumes that xtab is sorted from low to high
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: xtab(:)
+      INTEGER, INTENT(IN) :: ifind
+      INTEGER :: i, n
+
+      n = size(xtab)
+      i = find_table_integer(x, xtab, ifind)
+
+      IF (i == 0) THEN
+         nearest_table_integer = 1
+      ELSE IF (i == n) THEN
+         nearest_table_integer = n
+      ELSE
+         IF (x-xtab(i) < xtab(i+1)-x) THEN
+            nearest_table_integer = i
+         ELSE
+            nearest_table_integer = i+1
+         END IF
+      END  IF
+
+   END FUNCTION nearest_table_integer
+
    INTEGER FUNCTION find_table_integer(x, xtab, ifind)
 
       ! Chooses between ways to find the integer location *below* some value in an array
-      ! Assumes that xtab is sorted
+      ! Assumes that xtab is sorted from low to high
       ! If x is within the table then the value returned will be between 1 and n-1
       ! If x is below the lower value of the array then 0 is returned (IMPORTANT)
       ! If x is above the upper value of the array then n is returned (IMPORTANT)
