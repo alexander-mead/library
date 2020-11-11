@@ -280,7 +280,7 @@ MODULE cosmology_functions
 
    ! Modified gravity
    INTEGER, PARAMETER :: img_none = 0     ! Standard gravity
-   INTEGER, PARAMETER :: img_nDGP = 1     ! normal-branch DGP gravity with a LCDM background
+   INTEGER, PARAMETER :: img_nDGP = 1     ! Normal-branch DGP gravity with a LCDM background
    INTEGER, PARAMETER :: img_fR = 2       ! f(R) gravity with a LCDM background
    INTEGER, PARAMETER :: img_nDGP_lin = 3 ! Linearised nDGP (only affects spherical model and HMcode)
    INTEGER, PARAMETER :: img_fR_lin = 4   ! Linearised f(R) (only affects spherical model and HMcode)
@@ -373,12 +373,12 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: scale_grow_wiggle = .TRUE.        ! Treat the wiggle as being different at different 'a'
 
    ! Wiggle extraction and interpolation
-   REAL, PARAMETER :: kmin_wiggle = 5e-3                   ! Minimum wavenumber to calulate wiggle [Mpc/h]
-   REAL, PARAMETER :: kmax_wiggle = 5.                     ! Maximum wavenumber to calulate wiggle [Mpc/h]
-   INTEGER, PARAMETER :: nk_wiggle = 512                   ! Number of k points to store wiggle
-   LOGICAL, PARAMETER :: store_wiggle = .TRUE.             ! Pre-calculate interpolation coefficients 
-   INTEGER, PARAMETER :: iorder_interp_wiggle = 3          ! Order for wiggle interpolator
-   INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero     ! Should be zeros because interpolator stores only wiggle
+   REAL, PARAMETER :: kmin_wiggle = 5e-3               ! Minimum wavenumber to calulate wiggle [Mpc/h]
+   REAL, PARAMETER :: kmax_wiggle = 5.                 ! Maximum wavenumber to calulate wiggle [Mpc/h]
+   INTEGER, PARAMETER :: nk_wiggle = 512               ! Number of k points to store wiggle
+   LOGICAL, PARAMETER :: store_wiggle = .TRUE.         ! Pre-calculate interpolation coefficients 
+   INTEGER, PARAMETER :: iorder_interp_wiggle = 3      ! Order for wiggle interpolator
+   INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero ! Should be zeros because interpolator stores only wiggle
 
    ! Correlation function
    ! TODO: This works very poorly
