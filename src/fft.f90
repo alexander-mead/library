@@ -22,7 +22,9 @@ MODULE fft
    PUBLIC :: FFT3
 
    PUBLIC :: k_FFT
+
    PUBLIC :: Nyquist_cell
+   PUBLIC :: conjugate_mode_location
 
    INTERFACE FFT1
       MODULE PROCEDURE FFT1_complex_double
@@ -72,6 +74,20 @@ CONTAINS
       Nyquist_cell = 1+m/2
 
    END FUNCTION Nyquist_cell
+
+   INTEGER FUNCTION conjugate_mode_location(i, m)
+
+      ! Assumes that m is even
+      INTEGER, INTENT(IN) :: i
+      INTEGER, INTENT(IN) :: m
+
+      IF (i == 1) THEN
+         conjugate_mode_location = 1
+      ELSE
+         conjugate_mode_location = m+2-i
+      END IF
+
+   END FUNCTION conjugate_mode_location
 
    SUBROUTINE k_FFT(ix, iy, iz, m, kx, ky, kz, kmod, L)
 
