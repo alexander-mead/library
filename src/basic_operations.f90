@@ -5,9 +5,7 @@ MODULE basic_operations
    PRIVATE
 
    PUBLIC :: progression
-   !PUBLIC :: progression_double ! TODO: Delete
    PUBLIC :: progression_log
-   !PUBLIC :: progression_log_double ! TODO: Delete
    PUBLIC :: fix_minimum
    PUBLIC :: fix_maximum
    PUBLIC :: read_command_argument
@@ -88,21 +86,6 @@ CONTAINS
 
    END FUNCTION progression
 
-   ! DOUBLE PRECISION FUNCTION progression_double(xmin, xmax, i, n)
-
-   !    ! TODO: Delete
-   !    IMPLICIT NONE
-   !    DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
-   !    INTEGER, INTENT(IN) :: i, n
-
-   !    IF (n == 1) THEN
-   !       progression_double = xmin
-   !    ELSE
-   !       progression_double = xmin+(xmax-xmin)*dble(i-1)/dble(n-1)
-   !    END IF
-
-   ! END FUNCTION progression_double
-
    REAL FUNCTION progression_log(xmin, xmax, i, n)
 
       ! Split the region xmin -> xmax into n log-spaced increments (including both xmin and xmax)
@@ -114,17 +97,6 @@ CONTAINS
       progression_log = exp(progression(log(xmin), log(xmax), i, n))
 
    END FUNCTION progression_log
-
-   ! DOUBLE PRECISION FUNCTION progression_log_double(xmin, xmax, i, n)
-
-   !    ! TODO: Delete
-   !    IMPLICIT NONE
-   !    DOUBLE PRECISION, INTENT(IN) :: xmin, xmax
-   !    INTEGER, INTENT(IN) :: i, n
-
-   !    progression_log_double = exp(progression_double(log(xmin), log(xmax), i, n))
-
-   ! END FUNCTION progression_log_double
 
    SUBROUTINE increment_real(x, y)
 

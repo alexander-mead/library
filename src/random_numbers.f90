@@ -1,6 +1,5 @@
 MODULE random_numbers
 
-   !TODO: Think about using intrinsic 'random_number' instead of 'rand()'
    USE basic_operations
 
    IMPLICIT NONE
@@ -24,7 +23,7 @@ MODULE random_numbers
    PUBLIC :: random_lognormal
    PUBLIC :: random_exponential
    PUBLIC :: random_polynomial
-   PUBLIC :: random_theta
+   PUBLIC :: random_spherical_theta
    PUBLIC :: random_Poisson
    PUBLIC :: random_complex_unit
 
@@ -200,7 +199,7 @@ CONTAINS
       r = random_Rayleigh(sigma)
       theta = random_uniform(zero, twopi)
 
-      ! Both of these numbers are Gaussian
+      ! Both of these numbers are independently Gaussian
       random_Gaussian_pair(1) = r*sin(theta)+mean
       random_Gaussian_pair(2) = r*cos(theta)+mean
 
@@ -209,7 +208,7 @@ CONTAINS
    REAL FUNCTION random_Gaussian(mean, sigma)
 
       ! Gets a single Gaussian random number
-      ! This is wasteful as there is a second, independent Gaussian random number
+      ! This is wasteful as there is a second, independent Gaussian random number that is thrown away
       REAL, INTENT(IN) :: mean  ! Mean of the distribution
       REAL, INTENT(IN) :: sigma ! Root-variance of the distribution
       REAL :: G(2)
@@ -222,6 +221,7 @@ CONTAINS
    REAL FUNCTION random_lognormal(mean, sd)
 
       ! Gets a single log-normal random number
+      ! TODO: Could do random_lognormal_pair
       REAL, INTENT(IN) :: mean ! Mean of the distribution
       REAL, INTENT(IN) :: sd   ! Standard deviation of the distribution
       REAL :: mu, sigma
@@ -253,13 +253,51 @@ CONTAINS
 
    END FUNCTION random_polynomial
 
-   REAL FUNCTION random_theta()
+   REAL FUNCTION random_spherical_theta()
 
       ! A random spherical-polar angle such that the solid-angle is uniformally populated
 
-      random_theta = acos(random_uniform(-1., 1.))
+      random_spherical_theta = acos(random_uniform(-1., 1.))
 
-   END FUNCTION random_theta
+   END FUNCTION random_spherical_theta
+
+   INTEGER FUNCTION random_Poisson(mean)
+
+      ! Generate a random number from a Poisson distribution 
+      REAL, INTENT(IN) :: mean
+      INTEGER :: k
+      REAL :: L, p
+
+      L = exp(-mean)
+
+      k = 0
+      p = 1.
+      DO
+         p = p*random_unit()
+         IF (p < L) THEN
+            EXIT
+         ELSE
+            k = k+1
+         END IF
+      END DO
+
+      random_Poisson = k
+
+   END FUNCTION random_Poisson
+
+   COMPLEX FUNCTION random_complex_unit()
+
+      ! Get a complex phase with theta between 0 and 2pi
+      ! Generates a unit amplitude complex number with random phase
+      ! TODO: Is 0 actually counted twice because 0 and 2pi are identical?
+      USE constants
+      IMPLICIT NONE
+      REAL :: theta
+
+      theta = random_uniform(0., twopi)
+      random_complex_unit = cmplx(cos(theta), sin(theta))
+
+   END FUNCTION random_complex_unit
 
    REAL FUNCTION accept_reject(func, x1, x2, fmax)
 
@@ -299,45 +337,5 @@ CONTAINS
       END DO
 
    END FUNCTION accept_reject
-
-   INTEGER FUNCTION random_Poisson(mean)
-
-      ! Generate a random number from a Poisson distribution 
-      REAL, INTENT(IN) :: mean
-      INTEGER :: k
-      REAL :: L, p
-
-      L = exp(-mean)
-
-      k = 0
-      p = 1.
-      DO
-         p = p*random_unit()
-         !WRITE(*, *) L, p
-         IF (p < L) THEN
-            EXIT
-         ELSE
-            k = k+1
-         END IF
-         !STOP
-      END DO
-
-      random_Poisson = k
-
-   END FUNCTION random_Poisson
-
-   COMPLEX FUNCTION random_complex_unit()
-
-      ! Get a complex phase with theta between 0 and 2pi
-      ! Generates a unit amplitude complex number with random phase
-      ! TODO: Is 0 actually counted twice because 0 and 2pi are identical?
-      USE constants
-      IMPLICIT NONE
-      REAL :: theta
-
-      theta = random_uniform(0., twopi)
-      random_complex_unit = cmplx(cos(theta), sin(theta))
-
-   END FUNCTION random_complex_unit
 
 END MODULE random_numbers
