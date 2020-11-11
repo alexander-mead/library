@@ -1,6 +1,8 @@
 MODULE multidark_stuff
 
+   USE array_operations
    USE file_info
+   USE table_integer
 
    IMPLICIT NONE
 
@@ -12,8 +14,28 @@ MODULE multidark_stuff
    PUBLIC :: write_multidark_halo_catalogue
    PUBLIC :: multidark_snapshot
    PUBLIC :: multidark_scale_factor
+   PUBLIC :: nearest_multidark_snapshot
 
+   ! Scale factors corresponding to snapshots
+   REAL, PARAMETER :: as(35) = [0.257, 0.287, 0.318, 0.348, 0.378, 0.409, 0.439, &
+                                 0.470, 0.500, 0.530, 0.561, 0.591, 0.621, 0.652, &
+                                 0.682, 0.713, 0.728, 0.743, 0.758, 0.773, 0.788, &
+                                 0.804, 0.819, 0.834, 0.849, 0.864, 0.880, 0.895, &
+                                 0.910, 0.925, 0.940, 0.956, 0.971, 0.986, 1.001]
+
+   ! Snapshots corresponding to scale factors
+   INTEGER, PARAMETER :: snaps(35) = [36, 38, 40, 42, 44, 46, 48, &
+                                       50, 52, 54, 56, 58, 60, 62, &
+                                       64, 66, 67, 68, 69, 70, 71, &
+                                       72, 73, 74, 75, 76, 77, 78, &
+                                       79, 80, 81, 82, 83, 84, 85]
+
+   ! Halo catalogue files
    INTEGER, PARAMETER :: nmass = 2 ! 2 - Mvir and Mtot, 6 gives extra M200, M500 etc. etc. only for Rockstar catalogues
+
+   ! Snapshot finding
+   INTEGER, PARAMETER :: ifind_snap = ifind_split
+   REAL, PARAMETER :: eps_snap = 0.
 
 CONTAINS
 
@@ -152,7 +174,6 @@ CONTAINS
       OPEN (7, file=infile, status='old')
       READ (7, *) ! Comment line
       DO i = 1, n
-         !READ (7, *) crap, x(1, i), x(2, i), x(3, i), (m(j, i), j = 1,nmass)
          READ (7, *) crap, (x(j, i), j=1,3), (m(j, i), j=1,nmass)
       END DO
       CLOSE (7)
@@ -175,7 +196,6 @@ CONTAINS
       OPEN (7, file=outfile)
       DO i = 1, n
          j = idx(n+1-i)
-         !WRITE (7, *) x(1, j), x(2, j), x(3, j), m(1, j), m(2, j), m(3, j), m(4, j), m(5, j), m(6, j)
          WRITE (7, *) (x(k, j), k=1, 3), (m(k, j), k=1,nmass)
       END DO
       CLOSE (7)
@@ -212,23 +232,17 @@ CONTAINS
 
    INTEGER FUNCTION multidark_snapshot(a)
 
-      ! Multidark snapshot corresponding to a given scale factor
+      ! Exact multidark snapshot corresponding to a given scale factor
       REAL, INTENT(IN) :: a
+      INTEGER :: i
+      REAL, PARAMETER :: eps = eps_snap
 
-      IF (a == 1.001) THEN
-         multidark_snapshot = 85
-      ELSE IF (a == 0.986) THEN
-         multidark_snapshot = 84
-      ELSE IF (a == 0.652) THEN
-         multidark_snapshot = 62
-      ELSE IF (a == 0.591) THEN
-         multidark_snapshot = 58
-      ELSE IF (a == 0.500) THEN
-         multidark_snapshot = 52
-      ELSE IF (a == 0.257) THEN
-         multidark_snapshot = 36
+      i = array_position(a, as, eps)
+      IF (i == 0) THEN
+         WRITE(*, *) 'MULTIDARK_SNAPSHOT: a:', a
+         STOP 'MULTIDARK_SNAPSHOT: Error, no snapshot corresponding to the scale factor'
       ELSE
-         STOP 'MULTIDARK_SNAPSHOTS: Error, no snapshot corresponding to your scale factor'
+         multidark_snapshot = i
       END IF
 
    END FUNCTION multidark_snapshot
@@ -238,83 +252,33 @@ CONTAINS
       ! Multidark scale factor corresponding to a given snapshot
       ! Inverse function of multidark_snapshot
       INTEGER, INTENT(IN) :: s
+      INTEGER ::  i
 
       IF (s == 416) THEN
          multidark_scale_factor = 1.000 ! This is actually Bolshoi, this is lazy
-      ELSE IF (s == 85) THEN
-         multidark_scale_factor = 1.001
-      ELSE IF (s == 84) THEN
-         multidark_scale_factor = 0.986
-      ELSE IF (s == 83) THEN
-         multidark_scale_factor = 0.971
-      ELSE IF (s == 82) THEN
-         multidark_scale_factor = 0.956
-      ELSE IF (s == 81) THEN
-         multidark_scale_factor = 0.940
-      ELSE IF (s == 80) THEN
-         multidark_scale_factor = 0.925
-      ELSE IF (s == 79) THEN
-         multidark_scale_factor = 0.910
-      ELSE IF (s == 78) THEN
-         multidark_scale_factor = 0.895
-      ELSE IF (s == 77) THEN
-         multidark_scale_factor = 0.880
-      ELSE IF (s == 76) THEN
-         multidark_scale_factor = 0.864
-      ELSE IF (s == 75) THEN
-         multidark_scale_factor = 0.849
-      ELSE IF (s == 74) THEN
-         multidark_scale_factor = 0.834
-      ELSE IF (s == 73) THEN
-         multidark_scale_factor = 0.819
-      ELSE IF (s == 72) THEN
-         multidark_scale_factor = 0.804
-      ELSE IF (s == 71) THEN
-         multidark_scale_factor = 0.788
-      ELSE IF (s == 70) THEN
-         multidark_scale_factor = 0.773
-      ELSE IF (s == 69) THEN
-         multidark_scale_factor = 0.758
-      ELSE IF (s == 68) THEN
-         multidark_scale_factor = 0.743
-      ELSE IF (s == 67) THEN
-         multidark_scale_factor = 0.728
-      ELSE IF (s == 66) THEN
-         multidark_scale_factor = 0.713
-      ELSE IF (s == 64) THEN
-         multidark_scale_factor = 0.682
-      ELSE IF (s == 62) THEN
-         multidark_scale_factor = 0.652
-      ELSE IF (s == 60) THEN
-         multidark_scale_factor = 0.621
-      ELSE IF (s == 58) THEN
-         multidark_scale_factor = 0.591
-      ELSE IF (s == 56) THEN
-         multidark_scale_factor = 0.561
-      ELSE IF (s == 54) THEN
-         multidark_scale_factor = 0.530
-      ELSE IF (s == 52) THEN
-         multidark_scale_factor = 0.500
-      ELSE IF (s == 50) THEN
-         multidark_scale_factor = 0.470
-      ELSE IF (s == 48) THEN
-         multidark_scale_factor = 0.439
-      ELSE IF (s == 46) THEN
-         multidark_scale_factor = 0.409
-      ELSE IF (s == 44) THEN
-         multidark_scale_factor = 0.378
-      ELSE IF (s == 42) THEN
-         multidark_scale_factor = 0.348
-      ELSE IF (s == 40) THEN
-         multidark_scale_factor = 0.318
-      ELSE IF (s == 38) THEN
-         multidark_scale_factor = 0.287
-      ELSE IF (s == 36) THEN
-         multidark_scale_factor = 0.257
       ELSE
-         STOP 'MULTIDARK_SCALE_FACTOR: Error, no scale factor correpsponding to snapshot'
-      END IF
+         i = array_position(s, snaps)
+         IF (i == 0) THEN
+            WRITE(*, *) 'MULTIDARK_SCALE_FACTOR: snapshot:', s
+            STOP 'MULTIDARK_SNAPSHOT: Error, no scale factor corresponding to the snapshot'
+         ELSE
+            multidark_scale_factor = as(i)
+         END IF
+      ENDIF
 
    END FUNCTION multidark_scale_factor
+
+   INTEGER FUNCTION nearest_multidark_snapshot(a)
+
+      ! Nearest multidark snapshot to scale factor 'a' in terms of  'a' distance
+      ! TODO: Also should do in terms of sigma_8 distance
+      REAL, INTENT(IN) :: a
+      INTEGER :: i
+      INTEGER, PARAMETER :: ifind = ifind_snap
+
+      i = nearest_table_integer(a, as, ifind)
+      nearest_multidark_snapshot = snaps(i)
+
+   END FUNCTION nearest_multidark_snapshot
 
 END MODULE multidark_stuff
