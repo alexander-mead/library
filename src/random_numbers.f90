@@ -16,6 +16,7 @@ MODULE random_numbers
    PUBLIC :: dice
 
    ! Real number distributions
+   PUBLIC :: random_unit
    PUBLIC :: random_uniform
    PUBLIC :: random_Rayleigh
    PUBLIC :: random_Lorentzian
@@ -25,6 +26,7 @@ MODULE random_numbers
    PUBLIC :: random_polynomial
    PUBLIC :: random_theta
    PUBLIC :: random_Poisson
+   PUBLIC :: random_complex_unit
 
    ! Draw from any real-number distribution
    PUBLIC :: accept_reject
@@ -110,15 +112,24 @@ CONTAINS
 
    END FUNCTION random_integer
 
-   INTEGER FUNCTION dice(dmin, dmax, ndice)
+   INTEGER FUNCTION dice(ndice, dmin_opt, dmax_opt)
 
       ! Get a total for rolling ndice
-      INTEGER, INTENT(IN) :: dmin  ! Minimum value on di
-      INTEGER, INTENT(IN) :: dmax  ! Maximum value on di (assumes all integers on di between dmin and dmax) 
-      INTEGER, INTENT(IN) :: ndice ! Number of dice to roll   
+      INTEGER, INTENT(IN) :: ndice               ! Number of dice to roll   
+      INTEGER, OPTIONAL, INTENT(IN) :: dmin_opt  ! Minimum value on di
+      INTEGER, OPTIONAL, INTENT(IN) :: dmax_opt  ! Maximum value on di (assumes all integers on di between dmin and dmax)    
       INTEGER :: i
+      INTEGER :: dmin, dmax
+      INTEGER, PARAMETER :: dmin_def = 1
+      INTEGER, PARAMETER :: dmax_def = 6
 
+      ! Check number of dice
       IF (ndice < 0) STOP 'DICE: Error, number of rolls must be positive'
+
+      ! Default or optional values for the minimum and maximum on the di
+      ! Note that all contiguous integers are taken between dmin and dmax
+      dmin = default_or_optional(dmin_def, dmin_opt)
+      dmax = default_or_optional(dmax_def, dmax_opt)
 
       ! Roll the dice and sum the score
       dice = 0
@@ -314,5 +325,19 @@ CONTAINS
       random_Poisson = k
 
    END FUNCTION random_Poisson
+
+   COMPLEX FUNCTION random_complex_unit()
+
+      ! Get a complex phase with theta between 0 and 2pi
+      ! Generates a unit amplitude complex number with random phase
+      ! TODO: Is 0 actually counted twice because 0 and 2pi are identical?
+      USE constants
+      IMPLICIT NONE
+      REAL :: theta
+
+      theta = random_uniform(0., twopi)
+      random_complex_unit = cmplx(cos(theta), sin(theta))
+
+   END FUNCTION random_complex_unit
 
 END MODULE random_numbers
