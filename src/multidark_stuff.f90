@@ -15,6 +15,7 @@ MODULE multidark_stuff
    PUBLIC :: multidark_snapshot
    PUBLIC :: multidark_scale_factor
    PUBLIC :: nearest_multidark_snapshot
+   PUBLIC :: nearest_multidark_snapshot_sig8
 
    ! Available Multidark scale factors
    REAL, PARAMETER :: as(35) = [0.257, 0.287, 0.318, 0.348, 0.378, 0.409, 0.439, &
@@ -287,5 +288,18 @@ CONTAINS
       nearest_multidark_snapshot = snaps(i)
 
    END FUNCTION nearest_multidark_snapshot
+
+   INTEGER FUNCTION nearest_multidark_snapshot_sig8(sig8)
+
+      ! Nearest multidark snapshot to scale factor 'a' in terms of  'a' distance
+      ! TODO: Also should do in terms of sigma_8 distance
+      REAL, INTENT(IN) :: sig8
+      INTEGER :: i
+      INTEGER, PARAMETER :: ifind = ifind_snap
+
+      i = nearest_table_integer(sig8, sig8s, ifind)
+      nearest_multidark_snapshot_sig8 = snaps(i)
+
+   END FUNCTION nearest_multidark_snapshot_sig8
 
 END MODULE multidark_stuff
