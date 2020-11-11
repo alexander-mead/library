@@ -560,29 +560,38 @@ CONTAINS
 
    END SUBROUTINE make_projected_density
 
-   SUBROUTINE Zeldovich_ICs(x, v, n, L, logk_tab, logPk_tab, nk, vfac, m, use_average)
+   SUBROUTINE Zeldovich_ICs(x, v, L, k_tab, Pk_tab, vfac, m, use_average)
 
       ! Generate Zeldovich displacement fields and move particles
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n, m, nk
-      REAL, INTENT(INOUT) :: x(3, n), v(3, n)
-      REAL, INTENT(IN) :: logk_tab(nk), logPk_tab(nk), L, vfac    
+      REAL, INTENT(INOUT) :: x(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: v(:, :)
+      REAL, INTENT(IN) :: L
+      REAL, INTENT(IN) :: k_tab(:)
+      REAL, INTENT(IN) :: Pk_tab(:)
+      REAL, INTENT(IN) :: vfac
+      INTEGER, INTENT(IN) :: m 
       LOGICAL, INTENT(IN) :: use_average
-      REAL :: f(3, m, m, m), ips, maxf
+      REAL :: ips, maxf
+      INTEGER :: n
+      REAL, ALLOCATABLE :: f(:, :, :, :)
+      INTEGER, PARAMETER :: dim = 3
+
+      ! Check array dimensions
+      IF ((size(x, 1) .NE. dim)) STOP 'ZELDOVICH_ICS: Error, x must be three dimensional'
 
       ! Make the displacement field
-      CALL generate_displacement_fields(f, m, L, logk_tab, logPk_tab, nk, use_average)
+      CALL generate_displacement_fields(f, m, L, k_tab, Pk_tab, use_average)
 
       ! Calculate some useful things
+      n = size(x, 2)
       ips = L/real(n**(1./3.)) ! Mean ID inter-particle spacing
       maxf = maxval(f)         ! Maximum value of 1D displacement
 
       ! Calculate the particle velocities first
-      !CALL Zeldovich_velocity(x, v, n, L, vfac*f, m)
+      ALLOCATE(v(3, n))
       CALL Zeldovich_velocity(x, v, vfac*f, L)
 
       ! Then do the particle positions
-      !CALL Zeldovich_displacement(x, n, L, f, m)
       CALL Zeldovich_displacement(x, f, L)
 
       ! Write some useful things to the screen
@@ -628,7 +637,7 @@ CONTAINS
       WRITE (*, *)
 
       ! Replace particles that may have strayed
-      CALL replace(x, n, L)
+      CALL replace(x, L)
 
    END SUBROUTINE Zeldovich_displacement
 
@@ -636,30 +645,30 @@ CONTAINS
 
       ! Give particles velocities from a velocity field
       ! TODO: Could do CIC reverse interpolation here
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: x(:, :)       ! Particle position array [Mpc/h]
-      REAL, INTENT(OUT) :: v(:, :)      ! Particle velocity array [km/s]
-      REAL, INTENT(IN) :: s(:, :, :, :) ! Velocity field [km/s]
-      REAL, INTENT(IN) :: L             ! Box size [Mpc/h]
+      REAL, INTENT(IN) :: x(:, :)               ! Particle position array [Mpc/h]
+      REAL, ALLOCATABLE, INTENT(OUT) :: v(:, :) ! Particle velocity array [km/s]
+      REAL, INTENT(IN) :: s(:, :, :, :)         ! Velocity field [km/s]
+      REAL, INTENT(IN) :: L                     ! Box size [Mpc/h]
       INTEGER :: i, j, ix(3)
       INTEGER :: n, m
       INTEGER, PARAMETER :: dim = 3
 
-      IF ((dim .NE. size(x, 1)) .OR. (dim .NE. size(v, 1)) .OR. (dim .NE. size(s, 1))) THEN
-         STOP 'ZELDOVICH_VELOCITY: This only works in three dimensions'
-      END IF
+      ! Check array dimensions
+      IF ((dim .NE. size(x, 1)) .OR. (dim .NE. size(s, 1))) STOP 'ZELDOVICH_VELOCITY: This only works in three dimensions'
+      IF ((size(s, 2) .NE. size(s, 3)) .OR. (size(s, 2) .NE. size(s, 4))) STOP 'ZELDOVICH_DISPLACEMENTS: Error, displacement field must be square'
 
-      ! Total number of particles
+      ! Array sizes
       n = size(x, 2)
-      IF (n .NE. size(v, 2)) STOP 'ZELDOVICH_VELOCITY: Error, position and velocity arrays must be the same size'
       m = size(s, 2)
-      IF ((m .NE. size(s, 3)) .OR. (m .NE. size(s, 4))) STOP 'ZELDOVICH_DISPLACEMENTS: Error, displacement field must be square'
 
+      ! Write to screen
       WRITE (*, *) 'ZELDOVICH_VELOCITY: Assigining particle velocties'
-      WRITE (*, *) 'ZELDOVICH_VELOCITY: Any previous velocity set to zero'
       WRITE (*, *) 'ZELDOVICH_VELOCITY: Number of particles:', n
       WRITE (*, *) 'ZELDOVICH_VELOCITY: Mesh size:', m
       WRITE (*, *) 'ZELDOVICH_VELOCITY: Box size [Mpc/h]:', L
+
+      ! Allocate array for particle velocities
+      ALLOCATE(v(dim, n))
 
       ! Loop over all particles
       DO i = 1, n
@@ -676,9 +685,8 @@ CONTAINS
 
    SUBROUTINE generate_randoms(x, L)
 
-      ! Generate random x,y,z positions in a cube of size L^3
+      ! Generate random x, y, z positions in a cube of size L^3
       USE random_numbers
-      IMPLICIT NONE
       REAL, INTENT(OUT) :: x(:, :)
       REAL, INTENT(IN) :: L   
       INTEGER :: i, j
@@ -713,7 +721,6 @@ CONTAINS
 
       ! Generate a grid of positions in a cube of size L^3
       ! These positions will be the locations of cube centres that tessalate the volume
-      IMPLICIT NONE
       REAL, INTENT(OUT) :: x(:, :)
       REAL, INTENT(IN) :: L    
       INTEGER :: ix, iy, iz, i, m, n
@@ -746,7 +753,7 @@ CONTAINS
       END DO
 
       ! Replace in case any end up on boundary
-      CALL replace(x, n, L)
+      CALL replace(x, L)
 
       WRITE (*, *) 'GENERATE_GRID: Done'
       WRITE (*, *)
@@ -757,7 +764,6 @@ CONTAINS
 
       ! Generate a poor man's glass in a cube of size L^3
       USE random_numbers
-      IMPLICIT NONE
       REAL, INTENT(OUT) :: x(:, :) 
       REAL, INTENT(IN) :: L
       INTEGER :: i, j, m, n
@@ -802,8 +808,8 @@ CONTAINS
    SUBROUTINE sparse_sample(x, v, n, f)
 
       USE random_numbers
-      IMPLICIT NONE
-      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :), v(:, :)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :)
+      REAL, ALLOCATABLE, INTENT(INOUT) :: v(:, :)
       REAL, INTENT(IN) :: f
       INTEGER, INTENT(INOUT) :: n
       REAL :: x_old(3, n), v_old(3, n)
@@ -820,7 +826,7 @@ CONTAINS
 
       DO i = 1, n_old
 
-         IF (random_uniform(0., 1.) < f) THEN
+         IF (random_unit() < f) THEN
             n = n+1
             keep(i) = 1
          END IF
@@ -857,13 +863,11 @@ CONTAINS
 
    END SUBROUTINE sparse_sample
 
-   SUBROUTINE replace(x, n, L, verbose)
+   SUBROUTINE replace(x, L, verbose)
 
       ! Ensures/enforces periodicity by cycling particles round that may have strayed
       ! This forces all particles to be 0<=x<L, so they cannot be exactly at x=L
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(INOUT) :: x(3, n)    
+      REAL, INTENT(INOUT) :: x(:, :)    
       REAL, INTENT(IN) :: L
       LOGICAL, OPTIONAL :: verbose
       INTEGER :: i, j
@@ -872,15 +876,10 @@ CONTAINS
       IF (present_and_correct(verbose)) WRITE (*, *) 'REPLACE: Replacing particles that may have strayed'
 
       ! Loop over all particles and coordinates
-      DO i = 1, n
-         DO j = 1, 3
-            !IF(x(j,i)>=L) x(j,i)=x(j,i)-L
-            !IF(x(j,i)<0.) x(j,i)=x(j,i)+L
-            !IF(i==1) WRITE(*,*) m, j, i, x(j,i)
+      DO i = 1, size(x, 2)
+         DO j = 1, size(x, 1)
             m = FLOOR(x(j, i)/L)
-            !IF(i==1) WRITE(*,*) m, j, i, x(j,i)
             x(j, i) = x(j, i)-m*L
-            !IF(i==1) WRITE(*,*) m, j, i, x(j,i)
             IF (x(j, i) == -0.) x(j, i) = 0.
          END DO
       END DO
@@ -921,7 +920,7 @@ CONTAINS
       END IF
 
       ! Replace particles within the cube
-      CALL replace(x, n, L, verbose)
+      CALL replace(x, L, verbose)
 
    END SUBROUTINE random_translation
 
@@ -951,7 +950,7 @@ CONTAINS
       END IF
 
       ! Replace particles within the cube
-      CALL replace(x, n, L, verbose)
+      CALL replace(x, L, verbose)
 
    END SUBROUTINE random_inversion
 
@@ -2271,7 +2270,7 @@ CONTAINS
       END DO
 
       ! Replace particles that may have strayed outside the volume
-      CALL replace(x, np, L)
+      CALL replace(x, L)
 
    END SUBROUTINE make_HOD
 

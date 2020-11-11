@@ -83,7 +83,6 @@ CONTAINS
    INTEGER FUNCTION NGP_cell(x, L, m)
 
       ! Find the integer coordinates of the cell that coordinate x is in
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x    ! Particle position
       REAL, INTENT(IN) :: L    ! Box size (could be Mpc/h or angle or something else)
       INTEGER, INTENT(IN) :: m ! Number of mesh cells in grid
@@ -100,7 +99,6 @@ CONTAINS
    REAL FUNCTION cell_position(i, L, m)
 
       ! Gets the coordinates of cell centre i in box of length L with m cells
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: i ! Integer label for cell
       REAL, INTENT(IN) :: L    ! Actual size corresponding to volume
       INTEGER, INTENT(IN) :: m ! Number of mesh cells
@@ -109,28 +107,23 @@ CONTAINS
 
    END FUNCTION cell_position
 
-   REAL FUNCTION random_mode_amplitude(k, L, logk_tab, logPk_tab, use_average)
+   REAL FUNCTION random_mode_amplitude(k, Delta, L, use_average)
 
       ! This calculates the Fourier amplitudes of the density field
       ! TODO: Understand fudge factor in Rayleigh distribution
       USE interpolate
       USE constants
       USE random_numbers
-      IMPLICIT NONE
       REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: Delta
       REAL, INTENT(IN) :: L
-      REAL, INTENT(IN) :: logk_tab(:)
-      REAL, INTENT(IN) :: logPk_tab(:)
       LOGICAL, INTENT(IN) :: use_average
-      REAL :: sigma
-      INTEGER :: nk
+      REAL :: sigma, Pk
       LOGICAL, PARAMETER :: fudge = .TRUE. !! EXTREME CAUTION: FUDGE FACTOR SQRT(2) IN RAYLEIGH !!
 
-      nk = size(logk_tab)
-      IF (nk /= size(logPk_tab)) STOP 'RANDOM_MODE_AMPLITUDE: Error, arrays must be the same size'
-
       ! Sigma parameter in the Rayleigh distribution
-      sigma = sqrt(exp(find(log(k), logk_tab, logPk_tab, nk, 3, 3, 2))/(4.*pi*(L*k/twopi)**3))
+      Pk = Delta/(4.*pi*(L*k/twopi)**3)
+      sigma = sqrt(Pk)
 
       IF (use_average) THEN
          ! Fixed mode amplitudes
@@ -143,51 +136,48 @@ CONTAINS
 
    END FUNCTION random_mode_amplitude
 
-   COMPLEX FUNCTION random_complex_phase()
-
-      ! Get a complex phase with theta between 0 and 2pi
-      ! Generates a unit amplitude complex number with random phase
-      USE constants
-      USE random_numbers
-      IMPLICIT NONE
-      REAL :: theta
-
-      theta = random_uniform(0., twopi)
-      random_complex_phase = cmplx(cos(theta), sin(theta))
-
-   END FUNCTION random_complex_phase
-
-   SUBROUTINE make_Gaussian_random_modes(dk, m, L, logk_tab, logPk_tab, nk, use_average)
+   SUBROUTINE make_Gaussian_random_modes(dk, m, L, k_tab, Pk_tab, use_average)
 
       ! Uses a tablulated P(k) to make a Gaussian Random Field realisation
       USE fft
       USE random_numbers
-      IMPLICIT NONE
-      !DOUBLE COMPLEX, INTENT(OUT) :: dk(m, m, m)
+      USE interpolate
+      COMPLEX, ALLOCATABLE, INTENT(OUT) :: dk(:, :, :)
       INTEGER, INTENT(IN) :: m
-      COMPLEX, INTENT(OUT) :: dk(m, m, m)
-      INTEGER, INTENT(IN) :: nk
       REAL, INTENT(IN) :: L
-      REAL, INTENT(IN) :: logk_tab(nk)
-      REAL, INTENT(IN) :: logPk_tab(nk)
+      REAL, INTENT(IN) :: k_tab(:)
+      REAL, INTENT(IN) :: Pk_tab(:)
       LOGICAL, INTENT(IN) :: use_average
       INTEGER :: ix, iy, iz, ixx, iyy, izz
       REAL :: kx, ky, kz, k
-      REAL :: amp
+      REAL :: amp, Pk
       COMPLEX :: rot
+      TYPE(interpolator1D) :: Pk_interp
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: iextrap = iextrap_lin
+      LOGICAL, PARAMETER :: store = .TRUE.
+      LOGICAL, PARAMETER :: logk = .TRUE.
+      LOGICAL, PARAMETER :: logPk = .TRUE.
 
-      dk = (0.d0, 0.d0)
-
+      ! Write useful things to screen
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Creating Fourier realisation of Gaussian field'
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Using average mode power:', use_average
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Mesh size:', m
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Box size [Mpc/h]:', L
+
+      ! Create an interpolator for P(k)
+      CALL init_interpolator(k_tab, Pk_tab, Pk_interp, iorder, iextrap, store, logk, logPk)
+
+      ! Allocate the Fourier array
+      ALLOCATE(dk(m, m, m))
+      dk = (0.d0, 0.d0)
 
       ! This fills up displacement array in all of k space!
       DO iz = 1, m
          DO iy = 1, m
             DO ix = 1, m
 
+               ! Wavenumber
                CALL k_fft(ix, iy, iz, m, kx, ky, kz, k, L)
 
                IF (ix == 1 .AND. iy == 1 .AND. iz == 1) THEN
@@ -205,8 +195,9 @@ CONTAINS
                ELSE
 
                   ! Get mode amplitudes and phases
-                  amp = random_mode_amplitude(k, L, logk_tab, logPk_tab, use_average)
-                  rot = random_complex_phase()
+                  Pk = evaluate_interpolator(k, Pk_interp)
+                  amp = random_mode_amplitude(k, Pk, L, use_average)
+                  rot = random_complex_unit()
 
                   ! Assign values to the density field
                   dk(ix, iy, iz) = amp*rot
@@ -248,54 +239,57 @@ CONTAINS
 
    END SUBROUTINE make_Gaussian_random_modes
 
-   SUBROUTINE make_Gaussian_random_field(d, m, L, logk_tab, logPk_tab, nk, use_average)
+   SUBROUTINE make_Gaussian_random_field(d, m, L, k_tab, Pk_tab, use_average)
 
       ! Uses a tablulated P(k) to make a Gaussian Random Field realisation
       USE fft
       USE random_numbers
       IMPLICIT NONE
+      REAL, ALLOCATABLE, INTENT(OUT) :: d(:, :, :)
       INTEGER, INTENT(IN) :: m
-      REAL, INTENT(OUT) :: d(m, m, m)
       REAL, INTENT(IN) :: L
-      INTEGER, INTENT(IN) :: nk
-      REAL, INTENT(IN) :: logk_tab(nk)
-      REAL, INTENT(IN) :: logPk_tab(nk)
+      REAL, INTENT(IN) :: k_tab(:)
+      REAL, INTENT(IN) :: Pk_tab(:)
       LOGICAL, INTENT(IN) :: use_average
-      COMPLEX :: dk(m, m, m), dk_new(m, m, m)
+      COMPLEX, ALLOCATABLE :: dk(:, :, :)
+      COMPLEX :: dk_new(m, m, m)
 
-      CALL make_Gaussian_random_modes(dk, m, L, logk_tab, logPk_tab, nk, use_average)
+      CALL make_Gaussian_random_modes(dk, m, L, k_tab, Pk_tab, use_average)
 
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_FIELD: Transform to real space'
 
       ! FT the displacement field from k-space to real space!
       CALL fft3(dk, dk_new, m, m, m, 1)
       dk = dk_new
-      d = real(real(dk))
+      d = real(dk)
 
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_FIELD: Done'
       WRITE (*, *)
 
    END SUBROUTINE make_Gaussian_random_field
 
-   SUBROUTINE generate_displacement_fields(f, m, L, logk_tab, logPk_tab, nk, use_average)
+   SUBROUTINE generate_displacement_fields(f, m, L, k_tab, Pk_tab, use_average)
 
       USE fft
       USE array_operations
-      IMPLICIT NONE
+
+      REAL, ALLOCATABLE, INTENT(OUT) :: f(:, :, :, :)
       INTEGER, INTENT(IN) :: m
-      REAL, INTENT(OUT) :: f(3, m, m, m)
       REAL, INTENT(IN) :: L
-      INTEGER, INTENT(IN) :: nk
-      REAL, INTENT(IN) :: logk_tab(nk)
-      REAL, INTENT(IN) :: logPk_tab(nk)
+      REAL, INTENT(IN) :: k_tab(:)
+      REAL, INTENT(IN) :: Pk_tab(:)
       LOGICAL, INTENT(IN) :: use_average
-      COMPLEX :: d(m, m, m), dk(m, m, m), fk(3, m, m, m)
+      COMPLEX :: d(m, m, m), fk(3, m, m, m)
+      COMPLEX, ALLOCATABLE :: dk(:, :, :)
       INTEGER :: i, ix, iy, iz
       REAL :: kx, ky, kz, k
 
-      CALL make_Gaussian_random_modes(dk, m, L, logk_tab, logPk_tab, nk, use_average)
+      CALL make_Gaussian_random_modes(dk, m, L, k_tab, Pk_tab, use_average)
 
       WRITE (*, *) 'GENERATE_DISPLACEMENT_FIELDS: Creating realisation of displacement field'
+
+      ! Allocate displacement field array
+      ALLOCATE(f(3, m, m, m))
 
       ! This fills up displacement array in all of k space!
       DO iz = 1, m
