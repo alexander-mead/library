@@ -16,7 +16,7 @@ MODULE multidark_stuff
    PUBLIC :: multidark_scale_factor
    PUBLIC :: nearest_multidark_snapshot
 
-   ! Scale factors corresponding to snapshots
+   ! Available Multidark scale factors
    REAL, PARAMETER :: as(35) = [0.257, 0.287, 0.318, 0.348, 0.378, 0.409, 0.439, &
                                  0.470, 0.500, 0.530, 0.561, 0.591, 0.621, 0.652, &
                                  0.682, 0.713, 0.728, 0.743, 0.758, 0.773, 0.788, &
@@ -29,6 +29,13 @@ MODULE multidark_stuff
                                        64, 66, 67, 68, 69, 70, 71, &
                                        72, 73, 74, 75, 76, 77, 78, &
                                        79, 80, 81, 82, 83, 84, 85]
+
+   ! sigma8 values corresponding to scale factors
+   REAL, PARAMETER :: sig8s(35) = [0.275, 0.306, 0.338, 0.368, 0.398, 0.428, 0.456, &
+                                    0.484, 0.511, 0.536, 0.562, 0.586, 0.609, 0.631, &
+                                    0.652, 0.673, 0.682, 0.692, 0.701, 0.710, 0.718, &
+                                    0.727, 0.736, 0.744, 0.752, 0.759, 0.767, 0.774, &
+                                    0.781, 0.788, 0.795, 0.802, 0.808, 0.814, 0.820]
 
    ! Halo catalogue files
    INTEGER, PARAMETER :: nmass = 2 ! 2 - Mvir and Mtot, 6 gives extra M200, M500 etc. etc. only for Rockstar catalogues
