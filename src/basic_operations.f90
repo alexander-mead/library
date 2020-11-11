@@ -39,20 +39,38 @@ MODULE basic_operations
       MODULE PROCEDURE increment_integer
    END INTERFACE increment
 
+   INTERFACE default_or_optional
+      MODULE PROCEDURE default_or_optional_real
+      MODULE PROCEDURE default_or_optional_int
+   END INTERFACE default_or_optional
+
 CONTAINS
 
-   REAL FUNCTION default_or_optional(x_default, x_optional)
+   REAL FUNCTION default_or_optional_real(x_default, x_optional)
 
       REAL, INTENT(IN) :: x_default
       REAL, OPTIONAL, INTENT(IN) :: x_optional
 
       IF (present(x_optional)) THEN
-         default_or_optional = x_optional
+         default_or_optional_real = x_optional
       ELSE
-         default_or_optional = x_default
+         default_or_optional_real = x_default
       END IF
 
-   END FUNCTION default_or_optional
+   END FUNCTION default_or_optional_real
+
+   INTEGER FUNCTION default_or_optional_int(x_default, x_optional)
+
+      INTEGER, INTENT(IN) :: x_default
+      INTEGER, OPTIONAL, INTENT(IN) :: x_optional
+
+      IF (present(x_optional)) THEN
+         default_or_optional_int = x_optional
+      ELSE
+         default_or_optional_int = x_default
+      END IF
+
+   END FUNCTION default_or_optional_int
 
    REAL FUNCTION progression(xmin, xmax, i, n)
 
