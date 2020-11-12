@@ -560,7 +560,7 @@ CONTAINS
 
    END SUBROUTINE make_projected_density
 
-   SUBROUTINE Zeldovich_ICs(x, v, L, k_tab, Pk_tab, vfac, m, use_average)
+   SUBROUTINE Zeldovich_ICs(x, v, L, k_tab, Pk_tab, vfac, m)
 
       ! Generate Zeldovich displacement fields and move particles
       REAL, INTENT(INOUT) :: x(:, :)
@@ -570,7 +570,6 @@ CONTAINS
       REAL, INTENT(IN) :: Pk_tab(:)
       REAL, INTENT(IN) :: vfac
       INTEGER, INTENT(IN) :: m 
-      LOGICAL, INTENT(IN) :: use_average
       REAL :: ips, maxf
       INTEGER :: n
       REAL, ALLOCATABLE :: f(:, :, :, :)
@@ -580,7 +579,7 @@ CONTAINS
       IF ((size(x, 1) .NE. dim)) STOP 'ZELDOVICH_ICS: Error, x must be three dimensional'
 
       ! Make the displacement field
-      CALL generate_displacement_fields(f, m, L, k_tab, Pk_tab, use_average)
+      CALL generate_displacement_fields(f, m, L, k_tab, Pk_tab)
 
       ! Calculate some useful things
       n = size(x, 2)
