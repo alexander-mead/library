@@ -23,6 +23,8 @@ MODULE fft
 
    PUBLIC :: k_FFT
 
+   PUBLIC :: fundamental_frequency
+   PUBLIC :: Nyquist_frequency
    PUBLIC :: Nyquist_cell
    PUBLIC :: conjugate_mode_location
 
@@ -88,6 +90,25 @@ CONTAINS
       END IF
 
    END FUNCTION conjugate_mode_location
+
+   REAL FUNCTION fundamental_frequency(L)
+
+      USE constants
+      REAL, INTENT(IN) :: L
+
+      fundamental_frequency =  twopi/L
+
+   END FUNCTION fundamental_frequency
+
+   REAL FUNCTION Nyquist_frequency(L, m)
+
+      USE constants
+      REAL, INTENT(IN) :: L
+      INTEGER, INTENT(IN) :: m
+
+      Nyquist_frequency =  pi*m/L
+
+   END FUNCTION Nyquist_frequency
 
    SUBROUTINE k_FFT(ix, iy, iz, m, kx, ky, kz, kmod, L)
 
