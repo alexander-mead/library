@@ -20,6 +20,7 @@ MODULE random_numbers
    PUBLIC :: random_Rayleigh
    PUBLIC :: random_Lorentzian
    PUBLIC :: random_Gaussian
+   PUBLIC :: random_Gaussian_pair
    PUBLIC :: random_lognormal
    PUBLIC :: random_exponential
    PUBLIC :: random_polynomial
@@ -169,7 +170,7 @@ CONTAINS
 
       ! Produces a Rayleigh-distributed random number
       USE constants
-      REAL, INTENT(IN) :: sigma        ! Sigma parameters (*not* root-variance for the distribution)
+      REAL, INTENT(IN) :: sigma        ! Sigma parameter (*not* standard deviation of the distribution)
       REAL, PARAMETER :: small = 1e-10 ! To avoid ever getting a log(0) call
 
       ! Problems if small=0. because log(0.) gets called sometimes
