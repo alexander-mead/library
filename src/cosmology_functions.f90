@@ -157,6 +157,7 @@ MODULE cosmology_functions
    PUBLIC :: P_SPT
    PUBLIC :: P_SPT_approx
    PUBLIC :: P_SPT_sum
+   PUBLIC :: SPT_integrand
    
    INTERFACE integrate_cosm
       MODULE PROCEDURE integrate_1_cosm
@@ -7210,16 +7211,55 @@ CONTAINS
 
    END FUNCTION P_SPT_approx
 
+   REAL FUNCTION SPT_integrand(q, k, a, flag, cosm)
+
+      REAL, INTENT(IN) :: q
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: I_22, I_13
+      REAL :: lnq, epsi, epsk, m
+      REAL, PARAMETER :: eps_multiple = eps_multiple_SPT
+
+      epsk = k*eps_multiple
+
+      ! This fixes the upper limit on the mu integral within I_22
+      IF (q > k-epsk .AND. q < k+epsk) THEN
+         epsi = epsk
+      ELSE
+         epsi = 0.
+      END IF
+
+      ! This fixes the multiple for the different parts of I_22
+      ! See equation (22) of https://arxiv.org/pdf/astro-ph/9311070.pdf
+      IF (q < epsk) THEN
+         m = 2.
+      ELSE
+         m = 1.
+      END IF
+
+      ! Evaluate the integrands I_22 and I_13
+      lnq = log(q)
+      I_22 = 2.*m*Delta_Pk(P_22_integrand(lnq, k, a, epsi, flag, cosm)/twopi**2, k)
+      I_13 = 0.5*Plin(k, a, flag, cosm)*P_13_integrand(lnq, k, a, flag, cosm)/twopi**2
+
+      ! Sum to get the total
+      SPT_integrand = I_22+I_13
+
+   END FUNCTION SPT_integrand
+
    REAL FUNCTION P_22_SPT(k, a, flag, cosm)
 
       ! The P_22 contribution to the one-loop power from SPT
       ! Taken from https://wwwmpa.mpa-garching.mpg.de/~komatsu/CRL/powerspectrum/density3pt/pkd/pkd.f90
       ! Routine called PkD in Komatsu code
+      ! See https://arxiv.org/pdf/astro-ph/9311070.pdf for details
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: eps, lnkmin, lnkmax, epsi, f(4)
+      REAL :: epsk, lnkmin, lnkmax, epsi, f(4)
       INTEGER :: i
       REAL, PARAMETER :: kmin = kmin_integrate_SPT
       REAL, PARAMETER :: kmax = kmax_integrate_SPT
@@ -7228,7 +7268,7 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = iorder_integrate_SPT
 
       ! A wavenumber close to k
-      eps = k*eps_multiple
+      epsk = k*eps_multiple
       
       ! Loop over the 4 segments of the P_22 integral
       DO i = 1, 4
@@ -7236,16 +7276,16 @@ CONTAINS
          ! Set boundary conditions for each segment
          IF (i == 1) THEN
             lnkmin = log(kmin)
-            lnkmax = log(eps)
+            lnkmax = log(epsk)
             epsi = 0.
          ELSE IF (i == 2) THEN
             lnkmin = lnkmax
-            lnkmax = log(k-eps)
+            lnkmax = log(k-epsk)
             epsi = 0.
          ELSE IF (i == 3) THEN
             lnkmin = lnkmax
-            lnkmax = log(k+eps)
-            epsi = eps
+            lnkmax = log(k+epsk)
+            epsi = epsk
          ELSE IF (i == 4) THEN
             lnkmin = lnkmax
             lnkmax = log(kmax)
@@ -7260,8 +7300,9 @@ CONTAINS
       END DO
 
       ! Sum contributions to create final result
-      P_22_SPT = 2.*(2.*f(1)+f(2)+f(3)+f(4))/(2.*pi)**2 ! Line 71 in Komatsu code
-      P_22_SPT = Delta_Pk(P_22_SPT, k)                  ! Convert from P(k) to Delta^2(k)
+      ! Extra factor of 2 before f(1) comes from excising pole (https://arxiv.org/pdf/astro-ph/9311070.pdf)
+      P_22_SPT = 2.*(2.*f(1)+f(2)+f(3)+f(4))/twopi**2 ! Line 71 in Komatsu code
+      P_22_SPT = Delta_Pk(P_22_SPT, k)                ! Convert from P(k) to Delta^2(k)
 
    END FUNCTION P_22_SPT
 
@@ -7293,8 +7334,9 @@ CONTAINS
       END IF
 
       ! Do the integration and correct by factors
+      ! In Komatsu code: dp22dq_d = q**3.*linear_pk(q)*ss but he uses P(k) whereas I use Delta^2(k) hence the 2pi^2 below
       P_22_integrand = integrate_cosm(mumin, mumax, P_22_inner_integrand, q, k, a, flag, cosm, acc, iorder)
-      P_22_integrand = P_22_integrand*plin(q, a, flag, cosm)*(2.*pi**2)
+      P_22_integrand = P_22_integrand*plin(q, a, flag, cosm)*2.*pi**2 
 
    END FUNCTION P_22_integrand
 
@@ -7330,7 +7372,7 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = iorder_integrate_SPT
 
       P_13_SPT = integrate_cosm(log(kmin), log(kmax), P_13_integrand, k, a, flag, cosm, acc, iorder)
-      P_13_SPT = 0.5*P_13_SPT*Plin(k, a, flag, cosm)/(2.*pi)**2
+      P_13_SPT = 0.5*P_13_SPT*Plin(k, a, flag, cosm)/twopi**2
 
    END FUNCTION P_13_SPT
 
