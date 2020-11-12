@@ -95,6 +95,7 @@ CONTAINS
    COMPLEX FUNCTION complex_number(r, theta)
 
       ! Complex number r*e^{i theta} in Fortran format
+      ! Analogy of inbuilt cmplx() function
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: theta
 
@@ -116,6 +117,7 @@ CONTAINS
 
    ELEMENTAL REAL FUNCTION cbrt_real(x)
 
+      ! Cube root, analogy of sqrt()
       REAL, INTENT(IN) :: x
 
       cbrt_real = x**(1./3.)
@@ -124,6 +126,7 @@ CONTAINS
 
    ELEMENTAL REAL FUNCTION cbrt_int(x)
 
+      ! Cube root, analogy of sqrt()
       INTEGER, INTENT(IN) :: x
 
       cbrt_int = x**(1./3.)
