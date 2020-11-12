@@ -15,6 +15,7 @@ MODULE field_operations
    PUBLIC :: clip
    PUBLIC :: anticlip
    PUBLIC :: periodic_distance
+   PUBLIC :: check_Hermiticity
 
    PUBLIC :: box_mode_power
    PUBLIC :: compute_power_spectrum_pole ! Remove?
@@ -78,6 +79,12 @@ MODULE field_operations
    ! Full complex Fourier transforms, or assume real and therefore Hermitian arrays
    LOGICAL, PARAMETER :: complex = .TRUE.
 
+   ! Gaussian random mode generation
+   ! 1 - Assign mode amplitude and phase
+   ! 2 - Assign mode real and imaginary part
+   ! 3 - Mean variance to all modes
+   INTEGER, PARAMETER :: imode_GRF = 1
+
 CONTAINS
 
    INTEGER FUNCTION NGP_cell(x, L, m)
@@ -107,50 +114,48 @@ CONTAINS
 
    END FUNCTION cell_position
 
-   REAL FUNCTION random_mode_amplitude(k, Delta, L, use_average)
+   ! REAL FUNCTION random_mode_amplitude(Pk, use_average)
 
-      ! This calculates the Fourier amplitudes of the density field
-      ! TODO: Understand fudge factor in Rayleigh distribution
-      USE interpolate
-      USE constants
-      USE random_numbers
-      REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: Delta
-      REAL, INTENT(IN) :: L
-      LOGICAL, INTENT(IN) :: use_average
-      REAL :: sigma, Pk
-      LOGICAL, PARAMETER :: fudge = .TRUE. !! EXTREME CAUTION: FUDGE FACTOR SQRT(2) IN RAYLEIGH !!
+   !    ! This calculates the Fourier amplitudes of the density field
+   !    USE interpolate
+   !    USE constants
+   !    USE random_numbers
+   !    REAL, INTENT(IN) :: Pk             ! NOTE: Not Delta^2(k)
+   !    LOGICAL, INTENT(IN) :: use_average
+   !    REAL :: sigma
 
-      ! Sigma parameter in the Rayleigh distribution
-      Pk = Delta/(4.*pi*(L*k/twopi)**3)
-      sigma = sqrt(Pk)
+   !    ! Sigma parameter in the Rayleigh distribution
+   !    sigma = sqrt(Pk/2.) ! Half the variance to each of the real and imaginary parts
 
-      IF (use_average) THEN
-         ! Fixed mode amplitudes
-         random_mode_amplitude = sigma
-      ELSE
-         ! Correctly assigned random mode amplitudes
-         random_mode_amplitude = random_Rayleigh(sigma)
-         IF (fudge) random_mode_amplitude = random_mode_amplitude/sqrt(2.)
-      END IF
+   !    IF (use_average) THEN
+   !       ! Fixed mode amplitudes
+   !       ! TODO: The mean of Rayleigh is sqrt(pi/2)*sigma, shouldn't this be here instead?
+   !       random_mode_amplitude = sigma*sqrt(2.)
+   !    ELSE
+   !       ! Correctly assigned random mode amplitudes
+   !       random_mode_amplitude = random_Rayleigh(sigma)
+   !    END IF
 
-   END FUNCTION random_mode_amplitude
+   ! END FUNCTION random_mode_amplitude
 
-   SUBROUTINE make_Gaussian_random_modes(dk, m, L, k_tab, Pk_tab, use_average)
+   SUBROUTINE make_Gaussian_random_modes(dk, m, L, k_tab, Pk_tab)
 
       ! Uses a tablulated P(k) to make a Gaussian Random Field realisation
-      USE fft
+      ! Assumes that P(k) is real and corresponds to a real array, so the output modes are Hermitian
+      ! TODO: Upgrade so that reduced arrays (mn, m, m) can be filled as well as full (m, m, m) arrays
+      USE constants
+      USE FFT
       USE random_numbers
       USE interpolate
+
       COMPLEX, ALLOCATABLE, INTENT(OUT) :: dk(:, :, :)
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: L
       REAL, INTENT(IN) :: k_tab(:)
       REAL, INTENT(IN) :: Pk_tab(:)
-      LOGICAL, INTENT(IN) :: use_average
-      INTEGER :: ix, iy, iz, ixx, iyy, izz
+      INTEGER :: ix, iy, iz
       REAL :: kx, ky, kz, k
-      REAL :: amp, Pk
+      REAL :: amp, D2, Pk, sig, modes(2)
       COMPLEX :: rot
       TYPE(interpolator1D) :: Pk_interp
       INTEGER, PARAMETER :: iorder = 3
@@ -161,7 +166,6 @@ CONTAINS
 
       ! Write useful things to screen
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Creating Fourier realisation of Gaussian field'
-      WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Using average mode power:', use_average
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Mesh size:', m
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Box size [Mpc/h]:', L
 
@@ -170,9 +174,8 @@ CONTAINS
 
       ! Allocate the Fourier array
       ALLOCATE(dk(m, m, m))
-      dk = (0.d0, 0.d0)
 
-      ! This fills up displacement array in all of k space!
+      ! This fills up all of k space, no Hermiticity imposed
       DO iz = 1, m
          DO iy = 1, m
             DO ix = 1, m
@@ -183,24 +186,30 @@ CONTAINS
                IF (ix == 1 .AND. iy == 1 .AND. iz == 1) THEN
 
                   ! Set the zero mode to zero
-                  dk(ix, iy, iz) = 0.d0
-
-               ELSE IF (ix == 1+m/2 .OR. iy == 1+m/2 .OR. iz == 1+m/2) THEN
-
-                  ! Sets Nyquist modes to 0.!
-                  ! Maybe all modes with mod(k)>k_ny should be set to 0.?!
-                  ! Bridit Falck wrote a 'corner modes' paper about this: https://arxiv.org/abs/1610.04862
-                  dk(ix, iy, iz) = 0.d0
+                  dk(ix, iy, iz) = (0.d0, 0.d0)
 
                ELSE
 
-                  ! Get mode amplitudes and phases
-                  Pk = evaluate_interpolator(k, Pk_interp)
-                  amp = random_mode_amplitude(k, Pk, L, use_average)
-                  rot = random_complex_unit()
+                  ! Get mode standard error
+                  D2 = evaluate_interpolator(k, Pk_interp)
+                  Pk = D2/(4.*pi*(k*L/twopi)**3)
+                  sig = sqrt(Pk/2.) ! Half of the variance to each of the real and imaginary part
 
-                  ! Assign values to the density field
-                  dk(ix, iy, iz) = amp*rot
+                  IF (imode_GRF == 1) THEN
+                     amp = random_Rayleigh(sig)
+                     rot = random_complex_unit()
+                     dk(ix, iy, iz) = amp*rot
+                  ELSE IF (imode_GRF == 2)  THEN                 
+                     modes = random_Gaussian_pair(0., sig) 
+                     dk(ix, iy, iz) = cmplx(modes(1), modes(2))
+                  ELSE IF (imode_GRF == 3) THEN
+                     !amp = sig*sqrt(2.)
+                     amp = sqrt(pi/2.)*sig
+                     rot = random_complex_unit()
+                     dk(ix, iy, iz) = amp*rot
+                  ELSE
+                     STOP 'MAKE_GAUSSIAN_RANDOM_MODES: Error, mode creation scheme not specified'
+                  END IF
 
                END IF
 
@@ -208,53 +217,140 @@ CONTAINS
          END DO
       END DO
 
-      WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Done'
-      WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Enforcing Hermiticity'
+      WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Initial modes generated'
 
-      ! Enforce Hermiticity - probably could save a load of operations above
-      DO iz = 1, m
-         DO iy = 1, m
-            DO ix = 1, m
-
-               ixx = m-ix+2
-               iyy = m-iy+2
-               izz = m-iz+2
-
-               IF (ix == 1) ixx = 1
-               IF (iy == 1) iyy = 1
-               IF (iz == 1) izz = 1
-
-               ! Do the enforcing
-               dk(ix, iy, iz) = CONJG(dk(ixx, iyy, izz))
-
-            END DO
-         END DO
-      END DO
-
-      ! Is this a good idea?
-      dk = CONJG(dk)
+      ! Make the array Hermitian
+      CALL enforce_Hermiticity(dk, verbose=.FALSE.)  
 
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_MODES: Hermitian field generated'
       WRITE (*, *)
 
    END SUBROUTINE make_Gaussian_random_modes
 
-   SUBROUTINE make_Gaussian_random_field(d, m, L, k_tab, Pk_tab, use_average)
+   SUBROUTINE enforce_Hermiticity(dk, verbose)
+
+      USE FFT
+      ! Take an input complex array and force it in to a Hermitian state
+      COMPLEX, INTENT(INOUT) :: dk(:, :, :)
+      LOGICAL, INTENT(IN) :: verbose
+      INTEGER :: ix, iy, iz
+      INTEGER :: jx, jy, jz
+      INTEGER :: mx, my, mz
+
+      IF (verbose) WRITE (*, *) 'ENFORCE_HERMITICITY: Enforcing Hermiticity'
+
+      mx = size(dk, 1)
+      my = size(dk, 2)
+      mz = size(dk, 3)
+
+      ! Enforce Hermiticity - probably could save a load of operations above
+      DO iz = 1, mz
+         jz = conjugate_mode_location(iz, mz)
+         DO iy = 1, my
+            jy = conjugate_mode_location(iy, my)
+            DO ix = 1, mx
+               jx = conjugate_mode_location(ix, mx)
+               IF ((ix == jx) .AND. (iy == jy) .AND. (iz == jz)) THEN
+                  dk(ix, iy, iz) = real(dk(ix, iy, iz)) ! Nyquist modes should be real
+               ELSE
+                  dk(ix, iy, iz) = conjg(dk(jx, jy, jz)) ! Other modes should be conjugate
+               END IF
+            END DO
+         END DO
+      END DO
+
+      ! Because all modes have been conjugated above
+      dk = conjg(dk)
+
+      IF (verbose) THEN
+         WRITE (*, *) 'ENFORCE_HERMITICITY: Done'
+         WRITE (*, *)
+      END IF
+
+   END SUBROUTINE enforce_Hermiticity
+
+   LOGICAL FUNCTION check_Hermiticity(dk)
+
+      USE FFT
+
+      ! TODO: Should there be a tolerance parameter here?
+      COMPLEX, INTENT(IN) :: dk(:, :, :)
+      INTEGER :: ix, iy, iz
+      INTEGER :: mx, my, mz
+      INTEGER :: jx, jy, jz
+
+      mx = size(dk, 1)
+      my = size(dk, 2)
+      mz = size(dk, 3)
+
+      check_Hermiticity = .TRUE.
+      DO iz = 1, mz
+         jz = conjugate_mode_location(iz, mz)
+         DO iy = 1, my
+            jy = conjugate_mode_location(iy, my)
+            DO ix = 1, mx
+               jx = conjugate_mode_location(ix, mx)
+               IF ((ix == jx) .AND. (iy == jy) .AND. (iz == jz)) THEN
+                  IF (aimag(dk(ix, iy, iz)) .NE. 0.) THEN
+                     check_Hermiticity = .FALSE. ! Nyquist modes should be real
+                     RETURN
+                  END IF
+               ELSE
+                  IF (dk(ix, iy, iz) .NE. conjg(dk(jx, jy, jz))) THEN
+                     check_Hermiticity = .FALSE. ! Other modes should be conjugate
+                     RETURN
+                  END IF
+               END IF
+            END DO
+         END DO
+      END DO
+
+   END FUNCTION check_Hermiticity
+
+   SUBROUTINE apodise_field(dk, L, ka)
+
+      ! Remove Fourier modes that exist beyond ka
+      ! These modes are not fully sampled in k space because the shell is cut off
+      ! TODO: Different choices for apodising function
+      USE constants
+      USE FFT
+
+      COMPLEX, INTENT(INOUT) :: dk(:, :, :)
+      REAL, INTENT(IN) :: L
+      REAL, INTENT(IN) :: ka
+      REAL :: kx, ky, kz, k
+      INTEGER :: ix, iy, iz
+      INTEGER :: m
+
+      m = size(dk, 1)
+      IF ((m .NE. size(dk, 2)) .OR. (m .NE. size(dk, 3))) STOP
+
+      DO iz = 1, m
+         DO iy = 1, m
+            DO ix = 1, m
+               CALL k_FFT(ix, iy, iz, m, kx, ky, kz, k, L)
+               IF (k > ka) dk(ix, iy, iz) = (0., 0.)
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE apodise_field
+
+   SUBROUTINE make_Gaussian_random_field(d, m, L, k_tab, Pk_tab)
 
       ! Uses a tablulated P(k) to make a Gaussian Random Field realisation
+      ! TODO: Should modes be removed beyond the Nyquist frequency?
       USE fft
-      USE random_numbers
-      IMPLICIT NONE
+
       REAL, ALLOCATABLE, INTENT(OUT) :: d(:, :, :)
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: L
       REAL, INTENT(IN) :: k_tab(:)
       REAL, INTENT(IN) :: Pk_tab(:)
-      LOGICAL, INTENT(IN) :: use_average
       COMPLEX, ALLOCATABLE :: dk(:, :, :)
       COMPLEX :: dk_new(m, m, m)
 
-      CALL make_Gaussian_random_modes(dk, m, L, k_tab, Pk_tab, use_average)
+      CALL make_Gaussian_random_modes(dk, m, L, k_tab, Pk_tab)
 
       WRITE (*, *) 'MAKE_GAUSSIAN_RANDOM_FIELD: Transform to real space'
 
@@ -268,7 +364,7 @@ CONTAINS
 
    END SUBROUTINE make_Gaussian_random_field
 
-   SUBROUTINE generate_displacement_fields(f, m, L, k_tab, Pk_tab, use_average)
+   SUBROUTINE generate_displacement_fields(f, m, L, k_tab, Pk_tab)
 
       USE fft
       USE array_operations
@@ -278,13 +374,18 @@ CONTAINS
       REAL, INTENT(IN) :: L
       REAL, INTENT(IN) :: k_tab(:)
       REAL, INTENT(IN) :: Pk_tab(:)
-      LOGICAL, INTENT(IN) :: use_average
       COMPLEX :: d(m, m, m), fk(3, m, m, m)
       COMPLEX, ALLOCATABLE :: dk(:, :, :)
       INTEGER :: i, ix, iy, iz
-      REAL :: kx, ky, kz, k
+      REAL :: kx, ky, kz, k, kNy
 
-      CALL make_Gaussian_random_modes(dk, m, L, k_tab, Pk_tab, use_average)
+      ! Make a Gaussian realisation of overdensity modes
+      CALL make_Gaussian_random_modes(dk, m, L, k_tab, Pk_tab)
+
+      ! Remove modes above the Nyquist frequency
+      ! TODO: Think about this
+      kNy = Nyquist_frequency(L, m)
+      CALL apodise_field(dk, L, kNy)
 
       WRITE (*, *) 'GENERATE_DISPLACEMENT_FIELDS: Creating realisation of displacement field'
 
@@ -301,20 +402,20 @@ CONTAINS
 
                IF (ix == 1 .AND. iy == 1 .AND. iz == 1) THEN
 
-                  !Set the DC mode to zero
-                  fk(1, ix, iy, iz) = 0.d0
-                  fk(2, ix, iy, iz) = 0.d0
-                  fk(3, ix, iy, iz) = 0.d0
+                  ! Fix the zero mode to zero, avoiding a division by zero
+                  fk(1, ix, iy, iz) = (0.d0, 0.d0)
+                  fk(2, ix, iy, iz) = (0.d0, 0.d0)
+                  fk(3, ix, iy, iz) = (0.d0, 0.d0)
 
-               ELSE IF (ix == 1+m/2 .OR. iy == 1+m/2 .OR. iz == 1+m/2) THEN
+               ! ELSE IF (ix == 1+m/2 .OR. iy == 1+m/2 .OR. iz == 1+m/2) THEN
 
-                  ! Sets Nyquist modes to 0.!
-                  ! Maybe all modes with mod(k)>k_ny should be set to 0.?!
-                  ! Bridit Falck wrote a 'corner modes' paper about this
-                  ! https://arxiv.org/abs/1610.04862
-                  fk(1, ix, iy, iz) = 0.d0
-                  fk(2, ix, iy, iz) = 0.d0
-                  fk(3, ix, iy, iz) = 0.d0
+               !    ! Sets Nyquist modes to 0.!
+               !    ! Maybe all modes with mod(k)>k_ny should be set to 0.?!
+               !    ! Bridit Falck wrote a 'corner modes' paper about this
+               !    ! https://arxiv.org/abs/1610.04862
+               !    fk(1, ix, iy, iz) = (0.d0, 0.d0)
+               !    fk(2, ix, iy, iz) = (0.d0, 0.d0)
+               !    fk(3, ix, iy, iz) = (0.d0, 0.d0)
 
                ELSE
 
@@ -330,10 +431,11 @@ CONTAINS
       END DO
       WRITE (*, *) 'GENERATE_DISPLACEMENT_FIELDS: Fourier displacement fields done'
 
+      ! Reverse Fourier transform back to configuration space
       DO i = 1, 3
          dk = fk(i, :, :, :)
          CALL fft3(dk, d, m, m, m, 1)
-         f(i, :, :, :) = real(real(d(:, :, :)))
+         f(i, :, :, :) = real(d(:, :, :))
       END DO
 
       WRITE (*, *) 'GENERATE_DISPLACEMENT_FIELDS: Minimum 1D displacement [Mpc/h]:', minval(f)
@@ -1038,6 +1140,11 @@ CONTAINS
    SUBROUTINE add_to_stack_3D(x, stack, Ls, ms, back, Lb, mb)
 
       ! Adds some points in a density field to a stack
+      ! Assumes the background field is periodic
+      ! 'stack' should have been previously allocated
+      ! 'stack' should be set to zero before using this subroutine
+      ! '*s' variables refer to the stacked field
+      ! '*_back' variables refer to the background field
       IMPLICIT NONE
       INTEGER :: i, j, k, is(3), ib(3), d
       INTEGER, INTENT(IN) :: ms, mb
@@ -1045,12 +1152,6 @@ CONTAINS
       REAL, INTENT(INOUT) :: stack(ms, ms, ms)
       REAL, INTENT(IN) :: back(mb, mb, mb)
       REAL :: xb(3)
-
-      ! Assumes the background field is periodic
-      ! 'stack' should have been previously allocated
-      ! 'stack' should be set to zero before using this subroutine
-      ! '*s' variables refer to the stacked field
-      ! '*_back' variables refer to the background field
 
       ! Loop over cells on stacking mesh
       DO i = 1, ms
@@ -1120,7 +1221,7 @@ CONTAINS
 
       USE statistics
       USE array_operations
-      IMPLICIT NONE
+
       REAL, INTENT(INOUT) :: d(:, :, :)
       REAL, INTENT(IN) :: d0
       INTEGER, INTENT(IN) :: m1, m2, m3
@@ -1175,7 +1276,7 @@ CONTAINS
 
       USE statistics
       USE array_operations
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: m1, m2, m3
       REAL, INTENT(INOUT) :: d(m1, m2, m3) 
       REAL, INTENT(IN) :: d0
@@ -1261,7 +1362,6 @@ CONTAINS
 
       ! Takes in a dk(m,m) array and computes the power spectrum
       ! NOTE: Leave the double complex as it allows the running to determine complex vs real
-      IMPLICIT NONE
       COMPLEX, INTENT(IN) :: dk1(:, :) ! Fourier components of field 1
       COMPLEX, INTENT(IN) :: dk2(:, :) ! Fourier components of field 2
       INTEGER, INTENT(IN) :: m         ! mesh size for fields
@@ -2066,14 +2166,11 @@ CONTAINS
 
    END SUBROUTINE compute_power_spectrum_rsd2
 
-   REAL FUNCTION box_mode_power(dk, m)
+   REAL FUNCTION box_mode_power(dk)
 
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: m
-      !DOUBLE COMPLEX, INTENT(IN) :: dk(m, m, m)
-      COMPLEX, INTENT(IN) :: dk(m, m, m)    
+      COMPLEX, INTENT(IN) :: dk(:, :, :)    
 
-      box_mode_power = real(abs(dk(2, 1, 1))**2.+abs(dk(1, 2, 1))**2.+abs(dk(1, 1, 2))**2.)/3.
+      box_mode_power = real(abs(dk(2, 1, 1))**2+abs(dk(1, 2, 1))**2+abs(dk(1, 1, 2))**2)/3.
 
    END FUNCTION box_mode_power
 
