@@ -4366,16 +4366,20 @@ CONTAINS
       INTEGER :: i, j, ibin, jbin, ik
       INTEGER :: nbin, nk
       INTEGER :: snap
+      INTEGER :: u
       REAL :: crap, sig8
       REAL, ALLOCATABLE :: k(:), nu(:), B(:, :, :)
       CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext, base
       CHARACTER(len=256) :: base_bnl, base_bnl_lownu
       LOGICAL, PARAMETER :: verbose = .TRUE.
       INTEGER, PARAMETER :: flag = flag_ucold
+      INTEGER, PARAMETER :: bnl_type = 2
 
       ! Input files
       base_bnl = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/MDR1_'//trim(hmod%bnl_cat)
-      base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/Bolshoi_'//trim(hmod%bnl_cat)    
+      base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/Bolshoi_'//trim(hmod%bnl_cat)
+      
+      !base_bnl = './library/data/'//trim(dir_bnl)//'/MDR1_'//trim(hmod%bnl_cat)
 
       IF (verbose) WRITE (*, *) 'INIT_BNL: Running'
 
@@ -4419,35 +4423,63 @@ CONTAINS
          IF (verbose) WRITE (*, *) 'INIT_BNL: Number of nu bins:', nbin
          IF(ALLOCATED(nu)) DEALLOCATE(nu)
          ALLOCATE(nu(nbin))
-         OPEN (7, file=infile)
+         OPEN (newunit=u, file=infile)
          DO i = 1, nbin
-            READ (7, *) crap, crap, crap, crap, crap, nu(i)
+            READ (u, *) crap, crap, crap, crap, crap, nu(i)
             IF (verbose) WRITE (*, *) 'INIT_BNL: nu bin', i, nu(i)
          END DO
-         CLOSE (7)
+         CLOSE (u)
          IF (verbose) WRITE (*, *) 'INIT_BNL: Done with nu'
 
-         ! Read in k and Bnl(k, nu1, nu2)
-         infile = trim(inbase)//'_bin1_bin1_power.dat'
-         nk = file_length(infile)
-         IF (verbose) WRITE (*, *) 'INIT_BNL: Number of k values: ', nk
-         IF(ALLOCATED(k)) DEALLOCATE(k)
-         IF(ALLOCATED(B)) DEALLOCATE(B)
-         ALLOCATE(k(nk), B(nk, nbin, nbin))
-         DO ibin = 1, nbin
-            DO jbin = 1, nbin
-               fbase = trim(inbase)//'_bin'
-               fmid = '_bin'
-               fext = '_power.dat'
-               infile = number_file2(fbase, ibin, fmid, jbin, fext)
-               !IF (verbose) WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
-               OPEN (7, file=infile)
-               DO ik = 1, nk
-                  READ (7, *) k(ik), crap, crap, crap, crap, B(ik, ibin, jbin)
+         IF (bnl_type == 1) THEN
+
+            ! Read in k and Bnl(k, nu1, nu2)
+            infile = trim(inbase)//'_bin1_bin1_power.dat'
+            nk = file_length(infile)
+            IF (verbose) WRITE (*, *) 'INIT_BNL: Number of k values: ', nk
+            IF(ALLOCATED(k)) DEALLOCATE(k)
+            IF(ALLOCATED(B)) DEALLOCATE(B)
+            ALLOCATE(k(nk), B(nk, nbin, nbin))
+            DO ibin = 1, nbin
+               DO jbin = 1, nbin
+                  fbase = trim(inbase)//'_bin'
+                  fmid = '_bin'
+                  fext = '_power.dat'
+                  infile = number_file2(fbase, ibin, fmid, jbin, fext)
+                  !IF (verbose) WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
+                  OPEN (newunit=u, file=infile)
+                  DO ik = 1, nk
+                     READ (u, *) k(ik), crap, crap, crap, crap, B(ik, ibin, jbin)
+                  END DO
+                  CLOSE (u)
                END DO
-               CLOSE (7)
             END DO
-         END DO
+
+         ELSE IF (bnl_type == 2) THEN
+
+            ! Read in k and Bnl(k, nu1, nu2)
+            infile = trim(inbase)//'_fitting.dat'
+            IF (verbose) WRITE (*, *) 'INIT_BNL: Input file: ', trim(infile)
+            nk = file_length(infile)/nbin**2
+            IF (verbose) WRITE (*, *) 'INIT_BNL: Number of k values: ', nk          
+            IF(ALLOCATED(k)) DEALLOCATE(k)
+            IF(ALLOCATED(B)) DEALLOCATE(B)
+            ALLOCATE(k(nk), B(nk, nbin, nbin))
+            OPEN(newunit=u, file=infile)
+            DO ibin = 1, nbin
+               DO jbin = 1, nbin
+                  DO ik = 1, nk
+                     READ (u, *) k(ik), B(ik, ibin, jbin)
+                  END DO
+               END DO
+            END DO
+            CLOSE(u)
+
+         ELSE
+
+            STOP 'INIT_BNL: Error, something went wrong'
+
+         END IF
 
          ! Convert from Y_NL to B_NL
          B = B-1.
