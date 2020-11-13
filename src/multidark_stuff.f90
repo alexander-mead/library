@@ -278,8 +278,7 @@ CONTAINS
 
    INTEGER FUNCTION nearest_multidark_snapshot(a)
 
-      ! Nearest multidark snapshot to scale factor 'a' in terms of  'a' distance
-      ! TODO: Also should do in terms of sigma_8 distance
+      ! Nearest multidark snapshot to scale factor 'a' in terms of 'a' distance
       REAL, INTENT(IN) :: a
       INTEGER :: i
       INTEGER, PARAMETER :: ifind = ifind_snap
@@ -291,8 +290,7 @@ CONTAINS
 
    INTEGER FUNCTION nearest_multidark_snapshot_sig8(sig8)
 
-      ! Nearest multidark snapshot to scale factor 'a' in terms of  'a' distance
-      ! TODO: Also should do in terms of sigma_8 distance
+      ! Nearest multidark snapshot to scale factor in terms of 'sigma_8' distance
       REAL, INTENT(IN) :: sig8
       INTEGER :: i
       INTEGER, PARAMETER :: ifind = ifind_snap
