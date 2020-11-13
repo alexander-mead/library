@@ -4370,7 +4370,7 @@ CONTAINS
       INTEGER :: u
       REAL :: crap, sig8
       REAL, ALLOCATABLE :: k(:), nu(:), B(:, :, :)
-      CHARACTER(len=256) :: infile, inbase, fbase, fmid, fext, base
+      CHARACTER(len=256) :: infile, inbase, base
       CHARACTER(len=256) :: base_bnl, base_bnl_lownu
       LOGICAL, PARAMETER :: verbose = .TRUE.
       INTEGER, PARAMETER :: flag = flag_ucold
