@@ -4374,7 +4374,6 @@ CONTAINS
       CHARACTER(len=256) :: base_bnl, base_bnl_lownu
       LOGICAL, PARAMETER :: verbose = .TRUE.
       INTEGER, PARAMETER :: flag = flag_ucold
-      !INTEGER, PARAMETER :: bnl_type = 2
 
       ! Input files
       base_bnl = trim(hmod%bnl_path)//trim(dir_bnl)//'/M512/MDR1_'//trim(hmod%bnl_cat)
@@ -4430,34 +4429,8 @@ CONTAINS
          CLOSE (u)
          IF (verbose) WRITE (*, *) 'INIT_BNL: Done with nu'
 
-         ! IF (bnl_type == 1) THEN
-
-         !    ! Read in k and Bnl(k, nu1, nu2)
-         !    infile = trim(inbase)//'_bin1_bin1_power.dat'
-         !    nk = file_length(infile)
-         !    IF (verbose) WRITE (*, *) 'INIT_BNL: Number of k values: ', nk
-         !    IF(ALLOCATED(k)) DEALLOCATE(k)
-         !    IF(ALLOCATED(B)) DEALLOCATE(B)
-         !    ALLOCATE(k(nk), B(nk, nbin, nbin))
-         !    DO ibin = 1, nbin
-         !       DO jbin = 1, nbin
-         !          fbase = trim(inbase)//'_bin'
-         !          fmid = '_bin'
-         !          fext = '_power.dat'
-         !          infile = number_file2(fbase, ibin, fmid, jbin, fext)
-         !          !IF (verbose) WRITE (*, *) 'INIT_BNL: Reading: ', trim(infile)
-         !          OPEN (newunit=u, file=infile)
-         !          DO ik = 1, nk
-         !             READ (u, *) k(ik), crap, crap, crap, crap, B(ik, ibin, jbin)
-         !          END DO
-         !          CLOSE (u)
-         !       END DO
-         !    END DO
-
-         ! ELSE IF (bnl_type == 2) THEN
-
          ! Read in k and Bnl(k, nu1, nu2)
-         infile = trim(inbase)//'_fitting.dat'
+         infile = trim(inbase)//'_bnl.dat'
          IF (verbose) WRITE (*, *) 'INIT_BNL: Input file: ', trim(infile)
          nk = file_length(infile)/nbin**2
          IF (verbose) WRITE (*, *) 'INIT_BNL: Number of k values: ', nk          
@@ -4472,14 +4445,8 @@ CONTAINS
                END DO
             END DO
          END DO
-         CLOSE(u)
-
-         ! ELSE
-         !    STOP 'INIT_BNL: Error, something went wrong'
-         ! END IF
-
-         ! Convert from Y_NL to B_NL
-         B = B-1.
+         CLOSE(u)        
+         B = B-1. ! Convert from 1+B_NL to B_NL
 
          ! Initialise interpolator
          CALL init_interpolator(k, nu, nu, B, Bnl_interp, &
