@@ -158,6 +158,11 @@ MODULE cosmology_functions
    PUBLIC :: P_SPT_approx
    PUBLIC :: P_SPT_sum
    PUBLIC :: SPT_integrand
+
+   ! Rescaling
+   PUBLIC :: calculate_rescaling_parameters
+   PUBLIC :: irescale_sigma
+   PUBLIC :: irescale_power
    
    INTERFACE integrate_cosm
       MODULE PROCEDURE integrate_1_cosm
@@ -165,6 +170,7 @@ MODULE cosmology_functions
       MODULE PROCEDURE integrate_3_cosm
       MODULE PROCEDURE integrate_3_flag_cosm
       MODULE PROCEDURE integrate_4_flag_cosm
+      MODULE PROCEDURE integrate_4_flag_2cosm
    END INTERFACE integrate_cosm
 
    ! Contains cosmological parameters that only need to be calculated once
@@ -393,7 +399,7 @@ MODULE cosmology_functions
 
    ! Growth ODE
    REAL, PARAMETER :: aini_growth = 1e-4                     ! Starting value for growth integratiton (should start | Omega_m(a)=1)
-   REAL, PARAMETER :: afin_growth = 1.                       ! Finishing value for growth integratiton (should be a=1)
+   REAL, PARAMETER :: afin_growth = 10.                      ! Finishing value for growth integratiton (CARE, changed from a=1 to a=10)
    REAL, PARAMETER :: acc_ODE_growth = acc_cosm              ! Accuracy parameter for growth ODE solving
    INTEGER, PARAMETER :: imeth_ODE_growth = 3                ! Method for solving growth ODE
    INTEGER, PARAMETER :: iorder_ODE_interpolation_growth = 3 ! Polynomial order for growth interpolation for ODE solution
@@ -408,7 +414,7 @@ MODULE cosmology_functions
 
    ! Growth interpolation
    REAL, PARAMETER :: amin_growth = 1e-3            ! Minimum value to store
-   REAL, PARAMETER :: amax_growth = 1.              ! Maximum value to store
+   REAL, PARAMETER :: amax_growth = 10.             ! Maximum value to store (CARE, changed from a=1 to a=10)
    INTEGER, PARAMETER :: n_growth = 128             ! Number of entries for interpolation tables
    INTEGER, PARAMETER :: iorder_interp_grow = 3     ! Polynomial order for growth interpolation
    INTEGER, PARAMETER :: iextrap_grow = iextrap_lin ! Extrapolation scheme
@@ -517,6 +523,19 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_interp_SPT = 3     ! Order for interpolation
    INTEGER, PARAMETER :: iextrap_SPT = iextrap_std ! Extrapolation scheme for interpolation
    LOGICAL, PARAMETER :: store_interp_SPT = .TRUE. ! Store coefficients for interpolation?
+
+   ! Rescaling
+   INTEGER, PARAMETER :: irescale_sigma = 1
+   INTEGER, PARAMETER :: irescale_power = 2
+   INTEGER, PARAMETER :: flag_rescaling = flag_ucold
+   REAL, PARAMETER :: acc_rescaling = acc_cosm
+   INTEGER, PARAMETER :: iorder_rescaling = 3
+   REAL, PARAMETER :: amin_rescale = 0.25
+   REAL, PARAMETER :: amax_rescale = 2.0
+   INTEGER, PARAMETER :: na_rescale = 128
+   REAL, PARAMETER :: smin_rescale = 0.5
+   REAL, PARAMETER :: smax_rescale = 2.0
+   INTEGER, PARAMETER :: ns_rescale = 128
 
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
@@ -7435,6 +7454,154 @@ CONTAINS
 
    END FUNCTION F3_SPT
 
+   SUBROUTINE calculate_rescaling_parameters(x1_tgt, x2_tgt, s, a, a_tgt, cosm_ini, cosm_tgt, irescale)
+
+      REAL, INTENT(IN) :: x1_tgt
+      REAL, INTENT(IN) :: x2_tgt
+      REAL, INTENT(OUT) :: s
+      REAL, INTENT(OUT) :: a
+      REAL, INTENT(IN) :: a_tgt
+      TYPE(cosmology), INTENT(INOUT) :: cosm_ini
+      TYPE(cosmology), INTENT(INOUT) :: cosm_tgt
+      INTEGER, INTENT(IN) :: irescale
+      REAL, ALLOCATABLE :: as(:), ss(:)
+      INTEGER :: ia, is, ia_best, is_best
+      REAL :: a_best, s_best, cost, cost_best
+      REAL :: k1_tgt, k2_tgt, R1_tgt, R2_tgt
+      REAL, PARAMETER :: amin = amin_rescale
+      REAL, PARAMETER :: amax = amax_rescale
+      INTEGER, PARAMETER :: na = na_rescale
+      REAL, PARAMETER :: smin = smin_rescale
+      REAL, PARAMETER :: smax = smax_rescale
+      INTEGER, PARAMETER :: ns = ns_rescale
+
+      WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Starting'
+
+      IF (irescale == irescale_sigma) THEN
+         R1_tgt = x1_tgt
+         R2_tgt = x2_tgt
+      ELSE IF (irescale == irescale_power) THEN
+         k1_tgt = x1_tgt
+         k2_tgt = x2_tgt
+      ELSE
+         STOP 'CALCULATE_RESCALING_PARAMETERS: Error, irescale not specified correctly'
+      END IF
+
+      ! Fill arrays of s, a values
+      CALL fill_array(smin, smax, ss, ns)
+      CALL fill_array(amin, amax, as, na)
+
+      ! Loop over grid of values to find minimum cost
+      cost_best = huge(cost_best)
+      DO is = 1, ns
+         DO ia = 1, na
+      
+            ! Calculate the cost associated with s, a values
+            s = ss(is)
+            a = as(ia)
+            IF (irescale == irescale_sigma) THEN     
+               cost = rescaling_cost_sigma(R1_tgt, R2_tgt, s, a, a_tgt, cosm_ini, cosm_tgt)
+            ELSE IF (irescale == irescale_power) THEN
+               cost = rescaling_cost_power(k1_tgt, k2_tgt, s, a, a_tgt, cosm_ini, cosm_tgt)
+            ELSE
+               STOP 'CALCULATE_RESCALING_PARAMETERS: Error, irescale not specified correctly'
+            END IF
+
+            ! If the cost is minimum then remember it
+            IF (cost < cost_best) THEN
+               s_best = s
+               a_best = a
+               is_best = is
+               ia_best = ia
+               cost_best = cost
+            END IF
+
+         END DO
+      END DO
+
+      ! Fix to minimum-cost values
+      s = s_best
+      a = a_best
+
+      WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Best-fitting s:', s
+      WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Best-fitting a:', a
+      IF (is_best == 1 .OR. is_best == ns) STOP 'CALCULATE_RESCALING_PARAMETERS: Error, best-fitting s is on boundary'
+      IF (ia_best == 1 .OR. ia_best == na) STOP 'CALCULATE_RESCALING_PARAMETERS: Error, best-fitting a is on boundary'
+      WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Done'
+      WRITE(*, *)
+   
+   END SUBROUTINE calculate_rescaling_parameters
+
+   REAL FUNCTION rescaling_cost_sigma(R1_tgt, R2_tgt, s, a_ini, a_tgt, cosm_ini, cosm_tgt)
+
+      REAL, INTENT(IN) :: R1_tgt
+      REAL, INTENT(IN) :: R2_tgt
+      REAL, INTENT(IN) :: s
+      REAL, INTENT(IN) :: a_ini
+      REAL, INTENT(IN) :: a_tgt
+      TYPE(cosmology), INTENT(INOUT) :: cosm_ini
+      TYPE(cosmology), INTENT(INOUT) :: cosm_tgt
+      INTEGER, PARAMETER :: flag = flag_rescaling
+      REAL, PARAMETER :: acc = acc_rescaling
+      INTEGER, PARAMETER :: iorder = iorder_rescaling
+
+      rescaling_cost_sigma = integrate_cosm(log(R1_tgt), log(R2_tgt), rescaling_cost_sigma_integrand, &
+         s, a_ini, a_tgt, flag, cosm_ini, cosm_tgt, acc, iorder)
+      rescaling_cost_sigma = rescaling_cost_sigma/log(R2_tgt/R1_tgt)
+
+   END FUNCTION rescaling_cost_sigma
+
+   REAL FUNCTION rescaling_cost_sigma_integrand(lnR, s, a_ini, a_tgt, flag, cosm_ini, cosm_tgt)
+
+      REAL, INTENT(IN) :: lnR
+      REAL, INTENT(IN) :: s
+      REAL, INTENT(IN) :: a_ini
+      REAL, INTENT(IN) :: a_tgt
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm_ini
+      TYPE(cosmology), INTENT(INOUT) :: cosm_tgt
+      REAL :: R
+
+      R = exp(lnR)
+      rescaling_cost_sigma_integrand = (1.-sigma(R/s, a_ini, flag, cosm_ini)/sigma(R, a_tgt, flag, cosm_tgt))**2
+
+   END FUNCTION rescaling_cost_sigma_integrand
+
+   REAL FUNCTION rescaling_cost_power(k1_tgt, k2_tgt, s, a_ini, a_tgt, cosm_ini, cosm_tgt)
+
+      REAL, INTENT(IN) :: k1_tgt
+      REAL, INTENT(IN) :: k2_tgt
+      REAL, INTENT(IN) :: s
+      REAL, INTENT(IN) :: a_ini
+      REAL, INTENT(IN) :: a_tgt
+      TYPE(cosmology), INTENT(INOUT) :: cosm_ini
+      TYPE(cosmology), INTENT(INOUT) :: cosm_tgt
+      INTEGER, PARAMETER :: flag = flag_rescaling
+      REAL, PARAMETER :: acc = acc_rescaling
+      INTEGER, PARAMETER :: iorder = iorder_rescaling
+
+      rescaling_cost_power = integrate_cosm(log(k1_tgt), log(k2_tgt), rescaling_cost_power_integrand, &
+         s, a_ini, a_tgt, flag, cosm_ini, cosm_tgt, acc, iorder)
+      rescaling_cost_power = rescaling_cost_power/log(k2_tgt/k1_tgt)
+
+   END FUNCTION rescaling_cost_power
+
+   REAL FUNCTION rescaling_cost_power_integrand(lnk, s, a_ini, a_tgt, flag, cosm_ini, cosm_tgt)
+
+      REAL, INTENT(IN) :: lnk
+      REAL, INTENT(IN) :: s
+      REAL, INTENT(IN) :: a_ini
+      REAL, INTENT(IN) :: a_tgt
+      INTEGER, INTENT(IN) :: flag
+      TYPE(cosmology), INTENT(INOUT) :: cosm_ini
+      TYPE(cosmology), INTENT(INOUT) :: cosm_tgt
+      REAL :: k
+
+      k = exp(lnk)
+      rescaling_cost_power_integrand = (1.-plin(k*s, a_ini, flag, cosm_ini)/plin(k, a_tgt, flag, cosm_tgt))**2
+
+   END FUNCTION rescaling_cost_power_integrand
+
    SUBROUTINE ODE_spherical(x, v, kk, t, cosm, ti, tf, xi, vi, fx, fv, n, imeth, ilog)
 
       ! Solves 2nd order ODE x''(t) from ti to tf and creates arrays of x, v, t values
@@ -8295,5 +8462,123 @@ CONTAINS
       END IF
 
    END FUNCTION integrate_4_flag_cosm
+
+   REAL RECURSIVE FUNCTION integrate_4_flag_2cosm(a, b, f, y, z, z1, flag, cosm1, cosm2, acc, iorder)
+
+      ! Integrates between a and b until desired accuracy is reached
+      ! Stores information to reduce function calls
+      REAL, INTENT(IN) :: a                   ! Integration lower limit for first argument in 'f'
+      REAL, INTENT(IN) :: b                   ! Integration upper limit for first argument in 'f'
+      REAL, EXTERNAL :: f                     ! Function to integrate over
+      REAL, INTENT(IN) :: y                   ! Second argument in 'f'
+      REAL, INTENT(IN) :: z                   ! Third argument in 'f'
+      REAL, INTENT(IN) :: z1                  ! Fourth argument in 'f'
+      INTEGER, INTENT(IN) :: flag             ! Flag argument in 'f'
+      TYPE(cosmology), INTENT(INOUT) :: cosm1 ! Cosmology
+      TYPE(cosmology), INTENT(INOUT) :: cosm2 ! Cosmology
+      REAL, INTENT(IN) :: acc                 ! Accuracy
+      INTEGER, INTENT(IN) :: iorder           ! Order for integration
+      INTEGER :: i, j
+      INTEGER :: n
+      REAL :: x, dx
+      REAL :: f1, f2, fx
+      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      LOGICAL :: pass
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
+
+      INTERFACE
+         FUNCTION f(x_int, y_int, z_int, z1_int, flag_int, cosm1_int, cosm2_int)
+            IMPORT :: cosmology
+            REAL, INTENT(IN) :: x_int
+            REAL, INTENT(IN) :: y_int
+            REAL, INTENT(IN) :: z_int
+            REAL, INTENT(IN) :: z1_int
+            INTEGER, INTENT(IN) :: flag_int
+            TYPE(cosmology), INTENT(INOUT) :: cosm1_int
+            TYPE(cosmology), INTENT(INOUT) :: cosm2_int
+         END FUNCTION f
+      END INTERFACE
+
+      IF (a == b) THEN
+
+         ! Fix the answer to zero if the integration limits are identical
+         integrate_4_flag_2cosm = 0.
+
+      ELSE
+
+         ! Set the sum variable for the integration
+         sum_2n = 0.d0
+         sum_n = 0.d0
+         sum_old = 0.d0
+         sum_new = 0.d0
+
+         DO j = 1, jmax
+
+            ! Note, you need this to be 1+2**n for some integer n
+            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+            n = 1+2**(j-1)
+
+            ! Calculate the dx interval for this value of 'n'
+            dx = (b-a)/real(n-1)
+
+            IF (j == 1) THEN
+
+               ! The first go is just the trapezium of the end points
+               f1 = f(a, y, z, z1, flag, cosm1, cosm2)
+               f2 = f(b, y, z, z1, flag, cosm1, cosm2)
+               sum_2n = 0.5d0*(f1+f2)*dx
+               sum_new = sum_2n
+
+            ELSE
+
+               ! Loop over only new even points to add these to the integral
+               DO i = 2, n, 2
+                  x = a+(b-a)*real(i-1)/real(n-1)
+                  fx = f(x, y, z, z1, flag, cosm1, cosm2)
+                  sum_2n = sum_2n+fx
+               END DO
+
+               ! Now create the total using the old and new parts
+               sum_2n = sum_n/2.d0+sum_2n*dx
+
+               ! Now calculate the new sum depending on the integration order
+               IF (iorder == 1) THEN
+                  sum_new = sum_2n
+               ELSE IF (iorder == 3) THEN
+                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
+               ELSE
+                  STOP 'INTEGRATE_COSM_4: Error, iorder specified incorrectly'
+               END IF
+
+            END IF
+
+            IF (sum_old == 0.d0 .OR. j<jmin) THEN
+               pass = .FALSE.
+            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+               pass = .TRUE.
+            ELSE IF (j == jmax) THEN
+               pass = .FALSE.
+               STOP 'INTEGRATE_COSM_4: Integration timed out'
+            ELSE
+               pass = .FALSE.
+            END IF
+
+            IF (pass) THEN
+               EXIT
+            ELSE
+               ! Integral has not converged so store old sums and reset sum variables
+               sum_old = sum_new
+               sum_n = sum_2n
+               sum_2n = 0.d0
+            END IF
+
+         END DO
+
+         integrate_4_flag_2cosm = real(sum_new)
+
+      END IF
+
+   END FUNCTION integrate_4_flag_2cosm
 
 END MODULE cosmology_functions
