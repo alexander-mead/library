@@ -2176,7 +2176,7 @@ CONTAINS
       hmod%nu = hmod%dc/hmod%sig
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: M, R, rv, sigma, nu tables filled'
-      IF (hmod%nu(1) > 1.) WRITE(*, *) 'INIT_HALOMOD: Warning, lowest nu value stored is greater than unity'
+      IF (hmod%nu(1) > 1.) WRITE(*, *) 'INIT_HALOMOD: Warning, lowest nu value stored is greater than unity, z:', hmod%z
 
       ! For spectra with finite variance we have cut-off masses etc.
       IF(cosm%warm) THEN
@@ -5818,7 +5818,7 @@ CONTAINS
       hmod%rho_HI = rhobar_tracer(nu_min, hmod%large_nu, rhobar_HI_integrand, hmod, cosm)
       IF (verbose_HI) THEN
          WRITE (*, *) 'INIT_HI: z:', hmod%z
-         WRITE (*, *) 'INIT_HI: HI density [log10(rho/(Msun/h)/(Mpc/h)^3)]:', REAL(log10(hmod%rho_HI))
+         WRITE (*, *) 'INIT_HI: HI density [log10(rho/(Msun/h)/(Mpc/h)^3)]:', real(log10(hmod%rho_HI))
          WRITE (*, *) 'INIT_HI: Omega_HI(z):', hmod%rho_HI/comoving_critical_density(hmod%a, cosm)
          WRITE (*, *) 'INIT_HI: Omega_HI(z) relative to z=0 critical density:', hmod%rho_HI/comoving_critical_density(1., cosm)
          WRITE (*, *) 'INIT_HI: rho_HI / rho_matter:', hmod%rho_HI/comoving_matter_density(cosm)
