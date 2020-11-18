@@ -202,8 +202,8 @@ MODULE cosmology_functions
       LOGICAL :: derive_gas_numbers         ! Should mu_e and mu_p be derived or not?
 
       ! Variables that might be primary or secondary depening on the power normalisation
-      REAL :: kpiv, As, kval, pval, sig8    ! Power spectrum normalisation   
-      REAL :: mue, mup                      ! Gas parameters
+      REAL :: kpiv, As, kval, pval, sig8 ! Power spectrum normalisation   
+      REAL :: mue, mup                   ! Gas parameters
 
       ! Derived parameters
       REAL :: A, Gamma, k                ! Power spectrum amplitude and shape parameter for DEFW
@@ -230,6 +230,9 @@ MODULE cosmology_functions
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power ! Interpolator status
       LOGICAL :: has_wiggle, has_SPT, has_time, has_Xde ! Interpolator status
       LOGICAL :: is_init, is_normalised ! Flags to check if things have been done 
+
+      ! CAMB
+      CHARACTER(len=256) :: CAMB_exe, CAMB_temp_dir
 
       ! Verbose
       LOGICAL :: verbose
@@ -320,12 +323,12 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iTk_EH = 1            ! Eisenstein & Hu linear spectrum
    INTEGER, PARAMETER :: iTk_CAMB = 2          ! CAMB linear spectrum
    INTEGER, PARAMETER :: iTk_DEFW = 3          ! DEFW linear spectrum
-   INTEGER, PARAMETER :: iTk_external = 4      ! DEFW linear spectrum
+   INTEGER, PARAMETER :: iTk_external = 4      ! External linear spectrum
    INTEGER, PARAMETER :: iTk_nw = 5            ! No-wiggle Eisenstein & Hu linear spectrum
+   INTEGER, PARAMETER :: norm_none = 0         ! Power spectrum does not need to be normalised
    INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
    INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
-   INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB
-   INTEGER, PARAMETER :: norm_none = 4         ! Power spectrum does not need to be normalised
+   INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB   
    INTEGER, PARAMETER :: flag_matter = 1       ! Flag to get the total matter power spectrum
    INTEGER, PARAMETER :: flag_cold = 2         ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
    INTEGER, PARAMETER :: flag_ucold = 3        ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
@@ -865,18 +868,20 @@ CONTAINS
 
       !! Normalisation !!
 
-      ! Overall power normalisaiton, should initially be set to 1 and then will be changed later
+      ! Should initially be set to 1 and then will be changed later by normalisation methods
       cosm%A = 1.
 
       ! Power spectrum normalisation
+      !cosm%norm_method = norm_none   ! No normalisation, just take value of A from below
       cosm%norm_method = norm_sigma8 ! Normalise using sigma_8
       !cosm%norm_method = norm_value ! Large-scale structure normalisation at a specific wavenumber at z=0
-      !cosm%norm_method = norm_As    ! As CMB normalisation
-      cosm%sig8 = 0.8                ! Sigma(R=8, z=0) normalisation if norm_method = norm_sigma8
-      cosm%kval = 0.001              ! Wavenumber for normalisation if norm_method = norm_value
-      cosm%pval = 0.1973236854e-06   ! Power value to get sig8 = 0.8 for a boring cosmology if norm_method = norm_value
-      cosm%kpiv = 0.05               ! Wavenumber at which to define the normalisation if norm_method = norm_As
-      cosm%As = 2.1e-9               ! This is a generally sensible value if norm_method = norm_As
+      !cosm%norm_method = norm_As    ! As normalisation   
+      !cosm%A = 391.                 ! 391. is appropriate for sigma_8=0.8 in boring cosmology (for tests) 
+      cosm%sig8 = 0.8                ! norm_sigma8: sigma(R=8, a=1) normalisation
+      cosm%kval = 0.001              ! norm_value: Wavenumber for normalisation [h/Mpc]
+      cosm%pval = 0.1973236854e-06   ! norm_value: Delta^2 value to get sig8 = 0.8 for a boring cosmology
+      cosm%kpiv = 0.05/cosm%h        ! norm_As: Wavenumber at which to define the normalisation [h/Mpc] NOT [1/Mpc]
+      cosm%As = 2.1e-9               ! norm_As: 2.1e-9 is a sensible value
       
       !! !!
 
@@ -920,6 +925,10 @@ CONTAINS
 
       ! Gas options
       cosm%derive_gas_numbers = .TRUE.
+
+      ! CAMB
+      cosm%CAMB_exe = 'camb'
+      cosm%CAMB_temp_dir = '/Users/Mead/Physics/CAMB_files/tmp/'
 
       IF (icosmo == 1) THEN
          ! Boring - do nothing
@@ -1924,10 +1933,10 @@ CONTAINS
          ELSE IF(cosm%norm_method == norm_value) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: Power'
             WRITE (*, fmt=format) 'COSMOLOGY:', 'k [h/Mpc]:', cosm%kval
-            WRITE (*, fmt=format) 'COSMOLOGY:', 'D^2 [h/Mpc]:', cosm%pval
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'Delta^2:', cosm%pval
          ELSE IF(cosm%norm_method == norm_As) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: A_s'
-            WRITE (*, fmt=format) 'COSMOLOGY:', 'ks [1/Mpc]:', cosm%kpiv
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'ks [h/Mpc]:', cosm%kpiv
             WRITE (*, fmt=format) 'COSMOLOGY:', 'As:', cosm%As
          END IF      
          IF (cosm%box) WRITE (*, fmt=format) 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
@@ -2160,34 +2169,36 @@ CONTAINS
       END IF
 
       ! Get the CAMB power if necessary
+      ! TODO: Should all power_init go here or in assign_cosmology?
       IF (cosm%iTk == iTk_CAMB) CALL init_CAMB_linear(cosm)
       !IF (cosm%iTk == iTk_external) CALL init_external_linear(cosm) ! This is now done in init_cosmology
-      IF (cosm%analytical_power .AND. interp_all_power) THEN
-         ! If you want to create interpolator for analytical P(k)
-         CALL init_analytical_linear(cosm) 
-      END IF
+      IF (cosm%analytical_power .AND. interp_all_power)   CALL init_analytical_linear(cosm) ! If you want to create interpolator for analytical P(k)
       IF (cosm%img == img_fR .OR. cosm%img == img_fR_lin) CALL init_fR_linear(cosm)
 
-      ! Change the flag *before* doing the normalisation calculation because it calls power
+      ! Change the flag *before* doing the normalisation calculation because they call power
       cosm%is_normalised = .TRUE.
 
       ! Normalise the linear spectrum
-      IF (cosm%norm_method == norm_sigma8) THEN
+      IF (cosm%norm_method == norm_none) THEN
+         ! No need to do anything
+      ELSE IF ((cosm%iTk == iTk_external) .AND. (cosm%norm_method .NE. norm_none)) THEN
+         STOP 'NORMALISE_POWER: Error, external power should not be normalised'
+      ELSE IF ((cosm%iTk == iTk_CAMB) .AND. (cosm%norm_method == norm_As)) THEN
+         ! Do nothing because the CAMB will have done the normalisation correctly
+      ELSE IF (cosm%norm_method == norm_sigma8) THEN
          CALL normalise_power_sigma8(cosm)
       ELSE IF (cosm%norm_method == norm_value) THEN
          CALL normalise_power_value(cosm)
-      ELSE IF (cosm%iTk == iTk_CAMB .AND. cosm%norm_method == norm_As) THEN
-         ! Do nothing because the CAMB will have done the normalisation correctly
-      ELSE IF (cosm%iTk == iTk_external .AND. cosm%norm_method == norm_none) THEN
-         ! No need to do anything
+      ELSE IF (cosm%norm_method == norm_As) THEN
+         CALL normalise_power_As(cosm) 
       ELSE
          STOP 'NORMALISE_POWER: Error, normalisation method not specified correctly'
       END IF
 
       ! If normalisation is not done via sigma8 then calculate the correct sigma8
-      IF (cosm%norm_method .NE. norm_sigma8) THEN
-         CALL reset_sigma8(cosm)
-      END IF
+      IF (cosm%norm_method .NE. norm_sigma8) CALL reset_sigma8(cosm)
+      IF (cosm%norm_method .NE. norm_value)  CALL reset_value(cosm)
+      !IF (cosm%norm_method .NE. norm_As)     CALL reset_As(cosm) ! TODO: Make this work
 
    END SUBROUTINE normalise_power
 
@@ -2211,12 +2222,8 @@ CONTAINS
       sigma8_initial = sigma8(cosm)
       IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Initial sigma_8:', real(sigma8_initial)
 
-      ! Normalisation factor
-      ! TODO: Resetting As (CMB) is not really necesary and might not be logical to do here
-      ! TODO: Need to think about normalisation parameters as primary vs. seconary  
-      ! cosm%A = 391.0112 ! Appropriate for sigma_8=0.8 in boring cosmology (for tests)
+      ! Normalisation factor 
       cosm%A = cosm%A*cosm%sig8/sigma8_initial
-      cosm%As = cosm%As*(cosm%sig8/sigma8_initial)**2
 
       ! Replace the k-cut if necessary
       IF (cosm%box) THEN
@@ -2240,33 +2247,92 @@ CONTAINS
 
       ! Normalise the power spectrum by fixing the power at some wavenumber at a=1
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, PARAMETER :: a = 1.
    
-      cosm%A = cosm%A*sqrt(cosm%pval/plin(cosm%kval, a, flag_matter, cosm))
+      cosm%A = cosm%A*sqrt(cosm%pval/pval(cosm))
 
    END SUBROUTINE normalise_power_value
 
+   SUBROUTINE normalise_power_As(cosm)
+
+      ! Normalise the power spectrum by fixing As
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      cosm%A = cosm%A*cosm%As/As(cosm)
+
+   END SUBROUTINE normalise_power_As
+
    SUBROUTINE reset_sigma8(cosm)
 
-      ! Set the value of sigma8 to be correct in the cosmology if it is not used in normalisation
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       cosm%sig8 = sigma8(cosm)
 
    END SUBROUTINE reset_sigma8
 
+   SUBROUTINE reset_value(cosm)
+
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      cosm%pval = pval(cosm)
+
+   END SUBROUTINE reset_value
+
+   SUBROUTINE reset_As(cosm)
+
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      IF (cosm%iTk == iTk_none) THEN
+         cosm%As = 0.
+      ELSE IF (cosm%iTk == iTk_CAMB) THEN
+         cosm%As = cosm%As*cosm%A**2
+      ELSE
+         cosm%As = As(cosm)
+      END IF
+
+   END SUBROUTINE reset_As
+
    RECURSIVE REAL FUNCTION sigma8(cosm)
 
       ! Calculate the value of sigma8 from the linear power spectrum
       ! TODO: Needs to call sigma_intergral, rather than sigma, not sure why, maybe regression?
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, PARAMETER :: R = 8. ! Because we are doing sigma(R = 8 Mpc/h) normalisation
-      REAL, PARAMETER :: a = 1. ! Because we are doing simga(R = 8 Mpc/h, a = 1) normalisation
+      TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
+      REAL, PARAMETER :: R = 8.                ! Because we are doing sigma(R = 8 Mpc/h) normalisation
+      REAL, PARAMETER :: a = 1.                ! Because we are doing sigma(R = 8 Mpc/h, a = 1) normalisation
+      INTEGER, PARAMETER :: flag = flag_matter ! sigma8 is defined for linear matter power, not cold matter
 
-      sigma8 = sigma_integral(R, a, flag_matter, cosm)
+      sigma8 = sigma_integral(R, a, flag, cosm)
       !sigma8 = sigma(R, a, flag_matter, cosm) ! Why not? 
 
    END FUNCTION sigma8
+
+   RECURSIVE REAL FUNCTION pval(cosm)
+
+      TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
+      REAL, PARAMETER :: a = 1.                ! Because we are doing sigma(R = 8 Mpc/h, a = 1) normalisation
+      INTEGER, PARAMETER :: flag = flag_matter ! sigma8 is defined for linear matter power, not cold matter
+
+      pval = plin(cosm%kval, a, flag, cosm)
+
+   END FUNCTION pval
+
+   RECURSIVE REAL FUNCTION As(cosm)
+
+      ! Calculate the value of A_s from the linear power spectrum
+      ! TODO: Figure this out with Alex Hall
+      TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
+      REAL, PARAMETER :: a = 1.                ! Normalisation is at a=1
+      INTEGER, PARAMETER :: flag = flag_matter ! A_s is defined from linear
+      REAL :: kpiv, Tk, g
+
+      kpiv = cosm%kpiv
+      Tk = Tk_matter(kpiv, cosm)
+      g = ungrow(a, cosm)
+      As = (((3./2.)*(10./9.))**2)*(cosm%Om_m**2)*((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/(g*Tk)**2
+
+      WRITE(*, *) 'AS: Calculated As value:', As
+      STOP 'AS: This does not currently work'
+
+   END FUNCTION As
 
    SUBROUTINE init_fR_linear(cosm)
 
@@ -2296,8 +2362,9 @@ CONTAINS
       vinit = 1.
 
       ! Get normalisation for g(k)
-      g = grow(1., cosm) ! Ensures that init_groth has run
-      norm = cosm%gnorm  ! Only will work if init_growth has run
+      !g = grow(1., cosm) ! Ensures that init_groth has run
+      !norm = cosm%gnorm  
+      norm = ungrow(1., cosm) ! Only will work if init_growth has run
 
       ! Write to screen
       IF(cosm%verbose) THEN
@@ -3332,6 +3399,7 @@ CONTAINS
    REAL FUNCTION Tk_matter(k, cosm)
 
       ! Transfer function selection
+      ! Should be T(k<<1) = 1
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       TYPE(cosmology), INTENT(IN) :: cosm
 
@@ -3424,8 +3492,8 @@ CONTAINS
       Omh2 = Om_m*h**2
       Obh2 = Om_b*h**2
 
-      ! Wave-number
-      rk = k*h ! Convert to [1/Mpc]
+      ! Convert wave-number from h/Mpc to 1/Mpc
+      rk = k*h
 
       ! 2.718...
       e = exp(1.)
@@ -3728,7 +3796,7 @@ CONTAINS
             END IF
          ELSE
             ! In this case get the power from the transfer function
-            plin = (grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*k**(cosm%ns+3)
+            plin = (grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*k**(cosm%ns+3.)
          END IF
       END IF
       plin = plin*cosm%A**2
@@ -5011,20 +5079,23 @@ CONTAINS
       REAL, ALLOCATABLE :: Pk_CAMB(:), Tk_CAMB(:,:)
       REAL :: Om_c, Om_b, Om_nu, h, ombh2, omch2, omnuh2
       CHARACTER(len=256) :: infile
+      CHARACTER(len=256) :: camb, dir, root, matterpower, transfer, params
       REAL, PARAMETER :: kmax = kmax_plin ! Maximum wavenumber to get the power to [h/Mpc]
       REAL, PARAMETER :: nmax = nmax_CAMB ! Multiplicative factor to go beyond kmax
-      CHARACTER(len=256), PARAMETER :: camb = 'camb'
-      CHARACTER(len=256), PARAMETER :: dir = '/Users/Mead/Physics/CAMB_files/tmp/'
-      CHARACTER(len=256), PARAMETER :: root = trim(dir)//'temp'
-      CHARACTER(len=256), PARAMETER :: matterpower = trim(root)//'_matterpower_'
-      CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
-      CHARACTER(len=256), PARAMETER :: params = trim(root)//'_create_params.ini'
+
+      ! Sort executable, directories and files
+      camb = cosm%CAMB_exe
+      dir = cosm%CAMB_temp_dir
+      root = trim(dir)//'temp'
+      matterpower = trim(root)//'_matterpower_'
+      transfer = trim(root)//'_transfer_'
+      params = trim(root)//'_create_params.ini'
 
       IF(cosm%iTk .NE. iTk_CAMB) STOP 'GET_CAMB_POWER: Normalisation will not work unless iTk_CAMB is set'
 
       IF (cosm%verbose) THEN
          WRITE(*,*) 'GET_CAMB_POWER: Running CAMB'
-         WRITE(*,*) 'GET_CAMB_POWER: kpiv [1/Mpc]:', real(cosm%kpiv)
+         WRITE(*,*) 'GET_CAMB_POWER: kpiv [h/Mpc]:', real(cosm%kpiv)
          WRITE(*,*) 'GET_CAMB_POWER: As:', real(cosm%As)
          WRITE(*,*) 'GET_CAMB_POWER: Minimum a:', a(1)
          WRITE(*,*) 'GET_CAMB_POWER: Maximum a:', a(na)
@@ -5116,8 +5187,8 @@ CONTAINS
       WRITE (7, *) 'scalar_spectral_index(1) =', cosm%ns
       WRITE (7, *) 'scalar_nrun(1) = 0'
       WRITE (7, *) 'scalar_amp(1) =', cosm%As
-      WRITE (7, *) 'pivot_scalar =', cosm%kpiv
-      WRITE (7, *) 'pivot_tensor =', cosm%kpiv
+      WRITE (7, *) 'pivot_scalar =', cosm%kpiv*cosm%h ! Note that CAMB uses Mpc whereas I use Mpc/h
+      WRITE (7, *) 'pivot_tensor =', cosm%kpiv*cosm%h ! Note that CAMB uses Mpc whereas I use Mpc/h
 
       ! Reionisation
       WRITE (7, *) 'reionization = F'
@@ -5294,12 +5365,7 @@ CONTAINS
       REAL, ALLOCATABLE :: a(:), kPk(:), Pk(:, :), kTc(:), Tc(:, :), kkPk(:), Pkk(:, :)
       REAL :: k, fac
       INTEGER :: i, j, na, nPk, nTc, ik
-      CHARACTER(len=256), PARAMETER :: camb = 'camb'
-      CHARACTER(len=256), PARAMETER :: dir = '/Users/Mead/Physics/CAMB_files/tmp/'
-      CHARACTER(len=256), PARAMETER :: root = trim(dir)//'temp'
-      CHARACTER(len=256), PARAMETER :: matterpower = trim(root)//'_matterpower_'
-      CHARACTER(len=256), PARAMETER :: transfer = trim(root)//'_transfer_'
-      CHARACTER(len=256), PARAMETER :: params = trim(root)//'_params.ini'
+      CHARACTER(len=256) :: camb, dir, root, matterpower, transfer, params
       LOGICAL, PARAMETER :: non_linear = .FALSE. ! Should not use non-linear when trying to get linear theory
       INTEGER, PARAMETER :: halofit_version = 0  ! Irrelevant here because we are getting linear spectrum
       REAL, PARAMETER :: kmin_rebin = kmin_plin  ! Minimum k if rebinning [h/Mpc]
@@ -5308,6 +5374,14 @@ CONTAINS
       REAL, PARAMETER :: amin = amin_plin        ! Minimum scale factor to get from CAMB
       REAL, PARAMETER :: amax = amax_plin        ! Maximum scale factor to get from CAMB
       LOGICAL, PARAMETER :: rebin = rebin_CAMB   ! Should we rebin CAMB input P(k)?
+
+      ! Sort executable, directories and files
+      camb = cosm%CAMB_exe
+      dir = cosm%CAMB_temp_dir
+      root = trim(dir)//'temp'
+      matterpower = trim(root)//'_matterpower_'
+      transfer = trim(root)//'_transfer_'
+      params = trim(root)//'_create_params.ini'
 
       IF (cosm%verbose) THEN
          WRITE(*,*) 'INIT_CAMB_LINEAR: Getting linear power from CAMB'
@@ -7454,29 +7528,46 @@ CONTAINS
 
    END FUNCTION F3_SPT
 
-   SUBROUTINE calculate_rescaling_parameters(x1_tgt, x2_tgt, s, a, a_tgt, cosm_ini, cosm_tgt, irescale)
+   SUBROUTINE calculate_rescaling_parameters(x1_tgt, x2_tgt, s, a, a_tgt, cosm_ini, cosm_tgt, irescale, verbose)
 
-      REAL, INTENT(IN) :: x1_tgt
-      REAL, INTENT(IN) :: x2_tgt
-      REAL, INTENT(OUT) :: s
-      REAL, INTENT(OUT) :: a
-      REAL, INTENT(IN) :: a_tgt
-      TYPE(cosmology), INTENT(INOUT) :: cosm_ini
-      TYPE(cosmology), INTENT(INOUT) :: cosm_tgt
-      INTEGER, INTENT(IN) :: irescale
-      REAL, ALLOCATABLE :: as(:), ss(:)
+      USE basic_operations
+
+      ! Calculates the AW10 (s, a) rescaling coefficients to go from cosm_ini to cosm_tgt
+      ! cosm_tgt will be approximated by cosm_ini with R -> R/s (or k -> s*k) at scale factor a
+      ! Note *NOT* a_tgt, which is the desired scale factor in the target cosmology
+
+      REAL, INTENT(IN) :: x1_tgt                 ! Minimum value for minimization of (s, a) pair (either R or k)
+      REAL, INTENT(IN) :: x2_tgt                 ! Maximum value for minimization of (s, a) pair (either R or k)
+      REAL, INTENT(OUT) :: s                     ! AW10 physical rescaling factor (R -> R/s)
+      REAL, INTENT(OUT) :: a                     ! AW10 rescaling scale factor
+      REAL, INTENT(IN) :: a_tgt                  ! Desired scale factor in the target cosmology
+      TYPE(cosmology), INTENT(INOUT) :: cosm_ini ! Initial cosmmology
+      TYPE(cosmology), INTENT(INOUT) :: cosm_tgt ! Target cosmology
+      INTEGER, INTENT(IN) :: irescale            ! Rescaling type (either sigma(R) or P(k))
+      LOGICAL, OPTIONAL, INTENT(IN) :: verbose   ! Verbosity
+      REAL, ALLOCATABLE :: a_tab(:), s_tab(:)
       INTEGER :: ia, is, ia_best, is_best
       REAL :: a_best, s_best, cost, cost_best
       REAL :: k1_tgt, k2_tgt, R1_tgt, R2_tgt
-      REAL, PARAMETER :: amin = amin_rescale
-      REAL, PARAMETER :: amax = amax_rescale
-      INTEGER, PARAMETER :: na = na_rescale
       REAL, PARAMETER :: smin = smin_rescale
       REAL, PARAMETER :: smax = smax_rescale
       INTEGER, PARAMETER :: ns = ns_rescale
+      REAL, PARAMETER :: amin = amin_rescale
+      REAL, PARAMETER :: amax = amax_rescale
+      INTEGER, PARAMETER :: na = na_rescale
 
-      WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Starting'
+      ! Write to screen
+      IF (present_and_correct(verbose)) THEN
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Starting'
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Minimum s:', smin
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Maximum s:', smax
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Number of s values:', ns
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Minimum a:', amin
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Maximum a:', amax
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Number of s values:', na
+      END IF
 
+      ! Set the range of either R or k over which to minimize
       IF (irescale == irescale_sigma) THEN
          R1_tgt = x1_tgt
          R2_tgt = x2_tgt
@@ -7488,8 +7579,8 @@ CONTAINS
       END IF
 
       ! Fill arrays of s, a values
-      CALL fill_array(smin, smax, ss, ns)
-      CALL fill_array(amin, amax, as, na)
+      CALL fill_array(smin, smax, s_tab, ns)
+      CALL fill_array(amin, amax, a_tab, na)
 
       ! Loop over grid of values to find minimum cost
       cost_best = huge(cost_best)
@@ -7497,8 +7588,8 @@ CONTAINS
          DO ia = 1, na
       
             ! Calculate the cost associated with s, a values
-            s = ss(is)
-            a = as(ia)
+            s = s_tab(is)
+            a = a_tab(ia)
             IF (irescale == irescale_sigma) THEN     
                cost = rescaling_cost_sigma(R1_tgt, R2_tgt, s, a, a_tgt, cosm_ini, cosm_tgt)
             ELSE IF (irescale == irescale_power) THEN
@@ -7523,16 +7614,24 @@ CONTAINS
       s = s_best
       a = a_best
 
-      WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Best-fitting s:', s
-      WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Best-fitting a:', a
-      IF (is_best == 1 .OR. is_best == ns) STOP 'CALCULATE_RESCALING_PARAMETERS: Error, best-fitting s is on boundary'
-      IF (ia_best == 1 .OR. ia_best == na) STOP 'CALCULATE_RESCALING_PARAMETERS: Error, best-fitting a is on boundary'
-      WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Done'
-      WRITE(*, *)
+      ! Write to screen and report error if best-fit is on the boundary
+      IF (present_and_correct(verbose)) THEN
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Best-fitting s:', s
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Best-fitting a:', a
+      END IF
+      !IF (is_best == 1 .OR. is_best == ns) STOP 'CALCULATE_RESCALING_PARAMETERS: Error, best-fitting s is on boundary'
+      !IF (ia_best == 1 .OR. ia_best == na) STOP 'CALCULATE_RESCALING_PARAMETERS: Error, best-fitting a is on boundary'
+      IF (present_and_correct(verbose)) THEN
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Done'
+         WRITE(*, *)
+      END IF
    
    END SUBROUTINE calculate_rescaling_parameters
 
    REAL FUNCTION rescaling_cost_sigma(R1_tgt, R2_tgt, s, a_ini, a_tgt, cosm_ini, cosm_tgt)
+
+      ! Rescaling cost function for minimizing sigma(R, a) differences
+      ! Note that this integrates over a ln(R) range
 
       REAL, INTENT(IN) :: R1_tgt
       REAL, INTENT(IN) :: R2_tgt
@@ -7545,6 +7644,7 @@ CONTAINS
       REAL, PARAMETER :: acc = acc_rescaling
       INTEGER, PARAMETER :: iorder = iorder_rescaling
 
+      ! Integrate and normalise 
       rescaling_cost_sigma = integrate_cosm(log(R1_tgt), log(R2_tgt), rescaling_cost_sigma_integrand, &
          s, a_ini, a_tgt, flag, cosm_ini, cosm_tgt, acc, iorder)
       rescaling_cost_sigma = rescaling_cost_sigma/log(R2_tgt/R1_tgt)
@@ -7552,6 +7652,9 @@ CONTAINS
    END FUNCTION rescaling_cost_sigma
 
    REAL FUNCTION rescaling_cost_sigma_integrand(lnR, s, a_ini, a_tgt, flag, cosm_ini, cosm_tgt)
+
+      ! Integrand for rescaling cost function in terms of sigma
+      ! Note that this integrates over ln(R)
 
       REAL, INTENT(IN) :: lnR
       REAL, INTENT(IN) :: s
@@ -7562,12 +7665,16 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm_tgt
       REAL :: R
 
+      ! Change input from ln(R) to R and evaluate integrand
       R = exp(lnR)
       rescaling_cost_sigma_integrand = (1.-sigma(R/s, a_ini, flag, cosm_ini)/sigma(R, a_tgt, flag, cosm_tgt))**2
 
    END FUNCTION rescaling_cost_sigma_integrand
 
    REAL FUNCTION rescaling_cost_power(k1_tgt, k2_tgt, s, a_ini, a_tgt, cosm_ini, cosm_tgt)
+
+      ! Rescaling cost function for minimizing Delta^2(k, a) differences
+      ! Note that this integrates over a ln(k) range
 
       REAL, INTENT(IN) :: k1_tgt
       REAL, INTENT(IN) :: k2_tgt
@@ -7580,6 +7687,7 @@ CONTAINS
       REAL, PARAMETER :: acc = acc_rescaling
       INTEGER, PARAMETER :: iorder = iorder_rescaling
 
+      ! Integrate and then normalise
       rescaling_cost_power = integrate_cosm(log(k1_tgt), log(k2_tgt), rescaling_cost_power_integrand, &
          s, a_ini, a_tgt, flag, cosm_ini, cosm_tgt, acc, iorder)
       rescaling_cost_power = rescaling_cost_power/log(k2_tgt/k1_tgt)
@@ -7587,6 +7695,9 @@ CONTAINS
    END FUNCTION rescaling_cost_power
 
    REAL FUNCTION rescaling_cost_power_integrand(lnk, s, a_ini, a_tgt, flag, cosm_ini, cosm_tgt)
+
+      ! Integrand for rescaling cost function in terms of power
+      ! Note that this integrates over ln(k)
 
       REAL, INTENT(IN) :: lnk
       REAL, INTENT(IN) :: s
@@ -7597,6 +7708,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm_tgt
       REAL :: k
 
+      ! Change input from ln(k) to k and evaluate integrand
       k = exp(lnk)
       rescaling_cost_power_integrand = (1.-plin(k*s, a_ini, flag, cosm_ini)/plin(k, a_tgt, flag, cosm_tgt))**2
 
