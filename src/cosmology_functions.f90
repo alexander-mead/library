@@ -102,31 +102,45 @@ MODULE cosmology_functions
    PUBLIC :: dc_Mead
    PUBLIC :: dc_Spherical
 
-   ! Power and correlation
+   ! Power spectrum
    PUBLIC :: Pk_Delta
    PUBLIC :: Delta_Pk
    PUBLIC :: plin
    PUBLIC :: calculate_plin
    PUBLIC :: calculate_psmooth
    PUBLIC :: P_dewiggle
-   PUBLIC :: Tk_nw
-   PUBLIC :: sigma8
+   
+   ! sigma et al.
    PUBLIC :: sigma
    PUBLIC :: sigmaV
    PUBLIC :: neff
    PUBLIC :: ncur
+   !PUBLIC :: sigma8
+   PUBLIC :: Lagrangian_mass
+   PUBLIC :: Lagrangian_radius
+
+   ! Correlation function
    PUBLIC :: xi_lin
+
+   ! Power spectrum normalisation
+   PUBLIC :: norm_sigma8
+   PUBLIC :: norm_none
+   PUBLIC :: norm_As
+   PUBLIC :: norm_value
+
+   ! Flags for power type
    PUBLIC :: flag_matter
    PUBLIC :: flag_cold
    PUBLIC :: flag_ucold
-   PUBLIC :: norm_sigma8
-   PUBLIC :: norm_none
+
+   ! Transfer functions
    PUBLIC :: iTk_none
    PUBLIC :: iTk_EH
    PUBLIC :: iTk_nw
    PUBLIC :: iTk_DEFW
    PUBLIC :: iTk_CAMB
    PUBLIC :: iTk_external
+   !PUBLIC :: Tk_nw
 
    PUBLIC :: init_external_linear_power_tables
 
@@ -206,11 +220,12 @@ MODULE cosmology_functions
       REAL :: mue, mup                   ! Gas parameters
 
       ! Derived parameters
-      REAL :: A, Gamma, k                ! Power spectrum amplitude and shape parameter for DEFW
+      REAL :: A                          ! Power spectrum amplitude [weird units]
       REAL :: Om, Om_k, Om_c, Om_g, Om_r ! Derived Omegas
       REAL :: Om_nu, f_nu, a_nu          ! Neutrinos
       REAL :: Om_nu_rad, omega_nu, T_nu  ! Neutrinos
       REAL :: omega_m, omega_b, omega_c  ! Physical densities
+      REAL :: k                          ! Curvature [(Mpc/h)^-2]
       REAL :: Om_c_pow                   ! Cosmological parameters used for P(k) if different from background
       REAL :: age, horizon               ! Derived distance/time
       REAL :: YHe                        ! Derived thermal parameters
@@ -533,12 +548,9 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: flag_rescaling = flag_ucold
    REAL, PARAMETER :: acc_rescaling = acc_cosm
    INTEGER, PARAMETER :: iorder_rescaling = 3
-   REAL, PARAMETER :: amin_rescale = 0.25
-   REAL, PARAMETER :: amax_rescale = 2.0
-   INTEGER, PARAMETER :: na_rescale = 128
-   REAL, PARAMETER :: smin_rescale = 0.5
-   REAL, PARAMETER :: smax_rescale = 2.0
-   INTEGER, PARAMETER :: ns_rescale = 128
+   REAL, PARAMETER :: smin_rescale = 0.33
+   REAL, PARAMETER :: smax_rescale = 3.00
+   INTEGER, PARAMETER :: ns_rescale = nint(1+100.*(smax_rescale-smin_rescale))
 
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
@@ -647,12 +659,12 @@ CONTAINS
       names(84) = 'f(R) with F4, n=1'
       names(85) = 'f(R) with F5, n=1'
       names(86) = 'f(R) with F6, n=1'
-      names(87) = 'linearised f(R) with F4, n=1'
-      names(88) = 'linearised f(R) with F5, n=1'
-      names(89) = 'linearised f(R) with F6, n=1'
-      names(90) = 'linearised nDGP - Strong'
-      names(91) = 'linearised nDGP - Medium'
-      names(92) = 'linearised nDGP - Weak'
+      names(87) = 'Linearised f(R) with F4, n=1'
+      names(88) = 'Linearised f(R) with F5, n=1'
+      names(89) = 'Linearised f(R) with F6, n=1'
+      names(90) = 'Linearised nDGP - Strong'
+      names(91) = 'Linearised nDGP - Medium'
+      names(92) = 'Linearised nDGP - Weak'
       names(93) = 'Planck 2015 0.12eV (BAHAMAS)'
       names(94) = 'Planck 2015 0.24eV (BAHAMAS)'
       names(95) = 'Planck 2015 0.48eV (BAHAMAS)'
@@ -684,6 +696,8 @@ CONTAINS
       names(259) = 'Boring but with low sigma_8 = 0.5'
       names(260) = 'Boring bit with high sigma_8 = 1.2'
       names(261) = 'Millenium WMAP 1'
+      names(262) = 'TCDM - from rescaling'
+      names(263) = 'WMAP3'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1554,6 +1568,29 @@ CONTAINS
          cosm%h = 0.73
          cosm%sig8 = 0.9
          cosm%ns = 1.
+         cosm%iTk = iTK_CAMB
+      ELSE IF (icosmo == 262) THEN
+         ! TCDM (from Mead & Peacock 2014; 1308.5183; spectral shape similar to LCDM)
+         cosm%Om_m = 1.
+         cosm%Om_v = 0.
+         cosm%Om_b = 0.
+         cosm%h = 0.5
+         cosm%sig8 = 0.8
+         cosm%ns = 1.
+         cosm%power_Omegas = .TRUE.
+         cosm%Om_m_pow = 0.3 ! Only need Gamma = Om_m*h to be 0.21
+         cosm%Om_b_pow = 0.1 ! Only need Gamma = Om_m*h to be 0.21
+         cosm%h_pow = 0.7    ! Only need Gamma = Om_m*h to be 0.21
+         cosm%iTk = iTk_DEFW
+      ELSE IF (icosmo == 263) THEN
+         ! WMAP3 (from Angulo & White 2010; 0912.4277)
+         cosm%Om_m = 0.238
+         cosm%Om_v = 1.-cosm%Om_m
+         cosm%Om_b = 0.0416
+         cosm%h = 0.732
+         cosm%sig8 = 0.761
+         cosm%ns = 1.
+         cosm%iTk = iTk_CAMB    
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1755,12 +1792,7 @@ CONTAINS
          WRITE (*, *) 'INIT_COSMOLOGY: mu_e:', cosm%mue
       END IF
 
-      ! Gamma for DEFW
-      cosm%Gamma = cosm%Om_m*cosm%h
-      IF (cosm%verbose) THEN
-         WRITE (*, *) 'INIT_COSMOLOGY: Gamma:', cosm%Gamma
-      END IF
-
+      ! Cosmology is now initialised
       cosm%is_init = .TRUE.
 
       ! Checks for dark energy models
@@ -3444,12 +3476,19 @@ CONTAINS
       ! This function was written by John Peacock
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
       TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: keff, q, tk4
+      REAL :: keff, q, tk4, Gamma
       DOUBLE PRECISION :: q8, tk8
 
-      keff = 0.172+0.011*log(cosm%Gamma/0.36)*log(cosm%Gamma/0.36)
-      q = 1.e-20+k/cosm%Gamma
-      q8 = 1.e-20+keff/cosm%Gamma
+      ! Calculate shape parameter
+      IF (cosm%power_Omegas) THEN
+         Gamma = cosm%Om_m_pow*cosm%h_pow
+      ELSE
+         Gamma = cosm%Om_m*cosm%h
+      END IF
+
+      keff = 0.172+0.011*log(Gamma/0.36)*log(Gamma/0.36)
+      q = 1.e-20+k/Gamma
+      q8 = 1.e-20+keff/Gamma
       tk4 = 1./(1.+(6.4*q+(3.0*q)**1.5+(1.7*q)**2)**1.13)**(1./1.13)
       tk8 = 1./(1.+(6.4*q8+(3.0*q8)**1.5+(1.7*q8)**2)**1.13)**(1./1.13)
 
@@ -3565,17 +3604,24 @@ CONTAINS
       REAL, PARAMETER :: e = exp(1.)
 
       ! Useful parameters to make equations shorter
-      wm = cosm%Om_m*cosm%h**2 ! Real matter density
-      wb = cosm%Om_b*cosm%h**2 ! Real baryon density
-      rb = cosm%Om_b/cosm%Om_m ! Baryon ratio
-      h = cosm%h               ! Hubble factor
+      IF (cosm%power_Omegas) THEN
+         wm = cosm%Om_m_pow*cosm%h_pow**2 ! Real matter density
+         wb = cosm%Om_b_pow*cosm%h_pow**2 ! Real baryon density
+         h = cosm%h_pow                   ! Hubble factor
+      ELSE
+         wm = cosm%Om_m*cosm%h**2 ! Real matter density
+         wb = cosm%Om_b*cosm%h**2 ! Real baryon density
+         h = cosm%h               ! Hubble factor
+      END IF
+      rb = wm/wb ! Baryon ratio
 
       ! These only needs to be calculated once
       s = 44.5*log(9.83/wm)/sqrt(1.+10.*wb**0.75)              ! Equation (26)
       alpha = 1.-0.328*log(431.*wm)*rb+0.38*log(22.3*wm)*rb**2 ! Equation (31)
 
       ! Functions of k
-      Gamma = cosm%Gamma*(alpha+(1.-alpha)/(1.+(0.43*k*s*h)**4)) ! Equation (30)
+      Gamma = cosm%Om_m*h
+      Gamma = Gamma*(alpha+(1.-alpha)/(1.+(0.43*k*s*h)**4)) ! Equation (30)
       q = k*(cosm%T_CMB/2.7)**2/Gamma ! Equation (28)
       L = log(2.*e+1.8*q)             ! Equation (29)
       C = 14.2+731./(1.+62.5*q)       ! Equation (29)
@@ -4163,6 +4209,31 @@ CONTAINS
 
    END FUNCTION ddsigma_integrand
 
+   REAL FUNCTION Lagrangian_mass(R, cosm)
+
+      ! Lagrangian mass associated with comoving scale R
+      REAL, INTENT(IN) :: R
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: rho
+
+      rho = comoving_matter_density(cosm)
+      Lagrangian_mass = 4.*pi*R**3*rho/3.
+
+   END FUNCTION Lagrangian_mass
+
+   REAL FUNCTION Lagrangian_radius(M, cosm)
+
+      ! Comoving Lagranigan radius associated with mass M
+      USE special_functions
+      REAL, INTENT(IN) :: M
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: rho
+
+      rho = comoving_matter_density(cosm)
+      Lagrangian_radius = cbrt(M/(4.*pi*rho/3.))
+
+   END FUNCTION Lagrangian_radius
+
    REAL RECURSIVE FUNCTION grow(a, cosm)
 
       ! Scale-independent growth function, normalised | g(a=1)=1
@@ -4660,7 +4731,8 @@ CONTAINS
       REAL, PARAMETER :: eps = 1e-2
 
       M = 1. ! Mass perturbation can be anything, it cancels out in the end  
-      r = (3.*M/(4.*pi*comoving_matter_density(cosm)*d))**(1./3.) ! Convert the mass perturbation to a comoving radius (M=4*pi*r^3*delta/3)    
+      !r = (3.*M/(4.*pi*comoving_matter_density(cosm)*d))**(1./3.) 
+      r = Lagrangian_radius(d, cosm) ! Convert the mass perturbation to a comoving radius (M=4*pi*r^3*delta/3)
       r = r*a ! Convert comoving -> physical radius      
       r3 = (r/r_Vainshtein_DGP(M, a, cosm))**3 ! G_nl depends on r3 only
       IF((1./r3) < eps) THEN
@@ -7528,7 +7600,7 @@ CONTAINS
 
    END FUNCTION F3_SPT
 
-   SUBROUTINE calculate_rescaling_parameters(x1_tgt, x2_tgt, s, a, a_tgt, cosm_ini, cosm_tgt, irescale, verbose)
+   SUBROUTINE calculate_rescaling_parameters(x1_tgt, x2_tgt, as_ini, s, a, a_tgt, cosm_ini, cosm_tgt, irescale, verbose)
 
       USE basic_operations
 
@@ -7538,6 +7610,7 @@ CONTAINS
 
       REAL, INTENT(IN) :: x1_tgt                 ! Minimum value for minimization of (s, a) pair (either R or k)
       REAL, INTENT(IN) :: x2_tgt                 ! Maximum value for minimization of (s, a) pair (either R or k)
+      REAL, INTENT(IN) :: as_ini(:)              ! Array of possible a values from the initial cosmology
       REAL, INTENT(OUT) :: s                     ! AW10 physical rescaling factor (R -> R/s)
       REAL, INTENT(OUT) :: a                     ! AW10 rescaling scale factor
       REAL, INTENT(IN) :: a_tgt                  ! Desired scale factor in the target cosmology
@@ -7545,16 +7618,19 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm_tgt ! Target cosmology
       INTEGER, INTENT(IN) :: irescale            ! Rescaling type (either sigma(R) or P(k))
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose   ! Verbosity
-      REAL, ALLOCATABLE :: a_tab(:), s_tab(:)
-      INTEGER :: ia, is, ia_best, is_best
+      REAL, ALLOCATABLE :: s_tab(:)
+      INTEGER :: ia, is, ia_best, is_best, na
       REAL :: a_best, s_best, cost, cost_best
       REAL :: k1_tgt, k2_tgt, R1_tgt, R2_tgt
       REAL, PARAMETER :: smin = smin_rescale
       REAL, PARAMETER :: smax = smax_rescale
       INTEGER, PARAMETER :: ns = ns_rescale
-      REAL, PARAMETER :: amin = amin_rescale
-      REAL, PARAMETER :: amax = amax_rescale
-      INTEGER, PARAMETER :: na = na_rescale
+      !REAL, PARAMETER :: amin = amin_rescale
+      !REAL, PARAMETER :: amax = amax_rescale
+      !INTEGER, PARAMETER :: na = na_rescale
+
+      ! Total number of a values
+      na = size(as_ini)
 
       ! Write to screen
       IF (present_and_correct(verbose)) THEN
@@ -7562,9 +7638,18 @@ CONTAINS
          WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Minimum s:', smin
          WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Maximum s:', smax
          WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Number of s values:', ns
-         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Minimum a:', amin
-         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Maximum a:', amax
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Minimum a:', as_ini(1)
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Maximum a:', as_ini(na)
          WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Number of s values:', na
+         IF (irescale == irescale_sigma) THEN
+            WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Target R1 [Mpc/h]:', x1_tgt
+            WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Target R2 [Mpc/h]:', x2_tgt
+         ELSE IF (irescale == irescale_power) THEN
+            WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Target k1 [h/Mpc]:', x1_tgt
+            WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Target k2 [h/Mpc]:', x2_tgt
+         ELSE
+            STOP 'CALCULATE_RESCALING_PARAMETERS: Error, irescale not specified correctly'
+         END IF
       END IF
 
       ! Set the range of either R or k over which to minimize
@@ -7580,7 +7665,6 @@ CONTAINS
 
       ! Fill arrays of s, a values
       CALL fill_array(smin, smax, s_tab, ns)
-      CALL fill_array(amin, amax, a_tab, na)
 
       ! Loop over grid of values to find minimum cost
       cost_best = huge(cost_best)
@@ -7588,8 +7672,9 @@ CONTAINS
          DO ia = 1, na
       
             ! Calculate the cost associated with s, a values
+            ! Note well that the integration variable is in the target cosmology
             s = s_tab(is)
-            a = a_tab(ia)
+            a = as_ini(ia)
             IF (irescale == irescale_sigma) THEN     
                cost = rescaling_cost_sigma(R1_tgt, R2_tgt, s, a, a_tgt, cosm_ini, cosm_tgt)
             ELSE IF (irescale == irescale_power) THEN
@@ -7618,9 +7703,9 @@ CONTAINS
       IF (present_and_correct(verbose)) THEN
          WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Best-fitting s:', s
          WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Best-fitting a:', a
+         WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Best-fitting z:', redshift_a(a)
       END IF
-      !IF (is_best == 1 .OR. is_best == ns) STOP 'CALCULATE_RESCALING_PARAMETERS: Error, best-fitting s is on boundary'
-      !IF (ia_best == 1 .OR. ia_best == na) STOP 'CALCULATE_RESCALING_PARAMETERS: Error, best-fitting a is on boundary'
+      IF (is_best == 1 .OR. is_best == ns) STOP 'CALCULATE_RESCALING_PARAMETERS: Error, best-fitting s is on boundary'
       IF (present_and_correct(verbose)) THEN
          WRITE(*, *) 'CALCULATE_RESCALING_PARAMETERS: Done'
          WRITE(*, *)
@@ -7632,7 +7717,6 @@ CONTAINS
 
       ! Rescaling cost function for minimizing sigma(R, a) differences
       ! Note that this integrates over a ln(R) range
-
       REAL, INTENT(IN) :: R1_tgt
       REAL, INTENT(IN) :: R2_tgt
       REAL, INTENT(IN) :: s
@@ -7654,8 +7738,7 @@ CONTAINS
    REAL FUNCTION rescaling_cost_sigma_integrand(lnR, s, a_ini, a_tgt, flag, cosm_ini, cosm_tgt)
 
       ! Integrand for rescaling cost function in terms of sigma
-      ! Note that this integrates over ln(R)
-
+      ! Note that this integrates over ln(R) in the target cosmology
       REAL, INTENT(IN) :: lnR
       REAL, INTENT(IN) :: s
       REAL, INTENT(IN) :: a_ini
@@ -7675,7 +7758,6 @@ CONTAINS
 
       ! Rescaling cost function for minimizing Delta^2(k, a) differences
       ! Note that this integrates over a ln(k) range
-
       REAL, INTENT(IN) :: k1_tgt
       REAL, INTENT(IN) :: k2_tgt
       REAL, INTENT(IN) :: s
@@ -7697,8 +7779,7 @@ CONTAINS
    REAL FUNCTION rescaling_cost_power_integrand(lnk, s, a_ini, a_tgt, flag, cosm_ini, cosm_tgt)
 
       ! Integrand for rescaling cost function in terms of power
-      ! Note that this integrates over ln(k)
-
+      ! Note that this integrates over ln(k) in the target cosmology
       REAL, INTENT(IN) :: lnk
       REAL, INTENT(IN) :: s
       REAL, INTENT(IN) :: a_ini
