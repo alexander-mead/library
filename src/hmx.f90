@@ -446,20 +446,23 @@ MODULE HMx
    LOGICAL, PARAMETER :: verbose_HI = .TRUE.        ! Verbosity when doing the HI initialisation
 
    ! Non-linear halo bias
-   LOGICAL, PARAMETER :: fixed_bnl = .FALSE.         ! Is the non-linear bias correction taken at fixed z = 0?
-   LOGICAL, PARAMETER :: bnl_assign_sig8 = .TRUE.    ! If not fixed, do we assign based on sig8 or a?
-   LOGICAL, PARAMETER :: add_I_11 = .TRUE.           ! Add integral below numin, numin in halo model calculation
-   LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE.  ! Add integral below numin in halo model calculation
-   REAL, PARAMETER :: kmin_bnl = 8e-2                ! Below this wavenumber force B_NL to zero
-   REAL, PARAMETER :: numin_bnl = 0.                 ! Below this halo mass force  B_NL to zero
-   REAL, PARAMETER :: numax_bnl = 10.                ! Above this halo mass force  B_NL to zero
-   LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.     ! Attempt to manually include damping from halo exclusion
-   LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.   ! Force a minimum value for B_NL
-   REAL, PARAMETER :: min_bnl = -1.                  ! Minimum value for B_NL (could be below -1; cross spectra can be negative)
-   INTEGER, PARAMETER :: iorder_bnl = 1              ! 1 - Linear interpolation
-   INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin   ! Linear extrapolation
-   LOGICAL, PARAMETER :: store_bnl = .FALSE.         ! Storage interpolator mode?
-   CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL'  ! Directory containing BNL measurements
+   INTEGER, PARAMETER :: bnl_method_a = 1           ! Assign B_NL based on scale factor
+   INTEGER, PARAMETER :: bnl_method_sig8 = 2        ! Assign B_NL based on sigma_8
+   INTEGER, PARAMETER :: bnl_method_rescale = 3     ! Assign B_NL based on AW10 rescaling
+   INTEGER, PARAMETER :: bnl_method = bnl_method_rescale  ! Choose method to assign the Multidark measured B_NL
+   LOGICAL, PARAMETER :: fixed_bnl = .FALSE.        ! Is the non-linear bias correction taken at fixed z = 0?
+   LOGICAL, PARAMETER :: add_I_11 = .TRUE.          ! Add integral below numin, numin in halo model calculation
+   LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE. ! Add integral below numin in halo model calculation
+   REAL, PARAMETER :: kmin_bnl = 8e-2               ! Below this wavenumber force B_NL to zero
+   REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass force  B_NL to zero
+   REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass force  B_NL to zero
+   LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
+   LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Force a minimum value for B_NL
+   REAL, PARAMETER :: min_bnl = -1.                 ! Minimum value for B_NL (could be below -1; cross spectra can be negative)
+   INTEGER, PARAMETER :: iorder_bnl = 1             ! 1 - Linear interpolation
+   INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin  ! Linear extrapolation
+   LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
+   CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL' ! Directory containing BNL measurements
    !CHARACTER(len=256), PARAMETER :: cat = 'rockstar' ! Halo catalogue
    !CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/Bolshoi_'//trim(cat_bnl)
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/MDR1_'//trim(cat_bnl)
@@ -720,7 +723,7 @@ CONTAINS
       names(111) = 'Perturbation theory inspired and fitted two-halo term'
       names(112) = 'Tinker (2008) mass function with no z evolution'
       names(113) = 'Tinker (2010) mass function and peak-background split bias with no z evolution'
-      names(114) = 'Non-linear halo bias with no extrapolation'
+      names(114) = 'Non-linear halo bias'
       names(115) = 'Tinker (2010) mass function'
       names(116) = 'Non-linear halo bias with no extrapolation'
       names(117) = 'Non-linear halo bias with Bolshoi'
@@ -4368,12 +4371,35 @@ CONTAINS
       INTEGER :: nbin, nk
       INTEGER :: snap
       INTEGER :: u
-      REAL :: crap, sig8
+      INTEGER :: icos
+      REAL :: crap, sig8, s, a_MD
       REAL, ALLOCATABLE :: k(:), nu(:), B(:, :, :)
+      TYPE(cosmology) :: cosm_MD
       CHARACTER(len=256) :: infile, inbase, base
       CHARACTER(len=256) :: base_bnl, base_bnl_lownu
       LOGICAL, PARAMETER :: verbose = .TRUE.
       INTEGER, PARAMETER :: flag = flag_ucold
+      INTEGER, PARAMETER :: icos_MD = 37
+      REAL, PARAMETER :: R1 = 0.1
+      REAL, PARAMETER :: R2 = 10.
+      INTEGER, PARAMETER :: irescale = irescale_sigma
+
+      ! Multidark scale factors
+      REAL, PARAMETER :: as_MD(35) = &
+         [0.257, 0.287, 0.318, 0.348, 0.378, 0.409, 0.439, &
+         0.470, 0.500, 0.530, 0.561, 0.591, 0.621, 0.652, &
+         0.682, 0.713, 0.728, 0.743, 0.758, 0.773, 0.788, &
+         0.804, 0.819, 0.834, 0.849, 0.864, 0.880, 0.895, &
+         0.910, 0.925, 0.940, 0.956, 0.971, 0.986, 1.001]
+
+      ! Snapshots corresponding to scale factors
+      INTEGER, PARAMETER :: snaps(35) = &
+         [36, 38, 40, 42, 44, 46, 48, &
+         50, 52, 54, 56, 58, 60, 62, &
+         64, 66, 67, 68, 69, 70, 71, &
+         72, 73, 74, 75, 76, 77, 78, &
+         79, 80, 81, 82, 83, 84, 85]
+
 
       ! Input files
       base_bnl = trim(hmod%bnl_path)//trim(dir_bnl)//'/M512/MDR1_'//trim(hmod%bnl_cat)
@@ -4404,11 +4430,19 @@ CONTAINS
             IF(snippet_in_string('Bolshoi', base)) THEN
                STOP 'INIT_BNL: Searching BNL does not work with Bolshoi yet'
             ELSE
-               IF (bnl_assign_sig8) THEN
+               IF (bnl_method == bnl_method_a) THEN
+                  snap = nearest_Multidark_snapshot(hmod%a)
+               ELSE IF (bnl_method == bnl_method_sig8) THEN
                   sig8 = sigma(8., hmod%a, flag_ucold, cosm)
-                  snap = nearest_multidark_snapshot_sig8(sig8)
+                  snap = nearest_Multidark_snapshot_sig8(sig8)
+               ELSE IF (bnl_method == bnl_method_rescale) THEN
+                  icos = icos_MD
+                  CALL assign_init_cosmology(icos, cosm_MD, verbose=.FALSE.)
+                  CALL calculate_rescaling_parameters(R1, R2, as_MD, s, a_MD, hmod%a, cosm_MD, cosm, irescale, verbose=.FALSE.)
+                  snap = nearest_Multidark_snapshot(a_MD)
+                  !snap = snaps(array_position(a_MD, as_MD))
                ELSE
-                  snap = nearest_multidark_snapshot(hmod%a)
+                  STOP 'INIT_BNL: Error, bnl_method is specified incorrectly'     
                END IF
             END IF
          END IF
@@ -4447,6 +4481,9 @@ CONTAINS
          END DO
          CLOSE(u)        
          B = B-1. ! Convert from 1+B_NL to B_NL
+
+         ! Rescale k values if necessary
+         IF (bnl_method == bnl_method_rescale) k = s*k
 
          ! Initialise interpolator
          CALL init_interpolator(k, nu, nu, B, Bnl_interp, &
