@@ -118,6 +118,7 @@ MODULE cosmology_functions
    !PUBLIC :: sigma8
    PUBLIC :: Lagrangian_mass
    PUBLIC :: Lagrangian_radius
+   PUBLIC :: As
 
    ! Correlation function
    PUBLIC :: xi_lin
@@ -238,10 +239,10 @@ MODULE cosmology_functions
       REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:)     ! Arrays for input linear P(k) TODO: Remove
       REAL, ALLOCATABLE :: log_a_plin(:), log_plina(:, :) ! Arrays for input linear P(k, a) TODO: Remove
       TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde ! 1D interpolators
-      TYPE(interpolator1D) :: plin, wiggle, rspt
-      TYPE(interpolator2D) :: sigmaa, plina, Tcold, wigglea ! 2D interpolators 
+      TYPE(interpolator1D) :: plin, wiggle, rspt, Tk_matter, Tk_cold
+      TYPE(interpolator2D) :: sigmaa, plina, Tka_cold, Tka_matter, wigglea ! 2D interpolators 
       INTEGER :: nk_plin, na_plin ! Number of array entries
-      LOGICAL :: analytical_power                                                          
+      LOGICAL :: analytical_Tk                                                          
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power ! Interpolator status
       LOGICAL :: has_wiggle, has_SPT, has_time, has_Xde ! Interpolator status
       LOGICAL :: is_init, is_normalised ! Flags to check if things have been done 
@@ -377,12 +378,12 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iTc_CAMB = 3  ! Taken from CAMB
 
    ! EH cold transfer function
-   LOGICAL, PARAMETER :: Tcold_EdS_growth = .FALSE. ! Use the (incorrect) EdS growth function in the fitting function
+   LOGICAL, PARAMETER :: Tk_cold_EdS_growth = .FALSE. ! Use the (incorrect) EdS growth function in the fitting function
 
    ! CAMB cold transfer function
-   INTEGER, PARAMETER :: iextrap_Tcold = iextrap_lin ! Extrapolation scheme for cold interpolation
-   INTEGER, PARAMETER :: iorder_interp_Tcold = 3     ! Order for cold interpolatin
-   LOGICAL, PARAMETER :: store_Tcold = .TRUE.        ! Storage for cold interpolation
+   INTEGER, PARAMETER :: iextrap_Tk = iextrap_lin ! Extrapolation scheme for cold interpolation
+   INTEGER, PARAMETER :: iorder_interp_Tk = 3     ! Order for cold interpolatin
+   LOGICAL, PARAMETER :: store_Tk = .TRUE.        ! Storage for cold interpolation
 
    ! Wiggle smoothing extraction methods
    INTEGER, PARAMETER :: dewiggle_tophat = 1   ! Top-hat smoothing
@@ -926,7 +927,7 @@ CONTAINS
       ! Set is flags to negative
       cosm%is_init = .FALSE.
       cosm%is_normalised = .FALSE.
-      cosm%analytical_power = .FALSE.
+      cosm%analytical_Tk = .FALSE.
 
       ! Interpolators
       CALL reset_interpolator_status(cosm)
@@ -1843,9 +1844,9 @@ CONTAINS
 
       ! Switch analytical transfer function
       IF (is_in_array(cosm%iTk, [iTk_EH, iTk_DEFW, iTk_none, iTk_nw])) THEN
-         cosm%analytical_power = .TRUE.
+         cosm%analytical_Tk = .TRUE.
       ELSE
-         cosm%analytical_power = .FALSE.
+         cosm%analytical_Tk = .FALSE.
       END IF
 
       ! TILMAN: Added this
@@ -2204,7 +2205,7 @@ CONTAINS
       ! TODO: Should all power_init go here or in assign_cosmology?
       IF (cosm%iTk == iTk_CAMB) CALL init_CAMB_linear(cosm)
       !IF (cosm%iTk == iTk_external) CALL init_external_linear(cosm) ! This is now done in init_cosmology
-      IF (cosm%analytical_power .AND. interp_all_power)   CALL init_analytical_linear(cosm) ! If you want to create interpolator for analytical P(k)
+      IF (cosm%analytical_Tk .AND. interp_all_power)   CALL init_analytical_linear(cosm) ! If you want to create interpolator for analytical P(k)
       IF (cosm%img == img_fR .OR. cosm%img == img_fR_lin) CALL init_fR_linear(cosm)
 
       ! Change the flag *before* doing the normalisation calculation because they call power
@@ -2213,10 +2214,8 @@ CONTAINS
       ! Normalise the linear spectrum
       IF (cosm%norm_method == norm_none) THEN
          ! No need to do anything
-      ELSE IF ((cosm%iTk == iTk_external) .AND. (cosm%norm_method .NE. norm_none)) THEN
-         STOP 'NORMALISE_POWER: Error, external power should not be normalised'
-      ELSE IF ((cosm%iTk == iTk_CAMB) .AND. (cosm%norm_method == norm_As)) THEN
-         ! Do nothing because the CAMB will have done the normalisation correctly
+      ELSE IF ((cosm%iTk == iTk_external) .AND. (cosm%norm_method /= norm_none)) THEN
+         STOP 'NORMALISE_POWER: Error, external power should not be re-normalised'
       ELSE IF (cosm%norm_method == norm_sigma8) THEN
          CALL normalise_power_sigma8(cosm)
       ELSE IF (cosm%norm_method == norm_value) THEN
@@ -2230,7 +2229,7 @@ CONTAINS
       ! If normalisation is not done via sigma8 then calculate the correct sigma8
       IF (cosm%norm_method .NE. norm_sigma8) CALL reset_sigma8(cosm)
       IF (cosm%norm_method .NE. norm_value)  CALL reset_value(cosm)
-      !IF (cosm%norm_method .NE. norm_As)     CALL reset_As(cosm) ! TODO: Make this work
+      IF (cosm%norm_method .NE. norm_As)     CALL reset_As(cosm) ! TODO: Make this work
 
    END SUBROUTINE normalise_power
 
@@ -2287,9 +2286,15 @@ CONTAINS
    SUBROUTINE normalise_power_As(cosm)
 
       ! Normalise the power spectrum by fixing As
+      ! Only do this for analytical transfer functions
+      ! Otherwise do nothing because the normalisation will already be correct
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      cosm%A = cosm%A*cosm%As/As(cosm)
+      IF (cosm%analytical_Tk) THEN
+         cosm%A = cosm%A*sqrt(cosm%As/As(cosm))
+      ELSE
+         cosm%A = 1.
+      END IF
 
    END SUBROUTINE normalise_power_As
 
@@ -2313,12 +2318,10 @@ CONTAINS
 
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%iTk == iTk_none) THEN
-         cosm%As = 0.
-      ELSE IF (cosm%iTk == iTk_CAMB) THEN
-         cosm%As = cosm%As*cosm%A**2
+      IF (cosm%analytical_Tk) THEN
+         cosm%As = As(cosm)       
       ELSE
-         cosm%As = As(cosm)
+         cosm%As = cosm%As*cosm%A**2
       END IF
 
    END SUBROUTINE reset_As
@@ -2350,19 +2353,17 @@ CONTAINS
    RECURSIVE REAL FUNCTION As(cosm)
 
       ! Calculate the value of A_s from the linear power spectrum
-      ! TODO: Figure this out with Alex Hall
+      ! TODO: Figure this out with Alex
       TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
       REAL, PARAMETER :: a = 1.                ! Normalisation is at a=1
       INTEGER, PARAMETER :: flag = flag_matter ! A_s is defined from linear
       REAL :: kpiv, Tk, g
 
       kpiv = cosm%kpiv
-      Tk = Tk_matter(kpiv, cosm)
-      g = ungrow(a, cosm)
-      As = (((3./2.)*(10./9.))**2)*(cosm%Om_m**2)*((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/(g*Tk)**2
-
-      WRITE(*, *) 'AS: Calculated As value:', As
-      STOP 'AS: This does not currently work'
+      Tk = Tk_matter(kpiv, a, cosm)
+      !g = ungrow(a, cosm)
+      !As = (((3./2.)*(10./9.))**2)*(cosm%Om_m**2)*((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/(g*Tk)**2
+      As = ((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/Tk**2
 
    END FUNCTION As
 
@@ -2459,7 +2460,7 @@ CONTAINS
          logf = .TRUE.)
 
       ! Switch analyical power off and set flag for stored power
-      cosm%analytical_power = .FALSE.
+      cosm%analytical_Tk = .FALSE.
       cosm%has_power = .TRUE.
 
       ! Write to screen
@@ -3428,30 +3429,74 @@ CONTAINS
 
    END FUNCTION time_integrand
 
-   REAL FUNCTION Tk_matter(k, cosm)
+   REAL FUNCTION Tk_matter(k, a, cosm)
 
       ! Transfer function selection
-      ! Should be T(k<<1) = 1
-      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-      TYPE(cosmology), INTENT(IN) :: cosm
+      ! Note that my definition is that T(k<<1, a) = unity for all a
+      REAL, INTENT(IN) :: k               ! Wavenumber [h/Mpc]
+      REAL, INTENT(IN) :: a               ! Scale factor
+      TYPE(cosmology), INTENT(IN) :: cosm ! Cosmology
 
-      IF (cosm%iTk == iTk_none) THEN
-         Tk_matter = 1.
-      ELSE IF (cosm%iTk == iTk_EH) THEN
-         Tk_matter = Tk_EH(k, cosm)
-      ELSE IF (cosm%iTk == iTk_DEFW) THEN
-         Tk_matter = Tk_DEFW(k, cosm)
-      ELSE IF (cosm%iTk == iTk_nw) THEN
-         Tk_matter = Tk_nw(k, cosm)
+      IF (cosm%analytical_Tk) THEN
+         IF (cosm%iTk == iTk_none) THEN
+            Tk_matter = 1.
+         ELSE IF (cosm%iTk == iTk_EH) THEN
+            Tk_matter = Tk_EH(k, cosm)
+         ELSE IF (cosm%iTk == iTk_DEFW) THEN
+            Tk_matter = Tk_DEFW(k, cosm)
+         ELSE IF (cosm%iTk == iTk_nw) THEN
+            Tk_matter = Tk_nw(k, cosm)
+         ELSE
+            WRITE (*, *) 'TK_MATTER: iTk:', cosm%iTk
+            STOP 'TK_MATTER: Error, iTk specified incorrectly'
+         END IF
       ELSE
-         WRITE (*, *) 'TK: iTk:', cosm%iTk
-         STOP 'TK: Error, iTk specified incorrectly'
+         IF (cosm%scale_dependent_growth) THEN
+            Tk_matter = evaluate_interpolator(k, a, cosm%Tka_matter)
+         ELSE
+            Tk_matter = evaluate_interpolator(k, cosm%Tk_matter)
+         END IF
       END IF
 
       ! Additional weirdness
       Tk_matter = Tk_matter*Tk_factor(k, cosm)
 
    END FUNCTION Tk_matter
+
+   REAL FUNCTION Tk_cold(k, a, cosm)
+
+      ! Ratio of transfer function for cold matter relative to all matter
+      ! Note that my definition is that T(k<<1, a) = (Om_c+Om_b)/Om_m (not unity) for all a
+      ! TODO: Force the cold transfer function to come from CAMB if possible?
+      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
+      REAL, INTENT(IN) :: a ! Scale factor
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
+
+      IF ((cosm%iTc == iTc_none) .OR. (cosm%m_nu == 0.)) THEN
+         ! Assuming the cold spectrum is exactly the matter spectrum
+         Tk_cold = 1. 
+      ELSE IF (cosm%iTc == iTc_total) THEN
+         ! This approximation assumes that the neutrinos are as clustered as the rest of the mass
+         ! This is only true on scales greater than the neutrino free-streaming scale
+         Tk_cold = (cosm%Om_c+cosm%Om_b)/cosm%Om_m 
+      ELSE IF (cosm%iTc == iTc_EH) THEN
+         ! Use the Eisenstein and Hu approximation
+         Tk_cold = Tk_cold_EH(k, a, cosm)
+      ELSE IF (cosm%iTc == iTc_CAMB) THEN
+         ! Use look-up tables from CAMB transfer functions
+         IF (cosm%scale_dependent_growth) THEN
+            Tk_cold = evaluate_interpolator(k, a, cosm%Tka_cold)
+         ELSE
+            Tk_cold = evaluate_interpolator(k, cosm%Tk_cold)
+         END IF
+      ELSE
+         STOP 'TCOLD: Error, cold transfer function method not specified correctly'
+      END IF
+
+      ! Additional weirdness
+      Tk_cold = Tk_cold*Tk_factor(k, cosm)
+
+   END FUNCTION Tk_cold
 
    REAL FUNCTION Tk_factor(k, cosm)
 
@@ -3665,33 +3710,6 @@ CONTAINS
 
    END FUNCTION Tk_bump_Mexico
 
-   REAL FUNCTION Tcold(k, a, cosm)
-
-      ! Ratio of transfer function for cold matter relative to all matter
-      ! TODO: Force the cold transfer function to come from CAMB if possible?
-      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-      REAL, INTENT(IN) :: a ! Scale factor
-      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-
-      IF ((cosm%iTc == iTc_none) .OR. (cosm%m_nu == 0.)) THEN
-         ! Assuming the cold spectrum is exactly the matter spectrum
-         Tcold = 1. 
-      ELSE IF (cosm%iTc == iTc_total) THEN
-         ! This approximation assumes that the neutrinos are as clustered as the rest of the mass
-         ! This is only true on scales greater than the neutrino free-streaming scale
-         Tcold = (cosm%Om_c+cosm%Om_b)/cosm%Om_m 
-      ELSE IF (cosm%iTc == iTc_EH) THEN
-         ! Use the Eisenstein and Hu approximation
-         Tcold = Tcold_EH(k, a, cosm)
-      ELSE IF (cosm%iTc == iTc_CAMB) THEN
-         ! Use look-up tables from CAMB transfer functions
-         Tcold = evaluate_interpolator(k, a, cosm%Tcold)
-      ELSE
-         STOP 'TCOLD: Error, cold transfer function method not specified correctly'
-      END IF
-
-   END FUNCTION Tcold
-
    ! REAL FUNCTION Tnu_approx(cosm)
    !
    !    ! How the matter power spectrum would be changed if some fraction of the mass is converted to massive neutrinos
@@ -3708,7 +3726,7 @@ CONTAINS
    !
    ! END FUNCTION Tnu_approx
 
-   REAL FUNCTION Tcold_EH(k, a, cosm)
+   REAL FUNCTION Tk_cold_EH(k, a, cosm)
 
       ! Calculates the ratio of T(k) for cold vs. all matter
       ! Cold perturbation defined such that 1+delta = rho_cold/rho_matter
@@ -3719,12 +3737,12 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
       REAL :: BigT
-      LOGICAL, PARAMETER :: EdS_growth = Tcold_EdS_growth
+      LOGICAL, PARAMETER :: EdS_growth = Tk_cold_EdS_growth
 
       IF (cosm%m_nu == 0.) THEN
 
          ! Fix to unity if there are no neutrinos
-         Tcold_EH = 1.
+         Tk_cold_EH = 1.
 
       ELSE
 
@@ -3766,11 +3784,11 @@ CONTAINS
          Dcbnu = ((1.-cosm%f_nu)**(0.7/pcb)+(D/(1.+yfs))**0.7)**(pcb/0.7)
 
          ! Finally, the ratio
-         Tcold_EH = Dcb*(1.-cosm%f_nu)/Dcbnu
+         Tk_cold_EH = Dcb*(1.-cosm%f_nu)/Dcbnu
 
       END IF
 
-   END FUNCTION Tcold_EH
+   END FUNCTION Tk_cold_EH
 
    SUBROUTINE calculate_plin(k, a, Pk, nk, na, cosm)
 
@@ -3842,13 +3860,13 @@ CONTAINS
             END IF
          ELSE
             ! In this case get the power from the transfer function
-            plin = (grow(a, cosm)**2)*(Tk_matter(k, cosm)**2)*k**(cosm%ns+3.)
+            plin = (grow(a, cosm)**2)*(Tk_matter(k, a, cosm)**2)*k**(cosm%ns+3.)
          END IF
       END IF
       plin = plin*cosm%A**2
 
       IF (flag == flag_cold .OR. flag == flag_ucold) THEN
-         plin = plin*Tcold(k, a, cosm)**2
+         plin = plin*Tk_cold(k, a, cosm)**2
          IF (flag == flag_ucold) plin = plin/(1.-cosm%f_nu)**2
       END IF
 
@@ -5127,7 +5145,7 @@ CONTAINS
 
    END SUBROUTINE init_spherical_collapse
 
-   SUBROUTINE get_CAMB_power(a, na, k_Pk, Pk, nkPk, k_Tc, Tc, nkTc, non_linear, halofit_version, cosm)
+   SUBROUTINE get_CAMB_power(a, na, k_Pk, Pk, nk_Pk, k_Tk, Tk_m, Tk_c, nk_Tk, non_linear, halofit_version, cosm)
 
       ! Runs CAMB to get a power spectrum
       ! TODO: Could this be moved to CAMB stuff? Not easily, because it requires cosmology type
@@ -5139,10 +5157,11 @@ CONTAINS
       REAL, INTENT(IN) :: a(na)
       REAL, ALLOCATABLE, INTENT(OUT) :: k_Pk(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
-      INTEGER, INTENT(OUT) :: nkPk
-      REAL, ALLOCATABLE, INTENT(OUT) :: k_Tc(:)
-      REAL, ALLOCATABLE, INTENT(OUT) :: Tc(:, :)
-      INTEGER, INTENT(OUT) :: nkTc
+      INTEGER, INTENT(OUT) :: nk_Pk
+      REAL, ALLOCATABLE, INTENT(OUT) :: k_Tk(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Tk_m(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Tk_c(:, :)
+      INTEGER, INTENT(OUT) :: nk_Tk
       LOGICAL, INTENT(IN) :: non_linear
       INTEGER, INTENT(IN) :: halofit_version
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -5354,39 +5373,49 @@ CONTAINS
       ! Loop over redshifts and read CAMB power into arrays
       DO j = 1, na
          infile = number_file(matterpower, j, trim('.dat'))
-         CALL read_CAMB_Pk(k_Pk, Pk_CAMB, nkPk, infile)
+         CALL read_CAMB_Pk(k_Pk, Pk_CAMB, nk_Pk, infile)
          IF (j == 1) THEN
-            ALLOCATE(Pk(nkPk, na))
+            ALLOCATE(Pk(nk_Pk, na))
          END IF
-         Pk(:,j) = Pk_CAMB
+         Pk(:, j) = Pk_CAMB
       END DO
       DEALLOCATE(Pk_CAMB)
 
       ! Do pruning
-      IF (cosm%verbose) WRITE (*, *) 'GET_CAMB_POWER: nk before pruning:', nkPk
-      CALL prune_CAMB(k_Pk, a, Pk, nkPk, na)
+      IF (cosm%verbose) WRITE (*, *) 'GET_CAMB_POWER: nk before pruning:', nk_Pk
+      CALL prune_CAMB(k_Pk, a, Pk, nk_Pk, na)
       IF (cosm%verbose) THEN
-         WRITE (*, *) 'GET_CAMB_POWER: nk after pruning:', nkPk
+         WRITE (*, *) 'GET_CAMB_POWER: nk after pruning:', nk_Pk
          WRITE (*, *) 'GET_CAMB_POWER: Getting transfer functions'
       END IF
 
       ! Loop over redshifts and read CAMB transfer functions into arrays
       DO j = 1, na
+
+         ! Read in the raw CAMB data 
          infile = number_file(transfer, j, trim('.dat'))
-         CALL read_CAMB_Tk(k_Tc, Tk_CAMB, nkTc, nTk, infile)
+         CALL read_CAMB_Tk(k_Tk, Tk_CAMB, nk_Tk, nTk, infile)
          IF (j == 1) THEN
-            ALLOCATE(Tc(nkTc, na))
+            ALLOCATE(Tk_m(nk_Tk, na), Tk_c(nk_Tk, na))
          END IF
-         Tk_CAMB(CAMB_column_Tk_CDM,:) = cosm%Om_c*Tk_CAMB(CAMB_column_Tk_CDM,:)
-         Tk_CAMB(CAMB_column_Tk_baryon,:) = cosm%Om_b*Tk_CAMB(CAMB_column_Tk_baryon,:)
-         Tk_CAMB(CAMB_column_Tk_total,:) = cosm%Om_m*Tk_CAMB(CAMB_column_Tk_total,:)  
-         Tc(:,j) = (Tk_CAMB(CAMB_column_Tk_CDM,:)+Tk_CAMB(CAMB_column_Tk_baryon,:))/Tk_CAMB(CAMB_column_Tk_total,:)
+
+         ! Normalise according to my definitions
+         Tk_CAMB(CAMB_column_Tk_CDM, :) = cosm%Om_c*Tk_CAMB(CAMB_column_Tk_CDM, :)
+         Tk_CAMB(CAMB_column_Tk_baryon, :) = cosm%Om_b*Tk_CAMB(CAMB_column_Tk_baryon, :)
+         Tk_CAMB(CAMB_column_Tk_total, :) = cosm%Om_m*Tk_CAMB(CAMB_column_Tk_total, :)
+
+         ! Normalise both matter and cold matter
+         Tk_m(:, j) = Tk_CAMB(CAMB_column_Tk_total, :)/Tk_CAMB(CAMB_column_Tk_total, 1)
+         Tk_c(:, j) = (Tk_CAMB(CAMB_column_Tk_CDM, :)+Tk_CAMB(CAMB_column_Tk_baryon, :))/Tk_CAMB(CAMB_column_Tk_total, :)
+
       END DO
 
+      ! Write to screen
       IF(cosm%verbose) THEN
-         WRITE (*, *) 'GET_CAMB_POWER: Transfer function kmin [h/Mpc]:', k_Tc(1)
-         WRITE (*, *) 'GET_CAMB_POWER: Transfer function kmax [h/Mpc]:', k_Tc(nkTc)
-         WRITE (*, *) 'GET_CAMB_POWER: Transfer function T(kmin):', Tc(1,1)
+         WRITE (*, *) 'GET_CAMB_POWER: Transfer function kmin [h/Mpc]:', k_Tk(1)
+         WRITE (*, *) 'GET_CAMB_POWER: Transfer function kmax [h/Mpc]:', k_Tk(nk_Tk)
+         WRITE (*, *) 'GET_CAMB_POWER: Matter transfer function (kmin):', Tk_m(1, 1)
+         WRITE (*, *) 'GET_CAMB_POWER: Cold transfer function (kmin):', Tk_c(1, 1)
          WRITE (*, *) 'GET_CAMB_POWER: Done'
          WRITE (*, *)
       END IF
@@ -5434,9 +5463,9 @@ CONTAINS
       USE string_operations
       USE array_operations
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, ALLOCATABLE :: a(:), kPk(:), Pk(:, :), kTc(:), Tc(:, :), kkPk(:), Pkk(:, :)
+      REAL, ALLOCATABLE :: a(:), kPk(:), Pk(:, :), kTk(:), Tm(:, :), Tc(:, :), kkPk(:), Pkk(:, :)
       REAL :: k, fac
-      INTEGER :: i, j, na, nPk, nTc, ik
+      INTEGER :: i, j, na, nPk, nTk, ik
       CHARACTER(len=256) :: camb, dir, root, matterpower, transfer, params
       LOGICAL, PARAMETER :: non_linear = .FALSE. ! Should not use non-linear when trying to get linear theory
       INTEGER, PARAMETER :: halofit_version = 0  ! Irrelevant here because we are getting linear spectrum
@@ -5471,34 +5500,65 @@ CONTAINS
       END IF
 
       ! Get the CAMB P(k) at a series of 'a' values
-      CALL get_CAMB_power(a, na, kPk, Pk, nPk, kTc, Tc, nTc, non_linear, halofit_version, cosm)
+      CALL get_CAMB_power(a, na, kPk, Pk, nPk, kTk, Tm, Tc, nTk, non_linear, halofit_version, cosm)
 
-      ! Apply non-CAMB transfer functions
+      ! Apply non-CAMB transfer functions to power (spikes, WDM etc.)
       DO ik = 1, nPk
          k = kPk(ik)
          fac = Tk_factor(k, cosm)
          Pk(ik, :) = Pk(ik, :)*fac**2
       END DO
 
-      IF (cosm%iTc == iTc_CAMB) THEN
+      ! MEAD: Unfuck
+      !IF (cosm%iTc == iTc_CAMB) THEN
 
-         DO ik = 1, nTc
-            k = kTc(ik)
-            fac = Tk_factor(k, cosm)
-            Tc(ik, :) = Tc(ik, :)*fac
-         END DO
-
-         CALL init_interpolator(kTc, a, Tc, cosm%Tcold, &
-            iorder = iorder_interp_Tcold, &
-            iextrap = iextrap_Tcold, &
-            store = store_Tcold, &
+         ! Initialise transfer function interpolation
+         ! TODO: Could save time here if total matter and cold matter identical
+         ! TODO: Surely log(Tk) is better for interpolation?
+      
+         IF (cosm%scale_dependent_growth) THEN
+      
+            ! Initialise total matter transfer functions for interpolation
+            CALL init_interpolator(kTk, a, Tm, cosm%Tka_matter, &
+            iorder = iorder_interp_Tk, &
+            iextrap = iextrap_Tk, &
+            store = store_Tk, &
             logx = .TRUE., &
             logy = .TRUE., &
             logf = .FALSE.)
 
-      END IF
+            ! Initialise cold matter transfer function interpolation
+            CALL init_interpolator(kTk, a, Tc, cosm%Tka_cold, &
+               iorder = iorder_interp_Tk, &
+               iextrap = iextrap_Tk, &
+               store = store_Tk, &
+               logx = .TRUE., &
+               logy = .TRUE., &
+               logf = .FALSE.)
 
-      DEALLOCATE(kTc, Tc)    
+         ELSE
+
+            ! Initialise total matter transfer functions for interpolation
+            CALL init_interpolator(kTk, Tm(:, 1), cosm%Tk_matter, &
+            iorder = iorder_interp_Tk, &
+            iextrap = iextrap_Tk, &
+            store = store_Tk, &
+            logx = .TRUE., &
+            logf = .FALSE.)
+
+            ! Initialise cold matter transfer function interpolation
+            CALL init_interpolator(kTk, Tc(:, 1), cosm%Tk_cold, &
+               iorder = iorder_interp_Tk, &
+               iextrap = iextrap_Tk, &
+               store = store_Tk, &
+               logx = .TRUE., &
+               logf = .FALSE.)
+
+         END IF
+
+      !END IF
+
+      DEALLOCATE(kTk, Tm, Tc)    
 
       IF (cosm%verbose) THEN
          WRITE(*,*) 'INIT_CAMB_LINEAR: kmin [h/Mpc]:', kPk(1)
@@ -5704,7 +5764,7 @@ CONTAINS
 
       IF(ALLOCATED(cosm%log_plina)) THEN
          plina_shape = SHAPE(cosm%log_plina)
-         !nk_pk = plina_shape(1) ! MEAD: Surely this should be uncommented?
+         !nk_pk = plina_shape(1) ! TODO: Surely this should be uncommented?
          na_pk = plina_shape(2)
       ELSE
          write(*,*) "cosmology%log_plina has not been allocated!"
