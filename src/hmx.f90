@@ -462,6 +462,9 @@ MODULE HMx
    INTEGER, PARAMETER :: iorder_bnl = 1             ! 1 - Linear interpolation
    INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin  ! Linear extrapolation
    LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
+   REAL, PARAMETER :: bnl_rescale_R1 = 1.           ! Minimum R for rescaling [Mpc/h]
+   REAL, PARAMETER :: bnl_rescale_R2 = 10.          ! Maximum R for rescaling [Mpc/h]
+   INTEGER, PARAMETER :: icos_bnl_rescale = 37      ! 37 - Multidark
    CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL' ! Directory containing BNL measurements
    !CHARACTER(len=256), PARAMETER :: cat = 'rockstar' ! Halo catalogue
    !CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/Bolshoi_'//trim(cat_bnl)
@@ -4379,9 +4382,9 @@ CONTAINS
       CHARACTER(len=256) :: base_bnl, base_bnl_lownu
       LOGICAL, PARAMETER :: verbose = .TRUE.
       INTEGER, PARAMETER :: flag = flag_ucold
-      INTEGER, PARAMETER :: icos_MD = 37
-      REAL, PARAMETER :: R1 = 0.1
-      REAL, PARAMETER :: R2 = 10.
+      INTEGER, PARAMETER :: icos_MD = icos_bnl_rescale
+      REAL, PARAMETER :: R1 = bnl_rescale_R1
+      REAL, PARAMETER :: R2 = bnl_rescale_R2
       INTEGER, PARAMETER :: irescale = irescale_sigma
 
       ! Multidark scale factors
@@ -4399,7 +4402,6 @@ CONTAINS
          64, 66, 67, 68, 69, 70, 71, &
          72, 73, 74, 75, 76, 77, 78, &
          79, 80, 81, 82, 83, 84, 85]
-
 
       ! Input files
       base_bnl = trim(hmod%bnl_path)//trim(dir_bnl)//'/M512/MDR1_'//trim(hmod%bnl_cat)
