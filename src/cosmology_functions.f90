@@ -5475,6 +5475,7 @@ CONTAINS
       REAL, PARAMETER :: amin = amin_plin        ! Minimum scale factor to get from CAMB
       REAL, PARAMETER :: amax = amax_plin        ! Maximum scale factor to get from CAMB
       LOGICAL, PARAMETER :: rebin = rebin_CAMB   ! Should we rebin CAMB input P(k)?
+      LOGICAL, PARAMETER :: fill_Tk_interpolators = .TRUE.
 
       ! Sort executable, directories and files
       camb = cosm%CAMB_exe
@@ -5509,23 +5510,23 @@ CONTAINS
          Pk(ik, :) = Pk(ik, :)*fac**2
       END DO
 
-      ! MEAD: Unfuck
-      !IF (cosm%iTc == iTc_CAMB) THEN
-
-         ! Initialise transfer function interpolation
-         ! TODO: Could save time here if total matter and cold matter identical
-         ! TODO: Surely log(Tk) is better for interpolation?
+      ! Initialise transfer function interpolation
+      ! Transfer function needed for As
+      ! TODO: Could save time here if total matter and cold matter identical
+      ! TODO: Surely log(Tk) is better for interpolation?
+      ! TODO: This could be time consuming if interpolators filled but never used?
+      IF (fill_Tk_interpolators .OR. cosm%iTc == iTc_CAMB) THEN
       
          IF (cosm%scale_dependent_growth) THEN
       
             ! Initialise total matter transfer functions for interpolation
             CALL init_interpolator(kTk, a, Tm, cosm%Tka_matter, &
-            iorder = iorder_interp_Tk, &
-            iextrap = iextrap_Tk, &
-            store = store_Tk, &
-            logx = .TRUE., &
-            logy = .TRUE., &
-            logf = .FALSE.)
+               iorder = iorder_interp_Tk, &
+               iextrap = iextrap_Tk, &
+               store = store_Tk, &
+               logx = .TRUE., &
+               logy = .TRUE., &
+               logf = .TRUE.)
 
             ! Initialise cold matter transfer function interpolation
             CALL init_interpolator(kTk, a, Tc, cosm%Tka_cold, &
@@ -5534,17 +5535,17 @@ CONTAINS
                store = store_Tk, &
                logx = .TRUE., &
                logy = .TRUE., &
-               logf = .FALSE.)
+               logf = .TRUE.)
 
          ELSE
 
             ! Initialise total matter transfer functions for interpolation
             CALL init_interpolator(kTk, Tm(:, 1), cosm%Tk_matter, &
-            iorder = iorder_interp_Tk, &
-            iextrap = iextrap_Tk, &
-            store = store_Tk, &
-            logx = .TRUE., &
-            logf = .FALSE.)
+               iorder = iorder_interp_Tk, &
+               iextrap = iextrap_Tk, &
+               store = store_Tk, &
+               logx = .TRUE., &
+               logf = .TRUE.)
 
             ! Initialise cold matter transfer function interpolation
             CALL init_interpolator(kTk, Tc(:, 1), cosm%Tk_cold, &
@@ -5552,11 +5553,11 @@ CONTAINS
                iextrap = iextrap_Tk, &
                store = store_Tk, &
                logx = .TRUE., &
-               logf = .FALSE.)
+               logf = .TRUE.)
 
          END IF
 
-      !END IF
+      END IF
 
       DEALLOCATE(kTk, Tm, Tc)    
 
