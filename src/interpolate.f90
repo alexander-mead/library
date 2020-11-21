@@ -101,6 +101,7 @@ MODULE interpolate
       INTEGER :: nx, ny
       LOGICAL :: logx, logy, logf
       LOGICAL :: store
+      TYPE(interpolator1D) :: interp1D
    END TYPE interpolator2D
 
    TYPE interpolator3D
@@ -1043,7 +1044,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: iextrap            ! Extrapolation scheme
       LOGICAL, INTENT(IN) :: store              ! Do we store values
       LOGICAL, OPTIONAL, INTENT(IN) :: logx     ! Should interpolator take the logarithm of x?
-      LOGICAL, OPTIONAL, INTENT(IN) :: logf     ! Should interpolator take the logarithm of y?
+      LOGICAL, OPTIONAL, INTENT(IN) :: logf     ! Should interpolator take the logarithm of f(x)?
       REAL, ALLOCATABLE :: xx(:), ff(:)
       REAL :: a0, a1, a2, a3
       REAL :: b0, b1, b2
@@ -1067,219 +1068,226 @@ CONTAINS
 
       ! Check the sizes of the input data arrays
       n = size(x)
-      IF (n /= size(f)) STOP 'INIT_INTERPOLATOR: Error, input x and f data should be the same size'
+      IF (n /= size(f)) STOP 'INIT_INTERPOLATOR_1D: Error, input x and f data should be the same size'
       interp%n = n
-      ALLOCATE(xx(n), ff(n), interp%x(n), interp%f(n)) ! TODO: Remove?
 
-      ! Set the internal variables
-      interp%iextrap = iextrap
-      interp%iorder = iorder
-
-      ! Fill the internal arrays
-      xx = x
-      ff = f
-
-      ! Reverse x and f if necessary
-      IF (xx(1) > xx(n)) THEN
-         CALL reverse_array(xx)
-         CALL reverse_array(ff)
-      END IF
-
-      ! Set the internal xmin and xmax
-      interp%xmin = xx(1)
-      interp%xmax = xx(n)
-
-      ! Sort out logs and x arrays
-      IF (present_and_correct(logx)) THEN
-         xx = log(xx)
-         interp%logx = .TRUE.
+      IF (n == 1) THEN
+         STOP 'INIT_INTERPOLATOR_1D: Error, array is size 1'
+      ELSE IF (n < iorder+1) THEN
+         STOP 'INIT_INTERPOLATOR_1D: Error, not enough points for your order of interpolation'
       ELSE
-         interp%logx = .FALSE.
-      END IF
 
-      ! Sort out logs and f array
-      IF (present_and_correct(logf)) THEN
-         ff = log(ff)
-         interp%logf = .TRUE.
-      ELSE
-         interp%logf = .FALSE.
-      END IF
-      
-      ! If the x data is regular spaced then remember this, otherwise default find
-      IF (regular_spacing(xx)) THEN
-         interp%ifind = ifind_linear
-      ELSE
-         interp%ifind = ifind_default
-      END IF
-      interp%store = store
+         ! Set the internal variables
+         interp%iextrap = iextrap
+         interp%iorder = iorder
 
-      ! Set the internal 
-      interp%x = xx
-      interp%f = ff
+         ! Fill the internal arrays
+         xx = x
+         ff = f
 
-      IF (interp%store) THEN
+         ! Reverse x and f if necessary
+         IF (xx(1) > xx(n)) THEN
+            CALL reverse_array(xx)
+            CALL reverse_array(ff)
+         END IF
 
-         ! Allocate arrays for the interpolator coefficients
-         IF (iextrap == iextrap_lin) THEN
-            nn = n+1
+         ! Set the internal xmin and xmax
+         interp%xmin = xx(1)
+         interp%xmax = xx(n)
+
+         ! Sort out logs and x arrays
+         IF (present_and_correct(logx)) THEN
+            xx = log(xx)
+            interp%logx = .TRUE.
          ELSE
-            nn = n-1
+            interp%logx = .FALSE.
          END IF
-         ALLOCATE(interp%a0(nn), interp%a1(nn))
-         interp%a0 = 0.
-         interp%a1 = 0.
-         IF (iorder >= 2) THEN
-            ALLOCATE(interp%a2(nn))
-            interp%a2 = 0.
-         END IF
-         IF (iorder >= 3) THEN
-            ALLOCATE(interp%a3(nn))
-            interp%a3 = 0.
-         END IF
-         ALLOCATE(interp%x0(nn))
 
-         ! Default values because a3, a2 will be zero for linear polynomials
-         a0 = 0.
-         a1 = 0.
-         a2 = 0.
-         a3 = 0.
-
-         ! Default values
-         x1 = 0.
-         x2 = 0.
-         x3 = 0.
-         x4 = 0.
+         ! Sort out logs and f array
+         IF (present_and_correct(logf)) THEN
+            ff = log(ff)
+            interp%logf = .TRUE.
+         ELSE
+            interp%logf = .FALSE.
+         END IF
          
-         ! Default values
-         f1 = 0.
-         f2 = 0.
-         f3 = 0.
-         f4 = 0.
+         ! If the x data is regular spaced then remember this, otherwise default find
+         IF (regular_spacing(xx)) THEN
+            interp%ifind = ifind_linear
+         ELSE
+            interp%ifind = ifind_default
+         END IF
+         interp%store = store
 
-         ! Loop over all n-1 sections of the input data
-         DO i = 0, n
+         ! Set the internal 
+         interp%x = xx
+         interp%f = ff
 
-            IF ((i == 0 .OR. i == n) .AND. iextrap /= iextrap_lin) CYCLE
+         IF (interp%store) THEN
 
-            IF (iorder == 1 .OR. ((i == 0 .OR. i == n) .AND. iextrap == iextrap_lin)) THEN
-
-               IF (i == 0) THEN
-                  i1 = 1
-                  i2 = 2
-               ELSE IF (i == n) THEN
-                  i1 = n-1
-                  i2 = n
-               ELSE
-                  i1 = i
-                  i2 = i+1
-               END IF
-
-               x1 = xx(i1)
-               x2 = xx(i2)
-
-               f1 = ff(i1)
-               f2 = ff(i2)
-               
-               xm = (x1+x2)/2.
-               CALL fix_centred_polynomial(a1, a0, xm, [x1, x2], [f1, f2])
-
-            ELSE IF (iorder == 2) THEN
-
-               i1 = i-1
-               i2 = i
-               i3 = i+1
-               i4 = i+2
-               IF (i == 1) THEN
-                  i1 = i1+1
-                  i2 = i2+1
-                  i3 = i3+1
-                  i4 = 0
-               ELSE IF (i == n-1) THEN
-                  i1 = i1-1
-                  i2 = i2-1
-                  i3 = i3-1
-                  i4 = 0
-               END IF
-
-               x1 = xx(i1)
-               x2 = xx(i2)
-               x3 = xx(i3)
-               IF (i4 .NE. 0) x4 = xx(i4)
-
-               f1 = ff(i1)
-               f2 = ff(i2)
-               f3 = ff(i3)
-               IF (i4 .NE. 0) f4 = ff(i4)
-
-               CALL fix_polynomial(a2, a1, a0, [x1, x2, x3], [f1, f2, f3])
-               IF (i4 .NE. 0) THEN
-                  CALL fix_polynomial(b2, b1, b0, [x2, x3, x4], [f2, f3, f4])
-                  a2 = (a2+b2)/2.
-                  a1 = (a1+b1)/2.
-                  a0 = (a0+b0)/2.
-               END IF
-
-            ELSE IF (iorder == 3) THEN
-
-               ! Deal with the indices for the first and last section and general case
-               i1 = i-1
-               i2 = i
-               i3 = i+1
-               i4 = i+2
-               IF (i == 1) THEN
-                  ! Should be 1, 2, 3, 4
-                  i1 = i1+1
-                  i2 = i2+1 
-                  i3 = i3+1 
-                  i4 = i4+1 
-               ELSE IF (i == n-1) THEN
-                  ! Should be n-3, n-2, n-1, n
-                  i1 = i1-1
-                  i2 = i2-1
-                  i3 = i3-1
-                  i4 = i4-1
-               END IF
-
-               x1 = xx(i1)
-               x2 = xx(i2)
-               x3 = xx(i3)
-               x4 = xx(i4)
-
-               f1 = ff(i1)
-               f2 = ff(i2)
-               f3 = ff(i3)
-               f4 = ff(i4)
-
-               xm = (xx(i)+xx(i+1))/2.
-               IF (quadratic_end_cubic .AND. i == 1) THEN
-                  CALL fix_centred_polynomial(a2, a1, a0, xm, [x1, x2, x3], [f1, f2, f3]) 
-                  a3 = 0.
-               ELSE IF (quadratic_end_cubic .AND. i == n-1) THEN
-                  CALL fix_centred_polynomial(a2, a1, a0, xm, [x2, x3, x4], [f2, f3, f4]) 
-                  a3 = 0.
-               ELSE
-                  CALL fix_centred_polynomial(a3, a2, a1, a0, xm, [x1, x2, x3, x4], [f1, f2, f3, f4])  
-               END IF    
-
-            ELSE
-
-               STOP 'INIT_INTERPOLATOR: Error, your order is not supported'
-
-            END IF
-
-            ! Fill the polynomial coefficients in the interpolation type
+            ! Allocate arrays for the interpolator coefficients
             IF (iextrap == iextrap_lin) THEN
-               ii = i+1
+               nn = n+1
             ELSE
-               ii = i
+               nn = n-1
             END IF
-            interp%x0(ii) = xm
-            interp%a0(ii) = a0
-            interp%a1(ii) = a1
-            IF(iorder >= 2 .AND. (i .NE. 0 .AND. i .NE. n)) interp%a2(ii) = a2
-            IF(iorder >= 3 .AND. (i .NE. 0 .AND. i .NE. n)) interp%a3(ii) = a3
+            ALLOCATE(interp%a0(nn), interp%a1(nn))
+            interp%a0 = 0.
+            interp%a1 = 0.
+            IF (iorder >= 2) THEN
+               ALLOCATE(interp%a2(nn))
+               interp%a2 = 0.
+            END IF
+            IF (iorder >= 3) THEN
+               ALLOCATE(interp%a3(nn))
+               interp%a3 = 0.
+            END IF
+            ALLOCATE(interp%x0(nn))
 
-         END DO
+            ! Default values because a3, a2 will be zero for linear polynomials
+            a0 = 0.
+            a1 = 0.
+            a2 = 0.
+            a3 = 0.
+
+            ! Default values
+            x1 = 0.
+            x2 = 0.
+            x3 = 0.
+            x4 = 0.
+            
+            ! Default values
+            f1 = 0.
+            f2 = 0.
+            f3 = 0.
+            f4 = 0.
+
+            ! Loop over all n-1 sections of the input data
+            DO i = 0, n
+
+               IF ((i == 0 .OR. i == n) .AND. iextrap /= iextrap_lin) CYCLE
+
+               IF (iorder == 1 .OR. ((i == 0 .OR. i == n) .AND. iextrap == iextrap_lin)) THEN
+
+                  IF (i == 0) THEN
+                     i1 = 1
+                     i2 = 2
+                  ELSE IF (i == n) THEN
+                     i1 = n-1
+                     i2 = n
+                  ELSE
+                     i1 = i
+                     i2 = i+1
+                  END IF
+
+                  x1 = xx(i1)
+                  x2 = xx(i2)
+
+                  f1 = ff(i1)
+                  f2 = ff(i2)
+                  
+                  xm = (x1+x2)/2.
+                  CALL fix_centred_polynomial(a1, a0, xm, [x1, x2], [f1, f2])
+
+               ELSE IF (iorder == 2) THEN
+
+                  i1 = i-1
+                  i2 = i
+                  i3 = i+1
+                  i4 = i+2
+                  IF (i == 1) THEN
+                     i1 = i1+1
+                     i2 = i2+1
+                     i3 = i3+1
+                     i4 = 0
+                  ELSE IF (i == n-1) THEN
+                     i1 = i1-1
+                     i2 = i2-1
+                     i3 = i3-1
+                     i4 = 0
+                  END IF
+
+                  x1 = xx(i1)
+                  x2 = xx(i2)
+                  x3 = xx(i3)
+                  IF (i4 .NE. 0) x4 = xx(i4)
+
+                  f1 = ff(i1)
+                  f2 = ff(i2)
+                  f3 = ff(i3)
+                  IF (i4 .NE. 0) f4 = ff(i4)
+
+                  CALL fix_polynomial(a2, a1, a0, [x1, x2, x3], [f1, f2, f3])
+                  IF (i4 .NE. 0) THEN
+                     CALL fix_polynomial(b2, b1, b0, [x2, x3, x4], [f2, f3, f4])
+                     a2 = (a2+b2)/2.
+                     a1 = (a1+b1)/2.
+                     a0 = (a0+b0)/2.
+                  END IF
+
+               ELSE IF (iorder == 3) THEN
+
+                  ! Deal with the indices for the first and last section and general case
+                  i1 = i-1
+                  i2 = i
+                  i3 = i+1
+                  i4 = i+2
+                  IF (i == 1) THEN
+                     ! Should be 1, 2, 3, 4
+                     i1 = i1+1
+                     i2 = i2+1 
+                     i3 = i3+1 
+                     i4 = i4+1 
+                  ELSE IF (i == n-1) THEN
+                     ! Should be n-3, n-2, n-1, n
+                     i1 = i1-1
+                     i2 = i2-1
+                     i3 = i3-1
+                     i4 = i4-1
+                  END IF
+
+                  x1 = xx(i1)
+                  x2 = xx(i2)
+                  x3 = xx(i3)
+                  x4 = xx(i4)
+
+                  f1 = ff(i1)
+                  f2 = ff(i2)
+                  f3 = ff(i3)
+                  f4 = ff(i4)
+
+                  xm = (xx(i)+xx(i+1))/2.
+                  IF (quadratic_end_cubic .AND. i == 1) THEN
+                     CALL fix_centred_polynomial(a2, a1, a0, xm, [x1, x2, x3], [f1, f2, f3]) 
+                     a3 = 0.
+                  ELSE IF (quadratic_end_cubic .AND. i == n-1) THEN
+                     CALL fix_centred_polynomial(a2, a1, a0, xm, [x2, x3, x4], [f2, f3, f4]) 
+                     a3 = 0.
+                  ELSE
+                     CALL fix_centred_polynomial(a3, a2, a1, a0, xm, [x1, x2, x3, x4], [f1, f2, f3, f4])  
+                  END IF    
+
+               ELSE
+
+                  STOP 'INIT_INTERPOLATOR: Error, your order is not supported'
+
+               END IF
+
+               ! Fill the polynomial coefficients in the interpolation type
+               IF (iextrap == iextrap_lin) THEN
+                  ii = i+1
+               ELSE
+                  ii = i
+               END IF
+               interp%x0(ii) = xm
+               interp%a0(ii) = a0
+               interp%a1(ii) = a1
+               IF(iorder >= 2 .AND. (i .NE. 0 .AND. i .NE. n)) interp%a2(ii) = a2
+               IF(iorder >= 3 .AND. (i .NE. 0 .AND. i .NE. n)) interp%a3(ii) = a3
+
+            END DO
+
+         END IF
 
       END IF
 
@@ -1422,239 +1430,250 @@ CONTAINS
 
       IF (iorder > 3 .OR. iorder < 0) STOP 'INIT_INTERPOLATOR_2D: Error, this order is not supported'
 
-      ! Sort out x axis
+      ! Check array sizes
       nx = size(x)
       IF(nx /= size(f, 1)) STOP 'INIT_INTERPOLATOR_2D: Error, x should be the same size as first dimension of f'
       interp%nx = nx
-      ALLOCATE(interp%x(nx))
-      IF(present_and_correct(logx)) THEN
-         interp%x = log(x)
-         interp%logx = .TRUE.
-      ELSE
-         interp%x = x
-         interp%logx = .FALSE.
-      END IF
-      IF (regular_spacing(interp%x)) THEN
-         interp%ifindx = ifind_linear
-      ELSE
-         interp%ifindx = ifind_default
-      END IF
-
-      ! Sort out y axis
       ny = size(y)
       IF(ny /= size(f, 2)) STOP 'INIT_INTERPOLATOR_2D: Error, y should be the same size as second dimension of f'
       interp%ny = ny
-      ALLOCATE(interp%y(ny))
-      IF(present_and_correct(logy)) THEN
-         interp%y = log(y)
-         interp%logy = .TRUE.
+
+      IF (nx == 1 .AND. ny == 1) THEN
+         STOP 'INIT_INTERPOLATOR_2D: Error, your array is 1 x 1'
+      ELSE IF (nx == 1) THEN
+         CALL init_interpolator_1D(y, f(1, :), interp%interp1D, iorder, iextrap, store, logy, logf)
+      ELSE IF (ny == 1) THEN
+         CALL init_interpolator_1D(x, f(:, 1), interp%interp1D, iorder, iextrap, store, logx, logf)
+      ELSE IF (nx < iorder+1 .OR. ny < iorder+1) THEN
+         STOP 'INIT_INTERPOLATOR_2D: Error, you do not have enough points for the order of interpolatation'
       ELSE
-         interp%y = y
-         interp%logy = .FALSE.
-      END IF
-      IF (regular_spacing(interp%y)) THEN
-         interp%ifindy = ifind_linear
-      ELSE
-         interp%ifindy = ifind_default
-      END IF
 
-      ! Sort out f
-      ALLOCATE(interp%f(nx, ny))
-      IF(present_and_correct(logf)) THEN
-         interp%f = log(f)
-         interp%logf = .TRUE.
-      ELSE
-         interp%f = f
-         interp%logf = .FALSE.
-      END IF
+         ! Sort out x axis      
+         IF(present_and_correct(logx)) THEN
+            interp%x = log(x)
+            interp%logx = .TRUE.
+         ELSE
+            interp%x = x
+            interp%logx = .FALSE.
+         END IF
+         IF (regular_spacing(interp%x)) THEN
+            interp%ifindx = ifind_linear
+         ELSE
+            interp%ifindx = ifind_default
+         END IF
 
-      ! Reverse arrays if necessary
-      IF (interp%x(1) > interp%x(nx)) THEN
-         CALL reverse_array(interp%x)
-         CALL reverse_array(interp%f, 1)
-      END IF
-      IF (interp%y(1) > interp%y(ny)) THEN
-         CALL reverse_array(interp%y)
-         CALL reverse_array(interp%f, 2)
-      END IF
+         ! Sort out y axis     
+         IF(present_and_correct(logy)) THEN
+            interp%y = log(y)
+            interp%logy = .TRUE.
+         ELSE
+            interp%y = y
+            interp%logy = .FALSE.
+         END IF
+         IF (regular_spacing(interp%y)) THEN
+            interp%ifindy = ifind_linear
+         ELSE
+            interp%ifindy = ifind_default
+         END IF
 
-      ! Set the interp%xmin, xmax, ymin, ymax values
-      interp%xmin = interp%x(1)
-      interp%xmax = interp%x(nx)
-      interp%ymin = interp%y(1)
-      interp%ymax = interp%y(ny)
-      IF (interp%logx) THEN
-         interp%xmin = exp(interp%xmin)
-         interp%xmax = exp(interp%xmax)
-      END IF
-      IF (interp%logy) THEN
-         interp%ymin = exp(interp%ymin)
-         interp%ymax = exp(interp%ymax)
-      END IF
+         ! Sort out f
+         IF(present_and_correct(logf)) THEN
+            interp%f = log(f)
+            interp%logf = .TRUE.
+         ELSE
+            interp%f = f
+            interp%logf = .FALSE.
+         END IF
 
-      ! Set internal variables
-      interp%iorder = iorder
-      interp%iextrap = iextrap
-      interp%store = store
+         ! Reverse arrays if necessary
+         IF (interp%x(1) > interp%x(nx)) THEN
+            CALL reverse_array(interp%x)
+            CALL reverse_array(interp%f, 1)
+         END IF
+         IF (interp%y(1) > interp%y(ny)) THEN
+            CALL reverse_array(interp%y)
+            CALL reverse_array(interp%f, 2)
+         END IF
 
-      IF (interp%store) THEN 
+         ! Set the interp%xmin, xmax, ymin, ymax values
+         interp%xmin = interp%x(1)
+         interp%xmax = interp%x(nx)
+         interp%ymin = interp%y(1)
+         interp%ymax = interp%y(ny)
+         IF (interp%logx) THEN
+            interp%xmin = exp(interp%xmin)
+            interp%xmax = exp(interp%xmax)
+         END IF
+         IF (interp%logy) THEN
+            interp%ymin = exp(interp%ymin)
+            interp%ymax = exp(interp%ymax)
+         END IF
 
-         ALLOCATE(interp%x0(nx-1, ny), interp%y0(nx, ny-1))
-         ALLOCATE(interp%ax0(nx-1, ny), interp%ax1(nx-1, ny), interp%ax2(nx-1, ny), interp%ax3(nx-1, ny))
-         ALLOCATE(interp%ay0(nx, ny-1), interp%ay1(nx, ny-1), interp%ay2(nx, ny-1), interp%ay3(nx, ny-1))
-         interp%x0 = 0.
-         interp%ax0 = 0.
-         interp%ax1 = 0.
-         interp%ax2 = 0.
-         interp%ax3 = 0.
-         interp%y0 = 0.
-         interp%ay0 = 0.
-         interp%ay1 = 0.
-         interp%ay2 = 0.
-         interp%ay3 = 0.
-         
-         IF ((interp%iorder == 1) .OR. (iextrap == iextrap_lin)) THEN
+         ! Set internal variables
+         interp%iorder = iorder
+         interp%iextrap = iextrap
+         interp%store = store
 
-            DO iy = 1, ny
+         IF (interp%store) THEN 
 
-               ! TODO: This should work, but it does not
-               !IF (iorder > 1 .AND. iy > 2 .AND. iy < ny-1) CYCLE
+            ALLOCATE(interp%x0(nx-1, ny), interp%y0(nx, ny-1))
+            ALLOCATE(interp%ax0(nx-1, ny), interp%ax1(nx-1, ny), interp%ax2(nx-1, ny), interp%ax3(nx-1, ny))
+            ALLOCATE(interp%ay0(nx, ny-1), interp%ay1(nx, ny-1), interp%ay2(nx, ny-1), interp%ay3(nx, ny-1))
+            interp%x0 = 0.
+            interp%ax0 = 0.
+            interp%ax1 = 0.
+            interp%ax2 = 0.
+            interp%ax3 = 0.
+            interp%y0 = 0.
+            interp%ay0 = 0.
+            interp%ay1 = 0.
+            interp%ay2 = 0.
+            interp%ay3 = 0.
+            
+            IF ((interp%iorder == 1) .OR. (iextrap == iextrap_lin)) THEN
 
-               DO ix = 1, nx
+               DO iy = 1, ny
 
                   ! TODO: This should work, but it does not
-                  !IF (iorder > 1 .AND. ix > 2 .AND. ix < nx-1) CYCLE
+                  !IF (iorder > 1 .AND. iy > 2 .AND. iy < ny-1) CYCLE
 
-                  IF (ix /= nx) THEN
+                  DO ix = 1, nx
 
-                     ! Indices run sequentially but must be within 1, nx
-                     DO i = 1, 2
-                        jx(i) = ix+i-1
-                     END DO
+                     ! TODO: This should work, but it does not
+                     !IF (iorder > 1 .AND. ix > 2 .AND. ix < nx-1) CYCLE
 
-                     ! Get x values and function values running along x direction
-                     DO i = 1, 2
-                        xx(i) = interp%x(jx(i))
-                        fx(i) = interp%f(jx(i), iy)
-                     END DO
+                     IF (ix /= nx) THEN
 
-                     ! Calculate the mid point for polynomial
-                     x0 = (xx(1)+xx(2))/2.
-                     interp%x0(ix, iy) = x0
+                        ! Indices run sequentially but must be within 1, nx
+                        DO i = 1, 2
+                           jx(i) = ix+i-1
+                        END DO
 
-                     ! Fix polynomial along the x direction
-                     CALL fix_centred_polynomial(a1, a0, x0, xx, fx)
-                     interp%ax1(ix, iy) = a1
-                     interp%ax0(ix, iy) = a0
+                        ! Get x values and function values running along x direction
+                        DO i = 1, 2
+                           xx(i) = interp%x(jx(i))
+                           fx(i) = interp%f(jx(i), iy)
+                        END DO
 
-                  END IF
+                        ! Calculate the mid point for polynomial
+                        x0 = (xx(1)+xx(2))/2.
+                        interp%x0(ix, iy) = x0
 
-                  IF (iy /= ny) THEN
+                        ! Fix polynomial along the x direction
+                        CALL fix_centred_polynomial(a1, a0, x0, xx, fx)
+                        interp%ax1(ix, iy) = a1
+                        interp%ax0(ix, iy) = a0
 
-                     ! Indices run sequentially but must be within 1, ny
-                     DO i = 1, 2
-                        jy(i) = iy+i-1
-                     END DO
+                     END IF
 
-                     ! Get y values and function values running along y direction
-                     DO i = 1, 2
-                        yy(i) = interp%y(jy(i))
-                        fy(i) = interp%f(ix, jy(i))
-                     END DO
+                     IF (iy /= ny) THEN
 
-                     ! Calculate the mid point for polynomial
-                     y0 = (yy(1)+yy(2))/2.
-                     interp%y0(ix, iy) = y0
+                        ! Indices run sequentially but must be within 1, ny
+                        DO i = 1, 2
+                           jy(i) = iy+i-1
+                        END DO
 
-                     ! Fix polynomial along the y direction
-                     CALL fix_centred_polynomial(a1, a0, y0, yy, fy)
-                     interp%ay1(ix, iy) = a1
-                     interp%ay0(ix, iy) = a0
+                        ! Get y values and function values running along y direction
+                        DO i = 1, 2
+                           yy(i) = interp%y(jy(i))
+                           fy(i) = interp%f(ix, jy(i))
+                        END DO
 
-                  END IF
+                        ! Calculate the mid point for polynomial
+                        y0 = (yy(1)+yy(2))/2.
+                        interp%y0(ix, iy) = y0
 
+                        ! Fix polynomial along the y direction
+                        CALL fix_centred_polynomial(a1, a0, y0, yy, fy)
+                        interp%ay1(ix, iy) = a1
+                        interp%ay0(ix, iy) = a0
+
+                     END IF
+
+                  END DO
                END DO
-            END DO
 
-            IF ((iextrap == iextrap_lin) .AND. (iorder > 1)) THEN
+               IF ((iextrap == iextrap_lin) .AND. (iorder > 1)) THEN
 
-               interp%bx0 = interp%ax0
-               interp%by0 = interp%ay0
-               interp%bx1 = interp%ax1
-               interp%by1 = interp%ay1
-               interp%xl0 = interp%x0
-               interp%yl0 = interp%y0
+                  interp%bx0 = interp%ax0
+                  interp%by0 = interp%ay0
+                  interp%bx1 = interp%ax1
+                  interp%by1 = interp%ay1
+                  interp%xl0 = interp%x0
+                  interp%yl0 = interp%y0
+
+               END IF
 
             END IF
 
-         END IF
+            IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
 
-         IF (interp%iorder == 2 .OR. interp%iorder == 3) THEN
+               DO iy = 1, ny
+                  DO ix = 1, nx
 
-            DO iy = 1, ny
-               DO ix = 1, nx
+                     IF (ix /= nx) THEN
 
-                  IF (ix /= nx) THEN
+                        ! Indices run sequentially but must be within 1, nx
+                        DO i = 1, 4
+                           jx(i) = ix+(i-2)
+                        END DO
+                        IF (ix == 1)    jx = jx+1
+                        IF (ix == nx-1) jx = jx-1
 
-                     ! Indices run sequentially but must be within 1, nx
-                     DO i = 1, 4
-                        jx(i) = ix+(i-2)
-                     END DO
-                     IF (ix == 1)    jx = jx+1
-                     IF (ix == nx-1) jx = jx-1
+                        ! Get x values and function values running along x direction
+                        DO i = 1, 4
+                           xx(i) = interp%x(jx(i))
+                           fx(i) = interp%f(jx(i), iy)
+                        END DO
 
-                     ! Get x values and function values running along x direction
-                     DO i = 1, 4
-                        xx(i) = interp%x(jx(i))
-                        fx(i) = interp%f(jx(i), iy)
-                     END DO
+                        ! Calculate the mid point for polynomial
+                        x0 = (xx(2)+xx(3))/2.
+                        interp%x0(ix, iy) = x0
 
-                     ! Calculate the mid point for polynomial
-                     x0 = (xx(2)+xx(3))/2.
-                     interp%x0(ix, iy) = x0
+                        ! Fix polynomial along the x direction
+                        CALL fix_centred_polynomial(a3, a2, a1, a0, x0, xx, fx)
+                        interp%ax3(ix, iy) = a3
+                        interp%ax2(ix, iy) = a2
+                        interp%ax1(ix, iy) = a1
+                        interp%ax0(ix, iy) = a0
 
-                     ! Fix polynomial along the x direction
-                     CALL fix_centred_polynomial(a3, a2, a1, a0, x0, xx, fx)
-                     interp%ax3(ix, iy) = a3
-                     interp%ax2(ix, iy) = a2
-                     interp%ax1(ix, iy) = a1
-                     interp%ax0(ix, iy) = a0
+                     END IF
 
-                  END IF
+                     IF (iy /= ny) THEN
 
-                  IF (iy /= ny) THEN
+                        ! Indices run sequentially but must be within 1, ny
+                        DO i = 1, 4
+                           jy(i) = iy+(i-2)
+                        END DO
+                        IF (iy == 1)    jy = jy+1
+                        IF (iy == ny-1) jy = jy-1
 
-                     ! Indices run sequentially but must be within 1, ny
-                     DO i = 1, 4
-                        jy(i) = iy+(i-2)
-                     END DO
-                     IF (iy == 1)    jy = jy+1
-                     IF (iy == ny-1) jy = jy-1
+                        ! Get y values and function values running along y direction
+                        DO i = 1, 4
+                           yy(i) = interp%y(jy(i))
+                           fy(i) = interp%f(ix, jy(i))
+                        END DO
 
-                     ! Get y values and function values running along y direction
-                     DO i = 1, 4
-                        yy(i) = interp%y(jy(i))
-                        fy(i) = interp%f(ix, jy(i))
-                     END DO
+                        ! Calculate the mid point for polynomial
+                        y0 = (yy(2)+yy(3))/2.
+                        interp%y0(ix, iy) = y0
 
-                     ! Calculate the mid point for polynomial
-                     y0 = (yy(2)+yy(3))/2.
-                     interp%y0(ix, iy) = y0
+                        ! Fix polynomial along the y direction
+                        CALL fix_centred_polynomial(a3, a2, a1, a0, y0, yy, fy)
+                        interp%ay3(ix, iy) = a3
+                        interp%ay2(ix, iy) = a2
+                        interp%ay1(ix, iy) = a1
+                        interp%ay0(ix, iy) = a0
 
-                     ! Fix polynomial along the y direction
-                     CALL fix_centred_polynomial(a3, a2, a1, a0, y0, yy, fy)
-                     interp%ay3(ix, iy) = a3
-                     interp%ay2(ix, iy) = a2
-                     interp%ay1(ix, iy) = a1
-                     interp%ay0(ix, iy) = a0
+                     END IF
 
-                  END IF
-
+                  END DO
                END DO
-            END DO
 
+            END IF
+            
          END IF
-         
+
       END IF
 
    END SUBROUTINE init_interpolator_2D
@@ -1683,7 +1702,17 @@ CONTAINS
       IF (interp%logy) yy = log(yy)
       ny = interp%ny
 
-      IF (interp%store) THEN
+      IF (nx == 1) THEN
+
+         ! Function is actually 1D in y, so evaluate this
+         evaluate_interpolator_2D = evaluate_interpolator_1D(y, interp%interp1D)
+
+      ELSE IF (ny == 1) THEN
+
+         ! Function is actually 1D in x, so evaluate this
+         evaluate_interpolator_2D = evaluate_interpolator_1D(y, interp%interp1D)
+
+      ELSE IF (interp%store) THEN
 
          IF (xx < interp%x(1) .OR. xx > interp%x(nx)) THEN
             outx = .TRUE.
@@ -1808,6 +1837,7 @@ CONTAINS
          END IF
 
          evaluate_interpolator_2D = (ffx+ffy)/2.
+         IF (interp%logf) evaluate_interpolator_2D = exp(evaluate_interpolator_2D)
 
       ELSE
 
@@ -1815,17 +1845,18 @@ CONTAINS
                      interp%iorder, &
                      interp%ifindx, &
                      interp%ifindy, &
-                     iinterp)   
+                     iinterp) 
+         IF (interp%logf) evaluate_interpolator_2D = exp(evaluate_interpolator_2D)
 
       END IF
-
-      IF (interp%logf) evaluate_interpolator_2D = exp(evaluate_interpolator_2D)
 
    END FUNCTION evaluate_interpolator_2D
 
    SUBROUTINE init_interpolator_3D(x, y, z, f, interp, iorder, iextrap, store, logx, logy, logz, logf)
 
       ! Initialise a 3D interpolator
+      ! TODO: Checks on array sizes
+      ! TODO: Remove unnecessary ALLOCATE statements
       USE basic_operations
       REAL, INTENT(IN) :: x(:)                    ! Input data x
       REAL, INTENT(IN) :: y(:)                    ! Input data y
