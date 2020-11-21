@@ -2,7 +2,7 @@ MODULE interpolate
 
    ! TODO: Combine the integer finding that is carried out separately in 'find' and 'evaluate_interpolator'
    ! TODO: Combine the interpolation that is carried out separatly in 'find' and 'evaluate_interpolator'
-   ! TODO: Create 3D interpolator
+   ! TODO: Functions to return min/max x, y, ... values from interpolators
 
    USE table_integer
    USE array_operations
