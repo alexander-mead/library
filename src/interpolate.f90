@@ -1710,7 +1710,7 @@ CONTAINS
       ELSE IF (ny == 1) THEN
 
          ! Function is actually 1D in x, so evaluate this
-         evaluate_interpolator_2D = evaluate_interpolator_1D(y, interp%interp1D)
+         evaluate_interpolator_2D = evaluate_interpolator_1D(x, interp%interp1D)
 
       ELSE IF (interp%store) THEN
 
