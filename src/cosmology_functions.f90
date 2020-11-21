@@ -238,9 +238,8 @@ MODULE cosmology_functions
       ! Look-up tables that are filled during a calculation
       REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:)     ! Arrays for input linear P(k) TODO: Remove
       REAL, ALLOCATABLE :: log_a_plin(:), log_plina(:, :) ! Arrays for input linear P(k, a) TODO: Remove
-      TYPE(interpolator1D) :: sigma, grow, grate, agrow, dc, Dv, dist, time, Xde ! 1D interpolators
-      TYPE(interpolator1D) :: plin, wiggle, rspt, Tk_matter, Tk_cold
-      TYPE(interpolator2D) :: sigmaa, plina, Tka_cold, Tka_matter, wigglea ! 2D interpolators 
+      TYPE(interpolator1D) :: grow, grate, agrow, dc, Dv, dist, time, Xde, rspt ! 1D interpolators
+      TYPE(interpolator2D) :: sigma, plin, wiggle, Tk_matter, Tk_cold ! 2D interpolators
       INTEGER :: nk_plin, na_plin ! Number of array entries
       LOGICAL :: analytical_Tk                                                          
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power ! Interpolator status
@@ -2451,7 +2450,7 @@ CONTAINS
       CALL calculate_plin(k, a, Pk, nk, na, cosm)
       Pk = Pk*gk ! Mutliply through by scale-dependent growth to get f(R) linear shape
 
-      CALL init_interpolator(k, a, Pk, cosm%plina, &
+      CALL init_interpolator(k, a, Pk, cosm%plin, &
          iorder = iorder_interp_plin, &
          iextrap = iextrap_plin, &
          store = store_plin, &
@@ -3451,11 +3450,7 @@ CONTAINS
             STOP 'TK_MATTER: Error, iTk specified incorrectly'
          END IF
       ELSE
-         IF (cosm%scale_dependent_growth) THEN
-            Tk_matter = evaluate_interpolator(k, a, cosm%Tka_matter)
-         ELSE
-            Tk_matter = evaluate_interpolator(k, cosm%Tk_matter)
-         END IF
+         Tk_matter = evaluate_interpolator(k, a, cosm%Tk_matter)
       END IF
 
       ! Additional weirdness
@@ -3484,11 +3479,7 @@ CONTAINS
          Tk_cold = Tk_cold_EH(k, a, cosm)
       ELSE IF (cosm%iTc == iTc_CAMB) THEN
          ! Use look-up tables from CAMB transfer functions
-         IF (cosm%scale_dependent_growth) THEN
-            Tk_cold = evaluate_interpolator(k, a, cosm%Tka_cold)
-         ELSE
-            Tk_cold = evaluate_interpolator(k, cosm%Tk_cold)
-         END IF
+         Tk_cold = evaluate_interpolator(k, a, cosm%Tk_cold)
       ELSE
          STOP 'TCOLD: Error, cold transfer function method not specified correctly'
       END IF
@@ -3840,24 +3831,14 @@ CONTAINS
          plin = 0.
       ELSE
          IF (cosm%has_power) THEN
-            IF (cosm%scale_dependent_growth) THEN
-               kmax = cosm%plina%xmax
-               IF (plin_extrap .AND. k > kmax) THEN
-                  pmax = evaluate_interpolator(kmax, a, cosm%plina)
-                  plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
-               ELSE
-                  plin = evaluate_interpolator(k, a, cosm%plina)
-               END IF
+            kmax = cosm%plin%xmax ! TODO: Should not be accessing array internals like this
+            IF (plin_extrap .AND. k > kmax) THEN
+               pmax = evaluate_interpolator(kmax, a, cosm%plin)
+               plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
             ELSE
-               kmax = cosm%plin%xmax
-               IF(plin_extrap .AND. k > kmax) THEN
-                  pmax = evaluate_interpolator(kmax, cosm%plin)
-                  plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
-               ELSE
-                  plin = evaluate_interpolator(k, cosm%plin)
-               END IF
-               plin = (grow(a, cosm)**2)*plin
+               plin = evaluate_interpolator(k, a, cosm%plin)
             END IF
+            IF (.NOT. cosm%scale_dependent_growth) plin = (grow(a, cosm)**2)*plin
          ELSE
             ! In this case get the power from the transfer function
             plin = (grow(a, cosm)**2)*(Tk_matter(k, a, cosm)**2)*k**(cosm%ns+3.)
@@ -3913,14 +3894,16 @@ CONTAINS
 
       ! This does not need to be evaulated at multiple a unless growth is scale dependent
       IF (cosm%scale_dependent_growth) THEN
+
          IF (cosm%has_power) THEN
             ! TODO: Should probably not be accessing interpolator internals like this
-            amin = cosm%plina%ymin
-            amax = cosm%plina%ymax
+            amin = cosm%plin%ymin
+            amax = cosm%plin%ymax
          ELSE
             amin = amin_sigma
             amax = amax_sigma
          END IF
+
          na = na_sigma
          CALL fill_array_log(amin, amax, a, na)
          IF (cosm%verbose) THEN
@@ -3928,49 +3911,32 @@ CONTAINS
             WRITE (*, *) 'INIT_SIGMA: amax:', real(amax)
             WRITE (*, *) 'INIT_SIGMA: Number of a points:', na
          END IF
+
       ELSE
          na = 1
+         ALLOCATE(a(na))
+         a = 1.
       END IF
 
-      ALLOCATE(sig(nr, na))
+      ALLOCATE(sig(nr, na))     
 
+      ! Loop over R and a and calculate sigma(R,a)
       IF (cosm%verbose) WRITE (*, *) 'INIT_SIGMA: Calculating sigma(R)'
-
-      ! Do the calculations to fill the look-up tables
-      IF (cosm%scale_dependent_growth) THEN
-
-         ! Loop over R and a and calculate sigma(R,a)
-         DO ia = 1, na
-            DO ir = 1, nr
-               sig(ir, ia) = sigma_integral(R(ir), a(ia), sigma_store, cosm)
-            END DO
-         END DO
-
-         CALL init_interpolator(R, a, sig, cosm%sigmaa, &
-            iorder_interp_sigma, &
-            iextrap_sigma, &
-            store = store_sigma, &
-            logx = .TRUE., &
-            logy = .TRUE., &
-            logf = .TRUE. &
-            )
-
-      ELSE
-
-         ! Loop over R values and calculate sigma(R, a=1)
+      DO ia = 1, na
          DO ir = 1, nr
-            sig(ir, 1) = sigma_integral(R(ir), 1., sigma_store, cosm)
+            sig(ir, ia) = sigma_integral(R(ir), a(ia), sigma_store, cosm)
          END DO
+      END DO
 
-         CALL init_interpolator(R, sig(:, 1), cosm%sigma, &
-            iorder = iorder_interp_sigma, &
-            iextrap = iextrap_sigma, &
-            store = store_sigma, &
-            logx = .TRUE., &
-            logf = .TRUE. &
-            )
-
-      END IF
+      ! Initialise interpolator
+      CALL init_interpolator(R, a, sig, cosm%sigma, &
+         iorder_interp_sigma, &
+         iextrap_sigma, &
+         store = store_sigma, &
+         logx = .TRUE., &
+         logy = .TRUE., &
+         logf = .TRUE. &
+         )
 
       ! Change flag so that it is known that the look-up tables are filled
       cosm%has_sigma = .TRUE.
@@ -3988,16 +3954,13 @@ CONTAINS
    REAL FUNCTION find_sigma(R, a, cosm)
 
       ! Evaluate interpolator for sigma(R)
+      ! TODO: Applying the growth factor should be iff cosm%interp%na = 1
       REAL, INTENT(IN) :: R ! Smoothing scale to calculate sigma [Mpc/h]
       REAL, INTENT(IN) :: a ! Scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
 
-      IF (cosm%scale_dependent_growth) THEN
-         find_sigma = evaluate_interpolator(R, a, cosm%sigmaa)
-      ELSE
-         find_sigma = evaluate_interpolator(R, cosm%sigma)
-         find_sigma = grow(a, cosm)*find_sigma
-      END IF
+      find_sigma = evaluate_interpolator(R, a, cosm%sigma)
+      IF (.NOT. cosm%scale_dependent_growth) find_sigma = grow(a, cosm)*find_sigma
 
    END FUNCTION find_sigma
 
@@ -5517,45 +5480,23 @@ CONTAINS
       ! TODO: This could be time consuming if interpolators filled but never used?
       IF (fill_Tk_interpolators .OR. cosm%iTc == iTc_CAMB) THEN
       
-         IF (cosm%scale_dependent_growth) THEN
-      
-            ! Initialise total matter transfer functions for interpolation
-            CALL init_interpolator(kTk, a, Tm, cosm%Tka_matter, &
-               iorder = iorder_interp_Tk, &
-               iextrap = iextrap_Tk, &
-               store = store_Tk, &
-               logx = .TRUE., &
-               logy = .TRUE., &
-               logf = .TRUE.)
+         ! Initialise total matter transfer functions for interpolation
+         CALL init_interpolator(kTk, a, Tm, cosm%Tk_matter, &
+            iorder = iorder_interp_Tk, &
+            iextrap = iextrap_Tk, &
+            store = store_Tk, &
+            logx = .TRUE., &
+            logy = .TRUE., &
+            logf = .TRUE.)
 
-            ! Initialise cold matter transfer function interpolation
-            CALL init_interpolator(kTk, a, Tc, cosm%Tka_cold, &
-               iorder = iorder_interp_Tk, &
-               iextrap = iextrap_Tk, &
-               store = store_Tk, &
-               logx = .TRUE., &
-               logy = .TRUE., &
-               logf = .TRUE.)
-
-         ELSE
-
-            ! Initialise total matter transfer functions for interpolation
-            CALL init_interpolator(kTk, Tm(:, 1), cosm%Tk_matter, &
-               iorder = iorder_interp_Tk, &
-               iextrap = iextrap_Tk, &
-               store = store_Tk, &
-               logx = .TRUE., &
-               logf = .TRUE.)
-
-            ! Initialise cold matter transfer function interpolation
-            CALL init_interpolator(kTk, Tc(:, 1), cosm%Tk_cold, &
-               iorder = iorder_interp_Tk, &
-               iextrap = iextrap_Tk, &
-               store = store_Tk, &
-               logx = .TRUE., &
-               logf = .TRUE.)
-
-         END IF
+         ! Initialise cold matter transfer function interpolation
+         CALL init_interpolator(kTk, a, Tc, cosm%Tk_cold, &
+            iorder = iorder_interp_Tk, &
+            iextrap = iextrap_Tk, &
+            store = store_Tk, &
+            logx = .TRUE., &
+            logy = .TRUE., &
+            logf = .TRUE.)
 
       END IF
 
@@ -5669,22 +5610,13 @@ CONTAINS
          WRITE (*, *) 'INIT_LINEAR: Initialising interpolator'
       END IF
 
-      IF (na == 1) THEN
-         CALL init_interpolator(k, Pk(:, 1), cosm%plin, &
-            iorder = iorder_interp_plin, &
-            iextrap = iextrap_plin, &
-            store = store_plin, &
-            logx = .TRUE., &
-            logf = .TRUE.)
-      ELSE
-         CALL init_interpolator(k, a, Pk, cosm%plina, &
-            iorder = iorder_interp_plin, &
-            iextrap = iextrap_plin, &
-            store = store_plin, &
-            logx = .TRUE., &
-            logy = .TRUE., &
-            logf = .TRUE.)
-      END IF
+      CALL init_interpolator(k, a, Pk, cosm%plin, &
+         iorder = iorder_interp_plin, &
+         iextrap = iextrap_plin, &
+         store = store_plin, &
+         logx = .TRUE., &
+         logy = .TRUE., &
+         logf = .TRUE.)
 
       IF (cosm%is_normalised) cosm%A = 1.
 
@@ -5699,6 +5631,9 @@ CONTAINS
    END SUBROUTINE init_linear
 
    SUBROUTINE init_external_linear_power_tables(cosm, k, a, plin_tab)
+
+      ! TILMAN: Wrote this
+      ! TODO: Only really need a 2D plin, not plina too
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, DIMENSION(:), INTENT(IN) :: k, a
       REAL, DIMENSION(:,:), INTENT(IN) :: plin_tab
@@ -5724,7 +5659,7 @@ CONTAINS
       cosm%log_k_plin = log(k)
       cosm%log_plin = log(plin_tab(:,na)*k**3/(2*pi**2))
       cosm%log_a_plin = log(a)
-      forall (i=1:nk) cosm%log_plina(i,:) = log(plin_tab(i,:)*k(i)**3/(2*pi**2))
+      forall (i=1:nk) cosm%log_plina(i, :) = log(plin_tab(i, :)*k(i)**3/(2*pi**2))
 
       cosm%itk = itk_external
       cosm%has_power = .true.
@@ -5735,6 +5670,7 @@ CONTAINS
 
       ! TILMAN: Wrote this
       ! The purpose of this is *only* to init interpolators and set has_power
+      ! TODO: Only really need log_plin, not log_plina, and log_plin should be 2D
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: nk, nk_pk, na, na_pk
       INTEGER :: plina_shape(2)
@@ -5785,8 +5721,9 @@ CONTAINS
          RETURN
       ENDIF
 
+      ! TODO: Merge these
       IF (cosm%scale_dependent_growth) THEN
-         CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_a_plin), exp(cosm%log_plina), cosm%plina, &
+         CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_a_plin), exp(cosm%log_plina), cosm%plin, &
             iorder = iorder_interp_plin, &
             iextrap = iextrap_plin, &
             store = store_plin, &
@@ -5794,11 +5731,12 @@ CONTAINS
             logy = .TRUE., &
             logf = .TRUE.)
       ELSE
-         CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_plin), cosm%plin, &
+         CALL init_interpolator(exp(cosm%log_k_plin), [1.], reshape(exp(cosm%log_plin), [nk, 1]), cosm%plin, &
             iorder = iorder_interp_plin, &
             iextrap = iextrap_plin, &
             store = store_plin, &
             logx = .TRUE., &
+            logy = .TRUE., &
             logf = .TRUE.)
       END IF
 
@@ -7177,22 +7115,13 @@ CONTAINS
 
       ! Init interpolator
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Initialising interpolator'
-      IF (scale_grow_wiggle .AND. cosm%scale_dependent_growth) THEN
-         CALL init_interpolator(k, a, Pk_wiggle, cosm%wigglea, &
-            iorder = iorder_interp_wiggle, &
-            iextrap = iextrap_wiggle, &
-            store = store_wiggle, &
-            logx = .TRUE., &
-            logy = .TRUE., &
-            logf = .FALSE.)
-      ELSE
-         CALL init_interpolator(k, Pk_wiggle(:, 1), cosm%wiggle, &
-            iorder = iorder_interp_wiggle, &
-            iextrap = iextrap_wiggle, &
-            store = store_wiggle, &
-            logx = .TRUE., &
-            logf = .FALSE.)
-      END IF
+      CALL init_interpolator(k, a, Pk_wiggle, cosm%wiggle, &
+         iorder = iorder_interp_wiggle, &
+         iextrap = iextrap_wiggle, &
+         store = store_wiggle, &
+         logx = .TRUE., &
+         logy = .TRUE., &
+         logf = .FALSE.)
 
       ! Set the flag
       cosm%has_wiggle = .TRUE.
@@ -7211,7 +7140,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: sigv
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: P_wiggle, f, P_linear
+      REAL :: P_wiggle, f, P_linear, g
       INTEGER, PARAMETER :: flag = flag_matter
    
       IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm) 
@@ -7222,13 +7151,13 @@ CONTAINS
       ELSE
          f = 0.
       END IF
-      IF (scale_grow_wiggle .AND. cosm%scale_dependent_growth) THEN
-         P_wiggle = evaluate_interpolator(k, a, cosm%wigglea)
-         P_dewiggle = P_linear+(f-1.)*P_wiggle
+      P_wiggle = evaluate_interpolator(k, a, cosm%wiggle)
+      IF (scale_grow_wiggle .AND. cosm%scale_dependent_growth) THEN       
+         g = 1. ! TODO: This should be if cosm%wiggle is really 1D and a = 1 only
       ELSE
-         P_wiggle = evaluate_interpolator(k, cosm%wiggle)
-         P_dewiggle = P_linear+(f-1.)*P_wiggle*grow(a, cosm)**2
+         g = grow(a, cosm) 
       END IF
+      P_dewiggle = P_linear+(f-1.)*P_wiggle*g**2
 
    END FUNCTION P_dewiggle
 
