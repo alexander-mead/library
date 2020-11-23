@@ -894,7 +894,7 @@ CONTAINS
       cosm%sig8 = 0.8                ! norm_sigma8: sigma(R=8, a=1) normalisation
       cosm%kval = 0.001              ! norm_value: Wavenumber for normalisation [h/Mpc]
       cosm%pval = 0.1973236854e-06   ! norm_value: Delta^2 value to get sig8 = 0.8 for a boring cosmology
-      cosm%kpiv = 0.05/cosm%h        ! norm_As: Wavenumber at which to define the normalisation [h/Mpc] NOT [1/Mpc]
+      cosm%kpiv = 0.05/cosm%h        ! norm_As: Wavenumber at which to define As normalisation [h/Mpc] NOT [1/Mpc]
       cosm%As = 2.1e-9               ! norm_As: 2.1e-9 is a sensible value
       
       !! !!
@@ -2351,18 +2351,16 @@ CONTAINS
 
    RECURSIVE REAL FUNCTION As(cosm)
 
-      ! Calculate the value of A_s from the linear power spectrum
-      ! TODO: Figure this out with Alex
+      ! Calculate the value of A_s from the linear power spectrum; defined using kpiv
       TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
       REAL, PARAMETER :: a = 1.                ! Normalisation is at a=1
       INTEGER, PARAMETER :: flag = flag_matter ! A_s is defined from linear
-      REAL :: kpiv, Tk
+      REAL :: kpiv, Tk, g
 
       kpiv = cosm%kpiv
       Tk = Tk_matter(kpiv, a, cosm)
-      !g = ungrow(a, cosm)
-      !As = (((3./2.)*(10./9.))**2)*(cosm%Om_m**2)*((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/(g*Tk)**2
-      As = ((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/Tk**2
+      g = ungrow(a, cosm)
+      As = (((3./2.)*(5./3.))**2)*(cosm%Om_m**2)*((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/(g*Tk)**2
 
    END FUNCTION As
 
@@ -3841,7 +3839,7 @@ CONTAINS
             IF (.NOT. cosm%scale_dependent_growth) plin = (grow(a, cosm)**2)*plin
          ELSE
             ! In this case get the power from the transfer function
-            plin = (grow(a, cosm)**2)*(Tk_matter(k, a, cosm)**2)*k**(cosm%ns+3.)
+            plin = (grow(a, cosm)**2)*(Tk_matter(k, a, cosm)**2)*(k/cosm%kval)**(cosm%ns+3.)
          END IF
       END IF
       plin = plin*cosm%A**2
@@ -7175,17 +7173,18 @@ CONTAINS
 
    END FUNCTION P_dewiggle
 
-   REAL FUNCTION Pk_nowiggle(k, cosm)
+   REAL FUNCTION P_nowiggle(k, a, cosm)
 
       ! Calculates the un-normalised no-wiggle power spectrum 
       ! Comes from the Eisenstein & Hu approximation
       ! TODO: Normalisation factors of cosm%A?
       REAL, INTENT(IN) :: k
-      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      Pk_nowiggle = (k**(cosm%ns+3.))*Tk_nw(k, cosm)**2
+      P_nowiggle = ((cosm%A*grow(a, cosm))**2)*((k/cosm%kval)**(cosm%ns+3.))*Tk_nw(k, cosm)**2
 
-   END FUNCTION Pk_nowiggle
+   END FUNCTION P_nowiggle
 
    SUBROUTINE calculate_nowiggle(k, a, Pk, Pk_nw, cosm)
 
@@ -7209,12 +7208,14 @@ CONTAINS
       IF (nk /= size(Pk, 1) .OR. na /= size(Pk, 2)) STOP 'CALCULATE_NOWIGGLE: Error, Pk should be same size as k and a'
       ALLOCATE(Pk_nw(nk, na))
 
-      ! Get the no-wiggle power spectrum (not a function of a)
-      DO ik = 1, nk
-         Pk_nw(ik, :) = Pk_nowiggle(k(ik), cosm)
+      ! Get the no-wiggle power spectrum
+      DO ia = 1, na
+         DO ik = 1, nk
+            Pk_nw(ik, :) = P_nowiggle(k(ik), a(ia), cosm)
+         END DO
       END DO
 
-      ! Calculate the no-wiggle power spectrum at every wavenumber and force spectra to agree at the minimum wavenumber
+      ! Force spectra to agree at the minimum wavenumber
       DO ia = 1, na
          Pk_lin = Plin(knorm, a(ia), flag_matter, cosm)
          Pk_nw_norm = find(knorm, k, Pk_nw(:, ia), nk, &
