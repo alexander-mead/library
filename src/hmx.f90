@@ -1263,7 +1263,7 @@ CONTAINS
       hmod%bnl_cat = 'rockstar'
       hmod%bnl_path = '/Users/Mead/Physics/Multidark/data/'
 
-      ! Perturbation theory
+      ! Perturbation(ish) theory
       hmod%PT_A = 1.
       hmod%PT_alpha = 1.
       hmod%PT_beta = 1.
@@ -3987,6 +3987,7 @@ CONTAINS
 
       ELSE IF (hmod%ip2h == 6 .OR. hmod%ip2h == 7) THEN
 
+         ! HALOFIT either non-linear or quasi-linear term
          CALL calculate_HALOFIT_ka(k, hmod%HALOFIT_neff, hmod%HALOFIT_ncur, hmod%HALOFIT_knl, pli, pnl, pq, ph, hmod%a, cosm, ihf=HALOFIT_version)
          IF (hmod%ip2h == 6) THEN
             p_2h = pnl  
