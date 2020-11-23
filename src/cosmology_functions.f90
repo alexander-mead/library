@@ -2356,7 +2356,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
       REAL, PARAMETER :: a = 1.                ! Normalisation is at a=1
       INTEGER, PARAMETER :: flag = flag_matter ! A_s is defined from linear
-      REAL :: kpiv, Tk, g
+      REAL :: kpiv, Tk
 
       kpiv = cosm%kpiv
       Tk = Tk_matter(kpiv, a, cosm)
@@ -2373,7 +2373,7 @@ CONTAINS
       REAL, ALLOCATABLE :: k(:), a(:), gk(:, :), Pk(:, :)
       REAL, ALLOCATABLE :: d_tab(:), v_tab(:), a_tab(:), d_new(:)
       INTEGER :: ik
-      REAL :: g, norm
+      REAL :: norm
       REAL, PARAMETER :: kmin = kmin_plin
       REAL, PARAMETER :: kmax = kmax_plin
       INTEGER, PARAMETER :: nk = nk_plin
@@ -3641,23 +3641,22 @@ CONTAINS
 
       ! Useful parameters to make equations shorter
       IF (cosm%power_Omegas) THEN
-         wm = cosm%Om_m_pow*cosm%h_pow**2 ! Real matter density
-         wb = cosm%Om_b_pow*cosm%h_pow**2 ! Real baryon density
-         h = cosm%h_pow                   ! Hubble factor
+         h = cosm%h_pow               ! Hubble factor
+         wm = cosm%Om_m_pow*cosm%h**2 ! Real matter density
+         wb = cosm%Om_b_pow*cosm%h**2 ! Real baryon density      
       ELSE
-         wm = cosm%Om_m*cosm%h**2 ! Real matter density
-         wb = cosm%Om_b*cosm%h**2 ! Real baryon density
          h = cosm%h               ! Hubble factor
+         wm = cosm%Om_m*cosm%h**2 ! Real matter density
+         wb = cosm%Om_b*cosm%h**2 ! Real baryon density       
       END IF
-      rb = wm/wb ! Baryon ratio
+      rb = wb/wm ! Baryon ratio
 
       ! These only needs to be calculated once
       s = 44.5*log(9.83/wm)/sqrt(1.+10.*wb**0.75)              ! Equation (26)
       alpha = 1.-0.328*log(431.*wm)*rb+0.38*log(22.3*wm)*rb**2 ! Equation (31)
 
       ! Functions of k
-      Gamma = cosm%Om_m*h
-      Gamma = Gamma*(alpha+(1.-alpha)/(1.+(0.43*k*s*h)**4)) ! Equation (30)
+      Gamma = (wm/h)*(alpha+(1.-alpha)/(1.+(0.43*k*s*h)**4)) ! Equation (30)
       q = k*(cosm%T_CMB/2.7)**2/Gamma ! Equation (28)
       L = log(2.*e+1.8*q)             ! Equation (29)
       C = 14.2+731./(1.+62.5*q)       ! Equation (29)
@@ -3807,15 +3806,16 @@ CONTAINS
 
       ! Linear matter power spectrum
       ! Must be recursive function because normalise_power calls this function again
+      ! TODO: Should not access interpolator internals
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: kmax, pmax
-      REAL, PARAMETER :: kmin_zero = kmin_abs_plin      ! Below this wavenumber the power is fixed to zero
-      REAL, PARAMETER :: kmax_zero = kmax_abs_plin      ! Above this wavenumber the power is fixed to zero
+      REAL, PARAMETER :: kmin_zero = kmin_abs_plin ! Below this wavenumber the power is fixed to zero
+      REAL, PARAMETER :: kmax_zero = kmax_abs_plin ! Above this wavenumber the power is fixed to zero
 
-      ! This line generates a recursion
+      ! This line generates recursion
       IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm)
 
       IF (k <= kmin_zero) THEN
@@ -7133,6 +7133,27 @@ CONTAINS
 
    END SUBROUTINE init_wiggle
 
+   REAL FUNCTION P_wiggle(k, a, cosm)
+
+      ! Calculate the wiggle part of the power spectrum
+      ! Defined like P_wiggle = P_lin - P_broadband
+      ! Note that this scales with the growth factor as the right-hand side does
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: g
+
+      IF (.NOT. cosm%has_wiggle) CALL init_wiggle(cosm)
+      P_wiggle = evaluate_interpolator(k, a, cosm%wiggle)
+      IF (scale_grow_wiggle .AND. cosm%scale_dependent_growth) THEN       
+         g = 1. ! TODO: This should be if cosm%wiggle is really 1D and a = 1 only
+      ELSE
+         g = grow(a, cosm) 
+      END IF
+      P_wiggle = P_wiggle*g**2
+
+   END FUNCTION P_wiggle
+
    REAL FUNCTION P_dewiggle(k, a, sigv, cosm)
 
       ! Calculate the dewiggled power spectrum, which is linear but with damped wiggles
@@ -7140,24 +7161,17 @@ CONTAINS
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: sigv
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: P_wiggle, f, P_linear, g
+      REAL :: f, P_linear
       INTEGER, PARAMETER :: flag = flag_matter
    
       IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm) 
-      IF (.NOT. cosm%has_wiggle)    CALL init_wiggle(cosm)  
       P_linear = plin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle   
       IF (sigv > 0.) THEN
          f = exp(-(k*sigv)**2)
       ELSE
          f = 0.
       END IF
-      P_wiggle = evaluate_interpolator(k, a, cosm%wiggle)
-      IF (scale_grow_wiggle .AND. cosm%scale_dependent_growth) THEN       
-         g = 1. ! TODO: This should be if cosm%wiggle is really 1D and a = 1 only
-      ELSE
-         g = grow(a, cosm) 
-      END IF
-      P_dewiggle = P_linear+(f-1.)*P_wiggle*g**2
+      P_dewiggle = P_linear+(f-1.)*P_wiggle(k, a, cosm)
 
    END FUNCTION P_dewiggle
 
@@ -7165,6 +7179,7 @@ CONTAINS
 
       ! Calculates the un-normalised no-wiggle power spectrum 
       ! Comes from the Eisenstein & Hu approximation
+      ! TODO: Normalisation factors of cosm%A?
       REAL, INTENT(IN) :: k
       TYPE(cosmology), INTENT(IN) :: cosm
 
