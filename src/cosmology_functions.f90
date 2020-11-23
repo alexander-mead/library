@@ -115,10 +115,13 @@ MODULE cosmology_functions
    PUBLIC :: sigmaV
    PUBLIC :: neff
    PUBLIC :: ncur
-   !PUBLIC :: sigma8
    PUBLIC :: Lagrangian_mass
    PUBLIC :: Lagrangian_radius
+
+   ! Normalisation
    PUBLIC :: As
+   PUBLIC :: sigma8
+   PUBLIC :: pval
 
    ! Correlation function
    PUBLIC :: xi_lin
@@ -698,6 +701,7 @@ CONTAINS
       names(261) = 'Millenium WMAP 1'
       names(262) = 'TCDM - from rescaling'
       names(263) = 'WMAP3'
+      names(264) = 'Boring normalised via As'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1590,7 +1594,10 @@ CONTAINS
          cosm%h = 0.732
          cosm%sig8 = 0.761
          cosm%ns = 1.
-         cosm%iTk = iTk_CAMB    
+         cosm%iTk = iTk_CAMB  
+      ELSE IF (icosmo == 264) THEN
+         ! Boring, but normalised via As
+         cosm%norm_method = norm_As  
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1968,8 +1975,8 @@ CONTAINS
             WRITE (*, fmt=format) 'COSMOLOGY:', 'Delta^2:', cosm%pval
          ELSE IF(cosm%norm_method == norm_As) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: A_s'
-            WRITE (*, fmt=format) 'COSMOLOGY:', 'ks [h/Mpc]:', cosm%kpiv
-            WRITE (*, fmt=format) 'COSMOLOGY:', 'As:', cosm%As
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'kpiv [h/Mpc]:', cosm%kpiv
+            WRITE (*, fmt=format) 'COSMOLOGY:', 'As [10^-9]:', cosm%As*1e9
          END IF      
          IF (cosm%box) WRITE (*, fmt=format) 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
          IF (cosm%warm) THEN
