@@ -2189,7 +2189,7 @@ CONTAINS
       hmod%nu = hmod%dc/hmod%sig
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: M, R, rv, sigma, nu tables filled'
-      IF (hmod%nu(1) > 1.) WRITE(*, *) 'INIT_HALOMOD: Warning, lowest nu value stored is greater than unity, z:', hmod%z
+      IF (hmod%nu(1) > 1.) WRITE(*, *) 'INIT_HALOMOD: WARNING: lowest nu value stored is greater than unity, z:', hmod%z
 
       ! For spectra with finite variance we have cut-off masses etc.
       IF(cosm%warm) THEN
@@ -6052,6 +6052,7 @@ CONTAINS
 
       ! Calculates the halo mass function, what I call n(M); some people call dn/dM 
       ! In either case the units are [(Msun/h)^-1(Mpc/h)^-3]
+      ! TODO: Relies on a potentially unstable numerical derivative
       REAL, INTENT(IN) :: m                  ! Halo mass [Msun/h]
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
@@ -6067,7 +6068,7 @@ CONTAINS
    REAL FUNCTION multiplicity_function(m, hmod, cosm)
 
       ! Returns the dimensionless multiplicity function: M^2n(M)/rho; n(M) = dn/dM sometimes
-      ! TODO: Is there a way to avoid an unstable numerical derivative here?
+      ! TODO: Is there a way to avoid an unstable numerical derivative here? Need dnu/dln(M)
       REAL, INTENT(IN) :: m                  ! Halo mass [Msun/h]
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
