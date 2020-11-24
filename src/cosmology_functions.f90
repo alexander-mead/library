@@ -452,7 +452,7 @@ MODULE cosmology_functions
 
    ! Growth rate index
    REAL, PARAMETER :: growth_index_default = 6./11. ! Default index value (perturbation theory for LCDM)
-   REAL, PARAMETER :: growth_index_limit = 0.01     ! Scale factor below which to use default value
+   REAL, PARAMETER :: growth_index_limit = 0.01     ! 1-Omega_m value below which to switch to the default
 
    ! Accumualted growth integration and interpolation
    INTEGER, PARAMETER :: iorder_integration_agrow = 3 ! Polynomial order for accumulated growth integration
