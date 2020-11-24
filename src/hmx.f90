@@ -2163,7 +2163,7 @@ CONTAINS
       hmod%log_m = log(hmod%m)
 
       ! Lagrangian and virial radius
-      hmod%rr = radius_m(hmod%m, cosm)
+      hmod%rr = Lagrangian_radius(hmod%m, cosm)
       IF (hmod%DMONLY_neutrinos_affect_virial_radius) THEN
          hmod%rr = hmod%rr*(1.-cosm%f_nu)**(1./3.)
       END IF
@@ -2237,7 +2237,7 @@ CONTAINS
       ! This is defined as nu(M_star)=1 *not* sigma(M_star)=1, so depends on delta_c
       ! TODO: Is this necessar for all halo models?
       hmod%rnl = r_nl(hmod)
-      hmod%mnl = mass_r(hmod%rnl, cosm)
+      hmod%mnl = Lagrangian_mass(hmod%rnl, cosm)
       hmod%knl = 1./hmod%rnl
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Non-linear mass [log10(M*) [Msun/h]]:', REAL(log10(hmod%mnl))
@@ -5888,7 +5888,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: R
 
-      R = radius_m(M, cosm)
+      R = Lagrangian_radius(M, cosm)
       nu_M = nu_R(R, hmod, cosm)
 
    END FUNCTION nu_M
@@ -6211,16 +6211,6 @@ CONTAINS
       NFW_factor = log(1.+x)-x/(1.+x)
 
    END FUNCTION NFW_factor
-
-   ELEMENTAL REAL FUNCTION radius_m(m, cosm)
-
-      ! Comoving radius corresponding to mass M in a homogeneous universe
-      REAL, INTENT(IN) :: m
-      TYPE(cosmology), INTENT(IN) :: cosm
-
-      radius_m = (3.*m/(4.*pi*comoving_matter_density(cosm)))**(1./3.)
-
-   END FUNCTION radius_m
 
    REAL FUNCTION virial_radius(m, hmod, cosm)
 
@@ -6668,17 +6658,6 @@ CONTAINS
       conc_Diemer = 1.
 
    END FUNCTION conc_Diemer
-
-   REAL FUNCTION mass_r(r, cosm)
-
-      ! Calculates the mass contains in a sphere of comoving radius 'r' in a homogeneous universe
-      REAL, INTENT(IN) :: r
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-
-      ! Relation between mean cosmological mass and radius
-      mass_r = (4.*pi/3.)*comoving_matter_density(cosm)*(r**3)
-
-   END FUNCTION mass_r
 
    REAL FUNCTION baryonify_wk(wk, m, hmod, cosm)
 
