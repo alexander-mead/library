@@ -4307,19 +4307,19 @@ CONTAINS
 
       ! Approximate scale-independent growth function
       ! Obtained by integrating growth rate of Omega_m^gamma(a) normalised | g(a->0) = a
+      ! TODO: Will not be correct for mixed Omega_v, Omega_w models
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: f1, f2, f3
+      REAL :: f1, f2, f3, w
 
       IF (cosm%iw == iw_LCDM) THEN
          ungrow_approx = a*(1.-(2./11.)*(cosm%Om_v/cosm%Om_m)*a**3)
-      ELSE IF (cosm%iw == iw_wCDM) THEN
-         f1 = (cosm%w-1.)/(cosm%w*(5.-6.*cosm%w))
-         f2 = cosm%Om_w/cosm%Om_m
-         f3 = a**(-3.*cosm%w)
-         ungrow_approx = a*(1.+f1*f2*f3)
       ELSE
-         STOP 'UNGROW_APPROX: Error, Not supported for this type of dark energy'
+         w = w_de(a, cosm)
+         f1 = (w-1.)/(w*(5.-6.*w))
+         f2 = cosm%Om_w/cosm%Om_m
+         f3 = a**(-3.*w)
+         ungrow_approx = a*(1.+f1*f2*f3)
       END IF
 
    END FUNCTION ungrow_approx
