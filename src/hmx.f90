@@ -403,6 +403,7 @@ MODULE HMx
    INTEGER, PARAMETER :: iorder_inversion_rnl = 3                 ! Order for interpolation inversion
    INTEGER, PARAMETER :: ifind_inversion_rnl = ifind_split        ! Finding scheme for table
    INTEGER, PARAMETER :: iinterp_inversion_rnl = iinterp_Lagrange ! Interpolation method
+   LOGICAL, PARAMETER :: rnl_extrap = .FALSE.                     ! Extrapolate to find r_nl or use nu(1)? REVERT
 
    ! Voids
    REAL, PARAMETER :: void_underdensity = -1.      ! Void underdensity
@@ -735,6 +736,7 @@ CONTAINS
       names(120) = 'Quasi-linear power in two-halo term'
       names(121) = 'Non-linear power in two-halo term with Tinker (2010) mass function'
       names(122) = 'Quasi-linear power in two-halo term with Tinker (2010) mass function'
+      names(123) = 'HMcode-2020 with extended mass range'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1032,6 +1034,7 @@ CONTAINS
       hmod%DMONLY_neutrino_halo_mass_correction = .TRUE.
       hmod%DMONLY_neutrinos_affect_virial_radius = .FALSE.
       hmod%kd = 0.
+      hmod%kdp = 0.
       hmod%kp = 0.
       hmod%nd = 0.
       hmod%Ap = 0.
@@ -1893,7 +1896,7 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
-      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104])) THEN
+      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 123])) THEN
          ! HMcode (2020)
          !  77 - Unfitted
          !  78 - Fitted to Cosmic Emu for k<1
@@ -1901,6 +1904,7 @@ CONTAINS
          ! 102 - Fitted with baryon model
          ! 103 - Baryon model in response
          ! 104 - Baryon model using HMx language
+         ! 123 - Extended mass range
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
@@ -1913,7 +1917,10 @@ CONTAINS
          hmod%ieta = 3    ! 3 - HMcode 2020 eta bloating
          hmod%zD = 10.    ! 10 vs 100 makes a difference for EDE-type cosmologies
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
-         hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass   
+         hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
+         IF (ihm == 123) THEN
+            hmod%mmin = 1e3 ! Reduced lower-mass limit
+         END IF
          IF (ihm == 78) THEN
             ! Model 3: 0.00926 for Cosmic Emu
             hmod%f0 = 0.1995332
@@ -1926,7 +1933,7 @@ CONTAINS
             hmod%kd = 0.0414780
             hmod%kdp = -1.0887362
             hmod%nd = 2.7259666
-         ELSE IF (ihm == 79 .OR. ihm == 102) THEN
+         ELSE IF (ihm == 79 .OR. ihm == 102 .OR. ihm == 123) THEN
             ! Published model: 0.0168 to Franken Emu
             hmod%f0 = 0.2695822
             hmod%f1 = 0.9403087
@@ -2055,7 +2062,7 @@ CONTAINS
          hmod%ip2h = 5   ! 5 - One-loop SPT, dewiggled and damped
          hmod%ks = 0.03  ! One-halo damping wavenumber
          hmod%kd = 0.03  ! Two-halo damping wavenumber
-         hmod%itrans = 0 ! REVERT: For some reason two-halo term is negative at high z and high k
+         hmod%itrans = 0 ! For some reason two-halo term is negative at high z and high k
          hmod%ip1h = 0   ! No one-halo term
          IF (ihm == 111) THEN
             hmod%PT_A = 0.781
@@ -2233,12 +2240,12 @@ CONTAINS
 
       END IF
 
-      ! Find non-linear radius and scale
+      ! Find non-linear Lagrangian radius and associated scale
       ! This is defined as nu(M_star)=1 *not* sigma(M_star)=1, so depends on delta_c
       ! TODO: Is this necessar for all halo models?
       hmod%rnl = r_nl(hmod)
       hmod%mnl = Lagrangian_mass(hmod%rnl, cosm)
-      hmod%knl = 1./hmod%rnl
+      hmod%knl = 1./hmod%rnl ! Note that there are no factors of 2pi here
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Non-linear mass [log10(M*) [Msun/h]]:', REAL(log10(hmod%mnl))
          WRITE (*, *) 'INIT_HALOMOD: Non-linear halo virial radius [Mpc/h]:', REAL(virial_radius(hmod%mnl, hmod, cosm))
@@ -5730,16 +5737,15 @@ CONTAINS
 
    REAL FUNCTION r_nl(hmod)
 
-      ! Calculates R_nl where nu(R_nl)=1.
-      ! TODO: Fix the nu(1) issue
+      ! Calculates Lagrangian R_nl where nu(R_nl)=1.
       TYPE(halomod), INTENT(INOUT) :: hmod
       INTEGER, PARAMETER :: iorder = iorder_inversion_rnl
       INTEGER, PARAMETER :: ifind = ifind_inversion_rnl
       INTEGER, PARAMETER :: iinterp = iinterp_inversion_rnl
 
-      IF (hmod%nu(1) > 1.) THEN
+      IF ((.NOT. rnl_extrap) .AND. hmod%nu(1) > 1.) THEN
          ! This catches some very strange values for cosmologies where the non-linear radius can be very large
-         ! TODO: This is probably a terrible idea. Should do something much more sensible
+         ! This can be a very bad idea since r_nl is wrong and depends on the lower-mass limit in hmod
          r_nl = hmod%rr(1)
       ELSE
          r_nl = exp(find(log(1.), log(hmod%nu), log(hmod%rr), hmod%n, iorder, ifind, iinterp))
