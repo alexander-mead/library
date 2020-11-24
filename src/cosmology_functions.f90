@@ -84,14 +84,17 @@ MODULE cosmology_functions
    PUBLIC :: physical_matter_density
 
    ! Linear growth
-   PUBLIC :: ungrow
-   PUBLIC :: ungrow_approximate
    PUBLIC :: grow
-   PUBLIC :: grow_CPT
    PUBLIC :: grow_Linder
+   PUBLIC :: grow_CPT
+   PUBLIC :: ungrow
+   PUBLIC :: ungrow_approx
+   PUBLIC :: ungrow_integral
    PUBLIC :: growth_rate
-   PUBLIC :: growth_rate_index
    PUBlIC :: growth_rate_Linder
+   PUBLIC :: growth_index
+   PUBLIC :: growth_index_Linder
+   PUBLIC :: growth_index_default
    PUBLIC :: acc_growth
 
    ! Spherical collapse
@@ -429,9 +432,10 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: cold_growth = .FALSE.               ! Should smooth neutrinos be accounted for in growth calculations?
    LOGICAL, PARAMETER :: EDE_growth_ics = .TRUE.             ! Should we try to account for EDE in growth initial conditions?
 
-   ! Growth integral (LCDM only)
-   REAL, PARAMETER :: acc_integral_grow = acc_cosm ! Accuracy parameter for growth integral solving (wCDM only)
-   INTEGER, PARAMETER :: iorder_integral_grow = 3  ! Polynomial order for growth integral solving (wCDM only)
+   ! Growth integrals (approximate)
+   REAL, PARAMETER :: acc_integral_grow = acc_cosm ! Accuracy parameter for growth integral
+   INTEGER, PARAMETER :: iorder_integral_grow = 3  ! Polynomial order for growth integral
+   REAL, PARAMETER :: aeps_integral_grow = 1e-3    ! Minimum scale factor below which to approximate integrand
 
    ! Growth interpolation
    REAL, PARAMETER :: amin_growth = 1e-3            ! Minimum value to store
@@ -447,7 +451,7 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: store_rate = .TRUE.        ! Pre-calculate interpolation coefficients?
 
    ! Growth rate index
-   REAL, PARAMETER :: growth_index_default = 6./11. ! Default indes value (perturbation theory for LCDM)
+   REAL, PARAMETER :: growth_index_default = 6./11. ! Default index value (perturbation theory for LCDM)
    REAL, PARAMETER :: growth_index_limit = 0.01     ! Scale factor below which to use default value
 
    ! Accumualted growth integration and interpolation
@@ -4195,7 +4199,7 @@ CONTAINS
 
    END FUNCTION ddsigma_integrand
 
-   REAL FUNCTION Lagrangian_mass(R, cosm)
+   ELEMENTAL REAL FUNCTION Lagrangian_mass(R, cosm)
 
       ! Lagrangian mass associated with comoving scale R
       REAL, INTENT(IN) :: R
@@ -4207,7 +4211,7 @@ CONTAINS
 
    END FUNCTION Lagrangian_mass
 
-   REAL FUNCTION Lagrangian_radius(M, cosm)
+   ELEMENTAL REAL FUNCTION Lagrangian_radius(M, cosm)
 
       ! Comoving Lagranigan radius associated with mass M
       USE special_functions
@@ -4235,125 +4239,6 @@ CONTAINS
 
    END FUNCTION grow
 
-   REAL RECURSIVE FUNCTION ungrow(a, cosm)
-
-      ! Scale-independent growth function normalised such that g(a) = a at early (matter-dominated) times
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-
-      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
-      ungrow = cosm%gnorm*grow(a, cosm)
-
-   END FUNCTION ungrow
-
-   REAL FUNCTION ungrow_approximate(a, cosm)
-
-      ! Approximate scale-independent growth function
-      ! Obtained by integrating growth rate of Omega_m^(6/11)(a) normalised | g(a->0) = a
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: f1, f2, f3
-
-      IF (cosm%iw == iw_LCDM) THEN
-         ungrow_approximate = a*(1.-(2./11.)*(cosm%Om_v/cosm%Om_m)*a**3)
-      ELSE IF (cosm%iw == iw_wCDM) THEN
-         f1 = (cosm%w-1.)/(cosm%w*(5.-6.*cosm%w))
-         f2 = cosm%Om_w/cosm%Om_m
-         f3 = a**(-3.*cosm%w)
-         ungrow_approximate = a*(1.+f1*f2*f3)
-      ELSE
-         STOP 'UNGROW_APPROXIMATE: Error, Not supported for this type of dark energy'
-      END IF
-
-   END FUNCTION ungrow_approximate
-
-   REAL RECURSIVE FUNCTION growth_rate(a, cosm)
-
-      ! Growth rate: dln(g) / dln(a) ~ Omega_m(a)^0.55 for LCDM
-      ! Transitions from 1 at high z to zero at high z when DE stops growth
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-
-      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
-      growth_rate = evaluate_interpolator(a, cosm%grate)
-
-   END FUNCTION growth_rate
-
-   REAL RECURSIVE FUNCTION growth_rate_index(a, cosm)
-
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: Om_m
-      REAL, PARAMETER :: gamma_default = growth_index_default
-      REAL, PARAMETER :: gamma_limit = growth_index_limit
-
-      IF (cold_growth) THEN
-         Om_m = Omega_cold_norad(a, cosm)
-      ELSE
-         Om_m = Omega_m_norad(a, cosm)
-      END IF
-
-      IF (abs(1.-Om_m) < gamma_limit) THEN
-         growth_rate_index = gamma_default
-      ELSE
-         growth_rate_index = log(growth_rate(a, cosm))/log(Om_m)
-      END IF
-
-   END FUNCTION growth_rate_index
-
-   REAL RECURSIVE FUNCTION acc_growth(a, cosm)
-
-      ! Accumulated growth function: int_0^a g(a)/a da
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-
-      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
-      acc_growth = evaluate_interpolator(a, cosm%agrow)
-
-   END FUNCTION acc_growth
-
-   REAL FUNCTION growth_rate_Linder(a, cosm)
-
-      ! Approximation for the growth rate from Linder astro-ph/0507263
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: gam, Om_m, weff
-
-      IF ((cosm%Om_v .NE. 0.) .AND. (cosm%Om_w .NE. 0.)) STOP 'GROWTH_RATE_LINDER: Error, does not work if Omega_v and Omega_w both non zero'
-
-      IF (cosm%iw == iw_LCDM) THEN
-         gam = 0.55
-      ELSE
-         ! Evaluate the equation of state at z=1
-         ! Bizarre discontinuous slope
-         weff = w_de(0.5, cosm) 
-         IF (weff < -1.) THEN
-            gam = 0.55+0.02*(1.+weff)
-         ELSE
-            gam = 0.55+0.05*(1.+weff)
-         END IF
-      END IF
-
-      IF (cold_growth) THEN
-         Om_m = Omega_cold_norad(a, cosm)
-      ELSE
-         Om_m = Omega_m_norad(a, cosm)
-      END IF
-
-      growth_rate_Linder = Om_m**gam
-
-   END FUNCTION growth_rate_Linder
-
-   REAL FUNCTION grow_Linder_integrand(a, cosm)
-
-      ! Integrand for the approximate growth integral using Linder approximate growth rate
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-
-      grow_Linder_integrand = growth_rate_Linder(a, cosm)/a
-
-   END FUNCTION grow_Linder_integrand
-
    REAL FUNCTION grow_Linder(a, cosm)
 
       ! Calculate the growth function from the Linder growth rate via integration
@@ -4366,6 +4251,16 @@ CONTAINS
       grow_Linder = exp(-integrate_cosm(a, 1., grow_Linder_integrand, cosm, acc, iorder))
 
    END FUNCTION grow_Linder
+
+   REAL FUNCTION grow_Linder_integrand(a, cosm)
+
+      ! Integrand for the approximate growth integral using Linder approximate growth rate
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      grow_Linder_integrand = growth_rate_Linder(a, cosm)/a
+
+   END FUNCTION grow_Linder_integrand
 
    REAL FUNCTION grow_CPT(a, cosm)
 
@@ -4396,6 +4291,157 @@ CONTAINS
       CPT = a*Om_m/((Om_m**(4./7.))-Om_v+(1.+Om_m/2.)*(1.+Om_v/70.))
 
    END FUNCTION CPT
+
+   REAL RECURSIVE FUNCTION ungrow(a, cosm)
+
+      ! Scale-independent growth function normalised such that g(a) = a at early (matter-dominated) times
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
+      ungrow = cosm%gnorm*grow(a, cosm)
+
+   END FUNCTION ungrow
+
+   REAL FUNCTION ungrow_approx(a, cosm)
+
+      ! Approximate scale-independent growth function
+      ! Obtained by integrating growth rate of Omega_m^gamma(a) normalised | g(a->0) = a
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: f1, f2, f3
+
+      IF (cosm%iw == iw_LCDM) THEN
+         ungrow_approx = a*(1.-(2./11.)*(cosm%Om_v/cosm%Om_m)*a**3)
+      ELSE IF (cosm%iw == iw_wCDM) THEN
+         f1 = (cosm%w-1.)/(cosm%w*(5.-6.*cosm%w))
+         f2 = cosm%Om_w/cosm%Om_m
+         f3 = a**(-3.*cosm%w)
+         ungrow_approx = a*(1.+f1*f2*f3)
+      ELSE
+         STOP 'UNGROW_APPROX: Error, Not supported for this type of dark energy'
+      END IF
+
+   END FUNCTION ungrow_approx
+
+   REAL FUNCTION ungrow_integral(a, cosm)
+
+      ! Integral solution to growth equation 
+      ! Only exactly correct if dark energy is w = -1 or w = -1/3
+      ! Not sure how well it does for more general dark-energy models
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, PARAMETER :: acc = acc_integral_grow
+      INTEGER, PARAMETER :: iorder = iorder_integral_grow
+      REAL :: f
+
+      f = 2.5*cosm%Om_m*sqrt(Hubble2_norad(a, cosm))
+      ungrow_integral = f*integrate_cosm(0., a, ungrow_integrand, cosm, acc, iorder)
+
+   END FUNCTION ungrow_integral
+
+   REAL FUNCTION ungrow_integrand(a, cosm)
+
+      ! Integrand for integral solution to growth equation
+      ! Split at some scale factor to avoid infinities
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, PARAMETER :: aeps = aeps_integral_grow
+
+      IF (a < aeps) THEN
+         ungrow_integrand = a**1.5*cosm%Om_m**(-1.5)
+      ELSE
+         ungrow_integrand = a**(-3)*Hubble2_norad(a, cosm)**(-1.5)
+      END IF
+
+   END FUNCTION ungrow_integrand
+
+   REAL RECURSIVE FUNCTION growth_rate(a, cosm)
+
+      ! Growth rate: dln(g) / dln(a) ~ Omega_m(a)^0.55 for LCDM
+      ! Transitions from 1 at high z to zero at high z when DE stops growth
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
+      growth_rate = evaluate_interpolator(a, cosm%grate)
+
+   END FUNCTION growth_rate
+
+   REAL FUNCTION growth_rate_Linder(a, cosm)
+
+      ! Approximation for the growth rate from Linder astro-ph/0507263
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: gamma, Om_m, weff
+
+      IF ((cosm%Om_v .NE. 0.) .AND. (cosm%Om_w .NE. 0.)) STOP 'GROWTH_RATE_LINDER: Error, does not work if Omega_v and Omega_w both non zero'
+
+      gamma = growth_index_Linder(cosm)
+
+      IF (cold_growth) THEN
+         Om_m = Omega_cold_norad(a, cosm)
+      ELSE
+         Om_m = Omega_m_norad(a, cosm)
+      END IF
+
+      growth_rate_Linder = Om_m**gamma
+
+   END FUNCTION growth_rate_Linder
+
+   REAL RECURSIVE FUNCTION growth_index(a, cosm)
+
+      ! Calculates gamma in f = Omega_m(a)^gamma
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: Om_m
+      REAL, PARAMETER :: gamma_default = growth_index_default
+      REAL, PARAMETER :: gamma_limit = growth_index_limit
+
+      IF (cold_growth) THEN
+         Om_m = Omega_cold_norad(a, cosm)
+      ELSE
+         Om_m = Omega_m_norad(a, cosm)
+      END IF
+
+      IF (abs(1.-Om_m) < gamma_limit) THEN
+         growth_index = gamma_default
+      ELSE
+         growth_index = log(growth_rate(a, cosm))/log(Om_m)
+      END IF
+
+   END FUNCTION growth_index
+
+   REAL FUNCTION growth_index_Linder(cosm)
+
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: weff
+
+      IF (cosm%iw == iw_LCDM) THEN
+         growth_index_Linder = 0.55
+      ELSE
+         ! Evaluate the equation of state at z=1
+         ! Bizarre discontinuous slope
+         weff = w_de(0.5, cosm) 
+         IF (weff < -1.) THEN
+            growth_index_Linder = 0.55+0.02*(1.+weff)
+         ELSE
+            growth_index_Linder = 0.55+0.05*(1.+weff)
+         END IF
+      END IF
+
+   END FUNCTION growth_index_Linder
+
+   REAL RECURSIVE FUNCTION acc_growth(a, cosm)
+
+      ! Accumulated growth function: int_0^a g(a)/a da
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
+      acc_growth = evaluate_interpolator(a, cosm%agrow)
+
+   END FUNCTION acc_growth
 
    SUBROUTINE init_growth(cosm)
 
