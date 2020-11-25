@@ -108,10 +108,12 @@ MODULE cosmology_functions
    ! Power spectrum
    PUBLIC :: Pk_Delta
    PUBLIC :: Delta_Pk
-   PUBLIC :: plin
-   PUBLIC :: calculate_plin
-   PUBLIC :: calculate_psmooth
-   PUBLIC :: P_dewiggle
+   PUBLIC :: Plin ! TODO: P_lin ?
+   PUBLIC :: P_dwg
+   PUBLIC :: P_smt
+   PUBLIC :: calculate_Plin
+   PUBLIC :: calculate_P_dwg
+   PUBLIC :: calculate_P_smt
    
    ! sigma et al.
    PUBLIC :: sigma
@@ -397,7 +399,7 @@ MODULE cosmology_functions
    ! Linear power spectrum smoothing methods  
    ! TODO: Setting scale_grow_wiggle to .FALSE. may save time for massive-nu models
    REAL, PARAMETER :: wiggle_dx = 0.20                     ! Smoothing half-width if using top-hat smoothing
-   REAL, PARAMETER :: wiggle_sigma = 0.25                  ! Smoothing width if using Gaussian smoothing  
+   REAL, PARAMETER :: wiggle_sigma = 0.25                  ! Smoothing width if using Gaussian smoothing
    INTEGER, PARAMETER :: wiggle_smooth = dewiggle_Gaussian ! Type of smoothing to use
    LOGICAL, PARAMETER :: divide_by_nowiggle = .TRUE.       ! Should we reduce dynamic range with EH no-wiggle?
    REAL, PARAMETER :: knorm_nowiggle = 0.03                ! Wavenumber at which to force linear and nowiggle to be identical [Mpc/h]
@@ -423,7 +425,7 @@ MODULE cosmology_functions
 
    ! Growth ODE
    REAL, PARAMETER :: aini_growth = 1e-4                     ! Starting value for growth integratiton (should start | Omega_m(a)=1)
-   REAL, PARAMETER :: afin_growth = 10.                      ! Finishing value for growth integratiton (CARE, changed from a=1 to a=10)
+   REAL, PARAMETER :: afin_growth = 2.                       ! Finishing value for growth integratiton (CARE: changed from a=1 to a=2)
    REAL, PARAMETER :: acc_ODE_growth = acc_cosm              ! Accuracy parameter for growth ODE solving
    INTEGER, PARAMETER :: imeth_ODE_growth = 3                ! Method for solving growth ODE
    INTEGER, PARAMETER :: iorder_ODE_interpolation_growth = 3 ! Polynomial order for growth interpolation for ODE solution
@@ -439,7 +441,7 @@ MODULE cosmology_functions
 
    ! Growth interpolation
    REAL, PARAMETER :: amin_growth = 1e-3            ! Minimum value to store
-   REAL, PARAMETER :: amax_growth = 10.             ! Maximum value to store (CARE, changed from a=1 to a=10)
+   REAL, PARAMETER :: amax_growth = afin_growth     ! Maximum value to store
    INTEGER, PARAMETER :: n_growth = 128             ! Number of entries for interpolation tables
    INTEGER, PARAMETER :: iorder_interp_grow = 3     ! Polynomial order for growth interpolation
    INTEGER, PARAMETER :: iextrap_grow = iextrap_lin ! Extrapolation scheme
@@ -2363,6 +2365,7 @@ CONTAINS
    RECURSIVE REAL FUNCTION As(cosm)
 
       ! Calculate the value of A_s from the linear power spectrum; defined using kpiv
+      ! See equation (10) of https://arxiv.org/pdf/1807.00040.pdf
       TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
       REAL, PARAMETER :: a = 1.                ! Normalisation is at a=1
       INTEGER, PARAMETER :: flag = flag_matter ! A_s is defined from linear
@@ -2456,7 +2459,7 @@ CONTAINS
       cosm%is_normalised = .TRUE.
 
       ! Get the linear power, will not be correct at this stage
-      CALL calculate_plin(k, a, Pk, nk, na, cosm)
+      CALL calculate_Plin(k, a, Pk, cosm)
       Pk = Pk*gk ! Mutliply through by scale-dependent growth to get f(R) linear shape
 
       CALL init_interpolator(k, a, Pk, cosm%plin, &
@@ -3789,28 +3792,6 @@ CONTAINS
 
    END FUNCTION Tk_cold_EH
 
-   SUBROUTINE calculate_plin(k, a, Pk, nk, na, cosm)
-
-      ! Fill array P(k, a) from input arrays of k and a
-      INTEGER, INTENT(IN) :: nk
-      INTEGER, INTENT(IN) :: na
-      REAL, INTENT(IN) :: k(nk)
-      REAL, INTENT(IN) :: a(na)
-      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
-      TYPE(cosmology) :: cosm
-      INTEGER :: ik, ia
-      INTEGER, PARAMETER :: flag = flag_matter
-
-      ALLOCATE(Pk(nk, na))
-
-      DO ia = 1, na
-         DO ik = 1, nk
-            Pk(ik, ia) = plin(k(ik), a(ia), flag, cosm)
-         END DO
-      END DO
-
-   END SUBROUTINE calculate_plin
-
    REAL RECURSIVE FUNCTION plin(k, a, flag, cosm)
 
       ! Linear matter power spectrum
@@ -3876,6 +3857,28 @@ CONTAINS
       plin_extrapolation = pmax*((log(k)/log(kmax))**2)*(k/kmax)**(ns-1.)
 
    END FUNCTION plin_extrapolation
+
+   SUBROUTINE calculate_Plin(k, a, Pk, cosm)
+
+      ! Fill array P(k, a) from input arrays of k and a
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      TYPE(cosmology) :: cosm
+      INTEGER :: ik, ia
+      INTEGER :: nk, na
+      INTEGER, PARAMETER :: flag = flag_matter
+
+      nk = size(k)
+      na = size(a)
+      ALLOCATE(Pk(nk, na))
+      DO ia = 1, na
+         DO ik = 1, nk
+            Pk(ik, ia) = plin(k(ik), a(ia), flag, cosm)
+         END DO
+      END DO
+
+   END SUBROUTINE calculate_Plin
 
    SUBROUTINE init_sigma(cosm)
 
@@ -4373,7 +4376,7 @@ CONTAINS
       ! Approximation for the growth rate from Linder astro-ph/0507263
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: gamma, Om_m, weff
+      REAL :: gamma, Om_m
 
       IF ((cosm%Om_v .NE. 0.) .AND. (cosm%Om_w .NE. 0.)) STOP 'GROWTH_RATE_LINDER: Error, does not work if Omega_v and Omega_w both non zero'
 
@@ -7146,7 +7149,7 @@ CONTAINS
 
       ! Get the linear power spectrum
       IF(.NOT. cosm%is_normalised) STOP 'INIT_WIGGLE: Error, linear power must be normalised'
-      CALL calculate_plin(k, a, Pk, nk, na, cosm)
+      CALL calculate_Plin(k, a, Pk, cosm)
 
       ! Write details to screen
       IF (cosm%verbose) THEN
@@ -7158,7 +7161,7 @@ CONTAINS
 
       ! Calculate the smooth power spectrum
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Calculating smooth power spectrum'
-      CALL calculate_psmooth(k, a, Pk, Pk_smooth, cosm)
+      CALL smooth_power(k, a, Pk, Pk_smooth, cosm)
 
       ! Isolate the wiggle
       IF (cosm%verbose) WRITE(*, *) 'INIT_WIGGLE: Isolating wiggle'   
@@ -7184,7 +7187,7 @@ CONTAINS
 
    END SUBROUTINE init_wiggle
 
-   REAL FUNCTION P_wiggle(k, a, cosm)
+   REAL FUNCTION P_wig(k, a, cosm)
 
       ! Calculate the wiggle part of the power spectrum
       ! Defined like P_wiggle = P_lin - P_broadband
@@ -7195,17 +7198,29 @@ CONTAINS
       REAL :: g
 
       IF (.NOT. cosm%has_wiggle) CALL init_wiggle(cosm)
-      P_wiggle = evaluate_interpolator(k, a, cosm%wiggle)
+      P_wig = evaluate_interpolator(k, a, cosm%wiggle)
       IF (scale_grow_wiggle .AND. cosm%scale_dependent_growth) THEN       
          g = 1. ! TODO: This should be if cosm%wiggle is really 1D and a = 1 only
       ELSE
          g = grow(a, cosm) 
       END IF
-      P_wiggle = P_wiggle*g**2
+      P_wig = P_wig*g**2
 
-   END FUNCTION P_wiggle
+   END FUNCTION P_wig
 
-   REAL FUNCTION P_dewiggle(k, a, sigv, cosm)
+   REAL FUNCTION P_smt(k, a, cosm)
+
+      ! The smooth 'broad band' power spectrum, which is the linear minus the entire wiggle
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER, PARAMETER :: flag = flag_matter
+
+      P_smt = Plin(k, a, flag, cosm)-P_wig(k, a, cosm)
+
+   END FUNCTION P_smt
+
+   REAL FUNCTION P_dwg(k, a, sigv, cosm)
 
       ! Calculate the dewiggled power spectrum, which is linear but with damped wiggles
       REAL, INTENT(IN) :: k
@@ -7214,80 +7229,133 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: f, P_linear
       INTEGER, PARAMETER :: flag = flag_matter
-   
+
       IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm) 
       P_linear = plin(k, a, flag, cosm) ! Needed here to make sure it is init before init_wiggle   
-      IF (sigv > 0.) THEN
-         f = exp(-(k*sigv)**2)
-      ELSE
-         f = 0.
-      END IF
-      P_dewiggle = P_linear+(f-1.)*P_wiggle(k, a, cosm)
+      f = exp(-(k*sigv)**2)
+      P_dwg = P_linear+(f-1.)*P_wig(k, a, cosm)
 
-   END FUNCTION P_dewiggle
+   END FUNCTION P_dwg
 
-   REAL FUNCTION P_nowiggle(k, a, cosm)
+   ! SUBROUTINE calculate_P_wig(k, a, Pk, cosm)
+
+   !    REAL, INTENT(IN) :: k(:)
+   !    REAL, INTENT(IN) :: a(:)
+   !    REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+   !    TYPE(cosmology), INTENT(INOUT) :: cosm
+   !    INTEGER :: ik, ia
+   !    INTEGER :: nk, na
+
+   !    nk = size(k)
+   !    na = size(a)
+   !    ALLOCATE(Pk(nk, na))
+   !    DO ia = 1, na
+   !       DO ik = 1, nk
+   !          Pk(ik, ia) = P_wig(k(ik), a(ia), cosm)
+   !       END DO
+   !    END DO
+
+   ! END SUBROUTINE calculate_P_wig
+
+   SUBROUTINE calculate_P_smt(k, a, Pk, cosm)
+
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: ik, ia
+      INTEGER :: nk, na
+
+      nk = size(k)
+      na = size(a)
+      ALLOCATE(Pk(nk, na))
+      DO ia = 1, na
+         DO ik = 1, nk
+            Pk(ik, ia) = P_smt(k(ik), a(ia), cosm)
+         END DO
+      END DO
+
+   END SUBROUTINE calculate_P_smt
+
+   SUBROUTINE calculate_P_dwg(k, a, Pk, cosm)
+
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: ik, ia
+      INTEGER :: nk, na
+      REAL :: sigv
+      INTEGER, PARAMETER :: flag = flag_matter
+
+      nk = size(k)
+      na = size(a)
+      ALLOCATE(Pk(nk, na))
+      DO ia = 1, na
+         sigv = sigmaV(0., a(ia), flag, cosm)
+         DO ik = 1, nk
+            Pk(ik, ia) = P_dwg(k(ik), a(ia), sigv, cosm)
+         END DO
+      END DO
+
+   END SUBROUTINE calculate_P_dwg
+
+   REAL FUNCTION P_nw(k, a, cosm)
 
       ! Calculates the un-normalised no-wiggle power spectrum 
       ! Comes from the Eisenstein & Hu approximation
-      ! TODO: Normalisation factors of cosm%A?
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      P_nowiggle = ((cosm%A*grow(a, cosm))**2)*((k/cosm%kval)**(cosm%ns+3.))*Tk_nw(k, cosm)**2
+      P_nw = ((cosm%A*grow(a, cosm))**2)*((k/cosm%kval)**(cosm%ns+3.))*Tk_nw(k, cosm)**2
 
-   END FUNCTION P_nowiggle
+   END FUNCTION P_nw
 
-   SUBROUTINE calculate_nowiggle(k, a, Pk, Pk_nw, cosm)
+   SUBROUTINE calculate_nowiggle(k, a, Pk_nw, cosm)
 
       ! Calculate the normalised no wiggle power spectrum at a range of k and a
       ! Comes from the Eisenstein & Hu approximation
       REAL, INTENT(IN) :: k(:)
       REAL, INTENT(IN) :: a(:)
-      REAL, INTENT(IN) :: Pk(:, :)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk_nw(:, :)
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: ik, ia, nk, na
       REAL :: Pk_lin, Pk_nw_norm
       REAL, PARAMETER :: knorm = knorm_nowiggle
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: ifind = ifind_split
-      INTEGER, PARAMETER :: iinterp = iinterp_Lagrange
+      INTEGER, PARAMETER :: iorder = 3 ! TODO: Move to header
+      INTEGER, PARAMETER :: ifind = ifind_split ! TODO: Move to header
+      INTEGER, PARAMETER :: iinterp = iinterp_Lagrange ! TODO: Move to header
 
       ! Allocate arrays
       nk = size(k)
       na = size(a)
-      IF (nk /= size(Pk, 1) .OR. na /= size(Pk, 2)) STOP 'CALCULATE_NOWIGGLE: Error, Pk should be same size as k and a'
       ALLOCATE(Pk_nw(nk, na))
 
-      ! Get the no-wiggle power spectrum
+      ! Get the Eisenstein & Hu no-wiggle power spectrum
       DO ia = 1, na
          DO ik = 1, nk
-            Pk_nw(ik, :) = P_nowiggle(k(ik), a(ia), cosm)
+            Pk_nw(ik, :) = P_nw(k(ik), a(ia), cosm)
          END DO
       END DO
 
       ! Force spectra to agree at the minimum wavenumber
       DO ia = 1, na
          Pk_lin = Plin(knorm, a(ia), flag_matter, cosm)
-         Pk_nw_norm = find(knorm, k, Pk_nw(:, ia), nk, &
-            iorder, &
-            ifind, &
-            iinterp)
+         Pk_nw_norm = find(knorm, k, Pk_nw(:, ia), nk, iorder, ifind, iinterp)
          Pk_nw(:, ia) = Pk_nw(:, ia)*Pk_lin/Pk_nw_norm
       END DO
 
    END SUBROUTINE calculate_nowiggle
 
-   SUBROUTINE calculate_psmooth(k, a, Pk, Pk_smt, cosm)
+   SUBROUTINE smooth_power(k, a, Pk, Pk_smt, cosm)
 
       ! Calculate the normalised smoothed power spectrum at a range of k
       REAL, INTENT(IN) :: k(:)
       REAL, INTENT(IN) :: a(:)
       REAL, INTENT(IN) :: Pk(:, :)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk_smt(:, :)
-      REAL, ALLOCATABLE :: Pk_nw(:, :)
+      REAL, ALLOCATABLE :: Pk_nwg(:, :)
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: ia, na
       REAL, PARAMETER :: dx = wiggle_dx
@@ -7296,8 +7364,8 @@ CONTAINS
 
       ! Reduce dynamic range
       IF (divide) THEN
-         CALL calculate_nowiggle(k, a, Pk, Pk_nw, cosm)
-         Pk_smt = Pk/Pk_nw
+         CALL calculate_nowiggle(k, a, Pk_nwg, cosm)
+         Pk_smt = Pk/Pk_nwg
       ELSE   
          Pk_smt = log(Pk)
       END IF
@@ -7310,18 +7378,18 @@ CONTAINS
          ELSE IF (wiggle_smooth == dewiggle_tophat) THEN
             CALL smooth_array_tophat(log(k), Pk_smt(:, ia), dx)
          ELSE
-            STOP 'CALCULATE_PSMOOTH: Error, smoothing method not recognised'
+            STOP 'SMOOTH_POWER: Error, smoothing method not recognised'
          END IF
       END DO
 
       ! Return dynamic range
       IF (divide) THEN
-         Pk_smt = Pk_smt*Pk_nw
+         Pk_smt = Pk_smt*Pk_nwg
       ELSE
          Pk_smt = exp(Pk_smt)
       END IF
 
-   END SUBROUTINE calculate_psmooth
+   END SUBROUTINE smooth_power
 
    SUBROUTINE init_SPT(cosm)
 
@@ -7524,7 +7592,7 @@ CONTAINS
       END DO
 
       ! Sum contributions to create final result
-      ! Extra factor of 2 before f(1) comes from excising pole (https://arxiv.org/pdf/astro-ph/9311070.pdf)
+      ! Extra factor of 2 before f(1) comes from excising pole (Jain & Bertschinger 1993; https://arxiv.org/pdf/astro-ph/9311070.pdf)
       P_22_SPT = 2.*(2.*f(1)+f(2)+f(3)+f(4))/twopi**2 ! Line 71 in Komatsu code
       P_22_SPT = Delta_Pk(P_22_SPT, k)                ! Convert from P(k) to Delta^2(k)
 
