@@ -2095,8 +2095,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: flag
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: i
-      REAL :: k1, k2, xi_bit
-      DOUBLE PRECISION :: xi8
+      REAL :: k1, k2, xi_bit, xi
       INTEGER, PARAMETER :: min_humps = min_humps_xi
       INTEGER, PARAMETER :: max_humps = max_humps_xi
       INTEGER, PARAMETER :: method = method_xi
@@ -2108,12 +2107,10 @@ CONTAINS
 
          xi_lin = integrate_cosm(0., 1., xi_integrand_transformed, r, a, flag, cosm, acc_cosm, iorder)
 
-      ELSE IF (method == 2) THEN
-
-         ! Set summation variable to zero
-         xi8 = 0.
+      ELSE IF (method == 2) THEN   
 
          ! Loop over humps
+         xi = 0. ! Set summation variable to zero
          DO i = 0, max_humps
 
             k1 = i*pi/r
@@ -2121,10 +2118,10 @@ CONTAINS
 
             xi_bit = integrate_cosm(k1, k2, xi_integrand, r, a, flag, cosm, acc_cosm, iorder)
 
-            xi8 = xi8+xi_bit
+            xi = xi+xi_bit
 
             IF (i > min_humps) THEN
-               IF (abs(xi_bit/real(xi8)) < acc_cosm) THEN
+               IF (abs(xi_bit/xi) < acc_cosm) THEN
                   EXIT
                END IF
             END IF
@@ -2139,7 +2136,7 @@ CONTAINS
 
          END DO
 
-         xi_lin = real(xi8)
+         xi_lin = xi
 
       ELSE
 
@@ -2759,7 +2756,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: p1, p2, p3, p4
-      DOUBLE PRECISION :: f1, f2, f3, f4
+      REAL :: f1, f2, f3, f4
       REAL :: z
 
       IF (cosm%iw == iw_LCDM) THEN
@@ -2932,7 +2929,7 @@ CONTAINS
       ! Scaling for dark energy density (i.e., if w=0 X(a)=a^-3, if w=-1 X(a)=const etc.)
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      DOUBLE PRECISION :: f1, f2, f3, f4
+      REAL :: f1, f2, f3, f4
 
       IF (cosm%iw == iw_LCDM) THEN
          ! LCDM
@@ -3522,10 +3519,11 @@ CONTAINS
       ! The DEFW transfer function approximation (astro-ph/xxx.xxxx)
       ! Relies on the power-spectrum scale parameter Gamma=Omega_m*h
       ! This function was written by John Peacock
-      REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc]
-      TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: keff, q, tk4, Gamma
-      DOUBLE PRECISION :: q8, tk8
+      ! NOTE: I removed DOUBLE PRECISION from this
+      ! TODO: Why the 1e-20 in the q4 and q8 definitions?
+      REAL, INTENT(IN) :: k               ! Wavenumber [h/Mpc]
+      TYPE(cosmology), INTENT(IN) :: cosm ! Cosmology
+      REAL :: keff, q4, tk4, q8, tk8, Gamma
 
       ! Calculate shape parameter
       IF (cosm%power_Omegas) THEN
@@ -3535,12 +3533,12 @@ CONTAINS
       END IF
 
       keff = 0.172+0.011*log(Gamma/0.36)*log(Gamma/0.36)
-      q = 1.e-20+k/Gamma
+      q4 = 1.e-20+k/Gamma    
       q8 = 1.e-20+keff/Gamma
-      tk4 = 1./(1.+(6.4*q+(3.0*q)**1.5+(1.7*q)**2)**1.13)**(1./1.13)
+      tk4 = 1./(1.+(6.4*q4+(3.0*q4)**1.5+(1.7*q4)**2)**1.13)**(1./1.13)
       tk8 = 1./(1.+(6.4*q8+(3.0*q8)**1.5+(1.7*q8)**2)**1.13)**(1./1.13)
 
-      tk_defw = tk4/real(tk8)
+      tk_defw = tk4/tk8
 
    END FUNCTION Tk_DEFW
 
@@ -4329,7 +4327,7 @@ CONTAINS
 
    REAL FUNCTION ungrow_integral(a, cosm)
 
-      ! Integral solution to growth equation 
+      ! Integral solution to growth equation from Heath (1977) for pressureless cosmologies
       ! Only exactly correct if dark energy is w = -1 or w = -1/3
       ! Not sure how well it does for more general dark-energy models
       REAL, INTENT(IN) :: a
@@ -7694,7 +7692,7 @@ CONTAINS
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: q
       REAL, INTENT(IN) :: mu
-      DOUBLE PRECISION :: p, kp, kq, pq
+      REAL :: p, kp, kq, pq
 
       kq = k*q*mu
       kp = k**2.-kq
@@ -8237,7 +8235,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
       INTEGER, PARAMETER :: jmin = jmin_integration
       INTEGER, PARAMETER :: jmax = jmax_integration
@@ -8346,7 +8344,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
       INTEGER, PARAMETER :: jmin = jmin_integration
       INTEGER, PARAMETER :: jmax = jmax_integration
@@ -8457,7 +8455,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
       INTEGER, PARAMETER :: jmin = jmin_integration
       INTEGER, PARAMETER :: jmax = jmax_integration
@@ -8570,7 +8568,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
       INTEGER, PARAMETER :: jmin = jmin_integration
       INTEGER, PARAMETER :: jmax = jmax_integration
@@ -8685,7 +8683,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
       INTEGER, PARAMETER :: jmin = jmin_integration
       INTEGER, PARAMETER :: jmax = jmax_integration
@@ -8802,7 +8800,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
       INTEGER, PARAMETER :: jmin = jmin_integration
       INTEGER, PARAMETER :: jmax = jmax_integration
