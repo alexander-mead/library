@@ -1,5 +1,6 @@
 MODULE ODE_solvers
 
+   USE basic_operations
    USE array_operations
 
    IMPLICIT NONE
@@ -9,9 +10,17 @@ MODULE ODE_solvers
    PUBLIC :: ODE
    PUBLIC :: ODE_adaptive
 
+   PUBLIC :: iode_crude
+   PUBLIC :: iode_mid
+   PUBLIC :: iode_RK4
+
    INTEGER, PARAMETER :: iode_crude = 1
    INTEGER, PARAMETER :: iode_mid = 2
    INTEGER, PARAMETER :: iode_RK4 = 3
+
+   ! Adaptive ODE
+   INTEGER, PARAMETER :: jmax_adapt = 30   ! Maximum number of attempts
+   INTEGER, PARAMETER :: ninit_adapt = 100 ! Initial number of points
 
 CONTAINS
 
@@ -28,10 +37,9 @@ CONTAINS
       REAL, INTENT(IN) :: vi
       REAL, EXTERNAL :: fx
       REAL, EXTERNAL :: fv
-      INTEGER, INTENT(IN) :: n, iode
-      LOGICAL, INTENT(IN) :: ilog
-      DOUBLE PRECISION :: x8(n), v8(n)
-      DOUBLE PRECISION, ALLOCATABLE :: t8(:)
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: iode
+      LOGICAL, OPTIONAL, INTENT(IN) :: ilog
       INTEGER :: i
 
       INTERFACE
@@ -47,29 +55,23 @@ CONTAINS
          END FUNCTION fv
 
       END INTERFACE
-
-      ! xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
-      x8(1) = xi
-      v8(1) = vi
+   
+      ! Allocate and set xi and vi to the initial values of x and v (i.e. x(ti), v(ti))
+      ALLOCATE(x(n), v(n))
+      x(1) = xi
+      v(1) = vi
 
       ! Fill the time array
-      IF (ilog) THEN
-         CALL fill_array_double(dble(log(ti)), dble(log(tf)), t8, n)
-         t8 = exp(t8)
+      IF (present_and_correct(ilog)) THEN
+         CALL fill_array_log(ti, tf, t, n)
       ELSE
-         CALL fill_array_double(dble(ti), dble(tf), t8, n)
+         CALL fill_array(ti, tf, t, n)
       END IF
 
       ! Advance the system through all n-1 time steps
       DO i = 1, n-1
-         CALL ODE_advance(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, iode)
+         CALL ODE_advance(x(i), x(i+1), v(i), v(i+1), t(i), t(i+1), fx, fv, iode)
       END DO
-
-      ! Allocate arrays for final solution and copy double-precision to single-precision
-      ALLOCATE (x(n), v(n), t(n))
-      x = real(x8)
-      v = real(v8)
-      t = real(t8)
 
       !WRITE(*,*) 'ODE: Integration complete in steps:', n
 
@@ -91,12 +93,13 @@ CONTAINS
       REAL, EXTERNAL :: fv
       REAL, INTENT(IN) :: acc
       INTEGER, INTENT(IN) :: iode
-      LOGICAL, INTENT(IN) :: ilog
-      DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)
-      INTEGER :: i, j, n, k, np, ifail, kn
+      LOGICAL, OPTIONAL, INTENT(IN) :: ilog
+      REAL, ALLOCATABLE :: xh(:), vh(:), th(:)
+      INTEGER :: i, j, n, k, np, kn
+      LOGICAL :: fail
 
-      INTEGER, PARAMETER :: jmax = 30   ! Maximum number of goes
-      INTEGER, PARAMETER :: ninit = 100 ! Initial number of points
+      INTEGER, PARAMETER :: jmax = jmax_adapt   ! Maximum number of goes
+      INTEGER, PARAMETER :: ninit = ninit_adapt ! Initial number of points
 
       INTERFACE
 
@@ -118,36 +121,31 @@ CONTAINS
          ! Set the number of time steps; always 1+m*(2**n)
          n = 1+ninit*(2**(j-1))
 
-         ! Allocate double-precision arrays
-         ALLOCATE (x8(n), v8(n), t8(n))
-
-         ! Set the array entries to zero manually
-         x8 = 0.d0
-         v8 = 0.d0
-         t8 = 0.d0
-
-         ! xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
-         x8(1) = xi
-         v8(1) = vi
+         ! Allocate double-precision arrays, set to zero and set initial conditions
+         ALLOCATE (x(n), v(n), t(n))
+         x = 0.
+         v = 0.
+         t = 0.
+         x(1) = xi
+         v(1) = vi
 
          ! Fill time-step array
-         IF (ilog) THEN
-            CALL fill_array_double(dble(log(ti)), dble(log(tf)), t8, n)
-            t8 = exp(t8)
+         IF (present_and_correct(ilog)) THEN
+            CALL fill_array_log(ti, tf, t, n)
          ELSE
-            CALL fill_array_double(dble(ti), dble(tf), t8, n)
+            CALL fill_array(ti, tf, t, n)
          END IF
 
          ! Set the fail flag
-         ifail = 0
+         fail = .FALSE.
 
          ! Loop over all time steps
          DO i = 1, n-1
-            CALL ODE_advance(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, iode)
+            CALL ODE_advance(x(i), x(i+1), v(i), v(i+1), t(i), t(i+1), fx, fv, iode)
          END DO
 
          ! Automatically fail on the first go
-         IF (j == 1) ifail = 1
+         IF (j == 1) fail = .TRUE.
 
          ! Check accuracy of result compared to previous go
          IF (j .NE. 1) THEN
@@ -162,14 +160,15 @@ CONTAINS
                kn = 2*k-1
 
                ! If still okay then check the result
-               IF (ifail == 0) THEN
+               IF (.NOT. fail) THEN
 
-                  ! Fail conditions (is the first part of this not dodgy?)
-                  IF (xh(k) > acc .AND. x8(kn) > acc .AND. (abs(xh(k)/x8(kn))-1.) > acc) ifail = 1
-                  IF (vh(k) > acc .AND. v8(kn) > acc .AND. (abs(vh(k)/v8(kn))-1.) > acc) ifail = 1
+                  ! Fail conditions
+                  ! TODO: Is the first part of this not dodgy? Maybe use requal
+                  IF (xh(k) > acc .AND. x(kn) > acc .AND. (abs(xh(k)/x(kn))-1.) > acc) fail = .TRUE.
+                  IF (vh(k) > acc .AND. v(kn) > acc .AND. (abs(vh(k)/v(kn))-1.) > acc) fail = .TRUE.
 
                   ! Deallocate arrays and exit loop if a failure has occured
-                  IF (ifail == 1) THEN
+                  IF (fail) THEN
                      DEALLOCATE (xh, th, vh)
                      EXIT
                   END IF
@@ -181,22 +180,14 @@ CONTAINS
          END IF
 
          ! If the integration was successful then fill single-precicion arrays with solution and exit
-         IF (ifail == 0) THEN
-            !WRITE(*,*) 'ODE: Integration complete in steps:', n-1
-            !WRITE(*,*)
-            ALLOCATE (x(n), t(n), v(n))
-            x = real(x8)
-            v = real(v8)
-            t = real(t8)
-            EXIT
-         END IF
+         IF (.NOT. fail) EXIT
 
          ! Otherwise allocate arrays to store this solution and move on to the next attempt
-         ALLOCATE (xh(n), th(n), vh(n))
-         xh = x8
-         vh = v8
-         th = t8
-         DEALLOCATE (x8, t8, v8)
+         ALLOCATE (xh(n), vh(n), th(n))
+         xh = x
+         vh = v
+         th = t
+         DEALLOCATE (x, v, t)
 
       END DO
 
@@ -205,12 +196,12 @@ CONTAINS
    SUBROUTINE ODE_advance(x1, x2, v1, v2, t1, t2, fx, fv, iode)
 
       ! Advances the ODE system from t1 to t2, updating x1 to x2 and v1 to v2
-      DOUBLE PRECISION, INTENT(IN) :: x1
-      DOUBLE PRECISION, INTENT(OUT) :: x2
-      DOUBLE PRECISION, INTENT(IN) :: v1
-      DOUBLE PRECISION, INTENT(OUT) :: v2
-      DOUBLE PRECISION, INTENT(IN) :: t1
-      DOUBLE PRECISION, INTENT(IN) :: t2
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(OUT) :: x2
+      REAL, INTENT(IN) :: v1
+      REAL, INTENT(OUT) :: v2
+      REAL, INTENT(IN) :: t1
+      REAL, INTENT(IN) :: t2
       REAL, EXTERNAL :: fx
       REAL, EXTERNAL :: fv
       INTEGER, INTENT(IN) :: iode ! ODE solving method
@@ -233,12 +224,12 @@ CONTAINS
       END INTERFACE
 
       ! Set x, v, t to be the initial state of the system
-      x = real(x1)
-      v = real(v1)
-      t = real(t1)
+      x = x1
+      v = v1
+      t = t1
 
       ! Calculate dt between the final and intial state
-      dt = real(t2-t1)
+      dt = t2-t1
    
       IF (iode == iode_crude) THEN
 
@@ -274,8 +265,8 @@ CONTAINS
          kx4 = dt*fx(x+kx3, v+kv3, t+dt)
          kv4 = dt*fv(x+kx3, v+kv3, t+dt)
 
-         x2 = x1+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
-         v2 = v1+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
+         x2 = x1+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.
+         v2 = v1+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.
 
       ELSE
 
