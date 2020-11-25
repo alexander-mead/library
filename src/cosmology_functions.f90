@@ -3519,7 +3519,7 @@ CONTAINS
       ! The DEFW transfer function approximation (astro-ph/xxx.xxxx)
       ! Relies on the power-spectrum scale parameter Gamma=Omega_m*h
       ! This function was written by John Peacock
-      ! NOTE: I removed DOUBLE PRECISION from this
+      ! NOTE: I removed double precision for q8 and Tk8 from this
       ! TODO: Why the 1e-20 in the q4 and q8 definitions?
       REAL, INTENT(IN) :: k               ! Wavenumber [h/Mpc]
       TYPE(cosmology), INTENT(IN) :: cosm ! Cosmology
