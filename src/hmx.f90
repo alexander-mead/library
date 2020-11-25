@@ -8957,7 +8957,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: iorder
       REAL, INTENT(IN) :: acc
       REAL, INTENT(IN) :: a, b
-      DOUBLE PRECISION :: sum
+      REAL :: sum
       REAL :: r, dr, winold, weight
       INTEGER :: n, i, j
 
@@ -9052,7 +9052,7 @@ CONTAINS
       INTEGER :: i, j, n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5
@@ -10675,7 +10675,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5
@@ -10785,7 +10785,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5
@@ -10897,7 +10897,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5
@@ -11013,7 +11013,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5
