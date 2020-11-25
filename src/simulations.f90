@@ -105,6 +105,7 @@ CONTAINS
    SUBROUTINE correlation_function(rmin, rmax, r, xi, n, nr, x1, x2, w1, w2, n1, n2, L)
 
       ! Calculate the correlation function for the sample with positions 'x' and weights 'w'
+      ! CARE: Removed double-precision sums
       USE array_operations
       USE table_integer
       USE constants
@@ -121,7 +122,7 @@ CONTAINS
       INTEGER :: i, i1, i2
       REAL, ALLOCATABLE :: rbin(:)
       REAL :: rpair, V, nbar1, nbar2, sum1, sum2
-      DOUBLE PRECISION :: r8(nr), xi8(nr)
+      REAL :: r8(nr), xi8(nr) ! TODO: Remove this crap with the 8 suffix
 
       INTEGER, PARAMETER :: ifind = ifind_split
 
@@ -1762,6 +1763,7 @@ CONTAINS
       ! Calculates shot noise in P_uv(k) [(Mpc/h)^3]
       ! See appendix in HMx paper
       ! Note if this is for mass then u = v = particle_mass/total_mass
+      ! CARE: Removed double-precision sums
       USE array_operations
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n ! Number of particles
@@ -1770,7 +1772,7 @@ CONTAINS
       REAL, INTENT(IN) :: L    ! Box size [Mpc/h]
 
       ! Do the sum of the two fields, making sure to use doubles
-      shot_noise = sum_double(u*v)
+      shot_noise = sum(u*v)
 
       ! Multiply through by factors of volume and mesh
       shot_noise = (L**3)*shot_noise
@@ -1780,6 +1782,7 @@ CONTAINS
    REAL FUNCTION shot_noise_mass(L, m, n)
 
       ! Calculate simulation shot noise constant P(k) for different-mass tracers [(Mpc/h)^3]
+      ! CARE: Removed double-precision sums
       USE array_operations
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n ! Number of particles
@@ -1788,7 +1791,7 @@ CONTAINS
       REAL :: Nbar
 
       ! Calculate the effective mean number of tracers
-      Nbar = sum_double(m)**2/sum_double(m**2)
+      Nbar = sum(m)**2/sum(m**2)
 
       ! Calculate number density, this makes units of P(k) [(Mpc/h)^3]
       shot_noise_mass = L**3/Nbar

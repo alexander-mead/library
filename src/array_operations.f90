@@ -11,7 +11,7 @@ MODULE array_operations
    PUBLIC :: add_to_array
    PUBLIC :: splay
    PUBLIC :: write_array_list
-   PUBLIC :: sum_double
+   !PUBLIC :: sum_double
    PUBLIC :: repeated_entries
    PUBLIC :: array_position
    PUBLIC :: reverse_array
@@ -610,24 +610,24 @@ CONTAINS
 
    END SUBROUTINE array_positions
 
-   REAL FUNCTION sum_double(a)
+   ! REAL FUNCTION sum_double(a)
 
-      ! Sum using double precision, which is necessary for many array elements
-      REAL, INTENT(IN) :: a(:)
-      DOUBLE PRECISION :: sum
-      INTEGER :: i, n
+   !    ! Sum using double precision, which is necessary for many array elements
+   !    REAL, INTENT(IN) :: a(:)
+   !    DOUBLE PRECISION :: sum
+   !    INTEGER :: i, n
 
-      n = size(a)
+   !    n = size(a)
 
-      sum = 0.d0
+   !    sum = 0.d0
 
-      DO i = 1, n
-         sum = sum+a(i)
-      END DO
+   !    DO i = 1, n
+   !       sum = sum+a(i)
+   !    END DO
 
-      sum_double = real(sum)
+   !    sum_double = real(sum)
 
-   END FUNCTION sum_double
+   ! END FUNCTION sum_double
 
    SUBROUTINE amputate_array_real(a, i1, i2)
 
