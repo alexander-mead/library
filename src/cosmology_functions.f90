@@ -7938,7 +7938,6 @@ CONTAINS
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: imeth
       LOGICAL, INTENT(IN) :: ilog
-      DOUBLE PRECISION, ALLOCATABLE :: x8(:), v8(:), t8(:)
       INTEGER :: i
 
       INTERFACE
@@ -7966,40 +7965,27 @@ CONTAINS
       END INTERFACE
 
       ! Allocate arrays
-      ALLOCATE (x8(n), v8(n), t8(n))
-
-      ! Need to be set to zero for this to work in the spherical-collapse case
-      x8 = 0.d0
-      v8 = 0.d0
-      t8 = 0.d0
+      ALLOCATE (x(n), v(n), t(n))
+      x = 0.
+      v = 0.
+      t = 0.
 
       ! xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
-      x8(1) = xi
-      v8(1) = vi
+      x(1) = xi
+      v(1) = vi
 
       ! Fill time array
       IF (ilog) THEN
-         CALL fill_array_log(ti, tf, t8, n)
+         CALL fill_array_log(ti, tf, t, n)
       ELSE
-         CALL fill_array(ti, tf, t8, n)
+         CALL fill_array(ti, tf, t, n)
       END IF
 
+      ! Loop over all time steps
       DO i = 1, n-1
-
-         CALL ODE_advance_cosmology(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, imeth, kk, cosm)
-
-         ! Needed to escape from the ODE solver when the perturbation is ~collapsed
-         IF (x8(i+1) > dinf_spherical) EXIT
-
+         CALL ODE_advance_cosmology(x(i), x(i+1), v(i), v(i+1), t(i), t(i+1), fx, fv, imeth, kk, cosm)     
+         IF (x(i+1) > dinf_spherical) EXIT ! Needed to escape from the ODE solver when the perturbation is ~collapsed
       END DO
-
-      IF (ALLOCATED(x)) DEALLOCATE (x)
-      IF (ALLOCATED(v)) DEALLOCATE (v)
-      IF (ALLOCATED(t)) DEALLOCATE (t)
-      ALLOCATE (x(n), v(n), t(n))
-      x = real(x8)
-      v = real(v8)
-      t = real(t8)
 
    END SUBROUTINE ODE_spherical
 
@@ -8021,10 +8007,11 @@ CONTAINS
       REAL, INTENT(IN) :: acc ! Desired accuracy
       INTEGER, INTENT(IN) :: imeth
       LOGICAL, INTENT(IN) :: ilog
-      DOUBLE PRECISION, ALLOCATABLE :: x8(:), t8(:), v8(:), xh(:), th(:), vh(:)
-      INTEGER :: i, j, n, k, np, ifail, kn
-      INTEGER, PARAMETER :: jmax = 30
-      INTEGER, PARAMETER :: ninit = 100
+      REAL, ALLOCATABLE :: xh(:), th(:), vh(:)
+      INTEGER :: i, j, n, k, np, kn
+      LOGICAL :: fail
+      INTEGER, PARAMETER :: jmax = 30   ! TODO: Move to header
+      INTEGER, PARAMETER :: ninit = 100 ! TOOD: Move to header
 
       INTERFACE
 
@@ -8052,32 +8039,31 @@ CONTAINS
 
       DO j = 1, jmax
 
-         n = 1+ninit*(2**(j-1))
+         n = 1+ninit*2**(j-1)
 
-         ALLOCATE (x8(n), v8(n), t8(n))
-
-         x8 = 0.d0
-         v8 = 0.d0
-         t8 = 0.d0
+         ALLOCATE (x(n), v(n), t(n))
+         x = 0.
+         v = 0.
+         t = 0.
 
          ! xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
-         x8(1) = xi
-         v8(1) = vi
+         x(1) = xi
+         v(1) = vi
 
          ! Fill time array
          IF (ilog) THEN
-            CALL fill_array_log(ti, tf, t8, n)
+            CALL fill_array_log(ti, tf, t, n)
          ELSE
-            CALL fill_array(ti, tf, t8, n)
+            CALL fill_array(ti, tf, t, n)
          END IF
 
-         ifail = 0
+         fail = .FALSE.
 
          DO i = 1, n-1
-            CALL ODE_advance_cosmology(x8(i), x8(i+1), v8(i), v8(i+1), t8(i), t8(i+1), fx, fv, imeth, kk, cosm)
+            CALL ODE_advance_cosmology(x(i), x(i+1), v(i), v(i+1), t(i), t(i+1), fx, fv, imeth, kk, cosm)
          END DO
 
-         IF (j == 1) ifail = 1
+         IF (j == 1) fail = .TRUE.
 
          IF (j .NE. 1) THEN
 
@@ -8087,12 +8073,12 @@ CONTAINS
 
                kn = 2*k-1
 
-               IF (ifail == 0) THEN
+               IF (.NOT. fail) THEN
 
-                  IF (xh(k) > acc .AND. x8(kn) > acc .AND. (abs(xh(k)/x8(kn))-1.) > acc) ifail = 1
-                  IF (vh(k) > acc .AND. v8(kn) > acc .AND. (abs(vh(k)/v8(kn))-1.) > acc) ifail = 1
+                  IF ((xh(k) > acc) .AND. (x(kn) > acc) .AND. (abs(xh(k)/x(kn))-1. > acc)) fail = .TRUE.
+                  IF ((vh(k) > acc) .AND. (v(kn) > acc) .AND. (abs(vh(k)/v(kn))-1. > acc)) fail = .TRUE.
 
-                  IF (ifail == 1) THEN
+                  IF (fail) THEN
                      DEALLOCATE (xh, th, vh)
                      EXIT
                   END IF
@@ -8102,22 +8088,15 @@ CONTAINS
 
          END IF
 
-         IF (ifail == 0) THEN
-            IF (ALLOCATED(x)) DEALLOCATE (x)
-            IF (ALLOCATED(v)) DEALLOCATE (v)
-            IF (ALLOCATED(t)) DEALLOCATE (t)
-            ALLOCATE (x(n), v(n), t(n))
-            x = real(x8)
-            v = real(v8)
-            t = real(t8)
+         IF (.NOT. fail) THEN
             EXIT
+         ELSE
+            ALLOCATE (xh(n), vh(n), th(n))
+            xh = x
+            vh = v
+            th = t
+            DEALLOCATE (x, v, t)
          END IF
-
-         ALLOCATE (xh(n), th(n), vh(n))
-         xh = x8
-         vh = v8
-         th = t8
-         DEALLOCATE (x8, t8, v8)
 
       END DO
 
@@ -8126,12 +8105,12 @@ CONTAINS
    SUBROUTINE ODE_advance_cosmology(x1, x2, v1, v2, t1, t2, fx, fv, imeth, k, cosm)
 
       ! Advance the ODE system from t1 to t2
-      DOUBLE PRECISION, INTENT(IN) :: x1
-      DOUBLE PRECISION, INTENT(OUT) :: x2
-      DOUBLE PRECISION, INTENT(IN) :: v1
-      DOUBLE PRECISION, INTENT(OUT) :: v2
-      DOUBLE PRECISION, INTENT(IN) :: t1
-      DOUBLE PRECISION, INTENT(IN) :: t2
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(OUT) :: x2
+      REAL, INTENT(IN) :: v1
+      REAL, INTENT(OUT) :: v2
+      REAL, INTENT(IN) :: t1
+      REAL, INTENT(IN) :: t2
       REAL, EXTERNAL :: fx
       REAL, EXTERNAL :: fv
       INTEGER, INTENT(IN) :: imeth

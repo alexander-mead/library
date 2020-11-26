@@ -15,6 +15,15 @@ MODULE calculus
    PUBLIC :: integrate_jac
    PUBLIC :: integrate_monte_carlo
 
+   ! Differentiation
+   INTEGER, PARAMETER :: min_deriv_iter = 5
+   INTEGER, PARAMETER :: max_deriv_iter = 100
+
+   ! Integration
+   INTEGER, PARAMETER :: jmin_integrate = 5  ! 2^jmin minimum steps
+   INTEGER, PARAMETER :: jmax_integrate = 20 ! 2^jmax maximum steps
+   INTEGER, PARAMETER :: ninit_integrate = 5
+
    INTERFACE derivative
       MODULE PROCEDURE derivative_1D
       MODULE PROCEDURE derivative_2D
@@ -30,9 +39,8 @@ CONTAINS
       REAL, INTENT(IN) :: acc
       REAL :: dnew, dold, dx
       INTEGER :: i
-
-      INTEGER, PARAMETER :: imin = 5 ! Minimum number of iterations
-      INTEGER, PARAMETER :: n = 100 ! Maximum number of iterations
+      INTEGER, PARAMETER :: imin = min_deriv_iter ! Minimum number of iterations
+      INTEGER, PARAMETER :: n = max_deriv_iter ! Maximum number of iterations
 
       INTERFACE
          FUNCTION f(xin)
@@ -72,8 +80,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: dim
       REAL :: dnew, dold, dx, dy
       INTEGER :: i
-
-      INTEGER, PARAMETER :: n = 100
+      INTEGER, PARAMETER :: n = max_deriv_iter
 
       INTERFACE
          FUNCTION f(xin, yin)
@@ -135,8 +142,7 @@ CONTAINS
       REAL, INTENT(IN) :: acc
       REAL :: dnew, dold, dy
       INTEGER :: i
-
-      INTEGER, PARAMETER :: n = 100
+      INTEGER, PARAMETER :: n = max_deriv_iter
 
       INTERFACE
          FUNCTION f(xin, yin)
@@ -179,7 +185,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: iorder ! Order for integration
       INTEGER :: i
       REAL :: x, dx, weight
-      DOUBLE PRECISION :: sum
+      REAL :: sum
 
       INTERFACE
          FUNCTION f(xin)
@@ -261,10 +267,9 @@ CONTAINS
       REAL :: x, dx
       REAL :: f1, f2, fx
       LOGICAL :: pass
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
-
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 30
+      REAL :: sum_n, sum_2n, sum_new, sum_old
+      INTEGER, PARAMETER :: jmin = jmin_integrate
+      INTEGER, PARAMETER :: jmax = jmax_integrate
 
       INTERFACE
          FUNCTION f(xin)
@@ -365,11 +370,10 @@ CONTAINS
       INTEGER :: i, j, n
       REAL :: x, weight, dx, lima, limb
       LOGICAL :: pass
-      DOUBLE PRECISION :: sum_old, sum_new
-
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 20
-      INTEGER, PARAMETER :: ninit = 8
+      REAL :: sum_old, sum_new
+      INTEGER, PARAMETER :: jmin = jmin_integrate
+      INTEGER, PARAMETER :: jmax = jmax_integrate
+      INTEGER, PARAMETER :: ninit = ninit_integrate
 
       INTERFACE
          FUNCTION f(xin)
@@ -492,12 +496,12 @@ CONTAINS
       REAL :: a3, a2, a1, a0
       REAL :: x1, x2, x3, x4
       REAL :: y1, y2, y3, y4
-      DOUBLE PRECISION :: sum_old, sum_new
+      REAL :: sum_old, sum_new
       LOGICAL :: pass
 
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 20
-      INTEGER, PARAMETER :: ni = 1
+      INTEGER, PARAMETER :: jmin = jmin_integrate
+      INTEGER, PARAMETER :: jmax = jmax_integrate
+      INTEGER, PARAMETER :: ni = ninit_integrate  ! CARE: This was previously set to 1
 
       INTERFACE
          FUNCTION f(x)
@@ -594,12 +598,12 @@ CONTAINS
       INTEGER :: i, j, n
       REAL :: dy, alim, blim
       REAL :: x, y, weight
-      DOUBLE PRECISION :: sum_old, sum_new
+      REAL :: sum_old, sum_new
       LOGICAL :: pass     
 
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 20
-      INTEGER, PARAMETER :: ninit = 8
+      INTEGER, PARAMETER :: jmin = jmin_integrate
+      INTEGER, PARAMETER :: jmax = jmax_integrate
+      INTEGER, PARAMETER :: ninit = ninit_integrate
 
       INTERFACE
          FUNCTION f(xin)
@@ -714,7 +718,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: n ! Number of points
       INTEGER :: i
       REAL :: x, dx
-      DOUBLE PRECISION :: sum
+      REAL :: sum
 
       INTERFACE
          FUNCTION f(xin)

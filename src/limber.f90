@@ -506,7 +506,7 @@ CONTAINS
       REAL, INTENT(IN) :: acc         ! Accuracy
       INTEGER :: l
       REAL :: Cl, xi
-      DOUBLE PRECISION :: sum
+      REAL :: sum
       INTEGER, PARAMETER :: iorder = 3    ! Order for interpolation to find C(l) (3 - cubic)
       INTEGER, PARAMETER :: ifind = 3     ! Finding scheme for interpolation of C(l) (3 - mid-point)
       INTEGER, PARAMETER :: imeth = 2     ! Interpolation polynomial (2 - Lagrange polynomial)
@@ -552,7 +552,7 @@ CONTAINS
       INTEGER :: l, i
       REAL :: Cl, xi(n)
       INTEGER :: ifind
-      DOUBLE PRECISION :: sum(n)
+      REAL :: sum(n)
       INTEGER, PARAMETER :: iorder = 3  ! Order for interpolation to find C(l) (3 - cubic)
       INTEGER, PARAMETER :: imeth = 2   ! Interpolation polynomial (2 - Lagrange polynomial)
 
@@ -596,7 +596,7 @@ CONTAINS
       REAL, INTENT(IN) :: Cl(nl)     ! Array of log Cl 
       INTEGER :: l, i
       REAL :: xi(n)
-      DOUBLE PRECISION :: sum(n)
+      REAL :: sum(n)
 
       ! Set values to zero before summing
       sum = 0.
@@ -633,7 +633,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
       REAL, PARAMETER :: a = 0.
       REAL, PARAMETER :: b = 1.
@@ -1439,7 +1439,7 @@ CONTAINS
       INTEGER :: i, j, n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5  ! Standard integration parameters
@@ -1570,7 +1570,7 @@ CONTAINS
       INTEGER :: n
       REAL :: x, dx
       REAL :: f1, f2, fx
-      DOUBLE PRECISION :: sum_n, sum_2n, sum_new, sum_old
+      REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
 
       INTEGER, PARAMETER :: jmin = 5  ! Standard integration parameters

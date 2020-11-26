@@ -212,7 +212,7 @@ CONTAINS
       REAL, INTENT(IN) :: L        ! box size [Mpc/h]
       REAL, INTENT(IN) :: h        ! Hubble parameter (necessary because pressure will be in eV/cm^3 without h factors)
       REAL :: V
-      DOUBLE PRECISION :: units, kT_dble(n)
+      REAL :: units, kT_dble(n) ! CARE: Previously this was double precision
       INTEGER, PARAMETER :: scheme = 3
 
       ! Exclude gas that is sufficiently dense to not be ionised and be forming stars

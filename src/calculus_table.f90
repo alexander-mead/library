@@ -220,7 +220,7 @@ CONTAINS
       REAL :: a, b, c, d, h
       REAL :: q1, q2, q3, qi, qf
       REAL :: x1, x2, x3, x4, y1, y2, y3, y4, xi, xf
-      DOUBLE PRECISION :: sum
+      REAL :: sum
       INTEGER :: i, i1, i2, i3, i4, n
 
       n = size(x)
@@ -366,7 +366,7 @@ CONTAINS
       REAL, INTENT(IN) :: y(:)
       REAL, INTENT(IN) :: F(:, :)
       INTEGER :: ix, iy, nx, ny
-      DOUBLE PRECISION :: sum
+      REAL :: sum
       REAL :: dx, dy
 
       nx = size(x)
