@@ -48,23 +48,14 @@ def solve_SIR(S_initial, I_initial, R_initial, ts, R0s, gamma):
    
    return t, S, I, R
 
-# Takes S(n), I(n), and R(n) and updates to S(n+1), I(n+1), and R(n+1)
-def iterate_discrete_SIR_system(S, I, R, R0):
-   N = S+I+R
-   In = int(round(R0*I*S/N))
-   Rn = I+R
-   Sn = N-In-Rn
-   if(Sn < 0):
-      In = In+Sn
-      Sn = 0
-   return Sn, In, Rn
-
 # Solves the discrete SIR model
 # Si - Initial number of susceptible people
 # Ii - Initial number of infected people
 # Ri - Initial number of recovered (and therefore immune) people
-# n - Number of time steps
-def solve_discrete_SIR(Si, Ii, Ri, R0, n):
+# R0 - Average number of people an infected person infects
+# Ti - Duration of infection [days]
+# n - Number of time steps [days]
+def solve_discrete_SIR(Si, Ii, Ri, R0, Ti, n):
 
    import numpy as np
     
@@ -80,7 +71,19 @@ def solve_discrete_SIR(Si, Ii, Ri, R0, n):
    
    # Loop over steps and update
    for i in range(n):
-      S[i+1], I[i+1], R[i+1] = iterate_discrete_SIR_system(S[i], I[i], R[i], R0)
+
+      N = S[i]+I[i]+R[i]
+      
+      new_infections = int(round(R0*I[i]*S[i]/(Ti*N)))
+
+      if (i-Ti < 0):
+         new_recoveries = 0
+      else:
+         new_recoveries = int(round(R0*I[i-Ti]*S[i-Ti]/(Ti*N)))
+
+      S[i+1] = S[i]-new_infections
+      I[i+1] = I[i]+new_infections-new_recoveries
+      R[i+1] = R[i]+new_recoveries
             
    # Return lists of values at each time step
    return S, I, R
