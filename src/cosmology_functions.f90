@@ -204,7 +204,8 @@ MODULE cosmology_functions
       ! Primary parameters
       CHARACTER(len=256) :: name            ! Name for cosmological model
       REAL :: Om_m, Om_b, Om_v, Om_w        ! Densities
-      REAL :: h, ns, w, wa, m_wdm, YH       ! Cosmological parameters
+      REAL :: ns, alpha                     ! Primordial spectrum
+      REAL :: h, w, wa, m_wdm, YH           ! Cosmological parameters
       REAL :: a1, a2, nstar, ws, am, dm, wm ! Dark-energy parameters
       REAL :: T_CMB                         ! CMB temperature
       REAL :: neff, m_nu                    ! Neutrinos
@@ -226,7 +227,7 @@ MODULE cosmology_functions
       LOGICAL :: power_Omegas               ! Are the Omegas for the background different from those for the perturbations?
       LOGICAL :: derive_gas_numbers         ! Should mu_e and mu_p be derived or not?
 
-      ! Variables that might be primary or secondary depening on the power normalisation
+      ! Variables that might be primary or dervied
       REAL :: kpiv, As, kval, pval, sig8 ! Power spectrum normalisation   
       REAL :: mue, mup                   ! Gas parameters
 
@@ -880,6 +881,7 @@ CONTAINS
       cosm%m_nu = 0.     ! Neutrino mass
       cosm%h = 0.7       ! Dimensionless Hubble parameter
       cosm%ns = 0.96     ! Spectral index
+      cosm%alpha = 0.    ! Spectral tilt
       cosm%w = -1.       ! Dark energy equation of state
       cosm%wa = 0.       ! Dark energy time-varying equation of state
       cosm%T_CMB = 2.725 ! CMB temperature [K]
@@ -2000,7 +2002,9 @@ CONTAINS
          ELSE
             STOP 'COSMOLOGY: Error, iTk not set properly'
          END IF   
-         WRITE (*, fmt=format) 'COSMOLOGY:', 'n_s:', cosm%ns  
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'n_s:', cosm%ns
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'alpha:', cosm%alpha
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'kpiv [h/Mpc]:', cosm%kpiv
          IF(cosm%norm_method == norm_sigma8) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: sigma_8'
             WRITE (*, fmt=format) 'COSMOLOGY:', 'sigma_8:', cosm%sig8
@@ -2010,7 +2014,6 @@ CONTAINS
             WRITE (*, fmt=format) 'COSMOLOGY:', 'Delta^2:', cosm%pval
          ELSE IF(cosm%norm_method == norm_As) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: A_s'
-            WRITE (*, fmt=format) 'COSMOLOGY:', 'kpiv [h/Mpc]:', cosm%kpiv
             WRITE (*, fmt=format) 'COSMOLOGY:', 'As [10^-9]:', cosm%As*1e9
          END IF      
          IF (cosm%box) WRITE (*, fmt=format) 'COSMOLOGY:', 'L_box [Mpc/h]:', cosm%Lbox
@@ -3832,6 +3835,18 @@ CONTAINS
 
    END FUNCTION Tk_cold_EH
 
+   REAL FUNCTION primordial_spectrum(k, cosm)
+
+      ! The unnormalised, but dimensionless, primordial spectrum
+      REAL, INTENT(IN) :: k
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: pow
+
+      pow = cosm%ns+3.+cosm%alpha*log(k/cosm%kpiv)/2.
+      primordial_spectrum = (k/cosm%kpiv)**pow
+
+   END FUNCTION primordial_spectrum
+
    REAL RECURSIVE FUNCTION plin(k, a, flag, cosm)
 
       ! Linear matter power spectrum
@@ -3871,7 +3886,7 @@ CONTAINS
             IF (.NOT. cosm%scale_dependent_growth) plin = (grow(a, cosm)**2)*plin
          ELSE
             ! In this case get the power from the transfer function
-            plin = (grow(a, cosm)**2)*(Tk_matter(k, a, cosm)**2)*(k/cosm%kval)**(cosm%ns+3.)
+            plin = (grow(a, cosm)**2)*primordial_spectrum(k, cosm)*Tk_matter(k, a, cosm)**2
          END IF
       END IF
       plin = plin*cosm%A**2
@@ -5332,7 +5347,7 @@ CONTAINS
       ! Primordial power spectrum properties
       WRITE (7, *) 'initial_power_num = 1'
       WRITE (7, *) 'scalar_spectral_index(1) =', cosm%ns
-      WRITE (7, *) 'scalar_nrun(1) = 0'
+      WRITE (7, *) 'scalar_nrun(1) =', cosm%alpha
       WRITE (7, *) 'scalar_amp(1) =', cosm%As
       WRITE (7, *) 'pivot_scalar =', cosm%kpiv*cosm%h ! Note that CAMB uses Mpc whereas I use Mpc/h
       WRITE (7, *) 'pivot_tensor =', cosm%kpiv*cosm%h ! Note that CAMB uses Mpc whereas I use Mpc/h
@@ -7465,7 +7480,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      P_nw = ((cosm%A*grow(a, cosm))**2)*((k/cosm%kval)**(cosm%ns+3.))*Tk_nw(k, cosm)**2
+      P_nw = ((cosm%A*grow(a, cosm))**2)*primordial_spectrum(k, cosm)*Tk_nw(k, cosm)**2
 
    END FUNCTION P_nw
 
