@@ -1,9 +1,10 @@
 MODULE cosmology_functions
 
+   USE basic_operations
+   USE array_operations
    USE interpolate
    USE constants
-   USE file_info
-   USE array_operations
+   USE file_info 
    USE table_integer
 
    IMPLICIT NONE
@@ -76,6 +77,7 @@ MODULE cosmology_functions
    PUBLIC :: luminosity_distance
    PUBLIC :: cosmic_time
    PUBLIC :: look_back_time
+   PUBLIC :: conformal_time
 
    ! Densities
    PUBLIC :: comoving_critical_density
@@ -204,7 +206,7 @@ MODULE cosmology_functions
       REAL :: Om_m, Om_b, Om_v, Om_w        ! Densities
       REAL :: h, ns, w, wa, m_wdm, YH       ! Cosmological parameters
       REAL :: a1, a2, nstar, ws, am, dm, wm ! Dark-energy parameters
-      REAL :: z_CMB, T_CMB                  ! CMB/radiation parameters
+      REAL :: T_CMB                         ! CMB temperature
       REAL :: neff, m_nu                    ! Neutrinos
       REAL :: H0rc, fr0, nfR                ! Modified gravity parameters
       REAL :: Om_m_pow, Om_b_pow, h_pow     ! Cosmological parameters used for P(k) if different from background
@@ -235,6 +237,7 @@ MODULE cosmology_functions
       REAL :: Om_nu_rad, omega_nu, T_nu  ! Neutrinos
       REAL :: omega_m, omega_b, omega_c  ! Physical densities
       REAL :: k                          ! Curvature [(Mpc/h)^-2]
+      REAL :: z_CMB                      ! Distance to the CMB
       REAL :: Om_c_pow                   ! Cosmological parameters used for P(k) if different from background
       REAL :: age, horizon               ! Derived distance/time
       REAL :: YHe                        ! Derived thermal parameters
@@ -373,6 +376,7 @@ MODULE cosmology_functions
    ! CAMB interface
    REAL, PARAMETER :: pk_min_CAMB = 1e-10                      ! Minimum value of power at low k (remove k with less than this) 
    REAL, PARAMETER :: nmax_CAMB = 2.                           ! How many times more to go than kmax due to inaccuracy near k limit
+   CHARACTER(len=256), PARAMETER :: de_CAMB = 'ppf'            ! CAMB dark-energy prescription, either 'ppf' or 'fluid'
    LOGICAL, PARAMETER :: rebin_CAMB = .FALSE.                  ! Should we rebin CAMB or just use default k spacing?
    INTEGER, PARAMETER :: iorder_rebin_CAMB = 3                 ! Polynomial order for interpolation if rebinning P(k)
    INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation if rebinning P(k) (*definitely* not linear)
@@ -561,6 +565,14 @@ MODULE cosmology_functions
    REAL, PARAMETER :: smax_rescale = 3.00
    INTEGER, PARAMETER :: ns_rescale = nint(1+100.*(smax_rescale-smin_rescale))
 
+   ! Cosmic Emu
+   ! TODO: Remove
+   CHARACTER(len=256), PARAMETER :: params_CosmicEmu = 'emu_params.txt'
+   CHARACTER(len=256), PARAMETER :: output_CosmicEmu = 'emu_power.dat'
+   CHARACTER(len=256), PARAMETER :: exe_CosmicEmu = '/Users/Mead/Physics/CosmicEmu/emu.exe'
+   INTEGER, PARAMETER :: nh_CosmicEmu = 10  ! Length of header
+   INTEGER, PARAMETER :: hl_CosmicEmu = 8   ! Line that h in on
+
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
    INTEGER, PARAMETER :: jmax_integration = 30 ! Maximum number of points: 2^(j-1) TODO: Could lower to make time-out faster
@@ -576,6 +588,7 @@ CONTAINS
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
       REAL :: Xe, Xi
+      REAL :: wm, wb, wc
 
       ! Names of pre-defined cosmologies
       INTEGER, PARAMETER :: ncosmo = 337
@@ -708,6 +721,7 @@ CONTAINS
       names(262) = 'TCDM - from rescaling'
       names(263) = 'WMAP3'
       names(264) = 'Boring normalised via As'
+      names(265) = 'Fiducial Smith & Angulo (2019)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -869,7 +883,6 @@ CONTAINS
       cosm%w = -1.       ! Dark energy equation of state
       cosm%wa = 0.       ! Dark energy time-varying equation of state
       cosm%T_CMB = 2.725 ! CMB temperature [K]
-      cosm%z_CMB = 1087. ! Redshift of the last-scatting surface TODO: Should be derived
       cosm%neff = 3.046  ! Effective number of relativistic neutrinos
       cosm%YH = 0.76     ! Hydrogen mass fraction
       cosm%N_nu = 3      ! Integer number of (currently degenerate) massive neutrinos
@@ -1604,6 +1617,19 @@ CONTAINS
       ELSE IF (icosmo == 264) THEN
          ! Boring, but normalised via As
          cosm%norm_method = norm_As  
+      ELSE IF (icosmo == 265) THEN
+         ! Fiducial from Smith & Angulo (2019)
+         cosm%iTk = iTk_CAMB
+         !cosm%norm_method = norm_As
+         wc = 0.11889
+         wb = 0.022161
+         wm = wb+wc
+         cosm%Om_v = 0.6914
+         cosm%Om_m = 1.-cosm%Om_v
+         cosm%h = sqrt(wm/cosm%Om_m)
+         cosm%Om_b = wb/cosm%h**2
+         cosm%ns = 0.9611
+         cosm%sig8 = 0.8279
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -1661,6 +1687,10 @@ CONTAINS
       cosm%Om_nu_rad = cosm%Om_g*cosm%neff*neff_constant ! Relativisitic neutrino density (assuming they never behave like radiation always)
       cosm%Om_r = cosm%Om_g+cosm%Om_nu_rad               ! Radiation is sum of photon and neutrino densities
       f_nu_rad = cosm%Om_nu_rad/cosm%Om_r                ! Fraction of radiation that is neutrinos (~0.40)
+
+      ! Redshift of the last-scatting surface (depends on Omega_m and Omega_b)
+      cosm%z_CMB = z_CMB(cosm)
+      IF (cosm%verbose) WRITE(*, *) 'INIT_COSMOLOGY: z_LSS:', cosm%z_CMB
 
       ! Information about how radiation density is calculated
       IF (cosm%verbose) THEN
@@ -1894,7 +1924,6 @@ CONTAINS
          WRITE (*, fmt=format) 'COSMOLOGY:', 'Omega_w:', cosm%Om_w
          WRITE (*, fmt=format) 'COSMOLOGY:', 'h:', cosm%h
          WRITE (*, fmt=format) 'COSMOLOGY:', 'T_CMB [K]:', cosm%T_CMB
-         !WRITE (*, fmt=format) 'COSMOLOGY:', 'z_CMB:', cosm%z_CMB
          WRITE (*, fmt=format) 'COSMOLOGY:', 'n_eff:', cosm%neff
          WRITE (*, fmt=format) 'COSMOLOGY:', 'Y_H:', cosm%YH
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 1 [eV]:', cosm%m_nu(1)
@@ -2016,6 +2045,7 @@ CONTAINS
          END IF
          WRITE (*, fmt=format) 'COSMOLOGY:', 'mu_p:', cosm%mup
          WRITE (*, fmt=format) 'COSMOLOGY:', 'mu_e:', cosm%mue
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'z_CMB:', cosm%z_CMB
          IF (cosm%iw == iw_IDE2) THEN
             WRITE (*, *) dashes
             WRITE (*, *) 'COSMOLOGY: IDE II'
@@ -3043,7 +3073,6 @@ CONTAINS
       ! Make a vanilla LCDM version of an input cosmology
       ! This will be a flat cosmology with standard Lambda dark energy
       ! It will also have zero neutrino mass
-      USE basic_operations
       TYPE(cosmology), INTENT(IN) :: cosm
       LOGICAL, INTENT(IN) :: make_lambda
       LOGICAL, INTENT(IN) :: make_flat
@@ -3167,6 +3196,7 @@ CONTAINS
    REAL FUNCTION comoving_particle_horizon(a, cosm)
 
       ! The comoving particle horizon [Mpc/h]
+      ! Related to the conformal time via a change in dimension
       ! This is the furthest distance a particle can have travelled since a=0
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -3248,6 +3278,18 @@ CONTAINS
       luminosity_distance = f_k(comoving_distance(a, cosm), cosm)/a
 
    END FUNCTION luminosity_distance
+
+   REAL FUNCTION conformal_time(a, cosm)
+
+      ! Conformal time at scale factor a [Gyrs/h]
+      ! Sometimes denoted eta, with eta(t) = int dt/a between t=0 and t
+      ! Same as the particle horizon to within a factor of c
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      conformal_time = (Htime/Hdist)*comoving_particle_horizon(a, cosm)
+
+   END FUNCTION conformal_time
 
    SUBROUTINE init_distance(cosm)
 
@@ -4448,7 +4490,6 @@ CONTAINS
 
       ! Fills look-up tables for scale-dependent growth: a vs. g(a), f(a) and G(a)
       ! TODO: Figure out why if I set amax=10, rather than amax=1, I start getting weird f(a) around a=0.001
-      USE basic_operations
       USE calculus_table
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: i, na
@@ -4968,7 +5009,6 @@ CONTAINS
 
       ! Initialise the spherical-collapse calculation
       ! TODO: Care with initial conditions and neutrinos/EDE here
-      USE basic_operations
       USE table_integer
       USE minimization
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -5188,6 +5228,7 @@ CONTAINS
       CHARACTER(len=256) :: camb, dir, root, matterpower, transfer, params
       REAL, PARAMETER :: kmax = kmax_plin ! Maximum wavenumber to get the power to [h/Mpc]
       REAL, PARAMETER :: nmax = nmax_CAMB ! Multiplicative factor to go beyond kmax
+      CHARACTER(len=256) :: de = de_CAMB
 
       ! Sort executable, directories and files
       camb = cosm%CAMB_exe
@@ -5265,7 +5306,7 @@ CONTAINS
       WRITE (7, *) 'hubble =', 100.*h
 
       ! Dark energy
-      WRITE (7, *) 'dark_energy_model = ppf'
+      WRITE (7, *) 'dark_energy_model = ', trim(de)
       WRITE (7, *) 'w =', cosm%w
       WRITE (7, *) 'wa =', cosm%wa
       WRITE (7, *) 'cs2_lam = 1'
@@ -5906,13 +5947,98 @@ CONTAINS
 
    END SUBROUTINE random_nuLCDM_cosmology
 
+   SUBROUTINE get_CosmicEmu_h(cosm)
+
+      ! TODO: This should be removed eventually
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: u
+      INTEGER :: i
+      REAL :: h
+      CHARACTER(len=256) :: crap
+      CHARACTER(len=256), PARAMETER :: params = params_CosmicEmu
+      CHARACTER(len=256), PARAMETER :: output = output_CosmicEmu
+      CHARACTER(len=256), PARAMETER :: exe = exe_CosmicEmu
+      INTEGER, PARAMETER :: hl = hl_CosmicEmu
+      INTEGER, PARAMETER :: nh = nh_CosmicEmu
+      REAL, PARAMETER :: z = 0.
+
+      ! Remove previous parameter and power file
+      CALL EXECUTE_COMMAND_LINE('rm -rf '//trim(params))
+      CALL EXECUTE_COMMAND_LINE('rm -rf '//trim(output))
+
+      ! Write a new parameter file
+      OPEN (newunit=u, file=params)
+      WRITE (u, fmt='(A20,7F10.5)') trim(output), cosm%Om_m*cosm%h**2, cosm%Om_b*cosm%h**2, cosm%ns, cosm%sig8, cosm%w, z
+      CLOSE (u)
+
+      ! Run emu
+      IF(present_and_correct(cosm%verbose)) THEN
+         CALL EXECUTE_COMMAND_LINE(trim(exe)//' '//trim(params))
+      ELSE
+         CALL EXECUTE_COMMAND_LINE(trim(exe)//' '//trim(params)//' > /dev/null')
+      END IF
+
+      ! Read in data file
+      OPEN (newunit=u, file=output)
+      DO i = 1, nh
+         IF (i == hl) THEN
+            READ (u, *) crap, crap, crap, crap, crap, crap, crap, crap, h
+            cosm%h = h
+            EXIT
+         ELSE
+            READ(u, *)
+         END IF
+      END DO
+      CLOSE (u)
+
+   END SUBROUTINE get_CosmicEmu_h
+
    SUBROUTINE random_Cosmic_Emu_cosmology(cosm)
 
       ! Generate some random cosmological parameters
+      ! h is fixed by the distance to the CMB last-scattering surface
+      ! Described below equation (8) of https://arxiv.org/pdf/0902.0429.pdf
+      ! TODO: Should replace get_CosmicEmu_h with my own calculation
+      USE random_numbers
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: dlss, zlss, alss, rs
+      !REAL, PARAMETER :: wm_mid = 0.135
+      !REAL, PARAMETER :: la = 302.4
+      REAL, PARAMETER :: om_m_min = 0.120
+      REAL, PARAMETER :: om_m_max = 0.155
+      REAL, PARAMETER :: om_b_min = 0.0215
+      REAL, PARAMETER :: om_b_max = 0.0235
+      REAL, PARAMETER :: n_min = 0.85
+      REAL, PARAMETER :: n_max = 1.05
+      REAL, PARAMETER :: w_min = -1.3
+      REAL, PARAMETER :: w_max = -0.7
+      REAL, PARAMETER :: sig8_min = 0.616
+      REAL, PARAMETER :: sig8_max = 0.9
 
-      STOP 'RANDOM_COSMIC_EMU_COSMOLOGY: Need to implement the CMB distance condition on h'
-      CALL random_Franken_Emu_cosmology(cosm)
+      cosm%Om_m = random_uniform(om_m_min, om_m_max)
+      cosm%Om_b = random_uniform(om_b_min, om_b_max)
+      cosm%ns = random_uniform(n_min, n_max)
+      cosm%w = random_uniform(w_min, w_max)
+      cosm%sig8 = random_uniform(sig8_min, sig8_max)
+
+      cosm%h = 1. ! Need to set to unity here
+      CALL get_CosmicEmu_h(cosm) ! Reset h
+
+      cosm%Om_m = cosm%Om_m/cosm%h**2
+      cosm%Om_b = cosm%Om_b/cosm%h**2
+
+      cosm%Om_v = 0.
+      cosm%Om_w = 1.-cosm%Om_m
+      cosm%iw = iw_wCDM ! Constant w models only in Cosmic Emu
+
+      !zlss = z_CMB(cosm)
+      !alss = scale_factor_z(zlss)
+      !dlss = comoving_distance(alss, cosm)
+      !rs = r_sound(cosm)
+
+      !WRITE(*, *) 'l_A (target):', la
+      !WRITE(*, *) 'l_A (this cosmology)', pi*dlss/rs
+      !STOP 'RANDOM_COSMIC_EMU_COSMOLOGY: Error, this needs to be solved numerically'
 
    END SUBROUTINE random_Cosmic_Emu_cosmology
 
@@ -7061,7 +7187,7 @@ CONTAINS
 
    REAL FUNCTION z_CMB(cosm)
 
-      ! Fit to the redshift of last scattering
+      ! Fit to the redshift of last scattering, used in the original Cosmic Emu for h determination
       ! Equation (23) from Hu & White (1997) https://arxiv.org/pdf/astro-ph/9609079.pdf
       ! TODO: What does this assume about dark energy?
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -7074,22 +7200,55 @@ CONTAINS
       b1 = (0.0783*om_b**(-0.238))/(1.+39.5*om_b**0.763)
       b2 = 0.560/(1.+21.1*om_b**1.81)
 
-      z_CMB = 1048.*(1.+0.00124*(om_b)**(-0.738))*(1.+b1*om_m**b2)
+      z_CMB = 1048.*(1.+0.00124*om_b**(-0.738))*(1.+b1*om_m**b2)
 
    END FUNCTION z_CMB
 
    REAL FUNCTION r_sound(cosm)
 
-      ! Sound horizon calculated in WKB approximation
+      ! Sound horizon [Mpc/h] calculated in WKB approximation, used in the original Cosmic Emu for h determination
       ! Equation (B6) from Hu & Sugiyama (1995) https://arxiv.org/pdf/astro-ph/9407093.pdf
-      ! TODO: Code this up!
-      TYPE(cosmology), INTENT(IN) :: cosm
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: a_eq, R, R_eq
 
-      r_sound = cosm%A ! Warning suppression
-      r_sound = 0.
-      STOP 'R_SOUND: Code this up'
+      ! Scale factor at matter-radiation equality
+      a_eq = scale_factor_eq(cosm)
+
+      ! Scale factors normalised to 0.75 at baryon-photon equality
+      R = 0.75*(1./(cosm%Om_g/cosm%Om_b))
+      R_eq = 0.75*(a_eq/(cosm%Om_g/cosm%Om_b))
+
+      ! Sound horizon approximation
+      r_sound = (2./3.)*sqrt(6./R_eq)*log((sqrt(1.+R)+sqrt(R+R_eq))/(1.+sqrt(R_eq)))
+      r_sound = r_sound/k_eq(cosm)
+
+      STOP 'R_SOUND: Check this, I think it is wrong'
 
    END FUNCTION r_sound
+
+   REAL FUNCTION scale_factor_eq(cosm)
+
+      ! Scale factor at matter-radiation equality
+      TYPE(cosmology), INTENT(IN) :: cosm
+
+      scale_factor_eq = cosm%Om_r/cosm%Om_m
+
+   END FUNCTION scale_factor_eq
+
+   REAL FUNCTION k_eq(cosm)
+
+      ! Wavenumber at matter-radiation equality [h/Mpc]
+      ! TODO: How exactly is this defined?
+      ! TODO: Why is it 4-2*sqrt(2), rather than 1, pi or 2pi?
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: a_eq
+
+      a_eq = scale_factor_eq(cosm)
+      k_eq = (4.-2.*sqrt(2.))/comoving_particle_horizon(a_eq, cosm)
+
+      STOP 'K_EQ: Check this'
+
+   END FUNCTION k_eq
 
    ELEMENTAL REAL FUNCTION Pk_Delta(Delta, k)
 
@@ -7727,12 +7886,9 @@ CONTAINS
 
    SUBROUTINE calculate_rescaling_parameters(x1_tgt, x2_tgt, as_ini, s, a, a_tgt, cosm_ini, cosm_tgt, irescale, verbose)
 
-      USE basic_operations
-
       ! Calculates the AW10 (s, a) rescaling coefficients to go from cosm_ini to cosm_tgt
       ! cosm_tgt will be approximated by cosm_ini with R -> R/s (or k -> s*k) at scale factor a
       ! Note *NOT* a_tgt, which is the desired scale factor in the target cosmology
-
       REAL, INTENT(IN) :: x1_tgt                 ! Minimum value for minimization of (s, a) pair (either R or k)
       REAL, INTENT(IN) :: x2_tgt                 ! Maximum value for minimization of (s, a) pair (either R or k)
       REAL, INTENT(IN) :: as_ini(:)              ! Array of possible a values from the initial cosmology
