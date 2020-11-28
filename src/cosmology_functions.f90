@@ -6016,7 +6016,7 @@ CONTAINS
       ! TODO: Should replace get_CosmicEmu_h with my own calculation
       USE random_numbers
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: dlss, zlss, alss, rs
+      !REAL :: dlss, zlss, alss, rs
       !REAL, PARAMETER :: wm_mid = 0.135
       !REAL, PARAMETER :: la = 302.4
       REAL, PARAMETER :: om_m_min = 0.120
