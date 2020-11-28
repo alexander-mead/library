@@ -11,7 +11,6 @@ MODULE array_operations
    PUBLIC :: add_to_array
    PUBLIC :: splay
    PUBLIC :: write_array_list
-   !PUBLIC :: sum_double
    PUBLIC :: repeated_entries
    PUBLIC :: array_position
    PUBLIC :: reverse_array
@@ -39,26 +38,9 @@ MODULE array_operations
    PUBLIC :: remove_repeated_array_elements
    PUBLIC :: remove_repeated_two_array_elements
    PUBLIC :: fill_array
-   !PUBLIC :: fill_array_double ! TODO: Delete
-   PUBLIC :: fill_array_log
+   PUBLIC :: fill_array_log ! TODO: Remove
    PUBLIC :: outside_array_range
    PUBLIC :: sum_logical
-
-!!$  ! These interfaces did not work if -fdefault-real-8 and -fdefault-real-8 were set
-!!$  INTERFACE fill_array
-!!$     MODULE PROCEDURE fill_array_single
-!!$     MODULE PROCEDURE fill_array_double
-!!$  END INTERFACE fill_array
-!!$
-!!$  INTERFACE progression
-!!$     MODULE PROCEDURE progression_single
-!!$     MODULE PROCEDURE progression_double
-!!$  END INTERFACE progression
-!!$
-!!$  INTERFACE progression_log
-!!$     MODULE PROCEDURE progression_log_single
-!!$     MODULE PROCEDURE progression_log_double
-!!$  END INTERFACE progression_log
 
    INTERFACE is_in_array
       MODULE PROCEDURE is_in_array_integer
@@ -1177,7 +1159,7 @@ CONTAINS
 
    END FUNCTION concatenate_arrays_int
 
-   SUBROUTINE fill_array(min, max, arr, n)
+   SUBROUTINE fill_array(min, max, arr, n, ilog)
 
       ! Fills array 'arr' in linearly spaced intervals
       ! e.g., 4 values between 0 and 1 would be 0, 1/3, 2/3, and 1
@@ -1187,6 +1169,7 @@ CONTAINS
       REAL, INTENT(IN) :: max ! Maximum value for array
       REAL, ALLOCATABLE, INTENT(INOUT) :: arr(:) ! Output array
       INTEGER, INTENT(IN) :: n ! Number of entries in array
+      LOGICAL, OPTIONAL, INTENT(IN) :: ilog
       INTEGER :: i
 
       ! Allocate the array, and deallocate it if it is full
@@ -1194,11 +1177,11 @@ CONTAINS
       arr = 0.
 
       IF (n == 1) THEN
-         IF (min /= max) STOP 'FILL_ARRAY: If array filled with a single value then min and max must be equal'
+         IF (min /= max) STOP 'FILL_ARRAY: If array is to be filled with a single value then min and max must be equal'
          arr(1) = min
       ELSE IF (n > 1) THEN
          DO i = 1, n
-            arr(i) = progression(min, max, i, n)
+            arr(i) = progression(min, max, i, n, ilog)
          END DO
       ELSE
          STOP 'FILL_ARRAY: Error, n cannot be negative'
@@ -1206,37 +1189,10 @@ CONTAINS
 
    END SUBROUTINE fill_array
 
-   ! SUBROUTINE fill_array_double(min, max, arr, n)
-
-   !    ! Fills array 'arr' in equally spaced intervals
-   !    ! TODO: Not sure if inputting an array like this is okay
-   !    ! TODO: Delete
-   !    USE basic_operations
-   !    IMPLICIT NONE
-   !    DOUBLE PRECISION, INTENT(IN) :: min, max
-   !    DOUBLE PRECISION, ALLOCATABLE, INTENT(INOUT) :: arr(:)
-   !    INTEGER, INTENT(IN) :: n
-   !    INTEGER :: i
-
-   !    ! Allocate the array, and deallocate it if it is full
-   !    !IF (ALLOCATED(arr)) DEALLOCATE (arr)
-   !    !ALLOCATE (arr(n))
-   !    CALL safe_allocate(arr, n)
-   !    arr = 0.d0
-
-   !    IF (n == 1) THEN
-   !       arr(1) = min
-   !    ELSE IF (n > 1) THEN
-   !       DO i = 1, n
-   !          arr(i) = progression_double(min, max, i, n)
-   !       END DO
-   !    END IF
-
-   ! END SUBROUTINE fill_array_double
-
    SUBROUTINE fill_array_log(xmin, xmax, x, nx)
 
       ! Fill an array x in n log-space intervals between xmin and xmax (inclusive)
+      ! TODO: Remove
       REAL, INTENT(IN) :: xmin
       REAL, INTENT(IN) :: xmax
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
