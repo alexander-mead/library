@@ -1819,11 +1819,8 @@ CONTAINS
       WRITE (*, *) 'k_min:', kmin
       WRITE (*, *) 'k_max:', kmax
 
-      !Log-spaced bins
-      !DO i=1,bins+1
-      !   kbin(i)=exp(log(kmin)+log(kmax/kmin)*float(i-1)/float(bins))
-      !END DO
-      kbin(i) = progression_log(kmin, kmax, i, nk+1)
+      ! Log-spaced bins
+      kbin(i) = progression(kmin, kmax, i, nk+1, ilog=.TRUE.)
 
       !Explicitly extend the bins to be sure to include all modes
       !This is necessary due to rounding errors!
