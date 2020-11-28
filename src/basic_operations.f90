@@ -5,7 +5,7 @@ MODULE basic_operations
    PRIVATE
 
    PUBLIC :: progression
-   PUBLIC :: progression_log
+   !PUBLIC :: progression_log ! TODO: Remove
    PUBLIC :: fix_minimum
    PUBLIC :: fix_maximum
    PUBLIC :: read_command_argument
@@ -70,33 +70,42 @@ CONTAINS
 
    END FUNCTION default_or_optional_int
 
-   REAL FUNCTION progression(xmin, xmax, i, n)
+   RECURSIVE REAL FUNCTION progression(xmin, xmax, i, n, ilog)
 
       ! Split the region xmin -> xmax into n linearly spaced increments (including both xmin and xmax)
       ! Returns the value at the i-th point
       REAL, INTENT(IN) :: xmin
       REAL, INTENT(IN) :: xmax
-      INTEGER, INTENT(IN) :: i, n
+      INTEGER, INTENT(IN) :: i
+      INTEGER, INTENT(IN) :: n
+      LOGICAL, OPTIONAL, INTENT(IN) :: ilog
 
       IF (n == 1) THEN
+         IF (xmin /= xmax) STOP 'PROGRESSION: Error, if n=1 then xmin and xmax must be identical'
          progression = xmin
       ELSE
-         progression = xmin+(xmax-xmin)*real(i-1)/real(n-1)
+         IF (present_and_correct(ilog)) THEN
+            progression = exp(log(xmin)+log(xmax/xmin)*real(i-1)/real(n-1))
+            !progression = exp(progression(log(xmin), log(xmax), i, n, ilog=.FALSE.))
+         ELSE
+            progression = xmin+(xmax-xmin)*real(i-1)/real(n-1)
+         END IF
       END IF
 
    END FUNCTION progression
 
-   REAL FUNCTION progression_log(xmin, xmax, i, n)
+   ! REAL FUNCTION progression_log(xmin, xmax, i, n)
 
-      ! Split the region xmin -> xmax into n log-spaced increments (including both xmin and xmax)
-      ! Returns the value at the i-th point, not the logarithm of the value
-      REAL, INTENT(IN) :: xmin
-      REAL, INTENT(IN) :: xmax
-      INTEGER, INTENT(IN) :: i, n
+   !    ! Split the region xmin -> xmax into n log-spaced increments (including both xmin and xmax)
+   !    ! Returns the value at the i-th point, not the logarithm of the value
+   !    ! TODO: Remove
+   !    REAL, INTENT(IN) :: xmin
+   !    REAL, INTENT(IN) :: xmax
+   !    INTEGER, INTENT(IN) :: i, n
 
-      progression_log = exp(progression(log(xmin), log(xmax), i, n))
+   !    progression_log = exp(progression(log(xmin), log(xmax), i, n))
 
-   END FUNCTION progression_log
+   ! END FUNCTION progression_log
 
    SUBROUTINE increment_real(x, y)
 
