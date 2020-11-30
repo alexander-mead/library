@@ -151,7 +151,7 @@ CONTAINS
 
    END SUBROUTINE ODEcoupled
 
-   SUBROUTINE ODE1_adaptive(x, t, ti, tf, xi, fx, acc, n, iode, ilog)
+   SUBROUTINE ODE1_adaptive(x, t, ti, tf, xi, fx, n, iode, acc, ilog)
 
       ! Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
       ! acc is the desired accuracy across the entire solution
@@ -162,9 +162,9 @@ CONTAINS
       REAL, INTENT(IN) :: tf
       REAL, INTENT(IN) :: xi
       REAL, EXTERNAL :: fx
-      REAL, INTENT(IN) :: acc
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: iode
+      REAL, INTENT(IN) :: acc
       LOGICAL, OPTIONAL, INTENT(IN) :: ilog
       REAL, ALLOCATABLE :: xh(:), th(:)
       INTEGER :: i, j, k, np, kn, nn, ii
@@ -241,7 +241,7 @@ CONTAINS
 
    END SUBROUTINE ODE1_adaptive
 
-   SUBROUTINE ODE2_adaptive(x, v, t, ti, tf, xi, vi, fv, acc, n, iode, ilog)
+   SUBROUTINE ODE2_adaptive(x, v, t, ti, tf, xi, vi, fv, n, iode, acc, ilog)
 
       ! Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
       ! acc is the desired accuracy across the entire solution
@@ -254,9 +254,9 @@ CONTAINS
       REAL, INTENT(IN) :: xi
       REAL, INTENT(IN) :: vi
       REAL, EXTERNAL :: fv
-      REAL, INTENT(IN) :: acc
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: iode
+      REAL, INTENT(IN) :: acc
       LOGICAL, OPTIONAL, INTENT(IN) :: ilog
       REAL, ALLOCATABLE :: xh(:), vh(:), th(:)
       INTEGER :: i, j, k, np, kn, nn, ii
@@ -336,7 +336,7 @@ CONTAINS
 
    END SUBROUTINE ODE2_adaptive
 
-   SUBROUTINE ODEcoupled_adaptive(x, v, t, ti, tf, xi, vi, fx, fv, acc, n, iode, ilog)
+   SUBROUTINE ODEcoupled_adaptive(x, v, t, ti, tf, xi, vi, fx, fv, n, iode, acc, ilog)
 
       ! Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
       ! acc is the desired accuracy across the entire solution
@@ -350,9 +350,9 @@ CONTAINS
       REAL, INTENT(IN) :: vi
       REAL, EXTERNAL :: fx
       REAL, EXTERNAL :: fv
-      REAL, INTENT(IN) :: acc
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: iode
+      REAL, INTENT(IN) :: acc
       LOGICAL, OPTIONAL, INTENT(IN) :: ilog
       REAL, ALLOCATABLE :: xh(:), vh(:), th(:)
       INTEGER :: i, j, k, np, kn, nn, ii
@@ -436,116 +436,6 @@ CONTAINS
 
    END SUBROUTINE ODEcoupled_adaptive
 
-   ! SUBROUTINE ODEcoupled_adaptive(x, v, t, ti, tf, xi, vi, fx, fv, acc, iode, ilog)
-
-   !    ! Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
-   !    ! acc is the desired accuracy across the entire solution
-   !    ! time steps are increased until convergence is achieved
-   !    ! TODO: Update this so that it uses ODEcoupled rather than repeating lots of code
-   !    REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
-   !    REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
-   !    REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
-   !    REAL, INTENT(IN) :: ti
-   !    REAL, INTENT(IN) :: tf
-   !    REAL, INTENT(IN) :: xi
-   !    REAL, INTENT(IN) :: vi
-   !    REAL, EXTERNAL :: fx
-   !    REAL, EXTERNAL :: fv
-   !    REAL, INTENT(IN) :: acc
-   !    INTEGER, INTENT(IN) :: iode
-   !    LOGICAL, OPTIONAL, INTENT(IN) :: ilog
-   !    REAL, ALLOCATABLE :: xh(:), vh(:), th(:)
-   !    INTEGER :: i, j, n, k, np, kn
-   !    LOGICAL :: fail
-
-   !    INTEGER, PARAMETER :: jmax = jmax_adapt   ! Maximum number of goes
-   !    INTEGER, PARAMETER :: ninit = ninit_adapt ! Initial number of points
-
-   !    ! x' = fx
-   !    ! v' = fv
-   !    INTERFACE       
-   !       FUNCTION fx(x_in, v_in, t_in)
-   !          REAL, INTENT(IN) :: x_in, v_in, t_in
-   !       END FUNCTION fx
-   !       FUNCTION fv(x_in, v_in, t_in)
-   !          REAL, INTENT(IN) :: x_in, v_in, t_in
-   !       END FUNCTION fv
-   !    END INTERFACE
-
-   !    ! Loop over attemps for number of time steps
-   !    DO j = 1, jmax
-
-   !       ! Set the number of time steps; always 1+m*(2**n)
-   !       n = 1+ninit*2**(j-1)
-
-   !       ! Allocate double-precision arrays, set to zero and set initial conditions
-   !       ALLOCATE (x(n), v(n), t(n))
-   !       x = 0.
-   !       v = 0.
-   !       t = 0.
-   !       x(1) = xi
-   !       v(1) = vi
-
-   !       ! Fill time-step array
-   !       CALL fill_array(ti, tf, t, n, ilog)
-
-   !       ! Set the fail flag
-   !       fail = .FALSE.
-
-   !       ! Loop over all time steps
-   !       DO i = 1, n-1
-   !          CALL ODE_advance(x(i), x(i+1), v(i), v(i+1), t(i), t(i+1), fx, fv, iode)
-   !       END DO
-
-   !       ! Automatically fail on the first go
-   !       IF (j == 1) fail = .TRUE.
-
-   !       ! Check accuracy of result compared to previous go
-   !       IF (j .NE. 1) THEN
-
-   !          ! This is the number of points in the previous try
-   !          np = 1+(n-1)/2
-
-   !          ! Loop over the number of points in the previous attempt; k
-   !          DO k = 1, np
-
-   !             ! kn is k-new
-   !             kn = 2*k-1
-
-   !             ! If still okay then check the result
-   !             IF (.NOT. fail) THEN
-
-   !                ! Fail conditions
-   !                ! TODO: Is the first part of this not dodgy? Maybe use requal
-   !                IF (xh(k) > acc .AND. x(kn) > acc .AND. (abs(xh(k)/x(kn))-1.) > acc) fail = .TRUE.
-   !                IF (vh(k) > acc .AND. v(kn) > acc .AND. (abs(vh(k)/v(kn))-1.) > acc) fail = .TRUE.
-
-   !                ! Deallocate arrays and exit loop if a failure has occured
-   !                IF (fail) THEN
-   !                   DEALLOCATE (xh, th, vh)
-   !                   EXIT
-   !                END IF
-
-   !             END IF
-
-   !          END DO
-
-   !       END IF
-
-   !       ! If the integration was successful then fill single-precicion arrays with solution and exit
-   !       IF (.NOT. fail) EXIT
-
-   !       ! Otherwise allocate arrays to store this solution and move on to the next attempt
-   !       ALLOCATE (xh(n), vh(n), th(n))
-   !       xh = x
-   !       vh = v
-   !       th = t
-   !       DEALLOCATE (x, v, t)
-
-   !    END DO
-
-   ! END SUBROUTINE ODEcoupled_adaptive
-
    SUBROUTINE ODE1_advance(x1, x2, t1, t2, fx, iode)
 
       ! Advances the ODE system from t1 to t2, updating x1 to x2 and v1 to v2
@@ -621,18 +511,14 @@ CONTAINS
       REAL :: kx1, kx2, kx3, kx4
       REAL :: kv1, kv2, kv3, kv4
 
+      ! x' = fx; v' = fv
       INTERFACE
-
-         ! x' = fx
          FUNCTION fx(x_in, v_in, t_in)
             REAL, INTENT(IN) :: x_in, v_in, t_in
          END FUNCTION fx
-
-         ! v' = fv
          FUNCTION fv(x_in, v_in, t_in)
             REAL, INTENT(IN) :: x_in, v_in, t_in
          END FUNCTION fv
-
       END INTERFACE
 
       ! Set x, v, t to be the initial state of the system
