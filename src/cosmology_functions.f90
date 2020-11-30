@@ -447,7 +447,7 @@ MODULE cosmology_functions
    ! Growth interpolation
    REAL, PARAMETER :: amin_growth = 1e-3            ! Minimum value to store
    REAL, PARAMETER :: amax_growth = afin_growth     ! Maximum value to store
-   INTEGER, PARAMETER :: n_growth = 128             ! Number of entries for interpolation tables
+   INTEGER, PARAMETER :: na_growth = 128            ! Number of entries for interpolation tables
    INTEGER, PARAMETER :: iorder_interp_grow = 3     ! Polynomial order for growth interpolation
    INTEGER, PARAMETER :: iextrap_grow = iextrap_lin ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_grow = .TRUE.        ! Pre-calculate interpolation coefficients?
@@ -577,6 +577,8 @@ MODULE cosmology_functions
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
    INTEGER, PARAMETER :: jmax_integration = 30 ! Maximum number of points: 2^(j-1) TODO: Could lower to make time-out faster
+   INTEGER, PARAMETER :: jmax_ode = 20 ! Maximum number of ODE attempts
+   INTEGER, PARAMETER :: nmin_ode = 10 ! Minimum number of points for ODE to solve
 
 CONTAINS
 
@@ -2412,32 +2414,34 @@ CONTAINS
 
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: dinit, vinit
-      REAL, ALLOCATABLE :: k(:), a(:), gk(:, :), Pk(:, :)
-      REAL, ALLOCATABLE :: d_tab(:), v_tab(:), a_tab(:), d_new(:)
-      INTEGER :: ik
+      REAL, ALLOCATABLE :: k(:), gk(:, :), Pk(:, :)
+      REAL, ALLOCATABLE :: d(:), v(:)
+      REAL, ALLOCATABLE :: a_ode(:), a_lin(:)
+      INTEGER :: ik, ia
       REAL :: norm
       REAL, PARAMETER :: kmin = kmin_plin
       REAL, PARAMETER :: kmax = kmax_plin
       INTEGER, PARAMETER :: nk = nk_plin
-      REAL, PARAMETER :: amin = amin_plin
-      REAL, PARAMETER :: amax = amax_plin
-      INTEGER, PARAMETER :: na = na_plin
+      REAL, PARAMETER :: amin_lin = amin_plin
+      REAL, PARAMETER :: amax_lin = amax_plin
+      INTEGER, PARAMETER :: na_lin = na_plin
       REAL, PARAMETER :: aini_ode = aini_growth
       REAL, PARAMETER :: afin_ode = afin_growth
+      INTEGER, PARAMETER :: na_ode = na_growth
+      INTEGER, PARAMETER :: iode = imeth_ODE_growth
+      LOGICAL, PARAMETER :: ilog_k = .TRUE.
+      LOGICAL, PARAMETER :: ilog_a = .TRUE.
 
       IF(cosm%verbose) WRITE (*, *) 'INIT_FR_LINEAR: Starting'
 
-      CALL fill_array_log(kmin, kmax, k, nk)
-      CALL fill_array_log(amin, amax, a, na)
-      ALLOCATE (gk(nk, na))
+      CALL fill_array(kmin, kmax, k, nk, ilog=ilog_k)
+      ALLOCATE (gk(nk, na_ode))
 
       ! Initial condtions for the EdS growing mode
       dinit = aini_ode
       vinit = 1.
 
-      ! Get normalisation for g(k)
-      !g = grow(1., cosm) ! Ensures that init_groth has run
-      !norm = cosm%gnorm  
+      ! Get normalisation for g(k) 
       norm = ungrow(1., cosm) ! Only will work if init_growth has run
 
       ! Write to screen
@@ -2446,36 +2450,26 @@ CONTAINS
          WRITE (*, *) 'INIT_FR_LINEAR: kmin [h/Mpc]:', kmin
          WRITE (*, *) 'INIT_FR_LINEAR: kmax [h/Mpc]:', kmax
          WRITE (*, *) 'INIT_FR_LINEAR: nk:', nk
-         WRITE (*, *) 'INIT_FR_LINEAR: amin:', amin
-         WRITE (*, *) 'INIT_FR_LINEAR: amax:', amax
-         WRITE (*, *) 'INIT_FR_LINEAR: na:', na
+         WRITE (*, *) 'INIT_FR_LINEAR: Linear power amin:', amin_lin
+         WRITE (*, *) 'INIT_FR_LINEAR: Linear power amax:', amax_lin
+         WRITE (*, *) 'INIT_FR_LINEAR: Linear power na:', na_lin
+         WRITE (*, *) 'INIT_FR_LINEAR: Scale-growth amin:', aini_ode
+         WRITE (*, *) 'INIT_FR_LINEAR: Scale-growth amax:', afin_ode
+         WRITE (*, *) 'INIT_FR_LINEAR: Scale-growth na:', na_ode
       END IF
 
       ! Loop over all wavenumbers
       DO ik = 1, nk
 
          ! Solve g(k) equation
-         CALL ODE_adaptive_cosmology(d_tab, v_tab, k(ik), a_tab, cosm, &
+         CALL ODE2_adaptive_cosm(d, v, k(ik), a_ode, cosm, &
             aini_ode, afin_ode, &
             dinit, vinit, &
-            ddda, dvda, &
-            acc_ODE_growth, imeth_ODE_growth, ilog=.FALSE. &
-         )
+            dvda, &
+            acc_ODE_growth, na_ode, iode, ilog=ilog_a)
 
          ! Normalise the solution
-         d_tab = d_tab/norm
-
-         ! Shrink output array from g(k) ODE solver
-         ALLOCATE(d_new(na))
-         CALL interpolate_array(a_tab, d_tab, a, d_new, &
-            iorder = iorder_ODE_interpolation_growth, &
-            ifind = ifind_ODE_interpolation_growth, &
-            iinterp = imeth_ODE_interpolation_growth, &
-            logx = .TRUE., &
-            logy = .TRUE. &
-         )
-         gk(ik, :) = d_new
-         DEALLOCATE(d_new)
+         gk(ik, :) = d/norm
 
       END DO
 
@@ -2489,10 +2483,18 @@ CONTAINS
       cosm%is_normalised = .TRUE.
 
       ! Get the linear power, will not be correct at this stage
-      CALL calculate_Plin(k, a, Pk, cosm)
-      Pk = Pk*gk ! Mutliply through by scale-dependent growth to get f(R) linear shape
+      CALL fill_array(amin_lin, amax_lin, a_lin, na_lin, ilog=ilog_a)
+      CALL calculate_Plin(k, a_lin, Pk, cosm)
 
-      CALL init_interpolator(k, a, Pk, cosm%plin, &
+      ! Mutliply through by scale-dependent growth to get f(R) linear shape
+      !Pk = Pk*gk 
+      DO ik = 1, nk
+         DO ia = 1, na_lin
+            Pk(ik, ia) = Pk(ik, ia)*find(a_lin(ia), a_ode, gk(ik, :), na_ode, iorder=3, ifind=ifind_split, iinterp=iinterp_Lagrange)
+         END DO
+      END DO
+
+      CALL init_interpolator(k, a_lin, Pk, cosm%plin, &
          iorder = iorder_interp_plin, &
          iextrap = iextrap_plin, &
          store = store_plin, &
@@ -2503,6 +2505,8 @@ CONTAINS
       ! Switch analyical power off and set flag for stored power
       cosm%analytical_Tk = .FALSE.
       cosm%has_power = .TRUE.
+
+      STOP 'INIT_FR_LINEAR: Error, this does not work at the moment, ODE update?'
 
       ! Write to screen
       IF(cosm%verbose) THEN
@@ -4507,9 +4511,9 @@ CONTAINS
       ! TODO: Figure out why if I set amax=10, rather than amax=1, I start getting weird f(a) around a=0.001
       USE calculus_table
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER :: i, na
+      INTEGER :: i
       REAL, ALLOCATABLE :: a(:), growth(:), rate(:), agrow(:)
-      REAL, ALLOCATABLE :: d_tab(:), v_tab(:), a_tab(:), f_tab(:)
+      REAL, ALLOCATABLE :: d(:), v(:)
       REAL :: dinit, vinit, f
       REAL :: g0, f0, bigG0
       REAL, PARAMETER :: k = 0. ! Scale-indepdent so large-scale limit fixed
@@ -4517,7 +4521,7 @@ CONTAINS
       REAL, PARAMETER :: afin = afin_growth
       REAL, PARAMETER :: amin = amin_growth
       REAL, PARAMETER :: amax = amax_growth
-      INTEGER, PARAMETER :: ng = n_growth
+      INTEGER, PARAMETER :: ng = na_growth
       REAL, PARAMETER :: acc_ODE = acc_ODE_growth
       INTEGER, PARAMETER :: imeth_ODE = imeth_ODE_growth
       INTEGER, PARAMETER :: iorder_interp = iorder_ODE_interpolation_growth
@@ -4555,30 +4559,15 @@ CONTAINS
       END IF
 
       ! Solve the growth ODE
-      CALL ODE_adaptive_cosmology(d_tab, v_tab, k, a_tab, cosm, aini, afin, &
-         dinit, vinit, ddda, dvda, acc_ODE, imeth_ODE, .FALSE.)
-      IF (cosm%verbose) WRITE (*, *) 'INIT_GROWTH: ODE done'
-      na = SIZE(a_tab)
-
-      ! Convert dv/da to f = dlng/dlna for later
-      ALLOCATE(f_tab(na))
-      f_tab = v_tab*a_tab/d_tab
+      CALL ODE2_adaptive_cosm(d, v, k, a, cosm, aini, afin, &
+         dinit, vinit, dvda, acc_ODE, ng, imeth_ODE, ilog=.TRUE.)
+      IF (cosm%verbose) WRITE (*, *) 'INIT_GROWTH: ODE done'    
+      rate = v*a/d ! Calculate growth rate
 
       ! Normalise so that g(z=0)=1 and store the normalising factor
-      cosm%gnorm = find(1., a_tab, d_tab, na, iorder_interp, ifind_interp, imeth_interp)
+      cosm%gnorm = find(1., a, d, ng, iorder_interp, ifind_interp, imeth_interp)
       IF (cosm%verbose) WRITE (*, *) 'INIT_GROWTH: Unnormalised growth at z=0:', real(cosm%gnorm)
-      d_tab = d_tab/cosm%gnorm
-
-      ! Allocate arrays
-      CALL fill_array_log(amin, amax, a, ng)
-      ALLOCATE(growth(ng), rate(ng), agrow(ng))
-
-      ! Downsample the tables that come out of the ODE solve, which are otherwise too long
-      ! TODO: Use a better routine to interpolate a whole table?
-      DO i = 1, ng
-         growth(i) = find(a(i), a_tab, d_tab, na, iorder_interp, ifind_interp, imeth_interp)
-         rate(i) = find(a(i), a_tab, f_tab, na, iorder_interp, ifind_interp, imeth_interp)
-      END DO
+      growth = d/cosm%gnorm
 
       CALL init_interpolator(a, growth, cosm%grow, &
          iorder = iorder_interp_grow, &
@@ -4599,6 +4588,7 @@ CONTAINS
       !! Table integration to calculate G(a)=int_0^a g(a')/a' da' !!
 
       ! Set to zero, because I have an x=x+y thing later on
+      ALLOCATE(agrow(ng))
       agrow = 0.
 
       ! Do the integral up to table position i, which fills the accumulated growth table
@@ -4637,7 +4627,7 @@ CONTAINS
 
    END SUBROUTINE init_growth
 
-   REAL FUNCTION ddda(d, v, k, a, cosm)
+   REAL FUNCTION velocity(d, v, k, a, cosm)
 
       ! This is the dd/da in \dot{\delta}/da = dd/da; needed for growth function solution
       ! TODO: dd/da = v could just be built into the ODE solver somehow?
@@ -4654,9 +4644,9 @@ CONTAINS
       crap = cosm%A
       crap = a
 
-      ddda = v
+      velocity = v
 
-   END FUNCTION ddda
+   END FUNCTION velocity
 
    REAL FUNCTION dvda(d, v, k, a, cosm)
 
@@ -5066,9 +5056,9 @@ CONTAINS
 
          ! Do both with the same a1 and a2 and using the same number of time steps
          ! This means that arrays a, and anl will be identical, which simplifies calculation
-         CALL ODE_spherical(dnl, vnl, 0., aa, cosm, ainit, amax, dinit, vinit, ddda, dvdanl, n, imeth_ODE, .TRUE.)
+         CALL ODE2_spherical(dnl, vnl, 0., aa, cosm, ainit, amax, dinit, vinit, dvdanl, n, imeth_ODE, .TRUE.)
          DEALLOCATE (aa)
-         CALL ODE_spherical(d, v, 0., aa, cosm, ainit, amax, dinit, vinit, ddda, dvda, n, imeth_ODE, .TRUE.)
+         CALL ODE2_spherical(d, v, 0., aa, cosm, ainit, amax, dinit, vinit, dvda, n, imeth_ODE, .TRUE.)
 
          ! If this condition is met then collapse occured some time a<amax
          IF (dnl(n) == 0.) THEN
@@ -8091,13 +8081,13 @@ CONTAINS
 
    END FUNCTION rescaling_cost_power_integrand
 
-   SUBROUTINE ODE_spherical(x, v, kk, t, cosm, ti, tf, xi, vi, fx, fv, n, imeth, ilog)
+   SUBROUTINE ODE2_spherical(x, v, k, t, cosm, ti, tf, xi, vi, fv, n, imeth, ilog)
 
       ! Solves 2nd order ODE x''(t) from ti to tf and creates arrays of x, v, t values
       ! ODE solver has a fixed number of time steps
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
-      REAL, INTENT(IN) :: kk
+      REAL, INTENT(IN) :: k
       REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, INTENT(IN) :: ti
@@ -8111,19 +8101,8 @@ CONTAINS
       LOGICAL, INTENT(IN) :: ilog
       INTEGER :: i
 
-      INTERFACE
-
-         !fx is what x' is equal to
-         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: v_interface
-            REAL, INTENT(IN) :: k_interface
-            REAL, INTENT(IN) :: t_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION fx
-
-         ! fv is what v' is equal to
+      ! v' = fv
+      INTERFACE      
          FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
             IMPORT :: cosmology
             REAL, INTENT(IN) :: x_interface
@@ -8132,7 +8111,6 @@ CONTAINS
             REAL, INTENT(IN) :: t_interface
             TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION fv
-
       END INTERFACE
 
       ! Allocate arrays
@@ -8146,27 +8124,23 @@ CONTAINS
       v(1) = vi
 
       ! Fill time array
-      IF (ilog) THEN
-         CALL fill_array_log(ti, tf, t, n)
-      ELSE
-         CALL fill_array(ti, tf, t, n)
-      END IF
+      CALL fill_array(ti, tf, t, n, ilog)
 
       ! Loop over all time steps
       DO i = 1, n-1
-         CALL ODE_advance_cosmology(x(i), x(i+1), v(i), v(i+1), t(i), t(i+1), fx, fv, imeth, kk, cosm)     
-         IF (x(i+1) > dinf_spherical) EXIT ! Needed to escape from the ODE solver when the perturbation is ~collapsed
+         CALL ODE2_advance_cosm(x(i), x(i+1), v(i), v(i+1), k, t(i), t(i+1), cosm, velocity, fv, imeth)     
+         IF (x(i+1) > dinf_spherical) EXIT ! Escape from the ODE solver when the perturbation is ~collapsed
       END DO
 
-   END SUBROUTINE ODE_spherical
+   END SUBROUTINE ODE2_spherical
 
-   SUBROUTINE ODE_adaptive_cosmology(x, v, kk, t, cosm, ti, tf, xi, vi, fx, fv, acc, imeth, ilog)
+   SUBROUTINE ODE2_adaptive_cosm(x, v, k, t, cosm, ti, tf, xi, vi, fv, acc, n, iode, ilog)
 
       ! Solves 2nd order ODE x''(t) from ti to tf and writes out array of x, v, t values
       ! Adaptive, such that time steps are increased until convergence is achieved
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
-      REAL, INTENT(IN) :: kk
+      REAL, INTENT(IN) :: k
       REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, INTENT(IN) :: ti
@@ -8176,27 +8150,17 @@ CONTAINS
       REAL, EXTERNAL :: fx
       REAL, EXTERNAL :: fv
       REAL, INTENT(IN) :: acc ! Desired accuracy
-      INTEGER, INTENT(IN) :: imeth
-      LOGICAL, INTENT(IN) :: ilog
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: iode
+      LOGICAL, OPTIONAL, INTENT(IN) :: ilog
       REAL, ALLOCATABLE :: xh(:), th(:), vh(:)
-      INTEGER :: i, j, n, k, np, kn
+      INTEGER :: j, in, ip, nn, np
       LOGICAL :: fail
-      INTEGER, PARAMETER :: jmax = 30   ! TODO: Move to header
-      INTEGER, PARAMETER :: ninit = 100 ! TOOD: Move to header
+      INTEGER, PARAMETER :: jmax = jmax_ode
+      INTEGER, PARAMETER :: nmin = nmin_ode
 
-      INTERFACE
-
-         ! fx is what x' is equal to
-         FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: x_interface
-            REAL, INTENT(IN) :: v_interface
-            REAL, INTENT(IN) :: k_interface
-            REAL, INTENT(IN) :: t_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION fx
-
-         ! fv is what v' is equal to
+      ! v' = fv
+      INTERFACE       
          FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
             IMPORT :: cosmology
             REAL, INTENT(IN) :: x_interface
@@ -8205,100 +8169,129 @@ CONTAINS
             REAL, INTENT(IN) :: t_interface
             TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION fv
-
       END INTERFACE
 
+      ! Loop over attempts
       DO j = 1, jmax
 
-         n = 1+ninit*2**(j-1)
+         ! Number of points for this attempt
+         nn = 1+(n-1)*2**(j-1)
 
-         ALLOCATE (x(n), v(n), t(n))
-         x = 0.
-         v = 0.
-         t = 0.
+         ! Solve the ODE with 'n' points
+         CALL ODE2_cosm(x, v, k, t, cosm, ti, tf, xi, vi, fv, nn, iode, ilog)
 
-         ! xi and vi are the initial values of x and v (i.e. x(ti), v(ti))
-         x(1) = xi
-         v(1) = vi
-
-         ! Fill time array
-         IF (ilog) THEN
-            CALL fill_array_log(ti, tf, t, n)
+         ! Check to see if integration has succeeded
+         IF (j == 1 .OR. nn < nmin) THEN           
+            fail = .TRUE.
          ELSE
-            CALL fill_array(ti, tf, t, n)
-         END IF
-
-         fail = .FALSE.
-
-         DO i = 1, n-1
-            CALL ODE_advance_cosmology(x(i), x(i+1), v(i), v(i+1), t(i), t(i+1), fx, fv, imeth, kk, cosm)
-         END DO
-
-         IF (j == 1) fail = .TRUE.
-
-         IF (j .NE. 1) THEN
-
-            np = 1+(n-1)/2
-
-            DO k = 1, 1+(n-1)/2
-
-               kn = 2*k-1
-
-               IF (.NOT. fail) THEN
-
-                  IF ((xh(k) > acc) .AND. (x(kn) > acc) .AND. (abs(xh(k)/x(kn))-1. > acc)) fail = .TRUE.
-                  IF ((vh(k) > acc) .AND. (v(kn) > acc) .AND. (abs(vh(k)/v(kn))-1. > acc)) fail = .TRUE.
-
-                  IF (fail) THEN
-                     DEALLOCATE (xh, th, vh)
-                     EXIT
-                  END IF
-
+            fail = .FALSE.
+            DO ip = 1, np
+               in = 2*ip-1
+               IF ((.NOT. requal(xh(ip), x(in), acc)) .OR. (.NOT. requal(vh(ip), v(in), acc))) THEN
+                  fail = .TRUE.
+                  DEALLOCATE (xh, th, vh)
+                  EXIT
                END IF
             END DO
-
          END IF
 
-         IF (.NOT. fail) THEN
-            EXIT
-         ELSE
-            ALLOCATE (xh(n), vh(n), th(n))
+         ! If integration failed then store and move on to next attempt, otherwise exit
+         IF (fail) THEN           
             xh = x
             vh = v
             th = t
-            DEALLOCATE (x, v, t)
+            np = nn
+         ELSE
+            EXIT
          END IF
 
       END DO
 
-   END SUBROUTINE ODE_adaptive_cosmology
+      IF (fail) THEN
+         STOP 'ODE_ADAPTIVE_COSMOLOGY: Error, failed to converge'
+      ELSE
+         xh = x
+         vh = v
+         th = t
+         DEALLOCATE(x, v, t)
+         ALLOCATE(x(n), v(n), t(n))
+         DO ip = 1, n
+            in = 1+(ip-1)*(nn-1)/(n-1)
+            x(ip) = xh(in)
+            v(ip) = vh(in)
+            t(ip) = th(in)
+         END DO
+      END IF
 
-   SUBROUTINE ODE_advance_cosmology(x1, x2, v1, v2, t1, t2, fx, fv, imeth, k, cosm)
+   END SUBROUTINE ODE2_adaptive_cosm
+
+   SUBROUTINE ODE2_cosm(x, v, k, t, cosm, ti, tf, xi, vi, fv, n, iode, ilog)
+
+      ! Integrates second-order ODE: x'' + ax' + bx = c from ti to tf
+      ! Outputs array of x(t) and v(t)
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: v(:)
+      REAL, INTENT(IN) :: k
+      REAL, ALLOCATABLE, INTENT(OUT) :: t(:)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, INTENT(IN) :: ti
+      REAL, INTENT(IN) :: tf
+      REAL, INTENT(IN) :: xi
+      REAL, INTENT(IN) :: vi
+      REAL, EXTERNAL :: fv
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: iode
+      LOGICAL, OPTIONAL, INTENT(IN) :: ilog
+      INTEGER :: i
+
+      ! x'' = v' = fv(x, x', t)
+      INTERFACE      
+         FUNCTION fv(x_in, v_in, k_in, t_in, cosm_in)
+            IMPORT :: cosmology     
+            REAL, INTENT(IN) :: x_in, v_in, k_in, t_in
+            TYPE(cosmology), INTENT(INOUT) :: cosm_in
+         END FUNCTION fv
+      END INTERFACE
+   
+      ! Allocate and set xi and vi to the initial values of x and v
+      ALLOCATE(x(n), v(n))
+      x(1) = xi
+      v(1) = vi
+
+      ! Fill the time array
+      CALL fill_array(ti, tf, t, n, ilog)
+
+      ! Advance the system through all n-1 time steps
+      DO i = 1, n-1
+         CALL ODE2_advance_cosm(x(i), x(i+1), v(i), v(i+1), k, t(i), t(i+1), cosm, velocity, fv, iode)
+      END DO
+
+   END SUBROUTINE ODE2_cosm
+
+   SUBROUTINE ODE2_advance_cosm(x1, x2, v1, v2, k, t1, t2, cosm, fx, fv, imeth)
 
       ! Advance the ODE system from t1 to t2
-      REAL, INTENT(IN) :: x1
-      REAL, INTENT(OUT) :: x2
-      REAL, INTENT(IN) :: v1
-      REAL, INTENT(OUT) :: v2
-      REAL, INTENT(IN) :: t1
-      REAL, INTENT(IN) :: t2
-      REAL, EXTERNAL :: fx
-      REAL, EXTERNAL :: fv
-      INTEGER, INTENT(IN) :: imeth
-      REAL, INTENT(IN) :: k
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: x, v, t, dt
-      REAL :: kx1, kx2, kx3, kx4
-      REAL :: kv1, kv2, kv3, kv4
-
       ! ODE integration methods
       ! imeth = 1: Crude
       ! imeth = 2: Mid-point
       ! imeth = 3: Fourth order Runge-Kutta
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(OUT) :: x2
+      REAL, INTENT(IN) :: v1
+      REAL, INTENT(OUT) :: v2
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: t1
+      REAL, INTENT(IN) :: t2
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, EXTERNAL :: fx
+      REAL, EXTERNAL :: fv
+      INTEGER, INTENT(IN) :: imeth  
+      REAL :: dt
+      REAL :: kx1, kx2, kx3, kx4
+      REAL :: kv1, kv2, kv3, kv4
 
-      INTERFACE
-
-         ! fx is what x' is equal to
+      ! x' = fx; v' = fv
+      INTERFACE     
          FUNCTION fx(x_interface, v_interface, k_interface, t_interface, cosm_interface)
             IMPORT :: cosmology
             REAL, INTENT(IN) :: x_interface
@@ -8307,8 +8300,6 @@ CONTAINS
             REAL, INTENT(IN) :: t_interface
             TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION fx
-
-         ! fv is what v' is equal to
          FUNCTION fv(x_interface, v_interface, k_interface, t_interface, cosm_interface)
             IMPORT :: cosmology
             REAL, INTENT(IN) :: x_interface
@@ -8317,13 +8308,7 @@ CONTAINS
             REAL, INTENT(IN) :: t_interface
             TYPE(cosmology), INTENT(INOUT) :: cosm_interface
          END FUNCTION fv
-
       END INTERFACE
-
-      ! TODO: Is this necessary?
-      x = real(x1)
-      v = real(v1)
-      t = real(t1)
 
       ! Time step
       dt = real(t2-t1)
@@ -8331,8 +8316,8 @@ CONTAINS
       IF (imeth == 1) THEN
 
          ! Crude method!
-         kx1 = dt*fx(x, v, k, t, cosm)
-         kv1 = dt*fv(x, v, k, t, cosm)
+         kx1 = dt*fx(x1, v1, k, t1, cosm)
+         kv1 = dt*fv(x1, v1, k, t1, cosm)
 
          x2 = x1+kx1
          v2 = v1+kv1
@@ -8340,10 +8325,10 @@ CONTAINS
       ELSE IF (imeth == 2) THEN
 
          ! Mid-point method!
-         kx1 = dt*fx(x, v, k, t, cosm)
-         kv1 = dt*fv(x, v, k, t, cosm)
-         kx2 = dt*fx(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
-         kv2 = dt*fv(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
+         kx1 = dt*fx(x1, v1, k, t1, cosm)
+         kv1 = dt*fv(x1, v1, k, t1, cosm)
+         kx2 = dt*fx(x1+kx1/2., v1+kv1/2., k, t1+dt/2., cosm)
+         kv2 = dt*fv(x1+kx1/2., v1+kv1/2., k, t1+dt/2., cosm)
 
          x2 = x1+kx2
          v2 = v1+kv2
@@ -8351,17 +8336,17 @@ CONTAINS
       ELSE IF (imeth == 3) THEN
 
          ! RK4 (Holy Christ, this is so fast compared to above methods)!
-         kx1 = dt*fx(x, v, k, t, cosm)
-         kv1 = dt*fv(x, v, k, t, cosm)
-         kx2 = dt*fx(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
-         kv2 = dt*fv(x+kx1/2., v+kv1/2., k, t+dt/2., cosm)
-         kx3 = dt*fx(x+kx2/2., v+kv2/2., k, t+dt/2., cosm)
-         kv3 = dt*fv(x+kx2/2., v+kv2/2., k, t+dt/2., cosm)
-         kx4 = dt*fx(x+kx3, v+kv3, k, t+dt, cosm)
-         kv4 = dt*fv(x+kx3, v+kv3, k, t+dt, cosm)
+         kx1 = dt*fx(x1, v1, k, t1, cosm)
+         kv1 = dt*fv(x1, v1, k, t1, cosm)
+         kx2 = dt*fx(x1+kx1/2., v1+kv1/2., k, t1+dt/2., cosm)
+         kv2 = dt*fv(x1+kx1/2., v1+kv1/2., k, t1+dt/2., cosm)
+         kx3 = dt*fx(x1+kx2/2., v1+kv2/2., k, t1+dt/2., cosm)
+         kv3 = dt*fv(x1+kx2/2., v1+kv2/2., k, t1+dt/2., cosm)
+         kx4 = dt*fx(x1+kx3, v1+kv3, k, t1+dt, cosm)
+         kv4 = dt*fv(x1+kx3, v1+kv3, k, t1+dt, cosm)
 
-         x2 = x1+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.d0
-         v2 = v1+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.d0
+         x2 = x1+(kx1+(2.*kx2)+(2.*kx3)+kx4)/6.
+         v2 = v1+(kv1+(2.*kv2)+(2.*kv3)+kv4)/6.
 
       ELSE
 
@@ -8369,7 +8354,7 @@ CONTAINS
 
       END IF
 
-   END SUBROUTINE ODE_advance_cosmology
+   END SUBROUTINE ODE2_advance_cosm
 
    REAL RECURSIVE FUNCTION integrate_1_cosm(a, b, f, cosm, acc, iorder)
 
