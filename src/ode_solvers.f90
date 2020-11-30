@@ -167,7 +167,7 @@ CONTAINS
       REAL, INTENT(IN) :: acc
       LOGICAL, OPTIONAL, INTENT(IN) :: ilog
       REAL, ALLOCATABLE :: xh(:), th(:)
-      INTEGER :: i, j, k, np, kn, nn, ii
+      INTEGER :: j, in, ip, nn, np
       LOGICAL :: fail
       INTEGER, PARAMETER :: jmax = jmax_adapt ! Maximum number of goes
       INTEGER, PARAMETER :: nmin = nmin_adapt ! Minimum number of points
@@ -184,29 +184,22 @@ CONTAINS
       ! Loop over attemps for number of time steps
       DO j = 1, jmax
 
-         ! Set the new number of time steps and save the old number
-         IF (j /= 1) np = nn
+         ! Set the new number of time steps
          nn = 1+(n-1)*2**(j-1)
 
-         ! Solve the ODE with 'n' points
+         ! Solve the ODE with 'nn' time steps
          CALL ODE1(x, t, ti, tf, xi, fx, nn, iode, ilog)
 
-         IF (j == 1 .OR. nn < nmin) THEN
-
-            ! Automatically fail on the first go
+         ! Automatically fail on the first go; or check for convergence with respect to previous solution
+         ! TODO: Replace fail conditions with requal?
+         IF (j == 1 .OR. nn < nmin) THEN          
             fail = .TRUE.
-
          ELSE
-
-            ! Initially assume that it will not fail
-            fail = .FALSE.
-
-            ! Loop over the number of points in the previous attempt; k
-            ! TODO: Replace fail conditions with requal?
-            DO k = 1, np       
-               kn = 2*k-1 ! kn is k-new      
-               IF (.NOT. almost_equal(xh(k), x(kn), acc)) THEN
-               !IF ((.NOT. requal(xh(k), x(kn), acc)) .OR. (.NOT. requal(vh(k), v(kn), acc))) THEN 
+            fail = .FALSE.     
+            DO ip = 1, np       
+               in = 2*ip-1   
+               IF (.NOT. almost_equal(xh(ip), x(in), acc)) THEN
+               !IF ((.NOT. requal(xh(k), x(kn), acc))) THEN 
                   fail = .TRUE.
                   DEALLOCATE (xh, th)
                   EXIT
@@ -219,6 +212,7 @@ CONTAINS
             ! If fail then store this solution and move on to the next attempt
             xh = x
             th = t
+            np = nn
          ELSE
             EXIT ! If the integration was successful then exit
          END IF
@@ -232,10 +226,10 @@ CONTAINS
          th = t
          DEALLOCATE(x, t)
          ALLOCATE(x(n), t(n))
-         DO i = 1, n
-            ii = 1+(i-1)*(nn-1)/(n-1)
-            x(i) = xh(ii)
-            t(i) = th(ii)
+         DO ip = 1, n
+            in = 1+(ip-1)*(nn-1)/(n-1)
+            x(ip) = xh(in)
+            t(ip) = th(in)
          END DO
       END IF
 
@@ -259,7 +253,7 @@ CONTAINS
       REAL, INTENT(IN) :: acc
       LOGICAL, OPTIONAL, INTENT(IN) :: ilog
       REAL, ALLOCATABLE :: xh(:), vh(:), th(:)
-      INTEGER :: i, j, k, np, kn, nn, ii
+      INTEGER :: j, ip, in, np, nn
       LOGICAL :: fail
       INTEGER, PARAMETER :: jmax = jmax_adapt ! Maximum number of goes
       INTEGER, PARAMETER :: nmin = nmin_adapt ! Minimum number of points
@@ -277,27 +271,20 @@ CONTAINS
       DO j = 1, jmax
 
          ! Set the new number of time steps and save the old number
-         IF (j /= 1) np = nn
          nn = 1+(n-1)*2**(j-1)
 
          ! Solve the ODE with 'n' points
          CALL ODE2(x, v, t, ti, tf, xi, vi, fv, nn, iode, ilog)
 
+         ! Either automatically fail or check for convergence with respect to previous solution
+         ! TODO: Replace fail conditions with requal?
          IF (j == 1 .OR. nn < nmin) THEN
-
-            ! Automatically fail on the first go
             fail = .TRUE.
-
          ELSE
-
-            ! Initially assume that it will not fail
             fail = .FALSE.
-
-            ! Loop over the number of points in the previous attempt; k
-            ! TODO: Replace fail conditions with requal?
-            DO k = 1, np       
-               kn = 2*k-1 ! kn is k-new      
-               IF ((.NOT. almost_equal(xh(k), x(kn), acc)) .OR. (.NOT. almost_equal(vh(k), v(kn), acc))) THEN
+            DO ip = 1, np       
+               in = 2*ip-1
+               IF ((.NOT. almost_equal(xh(ip), x(in), acc)) .OR. (.NOT. almost_equal(vh(ip), v(in), acc))) THEN
                !IF ((.NOT. requal(xh(k), x(kn), acc)) .OR. (.NOT. requal(vh(k), v(kn), acc))) THEN 
                   fail = .TRUE.
                   DEALLOCATE (xh, vh, th)
@@ -312,6 +299,7 @@ CONTAINS
             xh = x
             vh = v
             th = t
+            np = nn
          ELSE
             EXIT ! If the integration was successful then exit
          END IF
@@ -326,11 +314,11 @@ CONTAINS
          th = t
          DEALLOCATE(x, v, t)
          ALLOCATE(x(n), v(n), t(n))
-         DO i = 1, n
-            ii = 1+(i-1)*(nn-1)/(n-1)
-            x(i) = xh(ii)
-            v(i) = vh(ii)
-            t(i) = th(ii)
+         DO ip = 1, n
+            in = 1+(ip-1)*(nn-1)/(n-1)
+            x(ip) = xh(in)
+            v(ip) = vh(in)
+            t(ip) = th(in)
          END DO
       END IF
 
@@ -355,13 +343,12 @@ CONTAINS
       REAL, INTENT(IN) :: acc
       LOGICAL, OPTIONAL, INTENT(IN) :: ilog
       REAL, ALLOCATABLE :: xh(:), vh(:), th(:)
-      INTEGER :: i, j, k, np, kn, nn, ii
+      INTEGER :: j, ip, in, np, nn
       LOGICAL :: fail
       INTEGER, PARAMETER :: jmax = jmax_adapt ! Maximum number of attempts
       INTEGER, PARAMETER :: nmin = nmin_adapt ! Minimum number of points
 
-      ! x' = fx
-      ! v' = fv
+      ! x' = fx; v' = fv
       INTERFACE       
          FUNCTION fx(x_in, v_in, t_in)
             REAL, INTENT(IN) :: x_in, v_in, t_in
@@ -376,35 +363,27 @@ CONTAINS
       ! Loop over attemps for number of time steps
       DO j = 1, jmax
 
-         ! Set the new number of time steps and save the old number
-         IF (j /= 1) np = nn
+         ! Set the number of time steps
          nn = 1+(n-1)*2**(j-1)
 
-         ! Solve the ODE with 'n' points
+         ! Solve the ODE with 'nn' time steps
          CALL ODEcoupled(x, v, t, ti, tf, xi, vi, fx, fv, nn, iode, ilog)
 
-         IF (j == 1 .OR. nn < nmin) THEN
-
-            ! Automatically fail on the first go
+         ! Automatically fail on the first go, otherwise check with previous attempt for convergence
+         ! TODO: Replace fail conditions with requal?
+         IF (j == 1 .OR. nn < nmin) THEN      
             fail = .TRUE.
-
          ELSE
-
-            ! Initially assume that it will not fail
             fail = .FALSE.
-
-            ! Loop over the number of points in the previous attempt; k
-            ! TODO: Replace fail conditions with requal?
-            DO k = 1, np       
-               kn = 2*k-1 ! kn is k-new      
-               IF ((.NOT. almost_equal(xh(k), x(kn), acc)) .OR. (.NOT. almost_equal(vh(k), v(kn), acc))) THEN
+            DO ip = 1, np       
+               in = 2*ip-1 ! kn is k-new      
+               IF ((.NOT. almost_equal(xh(ip), x(in), acc)) .OR. (.NOT. almost_equal(vh(ip), v(in), acc))) THEN
                !IF ((.NOT. requal(xh(k), x(kn), acc)) .OR. (.NOT. requal(vh(k), v(kn), acc))) THEN 
                   fail = .TRUE.
                   DEALLOCATE (xh, vh, th)
                   EXIT
                END IF
             END DO
-
          END IF
         
          IF (fail) THEN
@@ -412,6 +391,7 @@ CONTAINS
             xh = x
             vh = v
             th = t
+            np = nn
          ELSE
             EXIT ! If the integration was successful then exit
          END IF
@@ -426,11 +406,11 @@ CONTAINS
          th = t
          DEALLOCATE(x, v, t)
          ALLOCATE(x(n), v(n), t(n))
-         DO i = 1, n
-            ii = 1+(i-1)*(nn-1)/(n-1)
-            x(i) = xh(ii)
-            v(i) = vh(ii)
-            t(i) = th(ii)
+         DO ip = 1, n
+            in = 1+(ip-1)*(nn-1)/(n-1)
+            x(ip) = xh(in)
+            v(ip) = vh(in)
+            t(ip) = th(in)
          END DO
       END IF
 
