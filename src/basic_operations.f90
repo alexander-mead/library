@@ -19,6 +19,7 @@ MODULE basic_operations
    PUBLIC :: swap
    PUBLIC :: increment
    PUBLIC :: default_or_optional
+   PUBLIC :: between
 
    INTERFACE swap
       MODULE PROCEDURE swap_real
@@ -43,6 +44,20 @@ MODULE basic_operations
    END INTERFACE default_or_optional
 
 CONTAINS
+
+   LOGICAL FUNCTION between(x, xmin, xmax)
+
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: xmin
+      REAL, INTENT(IN) :: xmax
+
+      IF (x >= xmin .AND. x <= xmax) THEN
+         between = .TRUE.
+      ELSE
+         between = .FALSE.
+      END IF
+
+   END FUNCTION between
 
    REAL FUNCTION default_or_optional_real(x_default, x_optional)
 
