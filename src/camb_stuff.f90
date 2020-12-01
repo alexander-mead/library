@@ -1,11 +1,19 @@
 MODULE camb_stuff
 
+   USE constants
+   USE basic_operations
+   USE file_info
+
    IMPLICIT NONE
 
    PRIVATE
 
+   ! Routines
    PUBLIC :: read_CAMB_Pk
+   PUBLIC :: write_CAMB_Pk
    PUBLIC :: read_CAMB_Tk
+
+   ! File columns and additional info
    PUBLIC :: CAMB_column_Tk_CDM
    PUBLIC :: CAMB_column_Tk_baryon
    PUBLIC :: CAMB_column_Tk_photon
@@ -31,15 +39,13 @@ CONTAINS
 
       ! Read in CAMB format P(k) file
       ! Note that this assumes there is one comment line
-      USE file_info
-      USE constants
-      USE basic_operations
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
       INTEGER, INTENT(OUT) :: nk
       CHARACTER(len=*), INTENT(IN) :: infile
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       INTEGER :: i
+      INTEGER :: u
 
       nk = file_length(infile, verbose=.FALSE.)
       nk = nk-CAMB_Pk_comment_lines
@@ -51,15 +57,15 @@ CONTAINS
 
       ALLOCATE (k(nk), Pk(nk))
 
-      OPEN (7, file=infile)
+      OPEN (newunit=u, file=infile)
       DO i = 1-CAMB_Pk_comment_lines, nk
          IF (i <= 0) THEN
-            READ (7, *)
+            READ (u, *)
          ELSE
-            READ (7, *) k(i), Pk(i)
+            READ (u, *) k(i), Pk(i)
          END IF
       END DO
-      CLOSE (7)
+      CLOSE (u)
 
       ! Convert from P(k) to Delta^2(k)
       Pk = 4.*pi*Pk*(k**3)/twopi**3
@@ -71,12 +77,28 @@ CONTAINS
 
    END SUBROUTINE read_CAMB_Pk
 
+   SUBROUTINE write_CAMB_Pk(k, Pk, outfile, header)
+
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: Pk(:)
+      CHARACTER(len=256), INTENT(IN) :: outfile
+      LOGICAL, INTENT(IN) :: header
+      INTEGER :: u
+      INTEGER :: ik
+
+      OPEN(newunit=u, file=outfile)
+      IF (header) WRITE(u, *) '#           k/h    P'
+      DO ik = 1, size(k)
+         WRITE(u, *) k(ik), Pk(ik)/(4.*pi*(k(ik)/twopi)**3)
+      END DO
+      CLOSE(u)
+
+   END SUBROUTINE write_CAMB_Pk
+
    SUBROUTINE read_CAMB_Tk(k, Tk, nk, nTk, infile, verbose)
 
       ! Read in CAMB format T(k) file
       ! Note that this assumes there is one comment line
-      USE file_info
-      USE basic_operations
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Tk(:,:)
       INTEGER, INTENT(OUT) :: nk
