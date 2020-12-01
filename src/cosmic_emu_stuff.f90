@@ -2,6 +2,7 @@ MODULE cosmic_emu_stuff
 
    USE file_info
    USE array_operations
+   USE string_operations
    USE cosmology_functions
    USE interpolate
    USE basic_operations
@@ -15,16 +16,19 @@ MODULE cosmic_emu_stuff
    PUBLIC :: get_FrankenEmu_power_z
    PUBLIC :: get_MiraTitan_power_z
    PUBLIC :: get_emulator_power
+   PUBLIC :: calculate_Emulator_power
+
    PUBLIC :: emulator_CosmicEmu
    PUBLIC :: emulator_FrankenEmu
    PUBLIC :: emulator_MiraTitan
+   PUBLIC :: emulator_Euclid
 
    INTEGER, PARAMETER :: emulator_CosmicEmu = 1
    INTEGER, PARAMETER :: emulator_FrankenEmu = 2
    INTEGER, PARAMETER :: emulator_MiraTitan = 3
+   INTEGER, PARAMETER :: emulator_Euclid = 4
 
-   REAL, PARAMETER :: eps_h_CosmicEmu = 3e-3
-
+   ! Cosmic Emu
    REAL, PARAMETER :: kmin_rebin_CosmicEmu = 1e-2
    REAL, PARAMETER :: kmax_rebin_CosmicEmu = 1.
    !REAL, PARAMETER :: kmax_rebin_CosmicEmu = 2.7 ! This is the maximum
@@ -33,9 +37,11 @@ MODULE cosmic_emu_stuff
    CHARACTER(len=256), PARAMETER :: params_CosmicEmu = 'emu_params.txt'
    CHARACTER(len=256), PARAMETER :: output_CosmicEmu = 'emu_power.dat'
    CHARACTER(len=256), PARAMETER :: exe_CosmicEmu = '/Users/Mead/Physics/CosmicEmu/emu.exe'
-   INTEGER, PARAMETER :: nh_CosmicEmu = 10  ! Length of header
-   INTEGER, PARAMETER :: hl_CosmicEmu = 8   ! Line that h in on
+   INTEGER, PARAMETER :: nh_CosmicEmu = 10   ! Length of header
+   INTEGER, PARAMETER :: hl_CosmicEmu = 8    ! Line that h in on'
+   REAL, PARAMETER :: eps_h_CosmicEmu = 3e-3 ! Tolerance for how close 'h' needs to be to that derived from r_sound
 
+   ! Franken Emu
    REAL, PARAMETER :: kmin_rebin_FrankenEmu = 1e-2
    REAL, PARAMETER :: kmax_rebin_FrankenEmu = 10.
    INTEGER, PARAMETER :: nk_rebin_FrankenEmu = 128
@@ -43,6 +49,7 @@ MODULE cosmic_emu_stuff
    CHARACTER(len=256), PARAMETER :: output_FrankenEmu = 'emu_power.dat'
    CHARACTER(len=256), PARAMETER :: exe_FrankenEmu = '/Users/Mead/Physics/FrankenEmu/emu.exe'
 
+   ! Mira Titan
    REAL, PARAMETER :: kmin_rebin_MiraTitan = 1e-2
    REAL, PARAMETER :: kmax_rebin_MiraTitan = 7.
    INTEGER, PARAMETER :: nk_rebin_MiraTitan = 128
@@ -50,11 +57,162 @@ MODULE cosmic_emu_stuff
    CHARACTER(len=256), PARAMETER :: output_MiraTitan = 'EMU0.txt'
    CHARACTER(len=256), PARAMETER :: exe_MiraTitan = '/Users/Mead/Physics/MiraTitan/P_tot/emu.exe'
 
+   ! Euclid Emulator
+   CHARACTER(len=256), PARAMETER :: exe_Euclid = '/Users/Mead/Physics/EuclidEmulator2/ee2.exe'
+   CHARACTER(len=256), PARAMETER :: dir_Euclid = '/Users/Mead/Physics/EuclidEmulator2/'
+   CHARACTER(len=256), PARAMETER :: outdir_Euclid = trim(dir_Euclid)//'Mead/'
+   CHARACTER(len=256), PARAMETER :: outbase_Euclid = 'temp'
+   CHARACTER(len=256), PARAMETER :: outfile_Euclid = trim(outbase_Euclid)//'0.dat'
+
+   ! Rebinnig
+   LOGICAL, PARAMETER :: logk_interp_emulator = .TRUE.
+   LOGICAL, PARAMETER :: logPk_interp_emulator = .TRUE.
+   LOGICAL, PARAMETER :: logBk_interp_emulator = .FALSE.
    INTEGER, PARAMETER :: iorder_rebin = 3
    INTEGER, PARAMETER :: ifind_rebin = ifind_split
    INTEGER, PARAMETER :: iinterp_rebin = iinterp_Lagrange
 
 CONTAINS
+
+   SUBROUTINE calculate_Emulator_power(k, a, Pk, cosm, version, verbose)
+
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER, INTENT(IN) :: version
+      LOGICAL, INTENT(IN) :: verbose
+
+      IF (is_in_array(version, [emulator_CosmicEmu, emulator_FrankenEmu, emulator_MiraTitan])) THEN
+         CALL calculate_CosmicEmulator_power(k, a, Pk, cosm, version, verbose)
+      ELSE IF (version == emulator_Euclid) THEN
+         CALL calculate_EuclidEmulator_power(k, a, Pk, cosm)
+      ELSE
+         STOP 'CALCULATE_EMULATOR_POWER: Error, emulator version not recognised'
+      END IF
+
+   END SUBROUTINE calculate_Emulator_power
+
+   SUBROUTINE calculate_EuclidEmulator_power(k, a, Pk, cosm)
+
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)    
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, ALLOCATABLE :: k_EE(:), Bk_EE(:), Pk_lin(:, :)
+      INTEGER :: ia, na, nk
+      CHARACTER(len=256) :: corrfile = trim(outdir_Euclid)//trim(outfile_Euclid)
+      INTEGER, PARAMETER :: iorder = iorder_rebin
+      INTEGER, PARAMETER :: ifind = ifind_rebin
+      INTEGER, PARAMETER :: iinterp = iinterp_rebin
+      LOGICAL, PARAMETER :: logk_interp = logk_interp_emulator
+      LOGICAL, PARAMETER :: logBk_interp = logBk_interp_emulator
+
+      ! Allocate array for the output power spectrumm
+      nk = size(k)
+      na = size(a)
+      ALLOCATE(Pk(nk, na))
+
+      ! Calculate the linear power
+      ! NOTE: Do this before calling the emulator to make sure that As is set
+      CALL calculate_plin(k, a, Pk_lin, cosm)
+
+      ! Run the emulator and interpolate the correction from the EE k to the input k
+      DO ia = 1, na
+         CALL run_EuclidEumulator(a(ia), cosm)
+         CALL read_EuclidEmulator_correction(k_EE, Bk_EE, corrfile)
+         CALL interpolate_array(k_EE, Bk_EE, k, Pk(:, ia), iorder, ifind, iinterp, logk_interp, logBk_interp)
+      END DO
+
+      ! Multiply the correction by the linear power to get the non-linear spectrum
+      Pk = Pk_lin*Pk
+
+   END SUBROUTINE calculate_EuclidEmulator_power
+
+   SUBROUTINE run_EuclidEumulator(a, cosm)
+
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(IN) :: cosm
+      CHARACTER(len=256) :: command, b, m, s, n, h, w, wa, As, z, dir, out
+      CHARACTER(len=256), PARAMETER :: exe = exe_Euclid
+      CHARACTER(len=256), PARAMETER :: basedir = dir_Euclid
+      CHARACTER(len=256), PARAMETER :: outdir = outdir_Euclid
+      CHARACTER(len=256), PARAMETER :: outbase = outbase_Euclid
+      CHARACTER(len=256), PARAMETER :: outfile = outfile_Euclid
+
+      ! Checks
+      IF (cosm%k /= 0.) STOP 'RUN_EUCLIDEMULATOR: Error, does not support curved models'
+
+      ! Remove previous data files
+      CALL EXECUTE_COMMAND_LINE('rm -f '//trim(outdir)//trim(outfile))
+
+      ! Commands
+      b = ' -b '//trim(real_to_string(cosm%Om_b, 1, 5))
+      m = ' -m '//trim(real_to_string(cosm%Om_m, 1, 5))
+      s = ' -s '//trim(real_to_string(cosm%m_nu, 1, 5))
+      n = ' -n '//trim(real_to_string(cosm%ns, 1, 5))
+      h = ' -H '//trim(real_to_string(cosm%h, 1, 5))
+      w = ' -W '//trim(real_to_string(cosm%w, 1, 5))
+      wa = ' -w '//trim(real_to_string(cosm%wa, 1, 5))
+      As = ' -A '//trim(exp_to_string(cosm%As, 1, 5, -9))
+      z = ' -z '//trim(real_to_string(redshift_a(a), 2, 5))
+      dir = ' -d '//trim(outdir)
+      out = ' -o '//trim(outbase)
+      command = trim(exe)//trim(b)//trim(m)//trim(s)//trim(n)//trim(h)//trim(w)//trim(wa)//trim(As)//trim(z)//trim(dir)//trim(out)
+
+      ! Run the emulator
+      CALL EXECUTE_COMMAND_LINE('cd '//trim(basedir)//' && '//trim(command)//' > /dev/null')
+
+   END SUBROUTINE run_EuclidEumulator
+
+   SUBROUTINE read_EuclidEmulator_correction(k, Bk, infile)
+
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Bk(:)
+      CHARACTER(len=*), INTENT(IN) :: infile
+      INTEGER :: ik, nk, u
+
+      ! Allocate arrays (remember one-line header)
+      nk = file_length(infile)-1
+      ALLOCATE(k(nk), Bk(nk))
+
+      ! Read in non-linear correction data
+      OPEN(newunit=u, file=infile)
+      READ(u, *) ! Bypass one-line header
+      DO ik = 1, nk
+         READ(u, *) k(ik), Bk(ik)
+      END DO
+      CLOSE(u)
+
+   END SUBROUTINE read_EuclidEmulator_correction
+
+   SUBROUTINE calculate_CosmicEmulator_power(k, a, Pk, cosm, version, verbose)
+
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)    
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER, INTENT(IN) :: version
+      LOGICAL, INTENT(IN) :: verbose
+      REAL, ALLOCATABLE :: k_emu(:), Pk_emu(:, :)
+      INTEGER :: ia, nk, na
+      INTEGER, PARAMETER :: iorder = iorder_rebin
+      INTEGER, PARAMETER :: ifind = ifind_rebin
+      INTEGER, PARAMETER :: iinterp = iinterp_rebin
+      LOGICAL, PARAMETER :: logk_interp = logk_interp_emulator
+      LOGICAL, PARAMETER :: logPk_interp = logPk_interp_emulator
+
+      nk = size(k)
+      na = size(a)
+      ALLOCATE(Pk(nk, na))
+
+      CALL get_emulator_power(k_emu, a, Pk_emu, nk, cosm, version, rebin=.FALSE., verbose=verbose)
+
+      DO ia = 1, na
+         CALL interpolate_array(k_emu, Pk_emu(:, ia), k, Pk(:, ia), iorder, ifind, iinterp, logk_interp, logPk_interp)
+      END DO
+
+   END SUBROUTINE calculate_CosmicEmulator_power
 
    SUBROUTINE get_emulator_power(k, a, Pk, nk, cosm, version, rebin, verbose)
 
@@ -216,7 +374,7 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: rebin
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       INTEGER :: i
-      INTEGER, PARAMETER :: nh = 5   ! Length of header
+      INTEGER, PARAMETER :: nh = 5 ! Length of header
       CHARACTER(len=256), PARAMETER :: params = params_FrankenEmu
       CHARACTER(len=256), PARAMETER :: output = output_FrankenEmu
       CHARACTER(len=256), PARAMETER :: exe = exe_FrankenEmu
