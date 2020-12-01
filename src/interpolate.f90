@@ -4,8 +4,9 @@ MODULE interpolate
    ! TODO: Combine the interpolation that is carried out separatly in 'find' and 'evaluate_interpolator'
    ! TODO: Functions to return min/max x, y, ... values from interpolators
 
-   USE table_integer
+   USE basic_operations
    USE array_operations
+   USE table_integer
    USE special_functions
 
    IMPLICIT NONE
@@ -951,7 +952,6 @@ CONTAINS
 
       ! Interpolates array 'x1-y1' onto new 'x' values x2 and output y2
       ! TODO: This could be more efficient because it currently does 'find integer' every time
-      USE basic_operations
       REAL, INTENT(IN) :: x_old(:)
       REAL, INTENT(IN) :: y_old(:)
       REAL, INTENT(IN) :: x_new(:)
@@ -1000,7 +1000,7 @@ CONTAINS
 
    SUBROUTINE rebin_array(xmin_new, xmax_new, n_new, x, f, iorder, ifind, iinterp, logx, logf)
 
-      USE basic_operations
+      ! TODO: Remove. Interpolate array should be sufficient
       REAL, INTENT(IN) :: xmin_new
       REAL, INTENT(IN) :: xmax_new
       INTEGER, INTENT(IN) :: n_new
@@ -1036,7 +1036,6 @@ CONTAINS
 
       ! Initialise an interpolator
       ! TODO: Should be loops and arrays rather than x1, x2, x3, x4 etc.
-      USE basic_operations
       REAL, INTENT(IN) :: x(:)                  ! Input data x
       REAL, INTENT(IN) :: f(:)                  ! Input data f(x)
       TYPE(interpolator1D), INTENT(OUT) :: interp ! Interpolator type
@@ -1397,7 +1396,6 @@ CONTAINS
       ! TODO: Should end sections be quadratic when doing cubic interpolation?
       ! TODO: Linear extrapolation unnecessarily fills entire centre of array with linear interpolation
       ! TODO: Linear extrapolation only needs to do rows ix = 1, nx-1, nx and same for y
-      USE basic_operations
       REAL, INTENT(IN) :: x(:)                    ! Input data x
       REAL, INTENT(IN) :: y(:)                    ! Input data y
       REAL, INTENT(IN) :: f(:, :)                 ! Input data f(x, y)
@@ -1857,7 +1855,6 @@ CONTAINS
       ! Initialise a 3D interpolator
       ! TODO: Checks on array sizes
       ! TODO: Remove unnecessary ALLOCATE statements
-      USE basic_operations
       REAL, INTENT(IN) :: x(:)                    ! Input data x
       REAL, INTENT(IN) :: y(:)                    ! Input data y
       REAL, INTENT(IN) :: z(:)                    ! Input data z
