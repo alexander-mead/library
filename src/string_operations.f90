@@ -1,5 +1,7 @@
 MODULE string_operations
 
+   USE basic_operations
+
    IMPLICIT NONE
 
    PRIVATE
@@ -9,6 +11,7 @@ MODULE string_operations
    PUBLIC :: number_file_zeroes
    PUBLIC :: integer_to_string
    PUBLIC :: real_to_string
+   PUBLIC :: exp_to_string
    PUBLIC :: snippet_in_string
 
 CONTAINS
@@ -55,6 +58,7 @@ CONTAINS
 
       IF (present(n)) THEN
 
+         IF (i < 0) STOP 'INTEGER_TO_STRING: Error, cannot pad with negative number'
          IF (log10(real(i)) >= n) STOP 'INTEGER_TO_STRING: Error, number greater than padding size'
       
          IF (n == 1) THEN
@@ -71,16 +75,24 @@ CONTAINS
 
       ELSE
 
-         IF (i >= 0 .AND. i < 10) THEN
-            fmt = '(I1)'
-         ELSE IF (i >= 10 .AND. i < 100) THEN
-            fmt = '(I2)'
-         ELSE IF (i >= 100 .AND. i < 1000) THEN
-            fmt = '(I3)'
-         ELSE IF (i >= 1000 .AND. i < 10000) THEN
-            fmt = '(I4)'
+         IF (i < 0) THEN
+            IF (between(i, -9, -1)) THEN
+               fmt = '(I2)'
+            ELSE
+               STOP 'INTEGER_TO_STRING: Error, your integer is not supported'
+            END IF
          ELSE
-            STOP 'INTEGER_TO_STRING: Error, your integer is not supported'
+            IF (between(i, 0, 9)) THEN
+               fmt = '(I1)'
+            ELSE IF (between(i, 10, 99)) THEN
+               fmt = '(I2)'
+            ELSE IF (between(i, 100, 999)) THEN
+               fmt = '(I3)'
+            ELSE IF (between(i, 1000, 9999)) THEN
+               fmt = '(I4)'
+            ELSE
+               STOP 'INTEGER_TO_STRING: Error, your integer is not supported'
+            END IF
          END IF
 
       END IF
@@ -98,16 +110,29 @@ CONTAINS
 
       IF (pre_decimal < 0 .OR. post_decimal < 0) THEN
          STOP 'REAL_TO_STRING: Error, neither pre or post decimal should be negative'
-      END IF
-
-      IF (post_decimal == 0) THEN
+      ELSE IF (post_decimal == 0) THEN
          real_to_string = integer_to_string(int(x))
       ELSE
-         fmt = '(F'//trim(integer_to_string(pre_decimal+post_decimal+1))//'.'//trim(integer_to_string(post_decimal))//')'
+         IF (x < 0) THEN
+            fmt = '(F'//trim(integer_to_string(pre_decimal+post_decimal+2))//'.'//trim(integer_to_string(post_decimal))//')'
+         ELSE
+            fmt = '(F'//trim(integer_to_string(pre_decimal+post_decimal+1))//'.'//trim(integer_to_string(post_decimal))//')'
+         END IF
          WRITE (real_to_string, fmt=fmt) x
       END IF
 
    END FUNCTION real_to_string
+
+   CHARACTER(len=16) FUNCTION exp_to_string(x, pre_decimal, post_decimal, exponent)
+
+      REAL, INTENT(IN) :: x               ! Real number to convert to string
+      INTEGER, INTENT(IN) :: pre_decimal  ! Number of characters pre decimal point
+      INTEGER, INTENT(IN) :: post_decimal ! Number of characters post decimal point
+      INTEGER, INTENT(IN) :: exponent     ! Exponent to write with
+
+      exp_to_string = trim(real_to_string(x/10.**exponent, pre_decimal, post_decimal))//'e'//trim(integer_to_string(exponent))
+
+   END FUNCTION exp_to_string
 
    FUNCTION number_file(fbase, i, fext)
 
