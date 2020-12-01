@@ -23,7 +23,7 @@ MODULE basic_operations
 
    INTERFACE swap
       MODULE PROCEDURE swap_real
-      MODULE PROCEDURE swap_int
+      MODULE PROCEDURE swap_integer
    END INTERFACE swap
 
    INTERFACE read_command_argument
@@ -40,24 +40,43 @@ MODULE basic_operations
 
    INTERFACE default_or_optional
       MODULE PROCEDURE default_or_optional_real
-      MODULE PROCEDURE default_or_optional_int
+      MODULE PROCEDURE default_or_optional_integer
    END INTERFACE default_or_optional
+
+   INTERFACE between
+      MODULE PROCEDURE between_real
+      MODULE PROCEDURE between_integer
+   END INTERFACE between
 
 CONTAINS
 
-   LOGICAL FUNCTION between(x, xmin, xmax)
+   LOGICAL FUNCTION between_real(x, xmin, xmax)
 
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xmin
       REAL, INTENT(IN) :: xmax
 
       IF (x >= xmin .AND. x <= xmax) THEN
-         between = .TRUE.
+         between_real = .TRUE.
       ELSE
-         between = .FALSE.
+         between_real = .FALSE.
       END IF
 
-   END FUNCTION between
+   END FUNCTION between_real
+
+   LOGICAL FUNCTION between_integer(x, xmin, xmax)
+
+      INTEGER, INTENT(IN) :: x
+      INTEGER, INTENT(IN) :: xmin
+      INTEGER, INTENT(IN) :: xmax
+
+      IF (x >= xmin .AND. x <= xmax) THEN
+         between_integer = .TRUE.
+      ELSE
+         between_integer = .FALSE.
+      END IF
+
+   END FUNCTION between_integer
 
    REAL FUNCTION default_or_optional_real(x_default, x_optional)
 
@@ -72,18 +91,18 @@ CONTAINS
 
    END FUNCTION default_or_optional_real
 
-   INTEGER FUNCTION default_or_optional_int(x_default, x_optional)
+   INTEGER FUNCTION default_or_optional_integer(x_default, x_optional)
 
       INTEGER, INTENT(IN) :: x_default
       INTEGER, OPTIONAL, INTENT(IN) :: x_optional
 
       IF (present(x_optional)) THEN
-         default_or_optional_int = x_optional
+         default_or_optional_integer = x_optional
       ELSE
-         default_or_optional_int = x_default
+         default_or_optional_integer = x_default
       END IF
 
-   END FUNCTION default_or_optional_int
+   END FUNCTION default_or_optional_integer
 
    RECURSIVE REAL FUNCTION progression(xmin, xmax, i, n, ilog)
 
@@ -403,7 +422,7 @@ CONTAINS
 
    END SUBROUTINE swap_real
 
-   SUBROUTINE swap_int(n, m)
+   SUBROUTINE swap_integer(n, m)
 
       ! Swap integers n and m in the most memory-efficient way possible
       INTEGER, INTENT(INOUT) :: n
@@ -413,6 +432,6 @@ CONTAINS
       m = n-m ! m' = n'-m = n+m-m = n
       n = n-m ! n'' = n'-m' = n+m-n = m
 
-   END SUBROUTINE swap_int
+   END SUBROUTINE swap_integer
 
 END MODULE basic_operations
