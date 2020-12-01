@@ -2,6 +2,7 @@ MODULE cosmology_functions
 
    USE basic_operations
    USE array_operations
+   USE string_operations
    USE interpolate
    USE constants
    USE file_info 
@@ -177,6 +178,7 @@ MODULE cosmology_functions
    PUBLIC :: HALOFIT_Takahashi
    PUBLIC :: HALOFIT_CAMB
    PUBLIC :: HALOFIT_CLASS
+   PUBLIC :: HALOFIT_NGen
 
    ! Perturbation theory
    PUBLIC :: P_SPT
@@ -232,7 +234,7 @@ MODULE cosmology_functions
       REAL :: mue, mup                   ! Gas parameters
 
       ! Derived parameters
-      REAL :: A                          ! Power spectrum amplitude [weird units]
+      REAL :: A                          ! Power spectrum amplitude
       REAL :: Om, Om_k, Om_c, Om_g, Om_r ! Derived Omegas
       REAL :: Om_nu, f_nu, a_nu          ! Neutrinos
       REAL :: Om_nu_rad, omega_nu, T_nu  ! Neutrinos
@@ -531,6 +533,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: HALOFIT_CLASS = 5       ! Version as used in CLASS (2020)
    INTEGER, PARAMETER :: HALOFIT_Smith_paper = 6 ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664)
    INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: HALOFIT_NGen = 8        ! Smith & Angulo (2019; https://arxiv.org/abs/1807.00040)
 
    ! CAMB non-linear numbering schemes
    INTEGER, PARAMETER :: CAMB_HALOFIT_Smith = 1        ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
@@ -573,6 +576,43 @@ MODULE cosmology_functions
    CHARACTER(len=256), PARAMETER :: exe_CosmicEmu = '/Users/Mead/Physics/CosmicEmu/emu.exe'
    INTEGER, PARAMETER :: nh_CosmicEmu = 10  ! Length of header
    INTEGER, PARAMETER :: hl_CosmicEmu = 8   ! Line that h in on
+
+   ! NGenHALOFIT
+   CHARACTER(len=256), PARAMETER :: dir_NGenHALOFIT = '/Users/Mead/Physics/NGenHalofit/'
+   CHARACTER(len=256), PARAMETER :: exe_NGenHALOFIT = trim(dir_NGenHALOFIT)//'NGenHalofit.exe' 
+   CHARACTER(len=256), PARAMETER :: dir_temp_NGenHALOFIT = trim(dir_NGenHALOFIT)//'Mead/'
+   CHARACTER(len=256), PARAMETER :: linfile_NGenHALOFIT = 'linear_power.dat'
+   CHARACTER(len=256), PARAMETER :: linfilefull_NGenHALOFIT = trim(dir_temp_NGenHALOFIT)//trim(linfile_NGenHALOFIT)
+   CHARACTER(len=256), PARAMETER :: inifile_NGenHALOFIT = trim(dir_temp_NGenHALOFIT)//'input_file.dat'
+   CHARACTER(len=256), PARAMETER :: expfile_NGenHALOFIT = trim(dir_temp_NGenHALOFIT)//'expansion_file.dat'
+   CHARACTER(len=256), PARAMETER :: powbase_NGenHALOFIT = 'HALOFIT_power'
+   CHARACTER(len=256), PARAMETER :: MPTbase_NGenHALOFIT = 'MPT_power'
+   CHARACTER(len=256), PARAMETER :: vardir_NGenHALOFIT = trim(dir_NGenHALOFIT)//'DATAPlinCAMB/'
+   CHARACTER(len=256), PARAMETER :: varbase_NGenHALOFIT = 'Planck2013.Step_ByHand.HighAcc_matterpower'
+   REAL, PARAMETER :: As_norm_NGenHALOFIT = 2.14485e-9
+   REAL, PARAMETER :: kpiv_noh_default_NGenHALOFIT = 0.05
+   REAL, PARAMETER :: eps_kpiv_NGenHALOFIT = 1e-4
+   REAL, PARAMETER :: alin_NGenHALOFIT = 1.
+   INTEGER, PARAMETER :: flag_NGenHALOFIT = flag_matter
+   INTEGER, PARAMETER :: iorder_interp_NGenHALOFIT = 3
+   INTEGER, PARAMETER :: ifind_interp_NGenHALOFIT = ifind_split
+   INTEGER, PARAMETER :: iinterp_interp_NGenHALOFIT = iinterp_Lagrange
+   REAL, PARAMETER :: w_min_NGenHALOFIT = -1.05
+   REAL, PARAMETER :: w_max_NGenHALOFIT = -0.95
+   REAL, PARAMETER :: wa_min_NGenHALOFIT = -0.4
+   REAL, PARAMETER :: wa_max_NGenHALOFIT = 0.4
+   REAL, PARAMETER :: Om_m_min_NGenHALOFIT = 0.21
+   REAL, PARAMETER :: Om_m_max_NGenHALOFIT = 0.4
+   REAL, PARAMETER :: wc_min_NGenHALOFIT = 0.1
+   REAL, PARAMETER :: wc_max_NGenHALOFIT = 0.13
+   REAL, PARAMETER :: wb_min_NGenHALOFIT = 0.02
+   REAL, PARAMETER :: wb_max_NGenHALOFIT = 0.04
+   REAL, PARAMETER :: ns_min_NGenHALOFIT = 0.85
+   REAL, PARAMETER :: ns_max_NGenHALOFIT = 1.05
+   REAL, PARAMETER :: As_min_NGenHALOFIT = 1.72e-9
+   REAL, PARAMETER :: As_max_NGenHALOFIT = 2.58e-9
+   REAL, PARAMETER :: alpha_min_NGenHALOFIT = -0.2
+   REAL, PARAMETER :: alpha_max_NGenHALOFIT = 0.2
 
    ! General cosmological integrations
    INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
@@ -921,7 +961,7 @@ CONTAINS
       cosm%sig8 = 0.8                ! norm_sigma8: sigma(R=8, a=1) normalisation
       cosm%kval = 0.001              ! norm_value: Wavenumber for normalisation [h/Mpc]
       cosm%pval = 0.1973236854e-06   ! norm_value: Delta^2 value to get sig8 = 0.8 for a boring cosmology
-      cosm%kpiv = 0.05/cosm%h        ! norm_As: Wavenumber at which to define As normalisation [h/Mpc] NOT [1/Mpc]
+      cosm%kpiv = 0.05               ! norm_As: Wavenumber at which to define As normalisation NOTE: [h/Mpc]
       cosm%As = 2.1e-9               ! norm_As: 2.1e-9 is a sensible value
       
       !! !!
@@ -1675,7 +1715,7 @@ CONTAINS
       !IF (cosm%iTk == iTk_CAMB) cosm%iTc = iTc_CAMB
       
       ! Overall power normalisaiton, should initially be unity
-      cosm%A = 1. 
+      cosm%A = 1.
 
       ! Things to do with finite box
       IF (cosm%box) cosm%kbox = twopi/cosm%Lbox
@@ -2007,6 +2047,7 @@ CONTAINS
          WRITE (*, fmt=format) 'COSMOLOGY:', 'n_s:', cosm%ns
          WRITE (*, fmt=format) 'COSMOLOGY:', 'alpha:', cosm%alpha
          WRITE (*, fmt=format) 'COSMOLOGY:', 'kpiv [h/Mpc]:', cosm%kpiv
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'kpiv [1/Mpc]:', cosm%kpiv*cosm%h
          IF(cosm%norm_method == norm_sigma8) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: sigma_8'
             WRITE (*, fmt=format) 'COSMOLOGY:', 'sigma_8:', cosm%sig8
@@ -2165,8 +2206,7 @@ CONTAINS
                WRITE (*, *) 'XI_LIN: r [Mpc/h]:', r
                WRITE (*, *) 'XI_LIN: Minimum number of humps:', min_humps
                WRITE (*, *) 'XI_LIN: Maximum number of humps:', max_humps
-               WRITE (*, *) 'XI_LIN: Warning, maximum number of humps exceeded'
-               STOP
+               STOP 'XI_LIN: Error, maximum number of humps exceeded'
             END IF
 
          END DO
@@ -2399,14 +2439,14 @@ CONTAINS
       ! Calculate the value of A_s from the linear power spectrum; defined using kpiv
       ! See equation (10) of https://arxiv.org/pdf/1807.00040.pdf
       TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
-      REAL, PARAMETER :: a = 1.                ! Normalisation is at a=1
-      INTEGER, PARAMETER :: flag = flag_matter ! A_s is defined from linear
       REAL :: kpiv, Tk, g
+      REAL, PARAMETER :: a = 1.                ! Normalisation is at a=1
+      INTEGER, PARAMETER :: flag = flag_matter ! A_s is defined from linear total matter
 
-      kpiv = cosm%kpiv
-      Tk = Tk_matter(kpiv, a, cosm)
-      g = ungrow(a, cosm)
-      As = (((3./2.)*(5./3.))**2)*(cosm%Om_m**2)*((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/(g*Tk)**2
+      kpiv = cosm%kpiv              ! Pivot wavenumber: As = As(kp)
+      Tk = Tk_matter(kpiv, a, cosm) ! Matter transfer function at a = 1
+      g = ungrow(a, cosm)           ! Growth factor at a=1 normalised such that g(a<<1) = a
+      As = (25./4.)*((cosm%Om_m/g)**2)*((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/Tk**2
 
    END FUNCTION As
 
@@ -5212,7 +5252,6 @@ CONTAINS
       ! TODO: New CAMB cosmology class?
       ! TODO: Could split this up into run_CAMB etc. etc.
       USE CAMB_stuff
-      USE string_operations
       INTEGER, INTENT(IN) :: na
       REAL, INTENT(IN) :: a(na)
       REAL, ALLOCATABLE, INTENT(OUT) :: k_Pk(:)
@@ -5248,6 +5287,7 @@ CONTAINS
       IF (cosm%verbose) THEN
          WRITE(*,*) 'GET_CAMB_POWER: Running CAMB'
          WRITE(*,*) 'GET_CAMB_POWER: kpiv [h/Mpc]:', real(cosm%kpiv)
+         WRITE(*,*) 'GET_CAMB_POWER: kpiv [1/Mpc]:', real(cosm%kpiv*cosm%h)
          WRITE(*,*) 'GET_CAMB_POWER: As:', real(cosm%As)
          WRITE(*,*) 'GET_CAMB_POWER: Minimum a:', a(1)
          WRITE(*,*) 'GET_CAMB_POWER: Maximum a:', a(na)
@@ -5339,8 +5379,8 @@ CONTAINS
       WRITE (7, *) 'scalar_spectral_index(1) =', cosm%ns
       WRITE (7, *) 'scalar_nrun(1) =', cosm%alpha
       WRITE (7, *) 'scalar_amp(1) =', cosm%As
-      WRITE (7, *) 'pivot_scalar =', cosm%kpiv*cosm%h ! Note that CAMB uses Mpc whereas I use Mpc/h
-      WRITE (7, *) 'pivot_tensor =', cosm%kpiv*cosm%h ! Note that CAMB uses Mpc whereas I use Mpc/h
+      WRITE (7, *) 'pivot_scalar =', cosm%kpiv*cosm%h ! Note that CAMB uses 1/Mpc whereas I use h/Mpc
+      WRITE (7, *) 'pivot_tensor =', cosm%kpiv*cosm%h ! Note that CAMB uses 1/Mpc whereas I use h/Mpc
 
       ! Reionisation
       WRITE (7, *) 'reionization = F'
@@ -5486,7 +5526,6 @@ CONTAINS
    SUBROUTINE prune_CAMB(k, a, Pk, nk, na)
 
       ! Remove some k values from the CAMB calculation of P_lin(k)
-      USE array_operations
       REAL, ALLOCATABLE, INTENT(INOUT) :: k(:)
       INTEGER, INTENT(IN) :: na
       REAL, INTENT(IN) :: a(na)
@@ -5521,8 +5560,6 @@ CONTAINS
 
       ! Initialise the CAMB linear power spectrum calculation
       USE CAMB_stuff
-      USE string_operations
-      USE array_operations
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, ALLOCATABLE :: a(:), kPk(:), Pk(:, :), kTk(:), Tm(:, :), Tc(:, :), kkPk(:), Pkk(:, :)
       REAL :: k, fac
@@ -6045,6 +6082,8 @@ CONTAINS
       !WRITE(*, *) 'l_A (this cosmology)', pi*dlss/rs
       !STOP 'RANDOM_COSMIC_EMU_COSMOLOGY: Error, this needs to be solved numerically'
 
+      !cosm%kpiv = 0.05/cosm%h
+
    END SUBROUTINE random_Cosmic_Emu_cosmology
 
    SUBROUTINE random_Franken_Emu_cosmology(cosm)
@@ -6083,6 +6122,8 @@ CONTAINS
       cosm%sig8 = random_uniform(sig8_min, sig8_max)
 
       cosm%iw = iw_wCDM ! Constant w models only in Franken Emu
+
+      cosm%kpiv = 0.05/cosm%h
 
    END SUBROUTINE random_Franken_Emu_cosmology
 
@@ -6138,6 +6179,8 @@ CONTAINS
       cosm%sig8 = random_uniform(sig8_min, sig8_max)
 
       cosm%iw = iw_waCDM ! w(a)CDM models in Mira Titan
+
+      cosm%kpiv = 0.05/cosm%h
 
    END SUBROUTINE random_Mira_Titan_cosmology
 
@@ -6462,6 +6505,7 @@ CONTAINS
       cosm%Om_b = om_b/cosm%h**2
       cosm%Om_w = 1.-cosm%Om_m
       cosm%Om_v = 0.
+      cosm%kpiv = 0.05/cosm%h
 
    END SUBROUTINE Cosmic_Emu_node_cosmology
 
@@ -6485,6 +6529,7 @@ CONTAINS
          cosm%Om_w = 1.-cosm%Om_m
          cosm%Om_v = 0.
          cosm%iw = iw_wCDM
+         cosm%kpiv = 0.05/cosm%h
       ELSE
          CALL Cosmic_Emu_node_cosmology(node, cosm)
       END IF
@@ -6882,6 +6927,7 @@ CONTAINS
       cosm%N_nu = 3
       cosm%Om_w = 1.-cosm%Om_m
       cosm%Om_v = 0.
+      cosm%kpiv = 0.05/cosm%h
 
    END SUBROUTINE Mira_Titan_node_cosmology
 
@@ -6930,26 +6976,35 @@ CONTAINS
 
    END SUBROUTINE HALOFIT_init
 
-   SUBROUTINE calculate_HALOFIT(k, a, Pk, nk, na, cosm, version)
+   SUBROUTINE calculate_HALOFIT(k, a, Pk, cosm, version)
 
       ! Fill array P(k,a) with HALOFIT power spectrum for input arrays of k and a
-      INTEGER :: nk ! Number of points in k
-      INTEGER :: na ! Number of points in a
-      REAL, INTENT(IN) :: k(nk) ! Array of wavenumbers
-      REAL, INTENT(IN) :: a(na) ! Scale factor
+      REAL, INTENT(IN) :: k(:) ! Array of wavenumbers
+      REAL, INTENT(IN) :: a(:) ! Scale factor
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :) ! Output power array
       TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
       INTEGER, OPTIONAL, INTENT(IN) :: version ! HALOFIT version
-      REAL :: Pli(nk), Pq(nk), Ph(nk), Pnl(nk)
-      INTEGER :: j
+      REAL, ALLOCATABLE :: Pli(:), Pq(:), Ph(:), Pnl(:)
+      INTEGER :: ia, na, nk
       LOGICAL, PARAMETER :: verbose = .FALSE.
 
-      ALLOCATE(Pk(nk, na))
+      IF (version == HALOFIT_NGen) THEN
 
-      DO j = 1, na
-         CALL calculate_HALOFIT_a(k, a(j), Pli, Pq, Ph, Pnl, nk, cosm, verbose, version)
-         Pk(:, j) = Pnl
-      END DO
+         CALL calculate_NgenHALOFIT(k, a, Pk, cosm)
+
+      ELSE
+
+         nk = size(k)
+         na = size(a)
+         ALLOCATE(Pli(nk), Pq(nk), Ph(nk), Pnl(nk))
+         ALLOCATE(Pk(nk, na))
+
+         DO ia = 1, na
+            CALL calculate_HALOFIT_a(k, a(ia), Pli, Pq, Ph, Pnl, nk, cosm, verbose, version)
+            Pk(:, ia) = Pnl
+         END DO
+
+      END IF
 
    END SUBROUTINE calculate_HALOFIT
 
@@ -8080,6 +8135,233 @@ CONTAINS
       rescaling_cost_power_integrand = (1.-plin(k*s, a_ini, flag, cosm_ini)/plin(k, a_tgt, flag, cosm_tgt))**2
 
    END FUNCTION rescaling_cost_power_integrand
+
+   SUBROUTINE calculate_NGenHALOFIT(k, a, Pk, cosm)
+
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: nk, na, ia
+      REAL :: kmin, kmax
+      REAL, ALLOCATABLE :: k_HF(:), Pk_HF(:, :)
+      INTEGER, PARAMETER :: iorder = iorder_interp_NGenHALOFIT
+      INTEGER, PARAMETER :: ifind = ifind_interp_NGenHALOFIT
+      INTEGER, PARAMETER :: iinterp = iinterp_interp_NGenHALOFIT
+
+      ! Array sizes
+      nk = size(k)
+      na = size(a)
+
+      ! Run N-Gen HALOFIT
+      ! TODO: Should nk here be the same as in the desired k array?
+      kmin = k(1)
+      kmax = k(nk)
+      CALL run_NgenHALOFIT(kmin, kmax, nk, k_HF, a, Pk_HF, cosm)
+
+      ! Interpolate results on to my k array
+      ALLOCATE(Pk(nk, na))
+      DO ia = 1, na
+         CALL interpolate_array(k_HF, Pk_HF(:, ia), k, Pk(:, ia), iorder, ifind, iinterp, logx=.TRUE., logy=.TRUE.)
+      END DO
+
+   END SUBROUTINE calculate_NGenHALOFIT
+
+   SUBROUTINE run_NGenHALOFIT(kmin, kmax, nk, k, a, Pk, cosm)
+
+      USE camb_stuff
+      REAL, INTENT(IN) :: kmin
+      REAL, INTENT(IN) :: kmax
+      INTEGER, INTENT(IN) :: nk
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: ik
+      CHARACTER(len=256), PARAMETER :: exe = exe_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: dir = dir_temp_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: linfile = linfilefull_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: inifile = inifile_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: expfile = expfile_NGenHALOFIT
+      REAL, PARAMETER :: kmin_lin = kmin_plin
+      REAL, PARAMETER :: kmax_lin = kmax_plin
+      INTEGER, PARAMETER :: nk_lin = nk_plin
+      REAL, PARAMETER :: alin = alin_NGenHALOFIT
+      INTEGER, PARAMETER :: flag = flag_NGenHALOFIT
+      REAL, PARAMETER :: kpiv_noh_default = kpiv_noh_default_NGenHALOFIT
+      REAL, PARAMETER :: eps_kpiv = eps_kpiv_NGenHALOFIT
+      REAL, PARAMETER :: w_min = w_min_NGenHALOFIT
+      REAL, PARAMETER :: w_max = w_max_NGenHALOFIT
+      REAL, PARAMETER :: wa_min = wa_min_NGenHALOFIT
+      REAL, PARAMETER :: wa_max = wa_max_NGenHALOFIT
+      REAL, PARAMETER :: Om_m_min = Om_m_min_NGenHALOFIT
+      REAL, PARAMETER :: Om_m_max = Om_m_max_NGenHALOFIT
+      REAL, PARAMETER :: wc_min = wc_min_NGenHALOFIT
+      REAL, PARAMETER :: wc_max = wc_max_NGenHALOFIT
+      REAL, PARAMETER :: wb_min = wb_min_NGenHALOFIT
+      REAL, PARAMETER :: wb_max = wb_max_NGenHALOFIT
+      REAL, PARAMETER :: ns_min = ns_min_NGenHALOFIT
+      REAL, PARAMETER :: ns_max = ns_max_NGenHALOFIT
+      REAL, PARAMETER :: As_min = As_min_NGenHALOFIT
+      REAL, PARAMETER :: As_max = As_max_NGenHALOFIT
+      REAL, PARAMETER :: alpha_min = alpha_min_NGenHALOFIT
+      REAL, PARAMETER :: alpha_max = alpha_max_NGenHALOFIT
+
+      ! Checks
+      IF (.NOT. cosm%is_init) STOP 'RUN_NGENHALOFIT: Error, cosmology is not initialised'
+      IF (cosm%k /= 0.) WRITE(*, *) 'RUN_NGENHALOFIT: Warning, NGenHalofit only supports flat cosmologies'
+      IF (cosm%m_nu /= 0.) WRITE(*, *) 'RUN_NGENHALOFIT: Warning, NGenHalofit does not support massive neutrino cosmologies'
+      IF (.NOT. requal(cosm%kpiv*cosm%h, kpiv_noh_default, eps_kpiv)) THEN
+         WRITE(*, *) 'RUN_NGENHALOFIT: kpiv [h/Mpc]:', cosm%kpiv
+         WRITE(*, *) 'RUN_NGENHALOFIT: kpiv [1/Mpc]:', cosm%kpiv*cosm%h
+         STOP 'RUN_NGENHALOFIT: Error, NGenHalofit assumes pivot scale of 0.05 Mpc^-1 CHECK'
+      END IF
+
+      ! Needs to be called for As to be correct
+      IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm)
+
+      ! Check parameter range
+      IF (.NOT. between(cosm%w, w_min, w_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, w is outside boundary'
+      IF (.NOT. between(cosm%wa, wa_min, wa_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, wa is outside boundary'
+      IF (.NOT. between(cosm%Om_m, Om_m_min, Om_m_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, Omega_m is outside boundary'
+      IF (.NOT. between(cosm%Om_c*cosm%h**2, wc_min, wc_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, omega_c is outside boundary'
+      IF (.NOT. between(cosm%Om_b*cosm%h**2, wb_min, wb_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, omega_b is outside boundary'
+      IF (.NOT. between(cosm%ns, ns_min, ns_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, ns is outside boundary'
+      IF (.NOT. between(cosm%As, As_min, As_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, As is outside boundary'
+      IF (.NOT. between(cosm%alpha, alpha_min, alpha_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, alpha is outside boundary'
+
+      ! Remove any previous files
+      CALL EXECUTE_COMMAND_LINE('rm -rf '//trim(dir)//'*')
+
+      ! Write the ini file and list of expansion factors
+      CALL write_NGenHALOFIT_ini_file(kmin, kmax, nk, cosm, inifile, dir)
+      CALL write_NGenHALOFIT_exp_file(a, expfile)
+
+      ! Write a CAMB format linear power spectrum
+      ! TODO: It is a bit lazy to re-use the k, Pk arrays here
+      CALL fill_array(kmin_lin, kmax_lin, k, nk_lin, ilog=.TRUE.)
+      ALLOCATE(Pk(nk_lin, 1))
+      DO ik = 1, nk_lin
+         Pk(ik, 1) = plin(k(ik), alin, flag, cosm)
+      END DO
+      CALL write_CAMB_Pk(k, Pk(:, 1), linfile, header=.FALSE.)
+      DEALLOCATE(k, Pk)
+
+      ! Run NGenHALOFIT
+      CALL EXECUTE_COMMAND_LINE('cd '//trim(dir_NGenHALOFIT)//' && '//trim(exe)//' '//trim(inifile)//' '//trim(expfile)//' > /dev/null')
+
+      ! Read in the power data
+      CALL read_NGenHALOFIT_power(k, a, Pk)
+
+   END SUBROUTINE run_NGenHALOFIT
+
+   SUBROUTINE write_NGenHALOFIT_ini_file(kmin, kmax, nk, cosm, outfile, dir)
+
+      REAL, INTENT(IN) :: kmin
+      REAL, INTENT(IN) :: kmax
+      INTEGER, INTENT(IN) :: nk
+      TYPE(cosmology), INTENT(IN) :: cosm
+      CHARACTER(len=256), INTENT(IN) :: outfile
+      CHARACTER(len=256), INTENT(IN) :: dir
+      INTEGER :: u
+      LOGICAL, PARAMETER :: logk = .TRUE.
+      REAL, PARAMETER :: As_norm = As_norm_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: powbase = powbase_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: MPTbase = MPTbase_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: linfile = linfile_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: vardir = vardir_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: varbase = varbase_NGenHALOFIT
+
+      OPEN(newunit=u, file=outfile)
+
+      ! Cosmology
+      WRITE (u, *) 'aexp 1.0'
+      WRITE (u, *) 'w0', cosm%w
+      WRITE (u, *) 'w1', cosm%wa
+      WRITE (u, *) 'om_ch20', cosm%Om_c*cosm%h**2
+      WRITE (u, *) 'om_bh20', cosm%Om_b*cosm%h**2
+      WRITE (u, *) 'om_DE0', 1.-cosm%Om_m
+      WRITE (u, *) 'As', cosm%As/As_norm
+      WRITE (u, *) 'pindex', cosm%ns
+      WRITE (u, *) 'running', cosm%alpha
+
+      ! Input parameters
+      WRITE (u, *) 'nPkOut', nk
+      WRITE (u, *) 'rkOutMIN', kmin
+      WRITE (u, *) 'rkOutMAX', kmax
+      IF (logk) THEN
+         WRITE (u, *) 'iLogOrLin 1'
+      ELSE
+         WRITE (u, *) 'iLogOrLin 0'
+      END IF
+      WRITE (u, *) 'iGenEffSpecTarget	1'
+      WRITE (u, *) 'iGenEffSpecVar	0'
+
+      ! File handlers
+      WRITE (u, *) 'OutputDir ', trim(dir)
+      WRITE (u, *) 'OutputFileBase ', trim(powbase)
+      WRITE (u, *) 'OutputMPTFileBase ', trim(MPTbase)
+      WRITE (u, *) 'PowDirTarget ', trim(dir)
+      WRITE (u, *) 'PowFileTarget ', trim(linfile)
+      WRITE (u, *) 'PowDirVar ', trim(vardir)
+      WRITE (u, *) 'PowFileBaseVar ', trim(varbase)
+
+      CLOSE(u)
+
+   END SUBROUTINE write_NGenHALOFIT_ini_file
+
+   SUBROUTINE write_NGenHALOFIT_exp_file(a, outfile)
+
+      REAL, INTENT(IN) :: a(:)
+      CHARACTER(len=256), INTENT(IN) :: outfile
+      INTEGER :: u
+      INTEGER :: ia
+
+      ! Write a file of scale factors with one scale factor per line
+      OPEN(newunit=u, file=outfile)
+      DO ia = 1, size(a)
+         WRITE (u, *) a(ia)
+      END DO
+      CLOSE(u)
+
+   END SUBROUTINE write_NGenHALOFIT_exp_file
+
+   SUBROUTINE read_NGenHALOFIT_power(k, a, Pk)
+
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      REAL :: crap
+      INTEGER :: ik, ia, nk, na
+      INTEGER :: u
+      CHARACTER(len=256) :: infile
+      CHARACTER(len=256), PARAMETER :: inbase = trim(dir_temp_NGenHALOFIT)//trim(powbase_NGenHALOFIT)
+
+      ! Loop over scale factors
+      na = size(a)
+      DO ia = 1, na
+
+         ! Get the infile name and allocate arrays if necessary
+         infile = trim(inbase)//'.'//trim(integer_to_string(ia-1))//'.dat'
+         IF (ia == 1) THEN
+            nk = file_length(infile)
+            ALLOCATE(k(nk), Pk(nk, na))
+         END IF
+
+         ! Read in NGenHalofit power spectrum
+         OPEN(newunit=u, file=infile)
+         DO ik = 1, size(k)
+            !READ(u, *) k(ik), crap, Pk(ik, ia) ! Column 3 is Takahashi HALOFIT
+            READ(u, *) k(ik), crap, crap, Pk(ik, ia) ! Column 4 is NGenHALOFIT
+         END DO
+         CLOSE(u)
+
+         ! Convert P(k) to Delta^2(k)
+         Pk(:, ia) = Delta_Pk(Pk(:, ia), k)
+
+      END DO
+
+   END SUBROUTINE read_NGenHALOFIT_power
 
    SUBROUTINE ODE2_spherical(x, v, k, t, cosm, ti, tf, xi, vi, fv, n, imeth, ilog)
 
