@@ -12,21 +12,28 @@ MODULE cosmic_emu_stuff
 
    PRIVATE
 
+   ! Public functions
    PUBLIC :: get_CosmicEmu_power_z
    PUBLIC :: get_FrankenEmu_power_z
    PUBLIC :: get_MiraTitan_power_z
    PUBLIC :: get_emulator_power
    PUBLIC :: calculate_Emulator_power
 
+   ! Emulator versions
    PUBLIC :: emulator_CosmicEmu
    PUBLIC :: emulator_FrankenEmu
    PUBLIC :: emulator_MiraTitan
    PUBLIC :: emulator_Euclid
+   PUBLIC :: emulator_BACCO
+   PUBLIC :: emulator_HALOFIT
 
+   ! Emulator versions
    INTEGER, PARAMETER :: emulator_CosmicEmu = 1
    INTEGER, PARAMETER :: emulator_FrankenEmu = 2
    INTEGER, PARAMETER :: emulator_MiraTitan = 3
    INTEGER, PARAMETER :: emulator_Euclid = 4
+   INTEGER, PARAMETER :: emulator_BACCO = 5
+   INTEGER, PARAMETER :: emulator_HALOFIT = 6
 
    ! Cosmic Emu
    REAL, PARAMETER :: kmin_rebin_CosmicEmu = 1e-2
@@ -58,11 +65,58 @@ MODULE cosmic_emu_stuff
    CHARACTER(len=256), PARAMETER :: exe_MiraTitan = '/Users/Mead/Physics/MiraTitan/P_tot/emu.exe'
 
    ! Euclid Emulator
+   REAL, PARAMETER :: ksmall_Euclid = 1e-3 ! Small wavenumber to add to array and set correction to unity here [h/Mpc]
    CHARACTER(len=256), PARAMETER :: exe_Euclid = '/Users/Mead/Physics/EuclidEmulator2/ee2.exe'
    CHARACTER(len=256), PARAMETER :: dir_Euclid = '/Users/Mead/Physics/EuclidEmulator2/'
    CHARACTER(len=256), PARAMETER :: outdir_Euclid = trim(dir_Euclid)//'Mead/'
    CHARACTER(len=256), PARAMETER :: outbase_Euclid = 'temp'
    CHARACTER(len=256), PARAMETER :: outfile_Euclid = trim(outbase_Euclid)//'0.dat'
+
+   ! BACCO
+   REAL, PARAMETER :: ksmall_BACCO = 1e-3 ! Small wavenumber to add to array and set correction to unity here [h/Mpc]
+   CHARACTER(len=256), PARAMETER :: exe_BACCO = '/Users/Mead/Physics/BACCO/run_BACCO.py'
+   !CHARACTER(len=256), PARAMETER :: dir_BACCO = '/Users/Mead/Physics/BACCO/'
+   CHARACTER(len=256), PARAMETER :: outfile_BACCO = '/Users/Mead/Physics/BACCO/results.dat'
+
+    ! NGenHALOFIT
+   CHARACTER(len=256), PARAMETER :: dir_NGenHALOFIT = '/Users/Mead/Physics/NGenHalofit/'
+   CHARACTER(len=256), PARAMETER :: exe_NGenHALOFIT = trim(dir_NGenHALOFIT)//'NGenHalofit.exe' 
+   CHARACTER(len=256), PARAMETER :: dir_temp_NGenHALOFIT = trim(dir_NGenHALOFIT)//'Mead/'
+   CHARACTER(len=256), PARAMETER :: linfile_NGenHALOFIT = 'linear_power.dat'
+   CHARACTER(len=256), PARAMETER :: linfilefull_NGenHALOFIT = trim(dir_temp_NGenHALOFIT)//trim(linfile_NGenHALOFIT)
+   CHARACTER(len=256), PARAMETER :: inifile_NGenHALOFIT = trim(dir_temp_NGenHALOFIT)//'input_file.dat'
+   CHARACTER(len=256), PARAMETER :: expfile_NGenHALOFIT = trim(dir_temp_NGenHALOFIT)//'expansion_file.dat'
+   CHARACTER(len=256), PARAMETER :: powbase_NGenHALOFIT = 'HALOFIT_power'
+   CHARACTER(len=256), PARAMETER :: MPTbase_NGenHALOFIT = 'MPT_power'
+   CHARACTER(len=256), PARAMETER :: vardir_NGenHALOFIT = trim(dir_NGenHALOFIT)//'DATAPlinCAMB/'
+   CHARACTER(len=256), PARAMETER :: varbase_NGenHALOFIT = 'Planck2013.Step_ByHand.HighAcc_matterpower'
+   REAL, PARAMETER :: kmin_lin_NGenHALOFIT = 1e-3
+   REAL, PARAMETER :: kmax_lin_NGenHALOFIT = 1e2
+   INTEGER, PARAMETER :: nk_plin_NGenHALOFIT = 128
+   REAL, PARAMETER :: As_norm_NGenHALOFIT = 2.14485e-9
+   REAL, PARAMETER :: kpiv_noh_default_NGenHALOFIT = 0.05
+   REAL, PARAMETER :: eps_kpiv_NGenHALOFIT = 1e-4
+   REAL, PARAMETER :: alin_NGenHALOFIT = 1.
+   INTEGER, PARAMETER :: flag_NGenHALOFIT = flag_matter
+   INTEGER, PARAMETER :: iorder_interp_NGenHALOFIT = 3
+   INTEGER, PARAMETER :: ifind_interp_NGenHALOFIT = ifind_split
+   INTEGER, PARAMETER :: iinterp_interp_NGenHALOFIT = iinterp_Lagrange
+   REAL, PARAMETER :: w_min_NGenHALOFIT = -1.05
+   REAL, PARAMETER :: w_max_NGenHALOFIT = -0.95
+   REAL, PARAMETER :: wa_min_NGenHALOFIT = -0.4
+   REAL, PARAMETER :: wa_max_NGenHALOFIT = 0.4
+   REAL, PARAMETER :: Om_m_min_NGenHALOFIT = 0.21
+   REAL, PARAMETER :: Om_m_max_NGenHALOFIT = 0.4
+   REAL, PARAMETER :: wc_min_NGenHALOFIT = 0.1
+   REAL, PARAMETER :: wc_max_NGenHALOFIT = 0.13
+   REAL, PARAMETER :: wb_min_NGenHALOFIT = 0.02
+   REAL, PARAMETER :: wb_max_NGenHALOFIT = 0.04
+   REAL, PARAMETER :: ns_min_NGenHALOFIT = 0.85
+   REAL, PARAMETER :: ns_max_NGenHALOFIT = 1.05
+   REAL, PARAMETER :: As_min_NGenHALOFIT = 1.72e-9
+   REAL, PARAMETER :: As_max_NGenHALOFIT = 2.58e-9
+   REAL, PARAMETER :: alpha_min_NGenHALOFIT = -0.2
+   REAL, PARAMETER :: alpha_max_NGenHALOFIT = 0.2
 
    ! Rebinnig
    LOGICAL, PARAMETER :: logk_interp_emulator = .TRUE.
@@ -81,17 +135,341 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER, INTENT(IN) :: version
-      LOGICAL, INTENT(IN) :: verbose
+      LOGICAL, OPTIONAL, INTENT(IN) :: verbose
 
       IF (is_in_array(version, [emulator_CosmicEmu, emulator_FrankenEmu, emulator_MiraTitan])) THEN
          CALL calculate_CosmicEmulator_power(k, a, Pk, cosm, version, verbose)
       ELSE IF (version == emulator_Euclid) THEN
          CALL calculate_EuclidEmulator_power(k, a, Pk, cosm)
+      ELSE IF (version == emulator_BACCO) THEN
+         CALL calculate_BACCO_power(k, a, Pk, cosm)
+      ELSE IF (version == emulator_HALOFIT) THEN
+         CALL calculate_NGenHALOFIT(k, a, Pk, cosm)
       ELSE
          STOP 'CALCULATE_EMULATOR_POWER: Error, emulator version not recognised'
       END IF
 
    END SUBROUTINE calculate_Emulator_power
+
+   SUBROUTINE calculate_NGenHALOFIT(k, a, Pk, cosm)
+
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: nk, na, ia
+      REAL :: kmin, kmax
+      REAL, ALLOCATABLE :: k_HF(:), Pk_HF(:, :)
+      INTEGER, PARAMETER :: iorder = iorder_interp_NGenHALOFIT
+      INTEGER, PARAMETER :: ifind = ifind_interp_NGenHALOFIT
+      INTEGER, PARAMETER :: iinterp = iinterp_interp_NGenHALOFIT
+
+      ! Array sizes
+      nk = size(k)
+      na = size(a)
+
+      ! Run N-Gen HALOFIT
+      ! TODO: Should nk here be the same as in the desired k array?
+      kmin = k(1)
+      kmax = k(nk)
+      CALL run_NgenHALOFIT(kmin, kmax, nk, k_HF, a, Pk_HF, cosm)
+
+      ! Interpolate results on to my k array
+      ALLOCATE(Pk(nk, na))
+      DO ia = 1, na
+         CALL interpolate_array(k_HF, Pk_HF(:, ia), k, Pk(:, ia), iorder, ifind, iinterp, logx=.TRUE., logy=.TRUE.)
+      END DO
+
+   END SUBROUTINE calculate_NGenHALOFIT
+
+   SUBROUTINE run_NGenHALOFIT(kmin, kmax, nk, k, a, Pk, cosm)
+
+      USE camb_stuff
+      REAL, INTENT(IN) :: kmin
+      REAL, INTENT(IN) :: kmax
+      INTEGER, INTENT(IN) :: nk
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: ik
+      CHARACTER(len=256), PARAMETER :: exe = exe_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: dir = dir_temp_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: linfile = linfilefull_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: inifile = inifile_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: expfile = expfile_NGenHALOFIT
+      REAL, PARAMETER :: kmin_lin = kmin_lin_NGenHALOFIT
+      REAL, PARAMETER :: kmax_lin = kmax_lin_NGenHALOFIT
+      INTEGER, PARAMETER :: nk_lin = nk_plin_NGenHALOFIT
+      REAL, PARAMETER :: alin = alin_NGenHALOFIT
+      INTEGER, PARAMETER :: flag = flag_NGenHALOFIT
+      REAL, PARAMETER :: kpiv_noh_default = kpiv_noh_default_NGenHALOFIT
+      REAL, PARAMETER :: eps_kpiv = eps_kpiv_NGenHALOFIT
+      REAL, PARAMETER :: w_min = w_min_NGenHALOFIT
+      REAL, PARAMETER :: w_max = w_max_NGenHALOFIT
+      REAL, PARAMETER :: wa_min = wa_min_NGenHALOFIT
+      REAL, PARAMETER :: wa_max = wa_max_NGenHALOFIT
+      REAL, PARAMETER :: Om_m_min = Om_m_min_NGenHALOFIT
+      REAL, PARAMETER :: Om_m_max = Om_m_max_NGenHALOFIT
+      REAL, PARAMETER :: wc_min = wc_min_NGenHALOFIT
+      REAL, PARAMETER :: wc_max = wc_max_NGenHALOFIT
+      REAL, PARAMETER :: wb_min = wb_min_NGenHALOFIT
+      REAL, PARAMETER :: wb_max = wb_max_NGenHALOFIT
+      REAL, PARAMETER :: ns_min = ns_min_NGenHALOFIT
+      REAL, PARAMETER :: ns_max = ns_max_NGenHALOFIT
+      REAL, PARAMETER :: As_min = As_min_NGenHALOFIT
+      REAL, PARAMETER :: As_max = As_max_NGenHALOFIT
+      REAL, PARAMETER :: alpha_min = alpha_min_NGenHALOFIT
+      REAL, PARAMETER :: alpha_max = alpha_max_NGenHALOFIT
+
+      ! Checks
+      IF (.NOT. cosm%is_init) STOP 'RUN_NGENHALOFIT: Error, cosmology is not initialised'
+      IF (cosm%k /= 0.) WRITE(*, *) 'RUN_NGENHALOFIT: Warning, NGenHalofit only supports flat cosmologies'
+      IF (cosm%m_nu /= 0.) WRITE(*, *) 'RUN_NGENHALOFIT: Warning, NGenHalofit does not support massive neutrino cosmologies'
+      IF (.NOT. requal(cosm%kpiv*cosm%h, kpiv_noh_default, eps_kpiv)) THEN
+         WRITE(*, *) 'RUN_NGENHALOFIT: kpiv [h/Mpc]:', cosm%kpiv
+         WRITE(*, *) 'RUN_NGENHALOFIT: kpiv [1/Mpc]:', cosm%kpiv*cosm%h
+         STOP 'RUN_NGENHALOFIT: Error, NGenHalofit assumes pivot scale of 0.05 Mpc^-1 CHECK'
+      END IF
+
+      ! Needs to be called for As to be correct
+      IF (.NOT. cosm%is_normalised) CALL normalise_power(cosm)
+
+      ! Check parameter range
+      IF (.NOT. between(cosm%w, w_min, w_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, w is outside boundary'
+      IF (.NOT. between(cosm%wa, wa_min, wa_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, wa is outside boundary'
+      IF (.NOT. between(cosm%Om_m, Om_m_min, Om_m_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, Omega_m is outside boundary'
+      IF (.NOT. between(cosm%Om_c*cosm%h**2, wc_min, wc_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, omega_c is outside boundary'
+      IF (.NOT. between(cosm%Om_b*cosm%h**2, wb_min, wb_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, omega_b is outside boundary'
+      IF (.NOT. between(cosm%ns, ns_min, ns_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, ns is outside boundary'
+      IF (.NOT. between(cosm%As, As_min, As_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, As is outside boundary'
+      IF (.NOT. between(cosm%alpha, alpha_min, alpha_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, alpha is outside boundary'
+
+      ! Remove any previous files
+      CALL EXECUTE_COMMAND_LINE('rm -rf '//trim(dir)//'*')
+
+      ! Write the ini file and list of expansion factors
+      CALL write_NGenHALOFIT_ini_file(kmin, kmax, nk, cosm, inifile, dir)
+      CALL write_NGenHALOFIT_exp_file(a, expfile)
+
+      ! Write a CAMB format linear power spectrum
+      ! TODO: It is a bit lazy to re-use the k, Pk arrays here
+      CALL fill_array(kmin_lin, kmax_lin, k, nk_lin, ilog=.TRUE.)
+      ALLOCATE(Pk(nk_lin, 1))
+      DO ik = 1, nk_lin
+         Pk(ik, 1) = plin(k(ik), alin, flag, cosm)
+      END DO
+      CALL write_CAMB_Pk(k, Pk(:, 1), linfile, header=.FALSE.)
+      DEALLOCATE(k, Pk)
+
+      ! Run NGenHALOFIT
+      CALL EXECUTE_COMMAND_LINE('cd '//trim(dir_NGenHALOFIT)//' && '//trim(exe)//' '//trim(inifile)//' '//trim(expfile)//' > /dev/null')
+
+      ! Read in the power data
+      CALL read_NGenHALOFIT_power(k, a, Pk)
+
+   END SUBROUTINE run_NGenHALOFIT
+
+   SUBROUTINE write_NGenHALOFIT_ini_file(kmin, kmax, nk, cosm, outfile, dir)
+
+      REAL, INTENT(IN) :: kmin
+      REAL, INTENT(IN) :: kmax
+      INTEGER, INTENT(IN) :: nk
+      TYPE(cosmology), INTENT(IN) :: cosm
+      CHARACTER(len=256), INTENT(IN) :: outfile
+      CHARACTER(len=256), INTENT(IN) :: dir
+      INTEGER :: u
+      LOGICAL, PARAMETER :: logk = .TRUE.
+      REAL, PARAMETER :: As_norm = As_norm_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: powbase = powbase_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: MPTbase = MPTbase_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: linfile = linfile_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: vardir = vardir_NGenHALOFIT
+      CHARACTER(len=256), PARAMETER :: varbase = varbase_NGenHALOFIT
+
+      OPEN(newunit=u, file=outfile)
+
+      ! Cosmology
+      WRITE (u, *) 'aexp 1.0'
+      WRITE (u, *) 'w0', cosm%w
+      WRITE (u, *) 'w1', cosm%wa
+      WRITE (u, *) 'om_ch20', cosm%Om_c*cosm%h**2
+      WRITE (u, *) 'om_bh20', cosm%Om_b*cosm%h**2
+      WRITE (u, *) 'om_DE0', 1.-cosm%Om_m
+      WRITE (u, *) 'As', cosm%As/As_norm
+      WRITE (u, *) 'pindex', cosm%ns
+      WRITE (u, *) 'running', cosm%alpha
+
+      ! Input parameters
+      WRITE (u, *) 'nPkOut', nk
+      WRITE (u, *) 'rkOutMIN', kmin
+      WRITE (u, *) 'rkOutMAX', kmax
+      IF (logk) THEN
+         WRITE (u, *) 'iLogOrLin 1'
+      ELSE
+         WRITE (u, *) 'iLogOrLin 0'
+      END IF
+      WRITE (u, *) 'iGenEffSpecTarget	1'
+      WRITE (u, *) 'iGenEffSpecVar	0'
+
+      ! File handlers
+      WRITE (u, *) 'OutputDir ', trim(dir)
+      WRITE (u, *) 'OutputFileBase ', trim(powbase)
+      WRITE (u, *) 'OutputMPTFileBase ', trim(MPTbase)
+      WRITE (u, *) 'PowDirTarget ', trim(dir)
+      WRITE (u, *) 'PowFileTarget ', trim(linfile)
+      WRITE (u, *) 'PowDirVar ', trim(vardir)
+      WRITE (u, *) 'PowFileBaseVar ', trim(varbase)
+
+      CLOSE(u)
+
+   END SUBROUTINE write_NGenHALOFIT_ini_file
+
+   SUBROUTINE write_NGenHALOFIT_exp_file(a, outfile)
+
+      REAL, INTENT(IN) :: a(:)
+      CHARACTER(len=256), INTENT(IN) :: outfile
+      INTEGER :: u
+      INTEGER :: ia
+
+      ! Write a file of scale factors with one scale factor per line
+      OPEN(newunit=u, file=outfile)
+      DO ia = 1, size(a)
+         WRITE (u, *) a(ia)
+      END DO
+      CLOSE(u)
+
+   END SUBROUTINE write_NGenHALOFIT_exp_file
+
+   SUBROUTINE read_NGenHALOFIT_power(k, a, Pk)
+
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      REAL :: crap
+      INTEGER :: ik, ia, nk, na
+      INTEGER :: u
+      CHARACTER(len=256) :: infile
+      CHARACTER(len=256), PARAMETER :: inbase = trim(dir_temp_NGenHALOFIT)//trim(powbase_NGenHALOFIT)
+
+      ! Loop over scale factors
+      na = size(a)
+      DO ia = 1, na
+
+         ! Get the infile name and allocate arrays if necessary
+         infile = trim(inbase)//'.'//trim(integer_to_string(ia-1))//'.dat'
+         IF (ia == 1) THEN
+            nk = file_length(infile)
+            ALLOCATE(k(nk), Pk(nk, na))
+         END IF
+
+         ! Read in NGenHalofit power spectrum
+         OPEN(newunit=u, file=infile)
+         DO ik = 1, size(k)
+            !READ(u, *) k(ik), crap, Pk(ik, ia) ! Column 3 is Takahashi HALOFIT
+            READ(u, *) k(ik), crap, crap, Pk(ik, ia) ! Column 4 is NGenHALOFIT
+         END DO
+         CLOSE(u)
+
+         ! Convert P(k) to Delta^2(k)
+         Pk(:, ia) = Delta_Pk(Pk(:, ia), k)
+
+      END DO
+
+   END SUBROUTINE read_NGenHALOFIT_power
+
+   SUBROUTINE calculate_BACCO_power(k, a, Pk, cosm)
+
+      ! NOTE: BACCO calculates things for the cold matter power spectrum
+      REAL, INTENT(IN) :: k(:)
+      REAL, INTENT(IN) :: a(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)    
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, ALLOCATABLE :: k_emu(:), Bk_emu(:), Pk_mm_lin(:, :), Pk_cc_lin(:, :)
+      INTEGER :: ia, na, nk
+      CHARACTER(len=256) :: corrfile = trim(outfile_BACCO)
+      REAL, PARAMETER :: ksmall = ksmall_BACCO
+      INTEGER, PARAMETER :: iorder = iorder_rebin
+      INTEGER, PARAMETER :: ifind = ifind_rebin
+      INTEGER, PARAMETER :: iinterp = iinterp_rebin
+      LOGICAL, PARAMETER :: logk_interp = logk_interp_emulator
+      LOGICAL, PARAMETER :: logBk_interp = logBk_interp_emulator
+
+      ! Allocate array for the output power spectrumm
+      nk = size(k)
+      na = size(a)
+      ALLOCATE(Pk(nk, na))
+
+      ! Calculate the linear power
+      ! NOTE: This calculates the linear matter-matter power, but BACCO only considers cold matter
+      CALL calculate_plin(k, a, Pk_mm_lin, flag_matter, cosm)
+      CALL calculate_plin(k, a, Pk_cc_lin, flag_cold, cosm)
+
+      ! Run the emulator and interpolate the correction from the EE k to the input k
+      DO ia = 1, na
+         CALL run_BACCO(a(ia), cosm)
+         CALL read_BACCO_correction(k_emu, Bk_emu, corrfile)
+         CALL insert_in_array(ksmall, 1, k_emu)
+         CALL insert_in_array(1., 1, Bk_emu)
+         CALL interpolate_array(k_emu, Bk_emu, k, Pk(:, ia), iorder, ifind, iinterp, logk_interp, logBk_interp)
+      END DO
+
+      ! Multiply the correction by the linear power to get the non-linear spectrum
+      ! NOTE: Apply correction to cold spectrum only, then add residual from neutrinos
+      Pk = Pk_cc_lin*Pk+Pk_mm_lin-Pk_cc_lin
+
+   END SUBROUTINE calculate_BACCO_power
+
+   SUBROUTINE run_BACCO(a, cosm)
+
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(IN) :: cosm
+      CHARACTER(len=256) :: command, c, s8, b, ns, h, nu, w, wa, aexp
+      CHARACTER(len=256), PARAMETER :: exe = exe_BACCO
+      CHARACTER(len=256), PARAMETER :: outfile = outfile_BACCO
+
+      ! Checks
+      IF (cosm%k /= 0.) STOP 'RUN_BACCO: Error, does not support curved models'
+
+      ! Remove previous data files
+      CALL EXECUTE_COMMAND_LINE('rm -f '//trim(outfile))
+
+      ! Commands
+      c = ' '//trim(real_to_string(cosm%Om_c+cosm%Om_b, 1, 5))
+      s8 = ' '//trim(real_to_string(cosm%sig8*(1.-cosm%f_nu), 1, 5))
+      b = ' '//trim(real_to_string(cosm%Om_b, 1, 5))
+      ns = ' '//trim(real_to_string(cosm%ns, 1, 5))
+      h = ' '//trim(real_to_string(cosm%h, 1, 5))
+      nu = ' '//trim(real_to_string(cosm%m_nu, 1, 5))
+      w = ' '//trim(real_to_string(cosm%w, 1, 5))
+      wa = ' '//trim(real_to_string(cosm%wa, 1, 5))
+      aexp = ' '//trim(real_to_string(a, 1, 5))
+      command = 'python3 '//trim(exe)//trim(c)//trim(s8)//trim(b)//trim(ns)//trim(h)//trim(nu)//trim(w)//trim(wa)//trim(aexp)
+
+      ! Run the emulator
+      CALL EXECUTE_COMMAND_LINE(trim(command)//' > /dev/null')
+
+   END SUBROUTINE run_BACCO
+
+   SUBROUTINE read_BACCO_correction(k, Bk, infile)
+
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Bk(:)
+      CHARACTER(len=*), INTENT(IN) :: infile
+      INTEGER :: ik, nk, u
+
+      ! Allocate arrays (remember one-line header)
+      nk = file_length(infile)
+      ALLOCATE(k(nk), Bk(nk))
+
+      ! Read in non-linear correction data
+      OPEN(newunit=u, file=infile)
+      DO ik = 1, nk
+         READ(u, *) k(ik), Bk(ik)
+      END DO
+      CLOSE(u)
+
+   END SUBROUTINE read_BACCO_correction
 
    SUBROUTINE calculate_EuclidEmulator_power(k, a, Pk, cosm)
 
@@ -99,9 +477,10 @@ CONTAINS
       REAL, INTENT(IN) :: a(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)    
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, ALLOCATABLE :: k_EE(:), Bk_EE(:), Pk_lin(:, :)
+      REAL, ALLOCATABLE :: k_emu(:), Bk_emu(:), Pk_lin(:, :)
       INTEGER :: ia, na, nk
       CHARACTER(len=256) :: corrfile = trim(outdir_Euclid)//trim(outfile_Euclid)
+      REAL, PARAMETER :: ksmall = ksmall_Euclid
       INTEGER, PARAMETER :: iorder = iorder_rebin
       INTEGER, PARAMETER :: ifind = ifind_rebin
       INTEGER, PARAMETER :: iinterp = iinterp_rebin
@@ -115,13 +494,15 @@ CONTAINS
 
       ! Calculate the linear power
       ! NOTE: Do this before calling the emulator to make sure that As is set
-      CALL calculate_plin(k, a, Pk_lin, cosm)
+      CALL calculate_plin(k, a, Pk_lin, flag_matter, cosm)
 
       ! Run the emulator and interpolate the correction from the EE k to the input k
       DO ia = 1, na
          CALL run_EuclidEumulator(a(ia), cosm)
-         CALL read_EuclidEmulator_correction(k_EE, Bk_EE, corrfile)
-         CALL interpolate_array(k_EE, Bk_EE, k, Pk(:, ia), iorder, ifind, iinterp, logk_interp, logBk_interp)
+         CALL read_EuclidEmulator_correction(k_emu, Bk_emu, corrfile)
+         CALL insert_in_array(ksmall, 1, k_emu)
+         CALL insert_in_array(1., 1, Bk_emu)
+         CALL interpolate_array(k_emu, Bk_emu, k, Pk(:, ia), iorder, ifind, iinterp, logk_interp, logBk_interp)
       END DO
 
       ! Multiply the correction by the linear power to get the non-linear spectrum
@@ -193,7 +574,7 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)    
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER, INTENT(IN) :: version
-      LOGICAL, INTENT(IN) :: verbose
+      LOGICAL, OPTIONAL, INTENT(IN) :: verbose
       REAL, ALLOCATABLE :: k_emu(:), Pk_emu(:, :)
       INTEGER :: ia, nk, na
       INTEGER, PARAMETER :: iorder = iorder_rebin
