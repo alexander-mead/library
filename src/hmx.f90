@@ -740,8 +740,9 @@ CONTAINS
       names(120) = 'Quasi-linear power in two-halo term'
       names(121) = 'Non-linear power in two-halo term with Tinker (2010) mass function'
       names(122) = 'Quasi-linear power in two-halo term with Tinker (2010) mass function'
-      names(123) = 'HMcode-2020 with extended mass range'
-      names(124) = 'HMcode-2020 feedback with extended mass range'
+      names(123) = 'HMcode (2020) with extended mass range'
+      names(124) = 'HMcode (2020) feedback with extended mass range'
+      names(125) = 'HMcode (2020) unfitted with extended mass range'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1901,7 +1902,7 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = 4
-      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 123, 124])) THEN
+      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 123, 124, 125])) THEN
          ! HMcode (2020)
          !  77 - Unfitted
          !  78 - Fitted to Cosmic Emu for k<1
@@ -1911,6 +1912,7 @@ CONTAINS
          ! 104 - Baryon model using HMx language
          ! 123 - Extended mass range
          ! 124 - Baryon response model and extended mass range
+         ! 125 - Unfitted with extended mass range
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
@@ -1924,7 +1926,7 @@ CONTAINS
          hmod%zD = 10.    ! 10 vs 100 makes a difference for EDE-type cosmologies
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
-         IF (ihm == 123 .OR. ihm == 124) THEN
+         IF (ihm == 123 .OR. ihm == 124 .OR. ihm == 125) THEN
             hmod%mmin = 1e0  ! Reduced lower-mass limit
             hmod%mmax = 1e18 ! Increased upper-mass limit
             hmod%n = 256     ! Increase number of points in mass
@@ -1974,9 +1976,15 @@ CONTAINS
             ! 103 - HMcode response baryon recipe
             ! 124 - As above but with extended mass range
             hmod%DMONLY_baryon_recipe = .TRUE.
-            IF (ihm == 103) hmod%response_baseline = HMcode2020
-            IF (ihm == 124) hmod%response_baseline = HMcode2020_CAMB
-            hmod%response_denominator = 77
+            IF (ihm == 103) THEN
+               hmod%response_baseline = HMcode2020
+               hmod%response_denominator = 77
+            ELSE IF (ihm == 124) THEN
+               hmod%response_baseline = HMcode2020_CAMB
+               hmod%response_denominator = 125
+            ELSE
+               STOP
+            END IF         
             hmod%As = 3.44
             hmod%As_T = -0.496
             hmod%Az = -0.0671
