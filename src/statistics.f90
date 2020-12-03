@@ -1,5 +1,7 @@
 MODULE statistics
 
+   USE sorting
+
    IMPLICIT NONE
 
    PRIVATE
@@ -12,8 +14,32 @@ MODULE statistics
    PUBLIC :: histogram
    PUBLIC :: calculate_confidence
    PUBLIC :: parameter_probability
+   PUBLIC :: percentile
+
+   INTEGER, PARAMETER :: percentile_sort = isort_bubble
 
 CONTAINS
+
+   REAL FUNCTION percentile(x, f)
+  
+      ! For input measuments x(n) calculates the x value above which a fraction 'f' of x(n) lie
+      ! Can be used to calculate interquartile ranges and such things
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: f
+      REAL, ALLOCATABLE :: y(:)
+      INTEGER :: i1, i2, n
+      REAL :: in
+      INTEGER, PARAMETER :: isort = percentile_sort
+
+      y = x
+      CALL sort(y, isort)
+      n = size(y)
+      in = 1.+f*(n-1)
+      i1 = floor(in)
+      i2 = ceiling(in)
+      percentile = (y(i1)*(i2-in)+y(i2)*(in-i1))
+
+   END FUNCTION percentile
 
    REAL FUNCTION mean(x)
 
