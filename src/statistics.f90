@@ -1,5 +1,6 @@
 MODULE statistics
 
+   USE basic_operations
    USE sorting
 
    IMPLICIT NONE
@@ -15,14 +16,48 @@ MODULE statistics
    PUBLIC :: calculate_confidence
    PUBLIC :: parameter_probability
    PUBLIC :: percentile
+   PUBLIC :: percentiles
 
    INTEGER, PARAMETER :: percentile_sort = isort_bubble
 
 CONTAINS
 
+   FUNCTION percentiles(x, f) 
+  
+      ! For input distribution or measuments x(n) calculates the x value above which a fraction 'f' of x(n) lie
+      ! Can be used to calculate interquartile ranges and such things
+      REAL, INTENT(IN) :: f(:)   
+      REAL, INTENT(IN) :: x(:)   
+      REAL :: percentiles(size(f))
+      REAL, ALLOCATABLE :: y(:)
+      INTEGER :: i1, i2, nx, nf, j
+      REAL :: in
+      INTEGER, PARAMETER :: isort = percentile_sort
+
+      y = x
+      CALL sort(y, isort)
+      nx = size(y)
+
+      DO j = 1, size(f)
+         IF(.NOT. between(f(j), 0., 1.)) THEN
+            STOP 'PERCENTILE: Error, f must be between 0 and 1'
+         ELSE IF (f(j) == 0.) THEN
+            percentiles(j) = minval(x)
+         ELSE IF (f(j) == 1.) THEN
+            percentiles(j) = maxval(x)
+         ELSE        
+            in = 1.+f(j)*(nx-1)
+            i1 = floor(in)
+            i2 = ceiling(in)
+            percentiles(j) = (y(i1)*(i2-in)+y(i2)*(in-i1)) ! Linear interpolation
+         END IF
+      END DO
+
+   END FUNCTION percentiles
+
    REAL FUNCTION percentile(x, f)
   
-      ! For input measuments x(n) calculates the x value above which a fraction 'f' of x(n) lie
+      ! For input distribution or measuments x(n) calculates the x value above which a fraction 'f' of x(n) lie
       ! Can be used to calculate interquartile ranges and such things
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: f
@@ -31,13 +66,21 @@ CONTAINS
       REAL :: in
       INTEGER, PARAMETER :: isort = percentile_sort
 
-      y = x
-      CALL sort(y, isort)
-      n = size(y)
-      in = 1.+f*(n-1)
-      i1 = floor(in)
-      i2 = ceiling(in)
-      percentile = (y(i1)*(i2-in)+y(i2)*(in-i1))
+      IF(.NOT. between(f, 0., 1.)) THEN
+         STOP 'PERCENTILE: Error, f must be between 0 and 1'
+      ELSE IF (f == 0.) THEN
+         percentile = minval(x)
+      ELSE IF (f == 1.) THEN
+         percentile = maxval(x)
+      ELSE
+         y = x
+         CALL sort(y, isort)
+         n = size(y)
+         in = 1.+f*(n-1)
+         i1 = floor(in)
+         i2 = ceiling(in)
+         percentile = (y(i1)*(i2-in)+y(i2)*(in-i1)) ! Linear interpolation
+      END IF
 
    END FUNCTION percentile
 
