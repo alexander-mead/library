@@ -517,6 +517,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: imeth_interp_dc = 2      ! Method for delta_c interpolation
    INTEGER, PARAMETER :: iextrap_dc = iextrap_std ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_dc = .TRUE.        ! Pre-calculate interpolation coefficients?
+   LOGICAL, PARAMETER :: cold_Nakamura = .FALSE.  ! Use cold Omega_m in Nakamura & Suto formula?
 
    ! Delta_v
    INTEGER, PARAMETER :: iorder_interp_Dv = 3     ! Polynomial order for Delta_v interpolation
@@ -524,6 +525,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: imeth_interp_Dv = 2      ! Method for Delta_v interpolation
    INTEGER, PARAMETER :: iextrap_Dv = iextrap_std ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_Dv = .TRUE.        ! Pre-calculate interpolation coefficients?
+   LOGICAL, PARAMETER :: cold_Bryan = .FALSE.      ! Use cold Omega_m in Bryan & Norman formula?
 
    ! HALOFIT
    INTEGER, PARAMETER :: HALOFIT_Smith = 1       ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
@@ -4868,13 +4870,12 @@ CONTAINS
    REAL FUNCTION dc_NakamuraSuto(a, cosm)
 
       ! Nakamura & Suto (1997; arXiv:astro-ph/9612074) fitting formula for spherical-collapse in LCDM
-      ! TODO: Use Omega_cold or Omega_m here? Tests fail if this is changed, so makes a difference
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: Om_mz
-      LOGICAL :: cold_growth_here = .TRUE. ! TODO: Change?
+      LOGICAL :: cold = cold_Nakamura
 
-      IF (cold_growth_here) THEN
+      IF (cold) THEN
          Om_mz = Omega_cold_norad(a, cosm)
       ELSE
          Om_mz = Omega_m_norad(a, cosm)
@@ -4887,13 +4888,12 @@ CONTAINS
 
       ! Bryan & Norman (1998; arXiv:astro-ph/9710107) spherical over-density fitting function
       ! Here overdensity is defined relative to the background matter density, rather than the critical density
-      ! TODO: Use Omega_cold or Omega_m here? Tests fail if this is changed, so makes a difference
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: x, Om_mz
-      LOGICAL :: cold_growth_here = .TRUE. ! TODO: Change?
+      LOGICAL :: cold = cold_Bryan
 
-      IF (cold_growth_here) THEN
+      IF (cold) THEN
          Om_mz = Omega_cold_norad(a, cosm)
       ELSE
          Om_mz = Omega_m_norad(a, cosm)
