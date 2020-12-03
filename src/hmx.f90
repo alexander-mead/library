@@ -2207,7 +2207,7 @@ CONTAINS
       hmod%nu = hmod%dc/hmod%sig
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: M, R, rv, sigma, nu tables filled'
-      IF (hmod%nu(1) > 1.) WRITE(*, *) 'INIT_HALOMOD: WARNING: lowest nu value stored is greater than unity, z:', hmod%z
+      IF (hmod%nu(1) > 1.) WRITE(*, *) 'INIT_HALOMOD: WARNING: lowest nu value stored is greater than unity, z:', real(hmod%z)
 
       ! For spectra with finite variance we have cut-off masses etc.
       IF(cosm%warm) THEN
