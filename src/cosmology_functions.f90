@@ -206,7 +206,7 @@ MODULE cosmology_functions
       ! Primary parameters
       CHARACTER(len=256) :: name            ! Name for cosmological model
       REAL :: Om_m, Om_b, Om_v, Om_w        ! Densities
-      REAL :: ns, alpha                     ! Primordial spectrum
+      REAL :: ns, nrun, nrunrun             ! Primordial spectrum
       REAL :: h, w, wa, m_wdm, YH           ! Cosmological parameters
       REAL :: a1, a2, nstar, ws, am, dm, wm ! Dark-energy parameters
       REAL :: T_CMB                         ! CMB temperature
@@ -896,7 +896,7 @@ CONTAINS
       cosm%m_nu = 0.     ! Neutrino mass
       cosm%h = 0.7       ! Dimensionless Hubble parameter
       cosm%ns = 0.96     ! Spectral index
-      cosm%alpha = 0.    ! Spectral tilt
+      cosm%nrun = 0.    ! Spectral tilt
       cosm%w = -1.       ! Dark energy equation of state
       cosm%wa = 0.       ! Dark energy time-varying equation of state
       cosm%T_CMB = 2.725 ! CMB temperature [K]
@@ -1661,7 +1661,7 @@ CONTAINS
          ! Random NGenHALOFIT cosmology
          CALL random_NGenHALOFIT_cosmology(cosm)
          cosm%iTk = iTk_CAMB
-         IF (icosmo == 272) cosm%alpha = 0.
+         IF (icosmo == 272) cosm%nrun = 0.
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -2034,7 +2034,8 @@ CONTAINS
             STOP 'COSMOLOGY: Error, iTk not set properly'
          END IF   
          WRITE (*, fmt=format) 'COSMOLOGY:', 'n_s:', cosm%ns
-         WRITE (*, fmt=format) 'COSMOLOGY:', 'alpha:', cosm%alpha
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'n_run:', cosm%nrun
+         WRITE (*, fmt=format) 'COSMOLOGY:', 'n_runrun:', cosm%nrunrun
          WRITE (*, fmt=format) 'COSMOLOGY:', 'kpiv [h/Mpc]:', cosm%kpiv
          WRITE (*, fmt=format) 'COSMOLOGY:', 'kpiv [1/Mpc]:', cosm%kpiv*cosm%h
          IF(cosm%norm_method == norm_sigma8) THEN
@@ -3874,9 +3875,10 @@ CONTAINS
       ! TODO: Add running of running, ...
       REAL, INTENT(IN) :: k
       TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: pow
+      REAL :: pow, lnkpiv
 
-      pow = cosm%ns+3.+cosm%alpha*log(k/cosm%kpiv)/2.
+      lnkpiv = log(k/cosm%kpiv)
+      pow = cosm%ns+3.+cosm%nrun*lnkpiv/2.!+cosm%nrunrun*lnkpiv**2/6.
       primordial_spectrum = (k/cosm%kpiv)**pow
 
    END FUNCTION primordial_spectrum
@@ -5365,7 +5367,7 @@ CONTAINS
       ! Primordial power spectrum properties
       WRITE (7, *) 'initial_power_num = 1'
       WRITE (7, *) 'scalar_spectral_index(1) =', cosm%ns
-      WRITE (7, *) 'scalar_nrun(1) =', cosm%alpha
+      WRITE (7, *) 'scalar_nrun(1) =', cosm%nrun
       WRITE (7, *) 'scalar_amp(1) =', cosm%As
       WRITE (7, *) 'pivot_scalar =', cosm%kpiv*cosm%h ! Note that CAMB uses 1/Mpc whereas I use h/Mpc
       WRITE (7, *) 'pivot_tensor =', cosm%kpiv*cosm%h ! Note that CAMB uses 1/Mpc whereas I use h/Mpc
@@ -6311,8 +6313,8 @@ CONTAINS
       REAL, PARAMETER :: ns_max = 1.05
       REAL, PARAMETER :: As_min = 1.72e-9
       REAL, PARAMETER :: As_max = 2.58e-9
-      REAL, PARAMETER :: alpha_min = -0.2
-      REAL, PARAMETER :: alpha_max = 0.2
+      REAL, PARAMETER :: nrun_min = -0.2
+      REAL, PARAMETER :: nrun_max = 0.2
 
       ! Randomly generate primary parameters
       cosm%w = random_uniform(w_min, w_max)
@@ -6322,7 +6324,7 @@ CONTAINS
       wb = random_uniform(wb_min, wb_max)
       cosm%ns = random_uniform(ns_min, ns_max)
       cosm%As = random_uniform(As_min, As_max)
-      cosm%alpha = random_uniform(alpha_min, alpha_max)
+      cosm%nrun = random_uniform(nrun_min, nrun_max)
    
       ! Convert to my primary parameters
       wm = wc+wb
