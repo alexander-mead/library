@@ -65,7 +65,6 @@ MODULE cosmic_emu_stuff
    CHARACTER(len=256), PARAMETER :: exe_MiraTitan = '/Users/Mead/Physics/MiraTitan/P_tot/emu.exe'
 
    ! Euclid Emulator
-   REAL, PARAMETER :: ksmall_Euclid = 1e-3 ! Small wavenumber to add to array and set correction to unity here [h/Mpc]
    CHARACTER(len=256), PARAMETER :: exe_Euclid = '/Users/Mead/Physics/EuclidEmulator2/ee2.exe'
    CHARACTER(len=256), PARAMETER :: dir_Euclid = '/Users/Mead/Physics/EuclidEmulator2/'
    CHARACTER(len=256), PARAMETER :: outdir_Euclid = trim(dir_Euclid)//'Mead/'
@@ -73,9 +72,7 @@ MODULE cosmic_emu_stuff
    CHARACTER(len=256), PARAMETER :: outfile_Euclid = trim(outbase_Euclid)//'0.dat'
 
    ! BACCO
-   REAL, PARAMETER :: ksmall_BACCO = 1e-3 ! Small wavenumber to add to array and set correction to unity here [h/Mpc]
    CHARACTER(len=256), PARAMETER :: exe_BACCO = '/Users/Mead/Physics/BACCO/run_BACCO.py'
-   !CHARACTER(len=256), PARAMETER :: dir_BACCO = '/Users/Mead/Physics/BACCO/'
    CHARACTER(len=256), PARAMETER :: outfile_BACCO = '/Users/Mead/Physics/BACCO/results.dat'
 
     ! NGenHALOFIT
@@ -115,8 +112,8 @@ MODULE cosmic_emu_stuff
    REAL, PARAMETER :: ns_max_NGenHALOFIT = 1.05
    REAL, PARAMETER :: As_min_NGenHALOFIT = 1.72e-9
    REAL, PARAMETER :: As_max_NGenHALOFIT = 2.58e-9
-   REAL, PARAMETER :: alpha_min_NGenHALOFIT = -0.2
-   REAL, PARAMETER :: alpha_max_NGenHALOFIT = 0.2
+   REAL, PARAMETER :: nrun_min_NGenHALOFIT = -0.2
+   REAL, PARAMETER :: nrun_max_NGenHALOFIT = 0.2
 
    ! Rebinnig
    LOGICAL, PARAMETER :: logk_interp_emulator = .TRUE.
@@ -219,17 +216,17 @@ CONTAINS
       REAL, PARAMETER :: ns_max = ns_max_NGenHALOFIT
       REAL, PARAMETER :: As_min = As_min_NGenHALOFIT
       REAL, PARAMETER :: As_max = As_max_NGenHALOFIT
-      REAL, PARAMETER :: alpha_min = alpha_min_NGenHALOFIT
-      REAL, PARAMETER :: alpha_max = alpha_max_NGenHALOFIT
+      REAL, PARAMETER :: nrun_min = nrun_min_NGenHALOFIT
+      REAL, PARAMETER :: nrun_max = nrun_max_NGenHALOFIT
 
       ! Checks
       IF (.NOT. cosm%is_init) STOP 'RUN_NGENHALOFIT: Error, cosmology is not initialised'
       IF (cosm%k /= 0.) WRITE(*, *) 'RUN_NGENHALOFIT: Warning, NGenHalofit only supports flat cosmologies'
       IF (cosm%m_nu /= 0.) WRITE(*, *) 'RUN_NGENHALOFIT: Warning, NGenHalofit does not support massive neutrino cosmologies'
       IF (.NOT. requal(cosm%kpiv*cosm%h, kpiv_noh_default, eps_kpiv)) THEN
-         WRITE(*, *) 'RUN_NGENHALOFIT: kpiv [h/Mpc]:', cosm%kpiv
-         WRITE(*, *) 'RUN_NGENHALOFIT: kpiv [1/Mpc]:', cosm%kpiv*cosm%h
-         STOP 'RUN_NGENHALOFIT: Error, NGenHalofit assumes pivot scale of 0.05 Mpc^-1 CHECK'
+        WRITE(*, *) 'RUN_NGENHALOFIT: kpiv [h/Mpc]:', cosm%kpiv
+        WRITE(*, *) 'RUN_NGENHALOFIT: kpiv [1/Mpc]:', cosm%kpiv*cosm%h
+        STOP 'RUN_NGENHALOFIT: Error, NGenHalofit assumes pivot scale of 0.05 Mpc^-1 CHECK'
       END IF
 
       ! Needs to be called for As to be correct
@@ -243,7 +240,7 @@ CONTAINS
       IF (.NOT. between(cosm%Om_b*cosm%h**2, wb_min, wb_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, omega_b is outside boundary'
       IF (.NOT. between(cosm%ns, ns_min, ns_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, ns is outside boundary'
       IF (.NOT. between(cosm%As, As_min, As_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, As is outside boundary'
-      IF (.NOT. between(cosm%alpha, alpha_min, alpha_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, alpha is outside boundary'
+      IF (.NOT. between(cosm%nrun, nrun_min, nrun_max)) WRITE (*, *) 'RUN_NGENHALOFIT: Warning, alpha is outside boundary'
 
       ! Remove any previous files
       CALL EXECUTE_COMMAND_LINE('rm -rf '//trim(dir)//'*')
@@ -298,7 +295,7 @@ CONTAINS
       WRITE (u, *) 'om_DE0', 1.-cosm%Om_m
       WRITE (u, *) 'As', cosm%As/As_norm
       WRITE (u, *) 'pindex', cosm%ns
-      WRITE (u, *) 'running', cosm%alpha
+      WRITE (u, *) 'running', cosm%nrun
 
       ! Input parameters
       WRITE (u, *) 'nPkOut', nk
@@ -386,9 +383,8 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)    
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, ALLOCATABLE :: k_emu(:), Bk_emu(:), Pk_mm_lin(:, :), Pk_cc_lin(:, :)
-      INTEGER :: ia, na, nk
+      INTEGER :: ik, ia, nk, na
       CHARACTER(len=256) :: corrfile = trim(outfile_BACCO)
-      REAL, PARAMETER :: ksmall = ksmall_BACCO
       INTEGER, PARAMETER :: iorder = iorder_rebin
       INTEGER, PARAMETER :: ifind = ifind_rebin
       INTEGER, PARAMETER :: iinterp = iinterp_rebin
@@ -409,13 +405,16 @@ CONTAINS
       DO ia = 1, na
          CALL run_BACCO(a(ia), cosm)
          CALL read_BACCO_correction(k_emu, Bk_emu, corrfile)
-         CALL insert_in_array(ksmall, 1, k_emu)
-         CALL insert_in_array(1., 1, Bk_emu)
          CALL interpolate_array(k_emu, Bk_emu, k, Pk(:, ia), iorder, ifind, iinterp, logk_interp, logBk_interp)
+         DO ik = 1, nk
+            IF (k(ik) < k_emu(1)) Pk(ik, ia) = 1.
+         END DO
       END DO
 
       ! Multiply the correction by the linear power to get the non-linear spectrum
       ! NOTE: Apply correction to cold spectrum only, then add residual from neutrinos
+      ! NOTE: P_mm = P_cc + 2P_nc + P_nn; for both non-linear and linear
+      ! NOTE: P_mm - P_cc = 2P_nc + P_nn; so making assumption that P_nc and P_nn are both linear
       Pk = Pk_cc_lin*Pk+Pk_mm_lin-Pk_cc_lin
 
    END SUBROUTINE calculate_BACCO_power
@@ -478,9 +477,8 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)    
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL, ALLOCATABLE :: k_emu(:), Bk_emu(:), Pk_lin(:, :)
-      INTEGER :: ia, na, nk
+      INTEGER :: ik, ia, nk, na
       CHARACTER(len=256) :: corrfile = trim(outdir_Euclid)//trim(outfile_Euclid)
-      REAL, PARAMETER :: ksmall = ksmall_Euclid
       INTEGER, PARAMETER :: iorder = iorder_rebin
       INTEGER, PARAMETER :: ifind = ifind_rebin
       INTEGER, PARAMETER :: iinterp = iinterp_rebin
@@ -500,9 +498,10 @@ CONTAINS
       DO ia = 1, na
          CALL run_EuclidEumulator(a(ia), cosm)
          CALL read_EuclidEmulator_correction(k_emu, Bk_emu, corrfile)
-         CALL insert_in_array(ksmall, 1, k_emu)
-         CALL insert_in_array(1., 1, Bk_emu)
          CALL interpolate_array(k_emu, Bk_emu, k, Pk(:, ia), iorder, ifind, iinterp, logk_interp, logBk_interp)
+         DO ik = 1, nk
+            IF (k(ik) < k_emu(1)) Pk(ik, ia) = 1.
+         END DO
       END DO
 
       ! Multiply the correction by the linear power to get the non-linear spectrum
