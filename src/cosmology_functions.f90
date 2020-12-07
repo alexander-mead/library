@@ -363,6 +363,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: flag_ucold = 3        ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
 
    ! Linear power interpolation
+   ! NOTE: In CAMB HMcode different accuracy parameters are used, for example linear interpolation
    LOGICAL, PARAMETER :: interp_all_power = .FALSE.      ! Create interpolators for all linear power spectra, even analytical ones
    REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used [h/Mpc]
    REAL, PARAMETER :: kmax_plin = 1e2                    ! Maximum wavenumber used [h/Mpc]
@@ -377,6 +378,7 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: store_plin = .TRUE.             ! Pre-calculate interpolation coefficients
 
    ! CAMB interface
+   ! NOTE: rebin_CAMB makes a big difference in comparisons with CAMB HMcode; in CAMB P(k) *is* generally rebinned
    REAL, PARAMETER :: pk_min_CAMB = 1e-10                      ! Minimum value of power at low k (remove k with less than this) 
    REAL, PARAMETER :: nmax_CAMB = 2.                           ! How many times more to go than kmax due to inaccuracy near k limit
    CHARACTER(len=256), PARAMETER :: de_CAMB = 'ppf'            ! CAMB dark-energy prescription, either 'ppf' or 'fluid'
@@ -5597,7 +5599,6 @@ CONTAINS
       ! Initialise transfer function interpolation
       ! Transfer function needed for As
       ! TODO: Could save time here if total matter and cold matter identical
-      ! TODO: Surely log(Tk) is better for interpolation?
       ! TODO: This could be time consuming if interpolators filled but never used?
       IF (fill_Tk_interpolators .OR. cosm%iTc == iTc_CAMB) THEN
       
