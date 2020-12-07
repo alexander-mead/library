@@ -67,7 +67,6 @@ _OBJ = \
 	interpolate.o \
 	calculus_table.o \
 	string_operations.o \
-	statistics.o \
 	fitting.o \
 	gadget_stuff.o \
 	ode_solvers.o \
@@ -75,6 +74,7 @@ _OBJ = \
 	orbits.o \
 	solve_equations.o \
 	sorting.o \
+	statistics.o \
 	minimization.o \
 	cosmology_functions.o \
 	fft.o \

@@ -30,7 +30,7 @@ CONTAINS
       REAL, INTENT(IN) :: x(:)   
       REAL :: percentiles(size(f))
       REAL, ALLOCATABLE :: y(:)
-      INTEGER :: i1, i2, nx, nf, j
+      INTEGER :: i1, i2, nx, j
       REAL :: in
       INTEGER, PARAMETER :: isort = percentile_sort
 
