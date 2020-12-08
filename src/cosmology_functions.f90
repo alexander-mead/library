@@ -127,9 +127,9 @@ MODULE cosmology_functions
    PUBLIC :: Lagrangian_radius
 
    ! Normalisation
-   PUBLIC :: As
-   PUBLIC :: sigma8
-   PUBLIC :: pval
+   PUBLIC :: As_norm
+   PUBLIC :: sigma8_norm
+   PUBLIC :: pval_norm
 
    ! Correlation function
    PUBLIC :: xi_lin
@@ -139,7 +139,7 @@ MODULE cosmology_functions
    PUBLIC :: norm_sigma8
    PUBLIC :: norm_none
    PUBLIC :: norm_As
-   PUBLIC :: norm_value
+   PUBLIC :: norm_pval
 
    ! Flags for power type
    PUBLIC :: flag_matter
@@ -356,7 +356,7 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iTk_nw = 5            ! No-wiggle Eisenstein & Hu linear spectrum
    INTEGER, PARAMETER :: norm_none = 0         ! Power spectrum does not need to be normalised
    INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
-   INTEGER, PARAMETER :: norm_value = 2        ! Normalise power spectrum via specifying a value at a k 
+   INTEGER, PARAMETER :: norm_pval = 2         ! Normalise power spectrum via specifying a value at a k 
    INTEGER, PARAMETER :: norm_As = 3           ! Normalise power spectrum vis As value as in CAMB   
    INTEGER, PARAMETER :: flag_matter = 1       ! Flag to get the total matter power spectrum
    INTEGER, PARAMETER :: flag_cold = 2         ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_matter
@@ -928,12 +928,11 @@ CONTAINS
       ! Power spectrum normalisation
       !cosm%norm_method = norm_none   ! No normalisation, just take value of A from below
       cosm%norm_method = norm_sigma8 ! Normalise using sigma_8
-      !cosm%norm_method = norm_value ! Large-scale structure normalisation at a specific wavenumber at z=0
-      !cosm%norm_method = norm_As    ! As normalisation   
-      !cosm%A = 391.                 ! 391. is appropriate for sigma_8=0.8 in boring cosmology (for tests) 
+      !cosm%norm_method = norm_pval   ! Large-scale structure normalisation at a specific wavenumber at z=0
+      !cosm%norm_method = norm_As     ! As normalisation   
       cosm%sig8 = 0.8                ! norm_sigma8: sigma(R=8, a=1) normalisation
-      cosm%kval = 0.001              ! norm_value: Wavenumber for normalisation [h/Mpc]
-      cosm%pval = 0.1973236854e-06   ! norm_value: Delta^2 value to get sig8 = 0.8 for a boring cosmology
+      cosm%kval = 0.001              ! norm_pval: Wavenumber for normalisation [h/Mpc]
+      cosm%pval = 0.1973236854e-06   ! norm_pval: Delta^2 value to get sig8 = 0.8 for a boring cosmology
       cosm%kpiv = 0.05               ! norm_As: Wavenumber at which to define As normalisation NOTE: [h/Mpc]
       cosm%As = 2.1e-9               ! norm_As: 2.1e-9 is a sensible value
       
@@ -1399,7 +1398,7 @@ CONTAINS
          END IF 
       ELSE IF (icosmo == 59) THEN
          ! Bump in power
-         cosm%norm_method = norm_value ! Normalise like this to prevent bump annoying sigma8        
+         cosm%norm_method = norm_pval ! Normalise like this to prevent bump annoying sigma8        
          cosm%bump = 1
          cosm%A_bump = 0.08
          cosm%k_bump = 5.
@@ -1411,7 +1410,7 @@ CONTAINS
          cosm%Om_m = 0.30
          cosm%ns = 0.96
          cosm%Om_v = 1.-cosm%Om_m
-         cosm%norm_method = norm_value
+         cosm%norm_method = norm_pval
          cosm%pval = 1.995809e-7 ! Gives sigma8 = 0.8 for no bump   
          cosm%iTk = iTk_CAMB
          IF (is_in_array(icosmo, [66, 67, 68, 72, 73, 74, 79, 80, 81])) THEN
@@ -2041,7 +2040,7 @@ CONTAINS
          IF(cosm%norm_method == norm_sigma8) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: sigma_8'
             WRITE (*, fmt=format) 'COSMOLOGY:', 'sigma_8:', cosm%sig8
-         ELSE IF(cosm%norm_method == norm_value) THEN
+         ELSE IF(cosm%norm_method == norm_pval) THEN
             WRITE (*, *) 'COSMOLOGY: Normalisation: Power'
             WRITE (*, fmt=format) 'COSMOLOGY:', 'k [h/Mpc]:', cosm%kval
             WRITE (*, fmt=format) 'COSMOLOGY:', 'Delta^2:', cosm%pval
@@ -2292,8 +2291,8 @@ CONTAINS
          STOP 'NORMALISE_POWER: Error, external power should not be re-normalised'
       ELSE IF (cosm%norm_method == norm_sigma8) THEN
          CALL normalise_power_sigma8(cosm)
-      ELSE IF (cosm%norm_method == norm_value) THEN
-         CALL normalise_power_value(cosm)
+      ELSE IF (cosm%norm_method == norm_pval) THEN
+         CALL normalise_power_pval(cosm)
       ELSE IF (cosm%norm_method == norm_As) THEN
          CALL normalise_power_As(cosm) 
       ELSE
@@ -2302,7 +2301,7 @@ CONTAINS
 
       ! If normalisation is not done via sigma8 then calculate the correct sigma8
       IF (cosm%norm_method .NE. norm_sigma8) CALL reset_sigma8(cosm)
-      IF (cosm%norm_method .NE. norm_value)  CALL reset_value(cosm)
+      IF (cosm%norm_method .NE. norm_pval)   CALL reset_pval(cosm)
       IF (cosm%norm_method .NE. norm_As)     CALL reset_As(cosm) ! TODO: Make this work
 
    END SUBROUTINE normalise_power
@@ -2324,7 +2323,7 @@ CONTAINS
       END IF
 
       ! Calculate the initial sigma_8 value (will not be correct)
-      sigma8_initial = sigma8(cosm)
+      sigma8_initial = sigma8_norm(cosm)
       IF (cosm%verbose) WRITE (*, *) 'NORMALISE_POWER_SIGMA8: Initial sigma_8:', real(sigma8_initial)
 
       ! Normalisation factor 
@@ -2336,7 +2335,7 @@ CONTAINS
       END IF
 
       ! Check that the normalisation has been done correctly
-      sigma8_final = sigma8(cosm)
+      sigma8_final = sigma8_norm(cosm)
 
       ! Write to screen
       IF (cosm%verbose) THEN
@@ -2348,14 +2347,14 @@ CONTAINS
 
    END SUBROUTINE normalise_power_sigma8
 
-   SUBROUTINE normalise_power_value(cosm)
+   SUBROUTINE normalise_power_pval(cosm)
 
       ! Normalise the power spectrum by fixing the power at some wavenumber at a=1
       TYPE(cosmology), INTENT(INOUT) :: cosm
    
-      cosm%A = cosm%A*sqrt(cosm%pval/pval(cosm))
+      cosm%A = cosm%A*sqrt(cosm%pval/pval_norm(cosm))
 
-   END SUBROUTINE normalise_power_value
+   END SUBROUTINE normalise_power_pval
 
    SUBROUTINE normalise_power_As(cosm)
 
@@ -2365,7 +2364,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       IF (cosm%analytical_Tk) THEN
-         cosm%A = cosm%A*sqrt(cosm%As/As(cosm))
+         cosm%A = cosm%A*sqrt(cosm%As/As_norm(cosm))
       ELSE
          cosm%A = 1.
       END IF
@@ -2376,31 +2375,31 @@ CONTAINS
 
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      cosm%sig8 = sigma8(cosm)
+      cosm%sig8 = sigma8_norm(cosm)
 
    END SUBROUTINE reset_sigma8
 
-   SUBROUTINE reset_value(cosm)
+   SUBROUTINE reset_pval(cosm)
 
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      cosm%pval = pval(cosm)
+      cosm%pval = pval_norm(cosm)
 
-   END SUBROUTINE reset_value
+   END SUBROUTINE reset_pval
 
    SUBROUTINE reset_As(cosm)
 
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       IF (cosm%analytical_Tk) THEN
-         cosm%As = As(cosm)       
+         cosm%As = As_norm(cosm)       
       ELSE
          cosm%As = cosm%As*cosm%A**2
       END IF
 
    END SUBROUTINE reset_As
 
-   RECURSIVE REAL FUNCTION sigma8(cosm)
+   RECURSIVE REAL FUNCTION sigma8_norm(cosm)
 
       ! Calculate the value of sigma8 from the linear power spectrum
       ! TODO: Needs to call sigma_intergral, rather than sigma, not sure why, maybe regression?
@@ -2409,22 +2408,22 @@ CONTAINS
       REAL, PARAMETER :: a = 1.                ! Because we are doing sigma(R = 8 Mpc/h, a = 1) normalisation
       INTEGER, PARAMETER :: flag = flag_matter ! sigma8 is defined for linear matter power, not cold matter
 
-      sigma8 = sigma_integral(R, a, flag, cosm)
+      sigma8_norm = sigma_integral(R, a, flag, cosm)
       !sigma8 = sigma(R, a, flag_matter, cosm) ! Why not? 
 
-   END FUNCTION sigma8
+   END FUNCTION sigma8_norm
 
-   RECURSIVE REAL FUNCTION pval(cosm)
+   RECURSIVE REAL FUNCTION pval_norm(cosm)
 
       TYPE(cosmology), INTENT(INOUT) :: cosm   ! Cosmology
       REAL, PARAMETER :: a = 1.                ! Because we are doing sigma(R = 8 Mpc/h, a = 1) normalisation
       INTEGER, PARAMETER :: flag = flag_matter ! sigma8 is defined for linear matter power, not cold matter
 
-      pval = plin(cosm%kval, a, flag, cosm)
+      pval_norm = plin(cosm%kval, a, flag, cosm)
 
-   END FUNCTION pval
+   END FUNCTION pval_norm
 
-   RECURSIVE REAL FUNCTION As(cosm)
+   RECURSIVE REAL FUNCTION As_norm(cosm)
 
       ! Calculate the value of A_s from the linear power spectrum; defined using kpiv
       ! See equation (10) of https://arxiv.org/pdf/1807.00040.pdf
@@ -2436,9 +2435,9 @@ CONTAINS
       kpiv = cosm%kpiv              ! Pivot wavenumber: As = As(kp)
       Tk = Tk_matter(kpiv, a, cosm) ! Matter transfer function at a = 1
       g = ungrow(a, cosm)           ! Growth factor at a=1 normalised such that g(a<<1) = a
-      As = (25./4.)*((cosm%Om_m/g)**2)*((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/Tk**2
+      As_norm = (25./4.)*((cosm%Om_m/g)**2)*((kpiv*Hdist)**(-4))*plin(kpiv, a, flag, cosm)/Tk**2
 
-   END FUNCTION As
+   END FUNCTION As_norm
 
    SUBROUTINE init_fR_linear(cosm)
 
