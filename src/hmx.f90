@@ -474,7 +474,7 @@ MODULE HMx
    !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/MDR1_'//trim(cat_bnl)
 
    ! HALOFIT (can be used as two-halo term)
-   INTEGER, PARAMETER :: HALOFIT_version = HALOFIT_Takahashi
+   INTEGER, PARAMETER :: HALOFIT_twohalo = HALOFIT_Takahashi
 
    ! Field types
    INTEGER, PARAMETER :: field_dmonly = 1
@@ -3867,6 +3867,7 @@ CONTAINS
       INTEGER, PARAMETER :: iorder = iorder_delta
       INTEGER, PARAMETER :: ifind = ifind_delta
       INTEGER, PARAMETER :: imeth = imeth_delta
+      INTEGER, PARAMETER :: HALOFIT_version = HALOFIT_twohalo
 
       ! Necessary to prevent warning for some reason
       I_11 = 0.
