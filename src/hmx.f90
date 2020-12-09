@@ -370,6 +370,8 @@ MODULE HMx
    END TYPE halomod
 
    ! Halo window function integration
+   ! NOTE: acc_win governs the speed of calculations with non-analytic halo profile Fourier transforms
+   ! NOTE: It seems that acc_win can be downgraded significantly without impacting accuracy too much
    REAL, PARAMETER :: acc_win = 1e-3           ! Window-function integration accuracy parameter
    INTEGER, PARAMETER :: imeth_win = 12        ! Window-function integration method
    INTEGER, PARAMETER :: winint_order = 3      ! Window-function integration order
