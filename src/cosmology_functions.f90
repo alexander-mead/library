@@ -896,7 +896,7 @@ CONTAINS
       cosm%m_nu = 0.     ! Neutrino mass
       cosm%h = 0.7       ! Dimensionless Hubble parameter
       cosm%ns = 0.96     ! Spectral index
-      cosm%nrun = 0.    ! Spectral tilt
+      cosm%nrun = 0.     ! Spectral tilt
       cosm%w = -1.       ! Dark energy equation of state
       cosm%wa = 0.       ! Dark energy time-varying equation of state
       cosm%T_CMB = 2.725 ! CMB temperature [K]
@@ -1632,7 +1632,7 @@ CONTAINS
          cosm%iTk = iTk_CAMB  
       ELSE IF (icosmo == 264) THEN
          ! Boring, but normalised via As
-         cosm%norm_method = norm_As  
+         cosm%norm_method = norm_As
       ELSE IF (icosmo == 265) THEN
          ! Fiducial from Smith & Angulo (2019)
          cosm%iTk = iTk_CAMB
@@ -2127,7 +2127,7 @@ CONTAINS
       ! Critical mass for neutrino density to close Universe [eV] 
       ! Roughly 94.1 eV, or is it 93.03 eV, or 93.14 eV?; https://arxiv.org/pdf/1812.02102.pdf
       ! Not really a constant because it depends on T_CMB, and also maybe Neff?
-      ! TODO: Should there be a factor of Neff/N (~3.046/3)^(3/4) here (gives 93.14 eV)?
+      ! TODO: Should there be a factor of Neff/N (~3.046/3)^(3/4) here (converts 94.14 -> 93.14 eV)?
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: C
 
