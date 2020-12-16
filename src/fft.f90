@@ -348,10 +348,10 @@ CONTAINS
       ! Create the plans for the FFT and execute
       IF (verbose) WRITE (*, *) 'FFT2_REAL_DOUBLE: Starting FFT - creating plan and executing simulatanesouly'
       IF (ifb == -1) THEN
-         CALL dfftw_plan_dft_r2c_3d(plan, nx, ny, rspace, fspace, FFTW_ESTIMATE)
+         CALL dfftw_plan_dft_r2c_2d(plan, nx, ny, rspace, fspace, FFTW_ESTIMATE)
          CALL dfftw_execute_dft_r2c(plan, rspace, fspace)
       ELSE IF (ifb == 1) THEN
-         CALL dfftw_plan_dft_c2r_3d(plan, nx, ny, fspace, rspace, FFTW_ESTIMATE)
+         CALL dfftw_plan_dft_c2r_2d(plan, nx, ny, fspace, rspace, FFTW_ESTIMATE)
          CALL dfftw_execute_dft_c2r(plan, fspace, rspace)
       ELSE
          WRITE (*, *) 'FFT2_REAL_DOUBLE: Error - need to specify forwards or backwards'
@@ -382,10 +382,10 @@ CONTAINS
       ! Create the plans for the FFT and execute
       IF (verbose) WRITE (*, *) 'FFT2_REAL_SINGLE: Starting FFT - creating plan and executing simulatanesouly'
       IF (ifb == -1) THEN
-         CALL sfftw_plan_dft_r2c_3d(plan, nx, ny, rspace, fspace, FFTW_ESTIMATE)
+         CALL sfftw_plan_dft_r2c_2d(plan, nx, ny, rspace, fspace, FFTW_ESTIMATE)
          CALL sfftw_execute_dft_r2c(plan, rspace, fspace)
       ELSE IF (ifb == 1) THEN
-         CALL sfftw_plan_dft_c2r_3d(plan, nx, ny, fspace, rspace, FFTW_ESTIMATE)
+         CALL sfftw_plan_dft_c2r_2d(plan, nx, ny, fspace, rspace, FFTW_ESTIMATE)
          CALL sfftw_execute_dft_c2r(plan, fspace, rspace)
       ELSE
          WRITE (*, *) 'FFT2_REAL_SINGLE: Error - need to specify forwards or backwards'
