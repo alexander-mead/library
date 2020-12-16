@@ -272,7 +272,8 @@ MODULE cosmology_functions
    END TYPE cosmology
 
    ! Global parameters
-   REAL, PARAMETER :: acc_cosm = 1e-4 ! Global accuacy for the cosmological integrations
+   REAL, PARAMETER :: acc_cosm = 1e-4        ! Global accuacy for the cosmological integrations
+   INTEGER, PARAMETER :: ncosmo_large = 1000 ! Needs to be larger than the total number of defined cosmologies TODO: Remove
 
    ! Writing to screen parameters
    REAL, PARAMETER :: small_curve = 1e-5 ! Used to decide if writing curvature to screen to avoid silly numbers
@@ -600,10 +601,14 @@ CONTAINS
       REAL :: wm, wb, wc
 
       ! Names of pre-defined cosmologies
-      INTEGER, PARAMETER :: ncosmo = 337
-      CHARACTER(len=256) :: names(ncosmo)
+      ! TODO: This is lazy, there must be a better way
+      INTEGER, PARAMETER :: ncosmo = ncosmo_large
+      CHARACTER(len=256), ALLOCATABLE :: names(:)
 
+      ! Allocate array for names (warning from gfortran 10)
+      ALLOCATE(names(ncosmo))
       names = ''
+
       names(1)  = 'Boring'
       names(2)  = 'WMAP7 (cosmo-OWLS)'
       names(3)  = 'Planck 2013 (cosmo-OWLS/BAHAMAS)'

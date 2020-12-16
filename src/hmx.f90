@@ -369,6 +369,9 @@ MODULE HMx
 
    END TYPE halomod
 
+   ! General
+   INTEGER, PARAMETER :: nhalomod_large = 1000 ! Needs to be larger than the total number of defined 'halo models' TODO: Remove
+
    ! Halo window function integration
    ! NOTE: acc_win governs the speed of calculations with non-analytic halo profile Fourier transforms
    ! NOTE: It seems that acc_win can be downgraded significantly without impacting accuracy too much
@@ -616,10 +619,14 @@ CONTAINS
       TYPE(halomod), INTENT(OUT) :: hmod
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: i
-      INTEGER, PARAMETER :: nhalomod = 1000 ! Some large-enough integer
-      CHARACTER(len=256):: names(nhalomod)
+      INTEGER, PARAMETER :: nhalomod = nhalomod_large ! Some large-enough integer
+      CHARACTER(len=256), ALLOCATABLE :: names(:)
 
+      ! Allocate array for names (warning from gfortran 10)
+      ! TODO: This is lazy, there must be a better way
+      ALLOCATE(names(nhalomod))
       names = ''
+
       names(1) =  'HMcode (2016)'
       names(2) =  'Basic halomodel (Two-halo term is linear; Dv=200; dc=1.686; c(M) Bullock)'
       names(3) =  'Standard halomodel (Seljak 2000)'
