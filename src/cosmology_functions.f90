@@ -161,21 +161,25 @@ MODULE cosmology_functions
    PUBLIC :: get_CAMB_power
    PUBLIC :: CAMB_HALOFIT_Smith
    PUBLIC :: CAMB_HALOFIT_Bird
-   PUBLIC :: CAMB_HALOFIT_Takahashi 
+   PUBLIC :: CAMB_HALOFIT_Takahashi
    PUBLIC :: CAMB_HMcode2015
    PUBLIC :: CAMB_HMcode2016
    PUBLIC :: CAMB_HMcode2020
    PUBLIC :: CAMB_HMcode2020_feedback
+   PUBLIC :: CAMB_HALOFIT_Smith_paper
+   PUBLIC :: CAMB_HALOFIT_Bird_paper
+   PUBLIC :: CAMB_HALOFIT_Takahashi_paper
 
    ! HALOFIT
    PUBLIC :: calculate_HALOFIT
    PUBLIC :: calculate_HALOFIT_a
    PUBLIC :: calculate_HALOFIT_ka
    PUBLIC :: HALOFIT_init
-   PUBLIC :: HALOFIT_Smith
+   PUBLIC :: HALOFIT_Smith_code
    PUBLIC :: HALOFIT_Smith_paper
-   PUBLIC :: HALOFIT_Bird
+   PUBLIC :: HALOFIT_Bird_code
    PUBLIC :: HALOFIT_Bird_paper
+   PUBLIC :: HALOFIT_Bird_CAMB
    PUBLIC :: HALOFIT_Takahashi
    PUBLIC :: HALOFIT_CAMB
    PUBLIC :: HALOFIT_CLASS
@@ -530,23 +534,32 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: store_Dv = .TRUE.        ! Pre-calculate interpolation coefficients?
    LOGICAL, PARAMETER :: cold_Bryan = .FALSE.      ! Use cold Omega_m in Bryan & Norman formula?
 
-   ! HALOFIT
-   INTEGER, PARAMETER :: HALOFIT_Smith = 1       ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
-   INTEGER, PARAMETER :: HALOFIT_Bird = 2        ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   ! HALOFIT versions
+   INTEGER, PARAMETER :: HALOFIT_Smith_code = 1  ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
+   INTEGER, PARAMETER :: HALOFIT_Bird_code = 2   ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
    INTEGER, PARAMETER :: HALOFIT_Takahashi = 3   ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
-   INTEGER, PARAMETER :: HALOFIT_CAMB = 4        ! Version as used in CAMB  (2020)
-   INTEGER, PARAMETER :: HALOFIT_CLASS = 5       ! Version as used in CLASS (2020)
+   INTEGER, PARAMETER :: HALOFIT_CAMB = 4        ! Version as used in CAMB (2020) a hybrid of Takahashi and Bird
+   INTEGER, PARAMETER :: HALOFIT_CLASS = 5       ! Version as used in CLASS (2020) ?
    INTEGER, PARAMETER :: HALOFIT_Smith_paper = 6 ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664)
    INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: HALOFIT_Bird_CAMB = 8   ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+
+   ! HALOFIT parameters
+   REAL, PARAMETER :: HALOFIT_acc = 1e-3  ! Accuracy for HALOFIT calculation of knl, neff, ncur
+   REAL, PARAMETER :: HALOFIT_logr1 = -3. ! log10(R / Mpc/h) minimum filter size to start search
+   REAL, PARAMETER :: HALOFIT_logr2 = 3.5 ! log10(R / Mpc/h) maximum filter size to start search
 
    ! CAMB non-linear numbering schemes
-   INTEGER, PARAMETER :: CAMB_HALOFIT_Smith = 1        ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
-   INTEGER, PARAMETER :: CAMB_HALOFIT_Bird = 2         ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
-   INTEGER, PARAMETER :: CAMB_HALOFIT_Takahashi = 4    ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
-   INTEGER, PARAMETER :: CAMB_HMcode2015 = 8           ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
-   INTEGER, PARAMETER :: CAMB_HMcode2016 = 5           ! Mead et al. (2016; https://arxiv.org/abs/1602.02154)
-   INTEGER, PARAMETER :: CAMB_HMcode2020 = 9           ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
-   INTEGER, PARAMETER :: CAMB_HMcode2020_feedback = 10 ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
+   INTEGER, PARAMETER :: CAMB_HALOFIT_Smith = 1            ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
+   INTEGER, PARAMETER :: CAMB_HALOFIT_Bird = 2             ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: CAMB_HALOFIT_Takahashi = 4        ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
+   INTEGER, PARAMETER :: CAMB_HALOFIT_Smith_paper = 11     ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
+   INTEGER, PARAMETER :: CAMB_HALOFIT_Bird_paper = 12      ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: CAMB_HALOFIT_Takahashi_paper = 13 ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
+   INTEGER, PARAMETER :: CAMB_HMcode2015 = 8               ! Mead et al. (2015; https://arxiv.org/abs/1505.07833)
+   INTEGER, PARAMETER :: CAMB_HMcode2016 = 5               ! Mead et al. (2016; https://arxiv.org/abs/1602.02154)
+   INTEGER, PARAMETER :: CAMB_HMcode2020 = 9               ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
+   INTEGER, PARAMETER :: CAMB_HMcode2020_feedback = 10     ! Mead et al. (2020; https://arxiv.org/abs/2009.01858)
 
    ! Standard perturbation theory (SPT)
    REAL, PARAMETER :: kmin_integrate_SPT = 1e-4    ! Minimum wavenumber for integration [h/Mpc]: -9.2 in Komatsu code
@@ -7105,19 +7118,21 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       LOGICAL, INTENT(IN) :: verbose
       REAL :: xlogr1, xlogr2, rmid, sig, d1, d2, diff
-      REAL, PARAMETER :: diff_limit = 0.001
+      REAL, PARAMETER :: diff_limit = HALOFIT_acc
+      REAL, PARAMETER :: logr1_init = HALOFIT_logr1
+      REAL, PARAMETER :: logr2_init = HALOFIT_logr2
 
       IF (verbose) WRITE (*, *) 'HALOFIT_INIT: computing effective spectral quantities:'
 
-      xlogr1 = -3.0
-      xlogr2 = 3.5
+      xlogr1 = logr1_init
+      xlogr2 = logr2_init
       DO
-         rmid = 10**((xlogr2+xlogr1)/2.0)
+         rmid = 10**((xlogr2+xlogr1)/2.)
          CALL wint_HALOFIT(rmid, sig, d1, d2, a, cosm)
          diff = sig-1.0
          IF (abs(diff) <= diff_limit) THEN
             rknl = 1./rmid
-            rneff = -3-d1
+            rneff = -3.-d1
             rncur = -d2
             EXIT
          ELSE IF (diff > diff_limit) THEN
@@ -7244,16 +7259,16 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER, INTENT(IN) :: ihf
-      REAL :: gam, aa, bb, cc, mu, nu, alpha, beta, f1, f2, f3, y, Q, fy
+      REAL :: gam, aa, bb, cc, mu, nu, alpha, beta, f1, f2, f3, y, P, Q, fy
       REAL :: om_mz, om_vz, fnu, om_m, wz
       real :: f1a, f2a, f3a, f1b, f2b, f3b, frac
 
       ! Necessary cosmological parameters
-      Om_m = cosm%Om_m         ! TODO: Should neutrinos be included?
-      Om_mz = Omega_m(a, cosm) ! TODO: Should neutrinos be included?
+      Om_m = cosm%Om_m        
+      Om_mz = Omega_m(a, cosm)
       Om_vz = Omega_v(a, cosm)+Omega_w(a, cosm) ! Note this well
       wz = w_de(a, cosm) ! Choice here; do you use w or w(z)? w(z) is better I think; CAMB makes w(z) choice too
-      fnu = cosm%Om_nu/cosm%Om_m ! TODO: Does this mean that neutrinos should not be included in Om_m?
+      fnu = cosm%Om_nu/cosm%Om_m
 
       IF (ihf == HALOFIT_Smith_paper) THEN
          ! Smith et al. (2003); the numbers here are EXACTLY those quoted in the paper!
@@ -7265,8 +7280,8 @@ CONTAINS
          beta = 0.8291+0.9854*rn+0.3401*rn**2 ! Smith equation (C14)
          mu = 10**(-3.5442+0.1908*rn) ! Smith equation (C15)
          nu = 10**(0.9589+1.2857*rn) ! Smith equation (C16)
-      ELSE IF (ihf == HALOFIT_Smith) THEN
-         ! Smith et al. (2003); the numbers here are EXACTLY those from the online code
+      ELSE IF (ihf == HALOFIT_Smith_code) THEN
+         ! Smith et al. (2003); the numbers here are EXACTLY those from the online code and the same numbers as in CAMB
          aa = 10**(1.4861+1.83693*rn+1.67618*rn**2+0.7940*rn**3+0.1670756*rn**4-0.620695*rncur)
          bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.940*rncur)
          cc = 10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)
@@ -7285,7 +7300,7 @@ CONTAINS
          beta = 0.8291+0.9854*rn+0.3401*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10), fnu term is new
          mu = 10**(-3.5442+0.1908*rn)
          nu = 10**(0.9589+1.2857*rn)
-      ELSE IF (ihf == HALOFIT_Bird) THEN
+      ELSE IF (ihf == HALOFIT_Bird_code) THEN
          ! Bird et al. (2012); based off Smith et al. (2003) with numbers taken from the online code
          aa = 10**(1.4861+1.83693*rn+1.67618*rn**2+0.7940*rn**3+0.1670756*rn**4-0.620695*rncur)
          bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.940*rncur)
@@ -7295,15 +7310,16 @@ CONTAINS
          beta = 0.8291+0.9854*rn+0.3400*rn**2+fnu*(-6.49+1.44*rn**2) ! Bird equation (A10), fnu term is new  
          mu = 10**(-3.54419+0.19086*rn)
          nu = 10**(0.95897+1.2857*rn)
-         ! These numbers match exactly what is in CAMB
-         !aa = 10**(1.4861+1.83693*rn+1.67618*rn**2+0.7940*rn**3+0.1670756*rn**4-0.620695*rncur)
-         !bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.940*rncur)
-         !cc = 10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)
-         !gam = 0.86485+0.2989*rn+0.1631*rncur+0.3159-0.0765*rn-0.8350*rncur ! Bird equation (A5), last 3 terms are new
-         !alpha = 1.38848+0.3701*rn-0.1452*rn**2
-         !beta = 0.8291+0.9854*rn+0.3400*rn**2+fnu*(-6.4868+1.4373*rn**2) ! Bird equation (A10), fnu term is new
-         !mu = 10**(-3.54419+0.19086*rn)
-         !nu = 10**(0.95897+1.2857*rn)
+      ELSE IF (ihf == HALOFIT_Bird_CAMB) THEN
+         ! Bird et al. (2012); based off Smith et al. (2003) with numbers taken from CAMB
+         aa = 10**(1.4861+1.83693*rn+1.67618*rn**2+0.7940*rn**3+0.1670756*rn**4-0.620695*rncur)
+         bb = 10**(0.9463+0.9466*rn+0.3084*rn**2-0.940*rncur)
+         cc = 10**(-0.2807+0.6669*rn+0.3214*rn**2-0.0793*rncur)
+         gam = 0.86485+0.2989*rn+0.1631*rncur+0.3159-0.0765*rn-0.8350*rncur ! Bird equation (A5), last 3 terms are new
+         alpha = 1.38848+0.3701*rn-0.1452*rn**2
+         beta = 0.8291+0.9854*rn+0.3400*rn**2+fnu*(-6.4868+1.4373*rn**2) ! Bird equation (A10), fnu term is new
+         mu = 10**(-3.54419+0.19086*rn)
+         nu = 10**(0.95897+1.2857*rn)
       ELSE IF (ihf == HALOFIT_Takahashi) THEN
          ! Takahashi et al. (2012); complete refit, all parameters different from Smith et al. (2003)
          aa = 10**(1.5222+2.8553*rn+2.3706*rn**2+0.9903*rn**3+0.2250*rn**4-0.6038*rncur+0.1749*Om_vz*(1.+wz)) ! Takahashi equation (A6)
@@ -7360,41 +7376,34 @@ CONTAINS
       ! Ratio of current wave number to the non-linear wave number
       y = rk/rknl
 
-      IF (ihf == HALOFIT_Smith .OR. ihf == HALOFIT_Smith_paper) THEN
-         ! Smith et al. (2003)
-         fy = y/4.+y**2/8.                                    ! Smith (below C2)
-         ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Smith (C4)
-         ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Smith (C3)
-         pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)      ! Smith (C2)
-      ELSE IF (ihf == HALOFIT_Bird .OR. ihf == HALOFIT_Bird_paper) THEN
+      ! Quasi-linear term    
+      IF (ihf == HALOFIT_Bird_code .OR. ihf == HALOFIT_Bird_paper .OR. ihf == HALOFIT_Bird_CAMB) THEN
          ! Bird et al. (2012)
-         fy = y/4.+y**2/8.
-         ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Bird equation (A2)
-         ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Bird equation (A1)
-         Q = fnu*(2.080-12.4*(Om_m-0.3))/(1.+(1.2e-3)*y**3)   ! Bird equation (A6); note Omega_m term
-         ph = ph*(1.+Q)                                       ! Bird equation (A7)
-         pq = pli*(1.+(26.3*fnu*rk**2)/(1.+1.5*rk**2))        ! Bird equation (A9)
-         pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)        ! Bird equation (A8)
-      ELSE IF (ihf == HALOFIT_Takahashi) THEN
-         ! Takahashi et al. (2012)
-         fy = y/4.+y**2/8.                                    ! Takahashi equation (below A2)
-         ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Takahashi equation (A3ii)
-         ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Takahashi equation (A3i)
-         pq = pli*(1.+pli)**beta/(1.+pli*alpha)*exp(-fy)      ! Takahashi equation (A2)
+         P = 26.3*fnu*rk**2/(1.+1.5*rk**2)
       ELSE IF (ihf == HALOFIT_CAMB) THEN
-         ! Unpublished CAMB stuff from halofit.f90
-         ! Note that this is used for ALL HALOFIT versions in CAMB, even Smith and Bird versions
-         fy = y/4.+y**2/8.
-         ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam))
-         ph = ph/(1.+mu*y**(-1)+nu*y**(-2))    
-         Q = fnu*0.977                                        ! CAMB; halofit_ppf.f90; halofit; note no Omega_m term
-         ph = ph*(1.+Q)
-         pq = pli*(1.+(47.48*fnu*rk**2)/(1.+1.5*rk**2))       ! CAMB; halofit_ppf.f90; halofit
-         pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)
+         ! Unpublished CAMB stuff from halofit.f90; note that this is used by ALL HALOFIT versions in CAMB, including Smith and Bird versions
+         P = 47.48*fnu*rk**2/(1.+1.5*rk**2)
       ELSE
-         STOP 'HALOFIT: Error, ihf specified incorrectly'
+         P = 0.
       END IF
+      pq = pli*(1.+P)
+      fy = y/4.+y**2/8. ! Smith (below C2)
+      pq = pli*(1.+pq)**beta/(1.+pq*alpha)*exp(-fy)
 
+      ! Halo term
+      ph = aa*y**(f1*3.)/(1.+bb*y**f2+(f3*cc*y)**(3.-gam)) ! Smith (C4); Bird (A2); Takahashi (A3ii)
+      ph = ph/(1.+mu*y**(-1)+nu*y**(-2))                   ! Smith (C3); Bird (A1); Takahashi (A3i)
+      IF (ihf == HALOFIT_Bird_code .OR. ihf == HALOFIT_Bird_paper .OR. ihf == HALOFIT_Bird_CAMB) THEN
+         Q = fnu*(2.080-12.4*(Om_m-0.3))/(1.+1.2e-3*y**3) ! Bird equation (A6); note Omega_m term
+      ELSE IF (ihf == HALOFIT_CAMB) THEN
+         ! Unpublished CAMB stuff from halofit.f90; note that this is used by ALL HALOFIT versions in CAMB, including Smith and Bird versions   
+         Q = fnu*0.977 ! CAMB; halofit_ppf.f90; halofit; note no Omega_m term
+      ELSE
+         Q = 0.
+      END IF
+      ph = ph*(1.+Q)
+
+      ! Sum the quasi-linear and halo terms to get the total
       pnl = pq+ph
 
    END SUBROUTINE calculate_HALOFIT_ka
