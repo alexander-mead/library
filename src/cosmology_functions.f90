@@ -545,8 +545,8 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: HALOFIT_Bird_CAMB = 8   ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
 
    ! HALOFIT parameters
-   REAL, PARAMETER :: HALOFIT_acc = 1e-3  ! Accuracy for HALOFIT calculation of knl, neff, ncur
-   REAL, PARAMETER :: HALOFIT_logr1 = -3. ! log10(R / Mpc/h) minimum filter size to start search
+   REAL, PARAMETER :: HALOFIT_acc = 1e-3  ! Accuracy for HALOFIT calculation of knl, neff, ncur (1e-3 is in public code and CAMB)
+   REAL, PARAMETER :: HALOFIT_logr1 = -3. ! log10(R / Mpc/h) minimum filter size to start search (note this is -2 in CAMB)
    REAL, PARAMETER :: HALOFIT_logr2 = 3.5 ! log10(R / Mpc/h) maximum filter size to start search
 
    ! CAMB non-linear numbering schemes
