@@ -6213,7 +6213,7 @@ CONTAINS
          END DO
 
          ! First find the radius R | f(R)=0; I am fairly certain that I can use log on 'r' here
-         r2(i) = exp(find_solve(log(r), f, n))
+         r2(i) = exp(solve_find(log(r), f))
 
          ! Now do the concentration and mass conversions
          c2(i) = r2(i)/rs
