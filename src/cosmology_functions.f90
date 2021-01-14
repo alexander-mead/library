@@ -532,17 +532,17 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: imeth_interp_Dv = 2      ! Method for Delta_v interpolation
    INTEGER, PARAMETER :: iextrap_Dv = iextrap_std ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_Dv = .TRUE.        ! Pre-calculate interpolation coefficients?
-   LOGICAL, PARAMETER :: cold_Bryan = .FALSE.      ! Use cold Omega_m in Bryan & Norman formula?
+   LOGICAL, PARAMETER :: cold_Bryan = .FALSE.     ! Use cold Omega_m in Bryan & Norman formula?
 
    ! HALOFIT versions
-   INTEGER, PARAMETER :: HALOFIT_Smith_code = 1  ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/)
-   INTEGER, PARAMETER :: HALOFIT_Bird_code = 2   ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: HALOFIT_Smith_code = 1  ! Smith et al. (2003; https://www.roe.ac.uk/~jap/haloes/) with numbers as in online code
+   INTEGER, PARAMETER :: HALOFIT_Bird_code = 2   ! Bird et al. (2012; https://arxiv.org/abs/1109.4416) with numbers as in online code
    INTEGER, PARAMETER :: HALOFIT_Takahashi = 3   ! Takahashi et al. (2012; https://arxiv.org/abs/1208.2701)
-   INTEGER, PARAMETER :: HALOFIT_CAMB = 4        ! Version as used in CAMB (2020) a hybrid of Takahashi and Bird
+   INTEGER, PARAMETER :: HALOFIT_CAMB = 4        ! Version as used in CAMB (2020) an unpublished hybrid of Takahashi and Bird
    INTEGER, PARAMETER :: HALOFIT_CLASS = 5       ! Version as used in CLASS (2020) ?
-   INTEGER, PARAMETER :: HALOFIT_Smith_paper = 6 ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664)
-   INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
-   INTEGER, PARAMETER :: HALOFIT_Bird_CAMB = 8   ! Bird et al. (2012; https://arxiv.org/abs/1109.4416)
+   INTEGER, PARAMETER :: HALOFIT_Smith_paper = 6 ! Smith et al. (2003; https://arxiv.org/abs/astro-ph/0207664) with numbers as in paper
+   INTEGER, PARAMETER :: HALOFIT_Bird_paper = 7  ! Bird et al. (2012; https://arxiv.org/abs/1109.4416) with numbers as in paper
+   INTEGER, PARAMETER :: HALOFIT_Bird_CAMB = 8   ! Bird et al. (2012; https://arxiv.org/abs/1109.4416) with numbers as in CAMB
 
    ! HALOFIT parameters
    REAL, PARAMETER :: HALOFIT_acc = 1e-3  ! Accuracy for HALOFIT calculation of knl, neff, ncur (1e-3 is in public code and CAMB)
@@ -577,14 +577,15 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: store_interp_SPT = .TRUE. ! Store coefficients for interpolation?
 
    ! Rescaling
-   INTEGER, PARAMETER :: irescale_sigma = 1
-   INTEGER, PARAMETER :: irescale_power = 2
-   INTEGER, PARAMETER :: flag_rescaling = flag_ucold
-   REAL, PARAMETER :: acc_rescaling = acc_cosm
-   INTEGER, PARAMETER :: iorder_rescaling = 3
-   REAL, PARAMETER :: smin_rescale = 0.33
-   REAL, PARAMETER :: smax_rescale = 3.00
-   INTEGER, PARAMETER :: ns_rescale = nint(1+100.*(smax_rescale-smin_rescale))
+   INTEGER, PARAMETER :: irescale_sigma = 1          ! Rescale by matching sigma(R)
+   INTEGER, PARAMETER :: irescale_power = 2          ! Rescale by matching P(k)
+   INTEGER, PARAMETER :: flag_rescale = flag_ucold   ! Type of power to match by rescaling
+   REAL, PARAMETER :: acc_rescale = acc_cosm         ! Rescaling accuracy
+   INTEGER, PARAMETER :: iorder_rescale_integral = 3 ! Order for integration
+   REAL, PARAMETER :: smin_rescale = 0.33            ! Minimum s (R -> sR)
+   REAL, PARAMETER :: smax_rescale = 3.00            ! Maximum s (R -> sR)
+   INTEGER, PARAMETER :: ns_rescale = 268            ! Number of points in s
+   !INTEGER, PARAMETER :: ns_rescale = nint(1+100.*(smax_rescale-smin_rescale)) ! Number of points in s
 
    ! Cosmic Emu (for finding h)
    ! TODO: Remove
@@ -1654,16 +1655,21 @@ CONTAINS
       ELSE IF (icosmo == 265) THEN
          ! Fiducial from Smith & Angulo (2019)
          cosm%iTk = iTk_CAMB
-         !cosm%norm_method = norm_As
+         cosm%norm_method = norm_As
          wc = 0.11889
          wb = 0.022161
          wm = wb+wc
-         cosm%Om_v = 0.6914
+         !cosm%Om_v = 0.6914   ! This is the value written in the paper, which is incorrect
+         cosm%Om_v = 0.6928849 ! This is the correct value according to Robert Smith
          cosm%Om_m = 1.-cosm%Om_v
          cosm%h = sqrt(wm/cosm%Om_m)
          cosm%Om_b = wb/cosm%h**2
          cosm%ns = 0.9611
-         cosm%sig8 = 0.8279
+         !cosm%sig8 = 0.8279
+         cosm%As = 2.14818e-9
+         cosm%kpiv = 0.05/cosm%h
+         cosm%T_CMB = 2.726
+         cosm%neff = 3.040
       ELSE IF (icosmo == 266 .OR. icosmo == 267 .OR. icosmo == 268 .OR. icosmo == 269) THEN
          ! Random Euclid cosmology
          CALL random_Euclid_cosmology(cosm)
@@ -5776,34 +5782,33 @@ CONTAINS
       ! TILMAN: Wrote this
       ! TODO: Only really need a 2D plin, not plina too
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, DIMENSION(:), INTENT(IN) :: k, a
-      REAL, DIMENSION(:,:), INTENT(IN) :: plin_tab
-
+      REAL, INTENT(IN) :: k(:), a(:)
+      REAL, INTENT(IN) :: plin_tab(:, :)
       INTEGER :: nk, na, i
 
-      nk = SIZE(k)
-      na = SIZE(a)
+      nk = size(k)
+      na = size(a)
 
-      IF(nk /= SIZE(plin_tab, 1) .OR. na /= SIZE(plin_tab, 2)) THEN
-         write(*,*) "Sizes of k, a, and plin_tab are inconsistent", nk, na, SHAPE(plin_tab)
+      IF (nk /= size(plin_tab, 1) .OR. na /= size(plin_tab, 2)) THEN
+         WRITE(*, *) 'Sizes of k, a, and plin_tab are inconsistent', nk, na, shape(plin_tab)
          cosm%status = 1
          RETURN
-      ENDIF
+      END IF
 
       cosm%nk_plin = nk
       cosm%na_plin = na
 
-      if(.not. allocated(cosm%log_k_plin)) allocate(cosm%log_k_plin(nk))
-      if(.not. allocated(cosm%log_a_plin)) allocate(cosm%log_a_plin(na))
-      if(.not. allocated(cosm%log_plin)) allocate(cosm%log_plin(nk))
-      if(.not. allocated(cosm%log_plina)) allocate(cosm%log_plina(nk, na))
+      IF (.NOT. allocated(cosm%log_k_plin)) ALLOCATE(cosm%log_k_plin(nk))
+      IF (.NOT. allocated(cosm%log_a_plin)) ALLOCATE(cosm%log_a_plin(na))
+      IF (.NOT. allocated(cosm%log_plin))   ALLOCATE(cosm%log_plin(nk))
+      IF (.NOT. allocated(cosm%log_plina))  ALLOCATE(cosm%log_plina(nk, na))
       cosm%log_k_plin = log(k)
       cosm%log_plin = log(plin_tab(:,na)*k**3/(2*pi**2))
       cosm%log_a_plin = log(a)
-      forall (i=1:nk) cosm%log_plina(i, :) = log(plin_tab(i, :)*k(i)**3/(2*pi**2))
+      FORALL (i=1:nk) cosm%log_plina(i, :) = log(plin_tab(i, :)*k(i)**3/(2*pi**2))
 
       cosm%itk = itk_external
-      cosm%has_power = .true.
+      cosm%has_power = .TRUE.
 
    END SUBROUTINE init_external_linear_power_tables
 
@@ -5813,54 +5818,54 @@ CONTAINS
       ! The purpose of this is *only* to init interpolators and set has_power
       ! TODO: Only really need log_plin, not log_plina, and log_plin should be 2D
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER :: nk, nk_pk, na, na_pk
+      INTEGER :: nk, nk_pk, na, nk_pka, na_pka
       INTEGER :: plina_shape(2)
 
-      IF(ALLOCATED(cosm%log_k_plin)) THEN
-         nk = SIZE(cosm%log_k_plin)
+      IF (allocated(cosm%log_k_plin)) THEN
+         nk = size(cosm%log_k_plin)
       ELSE
-         write(*,*) "cosmology%log_k_plin has not been allocated!"
+         WRITE (*, *) "cosmology%log_k_plin has not been allocated!"
          cosm%status = 1
          RETURN
-      ENDIF
+      END IF
 
-      IF(ALLOCATED(cosm%log_a_plin)) THEN
-         na = SIZE(cosm%log_a_plin)
+      IF (allocated(cosm%log_a_plin)) THEN
+         na = size(cosm%log_a_plin)
       ELSE
-         write(*,*) "cosmology%log_a_plin has not been allocated!"
+         WRITE (*, *) "cosmology%log_a_plin has not been allocated!"
          cosm%status = 1
          RETURN
-      ENDIF
+      END IF
 
-      IF(ALLOCATED(cosm%log_plin)) THEN
-         nk_pk = SIZE(cosm%log_plin)
+      IF (allocated(cosm%log_plin)) THEN
+         nk_pk = size(cosm%log_plin)
       ELSE
-         write(*,*) "cosmology%log_plin has not been allocated!"
+         WRITE (*, *) "cosmology%log_plin has not been allocated!"
          cosm%status = 1
          RETURN
-      ENDIF
+      END IF
 
-      IF(ALLOCATED(cosm%log_plina)) THEN
-         plina_shape = SHAPE(cosm%log_plina)
-         !nk_pk = plina_shape(1) ! TODO: Surely this should be uncommented?
-         na_pk = plina_shape(2)
+      IF (allocated(cosm%log_plina)) THEN
+         plina_shape = shape(cosm%log_plina)
+         nk_pka = plina_shape(1)
+         na_pka = plina_shape(2)
       ELSE
-         write(*,*) "cosmology%log_plina has not been allocated!"
+         WRITE (*, *) "cosmology%log_plina has not been allocated!"
          cosm%status = 1
          RETURN
-      ENDIF
+      END IF
 
-      IF(nk /= nk_pk .OR. nk /= cosm%nk_plin) THEN
-         write(*,*) "Sizes of cosmology%log_plin, cosmology%log_k_plin, or cosmology%nk_plin are inconsistent:", nk_pk, nk, cosm%nk_plin
+      IF (nk /= nk_pk .OR. nk /= nk_pka .OR. nk /= cosm%nk_plin) THEN
+         WRITE (*,*) "Sizes of cosmology%log_plin, cosmology%log_k_plin, or cosmology%nk_plin are inconsistent:", nk_pk, nk_pka, nk, cosm%nk_plin
          cosm%status = 1
          RETURN
-      ENDIF
+      END IF
 
-      IF(na /= na_pk .OR. na /= cosm%na_plin) THEN
-         write(*,*) "Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:", na_pk, na, cosm%na_plin
+      IF(na /= na_pka .OR. na /= cosm%na_plin) THEN
+         write(*,*) "Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:", na_pka, na, cosm%na_plin
          cosm%status = 1
          RETURN
-      ENDIF
+      END IF
 
       ! TODO: Merge these
       IF (cosm%scale_dependent_growth) THEN
@@ -6356,6 +6361,10 @@ CONTAINS
       ! Normalisation; Ensure kpiv = 0.05/Mpc; NOTE: My units are h/Mpc
       cosm%norm_method = norm_As
       cosm%kpiv = 0.05/cosm%h
+
+      ! Other cosmological parameters
+      cosm%T_CMB = 2.726
+      cosm%neff = 3.040
 
    END SUBROUTINE random_NGenHALOFIT_cosmology
 
@@ -8228,9 +8237,9 @@ CONTAINS
       REAL, INTENT(IN) :: a_tgt
       TYPE(cosmology), INTENT(INOUT) :: cosm_ini
       TYPE(cosmology), INTENT(INOUT) :: cosm_tgt
-      INTEGER, PARAMETER :: flag = flag_rescaling
-      REAL, PARAMETER :: acc = acc_rescaling
-      INTEGER, PARAMETER :: iorder = iorder_rescaling
+      INTEGER, PARAMETER :: flag = flag_rescale
+      REAL, PARAMETER :: acc = acc_rescale
+      INTEGER, PARAMETER :: iorder = iorder_rescale_integral
 
       ! Integrate and normalise 
       rescaling_cost_sigma = integrate_cosm(log(R1_tgt), log(R2_tgt), rescaling_cost_sigma_integrand, &
@@ -8269,9 +8278,9 @@ CONTAINS
       REAL, INTENT(IN) :: a_tgt
       TYPE(cosmology), INTENT(INOUT) :: cosm_ini
       TYPE(cosmology), INTENT(INOUT) :: cosm_tgt
-      INTEGER, PARAMETER :: flag = flag_rescaling
-      REAL, PARAMETER :: acc = acc_rescaling
-      INTEGER, PARAMETER :: iorder = iorder_rescaling
+      INTEGER, PARAMETER :: flag = flag_rescale
+      REAL, PARAMETER :: acc = acc_rescale
+      INTEGER, PARAMETER :: iorder = iorder_rescale_integral
 
       ! Integrate and then normalise
       rescaling_cost_power = integrate_cosm(log(k1_tgt), log(k2_tgt), rescaling_cost_power_integrand, &
