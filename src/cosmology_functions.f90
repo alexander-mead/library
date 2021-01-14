@@ -5777,20 +5777,22 @@ CONTAINS
 
    END SUBROUTINE init_linear
 
-   SUBROUTINE init_external_linear_power_tables(cosm, k, a, plin_tab)
+   SUBROUTINE init_external_linear_power_tables(cosm, k, a, Pk)
 
       ! TILMAN: Wrote this
       ! TODO: Only really need a 2D plin, not plina too
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, INTENT(IN) :: k(:), a(:)
-      REAL, INTENT(IN) :: plin_tab(:, :)
+      ! NOTE: This really is P(k) herer, not Delta^2(k)
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmolgy
+      REAL, INTENT(IN) :: k(:)     ! Array of wavenumbers
+      REAL, INTENT(IN) :: a(:)     ! Array of scale factors
+      REAL, INTENT(IN) :: Pk(:, :) ! Array of P(k, a) (NOTE: Really P(k) here, not Delta^2(k))
       INTEGER :: nk, na, i
 
       nk = size(k)
       na = size(a)
 
-      IF (nk /= size(plin_tab, 1) .OR. na /= size(plin_tab, 2)) THEN
-         WRITE(*, *) 'Sizes of k, a, and plin_tab are inconsistent', nk, na, shape(plin_tab)
+      IF (nk /= size(Pk, 1) .OR. na /= size(Pk, 2)) THEN
+         WRITE(*, *) 'Sizes of k, a, and Pk are inconsistent', nk, na, shape(Pk)
          cosm%status = 1
          RETURN
       END IF
@@ -5803,10 +5805,11 @@ CONTAINS
       IF (.NOT. allocated(cosm%log_plin))   ALLOCATE(cosm%log_plin(nk))
       IF (.NOT. allocated(cosm%log_plina))  ALLOCATE(cosm%log_plina(nk, na))
       cosm%log_k_plin = log(k)
-      cosm%log_plin = log(plin_tab(:,na)*k**3/(2*pi**2))
+      cosm%log_plin = log(Pk(:,na)*k**3/(2.*pi**2))
       cosm%log_a_plin = log(a)
-      FORALL (i=1:nk) cosm%log_plina(i, :) = log(plin_tab(i, :)*k(i)**3/(2*pi**2))
+      FORALL (i = 1:nk) cosm%log_plina(i, :) = log(Pk(i, :)*k(i)**3/(2.*pi**2))
 
+      ! TODO: Remove these?
       cosm%itk = itk_external
       cosm%has_power = .TRUE.
 
@@ -5862,7 +5865,7 @@ CONTAINS
       END IF
 
       IF(na /= na_pka .OR. na /= cosm%na_plin) THEN
-         write(*,*) "Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:", na_pka, na, cosm%na_plin
+         WRITE (*, *) "Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:", na_pka, na, cosm%na_plin
          cosm%status = 1
          RETURN
       END IF
@@ -5886,6 +5889,8 @@ CONTAINS
             logf = .TRUE.)
       END IF
 
+      cosm%itk = itk_external
+      cosm%norm_method = norm_none
       cosm%has_power = .TRUE.
 
    END SUBROUTINE init_external_linear

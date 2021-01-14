@@ -38,7 +38,6 @@ CONTAINS
    SUBROUTINE read_CAMB_Pk(k, Pk, nk, infile, verbose)
 
       ! Read in CAMB format P(k) file
-      ! Note that this assumes there is one comment line
       REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:)
       INTEGER, INTENT(OUT) :: nk
@@ -52,7 +51,6 @@ CONTAINS
       IF(present_and_correct(verbose)) THEN
          WRITE (*, *) 'READ_CAMB_PK: CAMB file: ', trim(infile)
          WRITE (*, *) 'READ_CAMB_PK: Number of points:', nk
-         WRITE (*, *)
       END IF
 
       ALLOCATE (k(nk), Pk(nk))
@@ -67,7 +65,7 @@ CONTAINS
       END DO
       CLOSE (u)
 
-      ! Convert from P(k) to Delta^2(k)
+      ! Convert from P(k) [(Mpc/h)^3] to Delta^2(k)
       Pk = 4.*pi*Pk*(k**3)/twopi**3
 
       IF(present_and_correct(verbose)) THEN
