@@ -153,7 +153,6 @@ MODULE cosmology_functions
    PUBLIC :: iTk_DEFW
    PUBLIC :: iTk_CAMB
    PUBLIC :: iTk_external
-   !PUBLIC :: Tk_nw
 
    PUBLIC :: init_external_linear_power_tables
 
@@ -5781,25 +5780,28 @@ CONTAINS
 
       ! TILMAN: Wrote this
       ! TODO: Only really need a 2D plin, not plina too
-      ! NOTE: This really is P(k) herer, not Delta^2(k)
+      ! TODO: This really is P(k) here, not Delta^2(k). Should always be Delta^2(k) despite variable being called Pk   
+      ! TODO: Change cosm to be final argument to be consistent with other routines
+      ! TODO: Really should remove cosm%log_plin etc.
+      ! TODO: MUST talk to Tilman before changing this at all
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmolgy
       REAL, INTENT(IN) :: k(:)     ! Array of wavenumbers
       REAL, INTENT(IN) :: a(:)     ! Array of scale factors
       REAL, INTENT(IN) :: Pk(:, :) ! Array of P(k, a) (NOTE: Really P(k) here, not Delta^2(k))
       INTEGER :: nk, na, i
 
+      ! Get sizes of arrays
       nk = size(k)
       na = size(a)
-
       IF (nk /= size(Pk, 1) .OR. na /= size(Pk, 2)) THEN
          WRITE(*, *) 'Sizes of k, a, and Pk are inconsistent', nk, na, shape(Pk)
          cosm%status = 1
          RETURN
       END IF
-
       cosm%nk_plin = nk
       cosm%na_plin = na
 
+      ! Fill internal cosm arrays from external power spectrum
       IF (.NOT. allocated(cosm%log_k_plin)) ALLOCATE(cosm%log_k_plin(nk))
       IF (.NOT. allocated(cosm%log_a_plin)) ALLOCATE(cosm%log_a_plin(na))
       IF (.NOT. allocated(cosm%log_plin))   ALLOCATE(cosm%log_plin(nk))
@@ -5820,10 +5822,12 @@ CONTAINS
       ! TILMAN: Wrote this
       ! The purpose of this is *only* to init interpolators and set has_power
       ! TODO: Only really need log_plin, not log_plina, and log_plin should be 2D
+      ! TODO: Really should remove cosm%log_plin etc.
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: nk, nk_pk, na, nk_pka, na_pka
       INTEGER :: plina_shape(2)
 
+      ! Check k array is allocated properly
       IF (allocated(cosm%log_k_plin)) THEN
          nk = size(cosm%log_k_plin)
       ELSE
@@ -5832,6 +5836,7 @@ CONTAINS
          RETURN
       END IF
 
+      ! Check a array is allocated properly
       IF (allocated(cosm%log_a_plin)) THEN
          na = size(cosm%log_a_plin)
       ELSE
@@ -5840,6 +5845,7 @@ CONTAINS
          RETURN
       END IF
 
+      ! Check P(k) array is allocated properly
       IF (allocated(cosm%log_plin)) THEN
          nk_pk = size(cosm%log_plin)
       ELSE
@@ -5848,6 +5854,7 @@ CONTAINS
          RETURN
       END IF
 
+      ! Check P(k,a) array is allocated properly
       IF (allocated(cosm%log_plina)) THEN
          plina_shape = shape(cosm%log_plina)
          nk_pka = plina_shape(1)
@@ -5858,19 +5865,22 @@ CONTAINS
          RETURN
       END IF
 
+      ! Check k sizes of arrays agree
       IF (nk /= nk_pk .OR. nk /= nk_pka .OR. nk /= cosm%nk_plin) THEN
          WRITE (*,*) "Sizes of cosmology%log_plin, cosmology%log_k_plin, or cosmology%nk_plin are inconsistent:", nk_pk, nk_pka, nk, cosm%nk_plin
          cosm%status = 1
          RETURN
       END IF
 
+      ! Check a sizes of arrays agree
       IF(na /= na_pka .OR. na /= cosm%na_plin) THEN
          WRITE (*, *) "Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:", na_pka, na, cosm%na_plin
          cosm%status = 1
          RETURN
       END IF
 
-      ! TODO: Merge these
+      ! Create interpolators
+      ! TODO: Merge these 2D and 1D interpolator inits
       IF (cosm%scale_dependent_growth) THEN
          CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_a_plin), exp(cosm%log_plina), cosm%plin, &
             iorder = iorder_interp_plin, &
@@ -5889,6 +5899,7 @@ CONTAINS
             logf = .TRUE.)
       END IF
 
+      ! Fix for an external power spectrum
       cosm%itk = itk_external
       cosm%norm_method = norm_none
       cosm%has_power = .TRUE.
