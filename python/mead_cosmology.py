@@ -7,11 +7,12 @@ import mead_interpolation as interpolation
 
 ## Cosmological constants ##
 
-conH0 = 2998. # c/H0 in Mpc/h
-invH0 = 9.778 # 1/H0 in Gyr/h
-H0 = 100. # H0 in h km/s/Mpc
-T0 = 2.73 # CMB temperature in Kelvin
-tau = 0. # Optical depth in dimensionless units
+conH0 = 2997.92458 # c/H0 [Mpc/h]
+invH0 = 9.777922217 # 1/H0 [Gyr/h]
+H0 = 100. # H0 in h [km/s/Mpc]
+#T0 = 2.73 # CMB temperature [K]
+#tau = 0. # Optical depth in dimensionless units
+rhoc = 277537383080.52332 # Critical density [(Msun/h) (Mpc/h)^-3]
 
 ## ##
 
@@ -482,3 +483,7 @@ def create_Pk(k_tab,Pk_tab):
     Pk=np.vectorize(Pk_vectorize)
 
     return Pk
+
+def comoving_matter_density(Om_m):
+
+   return rhoc*Om_m

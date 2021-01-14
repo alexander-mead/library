@@ -1,0 +1,453 @@
+# Standard import statements
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.ticker as mticker
+import datetime
+from dateutil.relativedelta import relativedelta
+
+# Download latest data
+def download_data(metrics):
+    
+    import requests
+    
+    verbose = True
+    today = datetime.date.today() # Today's date
+    
+    if(verbose): 
+        print('Downloading data')
+        print('')
+
+    # Form the link
+    link = 'data?areaType=region'
+    for metric in metrics:
+        link = link+'&metric='+metric
+    link = link+'&format=csv'
+    
+    # Full URL and destination file path
+    url = 'https://api.coronavirus.data.gov.uk/v2/'+link
+    file = 'data/region_'+today.strftime("%Y-%m-%d")+'.csv'
+    
+    if(verbose): 
+        print('URL: %s' % (url))
+        print('')
+        print('File: %s' % (file))
+        print('')
+
+    req = requests.get(url, allow_redirects=True)
+    open(file, 'wb').write(req.content) # Write to disk
+
+    if (verbose):
+        print('Metrics downloaded:')
+        for metric in metrics:
+            print(metric)
+        print('')
+        print('Download complete')
+        print('')
+
+# Read in data, no manipulations apart from renaming and deleting columns
+def read_data(infile, metrics):
+    
+    # Parameters
+    verbose = False
+    
+    # Read data into a pandas data frame
+    data = pd.read_csv(infile)
+
+    # Print data to screen
+    if (verbose):
+        print(type(data))
+        print(data)
+        print('')
+        
+    # Convert date column to actual date data type
+    data.date = pd.to_datetime(data['date'])
+
+    # Remove unnecessary columns
+    data.drop('areaType', inplace=True, axis=1)
+    data.drop('areaCode', inplace=True, axis=1) 
+    
+    # Rename columns
+    data.rename(columns={'areaName': 'Region'}, inplace=True, errors="raise")
+    data.rename(columns=metrics, inplace=True, errors="raise")
+
+    # Print data to screen again
+    if (verbose):
+        print(type(data))
+        print(data)
+        print('')
+
+    # Print specific columns to screen
+    # TODO: This is probably wrong
+    if (verbose):      
+        print(data['date'])
+        print('')
+        for metric in metrics:
+            print(data[metrics[metric]])
+            print('')
+    
+    # Return the massaged pandas data frame
+    return data
+
+# Perform calculations on data (assumes organised in date from high to low for each region)
+def calculate_data(regions, data):
+    
+    # Parameters
+    days = 7 # A week has 7 days, dullard
+    
+    # Sort
+    #print(data)
+    data.sort_values(['Region', 'date'], ascending=[True, False], inplace=True)
+    #print(data)
+
+    #q = "Region == '%s' and date >= '%s' and data <= '%s'" % (region, date, date7) # Query to isolate regions
+    #data['Cases_roll_Mead'] = data.loc[data['Region']== and data['date'], 'Cases']
+    
+    # Calculate rolling sums for cases and deaths
+    for region in regions:
+        
+        # Convert to numpy arrays
+        Cases = data.query("Region == '%s'" % region).Cases.to_numpy()
+        Deaths = data.query("Region == '%s'" % region).Deaths.to_numpy()
+        
+        # Calculate rolling weekly sum of cases and deaths
+        Cases_roll = np.zeros(len(Cases))
+        Deaths_roll = np.zeros(len(Deaths))
+        for i in range(len(Cases)-days):
+            for j in range(days):
+                Cases_roll[i] = Cases_roll[i]+Cases[i+j]
+                Deaths_roll[i] = Deaths_roll[i]+Deaths[i+j]
+            #print(i, Cases[i], Cases_roll[i])
+            
+        # Calculate doubling times based on rolling sums
+        Cases_double = np.zeros(len(Cases))
+        Deaths_double = np.zeros(len(Deaths))
+        for i in range(len(Cases)-days):           
+            Cases1 = Cases_roll[i]
+            Cases7 = Cases_roll[i+days]
+            if (Cases1 == 0 or Cases7 == 0 or (Cases1 == Cases7)):
+                Cases_double[i] = 0.
+            else:
+                Cases_double[i] = days*np.log(2.)/np.log(Cases1/Cases7)
+            #print(i, Cases[i], Cases_roll[i], Cases_roll[i+days], Cases_double[i])                 
+            Deaths1 = Deaths_roll[i]
+            Deaths7 = Deaths_roll[i+days]
+            if (Deaths1 == 0 or Deaths7 == 0 or (Deaths1 == Deaths7)):
+                Deaths_double[i] = 0.
+            else:
+                Deaths_double[i] = days*np.log(2.)/np.log(Deaths1/Deaths7)
+
+# Plot daily data
+def plot_bar_data(data, start_date, end_date, regions, outfile, pop_norm=True, Nmax=None, plot_type='Square'):
+    
+    # Parameters
+    days_in_roll = 7.
+    pop_num = 100000
+
+    ### Figure options ###
+
+    # Size
+    if (plot_type == 'Square'):
+        figx = 17.; figy = 13.
+    elif (plot_type == 'Long'):
+        figx = 17.; figy = 50
+    else:
+        raise ValueError('Something went wrong with plot_type')
+
+    # Cases
+    plot_cases = True
+    case_bar_color = 'cornflowerblue'
+    case_line_color = 'b'
+    case_bar_label = 'Positive tests'
+    case_line_label = 'Rolling positive tests'
+
+    # Hospitalisations
+    hosp_fac = 10.
+    plot_hosp = False
+    hosp_bar_color = 'green'
+    #hosp_line_color = 'green'
+    hosp_bar_label = 'Hospital cases [times %d]' % (int(hosp_fac))
+    #hosp_line_label = 'Rolling hospital admissions'  
+
+    # Deaths
+    plot_deaths = True
+    death_fac = 10.
+    death_bar_color = 'indianred'
+    death_line_color = 'r'
+    death_bar_label = 'Deaths [times %d]' % (int(death_fac))
+    death_line_label = 'Rolling deaths [times %d]' % (int(death_fac))  
+
+    # Months
+    month_color = 'black'
+    month_alpha = 0.10
+
+    # Lockdowns
+    lockdown_color = 'red'
+    lockdown_alpha = 0.25
+    lockdown_lab = 'Lockdown'
+
+    # Special dates
+    #special_date_color = 'black'
+    relax_color = 'green'
+    relax_alpha = lockdown_alpha
+    relax_lab = 'Relaxation'
+
+    ### ###
+
+    # Relaxations
+    plot_relax = False
+    Christmas_date = datetime.date(2020, 12, 25)
+
+    # Lockdowns
+    plot_lockdowns = True
+    Mar_lockdown_start_date = datetime.date(2020, 3, 23)
+    Mar_lockdown_end_date = datetime.date(2020, 7, 5)
+    Nov_lockdown_start_date = datetime.date(2020, 11, 5)
+    Nov_lockdown_end_date = datetime.date(2020, 12, 2)
+    Jan_lockdown_start_date = datetime.date(2021, 1, 5)
+    Jan_lockdown_end_date = data.date.iloc[0]
+
+    # Months
+    plot_months = True
+    locator_monthstart = mdates.MonthLocator() # Start of every month
+    locator_monthmid = mdates.MonthLocator(bymonthday=15) # Middle of every month
+    fmt = mdates.DateFormatter('%b') # Specify the format - %b gives us Jan, Feb...
+    
+    # Plot
+    _, ax = plt.subplots(figsize=(figx, figy), sharex=True)
+    #plt.tick_params(axis='x', which='minor', bottom=False)
+    
+    # Loop over regions
+    for i, region in enumerate(regions):
+        
+        if (pop_norm):
+            pop_fac = pop_num/regions[region]
+        else:
+            pop_fac = 1.
+        
+        if (plot_type == 'Square'):
+            plt.subplot(3, 3, i+1)
+        elif (plot_type == 'Long'):
+            plt.subplot(9, 1, i+1)
+        else:
+            raise ValueError('Something went wrong with plot_type')
+          
+        # Months shading
+        if (plot_months):
+            for im in [2, 4, 6, 8, 10, 12]:
+                plt.axvspan(datetime.date(2020, im, 1), datetime.date(2020, im, 1)+relativedelta(months=+1), 
+                            alpha=month_alpha, 
+                            color=month_color)
+                plt.axvspan(datetime.date(2021, im, 1), datetime.date(2021, im, 1)+relativedelta(months=+1), 
+                            alpha=month_alpha, 
+                            color=month_color)
+
+        # Lockdowns
+        if (plot_lockdowns):
+            plt.axvspan(Mar_lockdown_start_date, Mar_lockdown_end_date, 
+                        alpha=lockdown_alpha, 
+                        color=lockdown_color, 
+                        label=lockdown_lab)
+            plt.axvspan(Nov_lockdown_start_date, Nov_lockdown_end_date, 
+                        alpha=lockdown_alpha, 
+                        color=lockdown_color)
+            plt.axvspan(Jan_lockdown_start_date, Jan_lockdown_end_date, 
+                        alpha=lockdown_alpha, 
+                        color=lockdown_color)
+
+        # Important individual dates
+        if (plot_relax):
+            plt.axvspan(Christmas_date, Christmas_date+relativedelta(days=+1), 
+                        color=relax_color, 
+                        alpha=relax_alpha, 
+                        label=relax_lab)
+
+        # Plot data
+        q = "Region == '%s'" % (region) # Query to isolate regions
+
+        # Cases
+        if (plot_cases):
+            plt.bar(data.query(q).date, 
+                    data.query(q).Cases*pop_fac,
+                    color=case_bar_color,
+                    label=case_bar_label)
+            plt.plot(data.query(q).date,
+                     data.query(q).Cases_roll*pop_fac/days_in_roll,
+                     color=case_line_color, 
+                     label=case_line_label)
+
+        # Hospitalisations
+        if (plot_hosp):
+            plt.bar(data.date, 
+                    hosp_fac*data.query(q).Hospital*pop_fac,        
+                    color=hosp_bar_color,
+                    label=hosp_bar_label)
+
+        # Deaths
+        if (plot_deaths):
+            plt.bar(data.query(q).date, 
+                    death_fac*data.query(q).Deaths*pop_fac,
+                    color=death_bar_color,
+                    label=death_bar_label)
+            plt.plot(data.query(q).date, 
+                     death_fac*data.query(q).Deaths_roll*pop_fac/days_in_roll, 
+                     color=death_line_color, 
+                     label=death_line_label)
+
+        # Ticks and month arragement on x axis
+        X = plt.gca().xaxis
+        X.set_major_locator(locator_monthstart)
+        X.set_major_formatter(fmt)
+        X.set_minor_locator(locator_monthmid)
+        X.set_major_formatter(mticker.NullFormatter())
+        X.set_minor_formatter(fmt)
+        ax.tick_params(axis='x', which='minor', bottom=False)
+
+        # Axes limits
+        plt.xlim(left=start_date, right=end_date)
+        if (Nmax != None): 
+            plt.ylim(top=Nmax)
+        if (pop_norm):
+            plt.ylabel('Number per day per 100,000 population')
+        else:           
+            plt.ylabel('Total number per day')
+
+        # Finalise
+        plt.title(region, x=0.03, y=0.88, loc='Left', bbox=dict(facecolor='w', edgecolor='k'))
+        if(i == 1): 
+            legend = plt.legend(loc='upper right', framealpha=1.)
+            legend.get_frame().set_edgecolor('k')
+            
+    plt.savefig(outfile, dpi=80)
+    plt.show(block = False)   
+
+# Plot daily data
+def plot_rolling_data(data, start_date, end_date, regions, pop_norm=True, plot_type='Cases'):
+    
+    # Parameters
+    days_in_roll = 7.
+    pop_num = 100000
+
+    ### Figure options ###
+
+    # Size
+    figx = 17.; figy = 6.
+
+    # Months
+    month_color = 'black'
+    month_alpha = 0.10
+
+    # Lockdowns
+    lockdown_color = 'red'
+    lockdown_alpha = 0.25
+    lockdown_lab = 'Lockdown'
+
+    # Special dates
+    relax_color = 'green'
+    relax_alpha = lockdown_alpha
+    relax_lab = 'Relaxation'
+
+    ### ###
+
+    # Relaxations
+    plot_relax = False
+    Christmas_date = datetime.date(2020, 12, 25)
+
+    # Lockdowns
+    plot_lockdowns = True
+    Mar_lockdown_start_date = datetime.date(2020, 3, 23)
+    Mar_lockdown_end_date = datetime.date(2020, 7, 5)
+    Nov_lockdown_start_date = datetime.date(2020, 11, 5)
+    Nov_lockdown_end_date = datetime.date(2020, 12, 2)
+    Jan_lockdown_start_date = datetime.date(2021, 1, 5)
+    Jan_lockdown_end_date = data.date.iloc[0]
+
+    # Months
+    plot_months = True
+    locator_monthstart = mdates.MonthLocator() # Start of every month
+    locator_monthmid = mdates.MonthLocator(bymonthday=15) # Middle of every month
+    fmt = mdates.DateFormatter('%b') # Specify the format - %b gives us Jan, Feb...
+
+    # Plot
+    _, ax = plt.subplots(figsize=(figx, figy))
+
+    # Months shading
+    if (plot_months):
+        for im in [2, 4, 6, 8, 10, 12]:
+            plt.axvspan(datetime.date(2020, im, 1), datetime.date(2020, im, 1)+relativedelta(months=+1), 
+                        alpha=month_alpha, 
+                        color=month_color)
+            plt.axvspan(datetime.date(2021, im, 1), datetime.date(2021, im, 1)+relativedelta(months=+1), 
+                        alpha=month_alpha, 
+                        color=month_color)
+            
+    # Lockdowns
+    if (plot_lockdowns):
+        plt.axvspan(Mar_lockdown_start_date, Mar_lockdown_end_date, 
+                    alpha=lockdown_alpha, 
+                    color=lockdown_color, 
+                    label=lockdown_lab)
+        plt.axvspan(Nov_lockdown_start_date, Nov_lockdown_end_date, 
+                    alpha=lockdown_alpha, 
+                    color=lockdown_color)
+        plt.axvspan(Jan_lockdown_start_date, Jan_lockdown_end_date, 
+                    alpha=lockdown_alpha, 
+                    color=lockdown_color)
+        
+    # Important individual dates
+    if (plot_relax):
+        plt.axvspan(Christmas_date, Christmas_date+relativedelta(days=+1), 
+                    color=relax_color, 
+                    alpha=relax_alpha, 
+                    label=relax_lab)
+        
+    # Loop over regions
+    for i, region in enumerate(regions):
+        
+        if (pop_norm):
+            pop_fac = pop_num/regions[region]
+        else:
+            pop_fac = 1.
+
+        # Plot data
+        q = "Region == '%s'" % (region) # Query to isolate regions       
+
+        # Cases
+        if (plot_type == 'Cases'):
+            plt.plot(data.query(q).date,
+                     data.query(q).Cases_roll*pop_fac/days_in_roll,
+                     color='C{}'.format(i), 
+                     label=region)
+            plt.title('Daily new positive cases')
+
+        # Deaths
+        if (plot_type == 'Deaths'):
+            plt.plot(data.query(q).date, 
+                     data.query(q).Deaths_roll*pop_fac/days_in_roll, 
+                     color='C{}'.format(i), 
+                     label=region)
+            plt.title('Daily new deaths')
+
+    # Ticks and month arragement on x axis
+    X = plt.gca().xaxis
+    X.set_major_locator(locator_monthstart)
+    X.set_major_formatter(fmt)
+    X.set_minor_locator(locator_monthmid)
+    #ax.xaxis.set_major_formatter(mticker.NullFormatter())
+    #ax.xaxis.set_minor_formatter(fmt)
+    X.set_major_formatter(mticker.NullFormatter())
+    X.set_minor_formatter(fmt)
+    ax.tick_params(axis='x', which='minor', bottom=False)
+
+    # Axes limits
+    plt.xlim(left=start_date, right=end_date)
+    if (pop_norm):
+        plt.ylabel('Number per day per 100,000 population')       
+    else:
+        plt.ylabel('Total number per day')
+    plt.ylim(bottom=0.)
+
+    # Finalise
+    plt.legend(loc='upper left')
+    plt.show()
