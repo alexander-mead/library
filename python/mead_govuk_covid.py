@@ -121,8 +121,72 @@ def calculate_data(regions, df, verbose):
     df.drop('Deaths_roll_past', inplace=True, axis=1)
     data_head(df, 'Doubling times calculated')
 
+# Useful information
+def useful_info(regions, data):
+
+    # Parameters
+    norm_pop = 100000
+
+    # File info
+    print('Today\'s date:', datetime.date.today())
+    #print('File date:', file_date)
+    latest = data['date'].max().strftime("%Y-%m-%d")
+    print('Latest date in file:', latest)
+    print()
+
+    # Loop over regions
+    for region in regions:
+        
+        # Calculations for per 100,000 population
+        pop = regions[region]
+        fac = norm_pop/pop
+        
+        # Region
+        print('Region:', region)
+
+        # Isolate regional data
+        df = data.loc[data['Region'] == region]
+        df.sort_values(['date'], ascending=[False], inplace=True)
+
+        # Date
+        print('Date:', df['date'].iloc[0].strftime("%Y-%m-%d"))
+        
+        # Daily cases
+        daily_cases = df['Cases'].iloc[0]
+        norm_daily_cases = daily_cases*fac
+        print('Daily new cases: %d, or per 100,000 population: %.1f.' % (daily_cases, norm_daily_cases))
+        
+        # Weekly cases
+        weekly_cases = df['Cases_roll'].iloc[0]
+        my_weekly_cases = df['Cases_roll_Mead'].iloc[0]    
+        if (weekly_cases != my_weekly_cases):
+            raise ValueError('My calculation of weekly cases disagrees with official')
+        norm_weekly_cases = weekly_cases*fac
+        print('Weekly cases: %d, or per 100,000 population: %.1f.' % (weekly_cases, norm_weekly_cases))
+        
+        # Daily deaths
+        daily_deaths = df['Deaths'].iloc[0]
+        norm_daily_deaths = daily_deaths*fac
+        print('Daily new deaths: %d, or per 100,000 population: %.1f.' % (daily_deaths, norm_daily_deaths))
+        
+        # Weekly deaths
+        weekly_deaths = df['Deaths_roll'].iloc[0]
+        my_weekly_deaths = df['Deaths_roll_Mead'].iloc[0]    
+        if (weekly_deaths != my_weekly_deaths):
+            raise ValueError('My calculation of weekly deaths disagrees with official')
+        norm_weekly_deaths = weekly_deaths*fac
+        print('Weekly deaths: %d, or per 100,000 population: %.1f.' % (weekly_deaths, norm_weekly_deaths))
+        
+        # Cases doubling time
+        cases_double = df['Cases_double'].iloc[0]
+        if (cases_double > 0):
+            print('Cases doubling time [days]: %.1f' % (cases_double))
+        else:
+            print('Cases halving time [days]: %.1f' % (-cases_double))
+        print()
+
 # Plot daily data
-def plot_bar_data(data, date, start_date, end_date, regions, outfile, pop_norm=True, Nmax=None, plot_type='Square'):
+def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_norm=True, Nmax=None, plot_type='Square'):
 
     # Imports
     import matplotlib
@@ -166,8 +230,9 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile, pop_norm=T
     plot_cases = True
     case_bar_color = 'cornflowerblue'
     case_line_color = 'b'
-    case_bar_label = 'Positive tests'
-    case_line_label = 'Rolling positive tests'
+    #case_bar_label = 'Positive tests'
+    #case_line_label = 'Rolling positive tests'
+    case_line_label = 'Positive tests'
 
     # Hospitalisations
     hosp_fac = 10.
@@ -182,8 +247,9 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile, pop_norm=T
     death_fac = 10.
     death_bar_color = 'indianred'
     death_line_color = 'r'
-    death_bar_label = 'Deaths [times %d]' % (int(death_fac))
-    death_line_label = 'Rolling deaths [times %d]' % (int(death_fac))  
+    #death_bar_label = 'Deaths [times %d]' % (int(death_fac))
+    #death_line_label = 'Rolling deaths [times %d]' % (int(death_fac))
+    death_line_label = 'Deaths [times %d]' % (int(death_fac))
 
     # Months
     month_color = 'black'
@@ -283,8 +349,8 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile, pop_norm=T
             plt.bar(data.query(q)['date'], 
                     data.query(q)['Cases']*pop_fac,
                     width=bar_width,
-                    color=case_bar_color,
-                    label=case_bar_label)
+                    color=case_bar_color)
+                    #label=case_bar_label)
             #sns.barplot(data=[data.query(q).date, data.query(q).Cases*pop_fac],                   
             #            color=case_bar_color,
             #            label=case_bar_label)
@@ -306,8 +372,8 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile, pop_norm=T
             plt.bar(data.query(q).date, 
                     death_fac*data.query(q).Deaths*pop_fac,
                     width=bar_width,
-                    color=death_bar_color,
-                    label=death_bar_label)
+                    color=death_bar_color)
+                    #label=death_bar_label)
             plt.plot(data.query(q).date, 
                      death_fac*data.query(q).Deaths_roll*pop_fac/days_in_roll, 
                      color=death_line_color, 
@@ -343,8 +409,9 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile, pop_norm=T
         if (n == 9 and i == 1) or (n==1 and region == 'North East'): 
             legend = plt.legend(loc='upper right', framealpha=1.)
             legend.get_frame().set_edgecolor('k')
-            
-    plt.savefig(outfile, dpi=80)
+
+    if(outfile != None):    
+        plt.savefig(outfile, dpi=80)
     plt.show(block = False)   
 
 # Plot daily data
