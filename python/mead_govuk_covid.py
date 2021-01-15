@@ -1,9 +1,6 @@
 # Standard import statements
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import matplotlib.ticker as mticker
 import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -91,69 +88,79 @@ def read_data(infile, metrics):
     return data
 
 # Perform calculations on data (assumes organised in date from high to low for each region)
-def calculate_data(regions, data):
+def calculate_data(regions, df, verbose):
     
     # Parameters
-    days = 7 # A week has 7 days, dullard
-    
-    # Sort
-    #print(data)
-    data.sort_values(['Region', 'date'], ascending=[True, False], inplace=True)
-    #print(data)
+    days_roll = 7
 
-    #q = "Region == '%s' and date >= '%s' and data <= '%s'" % (region, date, date7) # Query to isolate regions
-    #data['Cases_roll_Mead'] = data.loc[data['Region']== and data['date'], 'Cases']
+    # Utility function for writing out subset of dataframe with comment
+    def data_head(df, comment):
+        if (verbose):
+            print(comment)
+            print(df.head(15))
+            print()
     
-    # Calculate rolling sums for cases and deaths
-    for region in regions:
-        
-        # Convert to numpy arrays
-        Cases = data.query("Region == '%s'" % region).Cases.to_numpy()
-        Deaths = data.query("Region == '%s'" % region).Deaths.to_numpy()
-        
-        # Calculate rolling weekly sum of cases and deaths
-        Cases_roll = np.zeros(len(Cases))
-        Deaths_roll = np.zeros(len(Deaths))
-        for i in range(len(Cases)-days):
-            for j in range(days):
-                Cases_roll[i] = Cases_roll[i]+Cases[i+j]
-                Deaths_roll[i] = Deaths_roll[i]+Deaths[i+j]
-            #print(i, Cases[i], Cases_roll[i])
-            
-        # Calculate doubling times based on rolling sums
-        Cases_double = np.zeros(len(Cases))
-        Deaths_double = np.zeros(len(Deaths))
-        for i in range(len(Cases)-days):           
-            Cases1 = Cases_roll[i]
-            Cases7 = Cases_roll[i+days]
-            if (Cases1 == 0 or Cases7 == 0 or (Cases1 == Cases7)):
-                Cases_double[i] = 0.
-            else:
-                Cases_double[i] = days*np.log(2.)/np.log(Cases1/Cases7)
-            #print(i, Cases[i], Cases_roll[i], Cases_roll[i+days], Cases_double[i])                 
-            Deaths1 = Deaths_roll[i]
-            Deaths7 = Deaths_roll[i+days]
-            if (Deaths1 == 0 or Deaths7 == 0 or (Deaths1 == Deaths7)):
-                Deaths_double[i] = 0.
-            else:
-                Deaths_double[i] = days*np.log(2.)/np.log(Deaths1/Deaths7)
+    # Original
+    data_head(df, 'Original data')
+
+    # Sort
+    df.sort_values(['Region', 'date'], ascending=[True, False], inplace=True)
+    data_head(df, 'Sorted data')
+
+    # Calculate rolling cases and deaths (sum over previous week)
+    df['Cases_roll_Mead'] = df.apply(lambda x: df.loc[(df.Region == x.Region) & (df.date <= x.date) & (df.date > x.date+relativedelta(days=-days_roll)), 'Cases'].sum(), axis=1)
+    df['Deaths_roll_Mead'] = df.apply(lambda x: df.loc[(df.Region == x.Region) & (df.date <= x.date) & (df.date > x.date+relativedelta(days=-days_roll)), 'Deaths'].sum(), axis=1)
+    data_head(df, 'Rolling cases and deaths calculated')
+
+    # Calculate doubling times
+    df['Cases_roll_past'] = df.apply(lambda x: df.loc[(df.Region == x.Region) & (df.date == x.date+relativedelta(days=-days_roll)), 'Cases_roll'].sum(), axis=1)
+    df['Cases_double'] = days_roll*np.log(2.)/np.log(df['Cases_roll']/df['Cases_roll_past'])
+    df.drop('Cases_roll_past', inplace=True, axis=1)
+    df['Deaths_roll_past'] = df.apply(lambda x: df.loc[(df.Region == x.Region) & (df.date == x.date+relativedelta(days=-days_roll)), 'Deaths_roll'].sum(), axis=1)
+    df['Deaths_double'] = days_roll*np.log(2.)/np.log(df['Deaths_roll']/df['Deaths_roll_past'])
+    df.drop('Deaths_roll_past', inplace=True, axis=1)
+    data_head(df, 'Doubling times calculated')
 
 # Plot daily data
-def plot_bar_data(data, start_date, end_date, regions, outfile, pop_norm=True, Nmax=None, plot_type='Square'):
+def plot_bar_data(data, date, start_date, end_date, regions, outfile, pop_norm=True, Nmax=None, plot_type='Square'):
+
+    # Imports
+    import matplotlib
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    import matplotlib.ticker as mticker
+    import seaborn as sns
     
     # Parameters
     days_in_roll = 7.
     pop_num = 100000
+    bar_width = 0.6
+    use_seaborn = False
 
     ### Figure options ###
 
-    # Size
-    if (plot_type == 'Square'):
-        figx = 17.; figy = 13.
-    elif (plot_type == 'Long'):
-        figx = 17.; figy = 50
+    # Seaborn
+    if (use_seaborn):
+        sns.set()
     else:
-        raise ValueError('Something went wrong with plot_type')
+        sns.reset_orig
+        matplotlib.rc_file_defaults()
+
+    # Number of plots
+    n = len(regions)
+
+    # Size
+    if (n == 9):
+        if (plot_type == 'Square'):
+            figx = 17.; figy = 13.
+        elif (plot_type == 'Long'):
+            figx = 17.; figy = 50
+        else:
+            raise ValueError('plot_type must be either Square or Long')
+    elif (n == 1):
+        figx = 6.; figy = 4.
+    else:
+        raise ValueError('Only one or nine regions supported')
 
     # Cases
     plot_cases = True
@@ -226,12 +233,17 @@ def plot_bar_data(data, start_date, end_date, regions, outfile, pop_norm=True, N
         else:
             pop_fac = 1.
         
-        if (plot_type == 'Square'):
-            plt.subplot(3, 3, i+1)
-        elif (plot_type == 'Long'):
-            plt.subplot(9, 1, i+1)
+        if (n == 9):
+            if (plot_type == 'Square'):
+                plt.subplot(3, 3, i+1)
+            elif (plot_type == 'Long'):
+                plt.subplot(9, 1, i+1)
+            else:
+                raise ValueError('Something went wrong with plot_type')
+        elif (n == 1):
+            plt.subplot(1, 1, 1)
         else:
-            raise ValueError('Something went wrong with plot_type')
+            raise ValueError('Only supports either one or nine regions')
           
         # Months shading
         if (plot_months):
@@ -268,10 +280,14 @@ def plot_bar_data(data, start_date, end_date, regions, outfile, pop_norm=True, N
 
         # Cases
         if (plot_cases):
-            plt.bar(data.query(q).date, 
-                    data.query(q).Cases*pop_fac,
+            plt.bar(data.query(q)['date'], 
+                    data.query(q)['Cases']*pop_fac,
+                    width=bar_width,
                     color=case_bar_color,
                     label=case_bar_label)
+            #sns.barplot(data=[data.query(q).date, data.query(q).Cases*pop_fac],                   
+            #            color=case_bar_color,
+            #            label=case_bar_label)
             plt.plot(data.query(q).date,
                      data.query(q).Cases_roll*pop_fac/days_in_roll,
                      color=case_line_color, 
@@ -280,7 +296,8 @@ def plot_bar_data(data, start_date, end_date, regions, outfile, pop_norm=True, N
         # Hospitalisations
         if (plot_hosp):
             plt.bar(data.date, 
-                    hosp_fac*data.query(q).Hospital*pop_fac,        
+                    hosp_fac*data.query(q).Hospital*pop_fac, 
+                    width=bar_width,       
                     color=hosp_bar_color,
                     label=hosp_bar_label)
 
@@ -288,6 +305,7 @@ def plot_bar_data(data, start_date, end_date, regions, outfile, pop_norm=True, N
         if (plot_deaths):
             plt.bar(data.query(q).date, 
                     death_fac*data.query(q).Deaths*pop_fac,
+                    width=bar_width,
                     color=death_bar_color,
                     label=death_bar_label)
             plt.plot(data.query(q).date, 
@@ -314,8 +332,15 @@ def plot_bar_data(data, start_date, end_date, regions, outfile, pop_norm=True, N
             plt.ylabel('Total number per day')
 
         # Finalise
-        plt.title(region, x=0.03, y=0.88, loc='Left', bbox=dict(facecolor='w', edgecolor='k'))
-        if(i == 1): 
+        if (n == 1 and region == 'North East'):
+            plt.title(region+'\n%s' %(date.strftime("%Y-%m-%d")), x=0.03, y=0.88, loc='Left', bbox=dict(facecolor='w', edgecolor='k'))
+        else:
+            plt.title(region, x=0.03, y=0.88, loc='Left', bbox=dict(facecolor='w', edgecolor='k'))
+        if (n == 9 and i == 0):
+            plt.title(date.strftime("%Y-%m-%d"), x=0.97, y=0.88, loc='Right', bbox=dict(facecolor='w', edgecolor='k'))
+        #if (n == 1 and region == 'North East'):
+        #    plt.title(date.strftime("%Y-%m-%d"), x=0.24, y=0.75, loc='Right', bbox=dict(facecolor='w', edgecolor='k'))
+        if (n == 9 and i == 1) or (n==1 and region == 'North East'): 
             legend = plt.legend(loc='upper right', framealpha=1.)
             legend.get_frame().set_edgecolor('k')
             
@@ -323,7 +348,13 @@ def plot_bar_data(data, start_date, end_date, regions, outfile, pop_norm=True, N
     plt.show(block = False)   
 
 # Plot daily data
-def plot_rolling_data(data, start_date, end_date, regions, pop_norm=True, plot_type='Cases'):
+def plot_rolling_data(data, date, start_date, end_date, regions, pop_norm=True, plot_type='Cases'):
+
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    import matplotlib.ticker as mticker
+    import seaborn as sns
+    sns.set()
     
     # Parameters
     days_in_roll = 7.
@@ -415,19 +446,43 @@ def plot_rolling_data(data, start_date, end_date, regions, pop_norm=True, plot_t
 
         # Cases
         if (plot_type == 'Cases'):
-            plt.plot(data.query(q).date,
-                     data.query(q).Cases_roll*pop_fac/days_in_roll,
+            plt.plot(data.query(q)['date'],
+                     data.query(q)['Cases_roll']*pop_fac/days_in_roll,
                      color='C{}'.format(i), 
                      label=region)
-            plt.title('Daily new positive cases')
+            plt.title('Daily new positive cases: %s' % (date.strftime("%Y-%m-%d")))
 
         # Deaths
-        if (plot_type == 'Deaths'):
-            plt.plot(data.query(q).date, 
-                     data.query(q).Deaths_roll*pop_fac/days_in_roll, 
+        elif (plot_type == 'Deaths'):
+            plt.plot(data.query(q)['date'], 
+                     data.query(q)['Deaths_roll']*pop_fac/days_in_roll, 
                      color='C{}'.format(i), 
                      label=region)
-            plt.title('Daily new deaths')
+            plt.title('Daily new deaths: %s' % (date.strftime("%Y-%m-%d")))
+
+        # Cases doubling
+        elif (plot_type == 'Cases_double'):
+            plt.plot(data.query(q)['date'],
+                     data.query(q)['Cases_double'],
+                     color='C{}'.format(i),
+                     ls='-',
+                     label=region)
+            plt.plot(data.query(q)['date'],
+                     -data.query(q)['Cases_double'],
+                     color='C{}'.format(i),
+                     ls='--')
+            plt.title('Cases doubling or halving time: %s' % (date.strftime("%Y-%m-%d")))
+
+        # Deaths doubling
+        elif (plot_type == 'Deaths_double'):
+            plt.plot(data.query(q)['date'],
+                     data.query(q)['Deaths_double'],
+                     color='C{}'.format(i), 
+                     label=region)
+            plt.title('Deaths doubling or halving time: %s' % (date.strftime("%Y-%m-%d")))
+
+        else:
+            raise ValueError('plot_type specified incorrectly')
 
     # Ticks and month arragement on x axis
     X = plt.gca().xaxis
@@ -442,11 +497,17 @@ def plot_rolling_data(data, start_date, end_date, regions, pop_norm=True, plot_t
 
     # Axes limits
     plt.xlim(left=start_date, right=end_date)
-    if (pop_norm):
-        plt.ylabel('Number per day per 100,000 population')       
+    if (plot_type == 'Cases' or plot_type == 'Deaths'):
+        if (pop_norm):
+            plt.ylabel('Number per day per 100,000 population')       
+        else:
+            plt.ylabel('Total number per day')
+        plt.ylim(bottom=0.)
+    elif (plot_type == 'Cases_double' or plot_type == 'Deaths_double'):
+        plt.ylabel('Doubling or halving time in days')
+        plt.ylim(bottom=0., top=30.)
     else:
-        plt.ylabel('Total number per day')
-    plt.ylim(bottom=0.)
+        raise ValueError('plot_type specified incorrectly') 
 
     # Finalise
     plt.legend(loc='upper left')
