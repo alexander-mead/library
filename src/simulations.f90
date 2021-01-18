@@ -4,6 +4,7 @@ MODULE simulations
    ! Anything that involves only the fields should go in field_operations.f90
    ! Each routine should take particle properties (e.g., positions) as an argument
 
+   USE constants
    USE basic_operations
    USE field_operations
 
@@ -25,6 +26,7 @@ MODULE simulations
    PUBLIC :: sharp_Fourier_density_contrast
    PUBLIC :: power_spectrum_particles
    PUBLIC :: cross_spectrum_particles
+   PUBLIC :: folded_power_spectrum_particles
 
    PUBLIC :: generate_randoms
    PUBLIC :: generate_poor_glass
@@ -360,10 +362,8 @@ CONTAINS
 
    END SUBROUTINE write_power_spectrum
 
-   SUBROUTINE power_spectrum_particles(x, L, m, nk, k, Pk, nbin, sig, kmin_opt, kmax_opt)
+   SUBROUTINE power_spectrum_particles(x, L, m, nk, k, Pk, nbin, sig, kmin_opt, kmax_opt, linear_k)
 
-      USE constants
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(:, :)
       REAL, INTENT(IN) :: L
       INTEGER, INTENT(IN) :: m
@@ -374,6 +374,7 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: sig(:)
       REAL, OPTIONAL, INTENT(IN) :: kmin_opt
       REAL, OPTIONAL, INTENT(IN) :: kmax_opt
+      LOGICAL, OPTIONAL, INTENT(IN) :: linear_k
       COMPLEX :: dk(m, m, m)
       REAL :: kmin, kmax, kmin_def, kmax_def
       INTEGER :: n
@@ -381,6 +382,8 @@ CONTAINS
       ! Default minimum and maximum wavenumbers
       kmin_def = twopi/L
       kmax_def = pi*m/L
+      kmin = default_or_optional(kmin_def, kmin_opt)
+      kmax = default_or_optional(kmax_def, kmax_opt)
 
       IF (size(x, 1) .NE. 3) STOP 'POWER_SPECTRUM_PARTICLES: Error, particles must be in 3D'
       n = size(x, 2)
@@ -390,11 +393,66 @@ CONTAINS
       CALL sharp_Fourier_density_contrast(x, n, L, dk, m)
 
       ! Compute the power spectrum from the density field  
-      kmin = default_or_optional(kmin_def, kmin_opt)
-      kmax = default_or_optional(kmax_def, kmax_opt)
-      CALL compute_power_spectrum(dk, dk, m, L, kmin, kmax, nk, k, Pk, nbin, sig)
+      CALL compute_power_spectrum(dk, dk, m, L, kmin, kmax, nk, k, Pk, nbin, sig, linear_k)
 
    END SUBROUTINE power_spectrum_particles
+
+   SUBROUTINE folded_power_spectrum_particles(x, L, m, nk, k, Pk, nbin, sig, nfold_opt)
+
+      ! TODO: Can it be ensured that k overlap between folds somehow?
+      ! TODO: Combine measurements from different folds to get a reasonable total
+      REAL, INTENT(IN) :: x(:, :)
+      REAL, INTENT(IN) :: L
+      INTEGER, INTENT(IN) :: m
+      INTEGER, INTENT(IN) :: nk
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: sig(:, :)
+      INTEGER, OPTIONAL, INTENT(IN) :: nfold_opt
+      REAL, ALLOCATABLE :: xfold(:, :)
+      REAL, ALLOCATABLE :: kfold(:), Pkfold(:), sigfold(:)
+      REAL :: Lfold
+      INTEGER, ALLOCATABLE :: nbinfold(:)
+      INTEGER :: ifold
+      INTEGER :: nfold
+      INTEGER, PARAMETER :: nfold_def = 0
+      LOGICAL, PARAMETER :: linear_k = .TRUE.
+
+      ! Number of foldings
+      nfold = default_or_optional(nfold_def, nfold_opt)
+      IF (nfold < 0) STOP 'FOLDED_POWER_SPECTRUM_PARTICLES: Error, number of foldings must be zero or positive'
+
+      ! Make a copy of the particle array to fold
+      ! TODO: Expensive in memory
+      xfold = x
+      Lfold = L
+
+      ! Allocate arrays
+      ALLOCATE(k(nk, nfold+1), Pk(nk, nfold+1), nbin(nk, nfold+1), sig(nk, nfold+1))
+
+      ! Loop over the folds
+      DO ifold = 0, nfold
+
+         ! Make a fold
+         IF (ifold > 0) THEN
+            CALL fold_particles(xfold, Lfold)
+         END IF
+
+         ! Compute power at this level of fold and correct for folding
+         CALL power_spectrum_particles(xfold, Lfold, m, nk, kfold, Pkfold, nbinfold, sigfold)
+         Pkfold = Pkfold*(L/Lfold)**3
+         sigfold = sigfold*(L/Lfold)**3
+
+         ! Fill arrays
+         k(:, ifold+1) = kfold
+         Pk(:, ifold+1) = Pkfold
+         nbin(:, ifold+1) = nbinfold
+         sig(:, ifold+1) = sigfold
+
+      END DO
+
+   END SUBROUTINE folded_power_spectrum_particles
 
    SUBROUTINE cross_spectrum_particles(x1, x2, L, m, nk, k, Pk, nbin, sig, kmin_opt, kmax_opt)
 
@@ -1705,6 +1763,28 @@ CONTAINS
 
    END SUBROUTINE zshift
 
+   SUBROUTINE fold_particles(x, L)
+
+      ! Fold (really translate) particles by half in each dimension
+      REAL, INTENT(INOUT) :: x(:, :) ! Particles
+      REAL, INTENT(INOUT) :: L       ! Length of periodic box
+      INTEGER :: n, dim
+      INTEGER :: i, d
+
+      ! Pre-calculations
+      n = size(x, 2)   ! Number of particles
+      dim = size(x, 1) ! Number of dimensions
+      L = L/2.         ! Half box size
+      
+      ! Loop and do 'folding'
+      DO i = 1, n
+         DO d = 1, dim
+            IF (x(d, i) >= L) x(d, i) = x(d, i)-L
+         END DO
+      END DO
+
+   END SUBROUTINE fold_particles
+
    REAL FUNCTION Hubble2_simple(z, Om_m, Om_v)
 
       ! This calculates the dimensionless squared hubble parameter squared at redshift z!
@@ -1746,14 +1826,14 @@ CONTAINS
 
    REAL FUNCTION shot_noise_simple(L, n)
 
-      !Calculate simulation shot noise for equal mass matter particlers [(Mpc/h)^3]
+      ! Calculate simulation shot noise for equal mass matter particlers [(Mpc/h)^3]
       USE precision
       IMPLICIT NONE
       REAL, INTENT(IN) :: L ! Box size [Mpc/h]
       !INTEGER*8, INTENT(IN) :: n ! Total number of particles
       INTEGER(int8), INTENT(IN) :: n ! Total number of particles
 
-      !Calculate number density
+      ! Calculate number density
       shot_noise_simple = L**3/real(n)
 
    END FUNCTION shot_noise_simple
