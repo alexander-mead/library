@@ -756,6 +756,7 @@ CONTAINS
       names(270) = 'Random BACCO cosmology'
       names(271) = 'Random NGen-HALOFIT cosmology'
       names(272) = 'Random NGen-HALOFIT cosmology without running index'
+      names(273) = 'Random Dark Quest cosmology'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1684,6 +1685,10 @@ CONTAINS
          CALL random_NGenHALOFIT_cosmology(cosm)
          cosm%iTk = iTk_CAMB
          IF (icosmo == 272) cosm%nrun = 0.
+      ELSE IF (icosmo == 273) THEN
+         ! Random Dark Quest cosmology
+         CALL random_Dark_Quest_cosmology(cosm)
+         cosm%iTk = iTk_CAMB
       ELSE IF (icosmo >= 100 .AND. icosmo <= 137) THEN
          ! Mira Titan nodes
          CALL Mira_Titan_node_cosmology(icosmo-100, cosm)
@@ -6383,6 +6388,58 @@ CONTAINS
       cosm%neff = 3.040
 
    END SUBROUTINE random_NGenHALOFIT_cosmology
+
+   SUBROUTINE random_Dark_Quest_cosmology(cosm)
+
+      ! Generate random cosmological parameters for the Dark Quest hypercube
+      ! Equations (25) from https://arxiv.org/pdf/1811.09504.pdf
+      USE random_numbers
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: lnAs, wb, wc, wnu, wm
+      REAL, PARAMETER :: wb_min = 0.0211375
+      REAL, PARAMETER :: wb_max = 0.0233625
+      REAL, PARAMETER :: wc_min = 0.10782
+      REAL, PARAMETER :: wc_max = 0.13178
+      REAL, PARAMETER :: Om_w_min = 0.54752
+      REAL, PARAMETER :: Om_w_max = 0.82128
+      REAL, PARAMETER :: lnAs_min = 2.4752
+      REAL, PARAMETER :: lnAs_max = 3.7128
+      REAL, PARAMETER :: ns_min = 0.916275
+      REAL, PARAMETER :: ns_max = 1.012725
+      REAL, PARAMETER :: w_min = -1.2
+      REAL, PARAMETER :: w_max = -0.8
+
+      ! Randomly generate primary parameters
+      wb = random_uniform(wb_min, wb_max)
+      wc = random_uniform(wc_min, wc_max)
+      cosm%Om_w = random_uniform(Om_w_min, Om_w_max) 
+      lnAs = random_uniform(lnAs_min, lnAs_max) 
+      cosm%ns = random_uniform(ns_min, ns_max)
+      cosm%w = random_uniform(w_min, w_max)
+
+      ! Fixed neutrino density
+      wnu = 0.00064
+      
+      ! Enforce flatness, ensure Omega_w is used for wCDM dark energy, Omega_v = 0
+      cosm%iw = iw_wCDM 
+      cosm%Om_v = 0.
+      cosm%Om_m = 1.-cosm%Om_w
+      wm = wc+wb+wnu
+      cosm%h = sqrt(wm/cosm%Om_m)
+      cosm%As = exp(lnAs)/1e10
+      cosm%Om_b = wb/cosm%h**2  
+
+      ! CMB temperature [K]
+      !cosm%T_CMB = 2.7255 
+
+      ! Neutrino mass (only after T_CMB has been set)
+      cosm%m_nu = wnu*neutrino_constant(cosm)
+
+      ! Normalisation; Ensure kpiv = 0.05/Mpc; NOTE: My units are h/Mpc
+      cosm%norm_method = norm_As
+      cosm%kpiv = 0.05/cosm%h
+
+   END SUBROUTINE random_Dark_Quest_cosmology
 
    SUBROUTINE Cosmic_Emu_node_cosmology(node, cosm)
 
