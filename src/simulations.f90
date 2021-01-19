@@ -6,6 +6,7 @@ MODULE simulations
 
    USE constants
    USE basic_operations
+   USE array_operations
    USE field_operations
 
    IMPLICIT NONE
@@ -27,6 +28,7 @@ MODULE simulations
    PUBLIC :: power_spectrum_particles
    PUBLIC :: cross_spectrum_particles
    PUBLIC :: folded_power_spectrum_particles
+   PUBLIC :: combine_folded_power
 
    PUBLIC :: generate_randoms
    PUBLIC :: generate_poor_glass
@@ -108,9 +110,7 @@ CONTAINS
 
       ! Calculate the correlation function for the sample with positions 'x' and weights 'w'
       ! CARE: Removed double-precision sums
-      USE array_operations
       USE table_integer
-      USE constants
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n1, n2            ! Total numbers of particles
       INTEGER, INTENT(IN) :: nr                ! Required number of log-spaced bins
@@ -1018,7 +1018,6 @@ CONTAINS
       ! This way is memory efficient
       ! TODO: This raises an 'array temporary' warning because non-contiguous sections of x are passed to swap_arrays
       USE random_numbers
-      USE array_operations
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(INOUT) :: x(3, n)  
@@ -1303,7 +1302,6 @@ CONTAINS
    SUBROUTINE CIC_2D(x, n, L, w, d, m, all, periodic, verbose)
 
       ! Cloud-in-cell binning routine
-      USE array_operations
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
       REAL, INTENT(IN) :: x(2, n)     ! 2D particle positions     
@@ -1423,7 +1421,6 @@ CONTAINS
    SUBROUTINE CIC_3D(x, n, L, w, d, m, all, periodic, verbose)
 
       ! Cloud-in-cell binning routine
-      USE array_operations
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
       REAL, INTENT(IN) :: x(3, n)     ! 3D particle positions    
@@ -1844,7 +1841,6 @@ CONTAINS
       ! See appendix in HMx paper
       ! Note if this is for mass then u = v = particle_mass/total_mass
       ! CARE: Removed double-precision sums
-      USE array_operations
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n ! Number of particles
       REAL, INTENT(IN) :: u(n) ! Contributions to the total field u and v per particle  
@@ -1863,7 +1859,6 @@ CONTAINS
 
       ! Calculate simulation shot noise constant P(k) for different-mass tracers [(Mpc/h)^3]
       ! CARE: Removed double-precision sums
-      USE array_operations
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: n ! Number of particles
       REAL, INTENT(IN) :: L    ! Box size [Mpc/h]
@@ -1896,10 +1891,7 @@ CONTAINS
    SUBROUTINE write_adaptive_field(xc, yc, Lsub, z1, z2, m, r, x, w, n, L, outfile)
 
       ! Makes a pretty picture of a density field but uses adaptive meshes to make it nice
-      USE array_operations
       USE string_operations
-
-      IMPLICIT NONE
 
       REAL, INTENT(IN) :: xc, yc ! Coordinates of image centre [Mpc/h]
       REAL, INTENT(IN) :: Lsub ! Size of image [Mpc/h]
@@ -2355,5 +2347,66 @@ CONTAINS
       CALL replace(x, L)
 
    END SUBROUTINE make_HOD
+   
+   SUBROUTINE combine_folded_power(k, Pk, sig, k_bin, k_tot, Pk_tot, sig_tot)
+
+      ! TODO: Should weight enter the calculation of mean k? Or should this just be an array of ones?
+      ! TODO: Remove power above half-Nyquist at each fold
+      USE statistics
+      REAL, INTENT(IN) :: k(:, :)
+      REAL, INTENT(IN) :: Pk(:, :)
+      REAL, INTENT(IN) :: sig(:, :)
+      REAL, INTENT(IN) :: k_bin(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: k_tot(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk_tot(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: sig_tot(:)
+      REAL, ALLOCATABLE :: weight(:, :), ones(:)
+      REAL, ALLOCATABLE :: w_k(:), w_Pk(:), w_sig(:)
+      INTEGER :: nk, nf
+      INTEGER :: ifold, ik
+
+      ! Check k dimension
+      nk = size(k, 1)
+      IF (size(Pk, 1) /= nk) STOP 'COMBINE_FOLDED_POWER_DATA: Error Pk_fold should have the same first dimension as k_fold'
+      IF (size(sig, 1) /= nk) STOP 'COMBINE_FOLDED_POWER_DATA: Error sig_fold should have the same first dimension as k_fold'
+
+      ! Check fold dimension
+      nf = size(k, 2)
+      IF (size(Pk, 2) /= nf) STOP 'COMBINE_FOLDED_POWER_DATA: Error Pk_fold should have the same second dimension as k_fold'
+      IF (size(sig, 2) /= nf) STOP 'COMBINE_FOLDED_POWER_DATA: Error sig_fold should have the same second dimension as k_fold'
+      nf = nf-1
+
+      ! Create weight array from errors
+      ALLOCATE(weight(nk, nf+1))
+      DO ifold = 1, nf+1
+         DO ik = 1, nk
+            IF (sig(ik, ifold) == 0.) THEN
+               weight(ik, ifold) = 0.
+            ELSE
+               weight(ik, ifold) = 1./sig(ik, ifold)
+            END IF
+         END DO
+      END DO
+      ALLOCATE(ones(nk*(nf+1)))
+      ones = 1.
+
+      ! Histogram k, P(k) and sig(k) 
+      CALL advanced_histogram(reshape(k, [nk*(nf+1)]), reshape(k, [nk*(nf+1)]), ones, k_bin, k_tot, w_k)
+      CALL advanced_histogram(reshape(k, [nk*(nf+1)]), reshape(Pk, [nk*(nf+1)]), reshape(weight, [nk*(nf+1)]), k_bin, Pk_tot, w_Pk)
+      CALL advanced_histogram(reshape(k, [nk*(nf+1)]), reshape(weight**2, [nk*(nf+1)]), ones, k_bin, sig_tot, w_sig)
+
+      ! Normalise results
+      DO ik = 1, size(k_tot)
+         k_tot(ik) = k_tot(ik)/w_k(ik)
+         IF (w_Pk(ik) == 0.) THEN
+            Pk_tot(ik) = 0.
+            sig_tot(ik) = 0.
+         ELSE         
+            Pk_tot(ik) = Pk_tot(ik)/w_Pk(ik)
+            sig_tot(ik) = sqrt(1./sig_tot(ik))
+         END IF
+      END DO
+
+   END SUBROUTINE combine_folded_power
 
 END MODULE simulations
