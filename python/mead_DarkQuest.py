@@ -2,12 +2,16 @@
 import numpy as np
 import sys
 
+# Other imports
+sys.path.append('/Users/Mead/Physics/DarkQuest')
+import darkemu
+
 # My imports
-#sys.path.append('/Users/Mead/Physics/library/python')
-#import mead_cosmology as cosm
+sys.path.append('/Users/Mead/Physics/library/python')
+import mead_constants as const
+import mead_cosmology as cosmo
 
 # Constants
-rhoc = 2.775373e11 # Critical density [(Msun/h) (Mpc/h)^-3]
 dc = 1.686 # Collapse threshold for nu definition
 Dv = 200. # Spherical-overdensity halo definition
 np_min = 200 # Minimum number of halo particles
@@ -32,6 +36,99 @@ w_max = -0.8
 # Parameters
 log_interp_sigma = True
 
+# Create my cosmological parameters from a Dark Quest set
+def create_cosmology(cpar, verbose=False):
+
+    # Dark Quest cosmological parameters
+    wb = cpar[0]
+    wc = cpar[1]
+    Om_w = cpar[2]
+    lnAs = cpar[3]
+    ns = cpar[4]
+    w = cpar[5]
+    wnu = 0.00064
+
+    # My cosmology   
+    Om_w = Om_w
+    Om_m = 1.-Om_w
+    wm = wc+wb+wnu
+    h = np.sqrt(wm/Om_m)
+    Om_b = wb/h**2
+    As = np.exp(lnAs)/1e10
+    ns = ns
+    w = w
+    m_nu = wnu*const.nuconst
+    cosm = cosmo.cosmology(Om_m=Om_m, Om_b=Om_b, Om_w=Om_w, h=h, As=As, ns=ns, w=w, m_nu=m_nu)
+
+    # Print to screen
+    if (verbose):
+        cosm.print()
+
+    return cosm
+
+# Convert my cosmology into a Dark Quest cosmology
+def convert_cosmology(cosm):
+
+    # Get Dark Quest parameters from my structure
+    wb = cosm.w_b
+    wc = cosm.w_c
+    Om_w = cosm.Om_w
+    lnAs = np.log(cosm.As*1e10)
+    ns = cosm.ns
+    w = cosm.w
+
+    return [wb, wc, Om_w, lnAs, ns, w]
+
+# Initialise the emulator for a given set of cosmological parameters
+# cpar should be [wb, wc, Om_w, lnAs, ns, w]
+def init_emulator(cpar):
+
+    # Start Dark Quest
+    emu = darkemu.base_class()
+
+    # Initialise emulator
+    cparam = np.array(cpar) # array for cosmological parameters
+    emu.set_cosmology(cparam)
+    print('') # White space after the various initialize remarks
+
+    return emu
+
+# Linear matter power spectrum
+def Pk_mm(ks, zs, cpar, nonlinear=False):
+
+    emu = init_emulator(cpar)
+    Pk = np.zeros((len(zs), len(ks)))
+    for iz, z in enumerate(zs):
+        if (nonlinear):
+            Pk[iz, :] = emu.get_pmnl(ks, z)
+        else:         
+            Pk[iz, :] = emu.get_pklin_from_z(ks, z)
+
+    return Pk
+
+# Non-linear matter power spectrum
+# cpar should be [wb, wc, Om_w, lnAs, ns, w]
+#def Pk_nl(ks, zs, cpar):
+#
+#    emu = init_emulator(cpar)
+#    Pk_nl = np.zeros((len(zs), len(ks)))
+#    for iz, z in enumerate(zs):
+#        Pk_nl[iz, :] = emu.get_pmnl(ks, z)
+#
+#    return Pk_nl
+
+# Random cosmological parameters from the Dark Quest hypercube
+def random_cosmology():
+
+    wb = np.random.uniform(wb_min, wb_max)
+    wc = np.random.uniform(wc_min, wc_max)
+    Om_w = np.random.uniform(Om_w_min, Om_w_max)
+    lnAs = np.random.uniform(lnAs_min, lnAs_max)
+    ns = np.random.uniform(ns_min, ns_max)
+    w = np.random.uniform(w_min, w_max)
+
+    return [wb, wc, Om_w, lnAs, ns, w]
+
 def minimum_halo_mass(emu):
 
     Mbox_HR = comoving_matter_density(emu)*Lbox_HR**3
@@ -41,7 +138,7 @@ def minimum_halo_mass(emu):
 def comoving_matter_density(emu):
 
    Om_m = emu.cosmo.get_Omega0()
-   rhom = rhoc*Om_m
+   rhom = const.rhoc*Om_m
    return rhom
 
 def nu_R(emu, R, z):

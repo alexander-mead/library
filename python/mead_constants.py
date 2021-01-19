@@ -13,3 +13,12 @@ year = 365.25*24.*60.*60. # year [s]
 # Astronomy
 R_Sun = 6.957e8 # Solar radius [m]
 M_Sun = 2.e30 # Solar mass [kg]
+
+# Cosmology
+# TODO: Derive those that should be derived
+Hdist = 2997.92458 # c/H0 [Mpc/h]
+Htime = 9.777922217 # 1/H0 [Gyr/h]
+H0 = 100. # H0 in h [km/s/Mpc]
+#rhoc = 277537383080.52332 # Critical density [(Msun/h) (Mpc/h)^-3]
+rhoc = 2.775373e11 # Critical density [(Msun/h) (Mpc/h)^-3]
+nuconst = 93.1 # Neutrino mass required to close universe [eV]

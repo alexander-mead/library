@@ -204,9 +204,12 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_n
     ### Figure options ###
 
     # Seaborn
-    if (use_seaborn):
-        sns.set()
-    else:
+    #if (use_seaborn):
+    #    sns.set()
+    #else:
+    #    sns.reset_orig
+    #    matplotlib.rc_file_defaults()
+    if (not use_seaborn):
         sns.reset_orig
         matplotlib.rc_file_defaults()
 
@@ -234,12 +237,12 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_n
     #case_line_label = 'Rolling positive tests'
     case_line_label = 'Positive tests'
 
-    # Hospitalisations
-    hosp_fac = 10.
+    # Hospitalisations 
     plot_hosp = False
+    hosp_fac = 10.
     hosp_bar_color = 'green'
     #hosp_line_color = 'green'
-    hosp_bar_label = 'Hospital cases [times %d]' % (int(hosp_fac))
+    hosp_bar_label = 'Hospital cases [x%d]' % (int(hosp_fac))
     #hosp_line_label = 'Rolling hospital admissions'  
 
     # Deaths
@@ -249,7 +252,7 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_n
     death_line_color = 'r'
     #death_bar_label = 'Deaths [times %d]' % (int(death_fac))
     #death_line_label = 'Rolling deaths [times %d]' % (int(death_fac))
-    death_line_label = 'Deaths [times %d]' % (int(death_fac))
+    death_line_label = 'Deaths [x%d]' % (int(death_fac))
 
     # Months
     month_color = 'black'
@@ -346,34 +349,44 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_n
 
         # Cases
         if (plot_cases):
-            plt.bar(data.query(q)['date'], 
-                    data.query(q)['Cases']*pop_fac,
-                    width=bar_width,
-                    color=case_bar_color)
-                    #label=case_bar_label)
-            #sns.barplot(data=[data.query(q).date, data.query(q).Cases*pop_fac],                   
-            #            color=case_bar_color,
-            #            label=case_bar_label)
-            plt.plot(data.query(q).date,
-                     data.query(q).Cases_roll*pop_fac/days_in_roll,
+            if (use_seaborn):
+                sns.barplot(x=data.query(q)['date'], 
+                            y=data.query(q)['Cases']*pop_fac,
+                            color=case_bar_color)
+            else:
+                plt.bar(data.query(q)['date'], 
+                        data.query(q)['Cases']*pop_fac,
+                        width=bar_width,
+                        color=case_bar_color)        
+            plt.plot(data.query(q)['date'],
+                     data.query(q)['Cases_roll']*pop_fac/days_in_roll,
                      color=case_line_color, 
                      label=case_line_label)
 
         # Hospitalisations
         if (plot_hosp):
-            plt.bar(data.date, 
-                    hosp_fac*data.query(q).Hospital*pop_fac, 
-                    width=bar_width,       
-                    color=hosp_bar_color,
-                    label=hosp_bar_label)
+            if (use_seaborn):
+                sns.barplot(x=data.query(q)['date'], 
+                            y=data.query(q)['Hosp']*hosp_fac*pop_fac,                
+                            color=hosp_bar_color)
+            else:
+                plt.bar(data.query(q)['date'], 
+                        data.query(q)['Hospital']*hosp_fac*pop_fac, 
+                        width=bar_width,       
+                        color=hosp_bar_color,
+                        label=hosp_bar_label)
 
         # Deaths
         if (plot_deaths):
-            plt.bar(data.query(q).date, 
-                    death_fac*data.query(q).Deaths*pop_fac,
-                    width=bar_width,
-                    color=death_bar_color)
-                    #label=death_bar_label)
+            if (use_seaborn):
+                sns.barplot(x=data.query(q)['date'], 
+                            y=data.query(q)['Deaths']*death_fac*pop_fac,
+                            color=death_bar_color)
+            else:
+                plt.bar(data.query(q)['date'], 
+                        data.query(q)['Deaths']*death_fac*pop_fac,
+                        width=bar_width,
+                        color=death_bar_color)
             plt.plot(data.query(q).date, 
                      death_fac*data.query(q).Deaths_roll*pop_fac/days_in_roll, 
                      color=death_line_color, 
@@ -387,6 +400,7 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_n
         X.set_major_formatter(mticker.NullFormatter())
         X.set_minor_formatter(fmt)
         ax.tick_params(axis='x', which='minor', bottom=False)
+        plt.xlabel('')
 
         # Axes limits
         plt.xlim(left=start_date, right=end_date)
@@ -404,8 +418,6 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_n
             plt.title(region, x=0.03, y=0.88, loc='Left', bbox=dict(facecolor='w', edgecolor='k'))
         if (n == 9 and i == 0):
             plt.title(date.strftime("%Y-%m-%d"), x=0.97, y=0.88, loc='Right', bbox=dict(facecolor='w', edgecolor='k'))
-        #if (n == 1 and region == 'North East'):
-        #    plt.title(date.strftime("%Y-%m-%d"), x=0.24, y=0.75, loc='Right', bbox=dict(facecolor='w', edgecolor='k'))
         if (n == 9 and i == 1) or (n==1 and region == 'North East'): 
             legend = plt.legend(loc='upper right', framealpha=1.)
             legend.get_frame().set_edgecolor('k')

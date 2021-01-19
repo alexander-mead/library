@@ -1,23 +1,78 @@
+# Standard imports
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 import scipy.integrate as integrate
 from scipy.interpolate import interp1d
 import mead_interpolation as interpolation
+import sys
 
-## Cosmological constants ##
+# My imports
+sys.path.append('/Users/Mead/Physics/library/python')
+import mead_constants as const
 
-conH0 = 2997.92458 # c/H0 [Mpc/h]
-invH0 = 9.777922217 # 1/H0 [Gyr/h]
-H0 = 100. # H0 in h [km/s/Mpc]
-#T0 = 2.73 # CMB temperature [K]
-#tau = 0. # Optical depth in dimensionless units
-rhoc = 277537383080.52332 # Critical density [(Msun/h) (Mpc/h)^-3]
+class cosmology():
 
-## ##
+    def __init__(self, Om_m=0.3, Om_b=0.05, Om_w=0.7, h=0.7, ns=0.96, As=2.1e-9, 
+                       m_nu=0., w=-1., wa=0., neff=3.046, YH=0.76, Tcmb=2.725, Nnu=3):
+
+        # Primary parameters
+        self.Om_m = Om_m
+        self.Om_b = Om_b
+        self.Om_w = Om_w
+        self.h = h
+        self.ns = ns
+        self.As = As
+        #self.sig8 = 0.8
+        self.m_nu = m_nu
+        self.w = w
+        self.wa = wa
+        self.neff = neff
+        self.YH = YH
+        self.Tcmb = Tcmb
+        self.Nnu = Nnu
+
+        # Derived parameters
+        self.w_m = self.Om_m*self.h**2
+        self.w_b = self.Om_b*self.h**2
+        self.w_nu = self.m_nu/const.nuconst
+        self.Om_nu = self.w_nu/self.h**2
+        self.Om_c = self.Om_m-self.Om_b-self.Om_nu
+        self.w_c = self.Om_c*self.h**2
+        self.Om_k = 1.-self.Om_m-self.Om_w
+
+    def print(self):
+
+        # Write primary parameters to screen
+        print('Primary parameters')
+        print('Omega_m: %1.4f' % (self.Om_m))
+        print('Omega_b: %1.4f' % (self.Om_b))
+        print('Omega_w: %1.4f' % (self.Om_w))
+        print('h: %1.4f' % (self.h))
+        print('ns: %1.4f' % (self.ns))
+        print('As [1e9]: %1.4f' % (self.As*1e9))
+        print('m_nu [eV]: %1.4f' % (self.m_nu))
+        print('w: %1.4f' % (self.w))
+        print('wa: %1.4f' % (self.wa))
+        print('neff: %1.4f' % (self.neff))
+        print('YH: %1.4f' % (self.YH))
+        print('T_CMB [K]: %1.4f' % (self.Tcmb))
+        print('N_nu: %d' % (self.Nnu))
+        print()
+
+        # Write derived parameters to screen
+        print('Derived parameters')
+        print('omega_m: %1.4f' % (self.w_m))
+        print('omega_c: %1.4f' % (self.w_c))
+        print('omega_b: %1.4f' % (self.w_b))
+        print('omega_nu: %1.4f' % (self.w_nu))
+        print('Omegea_c: %1.4f' % (self.Om_c))
+        print('Omega_nu: %1.4f' % (self.Om_nu))
+        print('Omega_k: %1.4f' % (self.Om_k))
+        print()
 
 ## Assign and initialise ##
-
+# TODO: Replace with cosmology class
 def assign_cosmology():
 
     global Om_r, Om_m, Om_v, Om_w
@@ -32,7 +87,7 @@ def assign_cosmology():
     Om_w = 0.7
     ide = 0
 
-    # ide=1,2 (1 - w(a)CDM; 2 - wCDM)
+    # ide=1, 2 (1 - w(a)CDM; 2 - wCDM)
     w0 = -1.
     wa = 0.
 
@@ -312,9 +367,9 @@ def initialise_distances():
     r0=rp(1.)
     t0=t(1.)
     print('Initialise_distances: Horizon size [dimensionless]:', r0)
-    print('Initialise_distances: Horizon size [Mpc/h]:', conH0*r0)
+    print('Initialise_distances: Horizon size [Mpc/h]:', const.Hdist*r0)
     print('Initialise_distances: Universe age [dimensionless]:', t0)
-    print('Initialise_distances: Universe age [Gyr/h]:', invH0*t0)
+    print('Initialise_distances: Universe age [Gyr/h]:', const.Htime*t0)
     print('Initialise_distances: r(0):',  r(0.))
     print('Initialise_distances: rp(0):', rp(0.))
     print('Initialise_distances: t(0):',  t(0.))
@@ -486,4 +541,4 @@ def create_Pk(k_tab,Pk_tab):
 
 def comoving_matter_density(Om_m):
 
-   return rhoc*Om_m
+   return const.rhoc*Om_m
