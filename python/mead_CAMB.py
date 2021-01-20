@@ -37,7 +37,7 @@ def create_cosmology(pars, verbose=False):
 
 # Convert my cosmology into a CAMB cosmology
 # TODO: Neutrino hierarchy? CMB temperature? Helium fraction? Tau?
-def convert_cosmology(cosm, verbose=False):
+def convert_mead_cosmology(cosm, verbose=False):
 
     # Set up a new default set of parameters for CAMB
     pars = camb.CAMBparams()

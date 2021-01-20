@@ -11,6 +11,9 @@ import sys
 sys.path.append('/Users/Mead/Physics/library/python')
 import mead_constants as const
 
+# Mead cosmology class, roughly analagous to that I use in Fortran
+# TODO: Normalisation As vs. sigma_8 etc.
+# TODO: Make distance etc. class methods?
 class cosmology():
 
     def __init__(self, Om_m=0.3, Om_b=0.05, Om_w=0.7, h=0.7, ns=0.96, As=2.1e-9, 
@@ -71,7 +74,7 @@ class cosmology():
         print('Omega_k: %1.4f' % (self.Om_k))
         print()
 
-## Assign and initialise ##
+# Assign and initialise
 # TODO: Replace with cosmology class
 def assign_cosmology():
 
@@ -98,7 +101,8 @@ def assign_cosmology():
 
     print('Assign_cosmology: Done')
     print()
-    
+
+# TODO: Remove and use cosmology class
 def initialise_cosmology():
 
     global Om
@@ -132,6 +136,7 @@ def initialise_cosmology():
     #initialise_distances()
     #initialise_growth()
 
+# TODO: Remove and use cosmology class
 def print_cosmology():
 
     print('Print_cosmology: Parameters')
