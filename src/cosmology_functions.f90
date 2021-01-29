@@ -1991,7 +1991,7 @@ CONTAINS
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 2 [eV]:', cosm%m_nu(2)
          !WRITE(*,fmt=format) 'COSMOLOGY:', 'm_nu 3 [eV]:', cosm%m_nu(3)
          WRITE (*, fmt=format) 'COSMOLOGY:', 'M_nu [eV]:', cosm%m_nu
-         IF (cosm%m_nu /= 0.) WRITE (*, fmt='(A11,A16,I11.5)') 'COSMOLOGY:', 'N_nu:', cosm%N_nu
+         IF (cosm%m_nu /= 0.) WRITE (*, fmt='(A11,A16,I11)') 'COSMOLOGY:', 'N_nu:', cosm%N_nu
          WRITE (*, *) dashes
          IF (cosm%iw == iw_LCDM) THEN
             WRITE (*, *) 'COSMOLOGY: Dark energy: Vacuum'
@@ -2003,7 +2003,7 @@ CONTAINS
             WRITE (*, fmt=format) 'COSMOLOGY:', 'am:', cosm%am
             WRITE (*, fmt=format) 'COSMOLOGY:', 'dm:', cosm%dm
          ELSE IF (cosm%iw == iw_waCDM) THEN
-            WRITE (*, *) 'COSMOLOGY: Dark energy: CPL'
+            WRITE (*, *) 'COSMOLOGY: Dark energy: w(a)CDM'
             WRITE (*, fmt=format) 'COSMOLOGY:', 'w0:', cosm%w
             WRITE (*, fmt=format) 'COSMOLOGY:', 'wa:', cosm%wa
          ELSE IF (cosm%iw == iw_wCDM) THEN
@@ -5800,9 +5800,14 @@ CONTAINS
       nk = size(k)
       na = size(a)
       IF (nk /= size(Pk, 1) .OR. na /= size(Pk, 2)) THEN
-         WRITE(*, *) 'Sizes of k, a, and Pk are inconsistent', nk, na, shape(Pk)
+         WRITE(*, *) 'INIT_EXTERNAL_LINEAR_POWER_TABLES: Sizes of k, a, and Pk are inconsistent:', nk, na, shape(Pk)
          cosm%status = 1
          RETURN
+      END IF
+      IF (na == 1 .AND. a(na) /= 1.) THEN
+         STOP 'INIT_EXTERNAL_LINEAR_POWER_TABLES: Error, if you only provide a single linear power spectum input it must be at a=1.'
+      ELSE IF (na < 4) THEN
+         STOP 'INIT_EXTERNAL_LINEAR_POWER_TABLES: Error, you need to provide the input linear power at at least 4 scale factors for interpolation to work'
       END IF
       cosm%nk_plin = nk
       cosm%na_plin = na
@@ -5813,7 +5818,7 @@ CONTAINS
       IF (.NOT. allocated(cosm%log_plin))   ALLOCATE(cosm%log_plin(nk))
       IF (.NOT. allocated(cosm%log_plina))  ALLOCATE(cosm%log_plina(nk, na))
       cosm%log_k_plin = log(k)
-      cosm%log_plin = log(Pk(:,na)*k**3/(2.*pi**2))
+      cosm%log_plin = log(Pk(:, na)*k**3/(2.*pi**2))
       cosm%log_a_plin = log(a)
       FORALL (i = 1:nk) cosm%log_plina(i, :) = log(Pk(i, :)*k(i)**3/(2.*pi**2))
 
@@ -5837,7 +5842,7 @@ CONTAINS
       IF (allocated(cosm%log_k_plin)) THEN
          nk = size(cosm%log_k_plin)
       ELSE
-         WRITE (*, *) "cosmology%log_k_plin has not been allocated!"
+         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%log_k_plin has not been allocated!'
          cosm%status = 1
          RETURN
       END IF
@@ -5846,7 +5851,7 @@ CONTAINS
       IF (allocated(cosm%log_a_plin)) THEN
          na = size(cosm%log_a_plin)
       ELSE
-         WRITE (*, *) "cosmology%log_a_plin has not been allocated!"
+         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%log_a_plin has not been allocated!'
          cosm%status = 1
          RETURN
       END IF
@@ -5855,7 +5860,7 @@ CONTAINS
       IF (allocated(cosm%log_plin)) THEN
          nk_pk = size(cosm%log_plin)
       ELSE
-         WRITE (*, *) "cosmology%log_plin has not been allocated!"
+         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%log_plin has not been allocated!'
          cosm%status = 1
          RETURN
       END IF
@@ -5866,21 +5871,21 @@ CONTAINS
          nk_pka = plina_shape(1)
          na_pka = plina_shape(2)
       ELSE
-         WRITE (*, *) "cosmology%log_plina has not been allocated!"
+         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%log_plina has not been allocated!'
          cosm%status = 1
          RETURN
       END IF
 
       ! Check k sizes of arrays agree
       IF (nk /= nk_pk .OR. nk /= nk_pka .OR. nk /= cosm%nk_plin) THEN
-         WRITE (*,*) "Sizes of cosmology%log_plin, cosmology%log_k_plin, or cosmology%nk_plin are inconsistent:", nk_pk, nk_pka, nk, cosm%nk_plin
+         WRITE (*,*) 'INIT_EXTERNAL_LINEAR: Sizes of cosmology%log_plin, cosmology%log_k_plin, or cosmology%nk_plin are inconsistent:', nk_pk, nk_pka, nk, cosm%nk_plin
          cosm%status = 1
          RETURN
       END IF
 
       ! Check a sizes of arrays agree
       IF(na /= na_pka .OR. na /= cosm%na_plin) THEN
-         WRITE (*, *) "Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:", na_pka, na, cosm%na_plin
+         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:', na_pka, na, cosm%na_plin
          cosm%status = 1
          RETURN
       END IF
