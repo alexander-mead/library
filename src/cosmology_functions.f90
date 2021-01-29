@@ -953,7 +953,8 @@ CONTAINS
       cosm%kval = 0.001              ! norm_pval: Wavenumber for normalisation [h/Mpc]
       cosm%pval = 0.1973236854e-06   ! norm_pval: Delta^2 value to get sig8 = 0.8 for a boring cosmology
       cosm%kpiv = 0.05               ! norm_As: Wavenumber at which to define As normalisation NOTE: [h/Mpc]
-      cosm%As = 2.1e-9               ! norm_As: 2.1e-9 is a sensible value
+      !cosm%As = 2.1e-9               ! norm_As: 2.1e-9 is a sensible value
+      cosm%As = 2.00174e-9           ! norm_As: This gives sigma_8 = 0.8 in the boring cosmology
       
       !! !!
 
