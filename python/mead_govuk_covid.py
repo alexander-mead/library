@@ -87,6 +87,11 @@ def read_data(infile, metrics):
     # Return the massaged pandas data frame
     return data
 
+# Sort
+def sort_data(df):
+  
+    df.sort_values(['Region', 'date'], ascending=[True, False], inplace=True)
+
 # Perform calculations on data (assumes organised in date from high to low for each region)
 def calculate_data(regions, df, verbose):
     
@@ -104,7 +109,7 @@ def calculate_data(regions, df, verbose):
     data_head(df, 'Original data')
 
     # Sort
-    df.sort_values(['Region', 'date'], ascending=[True, False], inplace=True)
+    sort_data(df)
     data_head(df, 'Sorted data')
 
     # Calculate rolling cases and deaths (sum over previous week)
@@ -441,6 +446,23 @@ def plot_rolling_data(data, date, start_date, end_date, regions, pop_norm=True, 
 
     ### Figure options ###
 
+    if (plot_type == 'Cases_log' or plot_type == 'Deaths_log'):
+        log = True
+    else:
+        log = False
+
+    if (log):
+        plot = plt.semilogy
+        if (plot_type == 'Cases_log'):
+            ymin = 1.
+        elif (plot_type == 'Deaths_log'):
+            ymin = 1e-2
+        else:
+            raise ValueError('Plot_type not recognised')
+    else:
+        plot = plot.plot
+        ymin = 0.
+
     # Size
     figx = 17.; figy = 6.
 
@@ -521,19 +543,19 @@ def plot_rolling_data(data, date, start_date, end_date, regions, pop_norm=True, 
             pop_fac = 1.
 
         # Plot data
-        q = "Region == '%s'" % (region) # Query to isolate regions       
+        q = "Region == '%s'" % (region) # Query to isolate regions      
 
         # Cases
-        if (plot_type == 'Cases'):
-            plt.plot(data.query(q)['date'],
+        if (plot_type == 'Cases' or plot_type == 'Cases_log'):
+            plot(data.query(q)['date'],
                      data.query(q)['Cases_roll']*pop_fac/days_in_roll,
                      color='C{}'.format(i), 
                      label=region)
             plt.title('Daily new positive cases: %s' % (date.strftime("%Y-%m-%d")))
 
         # Deaths
-        elif (plot_type == 'Deaths'):
-            plt.plot(data.query(q)['date'], 
+        elif (plot_type == 'Deaths' or plot_type == 'Deaths_log'):
+            plot(data.query(q)['date'], 
                      data.query(q)['Deaths_roll']*pop_fac/days_in_roll, 
                      color='C{}'.format(i), 
                      label=region)
@@ -541,7 +563,7 @@ def plot_rolling_data(data, date, start_date, end_date, regions, pop_norm=True, 
 
         # Cases doubling
         elif (plot_type == 'Cases_double'):
-            plt.plot(data.query(q)['date'],
+            plot.plot(data.query(q)['date'],
                      data.query(q)['Cases_double'],
                      color='C{}'.format(i),
                      ls='-',
@@ -576,12 +598,12 @@ def plot_rolling_data(data, date, start_date, end_date, regions, pop_norm=True, 
 
     # Axes limits
     plt.xlim(left=start_date, right=end_date)
-    if (plot_type == 'Cases' or plot_type == 'Deaths'):
+    if (plot_type == 'Cases' or plot_type == 'Deaths' or plot_type == 'Cases_log' or plot_type == 'Deaths_log'):
         if (pop_norm):
             plt.ylabel('Number per day per 100,000 population')       
         else:
             plt.ylabel('Total number per day')
-        plt.ylim(bottom=0.)
+        plt.ylim(bottom=ymin)
     elif (plot_type == 'Cases_double' or plot_type == 'Deaths_double'):
         plt.ylabel('Doubling or halving time in days')
         plt.ylim(bottom=0., top=30.)

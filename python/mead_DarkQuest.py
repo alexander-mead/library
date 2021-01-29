@@ -65,7 +65,7 @@ class cosmology():
     def print(self):
 
         # Write primary parameters to screen
-        print('Primary parameters')
+        print('Dark Quest primary parameters')
         print('omega_b: %1.4f' % (self.wb))
         print('omega_c: %1.4f' % (self.wc))  
         print('Omega_w: %1.4f' % (self.Om_w))
@@ -74,13 +74,13 @@ class cosmology():
         print('w: %1.4f' % (self.w))
         print()
 
-        print('Fixed parameters')
-        print('omega_nu: %1.4f' % (self.wnu))
-        print('Omega_k: %1.4f' % (self.Om_k))
-        print()
+        #print('Dark Quest fixed parameters')
+        #print('omega_nu: %1.4f' % (self.wnu))
+        #print('Omega_k: %1.4f' % (self.Om_k))
+        #print()
 
         # Write derived parameters to screen
-        print('Derived parameters')
+        print('Dark Quest derived parameters')
         print('Omega_m: %1.4f' % (self.Om_m))
         print('Omega_b: %1.4f' % (self.Om_b))      
         print('omega_m: %1.4f' % (self.wm))
@@ -102,7 +102,6 @@ def random_cosmology():
 
     cpar = cosmology(wb=wb, wc=wc, Om_w=Om_w, lnAs=lnAs, ns=ns, w=w)
 
-    #return [wb, wc, Om_w, lnAs, ns, w]
     return cpar
 
 # Create a set of my cosmological parameters from a Dark Quest set
@@ -176,7 +175,8 @@ def minimum_halo_mass(emu):
 def comoving_matter_density(emu):
 
     Om_m = emu.cosmo.get_Omega0()
-    rhom = const.rhoc*Om_m
+    #rhom = const.rhoc*Om_m
+    rhom = cosmo.comoving_matter_density(Om_m)
     return rhom
 
 def nu_R(emu, R, z):
@@ -190,16 +190,20 @@ def nu_M(emu, M, z):
     nu = dc/sigma_M(emu, M, z)
     return nu
 
-def radius_M(emu, M):
+def Radius_M(emu, M):
 
-    rhom = comoving_matter_density(emu)
-    radius = (3.*M/(4.*np.pi*rhom))**(1./3.)
+    #rhom = comoving_matter_density(emu)
+    #radius = (3.*M/(4.*np.pi*rhom))**(1./3.)
+    Om_m = emu.cosmo.get_Omega0()
+    radius = cosmo.Radius_M(M, Om_m)
     return radius
 
 def Mass_R(emu, R):
 
-    rhom = comoving_matter_density(emu)
-    Mass = 4.*np.pi*(R**3)*rhom/3.
+    #rhom = comoving_matter_density(emu)
+    #Mass = 4.*np.pi*(R**3)*rhom/3.
+    Om_m = emu.cosmo.get_Omega0()
+    Mass = cosmo.Mass_R(R, Om_m)
     return Mass
 
 def Mass_nu(emu, nu, z):
@@ -338,3 +342,14 @@ def beta_NL(emu, vars, ks, z, var='Mass'):
                     raise ValueError('force_BNL_zero not set correctly')
          
     return beta 
+
+def calculate_rescaling_params(emu_ori, emu_tgt, z_tgt, M1_tgt, M2_tgt):
+    
+    R1_tgt = Radius_M(emu_tgt, M1_tgt)
+    R2_tgt = Radius_M(emu_tgt, M2_tgt)
+    
+    s, z = cosmo.calculate_AW10_rescaling_parameters(z_tgt, R1_tgt, R2_tgt, 
+                                                     lambda Ri, zi: sigma_R(emu_ori, Ri, zi), 
+                                                     lambda Ri, zi: sigma_R(emu_tgt, Ri, zi)
+                                                    )
+    return s, z

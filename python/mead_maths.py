@@ -4,7 +4,7 @@ import numpy as np
 # Normalised such that T(x=0)=1
 def Tophat(x):
     xmin=1e-5
-    return np.where(np.abs(x)<xmin, 1.-x**2/10., 3.*(np.sin(x)-x*np.cos(x))/x**3)
+    return np.where(np.abs(x)<xmin, 1.-x**2/10., (3./x**3)*(np.sin(x)-x*np.cos(x)))
 
 # Gaussian function
 # Normalised such that G(x=0)=1

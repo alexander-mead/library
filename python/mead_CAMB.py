@@ -64,7 +64,7 @@ def convert_mead_cosmology(cosm, verbose=False):
 
     return pars
 
-# Non-linear power spectrum
+# Get a 2D P(k,z) array for the linear or non-linear power spectrum
 def Pk_mm(ks, zs, pars, nonlinear=None):
 
     from camb import model
@@ -93,7 +93,8 @@ def Pk_mm(ks, zs, pars, nonlinear=None):
                                                         kmax = kmax,
                                                         var1 = model.Transfer_tot,
                                                         var2 = model.Transfer_tot, 
-                                                        zmax = max(zs))
+                                                        zmax = max(zs),
+                                                        )
 
     # Evaluate interpolator at the desired k and z points
     Pk_CAMB = Pk_CAMB_interp.P(zs, ks)

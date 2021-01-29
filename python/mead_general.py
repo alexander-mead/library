@@ -35,7 +35,7 @@ def seq_color(i, n, cmap):
 
     return cmap(i/(n-1))
 
-def def_color(i):
+def colour(i):
 
     color = 'C%d' % i
     return color
