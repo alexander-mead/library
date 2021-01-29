@@ -31,6 +31,7 @@ MODULE HMx
    PUBLIC :: write_power_a
    PUBLIC :: write_power_a_multiple
    PUBLIC :: write_power_fields
+   PUBLIC :: read_power_a
 
    ! Halo-model calculations  
    PUBLIC :: calculate_HMx
@@ -11270,6 +11271,47 @@ CONTAINS
       END IF
 
    END SUBROUTINE write_power_a
+
+   SUBROUTINE read_power_a(k, a, pow, infile, na, verbose)
+
+      ! Write P(k,a) 
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: a(:)     
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow(:, :)
+      CHARACTER(len=*), INTENT(IN) :: infile
+      INTEGER, INTENT(IN) :: na
+      LOGICAL, INTENT(IN) :: verbose
+      INTEGER :: ik, ia, u, nk
+      CHARACTER(len=256) :: crap
+
+      ! Print to screen
+      IF (verbose) WRITE (*, *) 'READ_POWER_A: Input file: ', TRIM(infile)
+
+      nk = file_length(infile, verbose)-1
+      ALLOCATE(k(nk), a(na), pow(nk, na))
+
+      ! Write data to files
+      OPEN (newunit=u, file=infile, status='old')
+      DO ik = 0, nk
+         IF (ik == 0) THEN
+            READ (u, *) crap, (a(ia), ia=1,na)
+         ELSE
+            READ (u, *) k(ik), (pow(ik, ia), ia=1,na)
+         END IF
+      END DO
+      CLOSE (u)
+
+      ! Print to screen
+      IF (verbose) THEN
+         WRITE (*, *) 'READ_POWER_A: Minimum k [h/Mpc]:', k(1)
+         WRITE (*, *) 'READ_POWER_A: Maximum k [h/Mpc]:', k(nk)
+         WRITE (*, *) 'READ_POWER_A: Minimum a:', a(1)
+         WRITE (*, *) 'READ_POWER_A: Maximum a:', a(na)
+         WRITE (*, *) 'READ_POWER_A: Done'
+         WRITE (*, *)
+      END IF
+
+   END SUBROUTINE read_power_a
 
    REAL FUNCTION P_PTish(k, a, sigv, Amp, R, cosm, approx)
 
