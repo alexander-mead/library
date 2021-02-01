@@ -287,7 +287,7 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_n
     Nov_lockdown_start_date = datetime.date(2020, 11, 5)
     Nov_lockdown_end_date = datetime.date(2020, 12, 2)
     Jan_lockdown_start_date = datetime.date(2021, 1, 5)
-    Jan_lockdown_end_date = data.date.iloc[0]
+    Jan_lockdown_end_date = max(data.date)
 
     # Months
     plot_months = True
