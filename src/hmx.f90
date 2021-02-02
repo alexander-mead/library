@@ -11287,7 +11287,7 @@ CONTAINS
       ! Print to screen
       IF (verbose) WRITE (*, *) 'READ_POWER_A: Input file: ', TRIM(infile)
 
-      nk = file_length(infile, verbose)-1
+      nk = file_length(infile)-1
       ALLOCATE(k(nk), a(na), pow(nk, na))
 
       ! Write data to files
@@ -11305,8 +11305,10 @@ CONTAINS
       IF (verbose) THEN
          WRITE (*, *) 'READ_POWER_A: Minimum k [h/Mpc]:', k(1)
          WRITE (*, *) 'READ_POWER_A: Maximum k [h/Mpc]:', k(nk)
+         WRITE (*, *) 'READ_POWER_A: Number of points in k:', nk
          WRITE (*, *) 'READ_POWER_A: Minimum a:', a(1)
          WRITE (*, *) 'READ_POWER_A: Maximum a:', a(na)
+         WRITE (*, *) 'READ_POWER_A: Number of points in a:', na
          WRITE (*, *) 'READ_POWER_A: Done'
          WRITE (*, *)
       END IF
