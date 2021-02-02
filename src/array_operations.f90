@@ -41,6 +41,7 @@ MODULE array_operations
    PUBLIC :: fill_array_log ! TODO: Remove
    PUBLIC :: outside_array_range
    PUBLIC :: sum_logical
+   PUBLIC :: monotonic_array
 
    INTERFACE is_in_array
       MODULE PROCEDURE is_in_array_integer
@@ -113,6 +114,22 @@ MODULE array_operations
    END INTERFACE concatenate_arrays
 
 CONTAINS
+
+   LOGICAL FUNCTION monotonic_array(x)
+
+      ! Returns true if sequential array entries are monotonically increasing (or equal) from low to high
+      REAL, INTENT(IN) :: x(:)
+      INTEGER :: i
+
+      monotonic_array = .TRUE.
+      DO i = 1, size(x)-1
+         IF(x(i+1) < x(i)) THEN
+            monotonic_array = .FALSE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION monotonic_array
 
    LOGICAL FUNCTION outside_array_range(x, xtab)
 
