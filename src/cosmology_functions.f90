@@ -253,11 +253,10 @@ MODULE cosmology_functions
       LOGICAL :: scale_dependent_growth  ! Is the linear growth scale dependent in this cosmology?
       
       ! Look-up tables that are filled during a calculation
-      REAL, ALLOCATABLE :: log_k_plin(:), log_plin(:)     ! Arrays for input linear P(k) TODO: Remove
-      REAL, ALLOCATABLE :: log_a_plin(:), log_plina(:, :) ! Arrays for input linear P(k, a) TODO: Remove
+      REAL, ALLOCATABLE :: k_Plin(:), a_Plin(:), Plin_array(:, :) ! Arrays for input linear P(k) TODO: Remove
+      INTEGER :: nk_plin, na_plin ! Number of array entries TODO: Remove
       TYPE(interpolator1D) :: grow, grate, agrow, dc, Dv, dist, time, Xde, rspt ! 1D interpolators
       TYPE(interpolator2D) :: sigma, plin, wiggle, Tk_matter, Tk_cold ! 2D interpolators
-      INTEGER :: nk_plin, na_plin ! Number of array entries
       LOGICAL :: analytical_Tk                                                          
       LOGICAL :: has_distance, has_growth, has_sigma, has_spherical, has_power ! Interpolator status
       LOGICAL :: has_wiggle, has_SPT, has_time, has_Xde ! Interpolator status
@@ -1816,6 +1815,7 @@ CONTAINS
       END IF
 
       ! Decide on scale-dependent growth
+      ! NOTE: This is the only place the scale_dependent_growth variable should be set (!!!)
       IF ((cosm%m_nu .NE. 0.) .OR. (cosm%img == img_fR) .OR. (cosm%img == img_fR_lin)) THEN
          cosm%scale_dependent_growth = .TRUE.
       ELSE
@@ -1950,12 +1950,6 @@ CONTAINS
          cosm%analytical_Tk = .TRUE.
       ELSE
          cosm%analytical_Tk = .FALSE.
-      END IF
-
-      ! TILMAN: Added this
-      IF (cosm%iTk == iTk_external) THEN
-         cosm%has_power = .TRUE.
-         CALL init_external_linear(cosm)
       END IF
 
       ! Write finishing message to screen
@@ -2304,11 +2298,16 @@ CONTAINS
       END IF
 
       ! Get the CAMB power if necessary
-      ! TODO: Should all power_init go here or in assign_cosmology?
-      IF (cosm%iTk == iTk_CAMB) CALL init_CAMB_linear(cosm)
-      !IF (cosm%iTk == iTk_external) CALL init_external_linear(cosm) ! This is now done in init_cosmology
-      IF (cosm%analytical_Tk .AND. interp_all_power)   CALL init_analytical_linear(cosm) ! If you want to create interpolator for analytical P(k)
-      IF (cosm%img == img_fR .OR. cosm%img == img_fR_lin) CALL init_fR_linear(cosm)
+      ! TODO: Should all init_power stuff go here or in init_cosmology? It should all be kept together.
+      IF (cosm%iTk == iTk_CAMB) THEN
+         CALL init_CAMB_linear(cosm)
+      ELSE IF (cosm%iTk == iTk_external) THEN
+         CALL init_external_linear(cosm)
+      ELSE IF (cosm%img == img_fR .OR. cosm%img == img_fR_lin) THEN
+         CALL init_fR_linear(cosm)
+      ELSE IF (cosm%analytical_Tk .AND. interp_all_power) THEN
+         CALL init_analytical_linear(cosm)
+      END IF
 
       ! Change the flag *before* doing the normalisation calculation because they call power
       cosm%is_normalised = .TRUE.
@@ -2317,6 +2316,7 @@ CONTAINS
       IF (cosm%norm_method == norm_none) THEN
          ! No need to do anything
       ELSE IF ((cosm%iTk == iTk_external) .AND. (cosm%norm_method /= norm_none)) THEN
+         ! TODO: External linear could be renormalised here if necessary
          STOP 'NORMALISE_POWER: Error, external power should not be re-normalised'
       ELSE IF (cosm%norm_method == norm_sigma8) THEN
          CALL normalise_power_sigma8(cosm)
@@ -2551,20 +2551,12 @@ CONTAINS
             Pk(ik, ia) = Pk(ik, ia)*find(a_lin(ia), a_ode, gk(ik, :), na_ode, iorder=3, ifind=ifind_split, iinterp=iinterp_Lagrange)
          END DO
       END DO
-
-      CALL init_interpolator(k, a_lin, Pk, cosm%plin, &
-         iorder = iorder_interp_plin, &
-         iextrap = iextrap_plin, &
-         store = store_plin, &
-         logx = .TRUE., &
-         logy = .TRUE., &
-         logf = .TRUE.)
+      CALL init_linear(k, a_lin, Pk, cosm)
 
       ! Switch analyical power off and set flag for stored power
       cosm%analytical_Tk = .FALSE.
-      cosm%has_power = .TRUE.
 
-      STOP 'INIT_FR_LINEAR: Error, this does not work at the moment, ODE update?'
+      STOP 'INIT_FR_LINEAR: Error, this might not work at the moment, ODE update, init_linear replacement?'
 
       ! Write to screen
       IF(cosm%verbose) THEN
@@ -3941,13 +3933,22 @@ CONTAINS
       ELSE
          IF (cosm%has_power) THEN
             kmax = cosm%plin%xmax ! TODO: Should not be accessing array internals like this
-            IF (plin_extrap .AND. k > kmax) THEN
-               pmax = evaluate_interpolator(kmax, a, cosm%plin)
-               plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
+            IF (cosm%scale_dependent_growth) THEN
+               IF (plin_extrap .AND. k > kmax) THEN
+                  pmax = evaluate_interpolator(kmax, a, cosm%plin)
+                  plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
+               ELSE
+                  plin = evaluate_interpolator(k, a, cosm%plin)
+               END IF
             ELSE
-               plin = evaluate_interpolator(k, a, cosm%plin)
+               IF (plin_extrap .AND. k > kmax) THEN
+                  pmax = evaluate_interpolator(kmax, 1., cosm%plin)
+                  plin = plin_extrapolation(k, kmax, pmax, cosm%ns)
+               ELSE
+                  plin = evaluate_interpolator(k, 1., cosm%plin)
+               END IF
+               plin = (grow(a, cosm)**2)*plin
             END IF
-            IF (.NOT. cosm%scale_dependent_growth) plin = (grow(a, cosm)**2)*plin
          ELSE
             ! In this case get the power from the transfer function
             plin = (grow(a, cosm)**2)*primordial_spectrum(k, cosm)*Tk_matter(k, a, cosm)**2
@@ -4085,13 +4086,15 @@ CONTAINS
    REAL FUNCTION find_sigma(R, a, cosm)
 
       ! Evaluate interpolator for sigma(R)
-      ! TODO: Applying the growth factor should be iff cosm%interp%na = 1
       REAL, INTENT(IN) :: R ! Smoothing scale to calculate sigma [Mpc/h]
       REAL, INTENT(IN) :: a ! Scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-
-      find_sigma = evaluate_interpolator(R, a, cosm%sigma)
-      IF (.NOT. cosm%scale_dependent_growth) find_sigma = grow(a, cosm)*find_sigma
+   
+      IF (cosm%scale_dependent_growth) THEN
+         find_sigma = evaluate_interpolator(R, a, cosm%sigma)      
+      ELSE
+         find_sigma = grow(a, cosm)*evaluate_interpolator(R, 1., cosm%sigma)
+      END IF
 
    END FUNCTION find_sigma
 
@@ -5777,7 +5780,7 @@ CONTAINS
          WRITE (*, *)
       END IF
 
-      ! Now the linear power arrays are filled
+      ! Now the linear power interpolator is filled
       cosm%has_power = .TRUE.
 
    END SUBROUTINE init_linear
@@ -5785,10 +5788,10 @@ CONTAINS
    SUBROUTINE init_external_linear_power_tables(cosm, k, a, Pk)
 
       ! TILMAN: Wrote this
-      ! TODO: Only really need a 2D plin, not plina too
+      ! TODO: Rename to 'read_external_linear_power'
       ! TODO: This really is P(k) here, not Delta^2(k). Should always be Delta^2(k) despite variable being called Pk   
       ! TODO: Change cosm to be final argument to be consistent with other routines
-      ! TODO: Really should remove cosm%log_plin etc.
+      ! TODO: Really should remove cosm%k_plin, cosm%a_plin, cosm%Plin_array
       ! TODO: MUST talk to Tilman before changing this at all
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmolgy
       REAL, INTENT(IN) :: k(:)     ! Array of wavenumbers
@@ -5805,26 +5808,24 @@ CONTAINS
          RETURN
       END IF
       IF (na == 1 .AND. a(na) /= 1.) THEN
-         STOP 'INIT_EXTERNAL_LINEAR_POWER_TABLES: Error, if you only provide a single linear power spectum input it must be at a=1.'
-      ELSE IF (na < 4) THEN
-         STOP 'INIT_EXTERNAL_LINEAR_POWER_TABLES: Error, you need to provide the input linear power at at least 4 scale factors for interpolation to work'
+         STOP 'INIT_EXTERNAL_LINEAR_POWER_TABLES: Error, if linear power is provided at a single scale factor then input must be at a=1.'
+      ELSE IF (na > 1 .AND. na < 4) THEN
+         STOP 'INIT_EXTERNAL_LINEAR_POWER_TABLES: Error, input linear power needs at least 4 scale factors for interpolation to work'
       END IF
       cosm%nk_plin = nk
       cosm%na_plin = na
 
       ! Fill internal cosm arrays from external power spectrum
-      IF (.NOT. allocated(cosm%log_k_plin)) ALLOCATE(cosm%log_k_plin(nk))
-      IF (.NOT. allocated(cosm%log_a_plin)) ALLOCATE(cosm%log_a_plin(na))
-      IF (.NOT. allocated(cosm%log_plin))   ALLOCATE(cosm%log_plin(nk))
-      IF (.NOT. allocated(cosm%log_plina))  ALLOCATE(cosm%log_plina(nk, na))
-      cosm%log_k_plin = log(k)
-      cosm%log_plin = log(Pk(:, na)*k**3/(2.*pi**2))
-      cosm%log_a_plin = log(a)
-      FORALL (i = 1:nk) cosm%log_plina(i, :) = log(Pk(i, :)*k(i)**3/(2.*pi**2))
+      IF (.NOT. allocated(cosm%k_Plin)) ALLOCATE(cosm%k_Plin(nk))
+      IF (.NOT. allocated(cosm%a_Plin)) ALLOCATE(cosm%a_Plin(na))
+      IF (.NOT. allocated(cosm%Plin_array)) ALLOCATE(cosm%Plin_array(nk, na))
+      cosm%k_Plin = k
+      cosm%a_Plin = a
+      FORALL (i = 1:nk) cosm%Plin_array(i, :) = Pk(i, :)*k(i)**3/(2.*pi**2)
 
-      ! TODO: Remove these?
-      cosm%itk = itk_external
-      cosm%has_power = .TRUE.
+      ! Set flags, assume this is called after assign_cosmology, but before init_cosmology
+      cosm%itk = iTk_external
+      cosm%norm_method = norm_none
 
    END SUBROUTINE init_external_linear_power_tables
 
@@ -5832,88 +5833,57 @@ CONTAINS
 
       ! TILMAN: Wrote this
       ! The purpose of this is *only* to init interpolators and set has_power
-      ! TODO: Only really need log_plin, not log_plina, and log_plin should be 2D
-      ! TODO: Really should remove cosm%log_plin etc.
+      ! TODO: Really should remove cosm%k_plin, cosm%a_plin, cosm%plin_array
+      ! TODO: Could this replace or use init_linear?
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      INTEGER :: nk, nk_pk, na, nk_pka, na_pka
-      INTEGER :: plina_shape(2)
+      INTEGER :: nk, na, nk_pk, na_pk!, nk_pka, na_pka
+      INTEGER :: plin_shape(2)
 
       ! Check k array is allocated properly
-      IF (allocated(cosm%log_k_plin)) THEN
-         nk = size(cosm%log_k_plin)
+      IF (allocated(cosm%k_Plin)) THEN
+         nk = size(cosm%k_Plin)
       ELSE
-         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%log_k_plin has not been allocated!'
+         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%k_Plin has not been allocated!'
          cosm%status = 1
          RETURN
       END IF
 
       ! Check a array is allocated properly
-      IF (allocated(cosm%log_a_plin)) THEN
-         na = size(cosm%log_a_plin)
+      IF (allocated(cosm%a_Plin)) THEN
+         na = size(cosm%a_Plin)
       ELSE
-         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%log_a_plin has not been allocated!'
-         cosm%status = 1
-         RETURN
-      END IF
-
-      ! Check P(k) array is allocated properly
-      IF (allocated(cosm%log_plin)) THEN
-         nk_pk = size(cosm%log_plin)
-      ELSE
-         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%log_plin has not been allocated!'
+         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%a_Plin has not been allocated!'
          cosm%status = 1
          RETURN
       END IF
 
       ! Check P(k,a) array is allocated properly
-      IF (allocated(cosm%log_plina)) THEN
-         plina_shape = shape(cosm%log_plina)
-         nk_pka = plina_shape(1)
-         na_pka = plina_shape(2)
+      IF (allocated(cosm%Plin_array)) THEN
+         plin_shape = shape(cosm%Plin_array)
+         nk_pk = plin_shape(1)
+         na_pk = plin_shape(2)
       ELSE
-         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%log_plina has not been allocated!'
+         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: cosmology%Plin_array has not been allocated!'
          cosm%status = 1
          RETURN
       END IF
 
       ! Check k sizes of arrays agree
-      IF (nk /= nk_pk .OR. nk /= nk_pka .OR. nk /= cosm%nk_plin) THEN
-         WRITE (*,*) 'INIT_EXTERNAL_LINEAR: Sizes of cosmology%log_plin, cosmology%log_k_plin, or cosmology%nk_plin are inconsistent:', nk_pk, nk_pka, nk, cosm%nk_plin
+      IF (nk /= nk_pk .OR. nk /= cosm%nk_plin) THEN
+         WRITE (*,*) 'INIT_EXTERNAL_LINEAR: Sizes of cosmology%Plin_array, cosmology%k_plin, or cosmology%nk_plin are inconsistent:', nk_pk, nk, cosm%nk_plin
          cosm%status = 1
          RETURN
       END IF
 
       ! Check a sizes of arrays agree
-      IF(na /= na_pka .OR. na /= cosm%na_plin) THEN
-         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: Sizes of cosmology%log_plina, cosmology%log_a_plin, or cosmology%na_plin are inconsistent:', na_pka, na, cosm%na_plin
+      IF(na /= na_pk .OR. na /= cosm%na_plin) THEN
+         WRITE (*, *) 'INIT_EXTERNAL_LINEAR: Sizes of cosmology%Plin_array, cosmology%a_plin, or cosmology%na_plin are inconsistent:', na_pk, na, cosm%na_plin
          cosm%status = 1
          RETURN
       END IF
 
-      ! Create interpolators
-      ! TODO: Merge these 2D and 1D interpolator inits
-      IF (cosm%scale_dependent_growth) THEN
-         CALL init_interpolator(exp(cosm%log_k_plin), exp(cosm%log_a_plin), exp(cosm%log_plina), cosm%plin, &
-            iorder = iorder_interp_plin, &
-            iextrap = iextrap_plin, &
-            store = store_plin, &
-            logx = .TRUE., &
-            logy = .TRUE., &
-            logf = .TRUE.)
-      ELSE
-         CALL init_interpolator(exp(cosm%log_k_plin), [1.], reshape(exp(cosm%log_plin), [nk, 1]), cosm%plin, &
-            iorder = iorder_interp_plin, &
-            iextrap = iextrap_plin, &
-            store = store_plin, &
-            logx = .TRUE., &
-            logy = .TRUE., &
-            logf = .TRUE.)
-      END IF
-
-      ! Fix for an external power spectrum
-      cosm%itk = itk_external
-      cosm%norm_method = norm_none
-      cosm%has_power = .TRUE.
+      CALL init_linear(cosm%k_plin, cosm%a_plin, cosm%Plin_array, cosm)
+      DEALLOCATE(cosm%k_plin, cosm%a_plin, cosm%Plin_array)
 
    END SUBROUTINE init_external_linear
 
