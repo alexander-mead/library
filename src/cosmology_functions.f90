@@ -756,6 +756,7 @@ CONTAINS
       names(271) = 'Random NGen-HALOFIT cosmology'
       names(272) = 'Random NGen-HALOFIT cosmology without running index'
       names(273) = 'Random Dark Quest cosmology'
+      names(274) = 'Rounded Planck (2018)'
 
       names(100) = 'Mira Titan M000'
       names(101) = 'Mira Titan M001'
@@ -1302,6 +1303,16 @@ CONTAINS
          cosm%Om_b = 0.022383/cosm%h**2
          cosm%Om_v = 1.-cosm%Om_m
          cosm%sig8 = 0.8120
+      ELSE IF (icosmo == 274) THEN
+         ! 274 - Rounded Planck 2018
+         cosm%iTk = iTk_CAMB
+         cosm%h = 0.67
+         cosm%ns = 0.97
+         cosm%m_nu = 0.06
+         cosm%Om_m = 0.32
+         cosm%Om_b = 0.049
+         cosm%Om_v = 1.-cosm%Om_m
+         cosm%sig8 = 0.81
       ELSE IF(icosmo == 49) THEN
          ! CFHTLenS best-fitting cosmology (Heymans 2013; combined with WMAP 7)
          ! From first line of Table 3 of https://arxiv.org/pdf/1303.1808.pdf
@@ -1510,13 +1521,16 @@ CONTAINS
          cosm%nfR = 1
          IF (icosmo == 84 .OR. icosmo == 87) THEN
             cosm%fR0 = -1e-4
-            cosm%sig8 = 0.8*(2.1654/2.0518) ! Normalise to boring at k<<1
+            !cosm%sig8 = 0.8!*(2.1654/2.0518) ! Normalise to boring at k<<1
+            cosm%sig8 = 0.8*sqrt(1.9732/1.6810) ! Normalise to boring at k<<1
          ELSE IF (icosmo == 85 .OR. icosmo == 88) THEN
             cosm%fR0 = -1e-5
-            cosm%sig8 = 0.8*(2.1058/2.0518) ! Normalise to boring at k<<1
+            !cosm%sig8 = 0.8!*(2.1058/2.0518) ! Normalise to boring at k<<1
+            cosm%sig8 = 0.8*sqrt(1.9732/1.82991) ! Normalise to boring at k<<1
          ELSE IF (icosmo == 86 .OR. icosmo == 89) THEN
             cosm%fR0 = -1e-6
-            cosm%sig8 = 0.8*(2.0654/2.0518) ! Normalise to boring at k<<1
+            !cosm%sig8 = 0.8!*(2.0654/2.0518) ! Normalise to boring at k<<1
+            cosm%sig8 = 0.8*sqrt(1.9732/1.9364) ! Normalise to boring at k<<1
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Something went wrong with f(R) models'
          END IF
@@ -1838,7 +1852,7 @@ CONTAINS
 
       ! Would need to modify formulas to make this compatable
       IF (((cosm%img == img_fR) .OR. (cosm%img == img_fR_lin)) .AND. (cosm%Om_w /= 0.)) THEN
-         STOP 'INIT_COSMOLOGY: f(R) grvity not currently compatible with dark energy'
+         STOP 'INIT_COSMOLOGY: f(R) gravity not currently compatible with dark energy'
       END IF
 
       ! Derived cosmological parameters
@@ -2476,7 +2490,7 @@ CONTAINS
       REAL, ALLOCATABLE :: d(:), v(:)
       REAL, ALLOCATABLE :: a_ode(:), a_lin(:)
       INTEGER :: ik, ia
-      REAL :: norm
+      REAL :: norm, f, g
       REAL, PARAMETER :: kmin = kmin_plin
       REAL, PARAMETER :: kmax = kmax_plin
       INTEGER, PARAMETER :: nk = nk_plin
@@ -2484,9 +2498,10 @@ CONTAINS
       REAL, PARAMETER :: amax_lin = amax_plin
       INTEGER, PARAMETER :: na_lin = na_plin
       REAL, PARAMETER :: aini_ode = aini_growth
-      REAL, PARAMETER :: afin_ode = afin_growth
+      REAL, PARAMETER :: afin_ode = amax_plin
       INTEGER, PARAMETER :: na_ode = na_growth
-      INTEGER, PARAMETER :: iode = imeth_ODE_growth
+      INTEGER, PARAMETER :: imeth_ode = imeth_ODE_growth
+      REAL, PARAMETER :: acc_ode = acc_ODE_growth
       LOGICAL, PARAMETER :: ilog_k = .TRUE.
       LOGICAL, PARAMETER :: ilog_a = .TRUE.
 
@@ -2495,12 +2510,23 @@ CONTAINS
       CALL fill_array(kmin, kmax, k, nk, ilog=ilog_k)
       ALLOCATE (gk(nk, na_ode))
 
-      ! Initial condtions for the EdS growing mode
-      dinit = aini_ode
-      vinit = 1.
-
-      ! Get normalisation for g(k) 
-      norm = ungrow(1., cosm) ! Only will work if init_growth has run
+      ! Set the initial conditions to be in the cold matter growing mode
+      ! NOTE: For massive neutrinos or EDE there is no asymptotic g(a) ~ a limit
+      IF (EDE_growth_ics) THEN
+         IF (cold_growth) THEN
+            f = 1.-Omega_cold_norad(aini_ode, cosm)+cosm%f_nu
+         ELSE
+            f = 1.-Omega_m_norad(aini_ode, cosm)
+         END IF
+      ELSE
+         IF (cold_growth) THEN
+            f = cosm%f_nu
+         ELSE
+            f = 0.
+         END IF
+      END IF
+      dinit = aini_ode**(1.-3.*f/5.)
+      vinit = (1.-3.*f/5.)*aini_ode**(-3.*f/5.)
 
       ! Write to screen
       IF(cosm%verbose) THEN
@@ -2516,19 +2542,22 @@ CONTAINS
          WRITE (*, *) 'INIT_FR_LINEAR: Scale-growth na:', na_ode
       END IF
 
-      ! Loop over all wavenumbers
+      ! Loop over all wavenumbers and solve g(k) equation
       DO ik = 1, nk
-
-         ! Solve g(k) equation
          CALL ODE2_adaptive_cosm(d, v, k(ik), a_ode, cosm, &
             aini_ode, afin_ode, &
             dinit, vinit, &
             dvda, &
-            acc_ODE_growth, na_ode, iode, ilog=ilog_a)
+            acc_ode, na_ode, imeth_ode, ilog=ilog_a)
+         gk(ik, :) = d
+      END DO
 
-         ! Normalise the solution
-         gk(ik, :) = d/norm
-
+      ! Get normalisation for g(k) 
+      ! NOTE: Only will work if init_growth has run, so call ungrow rather than cosm%gnorm, norm = gk(1, na_ode) is lazy too
+      norm = ungrow(1., cosm)
+      gk = gk/norm
+      DO ia = 1, na_ode     
+         gk(:, ia) = gk(:, ia)/grow(a_ode(ia), cosm) ! Isolate the pure scale-dependent part of the growth, as g(a) already in P_lin(k)
       END DO
 
       ! Write to screen
@@ -2544,19 +2573,14 @@ CONTAINS
       CALL fill_array(amin_lin, amax_lin, a_lin, na_lin, ilog=ilog_a)
       CALL calculate_Plin(k, a_lin, Pk, flag_matter, cosm)
 
-      ! Mutliply through by scale-dependent growth to get f(R) linear shape
-      !Pk = Pk*gk 
-      DO ik = 1, nk
-         DO ia = 1, na_lin
-            Pk(ik, ia) = Pk(ik, ia)*find(a_lin(ia), a_ode, gk(ik, :), na_ode, iorder=3, ifind=ifind_split, iinterp=iinterp_Lagrange)
+      ! Mutliply through by scale-dependent growth squared to get f(R) linear shape
+      DO ia = 1, na_lin
+         DO ik = 1, nk
+            g = find(a_lin(ia), a_ode, gk(ik, :), na_ode, iorder=3, ifind=ifind_split, iinterp=iinterp_Lagrange)
+            Pk(ik, ia) = Pk(ik, ia)*g**2
          END DO
       END DO
       CALL init_linear(k, a_lin, Pk, cosm)
-
-      ! Switch analyical power off and set flag for stored power
-      cosm%analytical_Tk = .FALSE.
-
-      STOP 'INIT_FR_LINEAR: Error, this might not work at the moment, ODE update, init_linear replacement?'
 
       ! Write to screen
       IF(cosm%verbose) THEN
@@ -3947,11 +3971,11 @@ CONTAINS
                ELSE
                   plin = evaluate_interpolator(k, 1., cosm%plin)
                END IF
-               plin = (grow(a, cosm)**2)*plin
+               plin = plin*grow(a, cosm)**2
             END IF
          ELSE
             ! In this case get the power from the transfer function
-            plin = (grow(a, cosm)**2)*primordial_spectrum(k, cosm)*Tk_matter(k, a, cosm)**2
+            plin = primordial_spectrum(k, cosm)*(Tk_matter(k, a, cosm)*grow(a, cosm))**2
          END IF
       END IF
       plin = plin*cosm%A**2
@@ -4760,6 +4784,7 @@ CONTAINS
    REAL FUNCTION G_lin(d, v, k, a, cosm)
 
       ! Linear effective gravitational constant
+      ! FEB 2021: Fixed 1+mu -> mu bug in f(R) gravity, gave double gravitational constant
       REAL, INTENT(IN) :: d
       REAL, INTENT(IN) :: v
       REAL, INTENT(IN) :: k
@@ -4776,7 +4801,7 @@ CONTAINS
       ELSE IF (cosm%img == img_nDGP .OR. cosm%img == img_nDGP_lin) THEN
          G_lin = 1.+1./(3.*beta_dgp(a, cosm))
       ELSE IF (cosm%img == img_fR .OR. cosm%img == img_fR_lin) THEN
-         G_lin = 1.+mu_fR(k, a, cosm)
+         G_lin = mu_fR(k, a, cosm)
       ELSE
          STOP 'G_LIN: Error, img not specified correctly'
       END IF
@@ -4820,21 +4845,26 @@ CONTAINS
    REAL FUNCTION Rbar(a, cosm)
 
       ! Background R value for f(R)
+      ! TODO: Include dark energy properly via Om_w
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: Om_v
 
-      Rbar=3.*(cosm%Om_m*(a**(-3))+4.*cosm%Om_v)/Hdist**2
+      Om_v = cosm%Om_v+cosm%Om_w
+      Rbar=3.*(cosm%Om_m*(a**(-3))+4.*Om_v)/Hdist**2
 
    END FUNCTION Rbar
 
    REAL FUNCTION fR_a(a, cosm)
 
+      ! TODO: Include dark energy via Om_w
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(IN) :: cosm
-      REAL :: c1, c2
+      REAL :: c1, c2, Om_v
 
-      c1 = 1.+4.*cosm%Om_v/cosm%Om_m
-      c2 = (a**(-3))+4.*cosm%Om_v/cosm%Om_m
+      Om_v = cosm%Om_v+cosm%Om_w
+      c1 = 1.+4.*Om_v/cosm%Om_m
+      c2 = (a**(-3))+4.*Om_v/cosm%Om_m
 
       fR_a = cosm%fR0*((c1/c2)**(cosm%nfR+1.))
   
@@ -5880,6 +5910,10 @@ CONTAINS
          WRITE (*, *) 'INIT_EXTERNAL_LINEAR: Sizes of cosmology%Plin_array, cosmology%a_plin, or cosmology%na_plin are inconsistent:', na_pk, na, cosm%na_plin
          cosm%status = 1
          RETURN
+      END IF
+
+      IF (cosm%scale_dependent_growth .AND. na == 1) THEN
+         STOP 'INIT_EXTERNAL_LINEAR: Error, growth is scale dependent but linear spectrum only provided at a single scale factor'
       END IF
 
       CALL init_linear(cosm%k_plin, cosm%a_plin, cosm%Plin_array, cosm)
