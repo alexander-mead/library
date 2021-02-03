@@ -1521,15 +1521,12 @@ CONTAINS
          cosm%nfR = 1
          IF (icosmo == 84 .OR. icosmo == 87) THEN
             cosm%fR0 = -1e-4
-            !cosm%sig8 = 0.8!*(2.1654/2.0518) ! Normalise to boring at k<<1
             cosm%sig8 = 0.8*sqrt(1.9732/1.6810) ! Normalise to boring at k<<1
          ELSE IF (icosmo == 85 .OR. icosmo == 88) THEN
             cosm%fR0 = -1e-5
-            !cosm%sig8 = 0.8!*(2.1058/2.0518) ! Normalise to boring at k<<1
             cosm%sig8 = 0.8*sqrt(1.9732/1.82991) ! Normalise to boring at k<<1
          ELSE IF (icosmo == 86 .OR. icosmo == 89) THEN
             cosm%fR0 = -1e-6
-            !cosm%sig8 = 0.8!*(2.0654/2.0518) ! Normalise to boring at k<<1
             cosm%sig8 = 0.8*sqrt(1.9732/1.9364) ! Normalise to boring at k<<1
          ELSE
             STOP 'ASSIGN_COSMOLOGY: Something went wrong with f(R) models'
