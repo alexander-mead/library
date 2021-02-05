@@ -952,9 +952,9 @@ CONTAINS
       cosm%sig8 = 0.8                ! norm_sigma8: sigma(R=8, a=1) normalisation
       cosm%kval = 0.001              ! norm_pval: Wavenumber for normalisation [h/Mpc]
       cosm%pval = 0.1973236854e-06   ! norm_pval: Delta^2 value to get sig8 = 0.8 for a boring cosmology
-      cosm%kpiv = 0.05               ! norm_As: Wavenumber at which to define As normalisation NOTE: [h/Mpc]
+      cosm%kpiv = 0.05/0.7           ! norm_As: Wavenumber at which to define As normalisation NOTE: [h/Mpc]
       !cosm%As = 2.1e-9               ! norm_As: 2.1e-9 is a sensible value
-      cosm%As = 2.00174e-9           ! norm_As: This gives sigma_8 = 0.8 in the boring cosmology
+      cosm%As = 1.97269e-9           ! norm_As: This gives sigma_8 = 0.8 in the boring cosmology with kpiv = 0.05/Mpc
       
       !! !!
 
@@ -1303,6 +1303,10 @@ CONTAINS
          cosm%Om_b = 0.022383/cosm%h**2
          cosm%Om_v = 1.-cosm%Om_m
          cosm%sig8 = 0.8120
+         IF (icosmo == 56) THEN
+            cosm%As = 2.08924e-9
+            cosm%kpiv = 0.05/cosm%h
+         END IF
       ELSE IF (icosmo == 274) THEN
          ! 274 - Rounded Planck 2018
          cosm%iTk = iTk_CAMB
@@ -1567,32 +1571,45 @@ CONTAINS
             cosm%iw = iw_wCDM
             cosm%Om_w = cosm%Om_v
             cosm%Om_v = 0.
-            IF (icosmo == 241) cosm%w = -0.7
-            IF (icosmo == 242) cosm%w = -1.3
+            IF (icosmo == 241) THEN
+               cosm%w = -0.7
+               cosm%As = 2.46981e-9
+            END IF 
+            IF (icosmo == 242) THEN
+               cosm%w = -1.3
+               cosm%As = 1.75070e-9
+            END IF
          ELSE IF (icosmo == 243) THEN
             ! 243 - Medium-mass neutrinos
             cosm%m_nu = 0.3
+            cosm%As = 2.35868e-9
          ELSE IF (icosmo == 244) THEN
             ! 244 - High-mass neutrinos
             cosm%m_nu = 0.9
+            cosm%As = 3.43507e-9
          ELSE IF (icosmo == 245) THEN
             ! 245 - Low spectral index
             cosm%ns = 0.7
+            cosm%As = 2.38515e-9
          ELSE IF (icosmo == 246) THEN
             ! 246 - High spectral index
             cosm%ns = 1.3
+            cosm%As = 1.47601e-9
          ELSE IF (icosmo == 247) THEN
             ! 247 - Low baryon fraction
             cosm%Om_b = 0.01
+            cosm%As = 1.20028e-9
          ELSE IF (icosmo == 248) THEN
             ! 248 - High baryon fraction
             cosm%Om_b = 0.1
+            cosm%As = 3.88822e-9
          ELSE IF (icosmo == 249) THEN
             ! 249 - Early dark energy
             cosm%iw = iw_waCDM
             cosm%wa = 0.9
             cosm%Om_w = cosm%Om_v
             cosm%Om_v = 0.
+            cosm%As = 3.35538e-9
          ELSE IF (icosmo == 250) THEN
             ! 250 - Low AGN temperature
             cosm%Theat = 10**7.6
@@ -2343,6 +2360,8 @@ CONTAINS
       IF (cosm%norm_method .NE. norm_sigma8) CALL reset_sigma8(cosm)
       IF (cosm%norm_method .NE. norm_pval)   CALL reset_pval(cosm)
       IF (cosm%norm_method .NE. norm_As)     CALL reset_As(cosm) ! TODO: Make this work
+      !WRITE(*, fmt='(A5, F10.5)') 'As:', cosm%As/1e-9 ! TODO: Remove
+      !STOP ! TODO: Remove
 
    END SUBROUTINE normalise_power
 
