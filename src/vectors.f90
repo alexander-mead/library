@@ -14,6 +14,8 @@ MODULE vectors
    PUBLIC :: distance
    PUBLIC :: rotate_vector
    PUBLIC :: rotate_vector_fast
+   PUBLIC :: trace
+   PUBLIC :: determinant
 
    ! Unit vectors
    PUBLIC  :: xhat
@@ -24,7 +26,85 @@ MODULE vectors
    REAL, PARAMETER :: yhat(3) = [0., 1., 0.]
    REAL, PARAMETER :: zhat(3) = [0., 0., 1.]
 
+   !INTERFACE determinant
+   !   PROCEDURE determinant_2
+   !   PROCEDURE determinant_3
+   !END INTERFACE determinant
+
 CONTAINS
+
+   REAL FUNCTION trace(A)
+
+      REAL, INTENT(IN) :: A(:, :)
+      INTEGER :: i
+
+      IF(size(A, 1) /= size(A, 2)) STOP 'TRACE: Error, trace only defined for square matrices'
+      trace = 0.
+      DO i = 1, size(A)
+         trace = trace+A(i, i)
+      END DO
+
+   END FUNCTION trace
+
+   REAL FUNCTION determinant(A)
+
+      ! TODO: Write a general recursive function
+      REAL, INTENT(IN) :: A(:, :)
+      INTEGER :: n
+
+      n = size(A, 1)
+      IF (n /= size(A,2)) STOP 'DETERMINANT: Error, determinant only defined for square matrices'
+      IF (n == 1) THEN
+         determinant = A(1, 1)
+      ELSE IF (n == 2) THEN
+         determinant = determinant_2(A)
+      ELSE IF (n == 3) THEN
+         determinant = determinant_3(A)
+      ELSE
+         STOP 'DETERMINANT: Function not written for this size of matix'
+      END IF
+
+   END FUNCTION determinant
+
+   REAL FUNCTION determinant_2(A)
+
+      REAL, INTENT(IN) :: A(2, 2)
+
+      determinant_2 = A(1, 1)*A(2, 2)-A(1, 2)*A(2, 1)
+
+   END FUNCTION determinant_2
+
+   REAL FUNCTION determinant_3(A)
+
+      REAL, INTENT(IN) :: A(3, 3)
+      REAL :: B(2, 2), M
+      INTEGER :: i
+
+      determinant_3 = 0.
+      DO i = 1, 3
+         IF (i == 1) THEN
+            M = A(1, 1)
+            B(1, 1) = A(2, 2)
+            B(1, 2) = A(2, 3)
+            B(2, 1) = A(3, 2)
+            B(2, 2) = A(3, 3)
+         ELSE IF (i == 2) THEN
+            M = -A(1, 2)
+            B(1, 1) = A(2, 1)
+            B(1, 2) = A(2, 3)
+            B(2, 1) = A(3, 1)
+            B(2, 2) = A(3, 3)
+         ELSE IF (i == 3) THEN
+            M = A(1, 3)
+            B(1, 1) = A(2, 1)
+            B(1, 2) = A(2, 2)
+            B(2, 1) = A(3, 1)
+            B(2, 2) = A(3, 2)
+         END IF
+         determinant_3 = determinant_3+M*determinant_2(B)
+      END DO
+
+   END FUNCTION determinant_3
 
    REAL FUNCTION shift_angle_to_circle(theta)
 
@@ -160,7 +240,7 @@ CONTAINS
 
    REAL FUNCTION distance(x1, x2)
 
-      ! Calculates the distance between n-vectors x1 and x2
+      ! Calculates the distance between vectors x1 and x2
       REAL, INTENT(IN) :: x1(:)
       REAL, INTENT(IN) :: x2(:)
       INTEGER :: i, n
