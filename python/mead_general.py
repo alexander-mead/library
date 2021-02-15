@@ -40,6 +40,6 @@ def colour(i):
     color = 'C%d' % i
     return color
 
+def cbrt(x):
 
-
-    
+    return x**(1./3.)
