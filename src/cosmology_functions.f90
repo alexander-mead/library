@@ -6199,10 +6199,9 @@ CONTAINS
    SUBROUTINE random_Mira_Titan_cosmology(cosm)
 
       ! Generate some random cosmological parameters for the Mira Titan hypercube
-      ! TODO: Use wb rather than wa? See https://arxiv.org/abs/2003.12116
       USE random_numbers
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: om_m, om_b, om_nu
+      REAL :: om_m, om_b, om_nu, wb
       REAL, PARAMETER :: om_m_min = 0.120
       REAL, PARAMETER :: om_m_max = 0.155
       REAL, PARAMETER :: om_b_min = 0.0215
@@ -6217,8 +6216,11 @@ CONTAINS
       REAL, PARAMETER :: w_max = -0.7
       REAL, PARAMETER :: wa_min = -1.73
       REAL, PARAMETER :: wa_max = 1.28
+      REAL, PARAMETER :: wb_min = 0.3
+      REAL, PARAMETER :: wb_max = 1.3
       REAL, PARAMETER :: sig8_min = 0.7
       REAL, PARAMETER :: sig8_max = 0.9
+      LOGICAL :: use_wb = .FALSE.
 
       ! Uniform random sampling
       cosm%h = random_uniform(h_min, h_max)
@@ -6230,11 +6232,15 @@ CONTAINS
       cosm%sig8 = random_uniform(sig8_min, sig8_max) 
    
       ! Enforce 0.3 <= (-w0-wa)^(1/4) as in Mira Titan paper
-      ! TODO: Use wb rather than wa?
-      DO
-         cosm%wa = random_uniform(wa_min, wa_max)
-         IF (0.0081 <= -cosm%w-cosm%wa .AND. 2.769 >= -cosm%w-cosm%wa) EXIT
-      END DO
+      IF (use_wb) THEN
+         wb = random_uniform(wb_min, wb_max)
+         cosm%wa = -wb**4-cosm%w
+      ELSE
+         DO
+            cosm%wa = random_uniform(wa_min, wa_max)
+            IF (0.0081 <= -(cosm%w+cosm%wa) .AND. 2.769 >= -(cosm%w+cosm%wa)) EXIT
+         END DO
+      END IF
 
       ! Convert to my primary parameters
       cosm%Om_m = om_m/cosm%h**2   
