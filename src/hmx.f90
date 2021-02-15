@@ -9381,7 +9381,6 @@ CONTAINS
 
       rmin = 0.
       rmax = rv
-      !win_NFW = 4.*pi*(rs**3)*(p1+p2-p3)/normalisation(rmin, rmax, rv, rs, zero, zero, irho)
       win_NFW = 4.*pi*(rs**3)*(p1+p2-p3)/norm_NFW(rs, c)
 
    END FUNCTION win_NFW

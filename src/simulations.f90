@@ -29,6 +29,7 @@ MODULE simulations
    PUBLIC :: cross_spectrum_particles
    PUBLIC :: folded_power_spectrum_particles
    PUBLIC :: combine_folded_power
+   PUBLIC :: fold_particles
 
    PUBLIC :: generate_randoms
    PUBLIC :: generate_poor_glass
