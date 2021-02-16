@@ -6217,7 +6217,7 @@ CONTAINS
       REAL, PARAMETER :: wa_min = -1.73
       REAL, PARAMETER :: wa_max = 1.28
       REAL, PARAMETER :: wb_min = 0.3
-      REAL, PARAMETER :: wb_max = 1.3
+      REAL, PARAMETER :: wb_max = 1.3 ! Or should this be 1.29?
       REAL, PARAMETER :: sig8_min = 0.7
       REAL, PARAMETER :: sig8_max = 0.9
       LOGICAL :: use_wb = .FALSE.
