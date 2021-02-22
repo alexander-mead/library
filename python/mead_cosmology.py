@@ -514,19 +514,15 @@ def plot_growth(cosm):
 # Generic 'cosmology' functions that should not take cosm class as input
 
 def comoving_matter_density(Om_m):
-
    return const.rhoc*Om_m
 
 def Mass_R(R, Om_m):
-
     return (4./3.)*np.pi*R**3*comoving_matter_density(Om_m)
 
 def Radius_M(M, Om_m):
-
     return (3.*M/(4.*np.pi*comoving_matter_density(Om_m)))**(1./3.)
 
 def Delta2(Power_k, k):
-
     return Power_k(k)*k**3/(2.*np.pi**2)
 
 def sigma_R(R, Power_k):
@@ -560,7 +556,7 @@ def nu_M(M, Power_k, Om_m, dc=1.686):
     R = Radius_M(M, Om_m)
     return nu_R(R, Power_k, dc)
 
-def calculate_AW10_rescaling_parameters(z_tgt, R1_tgt, R2_tgt, sigma_Rz_ogn, sigma_Rz_tgt):
+def calculate_AW10_rescaling_parameters(z_tgt, R1_tgt, R2_tgt, sigma_Rz_ogn, sigma_Rz_tgt, Om_m_ogn, Om_m_tgt):
 
     from scipy.optimize import fmin
 
@@ -581,4 +577,10 @@ def calculate_AW10_rescaling_parameters(z_tgt, R1_tgt, R2_tgt, sigma_Rz_ogn, sig
     z0 = z_tgt
 
     s, z = fmin(lambda x: rescaling_cost_function(x[0], x[1], z_tgt, R1_tgt, R2_tgt, sigma_Rz_ogn, sigma_Rz_tgt), [s0, z0])
-    return s, z
+    sm = (Om_m_tgt/Om_m_ogn)*s**3
+
+    # Warning
+    if z < 0.:
+        print('Warning: Rescaling redshift is in the future for the original cosmology')
+
+    return s, sm, z

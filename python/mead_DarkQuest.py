@@ -33,12 +33,20 @@ ns_max = 1.012725
 w_min = -1.2
 w_max = -0.8
 
+# Fiducial cosmology
+wb_fid = 0.02225
+wc_fid = 0.1198
+Om_w_fid = 0.6844
+lnAs_fid = 3.094
+ns_fid = 0.9645
+w_fid = -1.
+
 # Parameters
 log_interp_sigma = True
 
 class cosmology():
 
-    def __init__(self, wb=0.02225, wc=0.1198, Om_w=0.6844, lnAs=3.094, ns=0.9645, w=-1.):
+    def __init__(self, wb=wb_fid, wc=wc_fid, Om_w=Om_w_fid, lnAs=lnAs_fid, ns=ns_fid, w=w_fid):
 
         # Primary parameters
         self.wb = wb
@@ -101,7 +109,49 @@ def random_cosmology():
     w = np.random.uniform(w_min, w_max)
 
     cpar = cosmology(wb=wb, wc=wc, Om_w=Om_w, lnAs=lnAs, ns=ns, w=w)
+    return cpar
 
+def named_cosmology(name):
+
+    # Parameters
+    low_fac = 0.15
+    high_fac = 0.85
+
+    # Start from fiducial cosmology
+    wb = wb_fid
+    wc = wc_fid
+    Om_w = Om_w_fid
+    lnAs = lnAs_fid
+    ns = ns_fid
+    w = w_fid 
+
+    # Vary
+    if name in ['low w_b', 'low w_c', 'low Om_w', 'low lnAs', 'low ns', 'low w', 
+        'high w_b', 'high w_c', 'high Om_w', 'high lnAs', 'high ns', 'high w']:
+        if name in ['low w_b', 'low w_c', 'low Om_w', 'low lnAs', 'low ns', 'low w']:
+            fac = low_fac
+        elif name in ['high w_b', 'high w_c', 'high Om_w', 'high lnAs', 'high ns', 'high w']:
+            fac = high_fac
+        else:
+            raise ValueError('Cosmology name not recognised')
+        if name in ['low w_b', 'high w_b']:
+            wb = wb_min+(wb_max-wb_min)*fac
+        elif name in ['low w_c', 'high w_c']:
+            wc = wc_min+(wc_max-wc_min)*fac
+        elif name in ['low Om_w', 'high Om_w']:
+            Om_w = Om_w_min+(Om_w_max-Om_w_min)*fac
+        elif name in ['low lnAs', 'high lnAs']:
+            lnAs = lnAs_min+(lnAs_max-lnAs_min)*fac
+        elif name in ['low ns', 'high ns']:
+            ns = ns_min+(ns_max-ns_min)*fac
+        elif name in ['low w', 'high w']:
+            w = w_min+(w_max-w_min)*fac
+        else:
+            raise ValueError('Cosmology name not recognised')
+    else:
+        raise ValueError('Cosmology name not recognised')
+
+    cpar = cosmology(wb=wb, wc=wc, Om_w=Om_w, lnAs=lnAs, ns=ns, w=w)
     return cpar
 
 # Create a set of my cosmological parameters from a Dark Quest set
@@ -242,6 +292,8 @@ def sigma_R(emu, R, z):
 
 def sigma_M(emu, M, z):
 
+    # TODO: This creates the interpolator AND evaluates it. Could just create an interpolator...
+
     # Import
     from scipy.interpolate import InterpolatedUnivariateSpline as ius
 
@@ -253,13 +305,13 @@ def sigma_M(emu, M, z):
     sigs_internal = emu.massfunc.sigs0
 
     # Make an interpolator for sigma(M)  
-    if (log_interp):
-        sigma_interpolator = ius(np.log(Ms_internal), np.log(sigs_internal))
+    if log_interp:
+        sigma_interpolator = ius(np.log(Ms_internal), np.log(sigs_internal), ext='extrapolate')
     else:
-        sigma_interpolator = ius(Ms_internal, sigs_internal)
+        sigma_interpolator = ius(Ms_internal, sigs_internal, ext='extrapolate')
     
     # Get sigma(M) from the interpolator at the desired masses
-    if (log_interp):
+    if log_interp:
         sigma0 = np.exp(sigma_interpolator(np.log(M)))
     else:
         sigma0 = sigma_interpolator(M)
@@ -299,13 +351,15 @@ def beta_NL(emu, vars, ks, z, var='Mass'):
         nus = vars
         Ms = Mass_nu(emu, nus, z)
     else:
-        print('Error, variable for beta_NL not recognised')
+        raise ValueError('Error, mass variable for beta_NL not recognised')
     
     # klin must be a numpy array for this to work later
     klin = np.array([klin]) 
     
     # Linear power
     Pk_lin = emu.get_pklin_from_z(ks, z)
+    #if (force_BNL_zero != 0):
+    Pk_lin0 = emu.get_pklin_from_z(klin, z)
     
     # Calculate beta_NL by looping over mass arrays
     beta = np.zeros((len(Ms), len(Ms), len(ks)))  
@@ -325,6 +379,8 @@ def beta_NL(emu, vars, ks, z, var='Mass'):
             elif (ibias == 3):
                 b1 = emu.get_phm_mass(klin, M1, z)/emu.get_pklin_from_z(klin, z)
                 b2 = emu.get_phm_mass(klin, M2, z)/emu.get_pklin_from_z(klin, z)
+            else:
+                raise ValueError('Linear bias recipe for beta_NL not recognised')
                 
             # Create beta_NL
             beta[im1, im2, :] = Pk_hh/(b1*b2*Pk_lin)-1.
@@ -332,7 +388,6 @@ def beta_NL(emu, vars, ks, z, var='Mass'):
             # Force Beta_NL to be zero at large scales if necessary
             if (force_BNL_zero != 0):
                 Pk_hh0 = emu.get_phh_mass(klin, M1, M2, z)
-                Pk_lin0 = emu.get_pklin_from_z(klin, z)
                 db = Pk_hh0/(b1*b2*Pk_lin0)-1.
                 if (force_BNL_zero == 1):
                     beta[im1, im2, :] = beta[im1, im2, :]-db # Additive correction
@@ -347,9 +402,11 @@ def calculate_rescaling_params(emu_ori, emu_tgt, z_tgt, M1_tgt, M2_tgt):
     
     R1_tgt = Radius_M(emu_tgt, M1_tgt)
     R2_tgt = Radius_M(emu_tgt, M2_tgt)
-    
-    s, z = cosmo.calculate_AW10_rescaling_parameters(z_tgt, R1_tgt, R2_tgt, 
-                                                     lambda Ri, zi: sigma_R(emu_ori, Ri, zi), 
-                                                     lambda Ri, zi: sigma_R(emu_tgt, Ri, zi)
-                                                    )
-    return s, z
+
+    s, sm, z = cosmo.calculate_AW10_rescaling_parameters(z_tgt, R1_tgt, R2_tgt, 
+                                                         lambda Ri, zi: sigma_R(emu_ori, Ri, zi), 
+                                                         lambda Ri, zi: sigma_R(emu_tgt, Ri, zi),
+                                                         emu_ori.cosmo.get_Omega0(),
+                                                         emu_tgt.cosmo.get_Omega0(),
+                                                        )
+    return s, sm, z

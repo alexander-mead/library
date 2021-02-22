@@ -21,25 +21,48 @@ def array_values_at_indices(array, list_of_array_positions):
 
 # Return a logarithmically spaced range of numbers
 def logspace(xmin, xmax, nx):
-
    from numpy import logspace, log10
    return logspace(log10(xmin), log10(xmax), nx)
 
-# Mutliply all elements in a list by a constant
+# Multiply all elements in a list by a constant
 def multiply_list_elements(multiple, list):
-
    return [multiple*x for x in list]
 
 # Sequential colors
 def seq_color(i, n, cmap):
-
     return cmap(i/(n-1))
 
+# Default colours in plotly
 def colour(i):
-
     color = 'C%d' % i
     return color
 
+# Cube root
 def cbrt(x):
-
     return x**(1./3.)
+
+# 2D trapezium rule
+def trapz2d(F, x, y):
+    from numpy import zeros, trapz
+    Fmid = zeros((len(y)))
+    for iy, _ in enumerate(y):
+        Fmid[iy] = trapz(F[:, iy], x)
+    return trapz(Fmid, y)
+
+def logx_InterpolatedUnivariateSpline(x, y, **kwargs):
+    from numpy import log
+    from scipy.interpolate import InterpolatedUnivariateSpline as IUS
+    log_IUS = IUS(log(x), y, **kwargs)
+    return lambda x: log_IUS(log(x))
+
+def logy_InterpolatedUnivariateSpline(x, y, **kwargs):
+    from numpy import log, exp
+    from scipy.interpolate import InterpolatedUnivariateSpline as IUS
+    log_IUS = IUS(x, log(y), **kwargs)
+    return lambda x: exp(log_IUS(x))
+
+def loglog_InterpolatedUnivariateSpline(x, y, **kwargs):
+    from numpy import log, exp
+    from scipy.interpolate import InterpolatedUnivariateSpline as IUS
+    log_IUS = IUS(log(x), log(y), **kwargs)
+    return lambda x: exp(log_IUS(log(x)))
