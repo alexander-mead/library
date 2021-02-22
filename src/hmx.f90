@@ -753,6 +753,8 @@ CONTAINS
       names(123) = 'HMcode (2020) with extended mass range'
       names(124) = 'HMcode (2020) feedback with extended mass range'
       names(125) = 'HMcode (2020) unfitted with extended mass range'
+      names(126) = 'Tinker (2010) mass function: M200'
+      names(127) = 'Tinker (2010) mass function: M200c'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2105,17 +2107,25 @@ CONTAINS
       ELSE IF (ihm == 113) THEN  
          hmod%imf = 16 ! 16 - Tinker (2010) mass function and peak-background split bias with no z dependence
       ELSE IF (ihm == 115) THEN
-         hmod%imf = 17 ! 17 - Tinker (2010) mass function and bias
+         hmod%imf = 17 ! 17 - Tinker (2010) mass function and calibrated bias
       ELSE IF (ihm == 119) THEN
          hmod%ip2h = 6 ! 6 - Non-linear power in two-halo term
       ELSE IF (ihm == 120) THEN
          hmod%ip2h = 7 ! 7 - Quasi-linear power in two-halo term
       ELSE IF (ihm == 121) THEN
          hmod%ip2h = 6 ! 6 - Non-linear power in two-halo term
-         hmod%imf = 17 ! 17 - Tinker (2010) mass function and bias
+         hmod%imf = 17 ! 17 - Tinker (2010) mass function and calibrated bias
       ELSE IF (ihm == 122) THEN
          hmod%ip2h = 7 ! 7 - Quasi-linear power in two-halo term
-         hmod%imf = 17 ! 17 - Tinker (2010) mass function and bias
+         hmod%imf = 17 ! 17 - Tinker (2010) mass function and calibrated bias
+      ELSE IF (ihm == 126) THEN
+         hmod%imf = 17  ! 17 - Tinker (2010) mass function and calibrated bias
+         hmod%iDv = 1   ! 1 - M200
+         hmod%iconc = 3 ! 3 - Duffy full sample M200
+      ELSE IF (ihm == 127) THEN
+         hmod%imf = 17  ! 17 - Tinker (2010) mass function and calibrated bias
+         hmod%iDv = 7   ! 7 - M200c
+         hmod%iconc = 5 ! 5 - Duffy full sample M200c
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -10003,7 +10013,8 @@ CONTAINS
 
       ! Normalisation of ST mass function (involves Gamma function)
       IF (is_in_array(hmod%imf, [2, 6, 13])) THEN
-         !hmod%ST_A = 1./(sqrt(pi/(2.*q))+(1./sqrt(q))*(2.**(-p-0.5))*Gamma(0.5-p))
+         !A = 1./(sqrt(pi/(2.*q))+(1./sqrt(q))*(2.**(-p-0.5))*Gamma(0.5-p))
+         !A =
          A = sqrt(2.*q)/(sqrt(pi)+Gamma(0.5-p)/2**p)
       END IF
 
