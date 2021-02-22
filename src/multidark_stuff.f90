@@ -1,6 +1,7 @@
 MODULE multidark_stuff
 
    USE array_operations
+   USE string_operations
    USE file_info
    USE table_integer
 
@@ -8,7 +9,6 @@ MODULE multidark_stuff
 
    PRIVATE
 
-   !PUBLIC :: read_multidark_haloes
    PUBLIC :: read_multidark_halo_catalogue
    PUBLIC :: read_multidark_particles
    PUBLIC :: write_multidark_halo_catalogue
@@ -16,6 +16,13 @@ MODULE multidark_stuff
    PUBLIC :: multidark_scale_factor
    PUBLIC :: nearest_multidark_snapshot
    PUBLIC :: nearest_multidark_snapshot_sig8
+
+   PUBLIC :: column_Mvir
+   PUBLIC :: column_Mtot
+   PUBLIC :: column_M200
+   PUBLIC :: column_M200c
+   PUBLIC :: column_M500c
+   PUBLIC :: column_M2500c
 
    ! Available Multidark scale factors
    REAL, PARAMETER :: as(35) = [0.257, 0.287, 0.318, 0.348, 0.378, 0.409, 0.439, &
@@ -39,7 +46,13 @@ MODULE multidark_stuff
                                     0.781, 0.788, 0.795, 0.802, 0.808, 0.814, 0.820]
 
    ! Halo catalogue files
-   INTEGER, PARAMETER :: nmass = 2 ! 2 - Mvir and Mtot, 6 gives extra M200, M500 etc. etc. only for Rockstar catalogues
+   ! TODO: Note that Rockstar catalogues have 6 mass entries, while BDMV only have 2 mass entries
+   INTEGER, PARAMETER :: column_Mvir = 1
+   INTEGER, PARAMETER :: column_Mtot = 2
+   INTEGER, PARAMETER :: column_M200 = 3
+   INTEGER, PARAMETER :: column_M200c = 4
+   INTEGER, PARAMETER :: column_M500c = 5
+   INTEGER, PARAMETER :: column_M2500c = 6 
 
    ! Snapshot finding
    INTEGER, PARAMETER :: ifind_snap = ifind_split
@@ -171,7 +184,13 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
       REAL, ALLOCATABLE, INTENT(OUT) :: m(:, :)
       INTEGER, INTENT(OUT) :: n
-      INTEGER :: i, j, crap
+      INTEGER :: i, j, crap, nmass
+
+      IF (snippet_in_string('rockstar', infile)) THEN
+         nmass = 6
+      ELSE
+         nmass = 2
+      END IF
 
       n = file_length(infile, verbose=.FALSE.)
       n = n-1 ! Remove comment line
@@ -190,21 +209,25 @@ CONTAINS
 
    END SUBROUTINE read_multidark_halo_catalogue
 
-   SUBROUTINE write_multidark_halo_catalogue(outfile, x, m, idx, n)
+   SUBROUTINE write_multidark_halo_catalogue(outfile, x, m, idx)
 
-      INTEGER, INTENT(IN) :: n
       CHARACTER(len=*), INTENT(IN) :: outfile
-      REAL, INTENT(IN) :: x(3, n)
-      REAL, INTENT(IN) :: m(6, n)
-      INTEGER, INTENT(IN) :: idx(n)
+      REAL, INTENT(IN) :: x(:, :)
+      REAL, INTENT(IN) :: m(:, :)
+      INTEGER, INTENT(IN) :: idx(:)
       INTEGER :: i, j, k
+      INTEGER :: nd, nm, n
+
+      nd = size(x, 1)
+      nm = size(m, 1)
+      n = size(x, 2)
 
       ! Write out the little catalogue
       WRITE (*, *) 'WRITE_MULTIDARK_HALO_CATALOGUE: Writing outfile: ', trim(outfile)
       OPEN (7, file=outfile)
       DO i = 1, n
          j = idx(n+1-i)
-         WRITE (7, *) (x(k, j), k=1, 3), (m(k, j), k=1,nmass)
+         WRITE (7, *) (x(k, j), k=1, nd), (m(k, j), k=1,nm)
       END DO
       CLOSE (7)
       WRITE (*, *) 'WRITE_MULTIDARK_HALO_CATALOGUE: Done'
