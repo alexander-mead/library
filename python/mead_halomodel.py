@@ -5,6 +5,11 @@ sys.path.append('/Users/Mead/Physics/library/python')
 import mead_general as mead
 import mead_cosmology as cosmo
 
+# W(k) integration scheme
+#winint = 'trapezium'
+#winint = 'simpson'
+winint = 'romb'
+
 # Halo model types
 PS = 'Press & Schecter 1974'
 ST = 'Sheth & Tormen 1999'
@@ -97,8 +102,33 @@ def mean_hm(hmod, Ms, Fs, Om_m, sigmas=None, sigma=None, Pk_lin=None):
     integrand = (Fs/Ms)*hmod.halo_mass_function(nus)
     return np.trapz(integrand, nus)*cosmo.comoving_matter_density(Om_m)
 
+# Compute the halo window function given a 'density' profile Prho(r) = 4*pi*r^2*rho(r)
+# This should almost certainly be done with a dedicated integration routine
+def halo_window(ks, rs, Prho):
+
+    # ks: array of wavenumbers [h/Mpc]
+    # rs: array of radii (usually going from r=0 to r=rv)
+    # Prho[rs]: array of Prho values at different radii
+
+    import scipy.integrate as integrate
+
+    W = np.empty_like(Prho)
+    for ik, k in enumerate(ks):
+        integrand = np.sinc(k*rs/np.pi)*Prho # Note that numpy sinc function has an odd definition
+        if winint == 'trapezium':
+            W[ik] = integrate.trapezoid(integrand, rs)
+        elif winint == 'simpson':
+            W[ik] = integrate.simps(integrand, rs)
+        elif winint == 'romb':
+            dr = (rs[-1]-rs[0])/(len(rs)-1)
+            W[ik] = integrate.romb(integrand, dr)
+        else:
+            raise ValueError('Halo window function integration method not recognised')
+    return W
+
 def Pk_hm(hmod, Ms, ks, rho_uv, Pk_lin, Om_m, beta=None, sigmas=None, sigma=None, low_mass_uv=[False,False], Fourier_uv=[True, True]):
 
+    # TODO: Remove Pk_lin dependence?
     # hmod - halomodel class
     # Ms - Array of halo masses [Msun/h]
     # ks - Array of wavenumbers [h/Mpc]
@@ -125,28 +155,17 @@ def Pk_hm(hmod, Ms, ks, rho_uv, Pk_lin, Om_m, beta=None, sigmas=None, sigma=None
             print('Missing halo-bias-mass from two-halo integrand:', A)
             print('')
 
-    # Compute the halo window function given a 'density' profile rho(r)
-    # This should almost certainly be done with a dedicated integration routine
-    def halo_window(Ms, rs, rho):
-        W = np.empty_like(rho)
-        for iM, M in enumerate(Ms):
-            rv = virial_radius(M, hmod.Dv, Om_m)
-            rs = np.linspace(0., rv)
-            for ik, k in enumerate(ks):
-                integrand = rs*np.sin(k*rs)*rho[iM, :]
-                W[iM, ik] = (4.*np.pi/k)*np.trapz(integrand, rs)
-        return W
-
     # Calculate the halo profile Fourier transforms if necessary
     Wuv = np.empty_like(rho_uv)
     for i, _ in enumerate(Fourier_uv):
         if Fourier_uv[i]:
             Wuv[i, :, :] = rho_uv[i, :, :]
         else:
-            raise ValueError('Non-Fourier profiles not yet supported')
-            rvs = virial_radius(Ms, hmod.Dv, Om_m)
-            Wuv[i, :, :] = halo_window(Ms, rvs, rho_uv[i, :, :])
-       
+            nr = rho_uv.shape[2] # This is nk, but I suppose it need not be
+            for iM, M in enumerate(Ms):
+                rv = virial_radius(M, hmod.Dv, Om_m)
+                rs = np.linspace(0., rv, nr)
+                Wuv[i, iM, :] = halo_window(ks, rs, rho_uv[i, iM, :])
 
     # Evaluate the integral that appears in the two-halo term
     def I_2h(hmod, Ms, nus, W, Om_m, low_mass):
@@ -208,6 +227,28 @@ def Pk_hm(hmod, Ms, ks, rho_uv, Pk_lin, Om_m, beta=None, sigmas=None, sigma=None
 # Halo virial radius based on the halo mass and overdensity condition
 def virial_radius(M, Dv, Om_m):   
     return cosmo.Radius_M(M, Om_m)/mead.cbrt(Dv)
+
+# Isothermal density profile multiplied by 4*pi*r^2
+def Prho_isothermal(r, M, rv):
+    return M/rv
+
+# NFW density profile multiplied by 4*pi*r^2
+def Prho_NFW(r, M, rv, c):
+    rs = rv/c
+    return M*r/(NFW_factor(c)*(1.+r/rs)**2*rs**2)
+
+# Converts a Prho profile to a rho profile
+# Take care evaluating this at zero (which will give infinity)
+def rho_Prho(Prho, r, *args):
+    return Prho(r, *args)/(4.*np.pi*r**2)
+
+# Density profile for an isothermal halo
+def rho_isothermal(r, M, rv):
+    return rho_Prho(Prho_isothermal, r, M, rv)
+
+# Density profile for an NFW halo
+def rho_NFW(r, M, rv, c):
+    return rho_Prho(Prho_NFW, r, M, rv, c)
 
 # Normalised Fourier tranform for a delta-function profile
 def win_delta():
