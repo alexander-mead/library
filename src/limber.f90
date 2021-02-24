@@ -1,6 +1,7 @@
 MODULE Limber
 
    USE constants
+   USE basic_operations
    USE array_operations
    USE interpolate
    USE cosmology_functions
@@ -152,7 +153,6 @@ CONTAINS
    CHARACTER(len=256) FUNCTION xcorr_type(ix)
 
       ! Names for cross-correlation field types
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix
 
       xcorr_type = ''
@@ -190,7 +190,6 @@ CONTAINS
    REAL FUNCTION k_ell(ell, a, cosm)
 
       ! Finds the k that corresponds to ell at the given a
-      IMPLICIT NONE
       REAL, INTENT(IN) :: ell ! angular wave number
       REAL, INTENT(IN) :: a   ! scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! cosmology
@@ -209,7 +208,6 @@ CONTAINS
    SUBROUTINE write_nz(proj, output)
 
       ! Write out the n(z) to a file
-      IMPLICIT NONE
       TYPE(projection), INTENT(IN) :: proj
       CHARACTER(len=*), INTENT(IN) :: output
       INTEGER :: i
@@ -226,7 +224,6 @@ CONTAINS
 
       ! Fill look-up tables for the two projection kerels X_ij
       ! TODO: Change to take ix(n)?
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix(2) ! Label for the type of projection kernel needed
       TYPE(projection), INTENT(OUT) :: proj(2) ! Output the projection kernel
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmological model
@@ -253,7 +250,6 @@ CONTAINS
    SUBROUTINE fill_projection_kernel(ix, proj, cosm)
 
       ! Fill look-up table for a projection kernel X_i
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix
       TYPE(projection), INTENT(OUT) :: proj
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -298,7 +294,6 @@ CONTAINS
 
       ! Calculates C(l) using the Limber approximation
       ! Note that using Limber and flat-sky for sensible results limits lmin to ell~10
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nl, nk, na ! Number of ell values
       REAL, INTENT(IN) :: r1, r2 ! Maximum and minimum comoving distances for integration
       REAL, INTENT(IN) :: ell(nl) ! Input array of desired ell values for C(ell)
@@ -345,10 +340,10 @@ CONTAINS
 
    SUBROUTINE Cl_contribution_ell(r1, r2, k, a, pow, nk, na, proj, cosm, fbase, fext)
 
+      USE string_operations
+
       ! Calculates the contribution to each ell of C(l) as a function of z, k, r
       ! Note that using Limber and flat-sky for sensible results limits lmin to ~10
-      USE string_operations
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk, na ! Number of entries in k and a
       REAL, INTENT(IN) :: r1, r2 ! Integration range
       REAL, INTENT(IN) :: k(nk), a(na), pow(nk, na) ! Input arrays of k, a and P(k,a) 
@@ -388,7 +383,6 @@ CONTAINS
    SUBROUTINE write_Cl(l, Cl, nl, outfile, verbose)
 
       ! Write C(l) to a file; writes l, C(l), l(l+1)C(l)/2pi
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nl
       REAL, INTENT(IN) :: l(nl)
       REAL, INTENT(IN) :: Cl(nl)
@@ -414,8 +408,6 @@ CONTAINS
       ! Calcuate the two-dimensional correlation functions given a C(ell) array
       ! This uses the direct sum over discrete ell do the transformation
       ! TODO: Can I bunch together ell in the sum when ell is high?
-      USE basic_operations
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m, n, nl   ! Number of Bessel function transforms
       INTEGER, INTENT(IN) :: ibessel(m) ! Bessel functions to use   
       REAL, INTENT(IN) :: th_tab(n)     ! Angles for correlation function [degrees]
@@ -493,10 +485,10 @@ CONTAINS
 
    REAL FUNCTION angular_xi_summation_adaptive(theta, nbessel, logl, logCl, nl, lmax, acc)
 
+      USE special_functions
+
       ! This routine converges very slowly. The adaptive part seems to be terrible
       ! TODO: Probably remove this, although I am not sure why it is so bad
-      USE special_functions
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nl       ! Number of entries in l-Cl arrays
       REAL, INTENT(IN) :: theta       ! Angle [rad]
       INTEGER, INTENT(IN) :: nbessel  ! Order form Bessel functions to use
@@ -540,8 +532,7 @@ CONTAINS
    FUNCTION angular_xi_summation(theta, ibessel, n, logl, logCl, nl, lmax)
 
       USE special_functions
-      USE basic_operations
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n, nl          ! Number of Bessel functions to use
       REAL :: angular_xi_summation(n)
       REAL, INTENT(IN) :: theta         ! Angle [rad]
@@ -587,8 +578,7 @@ CONTAINS
    FUNCTION angular_xi_summation_precompute(theta, ibessel, n, Cl, nl)
 
       USE special_functions
-      USE basic_operations
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n, nl          ! Number of Bessel functions to use
       REAL :: angular_xi_summation_precompute(n)
       REAL, INTENT(IN) :: theta         ! Angle [rad]
@@ -621,8 +611,6 @@ CONTAINS
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
-      USE basic_operations
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nl
       REAL, INTENT(IN) :: theta
       INTEGER, INTENT(IN) :: nbessel
@@ -723,9 +711,9 @@ CONTAINS
 
    REAL FUNCTION angular_xi_integrand(t, theta, nbessel, logl, logCl, nl)
 
-      ! TODO: Write integration routine for this
       USE special_functions
-      IMPLICIT NONE
+
+      ! TODO: Write integration routine for this
       INTEGER, INTENT(IN) :: nl       ! Number of entries in l-Cl arrays
       REAL, INTENT(IN) :: t           ! Integration variable: 1+l = 1/t
       REAL, INTENT(IN) :: theta       ! Angle [rad]
@@ -757,7 +745,6 @@ CONTAINS
 
       ! Write angular correlation functions to disk
       ! TODO: Is this a bit absurd?
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nb, nth          ! Number of theta values
       REAL, INTENT(IN) :: th_tab(nth)     ! Array of theta values [probably degress]
       REAL, INTENT(IN) :: xi_tab(nb, nth) ! Correlation functions
@@ -774,8 +761,7 @@ CONTAINS
 
    FUNCTION maxdist(proj)
 
-      !Calculates the maximum distance necessary for the lensing integration
-      IMPLICIT NONE
+      ! Calculates the maximum distance necessary for the lensing integration
       REAL :: maxdist
       TYPE(projection), INTENT(IN) :: proj(2)
       REAL :: rmax1, rmax2
@@ -791,7 +777,6 @@ CONTAINS
 
    SUBROUTINE write_projection_kernel(proj, cosm, outfile)
 
-      IMPLICIT NONE
       TYPE(projection), INTENT(IN) :: proj
       TYPE(cosmology), INTENT(INOUT) :: cosm
       CHARACTER(len=256), INTENT(IN) :: outfile
@@ -817,7 +802,6 @@ CONTAINS
    SUBROUTINE fill_lensing_kernel(ix, proj, cosm)
 
       ! Fill the lensing projection kernel
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix
       !TYPE(lensing) :: lens
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -914,7 +898,6 @@ CONTAINS
    SUBROUTINE fill_efficiency(ix, rmin, rmax, zmax, proj, cosm)
 
       ! Fill the table for lensing efficiency
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix
       REAL, INTENT(IN) :: rmin, rmax, zmax
       TYPE(projection), INTENT(INOUT) :: proj
@@ -981,7 +964,6 @@ CONTAINS
    FUNCTION q_r(r, proj)
 
       ! Interpolation function for q(r)
-      IMPLICIT NONE
       REAL :: q_r
       REAL, INTENT(IN) :: r
       TYPE(projection), INTENT(IN) :: proj
@@ -993,7 +975,6 @@ CONTAINS
    SUBROUTINE write_efficiency(proj, cosm, outfile)
 
       ! Write lensing efficiency q(r) function to a file
-      IMPLICIT NONE
       TYPE(projection), INTENT(INOUT) :: proj
       TYPE(cosmology), INTENT(INOUT) :: cosm
       CHARACTER(len=256), INTENT(IN) :: outfile
@@ -1017,7 +998,6 @@ CONTAINS
    FUNCTION lensing_kernel(r, proj, cosm)
 
       ! The lensing projection kernel
-      IMPLICIT NONE
       REAL :: lensing_kernel
       REAL, INTENT(IN) :: r
       TYPE(projection) :: proj
@@ -1039,7 +1019,6 @@ CONTAINS
    SUBROUTINE fill_kernel(ix, proj, cosm)
 
       ! Fill a table of kernel values
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix
       TYPE(projection), INTENT(OUT) :: proj
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1092,7 +1071,6 @@ CONTAINS
 
       ! The Compton-y projection kernel
       ! TODO: (re)check the power of 'a'
-      IMPLICIT NONE
       REAL :: y_kernel
       REAL, INTENT(IN) :: r
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1117,7 +1095,6 @@ CONTAINS
    REAL FUNCTION gwave_kernel(r, cosm)
 
       ! Projection kernel for gravitational waves (~ 1/r)
-      IMPLICIT NONE
       REAL, INTENT(IN) :: r
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: crap
@@ -1136,7 +1113,6 @@ CONTAINS
    REAL FUNCTION CIB_kernel(r, cosm)
 
       ! Projection kernel CIB emission
-      IMPLICIT NONE
       REAL, INTENT(IN) :: r
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: z, a
@@ -1155,7 +1131,7 @@ CONTAINS
    REAL FUNCTION galaxy_kernel(r, cosm)
 
       USE special_functions
-      IMPLICIT NONE
+
       REAL, INTENT(IN) :: r
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: z, a
@@ -1171,10 +1147,10 @@ CONTAINS
    END FUNCTION galaxy_kernel
 
    SUBROUTINE read_nz(ix, proj)
+    
+      USE calculus_table
 
       ! The the n(z) function for lensing
-      USE calculus_table
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix
       TYPE(projection), INTENT(INOUT) :: proj
       REAL :: norm
@@ -1239,8 +1215,7 @@ CONTAINS
 
    SUBROUTINE normalise_nz(proj)
 
-      ! Explicitly normalise the input n(z)  
-      IMPLICIT NONE
+      ! Explicitly normalise the input n(z)
       TYPE(projection), INTENT(INOUT) :: proj
       REAL :: norm
 
@@ -1252,9 +1227,9 @@ CONTAINS
 
    REAL FUNCTION integrate_nz(proj)
 
-      ! Integrate the n(z) function over z (which should give unity)
       USE calculus_table
-      IMPLICIT NONE
+
+      ! Integrate the n(z) function over z (which should give unity)
       TYPE(projection), INTENT(INOUT) :: proj
 
       integrate_nz = integrate_table(proj%z_nz, proj%nz, 1, proj%nnz, proj%order_nz)
@@ -1263,7 +1238,6 @@ CONTAINS
 
    SUBROUTINE fill_analytic_nz_table(ix, proj)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: ix
       TYPE(projection), INTENT(INOUT) :: proj
       INTEGER :: i
@@ -1285,7 +1259,7 @@ CONTAINS
    SUBROUTINE fill_nz_table(ix, proj)
 
       USE file_info
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: ix
       TYPE(projection), INTENT(INOUT) :: proj
       INTEGER :: i
@@ -1383,7 +1357,6 @@ CONTAINS
    REAL FUNCTION nz_distribution(z, ix)
 
       ! Analytical n(z) for different surveys
-      IMPLICIT NONE
       REAL, INTENT(IN) :: z
       INTEGER, INTENT(IN) :: ix
       REAL :: a, b, c, d, e, f, g, h, i
@@ -1427,8 +1400,6 @@ CONTAINS
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
       ! TODO: This could be changed to a general integrate_proj_cosm routine
-      USE basic_operations
-      IMPLICIT NONE
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
       REAL, INTENT(IN) :: b
@@ -1530,7 +1501,6 @@ CONTAINS
       ! The lensing efficiency integrand, which is a function of z
       ! z is integrated over while r is just a parameter
       ! This is only called for n(z)
-      IMPLICIT NONE
       REAL :: q_integrand
       REAL, INTENT(IN) :: r, z
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -1557,8 +1527,6 @@ CONTAINS
    REAL FUNCTION integrate_Limber(l, a, b, logktab, logatab, logptab, nk, na, acc, iorder, proj, cosm)
 
       ! Integrates between a and b until desired accuracy is reached
-      USE basic_operations
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk, na
       REAL, INTENT(IN) :: a, b, acc
       INTEGER, INTENT(IN) :: iorder
@@ -1659,7 +1627,6 @@ CONTAINS
    REAL FUNCTION Limber_integrand(r, l, logktab, logatab, logptab, nk, na, proj, cosm)
 
       ! The integrand for the Limber integral
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk, na
       REAL, INTENT(IN) :: r, l
       REAL, INTENT(IN) :: logktab(nk), logatab(na), logptab(nk, na)
@@ -1697,8 +1664,6 @@ CONTAINS
 
    SUBROUTINE Limber_contribution(l, r1, r2, logktab, logatab, logptab, nk, na, proj, cosm, outfile)
 
-      USE basic_operations
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk, na
       REAL, INTENT(IN) :: l, r1, r2
       REAL, INTENT(IN) :: logktab(nk), logatab(na), logptab(nk, na)
@@ -1743,7 +1708,6 @@ CONTAINS
       ! Note that it cuts P(k,a) off above and below certain wavenumbers defined in the header (kmin_pka, kmax_pka)
       ! It will interpolate in log(a) outside range
       ! It will interpolate in log(k) outside range of ktab until kmin_pka/kmax_pka
-      IMPLICIT NONE
       REAL, INTENT(IN) :: k, a ! Input desired values of k and a
       INTEGER, INTENT(IN) :: nk, na ! Number of entries of k and a in arrays
       REAL, INTENT(IN) :: logktab(nk), logatab(na), logptab(nk, na) ! Arrays of log(k), log(a) and log(P(k,a))
@@ -1772,7 +1736,6 @@ CONTAINS
 
       ! Calculates the C(l) for the cross correlation of fields ix(1) and ix(2) given P(k,a)
       ! TODO: Change to take in ix(n)?
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk, na, nl
       INTEGER, INTENT(INOUT) :: ix(2)
       REAL, INTENT(IN) :: ell(nl)
@@ -1801,7 +1764,6 @@ CONTAINS
 
       ! Calculates the C(l) for the cross correlation of fields ix(1) and ix(2) given P(k,a)
       ! TODO: Change to take in ix(n)?
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nk, na
       INTEGER, INTENT(INOUT) :: ix(2)
       REAL, INTENT(IN) :: k(nk)
@@ -1826,12 +1788,12 @@ CONTAINS
 
    SUBROUTINE xpow_halomod(ix, nx, ell, Cl, nl, cosm, ihm, verbose)
 
+      USE HMx
+
       ! Calculates the C(l) for the cross correlation of fields ix(1) and ix(2)
       ! TODO: Speed up if there are repeated fields in ix(n) (should this ever happen?)
       ! TODO: Add bin theory option
       ! TODO: Move this because it requires HMx?
-      USE HMx
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: nx, nl
       INTEGER, INTENT(INOUT) :: ix(nx)
       REAL, INTENT(IN) :: ell(nl)
@@ -1933,10 +1895,10 @@ CONTAINS
 
    SUBROUTINE set_field_for_xpow(ix, ip)
 
+      USE HMx
+
       ! Set the cross-correlation type
       ! TODO: Move this because it requires HMx?
-      USE HMx
-      IMPLICIT NONE
       INTEGER, INTENT(INOUT) :: ix ! Tracer for cross correlation
       INTEGER, INTENT(OUT) :: ip   ! Corresponding field for power spectrum
       INTEGER :: j

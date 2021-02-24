@@ -112,7 +112,6 @@ CONTAINS
       ! Calculate the correlation function for the sample with positions 'x' and weights 'w'
       ! CARE: Removed double-precision sums
       USE table_integer
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n1, n2            ! Total numbers of particles
       INTEGER, INTENT(IN) :: nr                ! Required number of log-spaced bins
       REAL, INTENT(IN) :: rmin, rmax           ! Maximum and maximum distances to calculate xi for [Mpc/h]
@@ -202,7 +201,7 @@ CONTAINS
    SUBROUTINE create_mass_function(mmin, mmax, halo_masses, n_haloes, mass_bins, mass_function, n_bins, L)
 
       USE statistics
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n_haloes                    ! Total number of haloes
       REAL, INTENT(IN) :: mmin                           ! Minimum halo mass for the mass function [Msun/h]
       REAL, INTENT(IN) :: mmax                           ! Maximum halo mass for the mass function [Msun/h]
@@ -230,7 +229,6 @@ CONTAINS
 
    SUBROUTINE halo_mass_cut(mmin, mmax, x, m, n)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: mmin
       REAL, INTENT(IN) :: mmax
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :)
@@ -284,7 +282,6 @@ CONTAINS
    SUBROUTINE halo_mass_weights(mmin, mmax, m, w)
 
       ! Set the weight, w(i), to one if the halo is in the mass range, zero otherwise
-      IMPLICIT NONE
       REAL, INTENT(IN) :: mmin
       REAL, INTENT(IN) :: mmax
       REAL, INTENT(IN) :: m(:)
@@ -304,7 +301,6 @@ CONTAINS
    SUBROUTINE compute_and_write_power_spectrum(x, L, m, nk, outfile)
 
       ! Compute and write the power spectrum out in some standard format
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(:, :)    
       REAL, INTENT(IN) :: L
       INTEGER, INTENT(IN) :: m
@@ -457,9 +453,7 @@ CONTAINS
 
    SUBROUTINE cross_spectrum_particles(x1, x2, L, m, nk, k, Pk, nbin, sig, kmin_opt, kmax_opt)
 
-      USE constants
       USE FFT
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x1(:, :)
       REAL, INTENT(IN) :: x2(:, :)
       REAL, INTENT(IN) :: L
@@ -525,14 +519,13 @@ CONTAINS
       dk = dk_out
 
       ! Sharpen the Fourier Transform for the binning
-      CALL sharpen_k(dk, m, m, ibin)
+      CALL sharpen_k(dk, ibin)
 
    END SUBROUTINE sharp_Fourier_density_contrast
 
    SUBROUTINE write_density_slice_ascii(x, n, z1, z2, L, m, outfile)
 
       ! Write out a slice of density field
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n   ! Number of particles
       REAL, INTENT(IN) :: x(3, n) ! Particle positions  
       REAL, INTENT(IN) :: z1     ! Starting point for slab
@@ -572,7 +565,6 @@ CONTAINS
    SUBROUTINE make_projected_density(x, n, z1, z2, L, d, m)
 
       ! Write out a slice of density field
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m ! Mesh
       INTEGER, INTENT(IN) :: n ! Number of particles
       REAL, INTENT(IN) :: x(3, n) ! Particle positions   
@@ -953,7 +945,7 @@ CONTAINS
    SUBROUTINE random_translation(x, n, L, verbose)
 
       USE random_numbers
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(INOUT) :: x(3, n)    
       REAL, INTENT(IN) :: L
@@ -986,7 +978,7 @@ CONTAINS
    SUBROUTINE random_inversion(x, n, L, verbose)
 
       USE random_numbers
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(INOUT) :: x(3, n)
       REAL, INTENT(IN) :: L
@@ -1019,7 +1011,7 @@ CONTAINS
       ! This way is memory efficient
       ! TODO: This raises an 'array temporary' warning because non-contiguous sections of x are passed to swap_arrays
       USE random_numbers
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(INOUT) :: x(3, n)  
       LOGICAL, OPTIONAL :: verbose
@@ -1066,7 +1058,6 @@ CONTAINS
 
       ! Bin particle properties onto a mesh, summing as you go
       ! TODO: Adapt for different lengths and different meshes in x,y
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n         ! Total number of particles
       INTEGER, INTENT(IN) :: m         ! Mesh size for density field
       REAL, INTENT(IN) :: x(2, n)       ! 2D particle positions    
@@ -1093,7 +1084,6 @@ CONTAINS
    SUBROUTINE particle_bin_3D(x, n, L, w, d, m, ibin, all, periodic, verbose)
 
       ! Bin particle properties onto a mesh, summing as you go
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n        ! Total number of particles
       INTEGER, INTENT(IN) :: m        ! Mesh size for density field
       REAL, INTENT(IN) :: x(3, n)      ! 3D particle positions  
@@ -1121,7 +1111,6 @@ CONTAINS
 
       ! Bin particle properties onto a mesh, averaging properties over cells
       ! TODO: This should probably not be used if there are any empty cells
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m
       REAL, INTENT(IN) :: x(3, n)    
       REAL, INTENT(IN) :: L
@@ -1176,7 +1165,6 @@ CONTAINS
    SUBROUTINE NGP_2D(x, n, L, w, d, m, all, verbose)
 
       ! Nearest-grid-point binning routine
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n       ! Total number of particles in area
       INTEGER, INTENT(IN) :: m       ! Mesh size for density field
       REAL, INTENT(IN) :: x(2, n)    ! particle positions     
@@ -1240,7 +1228,6 @@ CONTAINS
    SUBROUTINE NGP_3D(x, n, L, w, d, m, all, verbose)
 
       ! Nearest-grid-point binning routine
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
       REAL, INTENT(IN) :: x(3, n)     ! particle positions    
       REAL, INTENT(IN) :: L           ! Area side length
@@ -1303,7 +1290,6 @@ CONTAINS
    SUBROUTINE CIC_2D(x, n, L, w, d, m, all, periodic, verbose)
 
       ! Cloud-in-cell binning routine
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
       REAL, INTENT(IN) :: x(2, n)     ! 2D particle positions     
       REAL, INTENT(IN) :: L           ! Area side length
@@ -1422,7 +1408,6 @@ CONTAINS
    SUBROUTINE CIC_3D(x, n, L, w, d, m, all, periodic, verbose)
 
       ! Cloud-in-cell binning routine
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
       REAL, INTENT(IN) :: x(3, n)     ! 3D particle positions    
       REAL, INTENT(IN) :: L           ! Area side length
@@ -1570,7 +1555,6 @@ CONTAINS
    SUBROUTINE SOD(x, n, L, w, d, m, Rs)
 
       ! Spherical density routine
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m
       REAL, INTENT(IN) :: x(3, n)   
       REAL, INTENT(IN) :: L
@@ -1696,7 +1680,6 @@ CONTAINS
 
    SUBROUTINE find_pairs(x, okay, n, rmin, rmax, L, outfile)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(3, n)
       LOGICAL, INTENT(IN) :: okay(n)
@@ -1736,7 +1719,6 @@ CONTAINS
    SUBROUTINE zshift(x, v, n, Om_m, Om_v, z, iz)
 
       ! Shift particles to redshift space
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n       ! Total number of particles
       REAL, INTENT(INOUT) :: x(3, n) ! Particle positions [Mpc/h]
       REAL, INTENT(IN) :: v(3, n)    ! Particle velocities [km/s] 
@@ -1790,7 +1772,6 @@ CONTAINS
       ! It also ignores anything other than vacuum and matter
       ! TODO: Include dark energy?
       ! TODO: Remove in favour of cosmology module?
-      IMPLICIT NONE
       REAL, INTENT(IN) :: z ! Redshift
       REAL, INTENT(IN) :: Om_m, Om_v ! Cosmological parameters
 
@@ -1801,7 +1782,6 @@ CONTAINS
    ! This subroutine was previously called slice
    SUBROUTINE write_slice_ascii(x, n, x1, x2, y1, y2, z1, z2, outfile)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n ! Total number of particles
       REAL, INTENT(IN) :: x(3, n) ! Particle positions [Mpc/h]   
       REAL, INTENT(IN) :: x1, x2, y1, y2, z1, z2 ! Limits of the slice [Mpc/h]
@@ -1826,7 +1806,6 @@ CONTAINS
 
       ! Calculate simulation shot noise for equal mass matter particlers [(Mpc/h)^3]
       USE precision
-      IMPLICIT NONE
       REAL, INTENT(IN) :: L ! Box size [Mpc/h]
       !INTEGER*8, INTENT(IN) :: n ! Total number of particles
       INTEGER(int8), INTENT(IN) :: n ! Total number of particles
@@ -1842,7 +1821,6 @@ CONTAINS
       ! See appendix in HMx paper
       ! Note if this is for mass then u = v = particle_mass/total_mass
       ! CARE: Removed double-precision sums
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n ! Number of particles
       REAL, INTENT(IN) :: u(n) ! Contributions to the total field u and v per particle  
       REAL, INTENT(IN) :: v(n) ! Contributions to the total field u and v per particle  
@@ -1860,7 +1838,6 @@ CONTAINS
 
       ! Calculate simulation shot noise constant P(k) for different-mass tracers [(Mpc/h)^3]
       ! CARE: Removed double-precision sums
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n ! Number of particles
       REAL, INTENT(IN) :: L    ! Box size [Mpc/h]
       REAL, INTENT(IN) :: m(n) ! Array of particle masses
@@ -1878,8 +1855,6 @@ CONTAINS
 
       ! Calculates shot noise as Delta^2(k) from a constant-P(k) thing with units [(Mpc/h)^3]
       ! This shot noise is then dimensionless, exactly like Delta^2(k)
-      USE constants
-      IMPLICIT NONE
       REAL, INTENT(IN) :: k ! Wave vector [h/Mpc]
       REAL, INTENT(IN) :: shot ! The constant shot-noise term: P(k) [(Mpc/h)^3]
 
@@ -2258,9 +2233,7 @@ CONTAINS
    FUNCTION random_spherical_halo_particle(rv, irho)
 
       ! Make x,y,z coordiantes for a random point in an artificial spherical halo
-      USE constants
       USE random_numbers
-      IMPLICIT NONE
       REAL :: random_spherical_halo_particle(3)
       REAL, INTENT(IN) :: rv
       INTEGER, INTENT(IN) :: irho
@@ -2294,7 +2267,6 @@ CONTAINS
 
       ! The radial random weighting for a constant-density halo profile
       USE random_numbers
-      IMPLICIT NONE
       REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
 
       ! TODO: Use random polynomial here with n=2: random_uniform(0.,1.)**(1./3.) -> random_polynomial(n)
@@ -2306,7 +2278,6 @@ CONTAINS
 
       ! The radial random weighting for an isothermal halo profile
       USE random_numbers
-      IMPLICIT NONE
       REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
 
       random_r_isothermal = random_uniform(0., rv)

@@ -292,7 +292,6 @@ CONTAINS
       ! Generates a unit amplitude complex number with random phase
       ! TODO: Is 0 actually counted twice because 0 and 2pi are identical?
       USE constants
-      IMPLICIT NONE
       REAL :: theta
 
       theta = random_uniform(0., twopi)
