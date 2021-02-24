@@ -1119,22 +1119,22 @@ CONTAINS
       INTEGER, INTENT(IN) :: ibin
       LOGICAL, INTENT(IN) :: all
       LOGICAL, INTENT(IN) :: periodic
-      REAL :: number(m, m, m), one(n)
+      REAL :: number(m, m, m), ones(n)
       INTEGER :: i, j, k, sum
 
       IF (periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_3D: Very strange to have periodic and not all particles contribute'
 
       ! Need an array of ones
       ! TODO: wasteful for memory, could use pointer maybe?
-      one = 1.
+      ones = 1.
 
       !Call the binning twice, first to bin particle property and second to count
       IF (ibin == 1) THEN
          CALL NGP_3D(x, n, L, w, d, m, all, verbose=.TRUE.)
-         CALL NGP_3D(x, n, L, one, number, m, all, verbose=.TRUE.)
+         CALL NGP_3D(x, n, L, ones, number, m, all, verbose=.TRUE.)
       ELSE IF (ibin == 2) THEN
          CALL CIC_3D(x, n, L, w, d, m, all, periodic, verbose=.TRUE.)
-         CALL CIC_3D(x, n, L, one, number, m, all, periodic, verbose=.TRUE.)
+         CALL CIC_3D(x, n, L, ones, number, m, all, periodic, verbose=.TRUE.)
       ELSE
          STOP 'PARTICLE_BIN_AVERAGE: Error, ibin not specified correctly'
       END IF
