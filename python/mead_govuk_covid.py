@@ -399,7 +399,7 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_n
 
         # Lockdowns
         if plot_lockdowns:
-            for dates in lockdowns.get(region):
+            for id, dates in enumerate(lockdowns.get(region)):
                 lockdown_start_date = dates[0]
                 if len(dates) == 1:
                     lockdown_end_date = max(data.date)
@@ -407,10 +407,14 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_n
                     lockdown_end_date = dates[1]
                 else:
                     raise TypeError('Something went wrong with lockdown dates')
+                if id == 0:
+                    label = lockdown_lab
+                else:
+                    label = None
                 plt.axvspan(lockdown_start_date, lockdown_end_date, 
                         alpha=lockdown_alpha, 
                         color=lockdown_color, 
-                        label=lockdown_lab)
+                        label=label)
 
         # Important individual dates
         if plot_relax:

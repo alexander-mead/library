@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import sys
 import scipy.integrate as integrate
@@ -5,6 +6,12 @@ import scipy.integrate as integrate
 sys.path.append('/Users/Mead/Physics/library/python')
 import mead_general as mead
 import mead_cosmology as cosmo
+
+# Parameters
+Dv0 = 18.*np.pi**2
+dc0 = (3./20.)*(12.*np.pi)**(2./3.)
+Dv_close_rel_tol = 1e-3
+Tinker_z_dep = False
 
 # Halo-model integration scheme
 #halo_integration = integrate.trapezoid
@@ -18,6 +25,7 @@ win_integration = integrate.romb
 # Halo model types
 PS = 'Press & Schecter 1974'
 ST = 'Sheth & Tormen 1999'
+Tinker2010 = 'Tinker 2010'
 
 # Defaults
 hm_def = PS
@@ -26,7 +34,7 @@ dc_def = 1.686
 
 class halomod():
 
-    def __init__(self, hm=hm_def, Dv=Dv_def, dc=dc_def):
+    def __init__(self, z, hm=hm_def, Dv=Dv_def, dc=dc_def):
 
         # Store internal variables
         self.hm = hm
@@ -35,12 +43,51 @@ class halomod():
 
         if hm == ST:
             # Sheth-Tormen mass function parameters
-            from scipy.special import gamma as Gamma           
+            from scipy.special import gamma as Gamma
             p = 0.3
             q = 0.707
             self.p_ST = p
             self.q_ST = q
             self.A_ST = np.sqrt(2.*q)/(np.sqrt(np.pi)+Gamma(0.5-p)/2**p) # A ~ 0.21
+
+        elif hm == Tinker2010:
+
+            # Tinker et al. (2010; https://arxiv.org/abs/1001.3162)
+
+            # Check Delta_v value
+            if not math.isclose(Dv, 200., rel_tol=Dv_close_rel_tol):
+                print('Warning, Tinker (2010) only coded up for Dv=200')
+
+            # Check delta_c value
+            if not math.isclose(dc, 1.686, rel_tol=Dv_close_rel_tol):
+                print('Warning, dc = 1.686 assumed in Tinker (2010)')
+
+            # Mass function from Table 4
+            alpha = 0.368
+            beta = 0.589
+            gamma = 0.864
+            phi = -0.729
+            eta = -0.243
+            if Tinker_z_dep:
+                beta = beta*(1.+z)**0.20
+                gamma = gamma*(1.+z)**-0.01
+                phi = phi*(1.+z)**-0.08
+                eta = eta*(1.+z)**0.27
+            self.alpha_Tinker = alpha
+            self.beta_Tinker = beta
+            self.gamma_Tinker = gamma
+            self.phi_Tinker = phi
+            self.eta_Tinker = eta
+
+            # Calibrated halo bias (not from peak-background split) from Table 2
+            y = np.log10(self.Dv)
+            exp = np.exp(-(4./y)**4)
+            self.A_Tinker = 1.+0.24*y*exp
+            self.a_Tinker = 0.44*y-0.88
+            self.B_Tinker = 0.183
+            self.b_Tinker = 1.5
+            self.C_Tinker = 0.019+0.107*y+0.19*exp
+            self.c_Tinker = 2.4
 
     def halo_mass_function(self, nu):
 
@@ -54,6 +101,16 @@ class halomod():
             q = self.q_ST
             p = self.p_ST
             return A*(1.+((q*nu**2)**(-p)))*np.exp(-q*nu**2/2.)
+        elif self.hm == Tinker2010:
+            alpha = self.alpha_Tinker
+            beta = self.beta_Tinker
+            gamma = self.gamma_Tinker
+            phi = self.phi_Tinker
+            eta = self.eta_Tinker
+            f1 = (1.+(beta*nu)**(-2.*phi))
+            f2 = nu**(2.*eta)
+            f3 = np.exp(-gamma*nu**2/2.)
+            return alpha*f1*f2*f3
         else:
             raise ValueError('Halo model ihm not recognised in halo_mass_function')
 
@@ -68,6 +125,17 @@ class halomod():
             p = self.p_ST
             q = self.q_ST
             return 1.+(q*(nu**2)-1.+2.*p/(1.+(q*nu**2)**p))/self.dc
+        elif self.hm == Tinker2010:
+            A = self.A_Tinker
+            a = self.a_Tinker
+            B = self.B_Tinker
+            b = self.b_Tinker
+            C = self.C_Tinker
+            c = self.c_Tinker
+            fA = A*nu**a/(nu**a+self.dc**a)
+            fB = B*nu**b
+            fC = C*nu**c
+            return 1.-fA+fB+fC
         else:
             raise ValueError('Halo model ihm not recognised in linear_halo_bias')
 
@@ -331,3 +399,15 @@ def HOD_Zheng(M, Mmin=1e12, sigma=0.15, M0=1e12, M1=1e13, alpha=1.):
     Nc = 0.5*(1.+erf(np.log(M/Mmin)/sigma))
     Ns = Nc*np.heaviside(M-M0, 0.5)*((M-M0)/M1)**alpha
     return Nc, Ns
+
+# LCDM fitting function for the critical linear collapse density from Nakamura & Suto (1997; https://arxiv.org/abs/astro-ph/9612074)
+# Cosmology dependence is very weak
+def dc_NakamuraSuto(Om_mz):
+    return dc0*(1.+0.012299*np.log10(Om_mz))
+
+# LCDM fitting function for virial overdensity from Bryan & Norman (1998; https://arxiv.org/abs/astro-ph/9710107)
+# Note that here Dv is defined relative to background matter density, whereas in paper it is relative to critical density
+def Dv_BryanNorman(Om_mz):
+    x = Om_mz-1.
+    Dv = Dv0+82.*x-39.*x**2
+    return Dv/Om_mz

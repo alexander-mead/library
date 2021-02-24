@@ -13,6 +13,9 @@ import mead_maths as maths
 import mead_general as mead
 import mead_interpolation as interpolation
 
+# Parameters
+AW10_future_punishment = 1e6
+
 # Mead cosmology class, roughly analagous to that I use in Fortran
 # TODO: Normalisation As vs. sigma_8 etc.
 # TODO: How to include power spectra. Should I even do this? Probably I should use CAMB instead.
@@ -536,29 +539,27 @@ def sigma_R(R, Power_k):
     def sigma_R_vec(R):
 
         def sigma_integrand(k):
-
-            #D2 = Delta2(Power, k)
-            #return D2(k)*np.sinc(k*R)/k
             return Power_k(k)*(k**2)*maths.Tophat(k*R)**2
 
         # k range for integration (could be restricted if necessary)
         kmin = 0.
         kmax = np.inf
 
-        # Do the integral and convert to a nicer form
+        # Evaluate the integral and convert to a nicer form
         sigma_squared, _ = integrate.quad(sigma_integrand, kmin, kmax)
         sigma = np.sqrt(sigma_squared/(2.*np.pi**2))
         return sigma
 
-    sigma_func = np.vectorize(sigma_R_vec, excluded=['Power_k']) # Note that this is a function
-    return sigma_func(R) # This is the function evaluated
+    # Note that this is a function  
+    sigma_func = np.vectorize(sigma_R_vec, excluded=['Power_k']) 
+
+    # This is the function evaluated
+    return sigma_func(R) 
 
 def nu_R(R, Power_k, dc=1.686):
-
     return dc/sigma_R(R, Power_k)
 
 def nu_M(M, Power_k, Om_m, dc=1.686):
-
     R = Radius_M(M, Om_m)
     return nu_R(R, Power_k, dc)
 
@@ -570,7 +571,7 @@ def calculate_AW10_rescaling_parameters(z_tgt, R1_tgt, R2_tgt, sigma_Rz_ogn, sig
 
         # Severely punish negative z
         if (z < 0.):
-            return 1e6
+            return AW10_future_punishment
 
         def integrand(R):
             return (1./R)*(1.-sigma_Rz_ogn(R/s, z)/sigma_Rz_tgt(R, z_tgt))**2

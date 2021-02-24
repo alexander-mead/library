@@ -162,7 +162,7 @@ def create_mead_cosmology(cpar, verbose=False):
                            As=cpar.As, ns=cpar.ns, w=cpar.w, m_nu=cpar.m_nu)
 
     # Print to screen
-    if (verbose):
+    if verbose:
         cosm.print()
 
     return cosm
@@ -199,15 +199,15 @@ def init_emulator(cpar):
 # Matter power spectrum
 def Pk_mm(emu, ks, zs, nonlinear=False):
 
-    if (isinstance(zs, float)):
-        if (nonlinear):
+    if isinstance(zs, float):
+        if nonlinear:
             Pk = emu.get_pmnl(ks, zs)
         else:         
             Pk = emu.get_pklin_from_z(ks, zs)
     else:
         Pk = np.zeros((len(zs), len(ks)))
         for iz, z in enumerate(zs):
-            if (nonlinear):
+            if nonlinear:
                 Pk[iz, :] = emu.get_pmnl(ks, z)
             else:         
                 Pk[iz, :] = emu.get_pklin_from_z(ks, z)
@@ -271,13 +271,13 @@ def Mass_nu(emu, nu, z):
     nus_internal = dc/sigs_internal 
 
     # Make an interpolator for sigma(M)  
-    if (log_interp):
+    if log_interp:
         mass_interpolator = ius(nus_internal, np.log(Ms_internal))
     else:
         mass_interpolator = ius(nus_internal, Ms_internal)
 
     # Get sigma(M) from the interpolator at the desired masses
-    if (log_interp):
+    if log_interp:
         Mass = np.exp(mass_interpolator(nu))
     else:
         Mass = mass_interpolator(nu)
@@ -333,21 +333,21 @@ def beta_NL(emu, vars, ks, z, var='Mass'):
     ibias = 2
 
     # Force Beta_NL to zero?
-    # ibias = 0: No
-    # ibias = 1: Yes, via addative correction
-    # ibias = 3: Yes, via multiplicative correction
+    # force_BNL_zero = 0: No
+    # force_BNL_zero = 1: Yes, via addative correction
+    # force_BNL_zero = 2: Yes, via multiplicative correction
     force_BNL_zero = 0
 
     # Parameters
     klin = 0.02  # Large 'linear' scale [h/Mpc]
 
     # Set array name sensibly
-    if (var == 'Mass'):
+    if var == 'Mass':
         Ms = vars
-    elif (var == 'Radius'):
+    elif var == 'Radius':
         Rs = vars
         Ms = Mass_R(emu, Rs)
-    elif (var == 'nu'):
+    elif var == 'nu':
         nus = vars
         Ms = Mass_nu(emu, nus, z)
     else:
@@ -358,7 +358,6 @@ def beta_NL(emu, vars, ks, z, var='Mass'):
     
     # Linear power
     Pk_lin = emu.get_pklin_from_z(ks, z)
-    #if (force_BNL_zero != 0):
     Pk_lin0 = emu.get_pklin_from_z(klin, z)
     
     # Calculate beta_NL by looping over mass arrays
@@ -370,13 +369,13 @@ def beta_NL(emu, vars, ks, z, var='Mass'):
             Pk_hh = emu.get_phh_mass(ks, M1, M2, z)
             
             # Linear halo bias
-            if (ibias == 1):
+            if ibias == 1:
                 b1 = emu.get_bias_mass(M1, z)[0]
                 b2 = emu.get_bias_mass(M2, z)[0]
-            elif (ibias == 2):
+            elif ibias == 2:
                 b1 = np.sqrt(emu.get_phh_mass(klin, M1, M1, z)/emu.get_pklin_from_z(klin, z))
                 b2 = np.sqrt(emu.get_phh_mass(klin, M2, M2, z)/emu.get_pklin_from_z(klin, z))
-            elif (ibias == 3):
+            elif ibias == 3:
                 b1 = emu.get_phm_mass(klin, M1, z)/emu.get_pklin_from_z(klin, z)
                 b2 = emu.get_phm_mass(klin, M2, z)/emu.get_pklin_from_z(klin, z)
             else:
@@ -386,12 +385,12 @@ def beta_NL(emu, vars, ks, z, var='Mass'):
             beta[im1, im2, :] = Pk_hh/(b1*b2*Pk_lin)-1.
 
             # Force Beta_NL to be zero at large scales if necessary
-            if (force_BNL_zero != 0):
+            if force_BNL_zero != 0:
                 Pk_hh0 = emu.get_phh_mass(klin, M1, M2, z)
                 db = Pk_hh0/(b1*b2*Pk_lin0)-1.
-                if (force_BNL_zero == 1):
+                if force_BNL_zero == 1:
                     beta[im1, im2, :] = beta[im1, im2, :]-db # Additive correction
-                elif (force_BNL_zero == 2):
+                elif force_BNL_zero == 2:
                     beta[im1, im2, :] = (beta[im1, im2, :]+1.)/(db+1.)-1. # Multiplicative correction
                 else:
                     raise ValueError('force_BNL_zero not set correctly')
