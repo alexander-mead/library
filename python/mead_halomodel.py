@@ -1,14 +1,19 @@
 import numpy as np
 import sys
+import scipy.integrate as integrate
 
 sys.path.append('/Users/Mead/Physics/library/python')
 import mead_general as mead
 import mead_cosmology as cosmo
 
+# Halo-model integration scheme
+#halo_integration = integrate.trapezoid
+halo_integration = integrate.simpson
+
 # W(k) integration scheme
-#winint = 'trapezium'
-#winint = 'simpson'
-winint = 'romb'
+#win_integration = integrate.trapezoid
+#win_integration = integrate.simpson
+win_integration = integrate.romb
 
 # Halo model types
 PS = 'Press & Schecter 1974'
@@ -100,7 +105,8 @@ def mean_hm(hmod, Ms, Fs, Om_m, sigmas=None, sigma=None, Pk_lin=None):
 
     nus = get_nus(Ms, hmod.dc, Om_m, sigmas, sigma, Pk_lin)
     integrand = (Fs/Ms)*hmod.halo_mass_function(nus)
-    return np.trapz(integrand, nus)*cosmo.comoving_matter_density(Om_m)
+    #return np.trapz(integrand, nus)*cosmo.comoving_matter_density(Om_m)
+    return halo_integration(integrand, nus)*cosmo.comoving_matter_density(Om_m)
 
 # Compute the halo window function given a 'density' profile Prho(r) = 4*pi*r^2*rho(r)
 # This should almost certainly be done with a dedicated integration routine
@@ -115,13 +121,11 @@ def halo_window(ks, rs, Prho):
     W = np.empty_like(Prho)
     for ik, k in enumerate(ks):
         integrand = np.sinc(k*rs/np.pi)*Prho # Note that numpy sinc function has an odd definition
-        if winint == 'trapezium':
-            W[ik] = integrate.trapezoid(integrand, rs)
-        elif winint == 'simpson':
-            W[ik] = integrate.simps(integrand, rs)
-        elif winint == 'romb':
+        if win_integration == integrate.romb:
             dr = (rs[-1]-rs[0])/(len(rs)-1)
-            W[ik] = integrate.romb(integrand, dr)
+            W[ik] = win_integration(integrand, dr)
+        elif win_integration in [integrate.trapezoid, integrate.simps]:
+            W[ik] = win_integration(integrand, rs)
         else:
             raise ValueError('Halo window function integration method not recognised')
     return W
@@ -150,7 +154,8 @@ def Pk_hm(hmod, Ms, ks, rho_uv, Pk_lin, Om_m, beta=None, sigmas=None, sigma=None
     # Calculate the missing halo-bias from the low-mass part of the integral if required
     if low_mass_uv[0] or low_mass_uv[1]:
         integrand = hmod.halo_mass_function(nus)*hmod.linear_halo_bias(nus)
-        A = 1.-np.trapz(integrand, nus)
+        #A = 1.-np.trapz(integrand, nus)
+        A = 1.-halo_integration(integrand, nus)
         if verbose:
             print('Missing halo-bias-mass from two-halo integrand:', A)
             print('')
@@ -170,7 +175,8 @@ def Pk_hm(hmod, Ms, ks, rho_uv, Pk_lin, Om_m, beta=None, sigmas=None, sigma=None
     # Evaluate the integral that appears in the two-halo term
     def I_2h(hmod, Ms, nus, W, Om_m, low_mass):
         integrand = W*hmod.linear_halo_bias(nus)*hmod.halo_mass_function(nus)/Ms
-        I_2h = np.trapz(integrand, nus)
+        #I_2h = np.trapz(integrand, nus)
+        I_2h = halo_integration(integrand, nus)
         if low_mass:
             I_2h = I_2h+A*W[0]/Ms[0]
         I_2h = I_2h*cosmo.comoving_matter_density(Om_m)
@@ -189,7 +195,8 @@ def Pk_hm(hmod, Ms, ks, rho_uv, Pk_lin, Om_m, beta=None, sigmas=None, sigma=None
     # One-halo term at a specific wavenumber
     def P_1h(hmod, Ms, nus, Wuv, Om_m):
         integrand = Wuv[0, :]*Wuv[1, :]*hmod.halo_mass_function(nus)/Ms
-        P_1h = np.trapz(integrand, nus)
+        #P_1h = np.trapz(integrand, nus)
+        P_1h = halo_integration(integrand, nus)
         P_1h = P_1h*cosmo.comoving_matter_density(Om_m)
         return P_1h
 
@@ -236,6 +243,36 @@ def Prho_isothermal(r, M, rv):
 def Prho_NFW(r, M, rv, c):
     rs = rv/c
     return M*r/(NFW_factor(c)*(1.+r/rs)**2*rs**2)
+
+def Prho_UPP(r, z, M, r500, cosm):
+
+    alphap = 0.12
+    h = cosm.h
+
+    def p(x):
+
+        P0 = 6.41
+        c500 = 1.81
+        alpha = 1.33
+        beta = 4.13
+        gamma = 0.31
+        y = c500*x
+
+        f1 = y**(2.-gamma)
+        f2 = (1.+y**alpha)**(beta-gamma)/alpha
+        p = P0*(h/0.7)**(-3./2.)*f1*(r500/c500)**2/f2
+        return p
+
+    a = cosmo.scale_factor_z(z)
+    H = cosmo.H(cosm, a)
+
+    f1 = 1.65*(h/0.7)**2*H**(8./3.)
+    f2 = (M/2.1e14)**(2./3.+alphap)
+
+    return f1*f2*p(r/r500)*4.*np.pi
+
+    
+
 
 # Converts a Prho profile to a rho profile
 # Take care evaluating this at zero (which will give infinity)

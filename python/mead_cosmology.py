@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 import scipy.integrate as integrate
 from scipy.interpolate import interp1d
-import mead_interpolation as interpolation
 import sys
 
 # My imports
@@ -12,6 +11,7 @@ sys.path.append('/Users/Mead/Physics/library/python')
 import mead_constants as const
 import mead_maths as maths
 import mead_general as mead
+import mead_interpolation as interpolation
 
 # Mead cosmology class, roughly analagous to that I use in Fortran
 # TODO: Normalisation As vs. sigma_8 etc.
@@ -352,6 +352,12 @@ def Omega_v(cosm, a):
 # Total Omega as a function of 'a'
 def Omega(cosm, a):
     return Omega_r(cosm, a)+Omega_m(cosm, a)+Omega_w(cosm, a)+Omega_v(cosm, a)
+
+def scale_factor_z(z):
+    return 1./(1.+z)
+
+def redshift_a(a):
+    return -1.+1./a
 
 # Plot Omega_i(a)
 def plot_Omegas(cosm):

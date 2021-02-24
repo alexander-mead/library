@@ -62,7 +62,7 @@ lockdowns = {
     'England': [[dt.date(2020, 3, 23), dt.date(2020, 3, 23)], [dt.date(2020, 11, 5), dt.date(2020, 12, 2)], [dt.date(2021, 1, 5)]],
     'Wales': [[dt.date(2020, 3, 23), dt.date(2020, 3, 23)], [dt.date(2020, 10, 23), dt.date(2020, 11, 9)], [dt.date(2020, 12, 20)]],
     'Scotland': [[dt.date(2020, 3, 23), dt.date(2020, 3, 23)], [dt.date(2020, 10, 9), dt.date(2020, 10, 25)], [dt.date(2021, 1, 5)]],
-    'Northern Ireland': [[dt.date(2020, 3, 23), dt.date(2020, 3, 23)], [dt.date(2020, 11, 27), dt.date(2020, 12, 11)], [dt.date(2020, 12, 26)]],
+    'Northern Ireland': [[dt.date(2020, 3, 23), dt.date(2020, 3, 23)], [dt.date(2020, 10, 16), dt.date(2020, 11, 20)], [dt.date(2020, 11, 27), dt.date(2020, 12, 11)], [dt.date(2020, 12, 26)]],
 }
 
 # Download latest data
@@ -73,7 +73,7 @@ def download_data(area, metrics):
     verbose = True
     today = dt.date.today() # Today's date
     
-    if(verbose): 
+    if verbose: 
         print('Downloading data')
         print('')
 
@@ -87,7 +87,7 @@ def download_data(area, metrics):
     url = 'https://api.coronavirus.data.gov.uk/v2/'+link
     file = 'data/'+area+'_'+today.strftime("%Y-%m-%d")+'.csv'
     
-    if(verbose): 
+    if verbose: 
         print('URL: %s' % (url))
         print('')
         print('File: %s' % (file))
@@ -96,7 +96,7 @@ def download_data(area, metrics):
     req = requests.get(url, allow_redirects=True)
     open(file, 'wb').write(req.content) # Write to disk
 
-    if (verbose):
+    if verbose:
         print('Metrics downloaded:')
         for metric in metrics:
             print(metric)
@@ -114,7 +114,7 @@ def read_data(infile, metrics):
     data = pd.read_csv(infile)
 
     # Print data to screen
-    if (verbose):
+    if verbose:
         print(type(data))
         print(data)
         print('')
@@ -138,7 +138,7 @@ def read_data(infile, metrics):
 
     # Print specific columns to screen
     # TODO: This is probably wrong
-    if (verbose):      
+    if verbose:      
         print(data['date'])
         print('')
         for metric in metrics:
@@ -399,22 +399,18 @@ def plot_bar_data(data, date, start_date, end_date, regions, outfile=None, pop_n
 
         # Lockdowns
         if plot_lockdowns:
-            Mar_lockdown_start_date = lockdowns.get(region)[0][0]
-            Mar_lockdown_end_date = lockdowns.get(region)[0][1]
-            Nov_lockdown_start_date = lockdowns.get(region)[1][0]
-            Nov_lockdown_end_date = lockdowns.get(region)[1][1]
-            Jan_lockdown_start_date = lockdowns.get(region)[2][0]
-            Jan_lockdown_end_date = max(data.date)
-            plt.axvspan(Mar_lockdown_start_date, Mar_lockdown_end_date, 
+            for dates in lockdowns.get(region):
+                lockdown_start_date = dates[0]
+                if len(dates) == 1:
+                    lockdown_end_date = max(data.date)
+                elif len(dates) == 2:
+                    lockdown_end_date = dates[1]
+                else:
+                    raise TypeError('Something went wrong with lockdown dates')
+                plt.axvspan(lockdown_start_date, lockdown_end_date, 
                         alpha=lockdown_alpha, 
                         color=lockdown_color, 
                         label=lockdown_lab)
-            plt.axvspan(Nov_lockdown_start_date, Nov_lockdown_end_date, 
-                        alpha=lockdown_alpha, 
-                        color=lockdown_color)
-            plt.axvspan(Jan_lockdown_start_date, Jan_lockdown_end_date, 
-                        alpha=lockdown_alpha, 
-                        color=lockdown_color)
 
         # Important individual dates
         if plot_relax:
