@@ -1,5 +1,11 @@
 MODULE field_operations
 
+   USE precision
+   USE constants
+   USE basic_operations
+   USE array_operations
+   USE fft
+
    IMPLICIT NONE
 
    PRIVATE
@@ -340,7 +346,6 @@ CONTAINS
 
       ! Uses a tablulated P(k) to make a Gaussian Random Field realisation
       ! TODO: Should modes be removed beyond the Nyquist frequency?
-      USE fft
 
       REAL, ALLOCATABLE, INTENT(OUT) :: d(:, :, :)
       INTEGER, INTENT(IN) :: m
@@ -365,9 +370,6 @@ CONTAINS
    END SUBROUTINE make_Gaussian_random_field
 
    SUBROUTINE generate_displacement_fields(f, m, L, k_tab, Pk_tab)
-
-      USE fft
-      USE array_operations
 
       REAL, ALLOCATABLE, INTENT(OUT) :: f(:, :, :, :)
       INTEGER, INTENT(IN) :: m
@@ -448,9 +450,8 @@ CONTAINS
    SUBROUTINE read_field_binary_2D(d, m, L, infile)
 
       ! Read in a binary 'field' file
-      USE array_operations
       USE statistics
-      IMPLICIT NONE
+
       REAL, ALLOCATABLE, INTENT(OUT) :: d(:, :)
       INTEGER, INTENT(OUT) :: m
       REAL, INTENT(OUT) :: L
@@ -490,9 +491,8 @@ CONTAINS
    SUBROUTINE read_field_binary_3D(d, m, L, infile)
 
       ! Read in a binary 'field' file
-      USE array_operations
       USE statistics
-      IMPLICIT NONE
+
       REAL, ALLOCATABLE, INTENT(OUT) :: d(:, :, :)
       INTEGER, INTENT(OUT) :: m
       REAL, INTENT(OUT) :: L
@@ -558,7 +558,7 @@ CONTAINS
    SUBROUTINE write_field_binary_2D(d, m, L, outfile)
 
       ! Write out a binary 'field' file
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m)
       REAL, INTENT(IN) :: L
@@ -584,7 +584,7 @@ CONTAINS
    SUBROUTINE write_field_binary_3D(d, m, L, outfile)
 
       ! Write out a binary 'field' file
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m, m) 
       REAL, INTENT(IN) :: L
@@ -609,7 +609,6 @@ CONTAINS
    ! Used to be called print_2D_field
    SUBROUTINE write_field_ascii_2D(d, m, L, outfile)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m), L   
       CHARACTER(len=*), INTENT(IN) :: outfile
@@ -643,7 +642,6 @@ CONTAINS
    ! Used to be called print_projected_field
    SUBROUTINE write_3D_field_projection_ascii(d, m, L, nz, outfile)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m, m)
       REAL, INTENT(IN) :: L
@@ -683,7 +681,6 @@ CONTAINS
    SUBROUTINE compress_field(d, ds, m)
 
       ! Shrinks a 3D field size by a factor of 2
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m, m)
       REAL, ALLOCATABLE, INTENT(OUT) :: ds(:, :, :)
@@ -716,10 +713,7 @@ CONTAINS
 
    SUBROUTINE sharpen_2D(d, m, ibin)
 
-      USE fft
-
       ! Sharpen a 3D configuration-space array to account for the binning
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(INOUT) :: d(m, m)  
       INTEGER, INTENT(IN) :: ibin
@@ -752,7 +746,7 @@ CONTAINS
          CALL fft2(dc, dk, m, m, -1)
       END IF
 
-      CALL sharpen_k_2D(dk, mn, m, ibin)
+      CALL sharpen_k_2D(dk, ibin)
 
       IF (complex) THEN
          CALL fft2(dk, dkout, m, m, 1)
@@ -770,10 +764,7 @@ CONTAINS
 
    SUBROUTINE sharpen_3D(d, m, ibin)
 
-      USE fft
-
       ! Sharpen a 3D configuration-space array to account for the binning
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(INOUT) :: d(m, m, m)
       INTEGER, INTENT(IN) :: ibin
@@ -809,7 +800,7 @@ CONTAINS
          CALL fft3(dc, dk, m, m, m, -1)
       END IF
 
-      CALL sharpen_k_3D(dk, mn, m, ibin)
+      CALL sharpen_k_3D(dk, ibin)
 
       IF (complex) THEN
          CALL fft3(dk, dkout, m, m, m, 1)
@@ -825,23 +816,22 @@ CONTAINS
 
    END SUBROUTINE sharpen_3D
 
-   SUBROUTINE sharpen_k_2D(dk, mn, m, ibin)
+   SUBROUTINE sharpen_k_2D(dk, ibin)
 
       USE special_functions
-      USE fft
 
       ! Sharpens a 3D Fourier array to account for the binning
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: mn
-      INTEGER, INTENT(IN) :: m
-      COMPLEX, INTENT(INOUT) :: dk(mn, m)
+      COMPLEX, INTENT(INOUT) :: dk(:, :)
       INTEGER, INTENT(IN) :: ibin
-      INTEGER :: i, j
+      INTEGER :: i, j, mn, m
       REAL :: kx, ky, kmod
       REAL :: kxh, kyh
       REAL :: fcx, fcy, fcorr
       REAL :: crap
       REAL, PARAMETER :: L = 1. ! This does not matter for this routine
+
+      mn = size(dk, 1)
+      m = size(dk, 2)
 
       ! Check that the array is sensible
       IF (mn == m .OR. mn == m/2+1) THEN
@@ -879,22 +869,21 @@ CONTAINS
 
    END SUBROUTINE sharpen_k_2D
 
-   SUBROUTINE sharpen_k_3D(dk, mn, m, ibin)
+   SUBROUTINE sharpen_k_3D(dk, ibin)
 
       USE special_functions
-      USE fft
 
       ! Sharpens a 3D array to account for the binning
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: mn
-      INTEGER, INTENT(IN) :: m
-      COMPLEX, INTENT(INOUT) :: dk(mn, m, m)    
+      COMPLEX, INTENT(INOUT) :: dk(:, :, :)    
       INTEGER, INTENT(IN) :: ibin
-      INTEGER :: i, j, k
+      INTEGER :: i, j, k, m, mn
       REAL :: kx, ky, kz, kmod
       REAL :: kxh, kyh, kzh
       REAL :: fcx, fcy, fcz, fcorr
       REAL, PARAMETER :: L = 1. ! This does not matter for this routine
+
+      mn = size(dk, 1)
+      m = size(dk, 2)
 
       ! Check that the array is sensible
       IF (mn == m .OR. mn == m/2+1) THEN
@@ -941,8 +930,6 @@ CONTAINS
       !arr(n,n): input array of size n x n
       !r: smoothing scale in Mpc/h
       !L: box size in Mpc/h
-      USE fft
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(INOUT) :: d(m, m)
       REAL, INTENT(IN) :: r
@@ -1072,10 +1059,6 @@ CONTAINS
 
    SUBROUTINE smooth_3D(d, m, r, L)
 
-      USE fft
-      !USE special_functions
-
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(INOUT) :: d(m, m, m)
       REAL, INTENT(IN) :: r
@@ -1145,7 +1128,6 @@ CONTAINS
       ! 'stack' should be set to zero before using this subroutine
       ! '*s' variables refer to the stacked field
       ! '*_back' variables refer to the background field
-      IMPLICIT NONE
       INTEGER :: i, j, k, is(3), ib(3), d
       INTEGER, INTENT(IN) :: ms, mb
       REAL, INTENT(IN) :: x(3), Ls, Lb
@@ -1194,7 +1176,6 @@ CONTAINS
 
    SUBROUTINE project_3D_to_2D(d3d, d2d, m)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d3d(m, m, m) 
       REAL, INTENT(OUT) :: d2d(m, m)
@@ -1220,7 +1201,6 @@ CONTAINS
    SUBROUTINE clip(d, m1, m2, m3, d0, verbose)
 
       USE statistics
-      USE array_operations
 
       REAL, INTENT(INOUT) :: d(:, :, :)
       REAL, INTENT(IN) :: d0
@@ -1275,7 +1255,6 @@ CONTAINS
    SUBROUTINE anticlip(d, m1, m2, m3, d0, verbose)
 
       USE statistics
-      USE array_operations
 
       INTEGER, INTENT(IN) :: m1, m2, m3
       REAL, INTENT(INOUT) :: d(m1, m2, m3) 
@@ -1330,7 +1309,6 @@ CONTAINS
    INTEGER FUNCTION count_empty_cells(d, m)
 
       USE precision
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m, m)
       INTEGER(int8) :: sum
@@ -1353,12 +1331,7 @@ CONTAINS
 
    SUBROUTINE compute_power_spectrum_2D(dk1, dk2, m, L, kmin, kmax, nk, k, pow, nmodes, sigma, linear_k_range)
 
-      USE precision
-      USE constants
       USE table_integer 
-      USE array_operations
-      USE fft
-      USE basic_operations
 
       ! Takes in a dk(m,m) array and computes the power spectrum
       ! NOTE: Leave the double complex as it allows the running to determine complex vs real
@@ -1496,14 +1469,8 @@ CONTAINS
 
       ! Takes in a dk(m,m,m) array and computes the power spectrum
       ! TODO: Care with large sums
-      USE precision
-      USE constants
       USE table_integer
-      USE array_operations
-      USE fft
-      USE basic_operations
 
-      IMPLICIT NONE
       COMPLEX, INTENT(IN) :: dk1(:, :, :) ! Fourier components of field 1
       COMPLEX, INTENT(IN) :: dk2(:, :, :) ! Fourier components of field 2
       INTEGER, INTENT(IN) :: m            ! Mesh size for fields
@@ -1626,16 +1593,10 @@ CONTAINS
    SUBROUTINE compute_multipole_power_spectrum_3D(dk1, dk2, m, L, ipole, izz, kmin, kmax, nk, k, pow, nmodes, sigma, linear_k_range)
 
       ! Takes in a dk(m,m,m) array and computes the power spectrum
-      USE precision
-      USE constants
       USE table_integer
-      USE array_operations
-      USE fft
-      USE basic_operations
       USE special_functions
 
       ! Takes in a dk(m,m) array and computes the power spectrum
-      IMPLICIT NONE
       COMPLEX, INTENT(IN) :: dk1(:, :, :) ! Fourier components of field 1
       COMPLEX, INTENT(IN) :: dk2(:, :, :) ! Fourier components of field 2
       INTEGER, INTENT(IN) :: m     ! Mesh size for fields
@@ -1782,12 +1743,8 @@ CONTAINS
 
    SUBROUTINE compute_power_spectrum_pole(d, m, L, ipole, iz, kmin, kmax, nk, kval, pow, nmodes)
 
-      USE precision
-      USE constants
-      USE basic_operations
       USE special_functions
-      USE fft
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: m
       !DOUBLE COMPLEX, INTENT(IN) :: d(m, m, m)
       COMPLEX, INTENT(IN) :: d(m, m, m)
@@ -1900,11 +1857,6 @@ CONTAINS
 
    SUBROUTINE compute_power_spectrum_rsd(d, L, kmin, kmax, nk, kv, mu, pow, nmodes, iz)
 
-      USE precision
-      USE constants
-      USE fft
-      USE basic_operations
-      IMPLICIT NONE
       INTEGER :: i, j, k, m, ii, jj, nk, iz
       REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, mus
       REAL :: pow(nk, nk), kv(nk), kbin(nk+1), mu(nk), mubin(nk+1)
@@ -2032,11 +1984,6 @@ CONTAINS
 
    SUBROUTINE compute_power_spectrum_rsd2(d, L, kmin, kmax, nk, kpar, kper, pow, nmodes, iz)
 
-      USE precision
-      USE constants
-      USE fft
-      USE basic_operations
-      IMPLICIT NONE
       INTEGER :: i, j, k, m, ii, jj, nk, iz
       REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, kpers, kpars
       REAL :: pow(nk, nk), kpar(nk), kparbin(nk+1), kper(nk), kperbin(nk+1)
@@ -2175,7 +2122,6 @@ CONTAINS
 
       ! Calculates the distance between x1 and x2 assuming that they are coordinates in a periodic box
       ! This is in field_operations because it needs coordinates, *not* necessarily particles
-      IMPLICIT NONE
       REAL :: periodic_distance
       REAL, INTENT(IN) :: x1(3), x2(3), L
       REAL :: dx(3)
@@ -2200,7 +2146,6 @@ CONTAINS
 
       ! Calculates the periodic mean of two coordinates in a box
       ! This is in field_operations because it needs coordinates, *not* necessarily particles
-      IMPLICIT NONE
       REAL :: periodic_mean(3)
       REAL, INTENT(IN) :: x1(3), x2(3), L
       REAL :: dx(3)
@@ -2225,7 +2170,7 @@ CONTAINS
       ! Also could just not be complete shit, but it should get the job done
       USE precision
       USE table_integer
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n, m
       REAL, INTENT(OUT) :: xi_array(n)
       REAL, INTENT(IN) :: L, d(m, m, m), r_array(n)
@@ -2299,7 +2244,7 @@ CONTAINS
    INTEGER FUNCTION empty_cells_3D(d, m)
 
       USE precision
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m, m)   
       !INTEGER*8 :: sum
