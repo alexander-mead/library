@@ -238,7 +238,11 @@ CONTAINS
       INTEGER :: i, j, n_store
 
       WRITE (*, *) 'HALO_MASS_CUT: Number of haloes before cut:', n
-      WRITE (*, *) 'HALO_MASS_CUT: Minimum halo mass before cut log10([Msun/h]):', log10(minval(m))
+      IF (minval(m) == 0.) THEN
+         WRITE (*, *) 'HALO_MASS_CUT: Minimum halo mass before cut [Msun/h]:', minval(m)
+      ELSE
+         WRITE (*, *) 'HALO_MASS_CUT: Minimum halo mass before cut log10([Msun/h]):', log10(minval(m))
+      END IF    
       WRITE (*, *) 'HALO_MASS_CUT: Maximum halo mass before cut log10([Msun/h]):', log10(maxval(m))
       WRITE (*, *) 'HALO_MASS_CUT: Minimum mass for cut log10([Msun/h]):', log10(mmin)
       WRITE (*, *) 'HALO_MASS_CUT: Maximum mass for cut log10([Msun/h]):', log10(mmax)
