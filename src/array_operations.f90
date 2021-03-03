@@ -148,8 +148,8 @@ CONTAINS
 
    SUBROUTINE insert_in_array(x, i, a)
 
-      REAL, INTENT(IN) :: x      ! Value to insert
-      INTEGER, INTENT(IN) :: i   ! Position to insert
+      REAL, INTENT(IN) :: x                    ! Value to insert
+      INTEGER, INTENT(IN) :: i                 ! Position to insert
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Array in which to insert
       REAL, ALLOCATABLE :: b(:)
       INTEGER :: j, n
@@ -276,7 +276,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
 
-      IF(ALLOCATED(x)) DEALLOCATE(x)
+      IF(allocated(x)) DEALLOCATE(x)
 
    END SUBROUTINE if_allocated_deallocate_real_1D
 
@@ -285,7 +285,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :)
 
-      IF(ALLOCATED(x)) DEALLOCATE(x)
+      IF(allocated(x)) DEALLOCATE(x)
 
    END SUBROUTINE if_allocated_deallocate_real_2D
 
@@ -294,7 +294,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :, :)
 
-      IF(ALLOCATED(x)) DEALLOCATE(x)
+      IF(allocated(x)) DEALLOCATE(x)
 
    END SUBROUTINE if_allocated_deallocate_real_3D
 
@@ -303,7 +303,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: i(:)
 
-      IF(ALLOCATED(i)) DEALLOCATE(i)
+      IF(allocated(i)) DEALLOCATE(i)
 
    END SUBROUTINE if_allocated_deallocate_integer_1D
 
@@ -312,7 +312,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       LOGICAL, ALLOCATABLE, INTENT(INOUT) :: l(:)
 
-      IF(ALLOCATED(l)) DEALLOCATE(l)
+      IF(allocated(l)) DEALLOCATE(l)
 
    END SUBROUTINE if_allocated_deallocate_logical_1D
 
@@ -321,7 +321,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       CHARACTER(len=*), ALLOCATABLE, INTENT(INOUT) :: c(:)
 
-      IF(ALLOCATED(c)) DEALLOCATE(c)
+      IF(allocated(c)) DEALLOCATE(c)
 
    END SUBROUTINE if_allocated_deallocate_character_1D
 
@@ -1119,7 +1119,7 @@ CONTAINS
       nb = size(b)
       nc = na+nb
 
-      IF (ALLOCATED(c)) DEALLOCATE (c)
+      IF (allocated(c)) DEALLOCATE (c)
       ALLOCATE (c(nc))
 
       DO i = 1, na
