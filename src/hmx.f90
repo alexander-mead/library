@@ -706,7 +706,7 @@ CONTAINS
       names(76) = 'Dv from Mead (2017) fit'
       names(77) = 'HMcode (2020) unfitted'
       names(78) = 'HMcode (2020) fitted to Cosmic Emu k<1'
-      names(79) = 'HMcode (2020) fitted'
+      names(79) = 'HMcode (2020)'
       names(80) = 'Jenkins mass function' 
       names(81) = 'HMx2020: matter-only response; Model that fits stars-stars AGN 7.6'
       names(82) = 'HMx2020: matter-only response; Model that fits stars-stars AGN 7.8'
