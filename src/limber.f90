@@ -1075,7 +1075,6 @@ CONTAINS
       REAL, INTENT(IN) :: r
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: z, a
-      !REAL :: fac, Xe=1.17, Xi=1.08
 
       ! Get the scale factor
       z = redshift_r(r, cosm)
@@ -1086,9 +1085,6 @@ CONTAINS
       y_kernel = y_kernel*Mpc/cosm%h      ! Add Mpc/h units from the dr in the integral (h is new)
       y_kernel = y_kernel/a**2            ! These come from 'a^-3' for pressure multiplied by 'a' for comoving distance
       y_kernel = y_kernel*eV*(0.01)**(-3) ! Convert units of pressure spectrum from [eV/cm^3] to [J/m^3]
-
-      !fac=(Xe+Xi)/Xe
-      !y_kernel=y_kernel*fac*cosm%h
 
    END FUNCTION y_kernel
 
