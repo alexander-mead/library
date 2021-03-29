@@ -7176,13 +7176,13 @@ CONTAINS
 
             ! Electron pressure profile of bound gas
             ! NOTE: Swapped p1, p2 to p2, p1 here to get the gas index correct in the case that the Gammas differ
-            ! NOTE: This is a bit of a hack and there is probably a much cuter solution 
+            ! NOTE: This is a terrible hack and there is probably a much cuter solution 
             IF (real_space) THEN
                r = k
                win_normal_bound_gas = rho(r, rmin, rmax, rv, rs, p2, p1, irho_pressure)
             ELSE
                ! The electron pressure window is T(r) x rho_e(r), we want unnormalised, so multiply through by normalisation
-               ! TODO: Can I make the code more efficient here by having an unnorm window function?
+               ! TODO: Can I make the code more efficient here by having an un-normalised window function?
                win_normal_bound_gas = win_norm(k, rmin, rmax, rv, rs, p2, p1, irho_pressure)
                win_normal_bound_gas = win_normal_bound_gas*normalisation(rmin, rmax, rv, rs, p2, p1, irho_pressure)
             END IF
@@ -7548,7 +7548,7 @@ CONTAINS
 
             win_ejected_gas = frac*win_ejected_gas
 
-            ! Electron pressure profile
+         ! Electron pressure profile
          ELSE IF (itype == field_electron_pressure) THEN
 
             ! If we are applying a pressure-matching condition
