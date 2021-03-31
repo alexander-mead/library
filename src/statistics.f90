@@ -20,6 +20,7 @@ MODULE statistics
    PUBLIC :: percentile
    PUBLIC :: percentiles
 
+   ! Parameters
    INTEGER, PARAMETER :: percentile_sort = isort_bubble
 
 CONTAINS
@@ -28,8 +29,8 @@ CONTAINS
   
       ! For input distribution or measuments x(n) calculates the x value above which a fraction 'f' of x(n) lie
       ! Can be used to calculate interquartile ranges and such things
-      REAL, INTENT(IN) :: f(:)   
-      REAL, INTENT(IN) :: x(:)   
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: f(:)
       REAL :: percentiles(size(f))
       REAL, ALLOCATABLE :: y(:)
       INTEGER :: i1, i2, nx, j
@@ -139,8 +140,8 @@ CONTAINS
    SUBROUTINE histogram(xmin, xmax, x, hist, n, data)
 
       USE table_integer
-      REAL, INTENT(IN) :: xmin    ! Minimum x value
-      REAL, INTENT(IN) :: xmax    ! Maximum x value
+      REAL, INTENT(IN) :: xmin ! Minimum x value
+      REAL, INTENT(IN) :: xmax ! Maximum x value
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:)       ! Output array of bin edges, size n+1
       INTEGER, ALLOCATABLE, INTENT(OUT) :: hist(:) ! Output integer array of bin counts, size n
       INTEGER, INTENT(IN) :: n    ! Number of bins
@@ -242,9 +243,9 @@ CONTAINS
       REAL :: ans, ci
       REAL, ALLOCATABLE :: c(:)
       INTEGER :: i, n
-      INTEGER, PARAMETER :: iorder=3
-      INTEGER, PARAMETER :: ifind=3
-      INTEGER, PARAMETER :: imeth=2
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
 
       n = size(x)
       IF (n /= size(p)) STOP 'CALCULATE_CONFIDENCE: Error, x and p should be same size'
@@ -252,15 +253,15 @@ CONTAINS
 
       CALL cumulative_distribution(x, p, c)
 
-      DO i=1,4
+      DO i = 1, 4
 
-         IF(i==1) THEN
+         IF (i == 1) THEN
             ci = 0.5*(1.-erf(2./sqrt(2.))) ! ~0.025
-         ELSE IF(i==2) THEN
+         ELSE IF (i == 2) THEN
             ci = 1.-ci ! ~0.975
-         ELSE IF(i==3) THEN
+         ELSE IF(i == 3) THEN
             ci = 0.5*(1.-erf(1./sqrt(2.))) ! ~0.16
-         ELSE IF(i==4) THEN
+         ELSE IF(i == 4) THEN
             ci = 1.-ci ! ~0.84
          ELSE
             STOP 'CALCULATE_CONFIDENCE: Error, something went wrong'
@@ -269,9 +270,9 @@ CONTAINS
          ans = find(ci, c, x, n, iorder, ifind, imeth)
 
          IF(i==1) THEN
-            two_sigma(1)=ans
+            two_sigma(1) = ans
          ELSE IF(i==2) THEN
-            two_sigma(2)=ans
+            two_sigma(2) = ans
          ELSE IF(i==3) THEN
             one_sigma(1) = ans
          ELSE IF(i==4) THEN

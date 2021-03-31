@@ -240,7 +240,8 @@ CONTAINS
 
    REAL FUNCTION distance(x1, x2)
 
-      ! Calculates the distance between vectors x1 and x2
+      ! Calculates the scalar distance between vectors x1 and x2
+      ! Note that this is always a positive number
       REAL, INTENT(IN) :: x1(:)
       REAL, INTENT(IN) :: x2(:)
       INTEGER :: i, n
