@@ -250,7 +250,7 @@ CONTAINS
 
       IF (n <= -1) STOP 'RANDOM_POLYNOMIAL: Error, n is less than or equal to -1'
       
-      random_polynomial = (random_uniform(0., 1.))**(1./(n+1))
+      random_polynomial = random_unit()**(1./(n+1))
 
    END FUNCTION random_polynomial
 
@@ -261,6 +261,38 @@ CONTAINS
       random_spherical_theta = acos(random_uniform(-1., 1.))
 
    END FUNCTION random_spherical_theta
+
+   INTEGER FUNCTION random_Bernoulli(p)
+
+      ! Unity with probability p, otherwise zero
+      ! PDF: P(k) = p^k (1-p)^(1-k) with k = 0, 1
+      REAL, INTENT(IN) :: p ! Should be between 0 and 1
+      REAL :: r
+
+      r = random_unit()
+      IF (r <= p) THEN
+         random_Bernoulli = 1
+      ELSE
+         random_Bernoulli = 0
+      END IF
+
+   END FUNCTION random_Bernoulli
+
+   INTEGER FUNCTION random_Binomial(n, p)
+
+      ! Generates a random number from a Binomial distribution with n trials, each with probability of success p
+      ! Note that random_Binomial will always be between [0, n]; closer to n with higher p
+      INTEGER, INTENT(IN) :: n ! Number of trials
+      REAL, INTENT(IN) :: p    ! Probability of success of each trial
+      INTEGER :: sum, i
+
+      sum = 0
+      DO i = 1, n
+         sum = sum+random_Bernoulli(p)
+      END DO
+      random_Binomial = sum
+
+   END FUNCTION random_Binomial
 
    INTEGER FUNCTION random_Poisson(mean)
 
@@ -301,7 +333,7 @@ CONTAINS
 
    REAL FUNCTION accept_reject(func, x1, x2, fmax)
 
-      ! Simple one-dimensional accept-reject algorithm for drawing random numbers from func(x1->x2)
+      ! Simple one-dimensional accept-reject algorithm for drawing random numbers from func(x) between x1 and x2
       ! TODO: Increase to n-dimensions
       ! TODO: Include more complicated bounding structure (at the moment it is just a box)
       REAL, EXTERNAL :: func   ! Function to sample from
@@ -316,10 +348,10 @@ CONTAINS
          END FUNCTION func
       END INTERFACE
 
-      ! Try until you accept an x value
+      ! Try until a value is accepted
       DO
 
-         ! Draw uniform random x value and function height
+         ! Draw uniform-random x value and function height
          x = random_uniform(x1, x2)
          y = random_uniform(0., fmax)
 
