@@ -13,6 +13,9 @@ MODULE random_numbers
    PUBLIC :: random_integer
    PUBLIC :: random_sign
    PUBLIC :: dice
+   PUBLIC :: random_Bernoulli
+   PUBLIC :: random_binomial
+   PUBLIC :: random_Poisson
 
    ! Real number distributions
    PUBLIC :: random_unit
@@ -25,7 +28,8 @@ MODULE random_numbers
    PUBLIC :: random_exponential
    PUBLIC :: random_polynomial
    PUBLIC :: random_spherical_theta
-   PUBLIC :: random_Poisson
+
+   ! Complex number disitrubutions
    PUBLIC :: random_complex_unit
 
    ! Draw from any real-number distribution
@@ -112,6 +116,16 @@ CONTAINS
 
    END FUNCTION random_integer
 
+   INTEGER FUNCTION random_sign()
+
+      ! Returns either +1 or -1 with equal probability
+
+      !random_sign = random_integer(0, 1)
+      random_sign = random_Bernoulli(0.5)
+      IF (random_sign == 0) random_sign = -1
+
+   END FUNCTION random_sign
+
    INTEGER FUNCTION dice(ndice, dmin_opt, dmax_opt)
 
       ! Get a total for rolling ndice
@@ -139,14 +153,61 @@ CONTAINS
 
    END FUNCTION dice
 
-   INTEGER FUNCTION random_sign()
+   INTEGER FUNCTION random_Bernoulli(p)
 
-      ! Returns either +1 or -1 with equal probability
+      ! Unity with probability p, otherwise zero
+      ! PDF: P(k) = p^k (1-p)^(1-k) with k = 0, 1
+      REAL, INTENT(IN) :: p ! Should be between 0 and 1
+      REAL :: r
 
-      random_sign = random_integer(0, 1)
-      IF (random_sign == 0) random_sign = -1
+      r = random_unit()
+      IF (r <= p) THEN
+         random_Bernoulli = 1
+      ELSE
+         random_Bernoulli = 0
+      END IF
 
-   END FUNCTION random_sign
+   END FUNCTION random_Bernoulli
+
+   INTEGER FUNCTION random_binomial(n, p)
+
+      ! Generates a random number from a Binomial distribution with n trials, each with probability of success p
+      ! Note that random_Binomial will always be between [0, n]; closer to n with higher p
+      INTEGER, INTENT(IN) :: n ! Number of trials
+      REAL, INTENT(IN) :: p    ! Probability of success of each trial
+      INTEGER :: sum, i
+
+      sum = 0
+      DO i = 1, n
+         sum = sum+random_Bernoulli(p)
+      END DO
+      random_binomial = sum
+
+   END FUNCTION random_binomial
+
+   INTEGER FUNCTION random_Poisson(mean)
+
+      ! Generate a random number from a Poisson distribution 
+      REAL, INTENT(IN) :: mean
+      INTEGER :: k
+      REAL :: L, p
+
+      L = exp(-mean)
+
+      k = 0
+      p = 1.
+      DO
+         p = p*random_unit()
+         IF (p < L) THEN
+            EXIT
+         ELSE
+            k = k+1
+         END IF
+      END DO
+
+      random_Poisson = k
+
+   END FUNCTION random_Poisson
 
    REAL FUNCTION random_unit()
 
@@ -261,62 +322,6 @@ CONTAINS
       random_spherical_theta = acos(random_uniform(-1., 1.))
 
    END FUNCTION random_spherical_theta
-
-   INTEGER FUNCTION random_Bernoulli(p)
-
-      ! Unity with probability p, otherwise zero
-      ! PDF: P(k) = p^k (1-p)^(1-k) with k = 0, 1
-      REAL, INTENT(IN) :: p ! Should be between 0 and 1
-      REAL :: r
-
-      r = random_unit()
-      IF (r <= p) THEN
-         random_Bernoulli = 1
-      ELSE
-         random_Bernoulli = 0
-      END IF
-
-   END FUNCTION random_Bernoulli
-
-   INTEGER FUNCTION random_Binomial(n, p)
-
-      ! Generates a random number from a Binomial distribution with n trials, each with probability of success p
-      ! Note that random_Binomial will always be between [0, n]; closer to n with higher p
-      INTEGER, INTENT(IN) :: n ! Number of trials
-      REAL, INTENT(IN) :: p    ! Probability of success of each trial
-      INTEGER :: sum, i
-
-      sum = 0
-      DO i = 1, n
-         sum = sum+random_Bernoulli(p)
-      END DO
-      random_Binomial = sum
-
-   END FUNCTION random_Binomial
-
-   INTEGER FUNCTION random_Poisson(mean)
-
-      ! Generate a random number from a Poisson distribution 
-      REAL, INTENT(IN) :: mean
-      INTEGER :: k
-      REAL :: L, p
-
-      L = exp(-mean)
-
-      k = 0
-      p = 1.
-      DO
-         p = p*random_unit()
-         IF (p < L) THEN
-            EXIT
-         ELSE
-            k = k+1
-         END IF
-      END DO
-
-      random_Poisson = k
-
-   END FUNCTION random_Poisson
 
    COMPLEX FUNCTION random_complex_unit()
 
