@@ -151,6 +151,7 @@ MODULE cosmology_functions
    PUBLIC :: iTk_EH
    PUBLIC :: iTk_nw
    PUBLIC :: iTk_DEFW
+   PUBLIC :: iTk_BBKS
    PUBLIC :: iTk_CAMB
    PUBLIC :: iTk_external
 
@@ -351,12 +352,13 @@ MODULE cosmology_functions
    REAL, PARAMETER :: kmin_abs_plin = 0.       ! Power below this wavenumber is set to zero [h/Mpc]
    REAL, PARAMETER :: kmax_abs_plin = 1e8      ! Power above this wavenumber is set to zero [h/Mpc]
    LOGICAL, PARAMETER :: plin_extrap = .FALSE. ! Extrapolate high-k power assuming P(k) ~ ln(k)^2 k^(n-3)?
-   INTEGER, PARAMETER :: iTk_none = 0          ! Pure power-law spectrum
+   INTEGER, PARAMETER :: iTk_none = 0          ! Pure power-law linear spectrum
    INTEGER, PARAMETER :: iTk_EH = 1            ! Eisenstein & Hu linear spectrum
    INTEGER, PARAMETER :: iTk_CAMB = 2          ! CAMB linear spectrum
    INTEGER, PARAMETER :: iTk_DEFW = 3          ! DEFW linear spectrum
    INTEGER, PARAMETER :: iTk_external = 4      ! External linear spectrum
    INTEGER, PARAMETER :: iTk_nw = 5            ! No-wiggle Eisenstein & Hu linear spectrum
+   INTEGER, PARAMETER :: iTk_BBKS = 6          ! BBKS linear spectrum
    INTEGER, PARAMETER :: norm_none = 0         ! Power spectrum does not need to be normalised
    INTEGER, PARAMETER :: norm_sigma8 = 1       ! Normalise power spectrum via sigma8 value
    INTEGER, PARAMETER :: norm_pval = 2         ! Normalise power spectrum via specifying a value at a k 
@@ -1974,7 +1976,7 @@ CONTAINS
       CALL reset_interpolator_status(cosm)
 
       ! Switch analytical transfer function
-      IF (is_in_array(cosm%iTk, [iTk_EH, iTk_DEFW, iTk_none, iTk_nw])) THEN
+      IF (is_in_array(cosm%iTk, [iTk_EH, iTk_DEFW, iTk_BBKS, iTk_none, iTk_nw])) THEN
          cosm%analytical_Tk = .TRUE.
       ELSE
          cosm%analytical_Tk = .FALSE.
@@ -2078,6 +2080,8 @@ CONTAINS
             WRITE(*,*) 'COSMOLOGY: Linear: CAMB'
          ELSE IF(cosm%iTk == iTk_DEFW) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: DEFW'
+         ELSE IF(cosm%iTk == iTk_BBKS) THEN
+            WRITE(*,*) 'COSMOLOGY: Linear: BBKS'
          ELSE IF(cosm%iTk == iTk_external) THEN
             WRITE(*,*) 'COSMOLOGY: Linear: External'
          ELSE
@@ -2316,7 +2320,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
       ! Check that transfer function is okay for massive neutrinos
-      IF ((cosm%m_nu /= 0.) .AND. is_in_array(cosm%iTk, [iTk_none, iTk_DEFW, iTk_EH, iTk_nw])) THEN
+      IF ((cosm%m_nu /= 0.) .AND. is_in_array(cosm%iTk, [iTk_none, iTk_DEFW, iTk_BBKS, iTk_EH, iTk_nw])) THEN
          STOP 'INIT_COSMOLOGY: You cannot use a linear power fitting function for massive neutrino cosmologies'
       END IF
 
@@ -3591,6 +3595,8 @@ CONTAINS
             Tk_matter = Tk_EH(k, cosm)
          ELSE IF (cosm%iTk == iTk_DEFW) THEN
             Tk_matter = Tk_DEFW(k, cosm)
+         ELSE IF (cosm%iTk == iTk_BBKS) THEN
+            Tk_matter = Tk_BBKS(k, cosm)
          ELSE IF (cosm%iTk == iTk_nw) THEN
             Tk_matter = Tk_nw(k, cosm)
          ELSE
@@ -3653,9 +3659,28 @@ CONTAINS
 
    END FUNCTION Tk_factor
 
+   REAL FUNCTION Tk_BBKS(k, cosm)
+
+      ! Bardeen, Bond, Kaiser, Szalay transfer function for adiabatic matter
+      ! http://articles.adsabs.harvard.edu/pdf/1986ApJ...304...15B
+      ! Formula taken from https://ned.ipac.caltech.edu/level5/Sept03/Peacock/Peacock2_5.html
+      REAL, INTENT(IN) :: k
+      TYPE(cosmology), INTENT(IN) :: cosm
+      REAL :: q, Theta, f1, f2
+
+      Theta = cosm%T_CMB/2.7
+      q = k*(Theta**2)/(cosm%Om_m*cosm%h)
+
+      f1 = log(1.+2.34*q)/(2.34*q)
+      f2 = (1.+(3.89*q)+(16.1*q)**2+(5.46*q)**3+(6.71*q)**4)**(-0.25)
+      Tk_BBKS = f1*f2
+
+   END FUNCTION Tk_BBKS
+
    REAL FUNCTION Tk_DEFW(k, cosm)
 
-      ! The DEFW transfer function approximation (astro-ph/xxx.xxxx)
+      ! The DEFW transfer function approximation; Davis, Efstathiou, Frenk & White (1985) 
+      ! No arXiv; https://ui.adsabs.harvard.edu/abs/1985ApJ...292..371D/abstract
       ! Relies on the power-spectrum scale parameter Gamma=Omega_m*h
       ! This function was written by John Peacock
       ! NOTE: I removed double precision for q8 and Tk8 from this
