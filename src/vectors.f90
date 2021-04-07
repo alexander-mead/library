@@ -55,7 +55,7 @@ CONTAINS
       n = size(A, 1)
       IF (n /= size(A,2)) STOP 'DETERMINANT: Error, determinant only defined for square matrices'
       IF (n == 1) THEN
-         determinant = A(1, 1)
+         determinant = A(1, 1) ! NOTE: Can be negative, should not have abs
       ELSE IF (n == 2) THEN
          determinant = determinant_2(A)
       ELSE IF (n == 3) THEN
@@ -76,6 +76,7 @@ CONTAINS
 
    REAL FUNCTION determinant_3(A)
 
+      ! TODO: Surely this can be much neater
       REAL, INTENT(IN) :: A(3, 3)
       REAL :: B(2, 2), M
       INTEGER :: i
@@ -100,6 +101,8 @@ CONTAINS
             B(1, 2) = A(2, 2)
             B(2, 1) = A(3, 1)
             B(2, 2) = A(3, 2)
+         ELSE
+            STOP 'DETERMINANT_3: Error, something went very wrong'
          END IF
          determinant_3 = determinant_3+M*determinant_2(B)
       END DO
@@ -150,7 +153,7 @@ CONTAINS
 
    FUNCTION cross_product(x, y)
 
-      ! Makes the cross produce of 3-vectors x nad y
+      ! Computes the cross produce of 3-vectors x and y
       REAL :: cross_product(3)
       REAL, INTENT(IN) :: x(3)
       REAL, INTENT(IN) :: y(3)
