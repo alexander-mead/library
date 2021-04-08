@@ -123,6 +123,8 @@ MODULE cosmology_functions
    PUBLIC :: sigmaV
    PUBLIC :: neff
    PUBLIC :: ncur
+   PUBLIC :: dsigma
+   PUBLIC :: ddsigma
    PUBLIC :: Lagrangian_mass
    PUBLIC :: Lagrangian_radius
 

@@ -388,8 +388,8 @@ MODULE HMx
    REAL, PARAMETER :: M0_Dv_default = 1e14 ! If Delta_v is halo-mass dependent (e.g., MG) then write it at this mass
 
    ! Mass function
-   INTEGER, PARAMETER :: iorder_derivative_mass_function = 3          ! Polynomial order to calculate halo-mass function via numerical derivative
-   INTEGER, PARAMETER :: ifind_derivative_mass_function = ifind_split ! Finding scheme for derivative
+   !INTEGER, PARAMETER :: iorder_derivative_mass_function = 3          ! Polynomial order to calculate halo-mass function via numerical derivative
+   !INTEGER, PARAMETER :: ifind_derivative_mass_function = ifind_split ! Finding scheme for derivative
 
    ! Diagnostics
    REAL, PARAMETER :: mmin_diag = 1e10 ! Minimum halo mass for diagnostic tests [Msun/h]
@@ -6091,9 +6091,8 @@ CONTAINS
 
    REAL FUNCTION mass_function(m, hmod, cosm)
 
-      ! Calculates the halo mass function, what I call n(M); some people call dn/dM 
+      ! Calculates the halo mass function, what I call n(M); some people call dn/dM
       ! In either case the units are [(Msun/h)^-1(Mpc/h)^-3]
-      ! TODO: Relies on a potentially unstable numerical derivative
       REAL, INTENT(IN) :: m                  ! Halo mass [Msun/h]
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
@@ -6109,19 +6108,20 @@ CONTAINS
    REAL FUNCTION multiplicity_function(m, hmod, cosm)
 
       ! Returns the dimensionless multiplicity function: M^2n(M)/rho; n(M) = dn/dM sometimes
-      ! TODO: Is there a way to avoid an unstable numerical derivative here? Need dnu/dln(M)
       REAL, INTENT(IN) :: m                  ! Halo mass [Msun/h]
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL :: nu, dnu_dlnm
-      INTEGER, PARAMETER :: iorder = iorder_derivative_mass_function
-      INTEGER, PARAMETER :: ifind = ifind_derivative_mass_function
+      REAL :: nu, dnu_dlnm, R
+      !INTEGER, PARAMETER :: iorder = iorder_derivative_mass_function
+      !INTEGER, PARAMETER :: ifind = ifind_derivative_mass_function
 
       IF(m == 0.) THEN
          multiplicity_function = 0.
       ELSE
          nu = nu_M(m, hmod, cosm)
-         dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, iorder, ifind)
+         !dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, iorder, ifind)
+         R = Lagrangian_radius(m, cosm)
+         dnu_dlnm = -(nu/3.)*dsigma(R, hmod%a, flag_matter, cosm)
          multiplicity_function = g_nu(nu, hmod)*dnu_dlnm
       END IF
 
