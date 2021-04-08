@@ -387,7 +387,7 @@ MODULE HMx
    ! Delta_v
    REAL, PARAMETER :: M0_Dv_default = 1e14 ! If Delta_v is halo-mass dependent (e.g., MG) then write it at this mass
 
-   ! Mass function
+   ! Mass function TODO: Remove
    !INTEGER, PARAMETER :: iorder_derivative_mass_function = 3          ! Polynomial order to calculate halo-mass function via numerical derivative
    !INTEGER, PARAMETER :: ifind_derivative_mass_function = ifind_split ! Finding scheme for derivative
 
@@ -6112,14 +6112,14 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: nu, dnu_dlnm, R
-      !INTEGER, PARAMETER :: iorder = iorder_derivative_mass_function
-      !INTEGER, PARAMETER :: ifind = ifind_derivative_mass_function
+      !INTEGER, PARAMETER :: iorder = iorder_derivative_mass_function ! TODO: Remove
+      !INTEGER, PARAMETER :: ifind = ifind_derivative_mass_function ! TODO: Remove
 
       IF(m == 0.) THEN
          multiplicity_function = 0.
       ELSE
          nu = nu_M(m, hmod, cosm)
-         !dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, iorder, ifind)
+         !dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, iorder, ifind) ! TODO: Remove
          R = Lagrangian_radius(m, cosm)
          dnu_dlnm = -(nu/3.)*dsigma(R, hmod%a, flag_matter, cosm)
          multiplicity_function = g_nu(nu, hmod)*dnu_dlnm
