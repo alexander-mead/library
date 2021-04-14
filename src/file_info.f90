@@ -52,12 +52,12 @@ CONTAINS
       ! Based on: https://stackoverflow.com/questions/7314216/reading-data-file-in-fortran-with-known-number-of-lines-but-unknown-number-of-en
       CHARACTER(len=*) :: infile
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
-      INTEGER :: i, j, error, u
-      CHARACTER(len=16) :: crap
+      INTEGER :: i, error, u
+      !CHARACTER(len=16) :: crap
       CHARACTER(len=1024) :: line
       CHARACTER(len=16), ALLOCATABLE :: array(:)
       LOGICAL :: lexist
-      INTEGER :: file_rows
+      !INTEGER :: file_rows
       INTEGER, PARAMETER :: max_columns = 1000 ! Maximum possible number of entries
 
       ! Check the file exists
