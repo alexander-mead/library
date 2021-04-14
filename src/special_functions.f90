@@ -1,6 +1,7 @@
 MODULE special_functions
 
    USE constants
+   USE basic_operations
 
    IMPLICIT NONE
 
@@ -52,6 +53,7 @@ MODULE special_functions
    PUBLIC :: cbrt
    PUBLIC :: complex_number
    PUBLIC :: complex_phase
+   PUBLIC :: Heaviside
 
    ! Silly functions
    PUBLIC :: apodise
@@ -92,10 +94,26 @@ MODULE special_functions
 
 CONTAINS
 
+   REAL FUNCTION Heaviside(x, Hzero_opt)
+
+      REAL, INTENT(IN) :: x
+      REAL, OPTIONAL, INTENT(IN) :: Hzero_opt
+      REAL, PARAMETER :: Hzero_def = 0.5
+
+      IF (x == 0.) THEN
+         Heaviside = default_or_optional(Hzero_def, Hzero_opt)
+      ELSE IF (x < 0.) THEN
+         Heaviside = 0.
+      ELSE
+         Heaviside = 1.
+      END IF
+
+   END FUNCTION Heaviside
+
    COMPLEX FUNCTION complex_number(r, theta)
 
       ! Complex number r*e^{i theta} in Fortran format
-      ! Analogy of inbuilt cmplx() function
+      ! Analogy of inbuilt cmplx(x, y) function
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: theta
 
