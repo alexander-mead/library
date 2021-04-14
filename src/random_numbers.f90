@@ -14,6 +14,7 @@ MODULE random_numbers
    PUBLIC :: random_sign
    PUBLIC :: dice
    PUBLIC :: random_Bernoulli
+   PUBLIC :: random_twopoint
    PUBLIC :: random_binomial
    PUBLIC :: random_Poisson
 
@@ -34,6 +35,11 @@ MODULE random_numbers
 
    ! Draw from any real-number distribution
    PUBLIC :: accept_reject
+
+   INTERFACE random_twopoint
+      MODULE PROCEDURE random_twopoint_real
+      MODULE PROCEDURE random_twopoint_integer
+   END INTERFACE random_twopoint
 
 CONTAINS
 
@@ -116,16 +122,6 @@ CONTAINS
 
    END FUNCTION random_integer
 
-   INTEGER FUNCTION random_sign()
-
-      ! Returns either +1 or -1 with equal probability
-
-      !random_sign = random_integer(0, 1)
-      random_sign = random_Bernoulli(0.5)
-      IF (random_sign == 0) random_sign = -1
-
-   END FUNCTION random_sign
-
    INTEGER FUNCTION dice(ndice, dmin_opt, dmax_opt)
 
       ! Get a total for rolling ndice
@@ -153,21 +149,54 @@ CONTAINS
 
    END FUNCTION dice
 
-   INTEGER FUNCTION random_Bernoulli(p)
+   REAL FUNCTION random_twopoint_real(a, b, p)
 
-      ! Unity with probability p, otherwise zero
-      ! PDF: P(k) = p^k (1-p)^(1-k) with k = 0, 1
-      REAL, INTENT(IN) :: p ! Should be between 0 and 1
+      ! Pick 'a' with probability 'p' and 'b' with probability '1-p'
+      REAL, INTENT(IN) :: a, b
+      REAL, INTENT(IN) :: p
       REAL :: r
 
       r = random_unit()
       IF (r <= p) THEN
-         random_Bernoulli = 1
+         random_twopoint_real = a
       ELSE
-         random_Bernoulli = 0
+         random_twopoint_real = b
       END IF
 
+   END FUNCTION random_twopoint_real
+
+   INTEGER FUNCTION random_twopoint_integer(a, b, p)
+
+      ! Pick 'a' with probability '1-p' and 'b' with probability 'p'
+      INTEGER, INTENT(IN) :: a, b
+      REAL, INTENT(IN) :: p
+      REAL :: r
+
+      r = random_unit()
+      IF (r <= p) THEN
+         random_twopoint_integer = a
+      ELSE
+         random_twopoint_integer = b
+      END IF
+
+   END FUNCTION random_twopoint_integer
+
+   INTEGER FUNCTION random_Bernoulli(p)
+
+      ! Unity with probability p, otherwise zero
+      ! PDF: P_k = p^k (1-p)^(1-k) with k = 0, 1
+      REAL, INTENT(IN) :: p ! Should be between 0 and 1
+
+      random_Bernoulli=random_twopoint(1, 0, p)
+
    END FUNCTION random_Bernoulli
+
+   INTEGER FUNCTION random_sign()
+
+      ! Returns either +1 or -1 with equal probability
+      random_sign = random_twopoint(-1, 1, 0.5)
+
+   END FUNCTION random_sign
 
    INTEGER FUNCTION random_binomial(n, p)
 
