@@ -13,6 +13,7 @@ MODULE special_functions
    PUBLIC :: get_factorials
    PUBLIC :: Fibonacci
    PUBLIC :: get_Fibonaccis
+   PUBLIC :: choose
 
    ! Real functions
    !PUBLIC :: linear_polynomial
@@ -40,20 +41,25 @@ MODULE special_functions
    PUBLIC :: wk_tophat
    PUBLIC :: wk_tophat_deriv
    PUBLIC :: wk_tophat_dderiv
+   PUBLIC :: Rosenbrock
+   PUBLIC :: Himmelblau
+   PUBLIC :: cbrt
+   PUBLIC :: Heaviside
+
+   ! Probability distributions
    PUBLIC :: Gaussian_distribution
    PUBLIC :: lognormal_distribution
    PUBLIC :: uniform_distribution
    PUBLIC :: Rayleigh_distribution
    PUBLIC :: Poisson_distribution
+   PUBLIC :: Binomial_distribution
    PUBLIC :: exponential_distribution
    PUBLIC :: Lorentzian_distribution
    PUBLIC :: polynomial_distribution
-   PUBLIC :: Rosenbrock
-   PUBLIC :: Himmelblau
-   PUBLIC :: cbrt
+
+   ! Complex functions
    PUBLIC :: complex_number
    PUBLIC :: complex_phase
-   PUBLIC :: Heaviside
 
    ! Silly functions
    PUBLIC :: apodise
@@ -419,11 +425,35 @@ CONTAINS
          factorial = 1
       ELSE
          CALL get_factorials(f8, n)
-         !factorial=INT(f8(n))
          factorial = f8(n)
       END IF
 
    END FUNCTION factorial
+
+   INTEGER FUNCTION multiply_integers(a, b)
+
+      ! Multiply the integers a through to b (inclusive)
+      INTEGER, INTENT(IN) :: a, b
+      INTEGER :: i, m
+
+      m = 1
+      DO i = a, b
+         m = m*i
+      END DO
+      multiply_integers = m
+
+   END FUNCTION multiply_integers
+
+   INTEGER FUNCTION choose(n, k)
+
+      ! Evalues (n, k): n-choose-k
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: k
+
+      !choose = factorial(n)/(factorial(k)*factorial(n-k)) ! Inefficient
+      choose = multiply_integers(n-k+1, n)/factorial(k)
+
+   END FUNCTION choose
 
    REAL FUNCTION sigmoid_tanh(x)
 
@@ -991,6 +1021,16 @@ CONTAINS
       Poisson_distribution = exp(-nbar)*(nbar**n)/int(factorial(n))
 
    END FUNCTION Poisson_distribution
+
+   REAL FUNCTION Binomial_distribution(k, n, p)
+
+      INTEGER, INTENT(IN) :: k
+      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: p
+
+      Binomial_distribution = choose(n, k)*(p**k)*(1.-p)**(n-k)
+
+   END FUNCTION Binomial_distribution
 
    REAL FUNCTION exponential_distribution(x, mean)
 
