@@ -4,24 +4,36 @@ MODULE vectors
 
    PRIVATE
 
+   ! Functions
    PUBLIC :: shift_angle_to_circle
+   
+   ! Vectors
+   PUBLIC :: distance
+   PUBLIC :: cross_product
    PUBLIC :: unit
    PUBLIC :: modulus
-   PUBLIC :: cross_product
-   PUBLIC :: rotation
-   PUBLIC :: matrix_multiply
-   PUBLIC :: matrix_vector
-   PUBLIC :: distance
    PUBLIC :: rotate_vector
    PUBLIC :: rotate_vector_fast
+
+   ! Matrices
    PUBLIC :: trace
    PUBLIC :: determinant
+   PUBLIC :: matrix_multiply
+   PUBLIC :: matrix_vector
+   PUBLIC :: rotation
+   PUBLIC :: symmetrize_matrix
+   PUBLIC :: antisymmetrize_matrix
+   PUBLIC :: write_matrix
+   PUBLIC :: square_matrix
+   PUBLIC :: symmetric_matrix
+   PUBLIC :: antisymmetric_matrix
 
    ! Unit vectors
    PUBLIC  :: xhat
    PUBLIC  :: yhat
    PUBLIC  :: zhat
 
+   ! Parameters
    REAL, PARAMETER :: xhat(3) = [1., 0., 0.]
    REAL, PARAMETER :: yhat(3) = [0., 1., 0.]
    REAL, PARAMETER :: zhat(3) = [0., 0., 1.]
@@ -304,5 +316,119 @@ CONTAINS
       rotate_vector_fast = r1+r2+r3
 
    END FUNCTION rotate_vector_fast
+
+   SUBROUTINE symmetrize_matrix(M)
+
+      ! Forces the upper-triangle half of matrix to equal the lower-triangle half of matrix
+      ! When filling a symmetric matrix it would be Fortran standard to do: DO j=1,n // DO i=j,n
+      ! which fills the lower-triangle half, thus this routine uses that information to fill the upper triangle half
+      REAL, INTENT(INOUT) :: M(:, :)
+      INTEGER :: i, j, n
+
+      IF (.NOT. square_matrix(M)) STOP 'SYMMETRIZE_MATRIX: Error, matrix must be square'
+      n = size(M, 1)
+
+      DO j = 1, n
+         DO i = j+1, n
+            M(j, i) = M(i, j)
+         END DO
+      END DO
+
+   END SUBROUTINE symmetrize_matrix
+
+   SUBROUTINE antisymmetrize_matrix(M)
+
+      ! Forces the upper-triangle half of matrix to equal the negative of the lower-triangle half of matrix
+      ! Also forces the diagonal to be zero
+      ! When filling an anti-symmetric matrix it would be Fortran standard to do: DO j=1,n // DO i=j,n
+      ! which fills the lower-triangle half, thus this routine uses that information to fill the upper triangle half
+      REAL, INTENT(INOUT) :: M(:, :)
+      INTEGER :: i, j, n
+
+      IF (.NOT. square_matrix(M)) STOP 'ANTISYMMETRIZE_MATRIX: Error, matrix must be square'
+      n = size(M, 1)
+
+      DO j = 1, n
+         DO i = j, n
+            IF (i == j) THEN
+               M(i, j) = 0.
+            ELSE
+               M(j, i) = -M(i, j)
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE antisymmetrize_matrix
+
+   SUBROUTINE write_matrix(M)
+
+      ! Write a matrix to screen using the standard matrix row-column (ij) index convention
+      ! M11, M12, ..., M1N // M21, M22, ..., M2N // ... // MN1, MN2, ..., MNN
+      REAL, INTENT(IN) :: M(:, :)
+      INTEGER :: i, j
+
+      DO i = 1, size(M, 1)
+         WRITE(*, *) (M(i, j), j=1,size(M,2))
+      END DO
+
+   END SUBROUTINE write_matrix
+
+   LOGICAL FUNCTION square_matrix(M)
+
+      ! Returns true if the matrix is square
+      REAL, INTENT(IN) :: M(:, :)
+
+      IF (size(M, 1) == size(M, 2)) THEN
+         square_matrix = .TRUE.
+      ELSE
+         square_matrix = .FALSE.
+      END IF
+
+   END FUNCTION square_matrix
+
+   LOGICAL FUNCTION symmetric_matrix(M)
+
+      ! Returns true if the matrix is symmetric
+      REAL, INTENT(IN) :: M(:, :)
+      INTEGER :: i, j, n
+
+      IF (.NOT. square_matrix(M)) STOP 'SYMMETRIC_MATRIX: Error, matrix must be square in order to be symmetric'
+      n = size(M, 1)
+
+      symmetric_matrix = .TRUE.
+      loop: DO j = 1, n
+         DO i = j+1, n
+            IF (M(i, j) /= M(j, i)) THEN
+               symmetric_matrix = .FALSE.
+               EXIT loop
+            END IF
+         END DO
+      END DO loop
+
+   END FUNCTION symmetric_matrix
+
+   LOGICAL FUNCTION antisymmetric_matrix(M)
+
+      ! Returns true if the matrix is antisymmetric
+      REAL, INTENT(IN) :: M(:, :)
+      INTEGER :: i, j, n
+
+      IF (.NOT. square_matrix(M)) STOP 'ANTISYMMETRIC_MATRIX: Error, matrix must be square in order to be antisymmetric'
+      n = size(M, 1)
+
+      antisymmetric_matrix = .TRUE.
+      loop: DO j = 1, n
+         DO i = j, n
+            IF ((i == j) .AND. (M(i, j) /= 0.)) THEN
+               antisymmetric_matrix = .FALSE.
+               EXIT loop
+            ELSE IF (M(i, j) /= -M(j, i)) THEN
+               antisymmetric_matrix = .FALSE.
+               EXIT loop
+            END IF
+         END DO
+      END DO loop
+
+   END FUNCTION antisymmetric_matrix
 
 END MODULE vectors
