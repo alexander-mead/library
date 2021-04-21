@@ -20,6 +20,7 @@ MODULE basic_operations
    PUBLIC :: increment
    PUBLIC :: default_or_optional
    PUBLIC :: between
+   PUBLIC :: equals_or
 
    INTERFACE swap
       MODULE PROCEDURE swap_real
@@ -49,6 +50,21 @@ MODULE basic_operations
    END INTERFACE between
 
 CONTAINS
+
+   LOGICAL FUNCTION equals_or(a, i)
+
+         ! Returns true if a=i and b=j *or* a=j and b=i
+         ! Useful for symmetric things
+         INTEGER, INTENT(IN) :: a(:)
+         INTEGER, INTENT(IN) :: i(:)
+
+         IF ((a(1) == i(1) .AND. a(2) == i(2)) .OR. (a(1) == i(2) .AND. a(2) == i(1))) THEN
+            equals_or = .TRUE.
+         ELSE
+            equals_or = .FALSE.
+         END IF
+
+   END FUNCTION equals_or
 
    LOGICAL FUNCTION between_real(x, xmin, xmax)
 
