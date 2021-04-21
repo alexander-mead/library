@@ -285,7 +285,7 @@ MODULE HMx
       REAL :: gbeta, gbetaz
 
       ! Tilman 2018 work
-      ! TODO: Probably redundant
+      ! TODO: Remove all of this, probably redundant
       !REAL :: Theat
       REAL :: A_alpha, B_alpha, C_alpha, D_alpha, E_alpha      ! Tilman alpha parameters
       REAL :: A_eps, B_eps, C_eps, D_eps                       ! Tilman eps parameters
@@ -389,7 +389,16 @@ MODULE HMx
    END TYPE halomod
 
    ! General
-   INTEGER, PARAMETER :: nhalomod_large = 1000 ! Needs to be larger than the total number of defined 'halo models' TODO: Remove
+   INTEGER, PARAMETER :: nhalomod_large = 1000 ! An integer larger than the total number of defined 'halo models' TODO: Remove
+   REAL, PARAMETER :: small_nu = 1e-6          ! A small value of nu for nu integration range TODO: It would be nice to be able to fix small_nu = 0.
+   REAL, PARAMETER :: large_nu = 6.            ! A large value of nu for nu integration range
+   INTEGER, PARAMETER :: iorder_rhobar = 3     ! Order for rhobar integration
+   INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
+   INTEGER, PARAMETER :: jmax_integration = 20 ! Maximum number of points: 2^(j-1)
+   INTEGER, PARAMETER :: nsig_integration = 5  ! Number of sigmas to integrate over for scatter integrand
+   INTEGER, PARAMETER :: iorder_mnu = 3        ! Order for inversion of M(nu)
+   INTEGER, PARAMETER :: ifind_mnu = 3         ! Scheme for inversion of M(nu)
+   INTEGER, PARAMETER :: iinterp_mnu = 2       ! Interpolation for inversion of M(nu)
 
    ! Halo window function integration
    ! NOTE: acc_win governs the speed of calculations with non-analytic halo profile Fourier transforms
@@ -404,10 +413,6 @@ MODULE HMx
 
    ! Delta_v
    REAL, PARAMETER :: M0_Dv_default = 1e14 ! If Delta_v is halo-mass dependent (e.g., MG) then write it at this mass
-
-   ! Mass function TODO: Remove
-   !INTEGER, PARAMETER :: iorder_derivative_mass_function = 3          ! Polynomial order to calculate halo-mass function via numerical derivative
-   !INTEGER, PARAMETER :: ifind_derivative_mass_function = ifind_split ! Finding scheme for derivative
 
    ! Diagnostics
    REAL, PARAMETER :: mmin_diag = 1e10 ! Minimum halo mass for diagnostic tests [Msun/h]
@@ -631,17 +636,10 @@ MODULE HMx
    INTEGER, PARAMETER :: HMx2020_matter_w_temp_scaling = 60
    INTEGER, PARAMETER :: HMx2020_matter_pressure_w_temp_scaling = 61
 
-   ! General cosmological integrations
-   INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
-   INTEGER, PARAMETER :: jmax_integration = 20 ! Maximum number of points: 2^(j-1) TODO: Could lower to make time-out faster
-   !INTEGER, PARAMETER :: ninit_integration = 2 ! Initial number of points to try for integration
-   INTEGER, PARAMETER :: nsig_integration = 5  ! Number of sigmas to integrate over for scatter integrand
-
 CONTAINS
 
    SUBROUTINE assign_halomod(ihm, hmod, verbose)
 
-      ! TODO: nhalomod should not be necessary
       INTEGER, INTENT(INOUT) :: ihm
       TYPE(halomod), INTENT(OUT) :: hmod
       LOGICAL, INTENT(IN) :: verbose
@@ -791,9 +789,8 @@ CONTAINS
       hmod%acc = 1e-4  ! Accuracy for continuous integrals (1e-3 is okay, 1e-4 is better)
 
       ! Small and large values for nu (6 is okay, corrections are suppressed by exp(-large_nu^2)
-      ! TODO: It would be nice to be able to fix small_nu = 0.
-      hmod%small_nu = 1e-6
-      hmod%large_nu = 6.
+      hmod%small_nu = small_nu
+      hmod%large_nu = large_nu
 
       ! Two-halo term
       ! 0 - No two-halo term
@@ -1276,7 +1273,6 @@ CONTAINS
       hmod%conc_scatter = .FALSE.
 
       ! HOD parameters
-      ! TODO: Remove
       hmod%mhalo_min = 1e12
       hmod%mhalo_max = 1e16
       hmod%mgal_min = 1e12
@@ -2212,8 +2208,7 @@ CONTAINS
       hmod%has_bnl = .FALSE.
 
       ! Calculate sigma_v
-      ! TODO: This is really a 'cosmology' thing
-      ! TODO: This is only necessary for some halo models
+      ! TODO: This is really a 'cosmology' thing and only necessary for some halo models
       hmod%sigv = sigmaV(0., a, flag_sigmaV, cosm)    
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: sigma_V [Mpc/h]:', REAL(hmod%sigv)
 
@@ -2318,10 +2313,10 @@ CONTAINS
 
       ! Find non-linear Lagrangian radius and associated scale
       ! This is defined as nu(M_star)=1 *not* sigma(M_star)=1, so depends on delta_c
-      ! TODO: Is this necessar for all halo models?
+      ! TODO: Not necessary for all halo models
       hmod%rnl = r_nl(hmod)
       hmod%mnl = Lagrangian_mass(hmod%rnl, cosm)
-      hmod%knl = 1./hmod%rnl ! Note that there are no factors of 2pi here
+      hmod%knl = 1./hmod%rnl ! NOTE: No factors of 2pi here
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Non-linear mass [log10(M*) [Msun/h]]:', REAL(log10(hmod%mnl))
          WRITE (*, *) 'INIT_HALOMOD: Non-linear halo virial radius [Mpc/h]:', REAL(virial_radius(hmod%mnl, hmod, cosm))
@@ -2356,7 +2351,7 @@ CONTAINS
       END IF
 
       ! Calculate the total stellar mass fraction
-      ! TODO: Not necessary for some halo models
+      ! TODO: Not necessary for all fields or halo models
       IF (calculate_stars .AND. verbose) THEN
          Om_stars = Omega_stars(hmod, cosm)
          WRITE (*, *) 'INIT_HALOMOD: Omega_*:', Om_stars
@@ -3300,7 +3295,6 @@ CONTAINS
 
       ! Get the halo model prediction for matter--matter for cosmology for a range of k and a
       ! Assumes DMONLY halo profiles etc.
-      ! TODO: Can I directly put in 2D arrays into routine that expects 4D if some dimensions are length 1?
       INTEGER, INTENT(IN) :: nk                  ! Number of wavenumbers
       INTEGER, INTENT(IN) :: na                  ! Number of scale factors
       REAL, INTENT(IN) :: k(nk)                  ! Array of wavenumbers [h/Mpc]
@@ -3327,7 +3321,7 @@ CONTAINS
    SUBROUTINE calculate_HMx(ifield, k, a, pow, nf, nk, na, cosm, ihm)
 
       ! Public facing function, calculates the halo model power for k and a range
-      ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed?
+      ! TODO: Change (f1, f2, k, a) to (k, a, f1, f2) for speed
       INTEGER, INTENT(IN) :: nf         ! Number of different fields
       INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
       INTEGER, INTENT(IN) :: nk         ! Number of k points
@@ -3346,7 +3340,7 @@ CONTAINS
    SUBROUTINE calculate_HMx_full(ifield, k, a, pow_li, pow_2h, pow_1h, pow_hm, nf, nk, na, cosm, ihm)
 
       ! Public facing function, calculates the halo model power for k and a range
-      ! TODO: Change (:,:,k,a) to (k,a,:,:) for speed?
+      ! TODO: Change (f1, f2, k, a) to (k, a, f1, f2) for speed
       INTEGER, INTENT(IN) :: nf         ! Number of different fields
       INTEGER, INTENT(IN) :: ifield(nf) ! Indices for different fields
       INTEGER, INTENT(IN) :: nk         ! Number of k points
@@ -3395,7 +3389,7 @@ CONTAINS
    SUBROUTINE calculate_HMx_old(ifield, nf, k, nk, a, na, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
 
       ! Public facing function, calculates the halo model power for k and a range
-      ! TODO: Change (:, :, k, a) to (k, a, :, :) for speed?
+      ! TODO: Change (f1, f2, k, a) to (k, a, f1, f2) for speed
       ! TODO: Change name to calculate_HMx_manual? Tilman needs this routine still so do not remove it
       INTEGER, INTENT(IN) :: nf               ! Number of different fields
       INTEGER, INTENT(IN) :: ifield(nf)       ! Indices for different fields
@@ -3418,7 +3412,7 @@ CONTAINS
       verbose2 = verbose
 
       ! Do the halo-model calculation by looping over scale factor index
-      ! TODO: Why does this loop backwards. Is it to do with the write-to-screen command?
+      ! TODO: Why does this loop backwards; is it to do with the write-to-screen command?
       DO i = na, 1, -1
 
          z = redshift_a(a(i))
@@ -4377,7 +4371,6 @@ CONTAINS
       REAL :: alpha, pow, con
 
       ! alpha is set to one sometimes, which is just the standard halo-model sum of terms
-      ! TODO: No need to have an IF statement around this?
       IF (hmod%itrans == 1 .OR. hmod%itrans == 2 .OR. hmod%itrans == 3 .OR. hmod%itrans == 5) THEN
 
          ! If either term is less than zero then we need to be careful
@@ -4700,6 +4693,7 @@ CONTAINS
    REAL FUNCTION T_1h(k1, k2, ih, hmod, cosm)
 
       ! Halo model one-halo trispectrum
+      ! TODO: This is unfinished
       REAL, INTENT(IN) :: k1, k2
       INTEGER, INTENT(IN) :: ih(2)
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -6070,14 +6064,14 @@ CONTAINS
       ! Calculates M(nu) where M is the halo mass and nu is the peak height
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: ifind = 3
-      INTEGER, PARAMETER :: imeth = 2
+      INTEGER, PARAMETER :: iorder = iorder_mnu
+      INTEGER, PARAMETER :: ifind = ifind_mnu
+      INTEGER, PARAMETER :: iinterp = iinterp_mnu
 
       IF(hmod%saturation .AND. nu<hmod%nu_saturation) THEN
          M_nu = 0.
       ELSE
-         M_nu = exp(find(nu, hmod%nu, hmod%log_m, hmod%n, iorder, ifind, imeth))
+         M_nu = exp(find(nu, hmod%nu, hmod%log_m, hmod%n, iorder, ifind, iinterp))
       END IF
 
    END FUNCTION M_nu
@@ -6143,12 +6137,11 @@ CONTAINS
       ! Calculate the mean density of a tracer
       ! Integrand here is a function of mass, i.e. I(M); R = rho * Int I(M)dM
       ! TODO: This function is comparatively slow and could/should be accelerated somehow
-      ! TODO: This uses integrate_hmod_cosm_exp, which is weird, surely can use some transformed integrand instead?
       REAL, INTENT(IN) :: nu_min, nu_max
       REAL, EXTERNAL :: integrand
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      !LOGICAL :: use_exp_integration = .FALSE.
+      INTEGER, PARAMETER :: iorder = iorder_rhobar
 
       INTERFACE
          FUNCTION integrand(M, hmod_interface, cosm_interface)
@@ -6159,11 +6152,7 @@ CONTAINS
          END FUNCTION integrand
       END INTERFACE
 
-      !IF (use_exp_integration) THEN
-      !   rhobar_tracer=integrate_hmod_cosm_exp(log(nu_min), log(nu_max), integrand, hmod, cosm, hmod%acc, 3)
-      !ELSE
-      rhobar_tracer=integrate_hmod_cosm(nu_min, nu_max, integrand, hmod, cosm, hmod%acc, 3)
-      !END IF
+      rhobar_tracer=integrate_hmod_cosm(nu_min, nu_max, integrand, hmod, cosm, hmod%acc, iorder)
       rhobar_tracer=rhobar_tracer*comoving_matter_density(cosm)
 
    END FUNCTION rhobar_tracer
@@ -6242,14 +6231,11 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: nu, dnu_dlnm, R
-      !INTEGER, PARAMETER :: iorder = iorder_derivative_mass_function ! TODO: Remove
-      !INTEGER, PARAMETER :: ifind = ifind_derivative_mass_function ! TODO: Remove
 
       IF(m == 0.) THEN
          multiplicity_function = 0.
       ELSE
          nu = nu_M(m, hmod, cosm)
-         !dnu_dlnm = derivative_table(log(m), log(hmod%m), hmod%nu, iorder, ifind) ! TODO: Remove
          R = Lagrangian_radius(m, cosm)
          dnu_dlnm = -(nu/3.)*dsigma(R, hmod%a, flag_matter, cosm)
          multiplicity_function = g_nu(nu, hmod)*dnu_dlnm
@@ -6502,7 +6488,7 @@ CONTAINS
 
       ! Rescale the concentration-mass relation for gas the epsilon parameter
       ! This only rescales the concentrations of haloes that *contain* substantial amounts of gas
-      ! TODO: I feel this should be removed. It has the possibility to go very wrong, also unnecessary for non-hydro
+      ! TODO: This should be removed. It has the possibility to go very wrong, also unnecessary for non-hydro
       DO i = 1, hmod%n
          m = hmod%m(i)
          hmod%c(i) = hmod%c(i)*hydro_concentration_modification(m, hmod, cosm)
@@ -6880,7 +6866,7 @@ CONTAINS
       ! Simple baryon model where high-mass haloes have a mass fraction of 1 and low-mass haloes have Omega_c/Omega_m
       ! This also accounts for massive neutrinos since it is written in terms of Om_c and Om_b (rather than Om_m)
       ! TODO: This is independent of k, so probably should be computed outside and k dependent function for speed
-      ! TODO: Could just precompute this once for each M in the halomod init function
+      ! TODO: Precompute this once for each M in the halomod init function?
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(IN) :: cosm
@@ -6888,8 +6874,8 @@ CONTAINS
 
       mb = HMcode_mbar(cosm, hmod)
       n = hmod%nbar ! Power-law index
-      r = (m/mb)**n ! If m>>m0 then r becomes large, if m<<m0 then r=0  
-      fb = cosm%Om_b/cosm%Om_m!-HMcode_sbar(cosm, hmod) ! Halo baryon fraction                              
+      r = (m/mb)**n ! If m>>m0 then r becomes large, if m<<m0 then r=0
+      fb = cosm%Om_b/cosm%Om_m!-HMcode_sbar(cosm, hmod) ! Halo baryon fraction
       fc = cosm%Om_c/cosm%Om_m ! Halo CDM fraction
       fs = HMcode_sbar(cosm, hmod) ! Halo star fraction
       DMONLY_halo_mass_fraction = fc+(fb-fs)*r/(1.+r) ! Remaining halo mass fraction
@@ -7800,7 +7786,7 @@ CONTAINS
             irho = 0
          ELSE IF (hmod%halo_central_stars == 4) THEN
             ! Transition mass between NFW and delta function
-            ! TODO: mstar here is the same as in the stellar halo-mass fraction. It should probably not be this
+            ! TODO: mstar here is the same as in the stellar halo-mass fraction. It should probably be a new variable.
             IF (m < HMx_Mstar(hmod, cosm)) THEN
                irho = 0 ! Delta function
             ELSE
@@ -8089,7 +8075,7 @@ CONTAINS
 
          ! This calculation really only needs to be done once
          ! This could slow down the calculation by a large amount
-         ! TODO: Ensure this is only done once; see init_galaxies
+         ! TODO: Ensure this is only done once; see init_HOD
          nu1 = nu_M(mmin, hmod, cosm)
          nu2 = nu_M(mmax, hmod, cosm)
          nhalo = mean_halo_number_density(nu1, nu2, hmod, cosm)
@@ -11016,119 +11002,6 @@ CONTAINS
       END IF
 
    END FUNCTION integrate_hmod_cosm
-
-   ! REAL RECURSIVE FUNCTION integrate_hmod_cosm_exp(a, b, f, hmod, cosm, acc, iorder)
-
-   !    ! Integrates between a and b until desired accuracy is reached
-   !    ! Stores information to reduce function calls
-   !    ! Uses transformation y = e^x to integrate in terms of x rather than y
-   !    ! TODO: Remove
-   !    REAL, INTENT(IN) :: a
-   !    REAL, INTENT(IN) :: b
-   !    REAL, EXTERNAL :: f
-   !    TYPE(halomod), INTENT(INOUT) :: hmod
-   !    TYPE(cosmology), INTENT(INOUT) :: cosm
-   !    REAL, INTENT(IN) :: acc
-   !    INTEGER, INTENT(IN) :: iorder
-   !    INTEGER :: i, j
-   !    INTEGER :: n
-   !    REAL :: x, dx
-   !    REAL :: f1, f2, fx
-   !    REAL :: sum_n, sum_2n, sum_new, sum_old
-   !    LOGICAL :: pass
-   !    INTEGER, PARAMETER :: jmin = jmin_integration
-   !    INTEGER, PARAMETER :: jmax = jmax_integration
-
-   !    INTERFACE
-   !       FUNCTION f(nu, hmod_interface, cosm_interface)
-   !          IMPORT :: halomod
-   !          IMPORT :: cosmology
-   !          REAL, INTENT(IN) :: nu
-   !          TYPE(halomod), INTENT(INOUT) :: hmod_interface
-   !          TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-   !       END FUNCTION f
-   !    END INTERFACE
-
-   !    IF (a == b) THEN
-
-   !       ! Fix the answer to zero if the integration limits are identical
-   !       integrate_hmod_cosm_exp = 0.
-
-   !    ELSE
-
-   !       ! Set the sum variable for the integration
-   !       sum_2n = 0.d0
-   !       sum_n = 0.d0
-   !       sum_old = 1.d0 ! Should not be zero
-   !       sum_new = 0.d0
-
-   !       DO j = 1, jmax
-
-   !          ! Note, you need this to be 1+2**n for some integer n
-   !          ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-   !          n = 1+2**(j-1)
-
-   !          ! Calculate the dx interval for this value of 'n'
-   !          dx = (b-a)/REAL(n-1)
-
-   !          IF (j == 1) THEN
-
-   !             ! The first go is just the trapezium of the end points
-   !             f1 = f(exp(a), hmod, cosm)*exp(a)
-   !             f2 = f(exp(b), hmod, cosm)*exp(b)
-   !             sum_2n = 0.5d0*(f1+f2)*dx
-   !             sum_new = sum_2n
-
-   !          ELSE
-
-   !             ! Loop over only new even points to add these to the integral
-   !             DO i = 2, n, 2
-   !                x = a+(b-a)*REAL(i-1)/REAL(n-1)
-   !                fx = f(exp(x), hmod, cosm)*exp(x)
-   !                sum_2n = sum_2n+fx
-   !             END DO
-
-   !             ! Now create the total using the old and new parts
-   !             sum_2n = sum_n/2.d0+sum_2n*dx
-
-   !             ! Now calculate the new sum depending on the integration order
-   !             IF (iorder == 1) THEN
-   !                sum_new = sum_2n
-   !             ELSE IF (iorder == 3) THEN
-   !                sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
-   !             ELSE
-   !                STOP 'INTEGRATE_HMOD_COSM_EXP: Error, iorder specified incorrectly'
-   !             END IF
-
-   !          END IF
-
-   !          IF (sum_old == 0.d0 .OR. j<jmin) THEN
-   !             pass = .FALSE.
-   !          ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
-   !             pass = .TRUE.
-   !          ELSE IF (j == jmax) THEN
-   !             pass = .FALSE.
-   !             STOP 'INTEGRATE_HMOD_COSM_EXP: Integration timed out'
-   !          ELSE
-   !             pass = .FALSE.
-   !          END IF
-
-   !          IF (pass) THEN
-   !             EXIT
-   !          ELSE
-   !             ! Integral has not converged so store old sums and reset sum variables
-   !             sum_old = sum_new
-   !             sum_n = sum_2n
-   !             sum_2n = 0.d0
-   !          END IF
-
-   !       END DO
-
-   !       integrate_hmod_cosm_exp = REAL(sum_new)
-
-   !    END IF
-
-   ! END FUNCTION integrate_hmod_cosm_exp
 
    REAL FUNCTION integrate_scatter(c, dc, ih, k, m, rv, hmod, cosm, acc, iorder)
 
