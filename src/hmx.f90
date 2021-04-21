@@ -1,5 +1,7 @@
 MODULE HMx
 
+   ! TODO: Separate 'tracer' or 'field' class for cross correlations
+
    ! Module usage statements
    USE constants
    USE array_operations
@@ -12,6 +14,7 @@ MODULE HMx
    USE interpolate
    USE file_info
    USE table_integer
+   USE HOD_functions
 
    IMPLICIT NONE
 
@@ -129,8 +132,8 @@ MODULE HMx
    PUBLIC :: field_electron_pressure
    PUBLIC :: field_void
    PUBLIC :: field_compensated_void
-   PUBLIC :: field_central_galaxies
-   PUBLIC :: field_satellite_galaxies
+   PUBLIC :: field_centrals
+   PUBLIC :: field_satellites
    PUBLIC :: field_galaxies
    PUBLIC :: field_HI
    PUBLIC :: field_cold_bound_gas
@@ -150,6 +153,7 @@ MODULE HMx
    PUBLIC :: field_halo_14p0_14p5
    PUBLIC :: field_halo_14p5_15p0
    PUBLIC :: field_neutrino
+   PUBLIC :: field_haloes
    PUBLIC :: field_n ! Total number of fields
 
    ! Total number of fitting parameters
@@ -308,9 +312,21 @@ MODULE HMx
       REAL :: nu_saturation
       LOGICAL :: saturation
 
-      ! HOD etc.
-      REAL :: mhalo_min, mhalo_max, HImin, HImax, rcore, hmass
-      REAL :: n_c, n_s, n_g, rho_HI, sigma_conc
+      ! HOD
+      REAL :: mhalo_min, mhalo_max, mgal_min, mgal_max
+      REAL :: n_c, n_s, n_g
+      INTEGER :: ihod
+      TYPE(hodmod) :: hod
+
+      ! HI
+      REAL :: rho_HI, HImin, HImax
+
+      ! Scatter in c(M)
+      REAL :: sigma_conc
+      LOGICAL :: conc_scatter
+
+      ! ?
+      REAL :: rcore, hmass
 
       ! Mass function integrals
       REAL :: gmin, gmax, gbmin, gbmax, gnorm
@@ -331,7 +347,7 @@ MODULE HMx
 
       ! Halo types
       INTEGER :: halo_DMONLY, halo_CDM, halo_normal_bound_gas, halo_cold_bound_gas, halo_hot_bound_gas, halo_ejected_gas
-      INTEGER :: halo_central_stars, halo_satellite_stars, halo_HI, halo_neutrino, halo_satellites
+      INTEGER :: halo_central_stars, halo_satellite_stars, halo_HI, halo_neutrino, halo_satellites, halo_centrals
       INTEGER :: halo_void, halo_compensated_void, electron_pressure
 
       ! Halo components
@@ -340,9 +356,11 @@ MODULE HMx
       INTEGER :: frac_bound_gas, frac_cold_bound_gas, frac_hot_bound_gas
 
       ! Different 'has' logicals
-      LOGICAL :: has_HI, has_galaxies, has_mass_conversions, safe_negative
+      LOGICAL :: has_HI, has_mass_conversions, has_HOD
 
+      ! ?
       LOGICAL :: simple_pivot
+      LOGICAL :: safe_negative
       INTEGER :: response_baseline, response_denominator
       LOGICAL :: response_matter_only
       REAL :: acc, small_nu, large_nu
@@ -451,8 +469,9 @@ MODULE HMx
    INTEGER, PARAMETER :: imeth_delta = 2  !
 
    ! Halo types
-   LOGICAL, PARAMETER :: verbose_galaxies = .FALSE. ! Verbosity when doing the galaxies initialisation
-   LOGICAL, PARAMETER :: verbose_HI = .TRUE.        ! Verbosity when doing the HI initialisation
+   !LOGICAL, PARAMETER :: verbose_galaxies = .FALSE. ! Verbosity when doing the galaxies initialisation
+   LOGICAL, PARAMETER :: verbose_HOD = .FALSE. ! Verbosity when doing the HOD initialisation
+   LOGICAL, PARAMETER :: verbose_HI = .TRUE.   ! Verbosity when doing the HI initialisation
 
    ! Non-linear halo bias
    INTEGER, PARAMETER :: bnl_method_a = 1           ! Assign B_NL based on scale factor
@@ -493,8 +512,8 @@ MODULE HMx
    INTEGER, PARAMETER :: field_electron_pressure = 8
    INTEGER, PARAMETER :: field_void = 9
    INTEGER, PARAMETER :: field_compensated_void = 10
-   INTEGER, PARAMETER :: field_central_galaxies = 11
-   INTEGER, PARAMETER :: field_satellite_galaxies = 12
+   INTEGER, PARAMETER :: field_centrals = 11
+   INTEGER, PARAMETER :: field_satellites = 12
    INTEGER, PARAMETER :: field_galaxies = 13
    INTEGER, PARAMETER :: field_HI = 14
    INTEGER, PARAMETER :: field_cold_bound_gas = 15
@@ -514,7 +533,8 @@ MODULE HMx
    INTEGER, PARAMETER :: field_halo_14p0_14p5 = 29
    INTEGER, PARAMETER :: field_halo_14p5_15p0 = 30
    INTEGER, PARAMETER :: field_neutrino = 31
-   INTEGER, PARAMETER :: field_n = 31
+   INTEGER, PARAMETER :: field_haloes = 32
+   INTEGER, PARAMETER :: field_n = 32
 
    ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
@@ -610,6 +630,12 @@ MODULE HMx
    ! HMx versions
    INTEGER, PARAMETER :: HMx2020_matter_w_temp_scaling = 60
    INTEGER, PARAMETER :: HMx2020_matter_pressure_w_temp_scaling = 61
+
+   ! General cosmological integrations
+   INTEGER, PARAMETER :: jmin_integration = 5  ! Minimum number of points: 2^(j-1)
+   INTEGER, PARAMETER :: jmax_integration = 20 ! Maximum number of points: 2^(j-1) TODO: Could lower to make time-out faster
+   !INTEGER, PARAMETER :: ninit_integration = 2 ! Initial number of points to try for integration
+   INTEGER, PARAMETER :: nsig_integration = 5  ! Number of sigmas to integrate over for scatter integrand
 
 CONTAINS
 
@@ -1008,6 +1034,10 @@ CONTAINS
       ! 5 - Modified NFW
       hmod%halo_HI = 1
 
+      ! Central galaxy halo profile
+      ! 1 - Delta function
+      hmod%halo_centrals = 1
+
       ! Satellite galaxy halo profile
       ! 1 - NFW
       ! 2 - Isothermal
@@ -1242,11 +1272,15 @@ CONTAINS
       hmod%hmass = 1e13
 
       ! Scatter in c/c
-      hmod%sigma_conc = 0.
+      hmod%sigma_conc = 1./3.
+      hmod%conc_scatter = .FALSE.
 
       ! HOD parameters
+      ! TODO: Remove
       hmod%mhalo_min = 1e12
       hmod%mhalo_max = 1e16
+      hmod%mgal_min = 1e12
+      hmod%mgal_max = 1e16
 
       ! HI parameters
       hmod%HImin = 1e9
@@ -1267,8 +1301,11 @@ CONTAINS
       ! e.g., ST diverges like nu^-0.6, alpha = 1/(1-0.6) = 2.5
       hmod%alpha_numu = 2.5
 
+      ! HOD
+      hmod%ihod = 3 ! Default to toy HOD
+
       ! Set flags to false
-      hmod%has_galaxies = .FALSE.
+      hmod%has_HOD = .FALSE.
       hmod%has_HI = .FALSE.
       hmod%has_mass_conversions = .FALSE.
       hmod%has_mass_function = .FALSE.
@@ -1451,6 +1488,7 @@ CONTAINS
       ELSE IF (ihm == 8) THEN
          ! Include scatter in halo properties
          hmod%sigma_conc = 0.25
+         hmod%conc_scatter = .TRUE.
       ELSE IF (ihm == 9) THEN
          ! For CCL comparison and benchmark generation
          hmod%n = 2048   ! Increase accuracy for the CCL benchmarks
@@ -2167,7 +2205,7 @@ CONTAINS
       END IF
 
       ! Reset flags to false
-      hmod%has_galaxies = .FALSE.
+      hmod%has_HOD = .FALSE.
       hmod%has_HI = .FALSE.
       hmod%has_mass_conversions = .FALSE.
       hmod%has_mass_function = .FALSE.
@@ -2190,12 +2228,12 @@ CONTAINS
       hmod%dc = delta_c(hmod, cosm)
       hmod%Dv = Delta_v(M0_Dv_default, hmod, cosm)
       IF (verbose) THEN         
-         WRITE (*, *) 'INIT_HALOMOD: Delta_v:', REAL(hmod%Dv)
-         WRITE (*, *) 'INIT_HALOMOD: delta_c:', REAL(hmod%dc)
+         WRITE (*, *) 'INIT_HALOMOD: Delta_v:', real(hmod%Dv)
+         WRITE (*, *) 'INIT_HALOMOD: delta_c:', real(hmod%dc)
       END IF
 
       ! Deallocate and reallocate arrays if necessary
-      IF (ALLOCATED(hmod%log_m)) CALL deallocate_halomod(hmod)
+      IF (allocated(hmod%log_m)) CALL deallocate_halomod(hmod)
       CALL allocate_halomod(hmod)
 
       IF (verbose) THEN
@@ -2364,6 +2402,11 @@ CONTAINS
       IF ((hmod%ip2h .NE. 2) .AND. is_in_array(hmod%ibias, [3, 4, 5])) THEN
          STOP 'INIT_HALOMOD: Error, your combination of two-halo term and halo bias is not supported'
       END IF
+
+      ! HOD
+      CALL assign_HOD(hmod%ihod, hmod%hod)
+      hmod%hod%Mmin = hmod%mgal_min
+      hmod%hod%Mmax = hmod%mgal_max
 
       ! Finish
       IF (verbose) THEN
@@ -2561,6 +2604,9 @@ CONTAINS
          IF (hmod%halo_HI == 3) WRITE (*, *) 'HALOMODEL: HI profile: Polynomial with hole (Villaescusa-Navarro et al. 2018)'
          IF (hmod%halo_HI == 4) WRITE (*, *) 'HALOMODEL: HI profile: Modified NFW with hole (Villaescusa-Navarro et al. 2018)'
          IF (hmod%halo_HI == 5) WRITE (*, *) 'HALOMODEL: HI profile: Modified NFW (Padmanabhan & Refregier 2017)'
+
+         ! Central galaxy halo profile
+         IF (hmod%halo_centrals == 1) WRITE (*, *) 'HALOMODEL: Central galaxy halo profile: Delta function'
 
          ! Satellite galaxy halo profile
          IF (hmod%halo_satellites == 1) WRITE (*, *) 'HALOMODEL: Satellite galaxy profile: NFW'
@@ -2838,15 +2884,26 @@ CONTAINS
          WRITE (*, *) dashes
 
          ! HOD
-         WRITE (*, *) 'HALOMODEL: HOD parameters'
+         WRITE (*, *) 'HALOMODEL: HOD model'
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'log10(M_halo_min) [Msun/h]:', log10(hmod%mhalo_min)
          WRITE (*, fmt=fmt) 'log10(M_halo_max) [Msun/h]:', log10(hmod%mhalo_max)
+         WRITE (*, fmt=fmt) 'log10(M_gal_min) [Msun/h]:', log10(hmod%mgal_min)
+         WRITE (*, fmt=fmt) 'log10(M_gal_max) [Msun/h]:', log10(hmod%mgal_max)
+         WRITE (*, *) dashes
+
+         WRITE (*, *) 'HALOMODEL: HI model'
+         WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'log10(M_HI_min) [Msun/h]:', log10(hmod%HImin)
          WRITE (*, fmt=fmt) 'log10(M_HI_max) [Msun/h]:', log10(hmod%HImax)
          WRITE (*, *) dashes
+
+
+         WRITE (*, *) 'HALOMODEL: Misc'
+         WRITE (*, *) dashes
          IF (hmod%halo_DMONLY == 5) WRITE (*, fmt=fmt) 'r_core [Mpc/h]:', hmod%rcore
-         IF (hmod%sigma_conc /= 0.) WRITE (*, fmt=fmt) 'sigma(c)/c:', hmod%sigma_conc
+         IF (hmod%conc_scatter) WRITE (*, fmt=fmt) 'sigma(c)/c:', hmod%sigma_conc
+         WRITE (*, *) dashes
          WRITE (*, *)
 
       END IF
@@ -3078,8 +3135,8 @@ CONTAINS
       IF (i == field_electron_pressure) halo_type = 'Electron pressure'
       IF (i == field_void) halo_type = 'Void'
       IF (i == field_compensated_void) halo_type = 'Compensated void'
-      IF (i == field_central_galaxies) halo_type = 'Central galaxies or haloes'
-      IF (i == field_satellite_galaxies) halo_type = 'Satellite galaxies'
+      IF (i == field_centrals) halo_type = 'Central galaxies'
+      IF (i == field_satellites) halo_type = 'Satellite galaxies'
       IF (i == field_galaxies) halo_type = 'Galaxies'
       IF (i == field_HI) halo_type = 'HI'
       IF (i == field_cold_bound_gas) halo_type = 'Cold gas'
@@ -3099,6 +3156,7 @@ CONTAINS
       IF (i == field_halo_14p0_14p5) halo_type = 'Haloes 10^14.0 -> 10^14.5'
       IF (i == field_halo_14p5_15p0) halo_type = 'Haloes 10^14.5 -> 10^15.0'
       IF (i == field_neutrino) halo_type = 'Neutrino'
+      IF (i == field_haloes) halo_type = 'Haloes'
       IF (halo_type == '') STOP 'HALO_TYPE: Error, i not specified correctly'
 
    END FUNCTION halo_type
@@ -3395,7 +3453,6 @@ CONTAINS
    SUBROUTINE calculate_HMx_a(ifield, nf, k, nk, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm, verbose)
 
       ! Calculate halo model Pk(a) for a k range
-
       INTEGER, INTENT(IN) :: nf
       INTEGER, INTENT(IN) :: ifield(nf)
       INTEGER, INTENT(IN) :: nk
@@ -3409,8 +3466,9 @@ CONTAINS
       LOGICAL, INTENT(IN) :: verbose
       REAL :: powg_2h(nk), powg_1h(nk), powg_hm(nk)
       REAL, ALLOCATABLE :: upow_2h(:, :, :), upow_1h(:, :, :), upow_hm(:, :, :)
-      REAL, ALLOCATABLE :: wk0(:, :)
+      REAL, ALLOCATABLE :: wk0(:, :), vars(:, :, :)
       REAL :: wk0_den(hmod%n, 1), wk0_base(hmod%n, 1)
+      REAL :: vars_den(hmod%n, 1, 1), vars_base(hmod%n, 1, 1)
       REAL :: base_2h(nk), base_1h(nk), base_hm(nk)
       INTEGER :: i, j, ii, jj, match(nf), nnf
       INTEGER :: ihm
@@ -3457,6 +3515,11 @@ CONTAINS
       ALLOCATE(wk0(hmod%n, nnf))
       CALL init_windows(zero, ifield, nnf, wk0, hmod%n, hmod, cosm)
 
+      ! Get the window-function variances (independent of k)
+      CALL init_window_variances(vars, ifield, hmod)
+      vars_base = 0.
+      vars_den = 0.
+
       ! Loop over k values
       ! TODO: add OMP support properly. What is private and what is shared? CHECK THIS!
 !!$OMP PARALLEL DO DEFAULT(SHARED)!, private(k,plin,pow_2h,pow_1h,pow,pow_lin)
@@ -3469,16 +3532,16 @@ CONTAINS
          pow_li(i) = plin(k(i), hmod%a, flag_matter, cosm)
 
          ! Do the halo model calculation
-         CALL calculate_HMx_ka(iifield, wk0, nnf, k(i), pow_li(i), upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
+         CALL calculate_HMx_ka(iifield, wk0, vars, nnf, k(i), pow_li(i), upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
 
          IF (hmod%response_baseline .NE. 0) THEN
 
             ! If doing a response then calculate a DMONLY prediction for both the current halomodel and HMcode
-            CALL calculate_HMx_ka(dmonly, wk0_base, 1, k(i), pow_li(i), base_2h(i), base_1h(i), base_hm(i), hmod_base, cosm)
+            CALL calculate_HMx_ka(dmonly, wk0_base, vars_base, 1, k(i), pow_li(i), base_2h(i), base_1h(i), base_hm(i), hmod_base, cosm)
             IF (hmod%response_denominator .NE. 0) THEN
-               CALL calculate_HMx_ka(dmonly, wk0_den, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod_den, cosm)
+               CALL calculate_HMx_ka(dmonly, wk0_den, vars_den, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod_den, cosm)
             ELSE
-               CALL calculate_HMx_ka(dmonly, wk0_den, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
+               CALL calculate_HMx_ka(dmonly, wk0_den, vars_den, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
             END IF  
 
             IF (hmod%response_matter_only) THEN
@@ -3549,13 +3612,14 @@ CONTAINS
 
    END FUNCTION is_matter_field
 
-   SUBROUTINE calculate_HMx_ka(ifield, wk0, nf, k, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm)
+   SUBROUTINE calculate_HMx_ka(ifield, wk0, vars, nf, k, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm)
 
       ! Gets the two- and one-halo terms and combines them
       ! TODO: Include profile scatter in two-halo term
       INTEGER, INTENT(IN) :: nf
       INTEGER, INTENT(IN) :: ifield(nf)
       REAL, INTENT(IN) :: wk0(:, :)
+      REAL, INTENT(IN) :: vars(:, :, :)
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: pow_li
       REAL, INTENT(OUT) :: pow_2h(nf, nf)
@@ -3564,7 +3628,9 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: wk(hmod%n, nf), wk2(hmod%n, 2), wk_product(hmod%n)
-      INTEGER :: f1, f2, ih(2)
+      INTEGER :: f1, f2, ih(2), i
+      REAL :: fac
+      !LOGICAL :: add_variances = .TRUE.
 
       ! Calls expressions for two- and one-halo terms and then combines to form the full power spectrum
       IF (k == 0.) THEN
@@ -3579,15 +3645,22 @@ CONTAINS
          CALL init_windows(k, ifield, nf, wk, hmod%n, hmod, cosm)
 
          ! Loop over fields and get the one-halo term for each pair
+         ! TODO: Change order of loops from f1, f2 to f2, f1?
          DO f1 = 1, nf
-            DO f2 = f1, nf
-               IF (hmod%sigma_conc == 0.) THEN
-                  wk_product = wk(:, f1)*wk(:, f2)
-               ELSE
+            DO f2 = f1, nf         
+               IF (hmod%conc_scatter) THEN
                   ih(1) = ifield(f1)
                   ih(2) = ifield(f2)
                   wk_product = wk_product_scatter(hmod%n, ih, k, hmod, cosm)
+               ELSE
+                  wk_product = wk(:, f1)*wk(:, f2)
                END IF
+               DO i = 1, hmod%n
+                  IF ((vars(i, f1, f2) /= 0.) .AND. (wk0(i, f1) /= 0.) .AND. (wk0(i, f2) /= 0.)) THEN
+                     fac = vars(i, f1, f2)/(wk0(i, f1)*wk0(i, f2))
+                     wk_product(i) = wk_product(i)*(1.+fac)
+                  END IF
+               END DO    
                pow_1h(f1, f2) = p_1h(wk_product, hmod%n, k, hmod, cosm)
             END DO
          END DO
@@ -3709,6 +3782,59 @@ CONTAINS
       END IF
 
    END SUBROUTINE init_windows
+
+   SUBROUTINE init_window_variances(vars, ifields, hmod)
+
+      ! Calculates the (scale-independent) variance in the 'mass' prefactor of profiles
+      REAL, ALLOCATABLE, INTENT(OUT) :: vars(:, :, :)
+      INTEGER, INTENT(IN) :: ifields(:)
+      TYPE(halomod), INTENT(IN) :: hmod
+      INTEGER :: f1, f2
+      INTEGER :: im, if1, if2
+      INTEGER :: nm, nf
+      LOGICAL :: g1, g2
+      REAL :: m
+      REAL :: n_c, n_s, n_g
+      REAL :: v_c, v_s, v_g
+
+      nm = hmod%n
+      nf = size(ifields)
+      ALLOCATE(vars(nm, nf, nf))
+      vars = 0.
+
+      DO if2 = 1, nf
+         DO if1 = if2, nf
+            f1 = ifields(if1)
+            f2 = ifields(if2)
+            g1 = is_in_array(f1, [field_centrals, field_satellites, field_galaxies]) ! True if f1 is HOD
+            g2 = is_in_array(f2, [field_centrals, field_satellites, field_galaxies]) ! True if f2 is HOD
+            IF (g1 .AND. g2) THEN
+               DO im = 1, nm
+                  m = hmod%m(im)
+                  v_c = variance_centrals(m, hmod%hod)
+                  v_s = variance_satellites(m, hmod%hod)
+                  v_g = variance_galaxies(m, hmod%hod)
+                  n_c = hmod%n_c
+                  n_s = hmod%n_s
+                  n_g = hmod%n_g
+                  IF (f1 == field_centrals .AND. f2 == field_centrals) THEN
+                     vars(im, if1, if2) = v_c/n_c**2
+                  ELSE IF (f1 == field_satellites .AND. f2 == field_satellites) THEN
+                     vars(im, if1, if2) = v_s/n_s**2
+                  ELSE IF (f1 == field_galaxies .AND. f2 == field_galaxies) THEN
+                     vars(im, if1, if2) = v_g/n_g**2
+                  ELSE IF (equals_or([f1, f2], [field_centrals, field_galaxies])) THEN
+                     vars(im, if1, if2) = v_c/(n_c*n_g)
+                  ELSE IF (equals_or([f1, f2], [field_satellites, field_galaxies])) THEN
+                     vars(im, if1, if2) = v_s/(n_s*n_g)
+                  END IF
+               END DO
+               IF (if1 /= if2) vars(:, if2, if1) = vars(:, if1, if2) ! Symmetric terms
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE init_window_variances
 
    SUBROUTINE add_smooth_component_to_windows(fields, nf, wk, nm, hmod, cosm)
 
@@ -5870,28 +5996,27 @@ CONTAINS
 
    END FUNCTION Omega_stars
 
-   SUBROUTINE init_galaxies(hmod, cosm)
+   SUBROUTINE init_HOD(hmod, cosm)
 
       ! Calculate the number densities of galaxies
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: nu_min, nu_max
 
-      nu_min = nu_M(hmod%mhalo_min, hmod, cosm)
-      nu_max = nu_M(hmod%mhalo_max, hmod, cosm)
-      hmod%n_c = rhobar_tracer(nu_min, nu_max, rhobar_central_integrand, hmod, cosm)
-      hmod%n_s = rhobar_tracer(nu_min, nu_max, rhobar_satellite_integrand, hmod, cosm)
+      nu_min = nu_M(hmod%mgal_min, hmod, cosm)
+      nu_max = nu_M(hmod%mgal_max, hmod, cosm)
+      hmod%n_c = rhobar_tracer(nu_min, nu_max, rhobar_central_HOD_integrand, hmod, cosm)
+      hmod%n_s = rhobar_tracer(nu_min, nu_max, rhobar_satellite_HOD_integrand, hmod, cosm)
       hmod%n_g = hmod%n_c+hmod%n_s
-      IF (verbose_galaxies) THEN
-         WRITE (*, *) 'INIT_GALAXIES: Comoving number density of central galaxies [(Mpc/h)^-3]:', REAL(hmod%n_c)
-         WRITE (*, *) 'INIT_GALAXIES: Comoving number density of satellite galaxies [(Mpc/h)^-3]:', REAL(hmod%n_s)
-         WRITE (*, *) 'INIT_GALAXIES: Comoving number density of all galaxies [(Mpc/h)^-3]:', REAL(hmod%n_g)
+      IF (verbose_HOD) THEN
+         WRITE (*, *) 'INIT_HOD: Comoving number density of central galaxies [(Mpc/h)^-3]:', real(hmod%n_c)
+         WRITE (*, *) 'INIT_HOD: Comoving number density of satellite galaxies [(Mpc/h)^-3]:', real(hmod%n_s)
+         WRITE (*, *) 'INIT_HOD: Comoving number density of all galaxies [(Mpc/h)^-3]:', real(hmod%n_g)
          WRITE (*, *)
       END IF
+      hmod%has_HOD = .TRUE.
 
-      hmod%has_galaxies = .TRUE.
-
-   END SUBROUTINE init_galaxies
+   END SUBROUTINE init_HOD
 
    SUBROUTINE init_HI(hmod, cosm)
 
@@ -5957,7 +6082,7 @@ CONTAINS
 
    END FUNCTION M_nu
 
-   REAL FUNCTION rhobar_central_integrand(nu, hmod, cosm)
+   REAL FUNCTION rhobar_central_HOD_integrand(nu, hmod, cosm)
 
       ! Integrand for the number density of central galaxies
       REAL, INTENT(IN) :: nu
@@ -5968,11 +6093,11 @@ CONTAINS
       crap = cosm%A
 
       M = M_nu(nu, hmod)
-      rhobar_central_integrand = N_centrals(M, hmod)*g_nu(nu, hmod)/M
+      rhobar_central_HOD_integrand = mean_centrals(M, hmod%hod)*g_nu(nu, hmod)/M
 
-   END FUNCTION rhobar_central_integrand
+   END FUNCTION rhobar_central_HOD_integrand
 
-   REAL FUNCTION rhobar_satellite_integrand(nu, hmod, cosm)
+   REAL FUNCTION rhobar_satellite_HOD_integrand(nu, hmod, cosm)
 
       ! Integrand for the number density of satellite galaxies
       REAL, INTENT(IN) :: nu
@@ -5983,9 +6108,9 @@ CONTAINS
       crap = cosm%A
 
       M = M_nu(nu, hmod)
-      rhobar_satellite_integrand = N_satellites(M, hmod)*g_nu(nu, hmod)/M
+      rhobar_satellite_HOD_integrand = mean_satellites(M, hmod%hod)*g_nu(nu, hmod)/M
 
-   END FUNCTION rhobar_satellite_integrand
+   END FUNCTION rhobar_satellite_HOD_integrand
 
    REAL FUNCTION rhobar_star_integrand(nu, hmod, cosm)
 
@@ -6017,12 +6142,13 @@ CONTAINS
 
       ! Calculate the mean density of a tracer
       ! Integrand here is a function of mass, i.e. I(M); R = rho * Int I(M)dM
-      ! TODO: This function is comparatively slow and should be accelerated somehow
+      ! TODO: This function is comparatively slow and could/should be accelerated somehow
       ! TODO: This uses integrate_hmod_cosm_exp, which is weird, surely can use some transformed integrand instead?
       REAL, INTENT(IN) :: nu_min, nu_max
       REAL, EXTERNAL :: integrand
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      !LOGICAL :: use_exp_integration = .FALSE.
 
       INTERFACE
          FUNCTION integrand(M, hmod_interface, cosm_interface)
@@ -6033,7 +6159,11 @@ CONTAINS
          END FUNCTION integrand
       END INTERFACE
 
-      rhobar_tracer=integrate_hmod_cosm_exp(log(nu_min), log(nu_max), integrand, hmod, cosm, hmod%acc, 3)
+      !IF (use_exp_integration) THEN
+      !   rhobar_tracer=integrate_hmod_cosm_exp(log(nu_min), log(nu_max), integrand, hmod, cosm, hmod%acc, 3)
+      !ELSE
+      rhobar_tracer=integrate_hmod_cosm(nu_min, nu_max, integrand, hmod, cosm, hmod%acc, 3)
+      !END IF
       rhobar_tracer=rhobar_tracer*comoving_matter_density(cosm)
 
    END FUNCTION rhobar_tracer
@@ -6843,9 +6973,9 @@ CONTAINS
          win = win_void(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_compensated_void) THEN
          win = win_compensated_void(real_space, k, m, rv, rs, hmod, cosm)
-      ELSE IF (ifield == field_central_galaxies) THEN
+      ELSE IF (ifield == field_centrals) THEN
          win = win_centrals(real_space, k, m, rv, rs, hmod, cosm)
-      ELSE IF (ifield == field_satellite_galaxies) THEN
+      ELSE IF (ifield == field_satellites) THEN
          win = win_satellites(real_space, k, m, rv, rs, hmod, cosm)
       ELSE IF (ifield == field_galaxies) THEN
          win = win_galaxies(real_space, k, m, rv, rs, hmod, cosm)
@@ -6875,7 +7005,8 @@ CONTAINS
       ELSE IF (ifield == field_halo_11p0_11p5 .OR. ifield == field_halo_11p5_12p0 .OR. &
                ifield == field_halo_12p0_12p5 .OR. ifield == field_halo_12p5_13p0 .OR. &
                ifield == field_halo_13p0_13p5 .OR. ifield == field_halo_13p5_14p0 .OR. &
-               ifield == field_halo_14p0_14p5 .OR. ifield == field_halo_14p5_15p0) THEN
+               ifield == field_halo_14p0_14p5 .OR. ifield == field_halo_14p5_15p0 .OR. &
+               ifield == field_haloes) THEN
          IF (ifield == field_halo_11p0_11p5) THEN
             mmin = 10**11.0 ! Minimum halo mass [Msun/h]
             mmax = 10**11.5 ! Maximum halo mass [Msun/h]
@@ -6900,9 +7031,10 @@ CONTAINS
          ELSE IF (ifield == field_halo_14p5_15p0) THEN
             mmin = 10**14.5 ! Minimum halo mass [Msun/h]
             mmax = 10**15.0 ! Maximum halo mass [Msun/h]
-         ELSE
-            STOP 'WIN_TYPE: Error, ifield specified incorrectly'
+         !ELSE
+         !   STOP 'WIN_TYPE: Error, ifield specified incorrectly'
          END IF
+         STOP 'WIN: Be careful with haloes and mass ranges here'
          win = win_haloes(real_space, mmin, mmax, k, m, rv, rs, hmod, cosm)
       ELSE
          WRITE (*, *) 'WIN_TYPE: ifield:', ifield
@@ -7937,11 +8069,13 @@ CONTAINS
       REAL :: r, rmin, rmax, p1, p2, N, nhalo
       REAL :: nu1, nu2
 
-      IF (m < mmin .OR. m > mmax) THEN
-         N = 0.
-      ELSE
-         N = 1.
-      END IF
+      !IF (m < mmin .OR. m > mmax) THEN
+      !   N = 0.
+      !ELSE
+      !   N = 1.
+      !END IF
+
+      N = N_haloes(m, hmod)
 
       IF (N == 0.) THEN
 
@@ -7979,30 +8113,9 @@ CONTAINS
 
    END FUNCTION win_haloes
 
-   REAL FUNCTION win_galaxies(real_space, k, m, rv, rs, hmod, cosm)
-
-      ! Halo profile for all galaxies
-      LOGICAL, INTENT(IN) :: real_space
-      REAL, INTENT(IN) :: k
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: rv
-      REAL, INTENT(IN) :: rs
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: wc, ws
-
-      IF (.NOT. hmod%has_galaxies) CALL init_galaxies(hmod, cosm)
-
-      wc = win_centrals(real_space, k, m, rv, rs, hmod, cosm)*hmod%n_c
-      ws = win_satellites(real_space, k, m, rv, rs, hmod, cosm)*hmod%n_s
-      win_galaxies = (wc+ws)/hmod%n_g
-
-   END FUNCTION win_galaxies
-
    REAL FUNCTION win_centrals(real_space, k, m, rv, rs, hmod, cosm)
 
       ! Halo profile for central galaxies
-      ! TODO: Where does the normalisation division by hmod%n_c go?
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -8013,9 +8126,9 @@ CONTAINS
       INTEGER :: irho
       REAL :: r, rmin, rmax, p1, p2, N
 
-      IF (.NOT. hmod%has_galaxies) CALL init_galaxies(hmod, cosm)
+      IF (.NOT. hmod%has_HOD) CALL init_HOD(hmod, cosm)
 
-      N = N_centrals(m, hmod)
+      N = mean_centrals(M, hmod%hod)
 
       IF (N == 0.) THEN
 
@@ -8031,7 +8144,7 @@ CONTAINS
          p1 = 0.
          p2 = 0.
 
-         ! Delta functions
+         ! Delta function
          irho = 0
 
          IF (real_space) THEN
@@ -8039,7 +8152,7 @@ CONTAINS
             win_centrals = rho(r, rmin, rmax, rv, rs, p1, p2, irho)
             win_centrals = win_centrals/normalisation(rmin, rmax, rv, rs, p1, p2, irho)
          ELSE
-            win_centrals = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)!/hmod%n_c
+            win_centrals = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)
          END IF
          win_centrals = N*win_centrals/hmod%n_c
 
@@ -8050,7 +8163,6 @@ CONTAINS
    REAL FUNCTION win_satellites(real_space, k, m, rv, rs, hmod, cosm)
 
       ! Halo profile for satellite galaxies
-      ! TODO: Where does the normalisation division by hmod%n_s go?
       LOGICAL, INTENT(IN) :: real_space
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: m
@@ -8061,9 +8173,9 @@ CONTAINS
       INTEGER :: irho
       REAL :: r, rmin, rmax, p1, p2, N
 
-      IF (.NOT. hmod%has_galaxies) CALL init_galaxies(hmod, cosm)
+      IF (.NOT. hmod%has_HOD) CALL init_HOD(hmod, cosm)
 
-      N = N_satellites(m, hmod)
+      N = mean_satellites(m, hmod%hod)
 
       IF (N == 0.) THEN
 
@@ -8092,13 +8204,33 @@ CONTAINS
             win_satellites = rho(r, rmin, rmax, rv, rs, p1, p2, irho)
             win_satellites = win_satellites/normalisation(rmin, rmax, rv, rs, p1, p2, irho)
          ELSE
-            win_satellites = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)!/hmod%n_s
+            win_satellites = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)
          END IF
          win_satellites = N*win_satellites/hmod%n_s
 
       END IF
 
    END FUNCTION win_satellites
+
+   REAL FUNCTION win_galaxies(real_space, k, m, rv, rs, hmod, cosm)
+
+      ! Halo profile for all galaxies
+      LOGICAL, INTENT(IN) :: real_space
+      REAL, INTENT(IN) :: k
+      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: rs
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: wc, ws
+
+      IF (.NOT. hmod%has_HOD) CALL init_HOD(hmod, cosm)
+
+      wc = win_centrals(real_space, k, m, rv, rs, hmod, cosm)*hmod%n_c
+      ws = win_satellites(real_space, k, m, rv, rs, hmod, cosm)*hmod%n_s
+      win_galaxies = (wc+ws)/hmod%n_g
+
+   END FUNCTION win_galaxies
 
    REAL FUNCTION win_CIB(real_space, nu, k, m, rv, rs, hmod, cosm)
 
@@ -8167,43 +8299,20 @@ CONTAINS
 
    END FUNCTION grey_body_nu
 
-   REAL FUNCTION N_centrals(m, hmod)
+   REAL FUNCTION N_haloes(m, hmod)
 
-      ! The number of central galaxies as a function of halo mass
+      ! The number of haloes as a function of halo mass
+      ! This is either 0 or 1, depending on if the halo is being counted or not
       REAL, INTENT(IN) :: m
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      IF (m > hmod%mhalo_min .AND. m < hmod%mhalo_max) THEN
-         N_centrals = 1
+      IF (hmod%mhalo_min <= m .AND. m <= hmod%mhalo_max) THEN
+         N_haloes = 1.
       ELSE
-         N_centrals = 0
+         N_haloes = 0.
       END IF
 
-   END FUNCTION N_centrals
-
-   REAL FUNCTION N_satellites(m, hmod)
-
-      ! The number of satellite galxies as a function of halo mass
-      REAL, INTENT(IN) :: m
-      TYPE(halomod), INTENT(INOUT) :: hmod
-
-      IF (m < hmod%mhalo_min .OR. m > hmod%mhalo_max) THEN
-         N_satellites = 0
-      ELSE
-         N_satellites = floor(m/hmod%mhalo_min)-1
-      END IF
-
-   END FUNCTION N_satellites
-
-   REAL FUNCTION N_galaxies(m, hmod)
-
-      ! The number of central galaxies as a function of halo mass
-      REAL, INTENT(IN) :: m
-      TYPE(halomod), INTENT(INOUT) :: hmod
-
-      N_galaxies = N_centrals(m, hmod)+N_satellites(m, hmod)
-
-   END FUNCTION N_galaxies
+   END FUNCTION N_haloes
 
    REAL FUNCTION win_HI(real_space, k, m, rv, rs, hmod, cosm)
 
@@ -8989,10 +9098,9 @@ CONTAINS
       REAL :: sum
       REAL :: r, dr, winold, weight
       INTEGER :: n, i, j
-
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 30
-      INTEGER, PARAMETER :: ninit = 2
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
+      !INTEGER, PARAMETER :: ninit = ninit_integration
 
       winold = 0.
 
@@ -9006,7 +9114,8 @@ CONTAINS
          DO j = 1, jmax
 
             ! Increase the number of integration points each go until convergence
-            n = ninit*(2**(j-1))
+            !n = ninit*(2**(j-1))
+            n = 1+2**(j-1)
 
             ! Set the integration sum variable to zero
             sum = 0.
@@ -9058,7 +9167,7 @@ CONTAINS
 
             IF ((j > jmin) .AND. integrate_window_normal == 0.) THEN
                EXIT
-            ELSE IF ((j > jmin) .AND. (ABS(-1.+integrate_window_normal/winold) < acc)) THEN
+            ELSE IF ((j > jmin) .AND. (abs(-1.+integrate_window_normal/winold) < acc)) THEN
                EXIT
             ELSE
                winold = integrate_window_normal
@@ -9083,9 +9192,8 @@ CONTAINS
       REAL :: f1, f2, fx
       REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
-
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 30
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
 
       IF (a == b) THEN
 
@@ -9231,7 +9339,7 @@ CONTAINS
          sum = sum+w
 
          ! Exit if the contribution to the sum is very tiny, this seems to be necessary to prevent crashes
-         IF (winint_exit .AND. ABS(w) < acc*ABS(sum)) EXIT
+         IF (winint_exit .AND. abs(w) < acc*abs(sum)) EXIT
 
       END DO
 
@@ -9339,7 +9447,7 @@ CONTAINS
       CALL fix_polynomial(a3, a2, a1, a0, [x0, x1, x2, x3], [y0, y1, y2, y3])
 
       epsa0 = eps*a0
-      IF (ABS(a3*rmid**3) < epsa0 .AND. ABS(a2*rmid**2) < epsa0 .AND. ABS(a1*rmid) < epsa0) THEN
+      IF (abs(a3*rmid**3) < epsa0 .AND. abs(a2*rmid**2) < epsa0 .AND. abs(a1*rmid) < epsa0) THEN
          w = (rm**3+rn**3-6.*(rm+rn)/k**2)*a3+(rm**2+rn**2-4./k**2)*a2+(rm+rn)*a1+2.*a0
          w = w*(-1)**i
       ELSE
@@ -10248,7 +10356,7 @@ CONTAINS
 
       ! Taylor expansion used for low |x| to avoid cancellation problems
 
-      IF (ABS(x) < ABS(dx)) THEN
+      IF (abs(x) < abs(dx)) THEN
          ! Taylor series at low x
          wk_isothermal = 1.-(x**2)/18.
       ELSE
@@ -10706,9 +10814,8 @@ CONTAINS
       REAL :: f1, f2, fx
       REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
-
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 30
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
 
       INTERFACE
          FUNCTION f(x_interface, hmod_interface)
@@ -10816,9 +10923,8 @@ CONTAINS
       REAL :: f1, f2, fx
       REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
-
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 30
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
 
       INTERFACE
          FUNCTION f(x_interface, hmod_interface, cosm_interface)
@@ -10911,117 +11017,118 @@ CONTAINS
 
    END FUNCTION integrate_hmod_cosm
 
-   REAL RECURSIVE FUNCTION integrate_hmod_cosm_exp(a, b, f, hmod, cosm, acc, iorder)
+   ! REAL RECURSIVE FUNCTION integrate_hmod_cosm_exp(a, b, f, hmod, cosm, acc, iorder)
 
-      ! Integrates between a and b until desired accuracy is reached
-      ! Stores information to reduce function calls
-      REAL, INTENT(IN) :: a
-      REAL, INTENT(IN) :: b
-      REAL, EXTERNAL :: f
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, INTENT(IN) :: acc
-      INTEGER, INTENT(IN) :: iorder
-      INTEGER :: i, j
-      INTEGER :: n
-      REAL :: x, dx
-      REAL :: f1, f2, fx
-      REAL :: sum_n, sum_2n, sum_new, sum_old
-      LOGICAL :: pass
+   !    ! Integrates between a and b until desired accuracy is reached
+   !    ! Stores information to reduce function calls
+   !    ! Uses transformation y = e^x to integrate in terms of x rather than y
+   !    ! TODO: Remove
+   !    REAL, INTENT(IN) :: a
+   !    REAL, INTENT(IN) :: b
+   !    REAL, EXTERNAL :: f
+   !    TYPE(halomod), INTENT(INOUT) :: hmod
+   !    TYPE(cosmology), INTENT(INOUT) :: cosm
+   !    REAL, INTENT(IN) :: acc
+   !    INTEGER, INTENT(IN) :: iorder
+   !    INTEGER :: i, j
+   !    INTEGER :: n
+   !    REAL :: x, dx
+   !    REAL :: f1, f2, fx
+   !    REAL :: sum_n, sum_2n, sum_new, sum_old
+   !    LOGICAL :: pass
+   !    INTEGER, PARAMETER :: jmin = jmin_integration
+   !    INTEGER, PARAMETER :: jmax = jmax_integration
 
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 30
+   !    INTERFACE
+   !       FUNCTION f(nu, hmod_interface, cosm_interface)
+   !          IMPORT :: halomod
+   !          IMPORT :: cosmology
+   !          REAL, INTENT(IN) :: nu
+   !          TYPE(halomod), INTENT(INOUT) :: hmod_interface
+   !          TYPE(cosmology), INTENT(INOUT) :: cosm_interface
+   !       END FUNCTION f
+   !    END INTERFACE
 
-      INTERFACE
-         FUNCTION f(nu, hmod_interface, cosm_interface)
-            IMPORT :: halomod
-            IMPORT :: cosmology
-            REAL, INTENT(IN) :: nu
-            TYPE(halomod), INTENT(INOUT) :: hmod_interface
-            TYPE(cosmology), INTENT(INOUT) :: cosm_interface
-         END FUNCTION f
-      END INTERFACE
+   !    IF (a == b) THEN
 
-      IF (a == b) THEN
+   !       ! Fix the answer to zero if the integration limits are identical
+   !       integrate_hmod_cosm_exp = 0.
 
-         ! Fix the answer to zero if the integration limits are identical
-         integrate_hmod_cosm_exp = 0.
+   !    ELSE
 
-      ELSE
+   !       ! Set the sum variable for the integration
+   !       sum_2n = 0.d0
+   !       sum_n = 0.d0
+   !       sum_old = 1.d0 ! Should not be zero
+   !       sum_new = 0.d0
 
-         ! Set the sum variable for the integration
-         sum_2n = 0.d0
-         sum_n = 0.d0
-         sum_old = 1.d0 ! Should not be zero
-         sum_new = 0.d0
+   !       DO j = 1, jmax
 
-         DO j = 1, jmax
+   !          ! Note, you need this to be 1+2**n for some integer n
+   !          ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
+   !          n = 1+2**(j-1)
 
-            ! Note, you need this to be 1+2**n for some integer n
-            ! j=1 n=2; j=2 n=3; j=3 n=5; j=4 n=9; ...'
-            n = 1+2**(j-1)
+   !          ! Calculate the dx interval for this value of 'n'
+   !          dx = (b-a)/REAL(n-1)
 
-            ! Calculate the dx interval for this value of 'n'
-            dx = (b-a)/REAL(n-1)
+   !          IF (j == 1) THEN
 
-            IF (j == 1) THEN
+   !             ! The first go is just the trapezium of the end points
+   !             f1 = f(exp(a), hmod, cosm)*exp(a)
+   !             f2 = f(exp(b), hmod, cosm)*exp(b)
+   !             sum_2n = 0.5d0*(f1+f2)*dx
+   !             sum_new = sum_2n
 
-               ! The first go is just the trapezium of the end points
-               f1 = f(exp(a), hmod, cosm)*exp(a)
-               f2 = f(exp(b), hmod, cosm)*exp(b)
-               sum_2n = 0.5d0*(f1+f2)*dx
-               sum_new = sum_2n
+   !          ELSE
 
-            ELSE
+   !             ! Loop over only new even points to add these to the integral
+   !             DO i = 2, n, 2
+   !                x = a+(b-a)*REAL(i-1)/REAL(n-1)
+   !                fx = f(exp(x), hmod, cosm)*exp(x)
+   !                sum_2n = sum_2n+fx
+   !             END DO
 
-               ! Loop over only new even points to add these to the integral
-               DO i = 2, n, 2
-                  x = a+(b-a)*REAL(i-1)/REAL(n-1)
-                  fx = f(exp(x), hmod, cosm)*exp(x)
-                  sum_2n = sum_2n+fx
-               END DO
+   !             ! Now create the total using the old and new parts
+   !             sum_2n = sum_n/2.d0+sum_2n*dx
 
-               ! Now create the total using the old and new parts
-               sum_2n = sum_n/2.d0+sum_2n*dx
+   !             ! Now calculate the new sum depending on the integration order
+   !             IF (iorder == 1) THEN
+   !                sum_new = sum_2n
+   !             ELSE IF (iorder == 3) THEN
+   !                sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
+   !             ELSE
+   !                STOP 'INTEGRATE_HMOD_COSM_EXP: Error, iorder specified incorrectly'
+   !             END IF
 
-               ! Now calculate the new sum depending on the integration order
-               IF (iorder == 1) THEN
-                  sum_new = sum_2n
-               ELSE IF (iorder == 3) THEN
-                  sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
-               ELSE
-                  STOP 'INTEGRATE_HMOD_COSM_EXP: Error, iorder specified incorrectly'
-               END IF
+   !          END IF
 
-            END IF
+   !          IF (sum_old == 0.d0 .OR. j<jmin) THEN
+   !             pass = .FALSE.
+   !          ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
+   !             pass = .TRUE.
+   !          ELSE IF (j == jmax) THEN
+   !             pass = .FALSE.
+   !             STOP 'INTEGRATE_HMOD_COSM_EXP: Integration timed out'
+   !          ELSE
+   !             pass = .FALSE.
+   !          END IF
 
-            IF (sum_old == 0.d0 .OR. j<jmin) THEN
-               pass = .FALSE.
-            ELSE IF (abs(-1.d0+sum_new/sum_old) < acc) THEN
-               pass = .TRUE.
-            ELSE IF (j == jmax) THEN
-               pass = .FALSE.
-               STOP 'INTEGRATE_HMOD_COSM_EXP: Integration timed out'
-            ELSE
-               pass = .FALSE.
-            END IF
+   !          IF (pass) THEN
+   !             EXIT
+   !          ELSE
+   !             ! Integral has not converged so store old sums and reset sum variables
+   !             sum_old = sum_new
+   !             sum_n = sum_2n
+   !             sum_2n = 0.d0
+   !          END IF
 
-            IF (pass) THEN
-               EXIT
-            ELSE
-               ! Integral has not converged so store old sums and reset sum variables
-               sum_old = sum_new
-               sum_n = sum_2n
-               sum_2n = 0.d0
-            END IF
+   !       END DO
 
-         END DO
+   !       integrate_hmod_cosm_exp = REAL(sum_new)
 
-         integrate_hmod_cosm_exp = REAL(sum_new)
+   !    END IF
 
-      END IF
-
-   END FUNCTION integrate_hmod_cosm_exp
+   ! END FUNCTION integrate_hmod_cosm_exp
 
    REAL FUNCTION integrate_scatter(c, dc, ih, k, m, rv, hmod, cosm, acc, iorder)
 
@@ -11044,10 +11151,9 @@ CONTAINS
       REAL :: f1, f2, fx
       REAL :: sum_n, sum_2n, sum_new, sum_old
       LOGICAL :: pass
-
-      INTEGER, PARAMETER :: jmin = 5
-      INTEGER, PARAMETER :: jmax = 30
-      REAL, PARAMETER :: nsig = 5
+      INTEGER, PARAMETER :: jmin = jmin_integration
+      INTEGER, PARAMETER :: jmax = jmax_integration
+      REAL, PARAMETER :: nsig = nsig_integration
 
       a = c/(1.+nsig*dc)
       b = c*(1.+nsig*dc)

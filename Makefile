@@ -55,10 +55,11 @@ _OBJ = \
 	precision.o \
 	constants.o \
 	physics.o \
-	special_functions.o \
 	basic_operations.o \
 	array_operations.o \
+	special_functions.o \
 	random_numbers.o \
+	hod_functions.o \
 	calculus.o \
 	file_info.o \
 	io.o \

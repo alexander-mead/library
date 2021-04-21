@@ -1946,7 +1946,7 @@ CONTAINS
       ELSE IF (ix == tracer_CIB_857) THEN
          ip = field_CIB_857
       ELSE IF (ix == tracer_galaxies) THEN
-         ip = field_central_galaxies
+         ip = field_galaxies
       ELSE
          STOP 'SET_FIELD_FOR_XPOW: Error, tracer specified incorrectly'
       END IF
