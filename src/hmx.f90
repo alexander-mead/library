@@ -253,11 +253,11 @@ MODULE HMx
       INTEGER :: ip2h, ip1h, ibias, imf, iconc, iDolag, iAs, i2hcor
       INTEGER :: idc, iDv, ieta, i2hdamp, i1hdamp, itrans, ikdamp
       
-      ! Flags for sigma 
+      ! Flags for sigma (total matter, unnormalised cold, normalised cold)
       INTEGER :: flag_sigma
 
-      ! Void stuff
-      LOGICAL :: add_voids
+      ! Additions
+      LOGICAL :: add_voids, add_variances
 
       ! Spherical collapse parameters
       REAL :: dc, Dv
@@ -779,6 +779,7 @@ CONTAINS
       names(125) = 'HMcode (2020) unfitted with extended mass range'
       names(126) = 'Tinker (2010) mass function: M200'
       names(127) = 'Tinker (2010) mass function: M200c'
+      names(128) = 'Neglect galaxy number variance contribution in one-halo term'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1047,6 +1048,9 @@ CONTAINS
 
       ! Do voids?
       hmod%add_voids = .FALSE.
+
+      ! Do variances
+      hmod%add_variances = .TRUE.
 
       ! Set the void model
       ! 1 - Top-hat void
@@ -2160,6 +2164,9 @@ CONTAINS
          hmod%imf = 17  ! 17 - Tinker (2010) mass function and calibrated bias
          hmod%iDv = 7   ! 7 - M200c
          hmod%iconc = 5 ! 5 - Duffy full sample M200c
+      ELSE IF (ihm == 128) THEN
+         ! Neglect galaxy-number variance contribution to one-halo term
+         hmod%add_variances = .FALSE.
       ELSE
          STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
       END IF
@@ -3510,7 +3517,12 @@ CONTAINS
       CALL init_windows(zero, ifield, nnf, wk0, hmod%n, hmod, cosm)
 
       ! Get the window-function variances (independent of k)
-      CALL init_window_variances(vars, ifield, hmod)
+      IF (hmod%add_variances) THEN
+         CALL init_window_variances(vars, ifield, hmod)
+      ELSE
+         ALLOCATE(vars(hmod%n, nf, nf))
+         vars = 0.
+      END IF
       vars_base = 0.
       vars_den = 0.
 
@@ -3649,12 +3661,14 @@ CONTAINS
                ELSE
                   wk_product = wk(:, f1)*wk(:, f2)
                END IF
-               DO i = 1, hmod%n
-                  IF ((vars(i, f1, f2) /= 0.) .AND. (wk0(i, f1) /= 0.) .AND. (wk0(i, f2) /= 0.)) THEN
-                     fac = vars(i, f1, f2)/(wk0(i, f1)*wk0(i, f2))
-                     wk_product(i) = wk_product(i)*(1.+fac)
-                  END IF
-               END DO    
+               IF (hmod%add_variances) THEN
+                  DO i = 1, hmod%n
+                     IF ((vars(i, f1, f2) /= 0.) .AND. (wk0(i, f1) /= 0.) .AND. (wk0(i, f2) /= 0.)) THEN
+                        fac = vars(i, f1, f2)/(wk0(i, f1)*wk0(i, f2))
+                        wk_product(i) = wk_product(i)*(1.+fac)
+                     END IF
+                  END DO
+               END IF
                pow_1h(f1, f2) = p_1h(wk_product, hmod%n, k, hmod, cosm)
             END DO
          END DO
@@ -4963,7 +4977,7 @@ CONTAINS
       DO i = 1, n
          r = exp(progression(log(rmin), log(rmax), i, n))
          r = r*rv
-         WRITE (7, *) r/rv, (win(real_space, fields(j), r, m, rv, rs, hmod, cosm)*rv**3, j=1, nf) ! rv**3 here is from r^2 dr
+         WRITE (7, *) r/rv, (win(real_space, fields(j), r, m, rv, rs, hmod, cosm)*rv**3, j=1,nf) ! rv**3 here is from r^2 dr
       END DO
       CLOSE (7)
 
