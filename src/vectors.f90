@@ -27,6 +27,7 @@ MODULE vectors
    PUBLIC :: square_matrix
    PUBLIC :: symmetric_matrix
    PUBLIC :: antisymmetric_matrix
+   PUBLIC :: Hermitian_matrix
 
    ! Unit vectors
    PUBLIC  :: xhat
@@ -42,6 +43,11 @@ MODULE vectors
    !   PROCEDURE determinant_2
    !   PROCEDURE determinant_3
    !END INTERFACE determinant
+
+   INTERFACE square_matrix
+      MODULE PROCEDURE square_matrix_real
+      MODULE PROCEDURE square_matrix_complex
+   END INTERFACE square_matrix
 
 CONTAINS
 
@@ -373,18 +379,31 @@ CONTAINS
 
    END SUBROUTINE write_matrix
 
-   LOGICAL FUNCTION square_matrix(M)
+   LOGICAL FUNCTION square_matrix_real(M)
 
       ! Returns true if the matrix is square
       REAL, INTENT(IN) :: M(:, :)
 
       IF (size(M, 1) == size(M, 2)) THEN
-         square_matrix = .TRUE.
+         square_matrix_real = .TRUE.
       ELSE
-         square_matrix = .FALSE.
+         square_matrix_real = .FALSE.
       END IF
 
-   END FUNCTION square_matrix
+   END FUNCTION square_matrix_real
+
+   LOGICAL FUNCTION square_matrix_complex(M)
+
+      ! Returns true if the matrix is square
+      COMPLEX, INTENT(IN) :: M(:, :)
+
+      IF (size(M, 1) == size(M, 2)) THEN
+         square_matrix_complex = .TRUE.
+      ELSE
+         square_matrix_complex = .FALSE.
+      END IF
+
+   END FUNCTION square_matrix_complex
 
    LOGICAL FUNCTION symmetric_matrix(M)
 
@@ -430,5 +449,26 @@ CONTAINS
       END DO loop
 
    END FUNCTION antisymmetric_matrix
+
+   LOGICAL FUNCTION Hermitian_matrix(M)
+
+      ! Returns true if the matrix is symmetric
+      COMPLEX, INTENT(IN) :: M(:, :)
+      INTEGER :: i, j, n
+
+      IF (.NOT. square_matrix(M)) STOP 'SYMMETRIC_MATRIX: Error, matrix must be square in order to be symmetric'
+      n = size(M, 1)
+
+      Hermitian_matrix = .TRUE.
+      loop: DO j = 1, n
+         DO i = j+1, n
+            IF (M(i, j) /= conjg(M(j, i))) THEN
+               Hermitian_matrix = .FALSE.
+               EXIT loop
+            END IF
+         END DO
+      END DO loop
+
+   END FUNCTION Hermitian_matrix
 
 END MODULE vectors
