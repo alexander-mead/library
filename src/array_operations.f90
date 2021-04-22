@@ -609,25 +609,6 @@ CONTAINS
 
    END SUBROUTINE array_positions
 
-   ! REAL FUNCTION sum_double(a)
-
-   !    ! Sum using double precision, which is necessary for many array elements
-   !    REAL, INTENT(IN) :: a(:)
-   !    DOUBLE PRECISION :: sum
-   !    INTEGER :: i, n
-
-   !    n = size(a)
-
-   !    sum = 0.d0
-
-   !    DO i = 1, n
-   !       sum = sum+a(i)
-   !    END DO
-
-   !    sum_double = real(sum)
-
-   ! END FUNCTION sum_double
-
    SUBROUTINE amputate_array_real(a, i1, i2)
 
       ! Chop an array of size a(n) down to a smaller size demarked by indices i1, i2
