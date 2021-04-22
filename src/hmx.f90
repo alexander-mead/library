@@ -499,9 +499,7 @@ MODULE HMx
    REAL, PARAMETER :: bnl_rescale_R2 = 10.          ! Maximum R for rescaling [Mpc/h]
    INTEGER, PARAMETER :: icos_bnl_rescale = 37      ! 37 - Multidark
    CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL' ! Directory containing BNL measurements
-   !CHARACTER(len=256), PARAMETER :: cat = 'rockstar' ! Halo catalogue
-   !CHARACTER(len=256), PARAMETER :: base_bnl_lownu = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/Bolshoi_'//trim(cat_bnl)
-   !CHARACTER(len=256), PARAMETER :: base_bnl = '/Users/Mead/Physics/Multidark/data/'//trim(dir_bnl)//'/M512/MDR1_'//trim(cat_bnl)
+   !CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL_DQ' ! Directory containing BNL measurements
 
    ! HALOFIT (can be used as two-halo term)
    INTEGER, PARAMETER :: HALOFIT_twohalo = HALOFIT_Takahashi
@@ -4624,7 +4622,6 @@ CONTAINS
                   CALL assign_init_cosmology(icos, cosm_MD, verbose=.FALSE.)
                   CALL calculate_rescaling_parameters(R1, R2, as_MD, s, a_MD, hmod%a, cosm_MD, cosm, irescale, verbose=.FALSE.)
                   snap = nearest_Multidark_snapshot(a_MD)
-                  !snap = snaps(array_position(a_MD, as_MD))
                ELSE
                   STOP 'INIT_BNL: Error, bnl_method is specified incorrectly'     
                END IF
