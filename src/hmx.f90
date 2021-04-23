@@ -60,6 +60,7 @@ MODULE HMx
    PUBLIC :: BNL
    PUBLIC :: simple_twohalo
    PUBLIC :: simple_onehalo
+   PUBLIC :: init_windows
 
    ! Mean things
    PUBLIC :: mean_bias_number_weighted
@@ -238,6 +239,9 @@ MODULE HMx
    PUBLIC :: param_PT_alpha
    PUBLIC :: param_PT_beta
 
+   ! Accuracy parameters
+   PUBLIC :: acc_win
+
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
 
@@ -370,7 +374,7 @@ MODULE HMx
    END TYPE halomod
 
    ! Halo window function integration
-   REAL, PARAMETER :: acc_win = 1e-3           ! Window-function integration accuracy parameter
+   REAL :: acc_win = 1e-3           ! Window-function integration accuracy parameter
    INTEGER, PARAMETER :: imeth_win = 12        ! Window-function integration method
    INTEGER, PARAMETER :: winint_order = 3      ! Window-function integration order
    REAL, PARAMETER :: winint_test_seconds = 1. ! Approximately how many seconds should each timing test take
