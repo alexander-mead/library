@@ -122,6 +122,7 @@ MODULE HMx
    PUBLIC :: HMx_Twhim
 
    ! Fields
+   ! TODO: Remove total number of fields
    PUBLIC :: field_dmonly
    PUBLIC :: field_matter
    PUBLIC :: field_cdm
@@ -154,10 +155,39 @@ MODULE HMx
    PUBLIC :: field_halo_14p5_15p0
    PUBLIC :: field_neutrino
    PUBLIC :: field_haloes
-   PUBLIC :: field_n ! Total number of fields
+   PUBLIC :: field_n ! Total number of fields TODO: Remove
 
-   ! Total number of fitting parameters
-   PUBLIC :: param_n
+   ! Haloes
+   PUBLIC :: irho_delta
+   PUBLIC :: irho_iso
+   PUBLIC :: irho_tophat
+   PUBLIC :: irho_M99
+   PUBLIC :: irho_NFW
+   PUBLIC :: irho_beta
+   PUBLIC :: irho_star_F14
+   PUBLIC :: irho_KS02_ST15
+   PUBLIC :: irho_star_ST15
+   PUBLIC :: irho_ejected_ST15
+   PUBLIC :: irho_KS02s_dens
+   PUBLIC :: irho_KS02s_temp
+   PUBLIC :: irho_KS02s_pres
+   PUBLIC :: irho_UPP
+   PUBLIC :: irho_beta_Ma15
+   PUBLIC :: irho_iso_ext
+   PUBLIC :: irho_powlaw
+   PUBLIC :: irho_cubic
+   PUBLIC :: irho_smooth
+   PUBLIC :: irho_exp
+   PUBLIC :: irho_KS02_dens
+   PUBLIC :: irho_KS02_temp
+   PUBLIC :: irho_KS02_pres
+   PUBLIC :: irho_NFW_cored
+   PUBLIC :: irho_poly_hole
+   PUBLIC :: irho_NFW_hole
+   PUBLIC :: irho_NFW_mod
+   PUBLIC :: irho_shell
+
+   !!! Fitting parameters !!!
 
    ! Fitting parameters - hydro
    PUBLIC :: param_alpha
@@ -242,6 +272,11 @@ MODULE HMx
    PUBLIC :: param_PT_A
    PUBLIC :: param_PT_alpha
    PUBLIC :: param_PT_beta
+
+   ! Total number of fitting parameters
+   PUBLIC :: param_n
+
+   !!!
 
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
@@ -378,7 +413,7 @@ MODULE HMx
       TYPE(interpolator3D) :: bnl, bnl_lownu, bnl_lowk, bnl_lownu_lowk
       INTEGER :: iextrap_bnl
       LOGICAL :: has_bnl, stitch_bnl_nu
-      CHARACTER(len=256) :: bnl_cat, bnl_path
+      CHARACTER(len=256) :: bnl_path, bnl_dir, bnl_cat
 
       ! Perturbation theory
       REAL :: PT_alpha, PT_beta, PT_A
@@ -410,9 +445,10 @@ MODULE HMx
    INTEGER, PARAMETER :: nmeth_win = 13        ! Total number of different winint methods
    INTEGER, PARAMETER :: nlim_bumps = 2        ! Do the bumps approximation after this number of bumps
    LOGICAL, PARAMETER :: winint_exit = .FALSE. ! Exit when the contributions to the integral become small
+   LOGICAL, PARAMETER :: analytic_NFW = .TRUE. ! Analytic Fourier Transform for the NFW profile
 
    ! Delta_v
-   REAL, PARAMETER :: M0_Dv_default = 1e14 ! If Delta_v is halo-mass dependent (e.g., MG) then write it at this mass
+   REAL, PARAMETER :: M0_Dv_default = 1e14 ! If Delta_v is halo-mass dependent (e.g., modified gravity) then write it at this mass
 
    ! Diagnostics
    REAL, PARAMETER :: mmin_diag = 1e10 ! Minimum halo mass for diagnostic tests [Msun/h]
@@ -498,8 +534,6 @@ MODULE HMx
    REAL, PARAMETER :: bnl_rescale_R1 = 1.           ! Minimum R for rescaling [Mpc/h]
    REAL, PARAMETER :: bnl_rescale_R2 = 10.          ! Maximum R for rescaling [Mpc/h]
    INTEGER, PARAMETER :: icos_bnl_rescale = 37      ! 37 - Multidark
-   CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL' ! Directory containing BNL measurements
-   !CHARACTER(len=256), PARAMETER :: dir_bnl = 'BNL_DQ' ! Directory containing BNL measurements
 
    ! HALOFIT (can be used as two-halo term)
    INTEGER, PARAMETER :: HALOFIT_twohalo = HALOFIT_Takahashi
@@ -538,6 +572,37 @@ MODULE HMx
    INTEGER, PARAMETER :: field_neutrino = 31
    INTEGER, PARAMETER :: field_haloes = 32
    INTEGER, PARAMETER :: field_n = 32
+
+   ! Halo types
+   INTEGER, PARAMETER :: irho_delta = 0
+   INTEGER, PARAMETER :: irho_iso = 1
+   INTEGER, PARAMETER :: irho_tophat = 2
+   INTEGER, PARAMETER :: irho_M99 = 3
+   !INTEGER, PARAMETER :: irho_NFW_num = 4 ! Could this be combined with 5?
+   INTEGER, PARAMETER :: irho_NFW = 5
+   INTEGER, PARAMETER :: irho_beta = 6      ! Cored isothermal beta profile
+   INTEGER, PARAMETER :: irho_star_F14 = 7  ! Star density profile from Fedeli (2014)
+   INTEGER, PARAMETER :: irho_KS02_ST15 = 8 ! Komatsu & Seljak (2002) density but from Schneider & Teyssier (2015) 
+   INTEGER, PARAMETER :: irho_star_ST15 = 9 ! Stellar density from Schneider & Teyssier (2015)
+   INTEGER, PARAMETER :: irho_ejected_ST15 = 10
+   INTEGER, PARAMETER :: irho_KS02s_dens = 11 ! Simplified Komatsu & Seljak (2002) density
+   INTEGER, PARAMETER :: irho_KS02s_temp = 12 ! Simplified Komatsu & Seljak (2002) temperature
+   INTEGER, PARAMETER :: irho_KS02s_pres = 13 ! Simplified Komatsu & Seljak (2002) pressure
+   INTEGER, PARAMETER :: irho_UPP = 14
+   INTEGER, PARAMETER :: irho_beta_Ma15 = 15 ! TODO: Combine with irho_beta
+   INTEGER, PARAMETER :: irho_iso_ext = 16 ! TODO: Combine with irho_iso
+   INTEGER, PARAMETER :: irho_powlaw = 17
+   INTEGER, PARAMETER :: irho_cubic = 18
+   INTEGER, PARAMETER :: irho_smooth = 19
+   INTEGER, PARAMETER :: irho_exp = 20
+   INTEGER, PARAMETER :: irho_KS02_dens = 21
+   INTEGER, PARAMETER :: irho_KS02_temp = 22
+   INTEGER, PARAMETER :: irho_KS02_pres = 23
+   INTEGER, PARAMETER :: irho_NFW_cored = 24
+   INTEGER, PARAMETER :: irho_poly_hole = 25
+   INTEGER, PARAMETER :: irho_NFW_hole = 26
+   INTEGER, PARAMETER :: irho_NFW_mod = 27
+   INTEGER, PARAMETER :: irho_shell = 28
 
    ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
@@ -778,6 +843,7 @@ CONTAINS
       names(126) = 'Tinker (2010) mass function: M200'
       names(127) = 'Tinker (2010) mass function: M200c'
       names(128) = 'Neglect galaxy number variance contribution in one-halo term'
+      names(129) = 'Non-linear halo bias from Dark Quest'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1316,8 +1382,9 @@ CONTAINS
       ! Non-linear halo bias
       hmod%iextrap_bnl = iextrap_bnl
       hmod%stitch_bnl_nu = .FALSE.
-      hmod%bnl_cat = 'rockstar'
       hmod%bnl_path = '/Users/Mead/Physics/Multidark/data/'
+      hmod%bnl_dir = 'BNL'
+      hmod%bnl_cat = 'rockstar'
 
       ! Perturbation(ish) theory
       hmod%PT_A = 1.
@@ -1798,7 +1865,7 @@ CONTAINS
          ! Isothermal beta model, response
          hmod%halo_normal_bound_gas = 2
          hmod%response_baseline = HMcode2016
-      ELSE IF (is_in_array(ihm, [24, 48, 49, 107, 114, 116, 117, 118])) THEN
+      ELSE IF (is_in_array(ihm, [24, 48, 49, 107, 114, 116, 117, 118, 129])) THEN
          ! Non-linear halo bias
          !  24 - Tinker 2010 with M200c haloes
          !  48 - Sheth & Tormen (1999)
@@ -1808,6 +1875,7 @@ CONTAINS
          ! 116 - Tinker 2010 and no extrapolation
          ! 117 - Tinker 2010 and adding Bolshoi for low-mass haloes
          ! 118 - Tinker 2010 and adding Bolshoi for low-mass haloes and no extrapolation
+         ! 129 - From Dark Quest
          hmod%ibias = 3 ! Non-linear halo bias
          !hmod%i1hdamp = 3 ! One-halo damping like k^4         
          IF (ihm == 48) THEN
@@ -1826,6 +1894,7 @@ CONTAINS
             hmod%bnl_cat = 'BDMV'
          END IF
          IF (ihm == 107 .OR. ihm == 116 .OR. ihm == 118) hmod%iextrap_bnl = iextrap_zero
+         IF (ihm == 129) hmod%bnl_dir = 'BNL_DQ'
       ELSE IF(ihm == 52) THEN
          ! Standard halo model but with Mead (2017) spherical-collapse fitting function
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
@@ -4584,8 +4653,8 @@ CONTAINS
          79, 80, 81, 82, 83, 84, 85]
 
       ! Input files
-      base_bnl = trim(hmod%bnl_path)//trim(dir_bnl)//'/M512/MDR1_'//trim(hmod%bnl_cat)
-      base_bnl_lownu = trim(hmod%bnl_path)//trim(dir_bnl)//'/M512/Bolshoi_'//trim(hmod%bnl_cat)
+      base_bnl = trim(hmod%bnl_path)//trim(hmod%bnl_dir)//'/M512/MDR1_'//trim(hmod%bnl_cat)
+      base_bnl_lownu = trim(hmod%bnl_path)//trim(hmod%bnl_dir)//'/M512/Bolshoi_'//trim(hmod%bnl_cat)
 
       IF (verbose) WRITE (*, *) 'INIT_BNL: Running'
 
@@ -7062,27 +7131,21 @@ CONTAINS
       rmax = rv
 
       IF (hmod%halo_DMONLY == 1) THEN
-         ! Analytical NFW
-         irho = 5
-      ELSE IF (hmod%halo_DMONLY == 2) THEN
+         irho = irho_NFW
+      !ELSE IF (hmod%halo_DMONLY == 2) THEN
          ! Non-analyical NFW
-         irho = 4
+         !irho = 4
       ELSE IF (hmod%halo_DMONLY == 3) THEN
-         ! Tophat
-         irho = 2
+         irho = irho_tophat
       ELSE IF (hmod%halo_DMONLY == 4) THEN
-         ! Delta function
-         irho = 0
+         irho = irho_delta
       ELSE IF (hmod%halo_DMONLY == 5) THEN
-         ! Cored NFW
-         irho = 24
+         irho = irho_NFW_cored
          p1 = hmod%rcore
       ELSE IF (hmod%halo_DMONLY == 6) THEN
-         ! Isothermal
-         irho = 1
+         irho = irho_iso_ext
       ELSE IF (hmod%halo_DMONLY == 7) THEN
-         ! Shell
-         irho = 28
+         irho = irho_shell
       ELSE
          STOP 'WIN_DMONLY: Error, halo_DMONLY specified incorrectly'
       END IF
@@ -7164,7 +7227,7 @@ CONTAINS
          p2 = 0.
 
          IF (hmod%halo_CDM == 1) THEN
-            irho = 5 ! Analytical NFW
+            irho = irho_NFW
          ELSE
             STOP 'WIN_CDM: Error, halo_CDM specified incorrectly'
          END IF
@@ -7237,7 +7300,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: rho0, T0, r, a
       REAL :: rmin, rmax, p1, p2, frac
-      INTEGER :: irho_density, irho_pressure
+      INTEGER :: irho_dens, irho_pres
 
       frac = halo_normal_bound_gas_fraction(m, hmod, cosm)
 
@@ -7257,32 +7320,32 @@ CONTAINS
 
          IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
-            irho_density = 0
-            irho_pressure = 0
+            irho_dens = irho_delta
+            irho_pres = irho_delta
          ELSE IF (hmod%halo_normal_bound_gas == 1 .OR. hmod%halo_normal_bound_gas == 3) THEN
             ! Komatsu & Seljak (2001) profile
             IF (hmod%halo_normal_bound_gas == 1) THEN
                ! Simplified KS model
-               irho_density = 11
-               irho_pressure = 13
+               irho_dens = irho_KS02s_dens
+               irho_pres = irho_KS02s_pres
             ELSE IF (hmod%halo_normal_bound_gas == 3) THEN
                ! Full KS model
-               irho_density = 21
-               irho_pressure = 23
+               irho_dens = irho_KS02_dens
+               irho_pres = irho_KS02_pres
             END IF
             p1 = HMx_Gamma(m, hmod, cosm)
             p2 = HMx_Zamma(m, hmod, cosm)
          ELSE IF (hmod%halo_normal_bound_gas == 2) THEN
             ! Set cored isothermal profile
-            !irho_density=6   ! Isothermal beta model with beta=2/3
-            irho_density = 15 ! Isothermal beta model with general beta
+            !irho_dens = irho_beta ! Isothermal beta model with beta=2/3
+            irho_dens = irho_beta_Ma15 ! Isothermal beta model with general beta
             p1 = HMx_ibeta(m, hmod, cosm)
             p2 = p1
-            irho_pressure = irho_density ! Okay to use density for pressure because temperature is constant (isothermal)
+            irho_pres = irho_dens ! Okay to use density for pressure because temperature is constant (isothermal)
          ELSE IF (hmod%halo_normal_bound_gas == 4) THEN
             ! NFW
-            irho_density = 5 ! Analytical NFW
-            irho_pressure = 0
+            irho_dens = irho_NFW ! Analytical NFW
+            irho_pres = irho_delta ! ?
          ELSE
             STOP 'WIN_STATIC_GAS: Error, halo_normal_bound_gas not specified correctly'
          END IF
@@ -7292,11 +7355,11 @@ CONTAINS
             ! Density profile of bound gas
             IF (real_space) THEN
                r = k
-               win_normal_bound_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_density)
-               win_normal_bound_gas = win_normal_bound_gas/normalisation(rmin, rmax, rv, rs, p1, p2, irho_density)
+               win_normal_bound_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_dens)
+               win_normal_bound_gas = win_normal_bound_gas/normalisation(rmin, rmax, rv, rs, p1, p2, irho_dens)
             ELSE
                ! Properly normalise and convert to overdensity
-               win_normal_bound_gas = m*win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_density)/comoving_matter_density(cosm)
+               win_normal_bound_gas = m*win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_dens)/comoving_matter_density(cosm)
             END IF
 
             win_normal_bound_gas = frac*win_normal_bound_gas
@@ -7308,16 +7371,16 @@ CONTAINS
             ! NOTE: This is a terrible hack and there is probably a much cuter solution 
             IF (real_space) THEN
                r = k
-               win_normal_bound_gas = rho(r, rmin, rmax, rv, rs, p2, p1, irho_pressure)
+               win_normal_bound_gas = rho(r, rmin, rmax, rv, rs, p2, p1, irho_pres)
             ELSE
                ! The electron pressure window is T(r) x rho_e(r), we want unnormalised, so multiply through by normalisation
                ! TODO: Can I make the code more efficient here by having an un-normalised window function?
-               win_normal_bound_gas = win_norm(k, rmin, rmax, rv, rs, p2, p1, irho_pressure)
-               win_normal_bound_gas = win_normal_bound_gas*normalisation(rmin, rmax, rv, rs, p2, p1, irho_pressure)
+               win_normal_bound_gas = win_norm(k, rmin, rmax, rv, rs, p2, p1, irho_pres)
+               win_normal_bound_gas = win_normal_bound_gas*normalisation(rmin, rmax, rv, rs, p2, p1, irho_pres)
             END IF
 
             ! Calculate the value of the density profile prefactor and change units from cosmological to SI
-            rho0 = m*frac/normalisation(rmin, rmax, rv, rs, p1, p2, irho_density)
+            rho0 = m*frac/normalisation(rmin, rmax, rv, rs, p1, p2, irho_dens)
             rho0 = rho0*msun/mpc/mpc/mpc ! Overflow with 4-byte real numbers if you use mpc**3
             rho0 = rho0*cosm%h**2 ! Absorb factors of h, so now [kg/m^3]
 
@@ -7372,10 +7435,9 @@ CONTAINS
 
          IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
-            irho = 0
+            irho = irho_delta
          ELSE IF (hmod%halo_cold_bound_gas == 1) THEN
-            ! Delta function
-            irho = 0
+            irho = irho_delta
          ELSE
             STOP 'WIN_COLD_GAS: Error, halo_cold_bound_gas not specified correctly'
          END IF
@@ -7421,7 +7483,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: r, rmin, rmax, p1, p2, frac
-      INTEGER :: irho_density, irho_pressure
+      INTEGER :: irho_dens, irho_pres
       REAL :: rho0, a, T0
 
       frac = halo_hot_bound_gas_fraction(m, hmod, cosm)
@@ -7442,12 +7504,12 @@ CONTAINS
 
          IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
-            irho_density = 0
-            irho_pressure = 0
+            irho_dens = irho_delta
+            irho_pres = irho_delta
          ELSE IF (hmod%halo_hot_bound_gas == 1) THEN
             ! Isothermal
-            irho_density = 1
-            irho_pressure = 1
+            irho_dens = irho_iso
+            irho_pres = irho_iso
          ELSE
             STOP 'WIN_HOT_GAS: Error, halo_hot_bound_gas not specified correctly'
          END IF
@@ -7457,11 +7519,11 @@ CONTAINS
             ! Density profile of hot gas
             IF (real_space) THEN
                r = k
-               win_hot_bound_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_density)
-               win_hot_bound_gas = win_hot_bound_gas/normalisation(rmin, rmax, rv, rs, p1, p2, irho_density)
+               win_hot_bound_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_dens)
+               win_hot_bound_gas = win_hot_bound_gas/normalisation(rmin, rmax, rv, rs, p1, p2, irho_dens)
             ELSE
                ! Properly normalise and convert to overdensity
-               win_hot_bound_gas = m*win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_density)/comoving_matter_density(cosm)
+               win_hot_bound_gas = m*win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_dens)/comoving_matter_density(cosm)
             END IF
 
             win_hot_bound_gas = frac*win_hot_bound_gas
@@ -7471,16 +7533,16 @@ CONTAINS
             ! Electron-pressure profile of bound gas
             IF (real_space) THEN
                r = k
-               win_hot_bound_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_pressure)
+               win_hot_bound_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_pres)
             ELSE
                ! The electron pressure window is T(r) x rho_e(r), we want unnormalised, so multiply through by normalisation
                ! TODO: Can I make the code more efficient here by having an un-normalised window function?
-               win_hot_bound_gas = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_pressure)
-               win_hot_bound_gas = win_hot_bound_gas*normalisation(rmin, rmax, rv, rs, p1, p2, irho_pressure)
+               win_hot_bound_gas = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_pres)
+               win_hot_bound_gas = win_hot_bound_gas*normalisation(rmin, rmax, rv, rs, p1, p2, irho_pres)
             END IF
 
             ! Calculate the value of the density profile prefactor and change units from cosmological to SI
-            rho0 = m*frac/normalisation(rmin, rmax, rv, rs, p1, p2, irho_density)
+            rho0 = m*frac/normalisation(rmin, rmax, rv, rs, p1, p2, irho_dens)
             rho0 = rho0*msun/mpc/mpc/mpc ! Overflow with REAL*4 if you use mpc**3
             rho0 = rho0*cosm%h**2 ! Absorb factors of h, so now [kg/m^3]
 
@@ -7515,7 +7577,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: re, rmin, rmax, r, A, rho0, rhov, T0, p1, p2, beta, c, thing, m0, frac
-      INTEGER :: irho_density, irho_pressure
+      INTEGER :: irho_dens, irho_pres
 
       ! Enable to force the electron pressure to be matched at the virial radius
       ! This is enabled by default for some halo gas/pressure models
@@ -7539,88 +7601,65 @@ CONTAINS
          rmax = rv
 
          IF (frac < frac_min_delta) THEN
-
             ! Treat as delta functions if there is not much abundance
-            irho_density = 0
-            irho_pressure = 0
-
+            irho_dens = irho_delta
+            irho_pres = irho_delta
          ELSE IF (hmod%halo_ejected_gas == 1) THEN
-
             ! Simple isothermal model, motivated by constant velocity and rate expulsion
-            irho_density = 1
-            irho_pressure = irho_density ! Okay because T is constant
+            irho_dens = irho_iso
+            irho_pres = irho_dens ! Okay because T is constant
             rmin = 0.
             rmax = 2.*rv
-
          ELSE IF (hmod%halo_ejected_gas == 2) THEN
-
             ! Ejected gas model from Schneider & Teyssier (2015)
-            irho_density = 10
-            irho_pressure = irho_density ! Okay because T is constant
+            irho_dens = irho_ejected_ST15
+            irho_pres = irho_dens ! Okay because T is constant
             rmin = rv
             re = rv
             p1 = re
             rmax = 15.*re ! Needs to be such that integral converges (15rf seems okay)
-
          ELSE IF (hmod%halo_ejected_gas == 3) THEN
-
             ! Now do isothermal shell connected to the KS profile continuously
-            irho_density = 16
-            irho_pressure = irho_density ! Okay because T is constant
-
+            irho_dens = irho_iso_ext
+            irho_pres = irho_dens ! Okay because T is constant
             ! Isothermal model with continuous link to KS
             rhov = win_normal_bound_gas(.TRUE., 2, rv, m, rv, rs, hmod, cosm) ! value of the density at the halo boundary for bound gas
-            A = rhov/rho(rv, 0., rv, rv, rs, p1, p2, irho_density) ! This is A, as in A/r^2
-
+            A = rhov/rho(rv, 0., rv, rv, rs, p1, p2, irho_dens) ! This is A, as in A/r^2
             rmin = rv
             rmax = rv+frac/(4.*pi*A) ! This ensures density continuity and mass conservation
-
             c = 10. ! How many times larger than the virial radius can the gas cloud go?
             IF (rmax > c*rv) rmax = c*rv ! This needs to be set otherwise get huge decrement in gas power at large scales
             match_electron_pressure = .TRUE. ! Match the electron pressure at the boundary
-
          ELSE IF (hmod%halo_ejected_gas == 4) THEN
-
             ! Ejected gas is a continuation of the KS profile
-            irho_density = 11 ! KS
-            irho_pressure = 13 ! KS
+            irho_dens = irho_KS02s_dens
+            irho_pres = irho_KS02s_pres
             rmin = rv
             rmax = 2.*rv
             p1 = HMx_Gamma(m, hmod, cosm)
-
          ELSE IF (hmod%halo_ejected_gas == 5) THEN
-
             m0 = 1e14
-
             IF (m < m0) THEN
-
-               irho_density = 0
-               irho_pressure = irho_density
+               irho_dens = irho_delta
+               irho_pres = irho_dens
                rmin = 0.
                rmax = rv
-
             ELSE
-
                ! Set the density profile to be the power-law profile
-               irho_density = 17
-               irho_pressure = irho_density ! Not okay
-
+               irho_dens = irho_powlaw
+               irho_pres = irho_dens ! Not okay
                ! Calculate the KS index at the virial radius
                c = rv/rs
                beta = (c-(1.+c)*log(1.+c))/((1.+c)*log(1.+c))
                beta = beta/(HMx_Gamma(m, hmod, cosm)-1.) ! This is the power-law index at the virial radius for the KS gas profile
                p1 = beta
                IF (beta <= -3.) beta = -2.9 ! If beta<-3 then there is only a finite amount of gas allowed in the free component
-
                ! Calculate the density at the boundary of the KS profile
                rhov = win_normal_bound_gas(.TRUE., 2, rv, m, rv, rs, hmod, cosm)
-
                ! Calculate A as in rho(r)=A*r**beta
-               A = rhov/rho(rv, 0., rv, rv, rs, p1, p2, irho_density)
-
+               A = rhov/rho(rv, 0., rv, rv, rs, p1, p2, irho_dens)
                ! Set the minimum radius for the power-law to be the virial radius
                rmin = rv
-
                ! Set the maximum radius so that it joins to KS profile seamlessly
                thing = (beta+3.)*frac/(4.*pi*A)+(rhov*rv**3)/A
                IF (thing > 0.) THEN
@@ -7631,33 +7670,25 @@ CONTAINS
                   ! There may be no sohmodion if there is a lot of free gas and if beta<-3
                   rmax = 10.*rv
                END IF
-
             END IF
-
          ELSE IF (hmod%halo_ejected_gas == 6) THEN
-
             ! Cubic profile
             rmin = rv
             rmax = 3.*rv
-            irho_density = 18
-            irho_pressure = irho_density
-
+            irho_dens = irho_cubic
+            irho_pres = irho_dens
          ELSE IF (hmod%halo_ejected_gas == 7) THEN
-
             ! Smooth profile (rho=0)
             rmin = 0.
             rmax = rv
-            irho_density = 19
-            irho_pressure = irho_density
-
+            irho_dens = irho_smooth
+            irho_pres = irho_dens
          ELSE IF (hmod%halo_ejected_gas == 8) THEN
-
             ! Delta function
             rmin = 0.
             rmax = rv
-            irho_density = 0
-            irho_pressure = irho_density
-
+            irho_dens = irho_delta
+            irho_pres = irho_dens
          ELSE
             STOP 'WIN_FREE_GAS: Error, halo_ejected_gas specified incorrectly'
          END IF
@@ -7668,11 +7699,11 @@ CONTAINS
             ! Density profile of free gas
             IF (real_space) THEN
                r = k
-               win_ejected_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_density)
-               win_ejected_gas = win_ejected_gas/normalisation(rmin, rmax, rv, rs, p1, p2, irho_density)
+               win_ejected_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_dens)
+               win_ejected_gas = win_ejected_gas/normalisation(rmin, rmax, rv, rs, p1, p2, irho_dens)
             ELSE
                ! Properly normalise and convert to overdensity
-               win_ejected_gas = m*win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_density)/comoving_matter_density(cosm)
+               win_ejected_gas = m*win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_dens)/comoving_matter_density(cosm)
             END IF
 
             win_ejected_gas = frac*win_ejected_gas
@@ -7698,14 +7729,14 @@ CONTAINS
                ! Electron pressure profile of free gas
                IF (real_space) THEN
                   r = k
-                  win_ejected_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_pressure)
+                  win_ejected_gas = rho(r, rmin, rmax, rv, rs, p1, p2, irho_pres)
                ELSE
-                  win_ejected_gas = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_pressure)
-                  win_ejected_gas = win_ejected_gas*normalisation(rmin, rmax, rv, rs, p1, p2, irho_pressure)
+                  win_ejected_gas = win_norm(k, rmin, rmax, rv, rs, p1, p2, irho_pres)
+                  win_ejected_gas = win_ejected_gas*normalisation(rmin, rmax, rv, rs, p1, p2, irho_pres)
                END IF
 
                ! Calculate the value of the density profile prefactor [(Msun/h)/(Mpc/h)^3] and change units from cosmological to SI
-               rho0 = m*frac/normalisation(rmin, rmax, rv, rs, p1, p2, irho_density) ! rho0 in [(Msun/h)/(Mpc/h)^3]
+               rho0 = m*frac/normalisation(rmin, rmax, rv, rs, p1, p2, irho_dens) ! rho0 in [(Msun/h)/(Mpc/h)^3]
                rho0 = rho0*msun/Mpc/Mpc/Mpc ! Overflow with REAL(4) if you use Mpc**3, this converts to SI units [h^2 kg/m^3]
                rho0 = rho0*cosm%h**2 ! Absorb factors of h, so now [kg/m^3]
 
@@ -7778,30 +7809,26 @@ CONTAINS
          rmax = rv
 
          IF (frac < frac_min_delta) THEN
-            ! Treat as delta functions if there is not much abundance
-            irho = 0
+            irho = irho_delta
          ELSE IF (hmod%halo_central_stars == 1) THEN
-            ! Fedeli (2014)
-            irho = 7
+            irho = irho_star_F14
             rstar = rv/HMx_cstar(m, hmod, cosm)
             p1 = rstar
             rmax = rv ! Set so that not too much bigger than rstar, otherwise bumps integration goes mad
          ELSE IF (hmod%halo_central_stars == 2) THEN
-            ! Schneider & Teyssier (2015), following Mohammed (2014)
-            irho = 9
+            irho = irho_star_ST15
             rstar = rv/HMx_cstar(m, hmod, cosm)
             p1 = rstar
             rmax = min(10.*rstar, rv) ! Set so that not too much bigger than rstar, otherwise bumps integration goes crazy
          ELSE IF (hmod%halo_central_stars == 3) THEN
-            ! Delta function
-            irho = 0
+            irho = irho_delta
          ELSE IF (hmod%halo_central_stars == 4) THEN
             ! Transition mass between NFW and delta function
             ! TODO: mstar here is the same as in the stellar halo-mass fraction. It should probably be a new variable.
             IF (m < HMx_Mstar(hmod, cosm)) THEN
-               irho = 0 ! Delta function
+               irho = irho_delta
             ELSE
-               irho = 5 ! NFW
+               irho = irho_NFW
             END IF
          ELSE
             STOP 'WIN_CENTRAL_STARS: Error, halo_central_stars specified incorrectly'
@@ -7860,13 +7887,11 @@ CONTAINS
 
          IF (frac < frac_min_delta) THEN
             ! Treat as delta functions if there is not much abundance
-            irho = 0
+            irho = irho_delta
          ELSE IF (hmod%halo_satellite_stars == 1) THEN
-            ! NFW
-            irho = 5
+            irho = irho_NFW
          ELSE IF (hmod%halo_satellite_stars == 2) THEN
-            ! Fedeli (2014)
-            irho = 7
+            irho = irho_star_F14
             rstar = rv/HMx_cstar(m, hmod, cosm)
             p1 = rstar
             rmax = rv ! Set so that not too much bigger than rstar, otherwise bumps integration misbehaves
@@ -7925,9 +7950,9 @@ CONTAINS
 
          ! Smooth profile (rho=0)
          IF (hmod%halo_neutrino == 1) THEN
-            irho = 19 ! Smooth
+            irho = irho_smooth
          ELSE IF (hmod%halo_neutrino == 2) THEN
-            irho = 5 ! NFW 
+            irho = irho_NFW
          ELSE  
             STOP 'WIN_NEUTRINO: Error, neutrino profile not specified correctly'
          END IF
@@ -7992,8 +8017,7 @@ CONTAINS
       rmax = rv
 
       IF (hmod%halo_void == 1) THEN
-         ! Top-hat void
-         irho = 2
+         irho = irho_tophat
          rmin = 0.
          rmax = 10.*rv
       ELSE
@@ -8032,8 +8056,7 @@ CONTAINS
       rmax = rv
 
       IF (hmod%halo_compensated_void == 1) THEN
-         ! Top-hat
-         irho = 2
+         irho = irho_tophat
          rmin = 0.
          rmax = 10.*rv
       ELSE
@@ -8066,12 +8089,6 @@ CONTAINS
       REAL :: r, rmin, rmax, p1, p2, N, nhalo
       REAL :: nu1, nu2
 
-      !IF (m < mmin .OR. m > mmax) THEN
-      !   N = 0.
-      !ELSE
-      !   N = 1.
-      !END IF
-
       N = N_haloes(m, hmod)
 
       IF (N == 0.) THEN
@@ -8096,7 +8113,7 @@ CONTAINS
          p2 = 0.
 
          ! Delta function
-         irho = 0
+         irho = irho_delta
 
          IF (real_space) THEN
             r = k
@@ -8142,7 +8159,7 @@ CONTAINS
          p2 = 0.
 
          ! Delta function
-         irho = 0
+         irho = irho_delta
 
          IF (real_space) THEN
             r = k
@@ -8189,9 +8206,9 @@ CONTAINS
          rmax = rv
          
          IF (hmod%halo_satellites == 1) THEN
-            irho = 5 ! 5 - NFW profile
+            irho = irho_NFW
          ELSE IF (hmod%halo_satellites == 2) THEN
-            irho = 1 ! 1 - Isothermal profile
+            irho = irho_iso
          ELSE
             STOP 'WIN_SATELLITES: Error, halo profile not set correctly'
          END IF
@@ -8259,11 +8276,8 @@ CONTAINS
       crap = m
       crap = cosm%Om_m
 
-      ! Halo type
-      ! 0 - Delta function
-      ! 1 - Isothermal
-      ! 5 - NFW
-      irho = 1
+      ! Halo type (try delta function, isothermal, NFW)
+      irho = irho_delta
 
       IF (real_space) THEN
          r = k
@@ -8344,28 +8358,26 @@ CONTAINS
          p2 = 0.
 
          IF (hmod%halo_HI == 1) THEN
-            ! NFW profile
-            irho = 5
+            irho = irho_NFW
          ELSE IF (hmod%halo_HI == 2) THEN
-            ! Delta function
-            irho = 0
+            irho = irho_delta
          ELSE IF (hmod%halo_HI == 3) THEN
             ! Polynomial with exponential cut off Villaescusa-Navarro et al. (1804.09180)
-            irho = 25
+            irho = irho_poly_hole
             r0 = 10**(-2.5) ! 0.003 Mpc/h (really small)
             alpha = 3.00 ! Tending to homogeneity
             p1 = r0
             p2 = alpha
          ELSE IF (hmod%halo_HI == 4) THEN
-            ! Modified NFW with exponential cut off Villaescusa-Navarro et al. (1804.09180)
-            irho = 26
+            ! Modified NFW with exponential interior cut off Villaescusa-Navarro et al. (1804.09180)
+            irho = irho_NFW_hole
             r0 = 10**(-2.5) ! 0.003 Mpc/h (really small)
             r_HI = 10**(-3.0)
             p1 = r0
             p2 = r_HI
          ELSE IF (hmod%halo_HI == 5) THEN
             ! Modified NFW from Padmanabhan & Refreiger (1607.01021)
-            irho = 27
+            irho = irho_NFW_mod
             z = hmod%z
             c_HI = 130.
             c_HI = 4.*c_HI*((M/1e11)**(-0.109))/(1.+z)
@@ -8423,7 +8435,7 @@ CONTAINS
       REAL :: r500c, rmin, rmax, a, z, r, m500c, E
       REAL, PARAMETER :: alphap = 0.12 ! Exponent correction
       REAL, PARAMETER :: b = 0.        ! Hydrostatic mass bias
-      INTEGER, PARAMETER :: irho = 14  ! Set UPP profile
+      INTEGER, PARAMETER :: irho = irho_UPP
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: ifind = 3
       INTEGER, PARAMETER :: imeth = 2
@@ -8518,35 +8530,30 @@ CONTAINS
          ! The profile is considered to be zero outside this region
          rho = 0.
       ELSE
-         IF (irho == 0) THEN
-            ! Delta function
+         IF (irho == irho_delta) THEN
             ! Do not assign any value to rho as this gets handled properly elsewhere
             rho = 0.
-         ELSE IF (irho == 1 .OR. irho == 16) THEN
-            ! Isothermal
+         ELSE IF (irho == irho_iso .OR. irho == irho_iso_ext) THEN
             rho = 1./r**2
-         ELSE IF (irho == 2) THEN
-            ! Top hat
+         ELSE IF (irho == irho_tophat) THEN
             rho = 1.
-         ELSE IF (irho == 3) THEN
-            ! Moore (1999)
+         ELSE IF (irho == irho_M99) THEN
             y = r/rs
             rho = 1./((y**1.5)*(1.+y**1.5))
-         ELSE IF (irho == 4 .OR. irho == 5) THEN
-            ! NFW (1997)
+         ELSE IF (irho == irho_NFW) THEN
             y = r/rs
             rho = 1./(y*(1.+y)**2)
-         ELSE IF (irho == 6) THEN
+         ELSE IF (irho == irho_beta) THEN
             ! Isothermal beta model (X-ray gas; SZ profiles; beta=2/3 fixed)
             ! Also known as 'cored isothermal profile'
             ! In general this is (1+(r/rs)**2)**(-3*beta/2); beta=2/3 cancels the last power
             rho = 1./(1.+(r/rs)**2)
-         ELSE IF (irho == 7) THEN
-            ! Stellar profile from Fedeli (2014a)
+            !rho = (1.+(r/rs)**2)**(-3.*beta/2.) ! General model
+         ELSE IF (irho == irho_star_F14) THEN
             rstar = p1
             y = r/rstar
             rho = (1./y)*exp(-y)
-         ELSE IF (irho == 8) THEN
+         ELSE IF (irho == irho_KS02_ST15) THEN
             ! Komatsu & Seljak (2001) profile with NFW transition radius
             ! VERY slow to calculate the W(k) for some reason
             ! Also creates a weird upturn in P(k) that I do not think can be correct
@@ -8565,24 +8572,24 @@ CONTAINS
                A = ((rt/rs)*(1.+rt/rs)**2)*(log(1.+rt/rs)/(rt/rs))**Gamma
                rho = A/(y*(1.+y)**2)
             END IF
-         ELSE IF (irho == 9) THEN
+         ELSE IF (irho == irho_star_ST15) THEN
             ! Stellar profile from Schneider & Teyssier (2015) via Mohammed (2014)
             rstar = p1
             rho = exp(-(r/(2.*rstar))**2)/r**2
             ! Converting to y caused the integration to crash for some reason !?!
             !y=r/rs
             !rho=exp(-(y/2.)**2.)/y**2.
-         ELSE IF (irho == 10) THEN
+         ELSE IF (irho == irho_ejected_ST15) THEN
             ! Ejected gas profile from Schneider & Teyssier (2015)
             re = p1
             rho = exp(-0.5*(r/re)**2)
-         ELSE IF (irho == 11 .OR. irho == 12 .OR. irho == 13 .OR. irho == 21 .OR. irho == 22 .OR. irho == 23) THEN
+         ELSE IF (is_in_array(irho, [irho_KS02s_dens, irho_KS02s_pres, irho_KS02s_temp, irho_KS02_dens, irho_KS02_temp, irho_KS02_pres])) THEN
             ! Komatsu & Seljak (2001) profiles for density, temperature and pressure
-            IF (irho == 11 .OR. irho == 12 .OR. irho == 13) THEN
+            IF (is_in_array(irho, [irho_KS02s_dens, irho_KS02s_pres, irho_KS02s_temp])) THEN
                Gamma = p1
                y = r/rs
                rho = log(1.+y)/y
-            ELSE IF (irho == 21 .OR. irho == 22 .OR. irho == 23) THEN
+            ELSE IF (is_in_array(irho, [irho_KS02_dens, irho_KS02_pres, irho_KS02_temp])) THEN
                c = rv/rs
                Gamma = p1+0.01*(c-6.5)
                eta0 = 0.00676*(c-6.5)**2+0.206*(c-6.5)+2.48
@@ -8595,68 +8602,60 @@ CONTAINS
             ELSE
                STOP 'RHO: Error, irho specified incorrectly'
             END IF
-            IF (irho == 11 .OR. irho == 21) THEN
-               ! KS density profile
+            IF (irho == irho_KS02s_dens .OR. irho == irho_KS02_dens) THEN
                rho = rho**(1./(Gamma-1.))
-            ELSE IF (irho == 12 .OR. irho == 22) THEN
-               ! KS temperature profile (no Gamma dependence)
+            ELSE IF (irho == irho_KS02s_temp .OR. irho == irho_KS02_temp) THEN
+               ! KS temperature profile has no Gamma dependence
                rho = rho
-            ELSE IF (irho == 13 .OR. irho == 23) THEN
-               ! KS pressure profile
+            ELSE IF (irho == irho_KS02s_pres .OR. irho == irho_KS02_pres) THEN
                rho = rho**(Gamma/(Gamma-1.))
             END IF
-         ELSE IF (irho == 14) THEN
+         ELSE IF (irho == irho_UPP) THEN
             ! UPP is in terms of r500c, not rv
             r500c = p1
             ! UPP funny-P(x), equation 4.2 in Ma et al. (2015)
             f1 = (c500*r/r500c)**gamma_UPP
             f2 = (1.+(c500*r/r500c)**alpha_UPP)**((beta_UPP-gamma_UPP)/alpha_UPP)
             rho = P0/(f1*f2)
-         ELSE IF (irho == 15) THEN
+         ELSE IF (irho == irho_beta_Ma15) THEN
             ! Isothermal beta model with general beta
             !beta=0.86 in Ma et al. (2015)
             beta = p1
-            !WRITE(*,*) 'Beta:', beta
             rho = (1.+(r/rs)**2)**(-3.*beta/2.)
-         ELSE IF (irho == 16) THEN
-            ! Isothermal exterior
-            rho = 1./r**2
-         ELSE IF (irho == 17) THEN
-            ! Power-law profile
+         ELSE IF (irho == irho_powlaw) THEN
             beta = p1
             rho = r**beta
-         ELSE IF (irho == 18) THEN
-            ! Cubic profile
+         ELSE IF (irho == irho_cubic) THEN
             rho = r**(-3)
-         ELSE IF (irho == 19) THEN
-            ! Smooth profile
+         ELSE IF (irho == irho_smooth) THEN
+            ! Smooth profile must be set to zero
             rho = 0.
-         ELSE IF (irho == 20) THEN
+         ELSE IF (irho == irho_exp) THEN
             ! Exponential profile (HI from Padmanabhan et al. 2017)
             re = p1
             rho = exp(-r/re)
-         ELSE IF (irho == 24) THEN
+         ELSE IF (irho == irho_NFW_cored) THEN
             ! Cored NFW (Copeland, Taylor & Hall 2018)
             rb = p1
             f1 = (r+rb)/rs
             f2 = (1.+r/rs)**2
             rho = 1./(f1*f2)
-         ELSE IF (irho == 25) THEN
-            ! polynomial with central exponential hole
+         ELSE IF (irho == irho_poly_hole) THEN
+            ! Polynomial profile with central exponential hole
             r0 = p1
             alpha = p2
             rho = (r**(-alpha))*exp(-r0/r)
-         ELSE IF (irho == 26) THEN
-            ! modified NFW with central exponential hole
+         ELSE IF (irho == irho_NFW_hole) THEN
+            ! Modified NFW with central exponential hole
             r0 = p1
             rh = p2
             rho = (1./((0.75+r/rh)*(1.+r/rh)**2))*exp(-r0/r)
-         ELSE IF (irho == 27) THEN
-            ! modified NFW from Padmanabhan & Refregier (2017; 1607.01021)
+         ELSE IF (irho == irho_NFW_mod) THEN
+            ! Modified NFW from Padmanabhan & Refregier (2017; 1607.01021)
             rh = p1
             rho = (1./((0.75+r/rh)*(1.+r/rh)**2))
-         ELSE IF (irho == 28) THEN
-            ! Shell
+         ELSE IF (irho == irho_shell) THEN
+            ! Shell must be set to zero everywhere (infinite at shell radius)
             rho = 0.
          ELSE
             STOP 'RHO: Error, irho not specified correctly'
@@ -8670,17 +8669,15 @@ CONTAINS
 
       ! This is the value of rho(r)*r^2 at r=0
       ! For most profiles this is zero, BUT not if rho(r->0) -> r^-2
-      ! Note if rho(r->0) -> r^n with n<-2 then the profile mass would diverge!
+      ! Note if rho(r->0) -> r^n with n<-2 then the profile mass would diverge and this breaks things
       INTEGER, INTENT(IN) :: irho
 
-      IF (irho == 0) THEN
+      IF (irho == irho_delta) THEN
          STOP 'RHOR2AT0: You should not be here for a delta-function profile'
-      ELSE IF (irho == 1 .OR. irho == 9) THEN
-         !1 - Isothermal
-         !9 - Stellar profile from Schneider & Teyssier (2015)
+      ELSE IF (irho == irho_iso .OR. irho == irho_star_ST15) THEN
          rhor2at0 = 1.
-      ELSE IF (irho == 18) THEN
-         STOP 'RHOR2AT0: Error, profile diverges at the origin'
+      ELSE IF (irho == irho_cubic) THEN
+         STOP 'RHOR2AT0: Error, cubic profile diverges at the origin'
       ELSE
          rhor2at0 = 0.
       END IF
@@ -8692,92 +8689,49 @@ CONTAINS
       ! This calculates the normalisation of a halo
       ! This is the integral of 4pir^2*rho(r)*dr between rmin and rmax
       ! This is the total profile 'mass' if rmin=0 and rmax=rv
-
-      ! Profile results
-      !  0 - Delta function (M = 1)
-      !  1 - Isothermal (M = 4pi*rv)
-      !  2 - Top hat (M = (4pi/3)*rv^3)
-      !  3 - Moore (M = (8pi/3)*rv^3*ln(1+c^1.5)/c^3)
-      !  4 - NFW (M = 4pi*rs^3*[ln(1+c)-c/(1+c)])
-      !  5 - NFW (M = 4pi*rs^3*[ln(1+c)-c/(1+c)])
-      !  6 - Beta model with beta=2/3 (M = 4pi*rs^3*(rv/rs-atan(rv/rs)))
-      !  7 - Fedeli stellar model (M = 4pi*rstar^2 * [1-exp(-rmax/rstar)*(1.+rmax/rstar)]
-      !  8 - No
-      !  9 - Stellar profile (Schneider & Teyssier 2015; M = 4(pi^1.5)*rstar; assumed rmax ~ infinity)
-      ! 10 - Ejected gas profile (Schneider & Teyssier 2015; M = 4pi*sqrt(pi/2)*re^3; assumed rmax ~ infinity)
-      ! 11 - No
-      ! 12 - No
-      ! 13 - No
-      ! 14 - No
-      ! 15 - No
-      ! 16 - Isothermal shell (M = 4pi*(rmax-rmin))
-      ! 17 - No
-      ! 18 - Cubic profile (M = 4pi*log(rmax/rmin))
-      ! 19 - Smooth profile (M = 1; prevents problems)
-      ! 20 - No
-      ! 21 - No
-      ! 22 - No
-      ! 23 - No
-      ! 24 - No
-      ! 25 - No
-      ! 26 - No
-      ! 27 - No
-      ! 28 - Shell (M = 4pi*rv^3)
-
       REAL, INTENT(IN) :: rmin, rmax, rv, rs, p1, p2
       INTEGER, INTENT(IN) :: irho
       REAL :: cmax, re, rstar, beta, rb, c, b
 
-      IF (irho == 0) THEN
-         ! Delta function
+      IF (irho == irho_delta) THEN
          normalisation = 1.
-      ELSE IF (irho == 1 .OR. irho == 16) THEN
-         ! Isothermal
+      ELSE IF (irho == irho_iso .OR. irho == irho_iso_ext) THEN
          normalisation = 4.*pi*(rmax-rmin)
-      ELSE IF (irho == 2) THEN
-         ! Top hat
+      ELSE IF (irho == irho_tophat) THEN
          normalisation = 4.*pi*(rmax**3-rmin**3)/3.
-      ELSE IF (irho == 3 .AND. (rmin /= 0)) THEN
-         ! Moore et al. (1999)
+      ELSE IF (irho == irho_M99 .AND. (rmin /= 0)) THEN
          cmax = rmax/rs
          normalisation = (2./3.)*4.*pi*(rs**3)*log(1.+cmax**1.5)
-      ELSE IF (irho == 4 .OR. irho == 5 .AND. (rmin /= 0)) THEN
-         ! NFW (1997)
+      ELSE IF (irho == irho_NFW .AND. (rmin /= 0)) THEN
          cmax = rmax/rs
          normalisation = norm_NFW(rs, cmax)
-      ELSE IF (irho == 6 .AND. (rmin /= 0)) THEN
-         ! Isothermal beta model with beta=2/3
+      ELSE IF (irho == irho_beta .AND. (rmin /= 0)) THEN
          cmax = rmax/rs
          normalisation = 4.*pi*(rs**3)*(cmax-atan(cmax))
-      ELSE IF (irho == 7 .AND. (rmin /= 0)) THEN
+      ELSE IF (irho == irho_star_F14 .AND. (rmin /= 0)) THEN
          ! Fedeli (2014) stellar mode
          ! This would be even easier if rmax -> infinity (just 4*pi*rstar^2)
          rstar = p1
          normalisation = 4.*pi*(rstar**3)*(1.-exp(-rmax/rstar)*(1.+rmax/rstar))
          !normalisation=4.*pi*rstar**3 ! rmax/rstar -> infinity limit (rmax >> rstar)
-      ELSE IF (irho == 9 .AND. (rmin /= 0)) THEN
-         ! Stellar profile from Schneider & Teyssier (2015)
+      ELSE IF (irho == irho_star_ST15 .AND. (rmin /= 0)) THEN
          ! CARE: Assumed to go on to r -> infinity
          rstar = p1
          normalisation = 4.*(pi**(3./2.))*rstar
-      ELSE IF (irho == 10 .AND. (rmin /= 0)) THEN
-         ! Ejected gas profile from Schneider & Teyssier (2015)
+      ELSE IF (irho == irho_ejected_ST15 .AND. (rmin /= 0)) THEN
          ! CARE: Assumed to go on to r -> infinity
          re = p1
          normalisation = 4.*pi*sqrt(pi/2.)*re**3
-      ELSE IF (irho == 17) THEN
-         ! Power-law profile
+      ELSE IF (irho == irho_powlaw) THEN
          beta = p1
          normalisation = (4.*pi/(beta+3.))*(rmax**(beta+3.)-rmin**(beta+3.))
-      ELSE IF (irho == 18) THEN
-         ! Cubic profile
+      ELSE IF (irho == irho_cubic) THEN
          normalisation = 4.*pi*log(rmax/rmin)
-      ELSE IF (irho == 19) THEN
+      ELSE IF (irho == irho_smooth) THEN
          ! Smooth profile, needs a normalisation because divided by
          ! CARE: This cannot be set to zero
          normalisation = 1.
-      ELSE IF (irho == 24 .AND. (rv == rmax)) THEN
-         ! Cored NFW profile
+      ELSE IF (irho == irho_NFW_cored .AND. (rv == rmax)) THEN
          rb = p1
          IF (rb == 0.) THEN
             ! This is then the standard NFW case
@@ -8790,12 +8744,10 @@ CONTAINS
             normalisation = (4.*pi*rs**3)/(b-c)**2
             normalisation = normalisation*(b*(b-2.*c)*NFW_factor(c)+(log(1.+b)-b/(1.+c))*c**2)
          END IF
-      ELSE IF (irho == 28) THEN
-         ! Shell
+      ELSE IF (irho == irho_shell) THEN
          normalisation = 4.*pi*rv**3
       ELSE
-         ! Otherwise need to do the integral numerically
-         ! k=0 gives normalisation
+         ! Otherwise need to do the integral numerically with k=0 giving normalisation (slow)
          normalisation = winint(zero, rmin, rmax, rv, rs, p1, p2, irho, imeth_win)
       END IF
 
@@ -8812,43 +8764,8 @@ CONTAINS
 
    REAL FUNCTION win_norm(k, rmin, rmax, rv, rs, p1, p2, irho)
 
-      ! Normalised halo window functions
-
-      ! Types of profile
-      ! ================
-      !  0 - Delta function at r=0
-      !  1 - Isothermal: r^-2
-      !  2 - Top hat: constant
-      !  3 - No
-      !  4 - No
-      !  5 - NFW
-      !  6 - No
-      !  7 - Star profile
-      !  8 - No
-      !  9 - Stellar profile from Schneider & Teyssier (2015)
-      ! 10 - Ejected gas profile (Schneider & Teyssier 2015)
-      ! 11 - No
-      ! 12 - No
-      ! 13 - No
-      ! 14 - No
-      ! 15 - No
-      ! 16 - Isothermal shell
-      ! 17 - No
-      ! 18 - No
-      ! 19 - Smooth profile
-      ! 20 - Exponential profile
-      ! 21 - No
-      ! 22 - No
-      ! 23 - No
-      ! 24 - Cored NFW profile (Copeland, Taylor & Hall 2018)
-      ! 25 - No
-      ! 26 - No
-      ! 27 - No
-      ! 28 - Shell
-
       ! Calculates the normalised spherical Fourier Transform of the density profile
-      ! Note that this means win_norm(k->0)=1
-      ! and that win must be between 0 and 1
+      ! NOTE: This means win_norm(k->0)=1 and that win must be between 0 and 1
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: rmin
       REAL, INTENT(IN) :: rmax
@@ -8866,45 +8783,36 @@ CONTAINS
 
       ELSE
 
-         IF (irho == 0) THEN
-            ! Delta function profile is not localised in Fourier Space
+         IF (irho == irho_delta) THEN
             win_norm = 1.
-         ELSE IF (irho == 1) THEN
+         ELSE IF (irho == irho_iso) THEN
             win_norm = wk_isothermal(k*rmax)
-         ELSE IF (irho == 2) THEN
-            ! Analytic for top hat
+         ELSE IF (irho == irho_tophat) THEN
             win_norm = wk_tophat(k*rmax)
-         ELSE IF (irho == 5) THEN
-            ! Analytic for NFW
+         ELSE IF (irho == irho_NFW .AND. analytic_NFW) THEN
             win_norm = win_NFW(k, rmax, rs)
-         ELSE IF (irho == 7) THEN
-            ! Analytic for Fedeli (2014) stellar profile
+         ELSE IF (irho == irho_star_F14) THEN
             rstar = p1
             kstar = k*rstar
             f1 = kstar-exp(-rmax/rstar)*(sin(k*rmax)+kstar*cos(k*rmax))
             f2 = kstar*(1.+kstar**2)
             win_norm = f1/f2
             !win_norm=1./(1.+kstar**2) !bigRstar -> infinity limit (rmax >> rstar)
-         ELSE IF (irho == 9) THEN
+         ELSE IF (irho == irho_star_ST15) THEN
             ! Normalisation is only valid if rmin=0 and rmax=inf
             rstar = p1
             win_norm = (sqrt(pi)/2.)*erf(k*rstar)/(k*rstar)
-         ELSE IF (irho == 10) THEN
-            ! Ejected gas profile
+         ELSE IF (irho == irho_ejected_ST15) THEN
             re = p1
             win_norm = exp(-1.5*(k*re)**2.)
-         ELSE IF (irho == 16) THEN
-            ! Isothermal shells
+         ELSE IF (irho == irho_iso_ext) THEN
             win_norm = wk_isothermal_2(k*rmax, k*rmin)
-         ELSE IF (irho == 19) THEN
-            ! Smooth profile
+         ELSE IF (irho == irho_smooth) THEN
             win_norm = 0.
-         ELSE IF (irho == 20) THEN
-            ! Exponential profile
+         ELSE IF (irho == irho_exp) THEN
             re = p1
             win_norm = 1./(1.+(k*re)**2)**2
-         ELSE IF (irho == 24) THEN
-            ! Cored NFW profile
+         ELSE IF (irho == irho_NFW_cored) THEN
             rb = p1
             IF (rb == 0.) THEN
                ! In this case there is no core
@@ -8913,11 +8821,10 @@ CONTAINS
                ! Otherwise there is a core
                win_norm = win_cored_NFW(k, rmax, rs, rb)
             END IF
-         ELSE IF (irho == 28) THEN
-            ! Shell
+         ELSE IF (irho == irho_shell) THEN
             win_norm = sinc(k*rv)
          ELSE
-            ! Numerical integral over the density profile (slower)
+            ! Otherwise perform numerical integral over the density profile (slow)
             win_norm = winint(k, rmin, rmax, rv, rs, p1, p2, irho, imeth_win)/normalisation(rmin, rmax, rv, rs, p1, p2, irho)
          END IF
 
@@ -9485,7 +9392,6 @@ CONTAINS
       REAL :: c, ks
       REAL :: p1, p2, p3
       REAL :: rmin, rmax
-      INTEGER, PARAMETER :: irho = 4
 
       c = rv/rs
       ks = k*rv/c
@@ -9510,7 +9416,7 @@ CONTAINS
       REAL, INTENT(IN) :: rb
       REAL :: b, c
       REAL :: rmin, rmax
-      INTEGER, PARAMETER :: irho = 24
+      INTEGER, PARAMETER :: irho = irho_NFW_cored
 
       b = rv/rb
       c = rv/rs

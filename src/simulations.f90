@@ -53,19 +53,8 @@ MODULE simulations
    PUBLIC :: write_adaptive_field
 
    PUBLIC :: random_spherical_halo_particle
-   PUBLIC :: DMONLY_HMx_halo
-   PUBLIC :: irho_tophat
-   PUBLIC :: irho_isothermal
-   PUBLIC :: irho_shell
-   PUBLIC :: irho_delta
 
    PUBLIC :: make_HOD
-
-   ! These should map to the integers in HMx
-   INTEGER, PARAMETER :: irho_tophat = 1
-   INTEGER, PARAMETER :: irho_isothermal = 2
-   INTEGER, PARAMETER :: irho_shell = 3
-   INTEGER, PARAMETER :: irho_delta = 4
 
    INTERFACE particle_bin
       MODULE PROCEDURE particle_bin_2D
@@ -88,24 +77,24 @@ MODULE simulations
 
 CONTAINS
 
-   INTEGER FUNCTION DMONLY_HMx_halo(irho)
+   ! INTEGER FUNCTION DMONLY_HMx_halo(irho)
 
-         ! Translates between the haloes defined here and those in HMx
-         INTEGER, INTENT(IN) :: irho
+   !       ! Translates between the haloes defined here and those in HMx
+   !       INTEGER, INTENT(IN) :: irho
 
-         IF (irho == irho_tophat) THEN
-            DMONLY_HMx_halo = 3
-         ELSE IF (irho == irho_delta) THEN
-            DMONLY_HMx_halo = 4
-         ELSE IF (irho == irho_isothermal) THEN
-            DMONLY_HMx_halo = 6
-         ELSE IF (irho == irho_shell) THEN
-            DMONLY_HMx_halo = 7
-         ELSE
-            STOP 'DMONLT_HALO: Error, translation not possible'
-         END IF
+   !       IF (irho == irho_tophat) THEN
+   !          DMONLY_HMx_halo = 3
+   !       ELSE IF (irho == irho_delta) THEN
+   !          DMONLY_HMx_halo = 4
+   !       ELSE IF (irho == irho_isothermal) THEN
+   !          DMONLY_HMx_halo = 6
+   !       ELSE IF (irho == irho_shell) THEN
+   !          DMONLY_HMx_halo = 7
+   !       ELSE
+   !          STOP 'DMONLT_HALO: Error, translation not possible'
+   !       END IF
 
-   END FUNCTION DMONLY_HMx_halo
+   ! END FUNCTION DMONLY_HMx_halo
 
    SUBROUTINE correlation_function(rmin, rmax, r, xi, n, nr, x1, x2, w1, w2, n1, n2, L)
 
@@ -2234,26 +2223,30 @@ CONTAINS
 
    END SUBROUTINE write_adaptive_field
 
-   FUNCTION random_spherical_halo_particle(rv, irho)
+   FUNCTION random_spherical_halo_particle(rv, rs, irho)
 
       ! Make x,y,z coordiantes for a random point in an artificial spherical halo
       USE random_numbers
+      USE HMx
       REAL :: random_spherical_halo_particle(3)
       REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: rs
       INTEGER, INTENT(IN) :: irho
       REAL :: r, theta, phi
 
       ! Get radial coordinate
       IF (irho == irho_tophat) THEN
          r = random_r_constant(rv)
-      ELSE IF (irho == irho_isothermal) THEN
+      ELSE IF (irho == irho_iso) THEN
          r = random_r_isothermal(rv)
       ELSE IF (irho == irho_shell) THEN
          r = rv
       ELSE IF (irho == irho_delta) THEN
          r = 0.
+      ELSE IF (irho == irho_NFW) THEN
+         r = random_r_NFW(rv, rs)
       ELSE
-         STOP 'RANDOM_SPHERE: Error, irho specified incorrectly'
+         STOP 'RANDOM_SPHERE: Error, irho specified incorrectly or not supported'
       END IF
 
       ! Get the isotropic angles
@@ -2274,7 +2267,7 @@ CONTAINS
       REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
 
       ! TODO: Use random polynomial here with n=2: random_uniform(0.,1.)**(1./3.) -> random_polynomial(n)
-      random_r_constant = rv*random_uniform(0.,1.)**(1./3.)
+      random_r_constant = rv*random_uniform(0., 1.)**(1./3.)
 
    END FUNCTION random_r_constant
 
@@ -2288,12 +2281,24 @@ CONTAINS
 
    END FUNCTION random_r_isothermal
 
-   SUBROUTINE make_HOD(xh, nph, rv, irho, L, x, np)
+   REAL FUNCTION random_r_NFW(rv, rs)
+
+      USE random_numbers
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: rs
+
+      random_r_NFW = 0.
+      STOP 'RANDOM_R_NFW: Error, this is not currently supported'
+
+   END FUNCTION random_r_NFW
+
+   SUBROUTINE make_HOD(xh, nph, rv, rs, irho, L, x, np)
 
       ! Make an HOD realisation
       REAL, ALLOCATABLE, INTENT(IN) :: xh(:, :) ! Halo position array [Mpc/h]
       INTEGER, INTENT(IN) :: nph(:)             ! Number of particles in each halo
       REAL, INTENT(IN) :: rv(:)                 ! Halo virial radii [Mpc/h]
+      REAL, INTENT(IN) :: rs(:)                 ! Halo scale radii [Mpc/h]
       INTEGER, INTENT(IN) :: irho               ! Halo profile specifier
       REAL, INTENT(IN) :: L                     ! Simulation box size [Mpc/h]
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :) ! HOD particle position array [Mpc/h]
@@ -2315,7 +2320,7 @@ CONTAINS
       DO i = 1, nh
          DO j = 1, nph(i)
             k = k + 1
-            x(:, k) = xh(:, i)+random_spherical_halo_particle(rv(i), irho)
+            x(:, k) = xh(:, i)+random_spherical_halo_particle(rv(i), rs(i), irho)
          END DO
       END DO
 

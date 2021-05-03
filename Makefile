@@ -63,13 +63,14 @@ _OBJ = \
 	calculus.o \
 	file_info.o \
 	io.o \
-	camb_stuff.o \
 	table_integer.o \
 	interpolate.o \
 	calculus_table.o \
 	string_operations.o \
 	fitting.o \
 	gadget_stuff.o \
+	camb_stuff.o \
+	multidark_stuff.o \
 	ode_solvers.o \
 	vectors.o \
 	orbits.o \
@@ -78,13 +79,12 @@ _OBJ = \
 	statistics.o \
 	minimization.o \
 	cosmology_functions.o \
+	hmx.o \
+	limber.o \
 	fft.o \
 	field_operations.o \
 	simulations.o \
 	cosmic_emu_stuff.o \
-	multidark_stuff.o \
-	hmx.o \
-	limber.o \
 	owls_stuff.o \
 	owls_extras
 
