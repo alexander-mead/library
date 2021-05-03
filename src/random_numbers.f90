@@ -338,8 +338,7 @@ CONTAINS
       ! Generate a polynomailly distributed number [x:0->1]
       REAL, INTENT(IN) :: n ! Order for the polynomial [-1:inf]
 
-      IF (n <= -1) STOP 'RANDOM_POLYNOMIAL: Error, n is less than or equal to -1'
-      
+      !IF (n <= -1) STOP 'RANDOM_POLYNOMIAL: Error, n is less than or equal to -1'
       random_polynomial = random_unit()**(1./(n+1))
 
    END FUNCTION random_polynomial
@@ -347,7 +346,6 @@ CONTAINS
    REAL FUNCTION random_spherical_theta()
 
       ! A random spherical-polar angle such that the solid-angle is uniformally populated
-
       random_spherical_theta = acos(random_uniform(-1., 1.))
 
    END FUNCTION random_spherical_theta
