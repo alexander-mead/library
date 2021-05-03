@@ -64,6 +64,7 @@ MODULE HMx
    PUBLIC :: BNL
    PUBLIC :: simple_twohalo
    PUBLIC :: simple_onehalo
+   PUBLIC :: NFW_factor
 
    ! Mean things
    PUBLIC :: mean_bias_number_weighted

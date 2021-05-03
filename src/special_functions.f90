@@ -1,5 +1,6 @@
 MODULE special_functions
 
+   USE precision
    USE constants
    USE basic_operations
 
@@ -391,7 +392,6 @@ CONTAINS
       ! f(0)=1 is not provided
       ! f(1)=1, f(2)=2, f(3)=6, f(4)=24, ..., f(n)=n*f(n-1)
       ! TODO: Should this really be INT8 here?    
-      USE precision 
       INTEGER(int8), INTENT(OUT) :: f(:)
       INTEGER, INTENT(IN) :: n
       INTEGER :: i
@@ -415,7 +415,6 @@ CONTAINS
    INTEGER(int8) FUNCTION factorial(n)
 
       ! Calculates the nth factorial number
-      USE precision
       INTEGER, INTENT(IN) :: n
       INTEGER(int8) :: f8(n)
 
@@ -774,7 +773,6 @@ CONTAINS
    REAL FUNCTION Si(x)
 
       ! Returns the 'sine integral' function: Si(x)=int_0^x sin(t)/t dt
-      USE precision
       REAL, INTENT(IN) :: x
       REAL :: x2, y, f, g, si8
       REAL, PARAMETER :: x0 = 4. ! Transition between two different approximations
@@ -828,7 +826,6 @@ CONTAINS
    REAL FUNCTION Ci(x)
 
       ! Returns the 'cosine integral' function Ci(x): -int_x^inf cos(t)/t dt
-      USE precision
       REAL, INTENT(IN) :: x
       REAL :: x2, y, f, g, ci8
       REAL, PARAMETER :: x0 = 4. ! Transition between two different approximations

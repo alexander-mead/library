@@ -1,6 +1,7 @@
 MODULE owls_stuff
 
    USE constants
+   USE basic_operations
 
    IMPLICIT NONE
 
@@ -121,7 +122,6 @@ CONTAINS
    SUBROUTINE read_mccarthy_gas(x, m, kT, rho, n, infile)
 
       ! Read in a McCarthy format gas file
-      USE constants
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :) ! Particle positions [Mpc/h]
       REAL, ALLOCATABLE, INTENT(OUT) :: m(:)   ! Particle mass [Msun/h]
       REAL, ALLOCATABLE, INTENT(OUT) :: kT(:)  ! Particle internal energy [eV]
@@ -204,7 +204,6 @@ CONTAINS
       ! This routine converts the input particle internal energy kT [eV] to comoving electron pressure, Pe [eV/cm^3]
       ! Note very well that Pe will be the contribution to the total pressure in the volume per particle
       ! CARE: I removed factors of 'm', pressure is now contribution to entire volume, rather than the contribution per mesh cell
-      USE constants
       INTEGER, INTENT(IN) :: n     ! total number of particles
       REAL, INTENT(INOUT) :: kT(n) ! particle internal energy [eV], output as electron pressure [eV/cm^3]
       REAL, INTENT(IN) :: rho(n)   ! physical gas particle SPH density [mp/cm^3]
@@ -306,7 +305,6 @@ CONTAINS
    CHARACTER(len=32) FUNCTION BAHAMAS_snapshot(z)
 
       ! Set the redshift corresponding to the snapsho
-      USE basic_operations
       REAL, INTENT(IN) :: z
       REAL, PARAMETER :: eps = 1e-3
    

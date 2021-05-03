@@ -1,11 +1,13 @@
 MODULE cosmic_emu_stuff
 
+   ! TODO: Could remove depdence on coosmology_functions and have internal cosmology type for emulator
+
    USE file_info
+   USE basic_operations
    USE array_operations
    USE string_operations
    USE cosmology_functions
    USE interpolate
-   USE basic_operations
    USE table_integer
 
    IMPLICIT NONE

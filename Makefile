@@ -57,35 +57,35 @@ _OBJ = \
 	physics.o \
 	basic_operations.o \
 	array_operations.o \
+	string_operations.o \
 	special_functions.o \
-	random_numbers.o \
-	hod_functions.o \
-	calculus.o \
 	file_info.o \
 	io.o \
+	random_numbers.o \
 	table_integer.o \
+	sorting.o \
+	vectors.o \
+	calculus.o \
 	interpolate.o \
 	calculus_table.o \
-	string_operations.o \
 	fitting.o \
+	ode_solvers.o \
+	orbits.o \
+	solve_equations.o \
+	statistics.o \
+	minimization.o \
 	gadget_stuff.o \
 	camb_stuff.o \
 	multidark_stuff.o \
-	ode_solvers.o \
-	vectors.o \
-	orbits.o \
-	solve_equations.o \
-	sorting.o \
-	statistics.o \
-	minimization.o \
+	hod_functions.o \
 	cosmology_functions.o \
+	owls_stuff.o \
+	cosmic_emu_stuff.o \
 	hmx.o \
 	limber.o \
 	fft.o \
 	field_operations.o \
 	simulations.o \
-	cosmic_emu_stuff.o \
-	owls_stuff.o \
 	owls_extras
 
 # Default compile option

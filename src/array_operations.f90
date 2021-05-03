@@ -1,5 +1,7 @@
 MODULE array_operations
 
+   USE basic_operations
+
    IMPLICIT NONE
 
    PRIVATE
@@ -545,7 +547,6 @@ CONTAINS
 
       ! Returns the location in a(n) of value x
       ! If x is not in array then returns zero
-      USE basic_operations
       REAL, INTENT(IN) :: x    ! Value to check if it is in array
       REAL, INTENT(IN) :: a(:) ! Array to check
       REAL, INTENT(IN) :: eps  ! Difference to tolerate
@@ -1162,7 +1163,6 @@ CONTAINS
       ! Fills array 'arr' in linearly spaced intervals
       ! e.g., 4 values between 0 and 1 would be 0, 1/3, 2/3, and 1
       ! This means that min and max are included in the array
-      USE basic_operations
       REAL, INTENT(IN) :: min ! Minimum value for array
       REAL, INTENT(IN) :: max ! Maximum value for array
       REAL, ALLOCATABLE, INTENT(INOUT) :: arr(:) ! Output array
@@ -1508,7 +1508,6 @@ CONTAINS
    LOGICAL FUNCTION regular_spacing(a)
 
       ! Returns true if array a is regularly spaced
-      USE basic_operations
       REAL, INTENT(IN) :: a(:)
       REAL :: amin, amax, b
       INTEGER :: i, n

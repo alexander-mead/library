@@ -2283,12 +2283,31 @@ CONTAINS
 
    REAL FUNCTION random_r_NFW(rv, rs)
 
+      ! Get a random radius drawn from an NFW distribution
+      ! This will be very slow because it will fill an interpolation array each time it is called
+      ! TODO: Could/should cache somehow, or else accept an ordered array of rv(:), rs(:) values
+      ! TODO: Allow to be called multiple times for the same interpolation table (e.g., many particles in same halo)
       USE random_numbers
+      USE table_integer
+      USE interpolate
+      USE HMx
       REAL, INTENT(IN) :: rv
       REAL, INTENT(IN) :: rs
+      REAL, ALLOCATABLE :: r(:), f(:)
+      REAL :: u
+      INTEGER :: i
+      INTEGER, PARAMETER :: nr = 33
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = ifind_split
+      INTEGER, PARAMETER :: iinterp = iinterp_Lagrange
 
-      random_r_NFW = 0.
-      STOP 'RANDOM_R_NFW: Error, this is not currently supported'
+      CALL fill_array(0., rv, r, nr)
+      ALLOCATE(f(nr))
+      DO i = 1, nr
+         f(i) = NFW_factor(r(i)/rs)/NFW_factor(rv/rs)
+      END DO
+      u = random_unit()
+      random_r_NFW = find(u, f, r, nr, iorder, ifind, iinterp)
 
    END FUNCTION random_r_NFW
 
