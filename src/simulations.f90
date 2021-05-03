@@ -7,6 +7,8 @@ MODULE simulations
    USE constants
    USE basic_operations
    USE array_operations
+   USE table_integer
+   USE interpolate
    USE field_operations
 
    IMPLICIT NONE
@@ -52,9 +54,14 @@ MODULE simulations
    PUBLIC :: write_slice_ascii
    PUBLIC :: write_adaptive_field
 
-   PUBLIC :: random_spherical_halo_particle
-
+   PUBLIC :: random_halo_particles
    PUBLIC :: make_HOD
+
+   ! Random NFW profile generation
+   INTEGER, PARAMETER :: nr_random_NFW = 65
+   INTEGER, PARAMETER :: iorder_random_NFW = 3
+   INTEGER, PARAMETER :: ifind_random_NFW = ifind_split
+   INTEGER, PARAMETER :: iinterp_random_NFW = iinterp_Lagrange
 
    INTERFACE particle_bin
       MODULE PROCEDURE particle_bin_2D
@@ -76,25 +83,6 @@ MODULE simulations
    END INTERFACE CIC
 
 CONTAINS
-
-   ! INTEGER FUNCTION DMONLY_HMx_halo(irho)
-
-   !       ! Translates between the haloes defined here and those in HMx
-   !       INTEGER, INTENT(IN) :: irho
-
-   !       IF (irho == irho_tophat) THEN
-   !          DMONLY_HMx_halo = 3
-   !       ELSE IF (irho == irho_delta) THEN
-   !          DMONLY_HMx_halo = 4
-   !       ELSE IF (irho == irho_isothermal) THEN
-   !          DMONLY_HMx_halo = 6
-   !       ELSE IF (irho == irho_shell) THEN
-   !          DMONLY_HMx_halo = 7
-   !       ELSE
-   !          STOP 'DMONLT_HALO: Error, translation not possible'
-   !       END IF
-
-   ! END FUNCTION DMONLY_HMx_halo
 
    SUBROUTINE correlation_function(rmin, rmax, r, xi, n, nr, x1, x2, w1, w2, n1, n2, L)
 
@@ -2223,97 +2211,10 @@ CONTAINS
 
    END SUBROUTINE write_adaptive_field
 
-   FUNCTION random_spherical_halo_particle(rv, rs, irho)
-
-      ! Make x,y,z coordiantes for a random point in an artificial spherical halo
-      USE random_numbers
-      USE HMx
-      REAL :: random_spherical_halo_particle(3)
-      REAL, INTENT(IN) :: rv
-      REAL, INTENT(IN) :: rs
-      INTEGER, INTENT(IN) :: irho
-      REAL :: r, theta, phi
-
-      ! Get radial coordinate
-      IF (irho == irho_tophat) THEN
-         r = random_r_constant(rv)
-      ELSE IF (irho == irho_iso) THEN
-         r = random_r_isothermal(rv)
-      ELSE IF (irho == irho_shell) THEN
-         r = rv
-      ELSE IF (irho == irho_delta) THEN
-         r = 0.
-      ELSE IF (irho == irho_NFW) THEN
-         r = random_r_NFW(rv, rs)
-      ELSE
-         STOP 'RANDOM_SPHERE: Error, irho specified incorrectly or not supported'
-      END IF
-
-      ! Get the isotropic angles
-      theta = random_spherical_theta()
-      phi = random_uniform(0., twopi)
-
-      ! Create the x, y, z coordinates from r, theta, phi
-      random_spherical_halo_particle(1) = r*sin(theta)*cos(phi)
-      random_spherical_halo_particle(2) = r*sin(theta)*sin(phi)
-      random_spherical_halo_particle(3) = r*cos(theta)
-
-   END FUNCTION random_spherical_halo_particle
-
-   REAL FUNCTION random_r_constant(rv)
-
-      ! The radial random weighting for a constant-density halo profile
-      USE random_numbers
-      REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
-
-      ! TODO: Use random polynomial here with n=2: random_uniform(0.,1.)**(1./3.) -> random_polynomial(n)
-      random_r_constant = rv*random_uniform(0., 1.)**(1./3.)
-
-   END FUNCTION random_r_constant
-
-   REAL FUNCTION random_r_isothermal(rv)
-
-      ! The radial random weighting for an isothermal halo profile
-      USE random_numbers
-      REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
-
-      random_r_isothermal = random_uniform(0., rv)
-
-   END FUNCTION random_r_isothermal
-
-   REAL FUNCTION random_r_NFW(rv, rs)
-
-      ! Get a random radius drawn from an NFW distribution
-      ! This will be very slow because it will fill an interpolation array each time it is called
-      ! TODO: Could/should cache somehow, or else accept an ordered array of rv(:), rs(:) values
-      ! TODO: Allow to be called multiple times for the same interpolation table (e.g., many particles in same halo)
-      USE random_numbers
-      USE table_integer
-      USE interpolate
-      USE HMx
-      REAL, INTENT(IN) :: rv
-      REAL, INTENT(IN) :: rs
-      REAL, ALLOCATABLE :: r(:), f(:)
-      REAL :: u
-      INTEGER :: i
-      INTEGER, PARAMETER :: nr = 33
-      INTEGER, PARAMETER :: iorder = 3
-      INTEGER, PARAMETER :: ifind = ifind_split
-      INTEGER, PARAMETER :: iinterp = iinterp_Lagrange
-
-      CALL fill_array(0., rv, r, nr)
-      ALLOCATE(f(nr))
-      DO i = 1, nr
-         f(i) = NFW_factor(r(i)/rs)/NFW_factor(rv/rs)
-      END DO
-      u = random_unit()
-      random_r_NFW = find(u, f, r, nr, iorder, ifind, iinterp)
-
-   END FUNCTION random_r_NFW
-
    SUBROUTINE make_HOD(xh, nph, rv, rs, irho, L, x, np)
 
       ! Make an HOD realisation
+      ! TODO: Could speed up for NFW by not regenerating the iversion/interpolation halo unless rv, rs change
       REAL, ALLOCATABLE, INTENT(IN) :: xh(:, :) ! Halo position array [Mpc/h]
       INTEGER, INTENT(IN) :: nph(:)             ! Number of particles in each halo
       REAL, INTENT(IN) :: rv(:)                 ! Halo virial radii [Mpc/h]
@@ -2324,6 +2225,7 @@ CONTAINS
       INTEGER, INTENT(OUT) :: np                ! Total number of HOD particles generated  
       INTEGER :: i, j, k
       INTEGER :: nh
+      REAL, ALLOCATABLE :: xi(:, :)
 
       nh = size(xh, 2)
       IF((nh .NE. size(nph)) .OR. (nh .NE. size(rv))) THEN
@@ -2337,16 +2239,122 @@ CONTAINS
       ! Generate the particles
       k = 0
       DO i = 1, nh
+         IF (nph(i) <= 0) STOP 'MAKE_HOD: Error, all haloes should have one or more particles (could change this)'
+         ALLOCATE(xi(3, nph(i)))
+         CALL random_halo_particles(xi, rv(i), rs(i), irho)
          DO j = 1, nph(i)
             k = k + 1
-            x(:, k) = xh(:, i)+random_spherical_halo_particle(rv(i), rs(i), irho)
+            x(:, k) = xh(:, i)+xi(:, j)
          END DO
+         DEALLOCATE(xi)
       END DO
 
       ! Replace particles that may have strayed outside the volume
       CALL replace(x, L)
 
    END SUBROUTINE make_HOD
+
+   SUBROUTINE random_halo_particles(rr, rv, rs, irho)
+
+      ! Get a set of x,y,z coordiantes for a random point in an artificial spherical halo
+      ! The halo centre is fixed to be the coordinate zero point
+      USE random_numbers
+      USE HMx
+      REAL, INTENT(OUT) :: rr(:, :) ! Halo coordinates (should be shape 3,n) [Mpc/h]
+      REAL, INTENT(IN) :: rv        ! Halo virial radius [Mpc/h]
+      REAL, INTENT(IN) :: rs        ! Halo scale radius [Mpc/h]
+      INTEGER, INTENT(IN) :: irho   ! Switch for halo profile (from HMx)
+      REAL, ALLOCATABLE :: r(:)
+      REAL :: theta, phi
+      INTEGER :: i, n
+
+      IF (size(rr, 1) /= 3) STOP 'RANDOM_HALO_PARTICLES: Error, output array must be shape (3, n)'
+      n = size(rr, 2)
+      ALLOCATE(r(n))
+
+      IF (irho == irho_NFW) THEN
+         CALL random_rs_NFW(r, rv, rs)
+      ELSE
+         DO i = 1, n
+            ! Get radial coordinate
+            IF (irho == irho_tophat) THEN
+               r(i) = random_r_constant(rv)
+            ELSE IF (irho == irho_iso) THEN
+               r(i) = random_r_isothermal(rv)
+            ELSE IF (irho == irho_shell) THEN
+               r(i) = rv
+            ELSE IF (irho == irho_delta) THEN
+               r(i) = 0.
+            ELSE
+               STOP 'RANDOM_SPHERE: Error, irho specified incorrectly or not supported'
+            END IF
+         END DO
+      END IF
+
+      ! Generate the full 3D coordinates assuming a spherical profile (isotropic angles)
+      DO i = 1, n
+         theta = random_spherical_theta()    ! Angle from z: Between 0 and pi
+         phi = random_uniform(0., twopi)     ! x-y plane angle
+         rr(1, i) = r(i)*sin(theta)*cos(phi) ! x
+         rr(2, i) = r(i)*sin(theta)*sin(phi) ! y
+         rr(3, i) = r(i)*cos(theta)          ! z
+      END DO
+
+   END SUBROUTINE random_halo_particles
+
+   REAL FUNCTION random_r_constant(rv)
+
+      ! The radial random weighting for a constant-density halo profile
+      USE random_numbers
+      REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
+
+      random_r_constant = rv*random_polynomial(2.)
+
+   END FUNCTION random_r_constant
+
+   REAL FUNCTION random_r_isothermal(rv)
+
+      ! The radial random weighting for an isothermal halo profile
+      USE random_numbers
+      REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
+
+      random_r_isothermal = random_uniform(0., rv)
+
+   END FUNCTION random_r_isothermal
+
+   SUBROUTINE random_rs_NFW(rr, rv, rs)
+
+      ! Get a set of random radii drawn from an NFW distribution
+      ! Has to perform a numerical inversion/interpolation
+      ! If F(x) = ln(1+x) - x/(1+x) then f = F(r/rs) / F(c) with f in [0->1] must be inverted for r
+      USE random_numbers
+      USE interpolate
+      USE HMx
+      REAL, INTENT(OUT) :: rr(:)
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: rs
+      REAL, ALLOCATABLE :: r(:), f(:)
+      REAL :: u
+      INTEGER :: i
+      INTEGER, PARAMETER :: nr = nr_random_NFW
+      INTEGER, PARAMETER :: iorder = iorder_random_NFW
+      INTEGER, PARAMETER :: ifind = ifind_random_NFW
+      INTEGER, PARAMETER :: iinterp = iinterp_random_NFW
+
+      ! Fill array of r vs. f(r) for interpolation/inversion
+      CALL fill_array(0., rv, r, nr)
+      ALLOCATE(f(nr))
+      DO i = 1, nr
+         f(i) = NFW_factor(r(i)/rs)/NFW_factor(rv/rs)
+      END DO
+
+      ! Get n different values of the radius using numerical inversion
+      DO i = 1, size(rr)
+         u = random_unit()
+         rr(i) = find(u, f, r, nr, iorder, ifind, iinterp)
+      END DO
+
+   END SUBROUTINE random_rs_NFW
    
    SUBROUTINE combine_folded_power(k, Pk, sig, k_bin, k_tot, Pk_tot, sig_tot)
 
