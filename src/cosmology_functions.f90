@@ -7631,7 +7631,7 @@ CONTAINS
       REAL, INTENT(IN) :: Pk ! Power spectrum in P(k) [Mpc/h]^3
       REAL, INTENT(IN) :: k  ! Wavenumber [h/Mpc]
 
-      Delta_Pk = (4.*pi)*((k/twopi)**3)*Pk
+      Delta_Pk = 4.*pi*Pk*(k/twopi)**3
 
    END FUNCTION Delta_Pk
 
