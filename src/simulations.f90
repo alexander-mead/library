@@ -1763,10 +1763,10 @@ CONTAINS
    ! This subroutine was previously called slice
    SUBROUTINE write_slice_ascii(x, n, x1, x2, y1, y2, z1, z2, outfile)
 
-      INTEGER, INTENT(IN) :: n ! Total number of particles
-      REAL, INTENT(IN) :: x(3, n) ! Particle positions [Mpc/h]   
+      INTEGER, INTENT(IN) :: n                   ! Total number of particles
+      REAL, INTENT(IN) :: x(3, n)                ! Particle positions [Mpc/h]
       REAL, INTENT(IN) :: x1, x2, y1, y2, z1, z2 ! Limits of the slice [Mpc/h]
-      CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
+      CHARACTER(len=*), INTENT(IN) :: outfile    ! Output file
       INTEGER :: i
 
       WRITE (*, *) 'WRITE_SLICE_ASCII: Writing slice'
@@ -1803,8 +1803,8 @@ CONTAINS
       ! Note if this is for mass then u = v = particle_mass/total_mass
       ! CARE: Removed double-precision sums
       INTEGER, INTENT(IN) :: n ! Number of particles
-      REAL, INTENT(IN) :: u(n) ! Contributions to the total field u and v per particle  
-      REAL, INTENT(IN) :: v(n) ! Contributions to the total field u and v per particle  
+      REAL, INTENT(IN) :: u(n) ! Contributions to the total field u and v per particle
+      REAL, INTENT(IN) :: v(n) ! Contributions to the total field u and v per particle
       REAL, INTENT(IN) :: L    ! Box size [Mpc/h]
 
       ! Do the sum of the two fields, making sure to use doubles
@@ -1836,11 +1836,11 @@ CONTAINS
 
       ! Calculates shot noise as Delta^2(k) from a constant-P(k) thing with units [(Mpc/h)^3]
       ! This shot noise is then dimensionless, exactly like Delta^2(k)
-      REAL, INTENT(IN) :: k ! Wave vector [h/Mpc]
+      USE cosmology_functions
+      REAL, INTENT(IN) :: k    ! Wave vector [h/Mpc]
       REAL, INTENT(IN) :: shot ! The constant shot-noise term: P(k) [(Mpc/h)^3]
 
-      shot_noise_k = shot*4.*pi*(k/twopi)**3
-      !shot_noise_k = Delta_Pk(shot, k)
+      shot_noise_k = Delta_Pk(shot, k)
 
    END FUNCTION shot_noise_k
 
@@ -1849,7 +1849,6 @@ CONTAINS
 
       ! Makes a pretty picture of a density field but uses adaptive meshes to make it nice
       USE string_operations
-
       REAL, INTENT(IN) :: xc, yc ! Coordinates of image centre [Mpc/h]
       REAL, INTENT(IN) :: Lsub ! Size of image [Mpc/h]
       REAL, INTENT(IN) :: z1, z2 ! Front and back of image [Mpc/h]
@@ -2239,14 +2238,15 @@ CONTAINS
       ! Generate the particles
       k = 0
       DO i = 1, nh
-         IF (nph(i) <= 0) STOP 'MAKE_HOD: Error, all haloes should have one or more particles (could change this)'
-         ALLOCATE(xi(3, nph(i)))
-         CALL random_halo_particles(xi, rv(i), rs(i), irho)
-         DO j = 1, nph(i)
-            k = k + 1
-            x(:, k) = xh(:, i)+xi(:, j)
-         END DO
-         DEALLOCATE(xi)
+         IF (nph(i) > 0) THEN
+            ALLOCATE(xi(3, nph(i)))
+            CALL random_halo_particles(xi, rv(i), rs(i), irho)
+            DO j = 1, nph(i)
+               k = k + 1
+               x(:, k) = xh(:, i)+xi(:, j)
+            END DO
+            DEALLOCATE(xi)
+         END IF
       END DO
 
       ! Replace particles that may have strayed outside the volume
