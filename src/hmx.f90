@@ -350,7 +350,7 @@ MODULE HMx
 
       ! HOD
       REAL :: mhalo_min, mhalo_max, mgal_min, mgal_max
-      REAL :: n_c, n_s, n_g
+      REAL :: n_c, n_s, n_g, shot
       INTEGER :: ihod
       TYPE(hodmod) :: hod
 
@@ -6083,10 +6083,12 @@ CONTAINS
       hmod%n_c = rhobar_tracer(nu_min, nu_max, rhobar_central_HOD_integrand, hmod, cosm)
       hmod%n_s = rhobar_tracer(nu_min, nu_max, rhobar_satellite_HOD_integrand, hmod, cosm)
       hmod%n_g = hmod%n_c+hmod%n_s
+      hmod%shot = 1./hmod%n_g
       IF (verbose_HOD) THEN
          WRITE (*, *) 'INIT_HOD: Comoving number density of central galaxies [(Mpc/h)^-3]:', real(hmod%n_c)
          WRITE (*, *) 'INIT_HOD: Comoving number density of satellite galaxies [(Mpc/h)^-3]:', real(hmod%n_s)
          WRITE (*, *) 'INIT_HOD: Comoving number density of all galaxies [(Mpc/h)^-3]:', real(hmod%n_g)
+         WRITE (*, *) 'INIT_HOD: Galaxy shot noise [(Mpc/h)^3]:', real(hmod%shot)
          WRITE (*, *)
       END IF
       hmod%has_HOD = .TRUE.
