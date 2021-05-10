@@ -123,7 +123,7 @@ MODULE HMx
    PUBLIC :: HMx_Twhim
 
    ! Fields
-   ! TODO: Remove total number of fields
+   PUBLIC :: field_n ! Total number of fields TODO: Remove
    PUBLIC :: field_dmonly
    PUBLIC :: field_matter
    PUBLIC :: field_cdm
@@ -156,7 +156,6 @@ MODULE HMx
    PUBLIC :: field_halo_14p5_15p0
    PUBLIC :: field_neutrino
    PUBLIC :: field_haloes
-   PUBLIC :: field_n ! Total number of fields TODO: Remove
 
    ! Haloes
    PUBLIC :: irho_delta
@@ -293,7 +292,7 @@ MODULE HMx
       INTEGER :: flag_sigma
 
       ! Additions
-      LOGICAL :: add_voids, add_variances
+      LOGICAL :: add_voids, add_variances, add_shotnoise
 
       ! Spherical collapse parameters
       REAL :: dc, Dv
@@ -1116,6 +1115,7 @@ CONTAINS
 
       ! Do variances
       hmod%add_variances = .TRUE.
+      hmod%add_shotnoise = .TRUE.
 
       ! Set the void model
       ! 1 - Top-hat void
@@ -3535,9 +3535,9 @@ CONTAINS
       LOGICAL, INTENT(IN) :: verbose
       REAL :: powg_2h(nk), powg_1h(nk), powg_hm(nk)
       REAL, ALLOCATABLE :: upow_2h(:, :, :), upow_1h(:, :, :), upow_hm(:, :, :)
-      REAL, ALLOCATABLE :: wk0(:, :), vars(:, :, :)
+      REAL, ALLOCATABLE :: wk0(:, :), vars(:, :, :), shots(:, :)
       REAL :: wk0_den(hmod%n, 1), wk0_base(hmod%n, 1)
-      REAL :: vars_den(hmod%n, 1, 1), vars_base(hmod%n, 1, 1)
+      REAL :: vars_zero(hmod%n, 1, 1), shots_zero(1, 1)
       REAL :: base_2h(nk), base_1h(nk), base_hm(nk)
       INTEGER :: i, j, ii, jj, match(nf), nnf
       INTEGER :: ihm
@@ -3584,15 +3584,16 @@ CONTAINS
       ALLOCATE(wk0(hmod%n, nnf))
       CALL init_windows(zero, ifield, nnf, wk0, hmod%n, hmod, cosm)
 
-      ! Get the window-function variances (independent of k)
-      IF (hmod%add_variances) THEN
-         CALL init_window_variances(vars, ifield, hmod)
+      ! Get the window-function variances and/or shot noise (independent of k)
+      IF (hmod%add_variances .OR. hmod%add_shotnoise) THEN
+         CALL init_discrete_tracers(vars, shots, ifield, hmod)
       ELSE
-         ALLOCATE(vars(hmod%n, nf, nf))
+         ALLOCATE(vars(hmod%n, nf, nf), shots(nf, nf))
          vars = 0.
+         shots = 0.
       END IF
-      vars_base = 0.
-      vars_den = 0.
+      vars_zero = 0.
+      shots_zero = 0.
 
       ! Loop over k values
       ! TODO: add OMP support properly. What is private and what is shared? CHECK THIS!
@@ -3606,16 +3607,16 @@ CONTAINS
          pow_li(i) = plin(k(i), hmod%a, flag_matter, cosm)
 
          ! Do the halo model calculation
-         CALL calculate_HMx_ka(iifield, wk0, vars, nnf, k(i), pow_li(i), upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
+         CALL calculate_HMx_ka(iifield, wk0, vars, shots, nnf, k(i), pow_li(i), upow_2h(:, :, i), upow_1h(:, :, i), upow_hm(:, :, i), hmod, cosm)
 
          IF (hmod%response_baseline .NE. 0) THEN
 
             ! If doing a response then calculate a DMONLY prediction for both the current halomodel and HMcode
-            CALL calculate_HMx_ka(dmonly, wk0_base, vars_base, 1, k(i), pow_li(i), base_2h(i), base_1h(i), base_hm(i), hmod_base, cosm)
+            CALL calculate_HMx_ka(dmonly, wk0_base, vars_zero, shots_zero, 1, k(i), pow_li(i), base_2h(i), base_1h(i), base_hm(i), hmod_base, cosm)
             IF (hmod%response_denominator .NE. 0) THEN
-               CALL calculate_HMx_ka(dmonly, wk0_den, vars_den, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod_den, cosm)
+               CALL calculate_HMx_ka(dmonly, wk0_den, vars_zero, shots_zero, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod_den, cosm)
             ELSE
-               CALL calculate_HMx_ka(dmonly, wk0_den, vars_den, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
+               CALL calculate_HMx_ka(dmonly, wk0_den, vars_zero, shots_zero, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod, cosm)
             END IF  
 
             IF (hmod%response_matter_only) THEN
@@ -3686,14 +3687,14 @@ CONTAINS
 
    END FUNCTION is_matter_field
 
-   SUBROUTINE calculate_HMx_ka(ifield, wk0, vars, nf, k, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm)
+   SUBROUTINE calculate_HMx_ka(ifield, wk0, vars, shots, nf, k, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm)
 
       ! Gets the two- and one-halo terms and combines them
-      ! TODO: Include profile scatter in two-halo term
       INTEGER, INTENT(IN) :: nf
       INTEGER, INTENT(IN) :: ifield(nf)
       REAL, INTENT(IN) :: wk0(:, :)
       REAL, INTENT(IN) :: vars(:, :, :)
+      REAL, INTENT(IN) :: shots(:, :)
       REAL, INTENT(IN) :: k
       REAL, INTENT(IN) :: pow_li
       REAL, INTENT(OUT) :: pow_2h(nf, nf)
@@ -3704,7 +3705,7 @@ CONTAINS
       REAL :: wk(hmod%n, nf), wk2(hmod%n, 2), wk_product(hmod%n)
       INTEGER :: f1, f2, ih(2), i
       REAL :: fac
-      !LOGICAL :: add_variances = .TRUE.
+      LOGICAL :: discrete_auto
 
       ! Calls expressions for two- and one-halo terms and then combines to form the full power spectrum
       IF (k == 0.) THEN
@@ -3719,9 +3720,10 @@ CONTAINS
          CALL init_windows(k, ifield, nf, wk, hmod%n, hmod, cosm)
 
          ! Loop over fields and get the one-halo term for each pair
-         ! TODO: Change order of loops from f1, f2 to f2, f1?
-         DO f1 = 1, nf
-            DO f2 = f1, nf         
+         DO f2 = 1, nf
+            DO f1 = f2, nf
+
+               ! Calculate the product of window functions
                IF (hmod%conc_scatter) THEN
                   ih(1) = ifield(f1)
                   ih(2) = ifield(f2)
@@ -3729,6 +3731,8 @@ CONTAINS
                ELSE
                   wk_product = wk(:, f1)*wk(:, f2)
                END IF
+
+               ! Add variance to windows if necessary
                IF (hmod%add_variances) THEN
                   DO i = 1, hmod%n
                      IF ((vars(i, f1, f2) /= 0.) .AND. (wk0(i, f1) /= 0.) .AND. (wk0(i, f2) /= 0.)) THEN
@@ -3737,7 +3741,17 @@ CONTAINS
                      END IF
                   END DO
                END IF
-               pow_1h(f1, f2) = p_1h(wk_product, hmod%n, k, hmod, cosm)
+
+               ! Determine if this is the auto-spectrum of a discrete field
+               IF ((f1 == f2) .AND. is_discrete_field(ifield(f1))) THEN
+                  discrete_auto = .TRUE.
+               ELSE
+                  discrete_auto = .FALSE.
+               END IF
+
+               ! Calculate the one-halo term
+               pow_1h(f1, f2) = p_1h(wk_product, k, hmod, cosm)+Delta_Pk(shots(f1, f2), k)
+
             END DO
          END DO
 
@@ -3752,8 +3766,8 @@ CONTAINS
          END IF
 
          ! Get the two-halo term
-         DO f1 = 1, nf
-            DO f2 = f1, nf
+         DO f2 = 1, nf
+            DO f1 = f2, nf
                ih(1) = ifield(f1)
                ih(2) = ifield(f2)
                wk2(:, 1) = wk(:, f1)
@@ -3765,15 +3779,15 @@ CONTAINS
       END IF
 
       ! Loop over fields and get the total halo-model power
-      DO f1 = 1, nf
-         DO f2 = f1, nf
+      DO f2 = 1, nf
+         DO f1 = f2, nf
             pow_hm(f1, f2) = p_hm(k, pow_2h(f1, f2), pow_1h(f1, f2), hmod)
          END DO
       END DO
 
       ! Construct symmetric parts using ij=ji symmetry of spectra
-      DO f1 = 1, nf
-         DO f2 = f1, nf
+      DO f2 = 1, nf
+         DO f1 = f2+1, nf
             pow_1h(f2, f1) = pow_1h(f1, f2)
             pow_2h(f2, f1) = pow_2h(f1, f2)
             pow_hm(f2, f1) = pow_hm(f1, f2)
@@ -3859,58 +3873,65 @@ CONTAINS
 
    END SUBROUTINE init_windows
 
-   SUBROUTINE init_window_variances(vars, ifields, hmod)
+   SUBROUTINE init_discrete_tracers(vars, shots, ifields, hmod)
 
       ! Calculates the (scale-independent) variance in the 'mass' prefactor of profiles
       REAL, ALLOCATABLE, INTENT(OUT) :: vars(:, :, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: shots(:, :)
       INTEGER, INTENT(IN) :: ifields(:)
       TYPE(halomod), INTENT(IN) :: hmod
       INTEGER :: f1, f2
       INTEGER :: im, if1, if2
       INTEGER :: nm, nf
-      LOGICAL :: g1, g2
       REAL :: m
       REAL :: n_c, n_s, n_g
-      REAL :: v_c, v_s, v_g
+      REAL :: v_cc, v_ss, v_gg
 
       nm = hmod%n
       nf = size(ifields)
-      ALLOCATE(vars(nm, nf, nf))
+      ALLOCATE(vars(nm, nf, nf), shots(nf, nf))
       vars = 0.
+      shots = 0.
 
       DO if2 = 1, nf
          DO if1 = if2, nf
             f1 = ifields(if1)
             f2 = ifields(if2)
-            g1 = is_in_array(f1, [field_centrals, field_satellites, field_galaxies]) ! True if f1 is HOD
-            g2 = is_in_array(f2, [field_centrals, field_satellites, field_galaxies]) ! True if f2 is HOD
-            IF (g1 .AND. g2) THEN
+            IF (is_discrete_field(f1) .AND. is_discrete_field(f2)) THEN
                DO im = 1, nm
                   m = hmod%m(im)
-                  v_c = variance_centrals(m, hmod%hod)
-                  v_s = variance_satellites(m, hmod%hod)
-                  v_g = variance_galaxies(m, hmod%hod)
+                  v_cc = variance_centrals(m, hmod%hod)-mean_centrals(m, hmod%hod)
+                  v_ss = variance_satellites(m, hmod%hod)-mean_satellites(m, hmod%hod)
+                  v_gg = variance_galaxies(m, hmod%hod)-mean_galaxies(m, hmod%hod)
                   n_c = hmod%n_c
                   n_s = hmod%n_s
                   n_g = hmod%n_g
                   IF (f1 == field_centrals .AND. f2 == field_centrals) THEN
-                     vars(im, if1, if2) = v_c/n_c**2
+                     vars(im, if1, if2) = v_cc/n_c**2
+                     shots(if1, if2) = 1./n_c
                   ELSE IF (f1 == field_satellites .AND. f2 == field_satellites) THEN
-                     vars(im, if1, if2) = v_s/n_s**2
+                     vars(im, if1, if2) = v_ss/n_s**2
+                     shots(if1, if2) = 1./n_s
                   ELSE IF (f1 == field_galaxies .AND. f2 == field_galaxies) THEN
-                     vars(im, if1, if2) = v_g/n_g**2
+                     vars(im, if1, if2) = v_gg/n_g**2
+                     shots(if1, if2) = 1./n_g
                   ELSE IF (equals_or([f1, f2], [field_centrals, field_galaxies])) THEN
-                     vars(im, if1, if2) = v_c/(n_c*n_g)
+                     vars(im, if1, if2) = v_cc/(n_c*n_g)
+                     shots(if1, if2) = 1./n_c
                   ELSE IF (equals_or([f1, f2], [field_satellites, field_galaxies])) THEN
-                     vars(im, if1, if2) = v_s/(n_s*n_g)
+                     vars(im, if1, if2) = v_ss/(n_s*n_g)
+                     shots(if1, if2) = 1./n_s
                   END IF
                END DO
-               IF (if1 /= if2) vars(:, if2, if1) = vars(:, if1, if2) ! Symmetric terms
+               IF (if1 /= if2) THEN
+                  vars(:, if2, if1) = vars(:, if1, if2)
+                  shots(if2, if1) = shots(if1, if2)
+               END IF
             END IF
          END DO
       END DO
 
-   END SUBROUTINE init_window_variances
+   END SUBROUTINE init_discrete_tracers
 
    SUBROUTINE add_smooth_component_to_windows(fields, nf, wk, nm, hmod, cosm)
 
@@ -4126,7 +4147,7 @@ CONTAINS
 
             ! ... otherwise we need to do an integral
             DO j = 1, 2
-               CALL I_2h(ih(j), I2h, wk(:, j), n, hmod, cosm, ibias=1)
+               CALL I_2h(ih(j), I2h, wk(:, j), hmod, cosm, ibias=1)
                I2hs(j) = I2h
             END DO
 
@@ -4141,7 +4162,7 @@ CONTAINS
             ! This means it is hard to check that the normalisation is correct
             ! e.g., how much doees the second-order bias of low mass haloes matter?
             DO j = 1, 2
-               CALL I_2h(ih(j), I2h, wk(:, j), n, hmod, cosm, ibias=2)
+               CALL I_2h(ih(j), I2h, wk(:, j), hmod, cosm, ibias=2)
                I2hs(j) = I2h
             END DO
             p_2h = p_2h+(pli**2)*I2hs(1)*I2hs(2)*rhom**2 ! TODO: Should rhom^2 really be here?
@@ -4260,7 +4281,7 @@ CONTAINS
             IF (ih(j) == field_dmonly .OR. ih(j) == field_matter) THEN
                I2hs(j) = 1.
             ELSE
-               CALL I_2h(ih(j), I2h, wk(:, j), n, hmod, cosm, ibias=1)
+               CALL I_2h(ih(j), I2h, wk(:, j), hmod, cosm, ibias=1)
                I2hs(j) = I2h
             END IF
          END DO
@@ -4291,21 +4312,21 @@ CONTAINS
 
    END FUNCTION p_2h
 
-   SUBROUTINE I_2h(ih, int, wk, n, hmod, cosm, ibias)
+   SUBROUTINE I_2h(ih, int, wk, hmod, cosm, ibias)
 
       ! Integral for the two-halo power
       INTEGER, INTENT(IN) :: ih
       REAL, INTENT(OUT) :: int
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: wk(n)
+      REAL, INTENT(IN) :: wk(:)
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER, INTENT(IN) :: ibias
-      REAL :: rhom, b, m, nu, integrand(n)
-      INTEGER :: i
+      REAL :: rhom, b, m, nu, integrand(hmod%n)
+      INTEGER :: i, n
       INTEGER, PARAMETER :: iorder = iorder_2halo_integration
 
       rhom = comoving_matter_density(cosm)
+      n = size(wk)
 
       ! ...otherwise you need to do an integral
 
@@ -4355,16 +4376,16 @@ CONTAINS
 
    END SUBROUTINE I_2h
 
-   REAL FUNCTION p_1h(wk_product, n, k, hmod, cosm)
+   REAL FUNCTION p_1h(wk_product, k, hmod, cosm)
 
       ! Calculates the one-halo term
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: wk_product(n)
+      REAL, INTENT(IN) :: wk_product(:)
       REAL, INTENT(IN) :: k
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: m, g, fac, ks, wk0_product, m0, rhom, integrand(n)
-      INTEGER :: i
+      REAL :: m, g, fac, ks, wk0_product, m0, rhom
+      REAL :: integrand(hmod%n)
+      INTEGER :: i, n
       INTEGER, PARAMETER :: iorder_hm = iorder_1halo_integration
       INTEGER, PARAMETER :: iorder_df = iorder_delta
       INTEGER, PARAMETER :: ifind_df = ifind_delta
@@ -4377,8 +4398,8 @@ CONTAINS
 
       ELSE IF (hmod%ip1h == 1) THEN
 
-         ! Matter density
          rhom = comoving_matter_density(cosm)
+         n = size(wk_product)
 
          IF (hmod%imf == 4) THEN
 
@@ -11273,5 +11294,14 @@ CONTAINS
       simple_onehalo = 4.*pi*(k/twopi)**3*(wk_tophat(k*rv)**2)*M/rhobar
 
    END FUNCTION simple_onehalo
+
+   LOGICAL FUNCTION is_discrete_field(f)
+
+      ! Returns true if the field is given by a discrete tracer, rather than an emissive process
+      INTEGER, INTENT(IN) :: f
+
+      is_discrete_field = is_in_array(f, [field_centrals, field_satellites, field_galaxies])
+
+   END FUNCTION is_discrete_field
 
 END MODULE HMx
