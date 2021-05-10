@@ -14,7 +14,7 @@ MODULE special_functions
    PUBLIC :: get_factorials
    PUBLIC :: Fibonacci
    PUBLIC :: get_Fibonaccis
-   PUBLIC :: choose
+   PUBLIC :: binomial_coefficient
 
    ! Real functions
    PUBLIC :: polynomial
@@ -448,16 +448,16 @@ CONTAINS
 
    END FUNCTION multiply_integers
 
-   INTEGER FUNCTION choose(n, k)
+   INTEGER FUNCTION binomial_coefficient(n, k)
 
-      ! Evalues (n, k): n-choose-k
+      ! Evalues binomial coefficient (n, k): n-choose-k
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: k
 
       !choose = factorial(n)/(factorial(k)*factorial(n-k)) ! Inefficient
-      choose = multiply_integers(n-k+1, n)/factorial(k)
+      binomial_coefficient = multiply_integers(n-k+1, n)/factorial(k)
 
-   END FUNCTION choose
+   END FUNCTION binomial_coefficient
 
    REAL FUNCTION sigmoid_tanh(x)
 
@@ -1070,7 +1070,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: p
 
-      Binomial_distribution = choose(n, k)*(p**k)*(1.-p)**(n-k)
+      Binomial_distribution = binomial_coefficient(n, k)*(p**k)*(1.-p)**(n-k)
 
    END FUNCTION Binomial_distribution
 
