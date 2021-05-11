@@ -38,8 +38,12 @@ MODULE HOD_functions
    INTEGER, PARAMETER :: stats_Bernoulli = 1
    INTEGER, PARAMETER :: stats_Poisson = 2
 
+   ! Defaults
    REAL, PARAMETER :: Mmin_def = 1e12
    REAL, PARAMETER :: Mmax_def = 1e18
+
+   ! Satellite occupation
+   REAL, PARAMETER :: eps_sat = 1e-6
 
    CONTAINS
 
@@ -93,7 +97,7 @@ MODULE HOD_functions
    REAL FUNCTION mean_centrals(M, hod)
 
       ! Mean number of central galaxies in a halo
-      ! Note that this is the mean, not necessarily 0 or 1 but should be between 0 and 1
+      ! Note that this is the mean, not necessarily 0 or 1, but should probably be between 0 and 1
       REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
       TYPE(hodmod), INTENT(IN) :: hod ! HOD model
 
@@ -119,7 +123,7 @@ MODULE HOD_functions
       ! Note that this is not an integer in general
       REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
       TYPE(hodmod), INTENT(IN) :: hod ! HOD model
-      REAL, PARAMETER :: eps = 1e-6
+      REAL, PARAMETER :: eps = eps_sat
 
       IF (between(M, hod%Mmin, hod%Mmax)) THEN
          IF (hod%ihod == 1) THEN
@@ -127,8 +131,8 @@ MODULE HOD_functions
          ELSE IF (hod%ihod == 2) THEN
             mean_satellites = ((M-hod%M0)/hod%M1)**hod%alpha
          ELSE IF (hod%ihod == 3 .OR. hod%ihod == 4 .OR. hod%ihod == 5) THEN
-            mean_satellites = (M/hod%Mmin)-1.
-            IF (hod%ihod == 4 .OR. hod%ihod == 5) mean_satellites = floor(mean_satellites+eps)
+            mean_satellites = (M/hod%Mmin)-1.+eps ! eps to stop negative values
+            IF (hod%ihod == 4 .OR. hod%ihod == 5) mean_satellites = floor(mean_satellites)
          ELSE
             STOP 'MEAN_SATELLITES: Error, HOD not recognised'
          END IF
@@ -210,7 +214,7 @@ MODULE HOD_functions
    INTEGER FUNCTION random_number_of_centrals(M, hod)
 
       ! Draw from the random distribution to get a number of central galaxies in a halo
-      ! This must be either 0 or 1
+      ! This should probably be either 0 or 1
       REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
       TYPE(hodmod), INTENT(IN) :: hod ! HOD model
       REAL :: mean

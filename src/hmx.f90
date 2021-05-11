@@ -1157,10 +1157,10 @@ CONTAINS
       hmod%alp2 = 0.
       hmod%fM = 0.01
       hmod%fD = 1.
-      hmod%zD = 100.   
+      hmod%zD = 100.
 
       ! HMcode (2020) baryon recipe
-      hmod%DMONLY_baryon_recipe = .FALSE.     
+      hmod%DMONLY_baryon_recipe = .FALSE.
       hmod%mbar = 1e14
       hmod%nbar = 2.
       hmod%sbar = 1e-3 ! Problems with fitting if set to zero due to log
@@ -1201,7 +1201,7 @@ CONTAINS
       hmod%Theat_array(3) = 10**8.0
 
       ! Non-virial temperature correction for static gas
-      hmod%alpha = 1.0      
+      hmod%alpha = 1.0
       hmod%alphap = 0.0
       hmod%alphaz = 0.0
       hmod%alpha_array = hmod%alpha
@@ -1229,7 +1229,7 @@ CONTAINS
       hmod%D_eps = -0.867
 
       ! High-gas-content concentration modification
-      hmod%eps2 = 0.        
+      hmod%eps2 = 0.
       hmod%eps2z = 0.
       hmod%eps2_array = hmod%eps2
       hmod%eps2z_array = hmod%eps2z 
@@ -1256,8 +1256,8 @@ CONTAINS
       hmod%Zammaz_array = hmod%Zammaz
 
       ! Halo mass that has lost half gas
-      hmod%M0 = 1e14     
-      hmod%M0z = 0.0   
+      hmod%M0 = 1e14
+      hmod%M0z = 0.0
       hmod%M0_array = hmod%M0
       hmod%M0z_array = hmod%M0z
       hmod%A_M0 = -0.007
@@ -1287,14 +1287,14 @@ CONTAINS
       hmod%D_Twhim = 1.717
 
       ! Stellar concentration c_* = rv/r_*
-      hmod%cstar = 10.      
+      hmod%cstar = 10.
       hmod%cstarp = 0.0
       hmod%cstarz = 0.0
       hmod%cstar_array = hmod%cstar
       hmod%cstarz_array = hmod%cstarz
 
       ! sigma_* for f_* distribution
-      hmod%sstar = 1.2      
+      hmod%sstar = 1.2
 
       ! M* for most efficient halo mass for star formation
       hmod%Mstar = 10**12.5
@@ -1303,10 +1303,10 @@ CONTAINS
       hmod%Mstarz_array = hmod%Mstarz
 
       ! Fraction of bound gas that is cold
-      hmod%fcold = 0.0     
+      hmod%fcold = 0.0
 
       ! Fraction of bound gas that is hot
-      hmod%fhot = 0.0       
+      hmod%fhot = 0.0
 
       ! Power-law for central galaxy mass fraction
       hmod%eta = 0.0
@@ -1359,7 +1359,7 @@ CONTAINS
       hmod%ST_q = 0.707 ! 0.75 is proposed in Sheth & Tormen (2002)
 
       ! Mass function amplitude (not very physical)
-      hmod%Amf = 1.0    
+      hmod%Amf = 1.0
 
       ! Index to make the mass function integration easier
       ! Should be related to how the mass function diverges at low nu
@@ -3749,7 +3749,7 @@ CONTAINS
                   discrete_auto = .FALSE.
                END IF
 
-               ! Calculate the one-halo term
+               ! Calculate the one-halo term; add shot noise if non-zero
                pow_1h(f1, f2) = p_1h(wk_product, k, hmod, cosm)+Delta_Pk(shots(f1, f2), k)
 
             END DO
@@ -3875,7 +3875,7 @@ CONTAINS
 
    SUBROUTINE init_discrete_tracers(vars, shots, ifields, hmod)
 
-      ! Calculates the (scale-independent) variance in the 'mass' prefactor of profiles
+      ! Calculates the variance of squared profiles and the shot noise 
       REAL, ALLOCATABLE, INTENT(OUT) :: vars(:, :, :)
       REAL, ALLOCATABLE, INTENT(OUT) :: shots(:, :)
       INTEGER, INTENT(IN) :: ifields(:)
@@ -3887,12 +3887,14 @@ CONTAINS
       REAL :: n_c, n_s, n_g
       REAL :: v_cc, v_ss, v_gg
 
+      ! Allocate arrays
       nm = hmod%n
       nf = size(ifields)
       ALLOCATE(vars(nm, nf, nf), shots(nf, nf))
       vars = 0.
       shots = 0.
 
+      ! Loop over all possible field combinations
       DO if2 = 1, nf
          DO if1 = if2, nf
             f1 = ifields(if1)
@@ -3917,13 +3919,13 @@ CONTAINS
                      shots(if1, if2) = 1./n_g
                   ELSE IF (equals_or([f1, f2], [field_centrals, field_galaxies])) THEN
                      vars(im, if1, if2) = v_cc/(n_c*n_g)
-                     shots(if1, if2) = 1./n_c
+                     shots(if1, if2) = 1./n_g ! n_c/(n_g*n_c)
                   ELSE IF (equals_or([f1, f2], [field_satellites, field_galaxies])) THEN
                      vars(im, if1, if2) = v_ss/(n_s*n_g)
-                     shots(if1, if2) = 1./n_s
+                     shots(if1, if2) = 1./n_g ! n_s/(n_g*n_s)
                   END IF
                END DO
-               IF (if1 /= if2) THEN
+               IF (if1 /= if2) THEN ! Use symmetry
                   vars(:, if2, if1) = vars(:, if1, if2)
                   shots(if2, if1) = shots(if1, if2)
                END IF
@@ -4160,7 +4162,7 @@ CONTAINS
             ! Second-order bias correction
             ! This needs to have the property that \int f(nu)b2(nu) du = 0
             ! This means it is hard to check that the normalisation is correct
-            ! e.g., how much doees the second-order bias of low mass haloes matter?
+            ! e.g., how much doees the second-order bias of low-mass haloes matter?
             DO j = 1, 2
                CALL I_2h(ih(j), I2h, wk(:, j), hmod, cosm, ibias=2)
                I2hs(j) = I2h
