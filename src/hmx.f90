@@ -292,7 +292,7 @@ MODULE HMx
       INTEGER :: flag_sigma
 
       ! Additions
-      LOGICAL :: add_voids, add_variances, add_shotnoise
+      LOGICAL :: add_voids, add_variances, add_shotnoise, proper_discrete
 
       ! Spherical collapse parameters
       REAL :: dc, Dv
@@ -1113,9 +1113,10 @@ CONTAINS
       ! Do voids?
       hmod%add_voids = .FALSE.
 
-      ! Do variances
-      hmod%add_variances = .TRUE.
-      hmod%add_shotnoise = .TRUE.
+      ! Discrete tracer stuff
+      hmod%proper_discrete = .TRUE. ! Is automatic correlation (e.g., <N(N-1)> vs <N^2>) considered in the one-halo term?
+      hmod%add_variances = .TRUE.   ! Is discrete-tracer variance (e.g., scatter in galaxy number) added to the one-halo term?
+      hmod%add_shotnoise = .TRUE.   ! Is discrete-tracer shot noise taken to be part of the signal?
 
       ! Set the void model
       ! 1 - Top-hat void
@@ -3583,17 +3584,7 @@ CONTAINS
       ! Get the k->0 window functions
       ALLOCATE(wk0(hmod%n, nnf))
       CALL init_windows(zero, ifield, nnf, wk0, hmod%n, hmod, cosm)
-
-      ! Get the window-function variances and/or shot noise (independent of k)
-      IF (hmod%add_variances .OR. hmod%add_shotnoise) THEN
-         CALL init_discrete_tracers(vars, shots, ifield, hmod)
-      ELSE
-         ALLOCATE(vars(hmod%n, nf, nf), shots(nf, nf))
-         vars = 0.
-         shots = 0.
-      END IF
-      vars_zero = 0.
-      shots_zero = 0.
+      CALL init_discrete_tracers(vars, shots, ifield, hmod)
 
       ! Loop over k values
       ! TODO: add OMP support properly. What is private and what is shared? CHECK THIS!
@@ -3687,6 +3678,15 @@ CONTAINS
 
    END FUNCTION is_matter_field
 
+   LOGICAL FUNCTION is_discrete_field(f)
+
+      ! Returns true if the field is given by a discrete tracer, rather than an emissive process
+      INTEGER, INTENT(IN) :: f
+
+      is_discrete_field = is_in_array(f, [field_centrals, field_satellites, field_galaxies])
+
+   END FUNCTION is_discrete_field
+
    SUBROUTINE calculate_HMx_ka(ifield, wk0, vars, shots, nf, k, pow_li, pow_2h, pow_1h, pow_hm, hmod, cosm)
 
       ! Gets the two- and one-halo terms and combines them
@@ -3704,8 +3704,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: wk(hmod%n, nf), wk2(hmod%n, 2), wk_product(hmod%n)
       INTEGER :: f1, f2, ih(2), i
-      REAL :: fac
-      LOGICAL :: discrete_auto
+      REAL :: fac, shot
 
       ! Calls expressions for two- and one-halo terms and then combines to form the full power spectrum
       IF (k == 0.) THEN
@@ -3733,24 +3732,18 @@ CONTAINS
                END IF
 
                ! Add variance to windows if necessary
-               IF (hmod%add_variances) THEN
-                  DO i = 1, hmod%n
-                     IF ((vars(i, f1, f2) /= 0.) .AND. (wk0(i, f1) /= 0.) .AND. (wk0(i, f2) /= 0.)) THEN
-                        fac = vars(i, f1, f2)/(wk0(i, f1)*wk0(i, f2))
-                        wk_product(i) = wk_product(i)*(1.+fac)
-                     END IF
-                  END DO
-               END IF
-
-               ! Determine if this is the auto-spectrum of a discrete field
-               IF ((f1 == f2) .AND. is_discrete_field(ifield(f1))) THEN
-                  discrete_auto = .TRUE.
-               ELSE
-                  discrete_auto = .FALSE.
-               END IF
+               DO i = 1, hmod%n
+                  IF ((vars(i, f1, f2) /= 0.) .AND. (wk0(i, f1) /= 0.) .AND. (wk0(i, f2) /= 0.)) THEN
+                     fac = vars(i, f1, f2)/(wk0(i, f1)*wk0(i, f2))
+                     wk_product(i) = wk_product(i)*(1.+fac)
+                  END IF
+               END DO
 
                ! Calculate the one-halo term; add shot noise if non-zero
-               pow_1h(f1, f2) = p_1h(wk_product, k, hmod, cosm)+Delta_Pk(shots(f1, f2), k)
+               pow_1h(f1, f2) = p_1h(wk_product, k, hmod, cosm)
+               shot = Delta_Pk(shots(f1, f2), k)
+               IF (hmod%proper_discrete .AND. hmod%add_shotnoise) pow_1h(f1, f2) = pow_1h(f1, f2)+shot
+               IF ((.NOT. hmod%proper_discrete) .AND. (.NOT. hmod%add_shotnoise)) pow_1h(f1, f2) = pow_1h(f1, f2)-shot
 
             END DO
          END DO
@@ -3902,12 +3895,22 @@ CONTAINS
             IF (is_discrete_field(f1) .AND. is_discrete_field(f2)) THEN
                DO im = 1, nm
                   m = hmod%m(im)
-                  v_cc = variance_centrals(m, hmod%hod)-mean_centrals(m, hmod%hod)
-                  v_ss = variance_satellites(m, hmod%hod)-mean_satellites(m, hmod%hod)
-                  v_gg = variance_galaxies(m, hmod%hod)-mean_galaxies(m, hmod%hod)
                   n_c = hmod%n_c
                   n_s = hmod%n_s
                   n_g = hmod%n_g
+                  v_cc = 0.
+                  v_ss = 0.
+                  v_gg = 0.
+                  IF (hmod%add_variances) THEN ! Scatter in galaxy numbers in a halo
+                     v_cc = v_cc+variance_centrals(m, hmod%hod)
+                     v_ss = v_ss+variance_satellites(m, hmod%hod)
+                     v_gg = v_gg+variance_galaxies(m, hmod%hod)
+                  END IF
+                  IF (hmod%proper_discrete) THEN ! <N(N-1)> vs. <N^2>
+                     v_cc = v_cc-mean_centrals(m, hmod%hod)
+                     v_ss = v_ss-mean_satellites(m, hmod%hod)
+                     v_gg = v_gg-mean_galaxies(m, hmod%hod)
+                  END IF
                   IF (f1 == field_centrals .AND. f2 == field_centrals) THEN
                      vars(im, if1, if2) = v_cc/n_c**2
                      shots(if1, if2) = 1./n_c
@@ -11296,14 +11299,5 @@ CONTAINS
       simple_onehalo = 4.*pi*(k/twopi)**3*(wk_tophat(k*rv)**2)*M/rhobar
 
    END FUNCTION simple_onehalo
-
-   LOGICAL FUNCTION is_discrete_field(f)
-
-      ! Returns true if the field is given by a discrete tracer, rather than an emissive process
-      INTEGER, INTENT(IN) :: f
-
-      is_discrete_field = is_in_array(f, [field_centrals, field_satellites, field_galaxies])
-
-   END FUNCTION is_discrete_field
 
 END MODULE HMx
