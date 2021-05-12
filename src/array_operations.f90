@@ -125,7 +125,7 @@ CONTAINS
 
       monotonic_array = .TRUE.
       DO i = 1, size(x)-1
-         IF(x(i+1) < x(i)) THEN
+         IF (x(i+1) < x(i)) THEN
             monotonic_array = .FALSE.
             EXIT
          END IF
@@ -1413,7 +1413,7 @@ CONTAINS
       INTEGER, INTENT(OUT) :: m                      ! Number of unique indices
       INTEGER, INTENT(OUT) :: match(n)               ! Array for matching input and unique arrays
       INTEGER :: i, j, p
-      LOGICAL :: increment
+      LOGICAL :: inc
 
       ! First count the number of unique entries
       m = unique_entries(array)
@@ -1424,15 +1424,15 @@ CONTAINS
 
       p = 1
       DO i = 1, n
-         increment = .FALSE.
+         inc = .FALSE.
          DO j = 1, p
             IF (array(i) /= unique(j)) THEN
                unique(p+1) = array(i)
-               increment = .TRUE.
+               inc = .TRUE.
                EXIT
             END IF
          END DO
-         IF (increment) p = p+1
+         IF (inc) p = p+1
          IF (p == m) EXIT ! Added this in haste
       END DO
 
