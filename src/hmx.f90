@@ -146,14 +146,14 @@ MODULE HMx
    PUBLIC :: field_CIB_353
    PUBLIC :: field_CIB_545
    PUBLIC :: field_CIB_857
-   PUBLIC :: field_halo_11p0_11p5
-   PUBLIC :: field_halo_11p5_12p0
-   PUBLIC :: field_halo_12p0_12p5
-   PUBLIC :: field_halo_12p5_13p0
-   PUBLIC :: field_halo_13p0_13p5
-   PUBLIC :: field_halo_13p5_14p0
-   PUBLIC :: field_halo_14p0_14p5
-   PUBLIC :: field_halo_14p5_15p0
+   !PUBLIC :: field_halo_11p0_11p5
+   !PUBLIC :: field_halo_11p5_12p0
+   !PUBLIC :: field_halo_12p0_12p5
+   !PUBLIC :: field_halo_12p5_13p0
+   !PUBLIC :: field_halo_13p0_13p5
+   !PUBLIC :: field_halo_13p5_14p0
+   !PUBLIC :: field_halo_14p0_14p5
+   !PUBLIC :: field_halo_14p5_15p0
    PUBLIC :: field_neutrino
    PUBLIC :: field_haloes
 
@@ -349,7 +349,7 @@ MODULE HMx
 
       ! HOD
       REAL :: mhalo_min, mhalo_max, mgal_min, mgal_max
-      REAL :: n_c, n_s, n_g, shot
+      REAL :: n_c, n_s, n_g, n_h, shot_gg, shot_hh
       INTEGER :: ihod
       TYPE(hodmod) :: hod
 
@@ -391,7 +391,7 @@ MODULE HMx
       INTEGER :: frac_bound_gas, frac_cold_bound_gas, frac_hot_bound_gas
 
       ! Different 'has' logicals
-      LOGICAL :: has_HI, has_mass_conversions, has_HOD
+      LOGICAL :: has_HI, has_mass_conversions, has_HOD, has_haloes
 
       ! ?
       LOGICAL :: simple_pivot
@@ -561,17 +561,17 @@ MODULE HMx
    INTEGER, PARAMETER :: field_CIB_353 = 20
    INTEGER, PARAMETER :: field_CIB_545 = 21
    INTEGER, PARAMETER :: field_CIB_857 = 22
-   INTEGER, PARAMETER :: field_halo_11p0_11p5 = 23
-   INTEGER, PARAMETER :: field_halo_11p5_12p0 = 24
-   INTEGER, PARAMETER :: field_halo_12p0_12p5 = 25
-   INTEGER, PARAMETER :: field_halo_12p5_13p0 = 26
-   INTEGER, PARAMETER :: field_halo_13p0_13p5 = 27
-   INTEGER, PARAMETER :: field_halo_13p5_14p0 = 28
-   INTEGER, PARAMETER :: field_halo_14p0_14p5 = 29
-   INTEGER, PARAMETER :: field_halo_14p5_15p0 = 30
-   INTEGER, PARAMETER :: field_neutrino = 31
-   INTEGER, PARAMETER :: field_haloes = 32
-   INTEGER, PARAMETER :: field_n = 32
+   !INTEGER, PARAMETER :: field_halo_11p0_11p5 = 23
+   !INTEGER, PARAMETER :: field_halo_11p5_12p0 = 24
+   !INTEGER, PARAMETER :: field_halo_12p0_12p5 = 25
+   !INTEGER, PARAMETER :: field_halo_12p5_13p0 = 26
+   !INTEGER, PARAMETER :: field_halo_13p0_13p5 = 27
+   !INTEGER, PARAMETER :: field_halo_13p5_14p0 = 28
+   !INTEGER, PARAMETER :: field_halo_14p0_14p5 = 29
+   !INTEGER, PARAMETER :: field_halo_14p5_15p0 = 30
+   INTEGER, PARAMETER :: field_neutrino = 23
+   INTEGER, PARAMETER :: field_haloes = 24
+   INTEGER, PARAMETER :: field_n = 24
 
    ! Halo types
    INTEGER, PARAMETER :: irho_delta = 0
@@ -1372,6 +1372,7 @@ CONTAINS
 
       ! Set flags to false
       hmod%has_HOD = .FALSE.
+      hmod%has_haloes = .FALSE.
       hmod%has_HI = .FALSE.
       hmod%has_mass_conversions = .FALSE.
       hmod%has_mass_function = .FALSE.
@@ -2278,6 +2279,7 @@ CONTAINS
 
       ! Reset flags to false
       hmod%has_HOD = .FALSE.
+      hmod%has_haloes = .FALSE.
       hmod%has_HI = .FALSE.
       hmod%has_mass_conversions = .FALSE.
       hmod%has_mass_function = .FALSE.
@@ -2583,7 +2585,6 @@ CONTAINS
          IF (hmod%iconc == 3)  WRITE (*, *) 'HALOMODEL: Full sample for M200 Duffy et al. (2008) concentration-mass relation'
          IF (hmod%iconc == 4)  WRITE (*, *) 'HALOMODEL: Full sample for Mv Duffy et al. (2008) concentration-mass relation'
          IF (hmod%iconc == 5)  WRITE (*, *) 'HALOMODEL: Full sample for M200c Duffy et al. (2008) concentration-mass relation'
-         IF (hmod%iconc == 6)  WRITE (*, *) 'HALOMODEL: Relaxed sample for M200 Duffy et al. (2008) concentration-mass relation'
          IF (hmod%iconc == 7)  WRITE (*, *) 'HALOMODEL: Relaxed sample for Mv Duffy et al. (2008) concentration-mass relation'
          IF (hmod%iconc == 8)  WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Duffy et al. (2008) concentration-mass relation'
          IF (hmod%iconc == 9)  WRITE (*, *) 'HALOMODEL: Child et al. (2018) M200c concentration-mass relation'
@@ -3218,14 +3219,14 @@ CONTAINS
       IF (i == field_CIB_353) halo_type = 'CIB 353 GHz'
       IF (i == field_CIB_545) halo_type = 'CIB 545 GHz'
       IF (i == field_CIB_857) halo_type = 'CIB 857 GHz'
-      IF (i == field_halo_11p0_11p5) halo_type = 'Haloes 10^11.0 -> 10^11.5'
-      IF (i == field_halo_11p5_12p0) halo_type = 'Haloes 10^11.5 -> 10^12.0'
-      IF (i == field_halo_12p0_12p5) halo_type = 'Haloes 10^12.0 -> 10^12.5'
-      IF (i == field_halo_12p5_13p0) halo_type = 'Haloes 10^12.5 -> 10^13.0'
-      IF (i == field_halo_13p0_13p5) halo_type = 'Haloes 10^13.0 -> 10^13.5'
-      IF (i == field_halo_13p5_14p0) halo_type = 'Haloes 10^13.5 -> 10^14.0'
-      IF (i == field_halo_14p0_14p5) halo_type = 'Haloes 10^14.0 -> 10^14.5'
-      IF (i == field_halo_14p5_15p0) halo_type = 'Haloes 10^14.5 -> 10^15.0'
+      !IF (i == field_halo_11p0_11p5) halo_type = 'Haloes 10^11.0 -> 10^11.5'
+      !IF (i == field_halo_11p5_12p0) halo_type = 'Haloes 10^11.5 -> 10^12.0'
+      !IF (i == field_halo_12p0_12p5) halo_type = 'Haloes 10^12.0 -> 10^12.5'
+      !IF (i == field_halo_12p5_13p0) halo_type = 'Haloes 10^12.5 -> 10^13.0'
+      !IF (i == field_halo_13p0_13p5) halo_type = 'Haloes 10^13.0 -> 10^13.5'
+      !IF (i == field_halo_13p5_14p0) halo_type = 'Haloes 10^13.5 -> 10^14.0'
+      !IF (i == field_halo_14p0_14p5) halo_type = 'Haloes 10^14.0 -> 10^14.5'
+      !IF (i == field_halo_14p5_15p0) halo_type = 'Haloes 10^14.5 -> 10^15.0'
       IF (i == field_neutrino) halo_type = 'Neutrino'
       IF (i == field_haloes) halo_type = 'Haloes'
       IF (halo_type == '') STOP 'HALO_TYPE: Error, i not specified correctly'
@@ -3683,7 +3684,7 @@ CONTAINS
       ! Returns true if the field is given by a discrete tracer, rather than an emissive process
       INTEGER, INTENT(IN) :: f
 
-      is_discrete_field = is_in_array(f, [field_centrals, field_satellites, field_galaxies])
+      is_discrete_field = is_in_array(f, [field_haloes, field_centrals, field_satellites, field_galaxies])
 
    END FUNCTION is_discrete_field
 
@@ -3877,8 +3878,8 @@ CONTAINS
       INTEGER :: im, if1, if2
       INTEGER :: nm, nf
       REAL :: m
-      REAL :: n_c, n_s, n_g
-      REAL :: v_cc, v_ss, v_gg
+      REAL :: n_c, n_s, n_g, n_h
+      REAL :: v_cc, v_ss, v_gg, v_hh
 
       ! Allocate arrays
       nm = hmod%n
@@ -3898,9 +3899,11 @@ CONTAINS
                   n_c = hmod%n_c
                   n_s = hmod%n_s
                   n_g = hmod%n_g
+                  n_h = hmod%n_h
                   v_cc = 0.
                   v_ss = 0.
                   v_gg = 0.
+                  v_hh = 0.
                   IF (hmod%add_variances) THEN ! Scatter in galaxy numbers in a halo
                      v_cc = v_cc+variance_centrals(m, hmod%hod)
                      v_ss = v_ss+variance_satellites(m, hmod%hod)
@@ -3910,6 +3913,7 @@ CONTAINS
                      v_cc = v_cc-mean_centrals(m, hmod%hod)
                      v_ss = v_ss-mean_satellites(m, hmod%hod)
                      v_gg = v_gg-mean_galaxies(m, hmod%hod)
+                     v_hh = -1.
                   END IF
                   IF (f1 == field_centrals .AND. f2 == field_centrals) THEN
                      vars(im, if1, if2) = v_cc/n_c**2
@@ -3920,6 +3924,9 @@ CONTAINS
                   ELSE IF (f1 == field_galaxies .AND. f2 == field_galaxies) THEN
                      vars(im, if1, if2) = v_gg/n_g**2
                      shots(if1, if2) = 1./n_g
+                  ELSE IF (f1 == field_haloes .AND. f2 == field_haloes) THEN
+                     vars(im, if1, if2) = v_hh/n_h**2
+                     shots(if1, if2) = 1./n_h
                   ELSE IF (equals_or([f1, f2], [field_centrals, field_galaxies])) THEN
                      vars(im, if1, if2) = v_cc/(n_c*n_g)
                      shots(if1, if2) = 1./n_g ! n_c/(n_g*n_c)
@@ -6097,6 +6104,28 @@ CONTAINS
 
    END FUNCTION Omega_stars
 
+   SUBROUTINE init_haloes(hmod, cosm)
+
+      ! Calculate the number densities of galaxies
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: nu_min, nu_max
+
+      nu_min = nu_M(hmod%mhalo_min, hmod, cosm)
+      nu_max = nu_M(hmod%mhalo_max, hmod, cosm)
+      hmod%n_h = rhobar_tracer(nu_min, nu_max, rhobar_halo_integrand, hmod, cosm)
+      hmod%shot_hh = 1./hmod%n_h
+      IF (verbose_HOD) THEN
+         WRITE (*, *) 'INIT_HOD: Minimum tracer halo mass [log10(Msun/h)]:', log10(hmod%mhalo_min)
+         WRITE (*, *) 'INIT_HOD: Maximum tracer halo mass [log10(Msun/h)]:', log10(hmod%mhalo_max)
+         WRITE (*, *) 'INIT_HOD: Comoving number density of all haloes [(Mpc/h)^-3]:', hmod%n_g
+         WRITE (*, *) 'INIT_HOD: Halo shot noise [(Mpc/h)^3]:', hmod%shot_gg
+         WRITE (*, *)
+      END IF
+      hmod%has_haloes = .TRUE.
+
+   END SUBROUTINE init_haloes
+
    SUBROUTINE init_HOD(hmod, cosm)
 
       ! Calculate the number densities of galaxies
@@ -6109,12 +6138,14 @@ CONTAINS
       hmod%n_c = rhobar_tracer(nu_min, nu_max, rhobar_central_HOD_integrand, hmod, cosm)
       hmod%n_s = rhobar_tracer(nu_min, nu_max, rhobar_satellite_HOD_integrand, hmod, cosm)
       hmod%n_g = hmod%n_c+hmod%n_s
-      hmod%shot = 1./hmod%n_g
+      hmod%shot_gg = 1./hmod%n_g
       IF (verbose_HOD) THEN
-         WRITE (*, *) 'INIT_HOD: Comoving number density of central galaxies [(Mpc/h)^-3]:', real(hmod%n_c)
-         WRITE (*, *) 'INIT_HOD: Comoving number density of satellite galaxies [(Mpc/h)^-3]:', real(hmod%n_s)
-         WRITE (*, *) 'INIT_HOD: Comoving number density of all galaxies [(Mpc/h)^-3]:', real(hmod%n_g)
-         WRITE (*, *) 'INIT_HOD: Galaxy shot noise [(Mpc/h)^3]:', real(hmod%shot)
+         WRITE (*, *) 'INIT_HOD: Minimum galaxy-halo mass [log10(Msun/h)]:', log10(hmod%mgal_min)
+         WRITE (*, *) 'INIT_HOD: Maximum galaxy-halo mass [log10(Msun/h)]:', log10(hmod%mgal_max)
+         WRITE (*, *) 'INIT_HOD: Comoving number density of central galaxies [(Mpc/h)^-3]:', hmod%n_c
+         WRITE (*, *) 'INIT_HOD: Comoving number density of satellite galaxies [(Mpc/h)^-3]:', hmod%n_s
+         WRITE (*, *) 'INIT_HOD: Comoving number density of all galaxies [(Mpc/h)^-3]:', hmod%n_g
+         WRITE (*, *) 'INIT_HOD: Galaxy shot noise [(Mpc/h)^3]:', hmod%shot_gg
          WRITE (*, *)
       END IF
       hmod%has_HOD = .TRUE.
@@ -6184,6 +6215,21 @@ CONTAINS
       END IF
 
    END FUNCTION M_nu
+
+   REAL FUNCTION rhobar_halo_integrand(nu, hmod, cosm)
+
+      ! Integrand for the number density of central galaxies
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm ! Could remove
+      REAL :: M, crap
+
+      crap = cosm%A
+
+      M = M_nu(nu, hmod)
+      rhobar_halo_integrand = g_nu(nu, hmod)/M
+
+   END FUNCTION rhobar_halo_integrand
 
    REAL FUNCTION rhobar_central_HOD_integrand(nu, hmod, cosm)
 
@@ -7097,38 +7143,39 @@ CONTAINS
             STOP 'WIN_TYPE: Error, ifield specified incorrectly'
          END IF
          win = win_CIB(real_space, nu, k, m, rv, rs, hmod, cosm)
-      ELSE IF (ifield == field_halo_11p0_11p5 .OR. ifield == field_halo_11p5_12p0 .OR. &
-               ifield == field_halo_12p0_12p5 .OR. ifield == field_halo_12p5_13p0 .OR. &
-               ifield == field_halo_13p0_13p5 .OR. ifield == field_halo_13p5_14p0 .OR. &
-               ifield == field_halo_14p0_14p5 .OR. ifield == field_halo_14p5_15p0 .OR. &
-               ifield == field_haloes) THEN
-         IF (ifield == field_halo_11p0_11p5) THEN
-            mmin = 10**11.0 ! Minimum halo mass [Msun/h]
-            mmax = 10**11.5 ! Maximum halo mass [Msun/h]
-         ELSE IF (ifield == field_halo_11p5_12p0) THEN
-            mmin = 10**11.5 ! Minimum halo mass [Msun/h]
-            mmax = 10**12.0 ! Maximum halo mass [Msun/h]
-         ELSE IF (ifield == field_halo_12p0_12p5) THEN
-            mmin = 10**12.0 ! Minimum halo mass [Msun/h]
-            mmax = 10**12.5 ! Maximum halo mass [Msun/h]
-         ELSE IF (ifield == field_halo_12p5_13p0) THEN
-            mmin = 10**12.5 ! Minimum halo mass [Msun/h]
-            mmax = 10**13.0 ! Maximum halo mass [Msun/h]
-         ELSE IF (ifield == field_halo_13p0_13p5) THEN
-            mmin = 10**13.0 ! Minimum halo mass [Msun/h]
-            mmax = 10**13.5 ! Maximum halo mass [Msun/h]
-         ELSE IF (ifield == field_halo_13p5_14p0) THEN
-            mmin = 10**13.5 ! Minimum halo mass [Msun/h]
-            mmax = 10**14.0 ! Maximum halo mass [Msun/h]
-         ELSE IF (ifield == field_halo_14p0_14p5) THEN
-            mmin = 10**14.0 ! Minimum halo mass [Msun/h]
-            mmax = 10**14.5 ! Maximum halo mass [Msun/h]
-         ELSE IF (ifield == field_halo_14p5_15p0) THEN
-            mmin = 10**14.5 ! Minimum halo mass [Msun/h]
-            mmax = 10**15.0 ! Maximum halo mass [Msun/h]
-         !ELSE
-         !   STOP 'WIN_TYPE: Error, ifield specified incorrectly'
-         END IF
+      ! ELSE IF (ifield == field_halo_11p0_11p5 .OR. ifield == field_halo_11p5_12p0 .OR. &
+      !          ifield == field_halo_12p0_12p5 .OR. ifield == field_halo_12p5_13p0 .OR. &
+      !          ifield == field_halo_13p0_13p5 .OR. ifield == field_halo_13p5_14p0 .OR. &
+      !          ifield == field_halo_14p0_14p5 .OR. ifield == field_halo_14p5_15p0 .OR. &
+      !          ifield == field_haloes) THEN
+      !    IF (ifield == field_halo_11p0_11p5) THEN
+      !       mmin = 10**11.0 ! Minimum halo mass [Msun/h]
+      !       mmax = 10**11.5 ! Maximum halo mass [Msun/h]
+      !    ELSE IF (ifield == field_halo_11p5_12p0) THEN
+      !       mmin = 10**11.5 ! Minimum halo mass [Msun/h]
+      !       mmax = 10**12.0 ! Maximum halo mass [Msun/h]
+      !    ELSE IF (ifield == field_halo_12p0_12p5) THEN
+      !       mmin = 10**12.0 ! Minimum halo mass [Msun/h]
+      !       mmax = 10**12.5 ! Maximum halo mass [Msun/h]
+      !    ELSE IF (ifield == field_halo_12p5_13p0) THEN
+      !       mmin = 10**12.5 ! Minimum halo mass [Msun/h]
+      !       mmax = 10**13.0 ! Maximum halo mass [Msun/h]
+      !    ELSE IF (ifield == field_halo_13p0_13p5) THEN
+      !       mmin = 10**13.0 ! Minimum halo mass [Msun/h]
+      !       mmax = 10**13.5 ! Maximum halo mass [Msun/h]
+      !    ELSE IF (ifield == field_halo_13p5_14p0) THEN
+      !       mmin = 10**13.5 ! Minimum halo mass [Msun/h]
+      !       mmax = 10**14.0 ! Maximum halo mass [Msun/h]
+      !    ELSE IF (ifield == field_halo_14p0_14p5) THEN
+      !       mmin = 10**14.0 ! Minimum halo mass [Msun/h]
+      !       mmax = 10**14.5 ! Maximum halo mass [Msun/h]
+      !    ELSE IF (ifield == field_halo_14p5_15p0) THEN
+      !       mmin = 10**14.5 ! Minimum halo mass [Msun/h]
+      !       mmax = 10**15.0 ! Maximum halo mass [Msun/h]
+      !   ELSE
+      !      STOP 'WIN_TYPE: Error, ifield specified incorrectly'
+      !   END IF
+      ELSE IF (ifield == field_haloes) THEN
          STOP 'WIN: Be careful with haloes and mass ranges here'
          win = win_haloes(real_space, mmin, mmax, k, m, rv, rs, hmod, cosm)
       ELSE
@@ -8118,6 +8165,7 @@ CONTAINS
       REAL :: r, rmin, rmax, p1, p2, N, nhalo
       REAL :: nu1, nu2
 
+      IF (.NOT. hmod%has_haloes) CALL init_haloes(hmod, cosm)
       N = N_haloes(m, hmod)
 
       IF (N == 0.) THEN
