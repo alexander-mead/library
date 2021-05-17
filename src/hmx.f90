@@ -939,8 +939,8 @@ CONTAINS
       ! 6 - HMcode (2015)
       hmod%idc = 2
 
-      ! Virial density Delta_v
-      ! 1 - Fixed 200
+      ! Virial density relative to background matter
+      ! 1 - Fixed M200
       ! 2 - Bryan & Norman (1998) fitting function
       ! 3 - HMcode (2016)
       ! 4 - Mead (2017) fitting function
