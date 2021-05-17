@@ -47,6 +47,7 @@ MODULE multidark_stuff
 
    ! Halo catalogue files
    ! TODO: Note that Rockstar catalogues have 6 mass entries, while BDMV only have 2 mass entries
+   ! NOTE: Only have BDMV catalogues for Bolshoi
    INTEGER, PARAMETER :: column_Mvir = 1
    INTEGER, PARAMETER :: column_Mtot = 2
    INTEGER, PARAMETER :: column_M200 = 3
