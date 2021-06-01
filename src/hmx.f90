@@ -561,14 +561,6 @@ MODULE HMx
    INTEGER, PARAMETER :: field_CIB_353 = 20
    INTEGER, PARAMETER :: field_CIB_545 = 21
    INTEGER, PARAMETER :: field_CIB_857 = 22
-   !INTEGER, PARAMETER :: field_halo_11p0_11p5 = 23
-   !INTEGER, PARAMETER :: field_halo_11p5_12p0 = 24
-   !INTEGER, PARAMETER :: field_halo_12p0_12p5 = 25
-   !INTEGER, PARAMETER :: field_halo_12p5_13p0 = 26
-   !INTEGER, PARAMETER :: field_halo_13p0_13p5 = 27
-   !INTEGER, PARAMETER :: field_halo_13p5_14p0 = 28
-   !INTEGER, PARAMETER :: field_halo_14p0_14p5 = 29
-   !INTEGER, PARAMETER :: field_halo_14p5_15p0 = 30
    INTEGER, PARAMETER :: field_neutrino = 23
    INTEGER, PARAMETER :: field_haloes = 24
    INTEGER, PARAMETER :: field_n = 24
@@ -913,7 +905,8 @@ CONTAINS
       ! 16 - Tinker et al. (2010) no z dependence
       ! 17 - Tinker et al. (2010) with calibrated bias
       ! 18 - Tinker et al. (2010) with calibrated bias and no z dependence
-      ! 19 - Sheth & Tormen (1999) with calibrated bias
+      ! 19 - Sheth, Mo & Tormen (2001) with calibrated halo bias
+      ! 20 - Peacock (2007)
       hmod%imf = 2
 
       ! Concentration-mass relation
@@ -1584,11 +1577,11 @@ CONTAINS
          hmod%electron_pressure = 1
       ELSE IF (ihm == 12) THEN
          ! Spherical-collapse model to produce Mead (2017) results
-         hmod%idc = 5    ! Spherical-collapse calculation for delta_c
-         hmod%iDv = 5    ! Spherical-collapse calculation for Delta_v
-         hmod%imf = 2    ! Sheth & Tormen mass function
-         hmod%iconc = 1  ! Bullock et al. c(M) relation
-         hmod%iDolag = 1 ! This is important for the accuracy of the z=0 results presented in Mead (2017)
+         hmod%idc = 5    ! 5 - Spherical-collapse calculation for delta_c
+         hmod%iDv = 5    ! 5 - Spherical-collapse calculation for Delta_v
+         hmod%imf = 2    ! 2 - Sheth & Tormen (1999) mass function
+         hmod%iconc = 1  ! 1 - Bullock et al. c(M) relation
+         hmod%iDolag = 1 ! 1 - This is important for the accuracy of the z=0 results presented in Mead (2017)
       ELSE IF (ihm == 13) THEN
          ! Experimental sigmoid transition
          hmod%itrans = 4
@@ -1882,7 +1875,7 @@ CONTAINS
          hmod%ibias = 3 ! Non-linear halo bias
          !hmod%i1hdamp = 3 ! One-halo damping like k^4         
          IF (ihm == 48) THEN
-            hmod%imf = 2 ! Sheth & Tormen (1999)
+            hmod%imf = 2 ! 2 - Sheth & Tormen (1999)
          ELSE IF (ihm == 49 .OR. ihm == 107) THEN
             hmod%imf = 3  ! Tinker 2010 with peak-background split bias
          ELSE
@@ -2561,7 +2554,7 @@ CONTAINS
          ! Halo mass function
          IF (hmod%imf == 1)  WRITE (*, *) 'HALOMODEL: Press & Schecter (1974) mass function'
          IF (hmod%imf == 2)  WRITE (*, *) 'HALOMODEL: Sheth & Tormen (1999) mass function'
-         IF (hmod%imf == 3)  WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with peak-background split bias'
+         IF (hmod%imf == 3)  WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function'
          IF (hmod%imf == 4)  WRITE (*, *) 'HALOMODEL: Delta function mass function'
          IF (hmod%imf == 5)  WRITE (*, *) 'HALOMODEL: Jenkins et al. (2001) mass function'
          IF (hmod%imf == 6)  WRITE (*, *) 'HALOMODEL: Despali et al. (2016) mass function'
@@ -2571,13 +2564,14 @@ CONTAINS
          IF (hmod%imf == 10) WRITE (*, *) 'HALOMODEL: Bhattacharya et al. (2011) mass function'
          IF (hmod%imf == 11) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with no halo bias and z dependence'
          IF (hmod%imf == 12) WRITE (*, *) 'HALOMODEL: Sheth & Tormen (2002) mass function'
-         IF (hmod%imf == 13) WRITE (*, *) 'HALOMODEL: Sheth & Tormen form of mass function'
+         IF (hmod%imf == 13) WRITE (*, *) 'HALOMODEL: Sheth & Tormen general form of mass function'
          IF (hmod%imf == 14) WRITE (*, *) 'HALOMODEL: Philcox et al. (2020) mass function'
          IF (hmod%imf == 15) WRITE (*, *) 'HALOMODEL: Tinker et al. (2008) mass function with no z dependence'
          IF (hmod%imf == 16) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with no z dependence'
          IF (hmod%imf == 17) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with calibrated halo bias'
          IF (hmod%imf == 18) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with calibrated halo bias and no z dependence'
-         IF (hmod%imf == 19) WRITE (*, *) 'HALOMODEL: Sheth & Tormen (1999) mass function with calibrated halo bias'
+         IF (hmod%imf == 19) WRITE (*, *) 'HALOMODEL: Sheth, Mo & Tormen (1999) mass function with calibrated halo bias'
+         IF (hmod%imf == 20) WRITE (*, *) 'HALOMODEL: Peacock (2007) mass function'
 
          ! Concentration-mass relation
          IF (hmod%iconc == 1)  WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -2786,7 +2780,7 @@ CONTAINS
             WRITE (*, fmt=fmt) 'Sheth & Tormen q:', hmod%ST_q
             WRITE (*, fmt=fmt) 'Sheth & Tormen A:', hmod%ST_A
          ELSE IF (is_in_array(hmod%imf, [3, 11, 16, 17, 18])) THEN
-            ! Tinker (2010) mass function
+            ! Tinker (2010)
             WRITE (*, fmt=fmt) 'Tinker alpha:', hmod%Tinker_alpha
             WRITE (*, fmt=fmt) 'Tinker beta:', hmod%Tinker_beta
             WRITE (*, fmt=fmt) 'Tinker gamma:', hmod%Tinker_gamma
@@ -9517,7 +9511,6 @@ CONTAINS
       REAL :: ks
 
       ks = k*rv/c
-
       F_NFW = Ci(ks*(1.+c))-Ci(ks)
 
    END FUNCTION F_NFW
@@ -9531,528 +9524,17 @@ CONTAINS
       REAL :: ks
 
       ks = k*rv/c
-
       G_NFW = Si(ks*(1.+c))-Si(ks)
 
    END FUNCTION G_NFW
 
-   REAL FUNCTION b_nu(nu, hmod)
-
-      ! Bias function selection
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-
-      IF (.NOT. hmod%has_mass_function) CALL init_mass_function(hmod)
-
-      IF (hmod%imf == 1) THEN
-         b_nu = b_PS(nu, hmod)
-      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
-         b_nu = b_ST(nu, hmod)
-      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 16) THEN
-         b_nu = b_Tinker2010_peakbackground(nu, hmod)
-      ELSE IF (hmod%imf == 4 .OR. hmod%imf == 11) THEN
-         b_nu = 1.
-      ELSE IF (hmod%imf == 5) THEN
-         b_nu = b_Jenkins(nu, hmod)
-      ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
-         b_nu = b_Tinker2008(nu, hmod)
-      ELSE IF (hmod%imf == 8) THEN
-         b_nu = b_Warren(nu, hmod)
-      ELSE IF (hmod%imf == 9) THEN
-         b_nu = b_Reed(nu, hmod)
-      ELSE IF (hmod%imf == 10 .OR. hmod%imf == 14) THEN
-         b_nu = b_Bhattacharya(nu, hmod)
-      ELSE IF (hmod%imf == 17 .OR. hmod%imf == 18) THEN
-         b_nu = b_Tinker2010_calibrated(nu, hmod)
-      ELSE IF (hmod%imf == 19) THEN
-         b_nu = b_SMT(nu, hmod)
-      ELSE
-         STOP 'B_NU: Error, imf not specified correctly'
-      END IF
-
-   END FUNCTION b_nu
-
-   REAL FUNCTION b_PS(nu, hmod)
-
-      ! Press & Scheter (1974) halo bias
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-
-      b_PS = 1.+(nu**2-1.)/hmod%dc
-
-   END FUNCTION b_PS
-
-   REAL FUNCTION b_ST(nu, hmod)
-
-      ! Sheth & Tormen (1999) halo bias (equation 12 in 9901122)
-      ! Comes from peak-background split
-      ! Haloes defined with SO relative to mean matter density with SC Delta_v relation
-      ! A redshift dependent delta_c is used for barrier height, again from SC
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: dc, p, q
-
-      p = hmod%ST_p
-      q = hmod%ST_q
-      dc = hmod%dc
-
-      b_ST = 1.+(q*(nu**2)-1.+2.*p/(1.+(q*nu**2)**p))/dc
-
-   END FUNCTION b_ST
-
-   REAL FUNCTION b_SMT(nu, hmod)
-
-      ! Sheth, Mo & Tormen (2001) halo bias
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: dc, anu2, f1, f2, f3, f4
-      REAL, PARAMETER :: a = 0.707
-      REAL, PARAMETER :: b = 0.5
-      REAL, PARAMETER :: c = 0.6
-
-      dc = hmod%dc
-
-      anu2 = a*nu**2
-
-      f1 = sqrt(a)*anu2
-      f2 = sqrt(a)*b*anu2**(1.-c)
-      f3 = anu2**c
-      f4 = anu2**c+b*(1.-c)*(1-c/2.)
-
-      b_SMT = 1.+(f1+f2-f3/f4)/(dc*sqrt(a))
-
-   END FUNCTION b_SMT
-
-   REAL FUNCTION b_Tinker2008(nu, hmod)
-
-      ! Peak-background split applied to Tinker et al. (2008) mass function
-      ! Note that the 2008 mass function is not normalised correctly, so this will not have the integral constraint
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: dc, sig
-      REAL :: a, b, c
-
-      a = hmod%Tinker_a
-      b = hmod%Tinker_b
-      c = hmod%Tinker_c
-
-      dc = hmod%dc
-      sig = dc/nu
-
-      b_Tinker2008 = 1.-(a*b**a/(sig**a+b**a)-2.*c/sig**2)/dc
-
-   END FUNCTION b_Tinker2008
-
-   REAL FUNCTION b_Tinker2010_calibrated(nu, hmod)
-
-      ! Equation (6) from Tinker et al. (2010; 1001.3162)
-      ! Parameter values from Table 2
-      ! TODO: Could do an init function?
-      ! NOTE: Tinker takes dc = 1.686 and this does not vary with cosmology
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: bigA, bigB, bigC, a, b, c, dc
-
-      bigA = hmod%Tinker_bigA
-      bigB = hmod%Tinker_bigB
-      bigC = hmod%Tinker_bigC
-      a = hmod%Tinker_a
-      b = hmod%Tinker_b
-      c = hmod%Tinker_c
-
-      dc = hmod%dc
-
-      b_Tinker2010_calibrated = 1.-bigA*nu**a/(nu**a+dc**a)+bigB*nu**b+bigC*nu**c
-
-   END FUNCTION b_Tinker2010_calibrated
-
-   REAL FUNCTION b_Tinker2010_peakbackground(nu, hmod)
-
-      ! Tinker et al. (2010; 1001.3162) halo bias derived using the peak-background split
-      ! Equation (15)
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: dc
-      REAL :: beta, gamma, phi, eta
-      REAL :: f1, f2
-
-      beta = hmod%Tinker_beta
-      gamma = hmod%Tinker_gamma
-      phi = hmod%Tinker_phi
-      eta = hmod%Tinker_eta
-
-      dc = hmod%dc
-
-      f1 = (gamma*nu**2-(1.+2.*eta))/dc
-      f2 = (2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
-      b_Tinker2010_peakbackground = 1.+f1+f2
-
-   END FUNCTION b_Tinker2010_peakbackground
-
-   REAL FUNCTION b_Jenkins(nu, hmod)
-
-      ! Bias from applying peak-background split to Jenkins (2001) mass function
-      ! Haloes defined with FoF with b = 0.2
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: x
-
-      x = log(nu)-0.0876
-
-      IF (x > 0.) THEN
-         b_Jenkins = 1.+3.8*abs(x)**2.8/hmod%dc
-      ELSE
-         b_Jenkins = 1.-3.8*abs(x)**2.8/hmod%dc
-         IF (b_Jenkins < 0.) b_Jenkins = 0.
-      END IF
-
-   END FUNCTION b_Jenkins
-
-   REAL FUNCTION b_Warren(nu, hmod)
-
-      ! Bias from peak-backgound split applied to Warren et al. (2006) mass function
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: sig, dc
-      REAL, PARAMETER :: b = 0.2538
-      REAL, PARAMETER :: c = 1.1982
-
-      dc = hmod%dc
-      sig = dc/nu
-
-      b_Warren = 1.-(b/(1.+b*sig**b)-2.*c/sig**2)/dc
-
-   END FUNCTION b_Warren
-
-   REAL FUNCTION b_Reed(nu, hmod)
-
-      ! Halo bias from peak-backgound split applied to Reed et al. (2007) mass function
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: crap
-
-      ! Suppress warnings
-      crap = nu
-      crap = hmod%a
-
-      b_Reed = 1.
-
-   END FUNCTION b_Reed
-
-   REAL FUNCTION b_Bhattacharya(nu, hmod)
-
-      ! Bhattacharya et al. (2011; 1005.2239) mass function for FoF b = 0.2 haloes
-      ! Bias derived using the peak-background split
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: f1, f2, f3, dc
-      REAL :: a, p, q
-
-      IF (hmod%imf == 10) THEN
-         ! Bhattacharya et al. (2011)
-         STOP 'G_BHATTACHARYA: Check this carefully'
-         a = 0.788/(1.+hmod%z)**0.01
-         p = 0.807
-         q = 1.795
-      ELSE IF (hmod%imf == 14) THEN
-         ! Philcox et al. (2020)
-         a = 0.774
-         p = 0.637
-         q = 1.663
-      ELSE
-         STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
-      END IF
-
-      f1 = a*nu**2
-      f2 = 2*p/(1.+(a*nu**2)**p)
-      f3 = q
-      dc = hmod%dc
-
-      b_Bhattacharya = (f1-f2+f3)/dc
-
-   END FUNCTION b_Bhattacharya
-
-   REAL FUNCTION b2_nu(nu, hmod)
-
-      ! Second-order bias function selection
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-
-      IF (is_in_array(hmod%imf, [1, 2, 6, 12, 13])) THEN
-         b2_nu = b2_ST(nu, hmod)
-      ELSE
-         STOP 'B2_NU: Error, second-order bias not specified this mass function'
-      END IF
-
-   END FUNCTION b2_nu
-
-   REAL FUNCTION b2_ST(nu, hmod)
-
-      ! Sheth, Mo & Tormen (2001) second-order bias
-      ! Notation follows from Cooray & Sheth (2002) pp 25-26
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: eps1, eps2, E1, E2, dc, p, q
-      REAL, PARAMETER :: a2 = -17./21.
-
-      IF (hmod%imf == 1) THEN
-         ! Press & Schecter (1974)
-         p = 0.
-         q = 1.
-         STOP 'B2_ST: Check this very carefully for Press & Schecter form'
-      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
-         p = hmod%ST_p
-         q = hmod%ST_q      
-      ELSE
-         STOP 'B2_ST: Error, incorrect mass function'
-      END IF
-
-      dc = hmod%dc
-
-      eps1 = (q*nu**2-1.)/dc
-      eps2 = (q*nu**2)*(q*nu**2-3.)/dc**2
-      E1 = (2.*p)/(dc*(1.+(q*nu**2)**p))
-      E2 = ((1.+2.*p)/dc+2.*eps1)*E1
-
-      b2_ST = 2.*(1.+a2)*(eps1+E1)+eps2+E2
-
-   END FUNCTION b2_ST
-
-   REAL RECURSIVE FUNCTION g_nu(nu, hmod)
-
-      ! Mass function
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-
-      IF (.NOT. hmod%has_mass_function) CALL init_mass_function(hmod)
-
-      IF (hmod%imf == 1) THEN
-         g_nu = g_PS(nu, hmod)
-      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13, 19])) THEN
-         g_nu = g_ST(nu, hmod)
-      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11 .OR. hmod%imf == 16 .OR. hmod%imf == 17 .OR. hmod%imf == 18) THEN
-         g_nu = g_Tinker2010(nu, hmod)
-      ELSE IF (hmod%imf == 4) THEN
-         STOP 'G_NU: Error, this function should not be used for delta-mass-function'
-      ELSE IF (hmod%imf == 5) THEN
-         g_nu = g_Jenkins(nu, hmod)
-      ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
-         g_nu = g_Tinker2008(nu, hmod)
-      ELSE IF (hmod%imf == 8) THEN
-         g_nu = g_Warren(nu, hmod)
-      ELSE IF (hmod%imf == 9) THEN
-         g_nu = g_Reed(nu, hmod)
-      ELSE IF (hmod%imf == 10 .OR. hmod%imf == 14) THEN
-         g_nu = g_Bhattacharya(nu, hmod)
-      ELSE
-         STOP 'G_NU: Error, imf specified incorrectly'
-      END IF
-
-      g_nu=g_nu*HMcode_AMF(hmod)
-
-   END FUNCTION g_nu
-
    REAL FUNCTION HMcode_AMF(hmod)
 
       TYPE(halomod), INTENT(IN) :: hmod
-  
+
       HMcode_AMF = hmod%Amf+hmod%Amfz*hmod%z
 
    END FUNCTION HMcode_AMF
-
-   REAL FUNCTION g_mu(mu, hmod)
-
-      ! Mass function g(nu) times dnu/dmu = alpha*mu^(alpha-1); nu=mu^alpha
-      ! This transformation makes the integral easier at low nu
-      ! TODO: Implement a Taylor expansion for low nu/mu
-      REAL, INTENT(IN) :: mu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: nu, alpha
-
-      ! Relation between nu and mu: nu=mu**alpha
-      alpha = hmod%alpha_numu
-      nu = mu**alpha
-
-      g_mu = g_nu(nu, hmod)*alpha*mu**(alpha-1.)
-
-   END FUNCTION g_mu
-
-   REAL FUNCTION g_PS(nu, hmod)
-
-      ! Press & Scheter (1974) mass function!
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: crap
-      REAL, PARAMETER :: A = sqrt(2./pi)
-
-      ! Stop compile-time warnings
-      crap = hmod%a
-
-      g_PS = A*exp(-(nu**2)/2.)
-
-   END FUNCTION g_PS
-
-   REAL FUNCTION g_ST(nu, hmod)
-
-      ! Sheth & Tormen (1999) mass function, equation (10) in arXiv:9901122
-      ! Note I use nu=dc/sigma(M) while Sheth & Tormen (1999) use nu=(dc/sigma)^2
-      ! Haloes defined with SO relative to mean matter density with SC Delta_v relation
-      ! A redshift dependent delta_c is used for barrier height, again from SC
-      ! TODO: Implement a Taylor expansion for low nu
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: p, q, A
-
-      ! Mass-function parameters
-      A = hmod%ST_A
-      p = hmod%ST_p
-      q = hmod%ST_q
-
-      g_st = A*(1.+((q*nu**2)**(-p)))*exp(-q*nu**2/2.)
-
-   END FUNCTION g_ST
-
-   REAL FUNCTION g_Tinker2008(nu, hmod)
-
-      ! Tinker et al. (2008; 0803.2706) mass function
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: bigA, a, b, c, sig
-
-      bigA = hmod%Tinker_bigA
-      a = hmod%Tinker_a
-      b = hmod%Tinker_b
-      c = hmod%Tinker_c
-
-      sig = hmod%dc/nu
-
-      ! The actual mass function
-      g_Tinker2008 = (bigA/nu)*((sig/b)**(-a)+1.)*exp(-c/sig**2)
-
-   END FUNCTION g_Tinker2008
-
-   REAL FUNCTION g_Tinker2010(nu, hmod)
-
-      ! Tinker et al. (2010; 1001.3162) mass function
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: alpha, beta, gamma, phi, eta
-
-      alpha = hmod%Tinker_alpha
-      beta = hmod%Tinker_beta
-      gamma = hmod%Tinker_gamma
-      phi = hmod%Tinker_phi
-      eta = hmod%Tinker_eta
-
-      ! The actual mass function
-      g_Tinker2010 = alpha*(1.+(beta*nu)**(-2.*phi))*nu**(2.*eta)*exp(-0.5*gamma*nu**2)
-
-   END FUNCTION g_Tinker2010
-
-   REAL FUNCTION g_Jenkins(nu, hmod)
-
-      ! Mass function from astro-ph/0005260
-      ! Haloes defined with FoF with b = 0.2
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: x, crap
-
-      ! Prevent compile-time warning
-      crap = hmod%a
-
-      x = log(nu)-0.0876
-
-      g_Jenkins = 0.315*exp(-abs(x)**3.8)/nu
-
-   END FUNCTION g_Jenkins
-
-   REAL FUNCTION g_Warren(nu, hmod)
-
-      ! Warren et al. (2006; astro-ph/0506395) mass function for FoF = 0.2 haloes
-      ! The paper claims that this relates to ~ 280x mean matter density haloes
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: sig
-      REAL, PARAMETER :: bigA = 0.7234 ! Parameters from Equation (8)
-      REAL, PARAMETER :: a = 1.625
-      REAL, PARAMETER :: b = 0.2538
-      REAL, PARAMETER :: c = 1.1982
-
-      sig = hmod%dc/nu
-
-      ! Equation (5), conversion from f(sigma) to g(nu) via 1/nu factor
-      g_Warren = (bigA/nu)*(sig**(-a)+b)*exp(-c/sig**2) 
-
-   END FUNCTION g_Warren
-
-   REAL FUNCTION g_Reed(nu, hmod)
-
-      ! Reed et al. (2007; astro-ph/0607150) mass function
-      ! NOTE: Paper contains typos in formulae in equations (10) and (12) be very careful
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: omeg, sig, G1, G2, f1, f2, f3, ne
-      REAL, PARAMETER :: bigA = 0.310 ! Below equation (12)
-      REAL, PARAMETER :: c = 1.08     ! Below equation (11)
-      REAL, PARAMETER :: ca = 0.764   ! Below equation (12)
-      REAL, PARAMETER :: a = ca/c
-      REAL, PARAMETER :: p = 0.3      ! Below equation (5) from Sheth & Tormen
-
-      sig = hmod%dc/nu
-      omeg = sqrt(ca)*nu
-
-      ! Equation (12)
-      G1 = exp(-(log(omeg)-0.788)**2/(2.*0.6**2))
-      G2 = exp(-(log(omeg)-1.138)**2/(2.*0.2**2))
-
-      ! TODO: Implement this
-      STOP 'G_REED: Need to implement neff(M) here'
-      ne = 0. 
-
-      ! Equation (12)
-      ! Note that there are typos in the paper, see my emails
-      f1 = 1.+1.02*omeg**(-2.*p)+0.6*G1+0.4*G2 ! TYPO: 2p -> -2p
-      f2 = bigA*omeg*sqrt(2./pi)
-      f3 = exp(-omeg**2/2.-0.0325*omeg**p/(3.+ne)**2) ! TYPO: omega -> omega^2
-      
-      g_Reed = f1*f2*f3
-
-   END FUNCTION g_Reed
-
-   REAL FUNCTION g_Bhattacharya(nu, hmod)
-
-      ! Bhattacharya et al. (2011; 1005.2239) mass function for FoF b = 0.2 haloes
-      ! Normalised such that all mass is in haloes
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: f1, f2, f3
-      REAL :: bigA, a, p, q, z
-
-      IF (hmod%imf == 10) THEN
-         ! Bhattacharya et al. (2011)
-         STOP 'G_BHATTACHARYA: Check this carefully'
-         z = hmod%z
-         bigA = 0.333/(1.+z)**0.11
-         a = 0.788/(1.+z)**0.01
-         p = 0.807
-         q = 1.795
-      ELSE IF (hmod%imf == 14) THEN
-         ! Philcox et al. (2020)
-         bigA = 0.33873 ! Where exactly does this come from?
-         a = 0.774
-         p = 0.637
-         q = 1.663
-      ELSE
-         STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
-      END IF
-
-      f1 = bigA*sqrt(2./pi)*exp(-a*nu**2/2.)
-      f2 = 1.+(a*nu**2)**(-p)
-      f3 = (a*nu**2)**(q/2.)
-      
-      g_Bhattacharya = f1*f2*f3/nu
-
-   END FUNCTION g_Bhattacharya
 
    SUBROUTINE init_mass_function(hmod)
 
@@ -10061,12 +9543,11 @@ CONTAINS
 
       IF (is_in_array(hmod%imf, [2, 6, 12, 13, 19])) THEN
          CALL init_ST(hmod)
-      ELSE IF (is_in_array(hmod%imf, [3, 11, 16, 17, 18])) THEN
-         CALL init_Tinker2010(hmod)
       ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
          CALL init_Tinker2008(hmod)
+      ELSE IF (is_in_array(hmod%imf, [3, 11, 16, 17, 18])) THEN
+         CALL init_Tinker2010(hmod)
       END IF
-
       hmod%has_mass_function = .TRUE.
 
    END SUBROUTINE init_mass_function
@@ -10076,37 +9557,41 @@ CONTAINS
       ! Normalises ST mass function
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: p, q, A
+      LOGICAL :: impose_norm
 
       ! ST parameters
       IF (hmod%imf == 2 .OR. hmod%imf == 19) THEN
-         ! Sheth & Tormen (1999)
+         !  2 - Sheth & Tormen (1999)
+         ! 19 - Sheth, Mo & Tormen (2001)
          p = 0.3
          q = 0.707
+         impose_norm = .TRUE.
       ELSE IF (hmod%imf == 6) THEN
-         ! Despali et al. (2016)      
+         ! Despali et al. (2016)
          p = 0.2579
          q = 0.7663
          A = 0.3298
+         impose_norm = .FALSE. ! A is set independently, mass normalisation not imposed
       ELSE IF (hmod%imf == 12) THEN
-         ! Sheth & Tormen (2002)
+         ! Sheth & Tormen (2002), only change is q = 0.707 -> 0.75
          p = 0.3
          q = 0.75
+         impose_norm = .TRUE.
       ELSE IF (hmod%imf == 13) THEN
-         ! Sheth & Tormen form
+         ! Sheth & Tormen form with free parameters
          p = hmod%ST_p
          q = hmod%ST_q
+         impose_norm = .TRUE.
       ELSE
          STOP 'INIT_ST: Error, imf set incorrectly'
       END IF
 
       ! Normalisation of ST mass function (involves Gamma function)
-      IF (is_in_array(hmod%imf, [2, 6, 13])) THEN
-         !A = 1./(sqrt(pi/(2.*q))+(1./sqrt(q))*(2.**(-p-0.5))*Gamma(0.5-p))
-         !A =
-         A = sqrt(2.*q)/(sqrt(pi)+Gamma(0.5-p)/2**p)
+      IF (impose_norm) THEN
+         A = sqrt(2.*q)/(sqrt(pi)+Gamma(0.5-p)/2.**p)
       END IF
 
-      ! Set the parameters
+      ! Set the internal parameters
       hmod%ST_A = A
       hmod%ST_p = p
       hmod%ST_q = q
@@ -10252,19 +9737,549 @@ CONTAINS
 
       ! Calibrated bias initialisation
       IF (hmod%imf == 17 .OR. hmod%imf == 18) THEN
-
          y = log10(hmod%Dv)
-         
          hmod%Tinker_bigA = 1.+0.24*y*exp(-(4./y)**4)
          hmod%Tinker_a = 0.44*y-0.88
          hmod%Tinker_bigB = 0.183
          hmod%Tinker_b = 1.5
          hmod%Tinker_bigC = 0.019+0.107*y+0.19*exp(-(4./y)**4)
          hmod%Tinker_c = 2.4 
-
       END IF
 
    END SUBROUTINE init_Tinker2010
+
+   REAL RECURSIVE FUNCTION g_nu(nu, hmod)
+
+      ! Mass function
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+
+      IF (.NOT. hmod%has_mass_function) CALL init_mass_function(hmod)
+
+      IF (hmod%imf == 1) THEN
+         g_nu = g_PS(nu)
+      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13, 19])) THEN
+         g_nu = g_ST(nu, hmod)
+      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 11 .OR. hmod%imf == 16 .OR. hmod%imf == 17 .OR. hmod%imf == 18) THEN
+         g_nu = g_Tinker2010(nu, hmod)
+      ELSE IF (hmod%imf == 4) THEN
+         STOP 'G_NU: Error, this function should not be used for delta-mass-function'
+      ELSE IF (hmod%imf == 5) THEN
+         g_nu = g_Jenkins(nu)
+      ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
+         g_nu = g_Tinker2008(nu, hmod)
+      ELSE IF (hmod%imf == 8) THEN
+         g_nu = g_Warren(nu, hmod)
+      ELSE IF (hmod%imf == 9) THEN
+         g_nu = g_Reed(nu, hmod)
+      ELSE IF (hmod%imf == 10 .OR. hmod%imf == 14) THEN
+         g_nu = g_Bhattacharya(nu, hmod)
+      ELSE IF (hmod%imf == 20) THEN
+         g_nu = g_Peacock(nu)
+      ELSE
+         STOP 'G_NU: Error, imf specified incorrectly'
+      END IF
+
+      g_nu=g_nu*HMcode_AMF(hmod)
+
+   END FUNCTION g_nu
+
+   REAL FUNCTION g_PS(nu)
+
+      ! Press & Scheter (1974) mass function
+      REAL, INTENT(IN) :: nu
+
+      g_PS = sqrt(2./pi)*exp(-(nu**2)/2.)
+
+   END FUNCTION g_PS
+
+   REAL FUNCTION g_ST(nu, hmod)
+
+      ! Sheth & Tormen (1999) mass function, equation (10) in astro-ph/9901122
+      ! Note I use nu=dc/sigma(M) while Sheth & Tormen (1999) use nu=(dc/sigma)^2
+      ! Haloes defined with SO relative to mean matter density with spherical-collapse Delta_v relation
+      ! A redshift dependent delta_c is used for barrier height, again from spherical collapse
+      ! TODO: Implement Taylor expansion for low nu
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: p, q, A
+
+      ! Mass-function parameters
+      A = hmod%ST_A
+      p = hmod%ST_p
+      q = hmod%ST_q
+
+      g_st = A*(1.+((q*nu**2)**(-p)))*exp(-q*nu**2/2.)
+
+   END FUNCTION g_ST
+
+   REAL FUNCTION g_Tinker2008(nu, hmod)
+
+      ! Tinker et al. (2008; 0803.2706) mass function
+      ! SO haloes for a variety of overdensity thresholds
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: bigA, a, b, c, sig
+
+      bigA = hmod%Tinker_bigA
+      a = hmod%Tinker_a
+      b = hmod%Tinker_b
+      c = hmod%Tinker_c
+
+      sig = hmod%dc/nu
+
+      ! The actual mass function
+      g_Tinker2008 = (bigA/nu)*((sig/b)**(-a)+1.)*exp(-c/sig**2)
+
+   END FUNCTION g_Tinker2008
+
+   REAL FUNCTION g_Tinker2010(nu, hmod)
+
+      ! Tinker et al. (2010; 1001.3162) mass function
+      ! SO haloes for a variety of overdensity thresholds
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: alpha, beta, gamma, phi, eta
+
+      alpha = hmod%Tinker_alpha
+      beta = hmod%Tinker_beta
+      gamma = hmod%Tinker_gamma
+      phi = hmod%Tinker_phi
+      eta = hmod%Tinker_eta
+
+      ! The actual mass function
+      g_Tinker2010 = alpha*(1.+(beta*nu)**(-2.*phi))*nu**(2.*eta)*exp(-0.5*gamma*nu**2)
+
+   END FUNCTION g_Tinker2010
+
+   REAL FUNCTION g_Jenkins(nu)
+
+      ! Mass function from astro-ph/0005260
+      ! Haloes defined with FoF with b = 0.2
+      REAL, INTENT(IN) :: nu
+      REAL :: x
+
+      x = log(nu)-0.0876
+      g_Jenkins = 0.315*exp(-abs(x)**3.8)/nu
+
+   END FUNCTION g_Jenkins
+
+   REAL FUNCTION g_Warren(nu, hmod)
+
+      ! Warren et al. (2006; astro-ph/0506395) mass function for FoF = 0.2 haloes
+      ! The paper claims that this relates to ~ 280x mean matter density haloes
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: sig
+      REAL, PARAMETER :: bigA = 0.7234 ! Parameters from Equation (8)
+      REAL, PARAMETER :: a = 1.625
+      REAL, PARAMETER :: b = 0.2538
+      REAL, PARAMETER :: c = 1.1982
+
+      ! Equation (5), conversion from f(sigma) to g(nu) via 1/nu factor
+      sig = hmod%dc/nu
+      g_Warren = (bigA/nu)*(sig**(-a)+b)*exp(-c/sig**2) 
+
+   END FUNCTION g_Warren
+
+   REAL FUNCTION g_Reed(nu, hmod)
+
+      ! Reed et al. (2007; astro-ph/0607150) mass function
+      ! TODO: Halo definition is ...
+      ! NOTE: Paper contains typos in formulae in equations (10) and (12) be very careful
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: omeg, sig, G1, G2, f1, f2, f3, ne
+      REAL, PARAMETER :: bigA = 0.310 ! Below equation (12)
+      REAL, PARAMETER :: c = 1.08     ! Below equation (11)
+      REAL, PARAMETER :: ca = 0.764   ! Below equation (12)
+      REAL, PARAMETER :: a = ca/c
+      REAL, PARAMETER :: p = 0.3      ! Below equation (5) from Sheth & Tormen
+
+      sig = hmod%dc/nu
+      omeg = sqrt(ca)*nu
+
+      ! Equation (12)
+      G1 = exp(-(log(omeg)-0.788)**2/(2.*0.6**2))
+      G2 = exp(-(log(omeg)-1.138)**2/(2.*0.2**2))
+
+      ! TODO: Implement this
+      STOP 'G_REED: Need to implement neff(M) here'
+      ne = 0. 
+
+      ! Equation (12)
+      ! Note that there are typos in the paper, see my emails
+      f1 = 1.+1.02*omeg**(-2.*p)+0.6*G1+0.4*G2 ! TYPO: 2p -> -2p
+      f2 = bigA*omeg*sqrt(2./pi)
+      f3 = exp(-omeg**2/2.-0.0325*omeg**p/(3.+ne)**2) ! TYPO: omega -> omega^2
+      g_Reed = f1*f2*f3
+
+   END FUNCTION g_Reed
+
+   REAL FUNCTION g_Bhattacharya(nu, hmod)
+
+      ! Bhattacharya et al. (2011; 1005.2239) mass function for FoF b = 0.2 haloes
+      ! Normalised such that all mass is in haloes
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: f1, f2, f3
+      REAL :: bigA, a, p, q, z
+
+      IF (hmod%imf == 10) THEN
+         ! Bhattacharya et al. (2011)
+         STOP 'G_BHATTACHARYA: Check this carefully'
+         z = hmod%z
+         bigA = 0.333/(1.+z)**0.11
+         a = 0.788/(1.+z)**0.01
+         p = 0.807
+         q = 1.795
+      ELSE IF (hmod%imf == 14) THEN
+         ! Philcox et al. (2020)
+         bigA = 0.33873 ! Where exactly does this come from?
+         a = 0.774
+         p = 0.637
+         q = 1.663
+      ELSE
+         STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
+      END IF
+
+      f1 = bigA*sqrt(2./pi)*exp(-a*nu**2/2.)
+      f2 = 1.+(a*nu**2)**(-p)
+      f3 = (a*nu**2)**(q/2.)
+      
+      g_Bhattacharya = f1*f2*f3/nu
+
+   END FUNCTION g_Bhattacharya
+
+   REAL FUNCTION g_Peacock(nu)
+
+      ! Mass function from Peacock (2007; https://arxiv.org/abs/0705.0898)
+      ! Based on a fit to Warren et al. (2006) but with normalisation imposed
+      REAL, INTENT(IN) :: nu
+      REAL, PARAMETER :: a = 1.529
+      REAL, PARAMETER :: b = 0.704
+      REAL, PARAMETER :: c = 0.412
+      REAL :: f1, f2, f3, f4
+
+      f1 = 2.*c*nu*(1.+a*nu**b)
+      f2 = a*b*nu**(b-1.)
+      f3 = exp(-c*nu**2)
+      f4 = (1.+a*nu**b)**2
+      g_Peacock = (f1+f2)*f3/f4
+
+   END FUNCTION g_Peacock
+
+   REAL FUNCTION b_nu(nu, hmod)
+
+      ! Bias function selection
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+
+      IF (.NOT. hmod%has_mass_function) CALL init_mass_function(hmod)
+
+      IF (hmod%imf == 1) THEN
+         b_nu = b_PS(nu, hmod)
+      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
+         b_nu = b_ST(nu, hmod)
+      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 16) THEN
+         b_nu = b_Tinker2010_peakbackground(nu, hmod)
+      ELSE IF (hmod%imf == 4 .OR. hmod%imf == 11) THEN
+         b_nu = 1.
+      ELSE IF (hmod%imf == 5) THEN
+         b_nu = b_Jenkins(nu, hmod)
+      ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
+         b_nu = b_Tinker2008(nu, hmod)
+      ELSE IF (hmod%imf == 8) THEN
+         b_nu = b_Warren(nu, hmod)
+      ELSE IF (hmod%imf == 9) THEN
+         b_nu = b_Reed(nu, hmod)
+      ELSE IF (hmod%imf == 10 .OR. hmod%imf == 14) THEN
+         b_nu = b_Bhattacharya(nu, hmod)
+      ELSE IF (hmod%imf == 17 .OR. hmod%imf == 18) THEN
+         b_nu = b_Tinker2010_calibrated(nu, hmod)
+      ELSE IF (hmod%imf == 19) THEN
+         b_nu = b_SMT(nu, hmod)
+      ELSE IF (hmod%imf == 20) THEN
+         b_nu = b_Peacock(nu, hmod)
+      ELSE
+         STOP 'B_NU: Error, imf not specified correctly'
+      END IF
+
+   END FUNCTION b_nu
+
+   REAL FUNCTION b_PS(nu, hmod)
+
+      ! Press & Scheter (1974) halo bias
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+
+      b_PS = 1.+(nu**2-1.)/hmod%dc
+
+   END FUNCTION b_PS
+
+   REAL FUNCTION b_ST(nu, hmod)
+
+      ! Sheth & Tormen (1999) halo bias (equation 12 in https://arxiv.org/abs/astro-ph/9901122) from peak-background split
+      ! Haloes defined with SO relative to mean matter density with spherical-collapse Delta_v relation
+      ! A redshift dependent delta_c is used for barrier height, again from spherical-collapse
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: dc, p, q
+
+      p = hmod%ST_p
+      q = hmod%ST_q
+      dc = hmod%dc
+
+      b_ST = 1.+(q*(nu**2)-1.+2.*p/(1.+(q*nu**2)**p))/dc
+
+   END FUNCTION b_ST
+
+   REAL FUNCTION b_SMT(nu, hmod)
+
+      ! Sheth, Mo & Tormen (2001) calibrated halo bias (equation 8; not from peak-background split)
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: dc, anu2, f1, f2, f3, f4
+      REAL, PARAMETER :: a = 0.707
+      REAL, PARAMETER :: b = 0.5
+      REAL, PARAMETER :: c = 0.6
+
+      dc = hmod%dc
+
+      anu2 = a*nu**2
+
+      f1 = sqrt(a)*anu2
+      f2 = sqrt(a)*b*anu2**(1.-c)
+      f3 = anu2**c
+      f4 = anu2**c+b*(1.-c)*(1.-c/2.)
+
+      b_SMT = 1.+(f1+f2-f3/f4)/(dc*sqrt(a))
+
+   END FUNCTION b_SMT
+
+   REAL FUNCTION b_Tinker2008(nu, hmod)
+
+      ! Peak-background split applied to Tinker et al. (2008) mass function
+      ! Note that the 2008 mass function is not normalised correctly, so this will not have the integral constraint
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: dc, sig
+      REAL :: a, b, c
+
+      a = hmod%Tinker_a
+      b = hmod%Tinker_b
+      c = hmod%Tinker_c
+
+      dc = hmod%dc
+      sig = dc/nu
+
+      b_Tinker2008 = 1.-(a*b**a/(sig**a+b**a)-2.*c/sig**2)/dc
+
+   END FUNCTION b_Tinker2008
+
+   REAL FUNCTION b_Tinker2010_calibrated(nu, hmod)
+
+      ! Equation (6) from Tinker et al. (2010; 1001.3162)
+      ! Parameter values from Table 2
+      ! TODO: Could do an init function?
+      ! NOTE: Tinker takes dc = 1.686 and this does not vary with cosmology
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: bigA, bigB, bigC, a, b, c, dc
+
+      bigA = hmod%Tinker_bigA
+      bigB = hmod%Tinker_bigB
+      bigC = hmod%Tinker_bigC
+      a = hmod%Tinker_a
+      b = hmod%Tinker_b
+      c = hmod%Tinker_c
+
+      dc = hmod%dc
+
+      b_Tinker2010_calibrated = 1.-bigA*nu**a/(nu**a+dc**a)+bigB*nu**b+bigC*nu**c
+
+   END FUNCTION b_Tinker2010_calibrated
+
+   REAL FUNCTION b_Tinker2010_peakbackground(nu, hmod)
+
+      ! Tinker et al. (2010; 1001.3162) halo bias derived using the peak-background split
+      ! Equation (15) in https://arxiv.org/abs/1001.3162
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: dc
+      REAL :: beta, gamma, phi, eta
+      REAL :: f1, f2
+
+      beta = hmod%Tinker_beta
+      gamma = hmod%Tinker_gamma
+      phi = hmod%Tinker_phi
+      eta = hmod%Tinker_eta
+
+      dc = hmod%dc
+
+      f1 = (gamma*nu**2-(1.+2.*eta))/dc
+      f2 = (2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
+      b_Tinker2010_peakbackground = 1.+f1+f2
+
+   END FUNCTION b_Tinker2010_peakbackground
+
+   REAL FUNCTION b_Jenkins(nu, hmod)
+
+      ! Bias from applying peak-background split to Jenkins (2001) mass function
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: x
+
+      x = log(nu)-0.0876
+
+      IF (x > 0.) THEN
+         b_Jenkins = 1.+3.8*abs(x)**2.8/hmod%dc
+      ELSE
+         b_Jenkins = 1.-3.8*abs(x)**2.8/hmod%dc
+         IF (b_Jenkins < 0.) b_Jenkins = 0.
+      END IF
+
+   END FUNCTION b_Jenkins
+
+   REAL FUNCTION b_Warren(nu, hmod)
+
+      ! Bias from peak-backgound split applied to Warren et al. (2006) mass function
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: sig, dc
+      REAL, PARAMETER :: b = 0.2538
+      REAL, PARAMETER :: c = 1.1982
+
+      dc = hmod%dc
+      sig = dc/nu
+
+      b_Warren = 1.-(b/(1.+b*sig**b)-2.*c/sig**2)/dc
+
+   END FUNCTION b_Warren
+
+   REAL FUNCTION b_Reed(nu, hmod)
+
+      ! Halo bias from peak-backgound split applied to Reed et al. (2007) mass function
+      ! TODO: Calculate this by differentiating analytical form
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+
+      b_Reed = nu*hmod%z
+      b_Reed = 1.
+      STOP 'B_REED: This is not coded up yet'
+
+   END FUNCTION b_Reed
+
+   REAL FUNCTION b_Bhattacharya(nu, hmod)
+
+      ! Bhattacharya et al. (2011; 1005.2239) mass function for FoF b = 0.2 haloes
+      ! Bias derived using the peak-background split
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: f1, f2, f3, dc
+      REAL :: a, p, q
+
+      IF (hmod%imf == 10) THEN
+         ! Bhattacharya et al. (2011)
+         STOP 'G_BHATTACHARYA: Check this carefully'
+         a = 0.788/(1.+hmod%z)**0.01
+         p = 0.807
+         q = 1.795
+      ELSE IF (hmod%imf == 14) THEN
+         ! Philcox et al. (2020)
+         a = 0.774
+         p = 0.637
+         q = 1.663
+      ELSE
+         STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
+      END IF
+
+      f1 = a*nu**2
+      f2 = 2*p/(1.+(a*nu**2)**p)
+      f3 = q
+      dc = hmod%dc
+
+      b_Bhattacharya = (f1-f2+f3)/dc
+
+   END FUNCTION b_Bhattacharya
+
+   REAL FUNCTION b_Peacock(nu, hmod)
+
+      ! Bias from peak-background split applied to mass function from Peacock (2007; https://arxiv.org/abs/0705.0898)
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL, PARAMETER :: a = 1.529
+      REAL, PARAMETER :: b = 0.704
+      REAL, PARAMETER :: c = 0.412
+
+      b_Peacock = nu*hmod%z
+      b_Peacock = 1.
+      STOP 'B_PEACOCK: Need to do manual differentiation to calculate peak-background split bias'
+
+   END FUNCTION b_Peacock
+
+   REAL FUNCTION b2_nu(nu, hmod)
+
+      ! Second-order bias function selection
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+
+      IF (is_in_array(hmod%imf, [1, 2, 6, 12, 13])) THEN
+         b2_nu = b2_ST(nu, hmod)
+      ELSE
+         STOP 'B2_NU: Error, second-order bias not specified this mass function'
+      END IF
+
+   END FUNCTION b2_nu
+
+   REAL FUNCTION b2_ST(nu, hmod)
+
+      ! Sheth, Mo & Tormen (2001) second-order bias
+      ! Notation follows from Cooray & Sheth (2002) pp 25-26
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: eps1, eps2, E1, E2, dc, p, q
+      REAL, PARAMETER :: a2 = -17./21.
+
+      IF (hmod%imf == 1) THEN
+         ! Press & Schecter (1974)
+         p = 0.
+         q = 1.
+         STOP 'B2_ST: Check this very carefully for Press & Schecter form'
+      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
+         p = hmod%ST_p
+         q = hmod%ST_q      
+      ELSE
+         STOP 'B2_ST: Error, incorrect mass function'
+      END IF
+
+      dc = hmod%dc
+
+      eps1 = (q*nu**2-1.)/dc
+      eps2 = (q*nu**2)*(q*nu**2-3.)/dc**2
+      E1 = (2.*p)/(dc*(1.+(q*nu**2)**p))
+      E2 = ((1.+2.*p)/dc+2.*eps1)*E1
+
+      b2_ST = 2.*(1.+a2)*(eps1+E1)+eps2+E2
+
+   END FUNCTION b2_ST
+
+   REAL FUNCTION g_mu(mu, hmod)
+
+      ! Mass function g(nu) times dnu/dmu = alpha*mu^(alpha-1); nu=mu^alpha
+      ! This transformation makes the integral easier at low nu
+      ! TODO: Implement a Taylor expansion for low nu/mu
+      REAL, INTENT(IN) :: mu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: nu, alpha
+
+      ! Relation between nu and mu: nu=mu**alpha
+      alpha = hmod%alpha_numu
+      nu = mu**alpha
+
+      g_mu = g_nu(nu, hmod)*alpha*mu**(alpha-1.)
+
+   END FUNCTION g_mu
 
    REAL FUNCTION gb_nu(nu, hmod)
 
