@@ -461,7 +461,7 @@ MODULE HMx
    REAL, PARAMETER :: g_integral_limit = -1e-4           ! Mininum allowed value for g(nu) integral
    REAL, PARAMETER :: gb_integral_limit = -1e-4          ! Mininum allowed value for g(nu)b(nu) integral
    LOGICAL, PARAMETER :: check_mass_function = .FALSE.   ! Check properties of the mass function
-   INTEGER, PARAMETER :: iorder_integration = 3          ! Order for standard integration
+   INTEGER, PARAMETER :: iorder_integration = 3          ! Order for standard integrations (e.g., over mass function)
    INTEGER, PARAMETER :: iorder_2halo_integration = 3    ! Order for 2-halo integration
    INTEGER, PARAMETER :: iorder_1halo_integration = 1    ! Order for 1-halo integration (basic because of wiggles)
    LOGICAL, PARAMETER :: calculate_Omega_stars = .FALSE. ! Calculate Omega_* in halomod_init
@@ -513,6 +513,10 @@ MODULE HMx
    !LOGICAL, PARAMETER :: verbose_galaxies = .FALSE. ! Verbosity when doing the galaxies initialisation
    LOGICAL, PARAMETER :: verbose_HOD = .FALSE. ! Verbosity when doing the HOD initialisation
    LOGICAL, PARAMETER :: verbose_HI = .TRUE.   ! Verbosity when doing the HI initialisation
+
+   ! Linear halo bias
+   LOGICAL, PARAMETER :: force_PBS = .FALSE. ! Force linear bias from numerical peak-background split
+   REAL, PARAMETER :: eps_PBS = 1e-3         ! Values about nu to take for numerical derivative
 
    ! Non-linear halo bias
    INTEGER, PARAMETER :: bnl_method_a = 1           ! Assign B_NL based on scale factor
@@ -9560,12 +9564,12 @@ CONTAINS
       LOGICAL :: impose_norm
 
       ! ST parameters
+      impose_norm = .TRUE.
       IF (hmod%imf == 2 .OR. hmod%imf == 19) THEN
          !  2 - Sheth & Tormen (1999)
          ! 19 - Sheth, Mo & Tormen (2001)
          p = 0.3
          q = 0.707
-         impose_norm = .TRUE.
       ELSE IF (hmod%imf == 6) THEN
          ! Despali et al. (2016)
          p = 0.2579
@@ -9576,12 +9580,10 @@ CONTAINS
          ! Sheth & Tormen (2002), only change is q = 0.707 -> 0.75
          p = 0.3
          q = 0.75
-         impose_norm = .TRUE.
       ELSE IF (hmod%imf == 13) THEN
          ! Sheth & Tormen form with free parameters
          p = hmod%ST_p
          q = hmod%ST_q
-         impose_norm = .TRUE.
       ELSE
          STOP 'INIT_ST: Error, imf set incorrectly'
       END IF
@@ -9972,46 +9974,71 @@ CONTAINS
    REAL FUNCTION b_nu(nu, hmod)
 
       ! Bias function selection
+      ! Defaults to numerical evaluation of peak-background split if no alternative
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
 
       IF (.NOT. hmod%has_mass_function) CALL init_mass_function(hmod)
 
-      IF (hmod%imf == 1) THEN
-         b_nu = b_PS(nu, hmod)
-      ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
-         b_nu = b_ST(nu, hmod)
-      ELSE IF (hmod%imf == 3 .OR. hmod%imf == 16) THEN
-         b_nu = b_Tinker2010_peakbackground(nu, hmod)
-      ELSE IF (hmod%imf == 4 .OR. hmod%imf == 11) THEN
-         b_nu = 1.
-      ELSE IF (hmod%imf == 5) THEN
-         b_nu = b_Jenkins(nu, hmod)
-      ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
-         b_nu = b_Tinker2008(nu, hmod)
-      ELSE IF (hmod%imf == 8) THEN
-         b_nu = b_Warren(nu, hmod)
-      ELSE IF (hmod%imf == 9) THEN
-         b_nu = b_Reed(nu, hmod)
-      ELSE IF (hmod%imf == 10 .OR. hmod%imf == 14) THEN
-         b_nu = b_Bhattacharya(nu, hmod)
-      ELSE IF (hmod%imf == 17 .OR. hmod%imf == 18) THEN
-         b_nu = b_Tinker2010_calibrated(nu, hmod)
-      ELSE IF (hmod%imf == 19) THEN
-         b_nu = b_SMT(nu, hmod)
-      ELSE IF (hmod%imf == 20) THEN
-         b_nu = b_Peacock(nu, hmod)
+      IF (force_PBS) THEN
+         b_nu = b_PBsplit(nu, hmod)
       ELSE
-         STOP 'B_NU: Error, imf not specified correctly'
+         IF (hmod%imf == 1) THEN
+            b_nu = b_PS(nu, hmod)
+         ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
+            b_nu = b_ST(nu, hmod)
+         ELSE IF (hmod%imf == 3 .OR. hmod%imf == 16) THEN
+            b_nu = b_Tinker2010_PBsplit(nu, hmod)
+         ELSE IF (hmod%imf == 4 .OR. hmod%imf == 11) THEN
+            b_nu = 1.
+         ELSE IF (hmod%imf == 5) THEN
+            b_nu = b_Jenkins(nu, hmod)
+         ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
+            b_nu = b_Tinker2008(nu, hmod)
+         ELSE IF (hmod%imf == 8) THEN
+            b_nu = b_Warren(nu, hmod)
+         !ELSE IF (hmod%imf == 9) THEN
+         !   b_nu = b_Reed(nu, hmod)
+         ELSE IF (hmod%imf == 10 .OR. hmod%imf == 14) THEN
+            b_nu = b_Bhattacharya(nu, hmod)
+         ELSE IF (hmod%imf == 17 .OR. hmod%imf == 18) THEN
+            b_nu = b_Tinker2010_calibrated(nu, hmod)
+         ELSE IF (hmod%imf == 19) THEN
+            b_nu = b_SMT(nu, hmod)
+         !ELSE IF (hmod%imf == 20) THEN
+         !   b_nu = b_Peacock(nu, hmod)
+         ELSE
+            b_nu = b_PBsplit(nu, hmod)
+         END IF
       END IF
 
    END FUNCTION b_nu
+
+   REAL FUNCTION b_PBsplit(nu, hmod)
+
+      ! Use the peak-background split argument to evaluate the linear bias
+      ! Uses the numerical derivative of the mass function, calculated in a simple way
+      ! This is lazy, because the derivative can usually be evaluated using pen and paper
+      ! If the mass function is normalised correctly then so will be the linear bias
+      REAL, INTENT(IN) :: nu
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      REAL :: nu1, nu2, g1, g2, dc
+      REAL, PARAMETER :: eps = eps_PBS
+
+      nu1 = nu*(1.-eps)
+      nu2 = nu*(1.+eps)
+      g1 = g_nu(nu1, hmod)
+      g2 = g_nu(nu2, hmod)
+      dc = hmod%dc
+      b_PBsplit = 1.-(1./dc)*(1.+log(g2/g1)/log(nu2/nu1))
+
+   END FUNCTION b_PBsplit
 
    REAL FUNCTION b_PS(nu, hmod)
 
       ! Press & Scheter (1974) halo bias
       REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(halomod), INTENT(IN) :: hmod
 
       b_PS = 1.+(nu**2-1.)/hmod%dc
 
@@ -10023,7 +10050,7 @@ CONTAINS
       ! Haloes defined with SO relative to mean matter density with spherical-collapse Delta_v relation
       ! A redshift dependent delta_c is used for barrier height, again from spherical-collapse
       REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(halomod), INTENT(IN) :: hmod
       REAL :: dc, p, q
 
       p = hmod%ST_p
@@ -10038,7 +10065,7 @@ CONTAINS
 
       ! Sheth, Mo & Tormen (2001) calibrated halo bias (equation 8; not from peak-background split)
       REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(halomod), INTENT(IN) :: hmod
       REAL :: dc, anu2, f1, f2, f3, f4
       REAL, PARAMETER :: a = 0.707
       REAL, PARAMETER :: b = 0.5
@@ -10062,7 +10089,7 @@ CONTAINS
       ! Peak-background split applied to Tinker et al. (2008) mass function
       ! Note that the 2008 mass function is not normalised correctly, so this will not have the integral constraint
       REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(halomod), INTENT(IN) :: hmod
       REAL :: dc, sig
       REAL :: a, b, c
 
@@ -10084,7 +10111,7 @@ CONTAINS
       ! TODO: Could do an init function?
       ! NOTE: Tinker takes dc = 1.686 and this does not vary with cosmology
       REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(halomod), INTENT(IN) :: hmod
       REAL :: bigA, bigB, bigC, a, b, c, dc
 
       bigA = hmod%Tinker_bigA
@@ -10100,14 +10127,13 @@ CONTAINS
 
    END FUNCTION b_Tinker2010_calibrated
 
-   REAL FUNCTION b_Tinker2010_peakbackground(nu, hmod)
+   REAL FUNCTION b_Tinker2010_PBsplit(nu, hmod)
 
       ! Tinker et al. (2010; 1001.3162) halo bias derived using the peak-background split
       ! Equation (15) in https://arxiv.org/abs/1001.3162
       REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      REAL :: dc
-      REAL :: beta, gamma, phi, eta
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: beta, gamma, phi, eta, dc
       REAL :: f1, f2
 
       beta = hmod%Tinker_beta
@@ -10119,15 +10145,15 @@ CONTAINS
 
       f1 = (gamma*nu**2-(1.+2.*eta))/dc
       f2 = (2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
-      b_Tinker2010_peakbackground = 1.+f1+f2
+      b_Tinker2010_PBsplit = 1.+f1+f2
 
-   END FUNCTION b_Tinker2010_peakbackground
+   END FUNCTION b_Tinker2010_PBsplit
 
    REAL FUNCTION b_Jenkins(nu, hmod)
 
       ! Bias from applying peak-background split to Jenkins (2001) mass function
       REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(halomod), INTENT(IN) :: hmod
       REAL :: x
 
       x = log(nu)-0.0876
@@ -10157,18 +10183,18 @@ CONTAINS
 
    END FUNCTION b_Warren
 
-   REAL FUNCTION b_Reed(nu, hmod)
+   ! REAL FUNCTION b_Reed(nu, hmod)
 
-      ! Halo bias from peak-backgound split applied to Reed et al. (2007) mass function
-      ! TODO: Calculate this by differentiating analytical form
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
+   !    ! Halo bias from peak-backgound split applied to Reed et al. (2007) mass function
+   !    ! TODO: Calculate this by differentiating analytical form
+   !    REAL, INTENT(IN) :: nu
+   !    TYPE(halomod), INTENT(IN) :: hmod
 
-      b_Reed = nu*hmod%z
-      b_Reed = 1.
-      STOP 'B_REED: This is not coded up yet'
+   !    b_Reed = nu*hmod%z
+   !    b_Reed = 1.
+   !    STOP 'B_REED: This is not coded up yet'
 
-   END FUNCTION b_Reed
+   ! END FUNCTION b_Reed
 
    REAL FUNCTION b_Bhattacharya(nu, hmod)
 
@@ -10203,20 +10229,20 @@ CONTAINS
 
    END FUNCTION b_Bhattacharya
 
-   REAL FUNCTION b_Peacock(nu, hmod)
+   ! REAL FUNCTION b_Peacock(nu, hmod)
 
-      ! Bias from peak-background split applied to mass function from Peacock (2007; https://arxiv.org/abs/0705.0898)
-      REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
-      REAL, PARAMETER :: a = 1.529
-      REAL, PARAMETER :: b = 0.704
-      REAL, PARAMETER :: c = 0.412
+   !    ! Bias from peak-background split applied to mass function from Peacock (2007; https://arxiv.org/abs/0705.0898)
+   !    REAL, INTENT(IN) :: nu
+   !    TYPE(halomod), INTENT(IN) :: hmod
+   !    REAL, PARAMETER :: a = 1.529
+   !    REAL, PARAMETER :: b = 0.704
+   !    REAL, PARAMETER :: c = 0.412
 
-      b_Peacock = nu*hmod%z
-      b_Peacock = 1.
-      STOP 'B_PEACOCK: Need to do manual differentiation to calculate peak-background split bias'
+   !    b_Peacock = nu*hmod%z
+   !    b_Peacock = 1.
+   !    STOP 'B_PEACOCK: Need to do manual differentiation to calculate peak-background split bias'
 
-   END FUNCTION b_Peacock
+   ! END FUNCTION b_Peacock
 
    REAL FUNCTION b2_nu(nu, hmod)
 
@@ -10234,7 +10260,7 @@ CONTAINS
 
    REAL FUNCTION b2_ST(nu, hmod)
 
-      ! Sheth, Mo & Tormen (2001) second-order bias
+      ! Sheth & Tormen (1999) second-order bias
       ! Notation follows from Cooray & Sheth (2002) pp 25-26
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
@@ -10248,7 +10274,7 @@ CONTAINS
          STOP 'B2_ST: Check this very carefully for Press & Schecter form'
       ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
          p = hmod%ST_p
-         q = hmod%ST_q      
+         q = hmod%ST_q
       ELSE
          STOP 'B2_ST: Error, incorrect mass function'
       END IF
