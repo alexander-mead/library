@@ -2968,13 +2968,14 @@ CONTAINS
          WRITE (*, fmt=fmt) 'log10(M_HI_max) [Msun/h]:', log10(hmod%HImax)
          WRITE (*, *) dashes
 
-
-         WRITE (*, *) 'HALOMODEL: Misc'
-         WRITE (*, *) dashes
-         IF (hmod%halo_DMONLY == 5) WRITE (*, fmt=fmt) 'r_core [Mpc/h]:', hmod%rcore
-         IF (hmod%conc_scatter) WRITE (*, fmt=fmt) 'sigma(c)/c:', hmod%sigma_conc
-         WRITE (*, *) dashes
-         WRITE (*, *)
+         IF ((hmod%halo_DMONLY == 5) .OR. hmod%conc_scatter) THEN
+            WRITE (*, *) 'HALOMODEL: Misc'
+            WRITE (*, *) dashes
+            IF (hmod%halo_DMONLY == 5) WRITE (*, fmt=fmt) 'r_core [Mpc/h]:', hmod%rcore
+            IF (hmod%conc_scatter) WRITE (*, fmt=fmt) 'sigma(c)/c:', hmod%sigma_conc
+            WRITE (*, *) dashes
+            WRITE (*, *)
+         END IF
 
       END IF
 
@@ -9565,7 +9566,12 @@ CONTAINS
 
       ! ST parameters
       impose_norm = .TRUE.
-      IF (hmod%imf == 2 .OR. hmod%imf == 19) THEN
+      IF (hmod%imf == 1) THEN
+         ! Press & Schecter (1974)
+         ! This is never used, but shows that PS can easily be mapped to ST
+         p = 0.
+         q = 1.
+      ELSE IF (hmod%imf == 2 .OR. hmod%imf == 19) THEN
          !  2 - Sheth & Tormen (1999)
          ! 19 - Sheth, Mo & Tormen (2001)
          p = 0.3
@@ -9588,7 +9594,7 @@ CONTAINS
          STOP 'INIT_ST: Error, imf set incorrectly'
       END IF
 
-      ! Normalisation of ST mass function (involves Gamma function)
+      ! Normalisation involves Gamma function
       IF (impose_norm) THEN
          A = sqrt(2.*q)/(sqrt(pi)+Gamma(0.5-p)/2.**p)
       END IF
@@ -9767,7 +9773,7 @@ CONTAINS
       ELSE IF (hmod%imf == 4) THEN
          STOP 'G_NU: Error, this function should not be used for delta-mass-function'
       ELSE IF (hmod%imf == 5) THEN
-         g_nu = g_Jenkins(nu)
+         g_nu = g_Jenkins(nu, hmod)
       ELSE IF (hmod%imf == 7 .OR. hmod%imf == 15) THEN
          g_nu = g_Tinker2008(nu, hmod)
       ELSE IF (hmod%imf == 8) THEN
@@ -9827,10 +9833,7 @@ CONTAINS
       a = hmod%Tinker_a
       b = hmod%Tinker_b
       c = hmod%Tinker_c
-
       sig = hmod%dc/nu
-
-      ! The actual mass function
       g_Tinker2008 = (bigA/nu)*((sig/b)**(-a)+1.)*exp(-c/sig**2)
 
    END FUNCTION g_Tinker2008
@@ -9848,20 +9851,21 @@ CONTAINS
       gamma = hmod%Tinker_gamma
       phi = hmod%Tinker_phi
       eta = hmod%Tinker_eta
-
-      ! The actual mass function
       g_Tinker2010 = alpha*(1.+(beta*nu)**(-2.*phi))*nu**(2.*eta)*exp(-0.5*gamma*nu**2)
 
    END FUNCTION g_Tinker2010
 
-   REAL FUNCTION g_Jenkins(nu)
+   REAL FUNCTION g_Jenkins(nu, hmod)
 
       ! Mass function from astro-ph/0005260
       ! Haloes defined with FoF with b = 0.2
       REAL, INTENT(IN) :: nu
-      REAL :: x
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: x, sig
 
-      x = log(nu)-0.0876
+      !x = log(nu)-0.0876 ! 0.0876 = 0.61-ln(1.686)
+      sig = hmod%dc/nu
+      x = -log(sig)+0.61
       g_Jenkins = 0.315*exp(-abs(x)**3.8)/nu
 
    END FUNCTION g_Jenkins
@@ -9869,7 +9873,7 @@ CONTAINS
    REAL FUNCTION g_Warren(nu, hmod)
 
       ! Warren et al. (2006; astro-ph/0506395) mass function for FoF = 0.2 haloes
-      ! The paper claims that this relates to ~ 280x mean matter density haloes
+      ! The paper claims that this relates to ~280x mean matter density haloes
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: sig
@@ -10025,8 +10029,8 @@ CONTAINS
       REAL :: nu1, nu2, g1, g2, dc
       REAL, PARAMETER :: eps = eps_PBS
 
-      nu1 = nu*(1.-eps)
-      nu2 = nu*(1.+eps)
+      nu1 = nu*(1.-eps) ! Lower value for derivative
+      nu2 = nu*(1.+eps) ! Upper value for derivative
       g1 = g_nu(nu1, hmod)
       g2 = g_nu(nu2, hmod)
       dc = hmod%dc
@@ -10056,7 +10060,6 @@ CONTAINS
       p = hmod%ST_p
       q = hmod%ST_q
       dc = hmod%dc
-
       b_ST = 1.+(q*(nu**2)-1.+2.*p/(1.+(q*nu**2)**p))/dc
 
    END FUNCTION b_ST
@@ -10066,21 +10069,17 @@ CONTAINS
       ! Sheth, Mo & Tormen (2001) calibrated halo bias (equation 8; not from peak-background split)
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: dc, anu2, f1, f2, f3, f4
+      REAL :: anu2, f1, f2, f3, f4
       REAL, PARAMETER :: a = 0.707
       REAL, PARAMETER :: b = 0.5
       REAL, PARAMETER :: c = 0.6
 
-      dc = hmod%dc
-
       anu2 = a*nu**2
-
       f1 = sqrt(a)*anu2
       f2 = sqrt(a)*b*anu2**(1.-c)
       f3 = anu2**c
       f4 = anu2**c+b*(1.-c)*(1.-c/2.)
-
-      b_SMT = 1.+(f1+f2-f3/f4)/(dc*sqrt(a))
+      b_SMT = 1.+(f1+f2-f3/f4)/(hmod%dc*sqrt(a))
 
    END FUNCTION b_SMT
 
@@ -10154,9 +10153,11 @@ CONTAINS
       ! Bias from applying peak-background split to Jenkins (2001) mass function
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: x
+      REAL :: x, sig
 
-      x = log(nu)-0.0876
+      !x = log(nu)-0.0876
+      sig = hmod%dc/nu
+      x = -log(sig)+0.61
 
       IF (x > 0.) THEN
          b_Jenkins = 1.+3.8*abs(x)**2.8/hmod%dc
@@ -10178,7 +10179,6 @@ CONTAINS
 
       dc = hmod%dc
       sig = dc/nu
-
       b_Warren = 1.-(b/(1.+b*sig**b)-2.*c/sig**2)/dc
 
    END FUNCTION b_Warren
@@ -10271,7 +10271,6 @@ CONTAINS
          ! Press & Schecter (1974)
          p = 0.
          q = 1.
-         STOP 'B2_ST: Check this very carefully for Press & Schecter form'
       ELSE IF (is_in_array(hmod%imf, [2, 6, 12, 13])) THEN
          p = hmod%ST_p
          q = hmod%ST_q
@@ -10367,12 +10366,10 @@ CONTAINS
 
    END FUNCTION g_nu_on_M
 
-   FUNCTION wk_isothermal(x)
+   REAL FUNCTION wk_isothermal(x)
 
       ! The normlaised Fourier Transform of an isothermal profile
-      REAL :: wk_isothermal
       REAL, INTENT(IN) :: x
-
       REAL, PARAMETER :: dx = 1e-3
 
       ! Taylor expansion used for low |x| to avoid cancellation problems
@@ -10386,10 +10383,9 @@ CONTAINS
 
    END FUNCTION wk_isothermal
 
-   FUNCTION wk_isothermal_2(x, y)
+   REAL FUNCTION wk_isothermal_2(x, y)
 
       ! The normlaised Fourier Transform of an isothemral profile from x -> y
-      REAL :: wk_isothermal_2
       REAL, INTENT(IN) :: x, y
 
       wk_isothermal_2 = (Si(x)-Si(y))/(x-y)
