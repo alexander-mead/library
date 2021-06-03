@@ -5048,10 +5048,11 @@ CONTAINS
       ! Rough approximation for virialised overdensity
       ! Maybe attributable to Lahav et al. (1991) or Eke, Cole & Frenk (1996)
       ! Relative to background matter density here, rather than critical density
+      ! Power would be 0.3-1=-0.7 for an open model
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      Dv_virial = Dv0*Omega_m(a, cosm)**(-0.55)
+      Dv_virial = Dv0*Omega_m(a, cosm)**(-0.55) ! -0.55=0.45-1
 
    END FUNCTION Dv_virial
 
