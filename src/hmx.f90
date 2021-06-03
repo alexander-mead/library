@@ -943,6 +943,7 @@ CONTAINS
       names(127) = 'Tinker (2010) mass function: M200c'
       names(128) = 'Neglect galaxy number variance contribution in one-halo term'
       names(129) = 'Non-linear halo bias from Dark Quest'
+      names(130) = 'Courtin mass function'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2208,6 +2209,9 @@ CONTAINS
       ELSE IF (ihm == 87) THEN
          ! Despali et al. (2016) mass function
          hmod%imf = imf_Despali
+      ELSE IF (ihm == 130) THEN
+         ! Courtin et al. (2011) mass function
+         hmod%imf = imf_Courtin
       ELSE IF (ihm == 88) THEN
          ! Child et al. (2018) concentration-mass relation
          hmod%iDv = iDv_200c
@@ -2671,7 +2675,7 @@ CONTAINS
          IF (hmod%imf == imf_T10_cal) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with calibrated halo bias and no z dependence'
          IF (hmod%imf == imf_SMT) WRITE (*, *) 'HALOMODEL: Sheth, Mo & Tormen (1999) mass function with calibrated halo bias'
          IF (hmod%imf == imf_Peacock) WRITE (*, *) 'HALOMODEL: Peacock (2007) mass function'
-         IF (hmod%imf == imf_Courtin) WRITE (*, *) 'HALOMODEL: Courtin (2007) mass function'
+         IF (hmod%imf == imf_Courtin) WRITE (*, *) 'HALOMODEL: Courtin et al. (2011) mass function'
 
          ! Concentration-mass relation
          IF (hmod%iconc == iconc_Bullock_full) WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
