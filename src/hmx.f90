@@ -9602,7 +9602,7 @@ CONTAINS
          q = hmod%ST_q
       ELSE IF (hmod%imf == imf_Courtin) THEN
          ! Equation (22) and paragraph below in Courtin et al. (2011)
-         p = 0.100 ! Very different from regular p=0.3 in ST form
+         p = 0.100 ! Very different from regular p=0.3 in ST form... (!?)
          q = 0.695 ! Called 'a' in this paper
          A = 0.348*sqrt(2.*q/pi) ! Be careful with factors of sqrt(2q/pi) in normalisation
          impose_norm = .FALSE. ! A is set independently, mass normalisation not imposed
