@@ -163,11 +163,12 @@ MODULE HMx
    PUBLIC :: iDv_HMcode2016
    PUBLIC :: iDv_Mead
    PUBLIC :: iDv_SC
-   PUBLIC :: iDv_unity
+   PUBLIC :: iDv_Lagrange
    PUBLIC :: iDv_200c
    PUBLIC :: iDv_HMcode2015
    PUBLIC :: iDv_178
    PUBLIC :: iDv_user
+   PUBLIC :: iDv_virial
 
    ! Mass functions
    PUBLIC :: imf_PS
@@ -188,6 +189,7 @@ MODULE HMx
    PUBLIC :: imf_T10_cal_z
    PUBLIC :: imf_SMT
    PUBLIC :: imf_Peacock
+   PUBLIC :: imf_Courtin
 
    ! Concentration-mass relations
    PUBLIC :: iconc_Bullock_full
@@ -200,6 +202,8 @@ MODULE HMx
    PUBLIC :: iconc_Duffy_relaxed_200c
    PUBLIC :: iconc_Child
    PUBLIC :: iconc_Diemer
+   PUBLIC :: iconc_Neto_full
+   PUBLIC :: iconc_Neto_relaxed
 
    ! Haloes
    PUBLIC :: irho_delta
@@ -230,6 +234,8 @@ MODULE HMx
    PUBLIC :: irho_NFW_hole
    PUBLIC :: irho_NFW_mod
    PUBLIC :: irho_shell
+   PUBLIC :: irho_Burket
+   PUBLIC :: irho_Hernquest
 
    !!! Fitting parameters !!!
 
@@ -620,6 +626,7 @@ MODULE HMx
    INTEGER, PARAMETER :: irho_tophat = 2
    INTEGER, PARAMETER :: irho_M99 = 3
    !INTEGER, PARAMETER :: irho_NFW_num = 4
+   INTEGER, PARAMETER :: irho_Hernquest = 4
    INTEGER, PARAMETER :: irho_NFW = 5
    INTEGER, PARAMETER :: irho_beta = 6 ! Cored isothermal beta profile
    INTEGER, PARAMETER :: irho_star_F14 = 7 ! Star density profile from Fedeli (2014)
@@ -644,6 +651,7 @@ MODULE HMx
    INTEGER, PARAMETER :: irho_NFW_hole = 26
    INTEGER, PARAMETER :: irho_NFW_mod = 27
    INTEGER, PARAMETER :: irho_shell = 28
+   INTEGER, PARAMETER :: irho_Burket = 29
 
    ! Halo definitions
    INTEGER, PARAMETER :: iDv_200 = 1 ! M200
@@ -651,11 +659,12 @@ MODULE HMx
    INTEGER, PARAMETER :: iDv_HMcode2016 = 3
    INTEGER, PARAMETER :: iDv_Mead = 4 ! Mead fitting function
    INTEGER, PARAMETER :: iDv_SC = 5 ! Spherical-collapse calculation
-   INTEGER, PARAMETER :: iDv_unity = 6 ! Lagrangian radius haloes
+   INTEGER, PARAMETER :: iDv_Lagrange = 6 ! Lagrangian radius haloes
    INTEGER, PARAMETER :: iDv_200c = 7 ! M200c
    INTEGER, PARAMETER :: iDv_HMcode2015 = 8
    INTEGER, PARAMETER :: iDv_178 = 9 ! Actually 18pi^2
    INTEGER, PARAMETER :: iDv_user = 10 ! Specify via the hmod%Dv0 parameter
+   INTEGER, PARAMETER :: iDv_virial = 11
 
    ! Mass functions
    INTEGER, PARAMETER :: imf_PS = 1
@@ -678,6 +687,7 @@ MODULE HMx
    INTEGER, PARAMETER :: imf_T10_cal = 18 ! Tinker (2010) with calibrated bias and no explicit z depenendence
    INTEGER, PARAMETER :: imf_SMT = 19 ! Sheth & Tormen (1999) form but with calibrated halo bias
    INTEGER, PARAMETER :: imf_Peacock = 20
+   INTEGER, PARAMETER :: imf_Courtin = 21
 
    ! Concentration-mass relations
    INTEGER, PARAMETER :: iconc_Bullock_full = 1
@@ -690,6 +700,8 @@ MODULE HMx
    INTEGER, PARAMETER :: iconc_Duffy_relaxed_200c = 8
    INTEGER, PARAMETER :: iconc_Child = 9
    INTEGER, PARAMETER :: iconc_Diemer = 10
+   INTEGER, PARAMETER :: iconc_Neto_full = 11
+   INTEGER, PARAMETER :: iconc_Neto_relaxed = 12
 
    ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
@@ -1689,7 +1701,7 @@ CONTAINS
       ELSE IF (ihm == 26) THEN
          ! Delta function mass function
          hmod%ip2h = 2        ! Standard two-halo term
-         hmod%iDv = iDv_unity
+         hmod%iDv = iDv_Lagrange
          hmod%imf = imf_delta ! Delta function mass function
          hmod%halo_DMONLY = 3 ! Top-hat halo profile
       ELSE IF (ihm == 27) THEN
@@ -2306,7 +2318,6 @@ CONTAINS
    SUBROUTINE init_halomod(a, hmod, cosm, verbose)
 
       ! Halo-model initialisation routine
-      ! Computes other tables necessary for the one-halo integral
       REAL, INTENT(IN) :: a
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -2318,6 +2329,7 @@ CONTAINS
       LOGICAL, PARAMETER :: check_mf = check_mass_function
       LOGICAL, PARAMETER :: calculate_stars = calculate_Omega_stars
       INTEGER, PARAMETER :: flag_sigmaV = flag_matter
+      LOGICAL, PARAMETER :: consistency_checks = .TRUE.
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Initialising calculation'
 
@@ -2534,6 +2546,32 @@ CONTAINS
       hmod%hod%Mmin = hmod%mgal_min
       hmod%hod%Mmax = hmod%mgal_max
 
+      ! Halo definition consistency checks
+      IF (consistency_checks) THEN
+
+         ! Mass function
+         IF (is_in_array(hmod%imf, [imf_ST, imf_ST2002, imf_SMT, imf_Despali, imf_Courtin]) .AND. &
+            is_in_array(hmod%iDv, [iDv_200, iDv_200c, iDv_178])) THEN
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial halo mass function with a fixed halo definition'
+         END IF
+
+         ! Concentration
+         IF (is_in_array(hmod%iconc, [iconc_Bullock_full, iconc_Bullock_simple, iconc_Duffy_full_vir, iconc_Duffy_relaxed_vir]) .AND. &
+            is_in_array(hmod%iDv, [iDv_200, iDv_200c, iDv_178])) THEN
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial c(M) relation with a fixed halo definition'
+         END IF
+         IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200, iconc_Duffy_relaxed_200]) .AND. &
+            .NOT. is_in_array(hmod%iDv, [iDv_200])) THEN
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200 c(M) relation without a M200 halo definition'
+         END IF
+         IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200c, iconc_Duffy_relaxed_200c, iconc_Child, iconc_Diemer, &
+            iconc_Neto_full, iconc_Neto_relaxed]) .AND. &
+            .NOT. is_in_array(hmod%iDv, [iDv_200c])) THEN
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200c c(M) relation without a M200c halo definition'
+         END IF
+
+      END IF
+
       ! Finish
       IF (verbose) THEN
          WRITE (*, *) 'INIT_HALOMOD: Done'
@@ -2579,11 +2617,12 @@ CONTAINS
          IF (hmod%iDv == iDv_HMcode2016) WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2016) power spectrum fit'
          IF (hmod%iDv == iDv_Mead) WRITE (*, *) 'HALOMODEL: Delta_v from Mead (2017) fitting function'
          IF (hmod%iDv == iDv_SC) WRITE (*, *) 'HALOMODEL: Delta_v from spherical-collapse calculation'
-         IF (hmod%iDv == iDv_unity) WRITE (*, *) 'HALOMODEL: Delta_v to give haloes Lagrangian radius'
+         IF (hmod%iDv == iDv_Lagrange) WRITE (*, *) 'HALOMODEL: Delta_v to give haloes Lagrangian radius'
          IF (hmod%iDv == iDv_200c) WRITE (*, *) 'HALOMODEL: Delta_v for M200c'
          IF (hmod%iDv == iDv_HMcode2015) WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2015) power spectrum fit'
          IF (hmod%iDv == iDv_178) WRITE (*, *) 'HALOMODEL: Delta_v = 178 fixed'
          IF (hmod%iDv == iDv_user) WRITE (*, *) 'HALOMODEL: Delta_v user defined'
+         IF (hmod%iDv == iDv_virial) WRITE(*, *) 'HALOMODEL: Delta_v from simple virial relation'
 
          ! Form of the two-halo term
          IF (hmod%ip2h == 0) WRITE (*, *) 'HALOMODEL: No two-halo term'
@@ -2613,15 +2652,15 @@ CONTAINS
          IF (hmod%i2hcor == 2) WRITE (*, *) 'HALOMODEL: Two-halo term corrected via delta function at low mass end'
 
          ! Halo mass function
-         IF (hmod%imf == imf_PS)  WRITE (*, *) 'HALOMODEL: Press & Schecter (1974) mass function'
-         IF (hmod%imf == imf_ST)  WRITE (*, *) 'HALOMODEL: Sheth & Tormen (1999) mass function'
-         IF (hmod%imf == imf_T10_PBS_z)  WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function'
-         IF (hmod%imf == imf_delta)  WRITE (*, *) 'HALOMODEL: Delta function mass function'
-         IF (hmod%imf == imf_Jenkins)  WRITE (*, *) 'HALOMODEL: Jenkins et al. (2001) mass function'
-         IF (hmod%imf == imf_Despali)  WRITE (*, *) 'HALOMODEL: Despali et al. (2016) mass function'
-         IF (hmod%imf == imf_T08_z)  WRITE (*, *) 'HALOMODEL: Tinker et al. (2008) mass function'
-         IF (hmod%imf == imf_Warren)  WRITE (*, *) 'HALOMODEL: Warren et al. (2006) mass function'
-         IF (hmod%imf == imf_Reed)  WRITE (*, *) 'HALOMODEL: Reed et al. (2007) mass function'
+         IF (hmod%imf == imf_PS) WRITE (*, *) 'HALOMODEL: Press & Schecter (1974) mass function'
+         IF (hmod%imf == imf_ST) WRITE (*, *) 'HALOMODEL: Sheth & Tormen (1999) mass function'
+         IF (hmod%imf == imf_T10_PBS_z) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function'
+         IF (hmod%imf == imf_delta) WRITE (*, *) 'HALOMODEL: Delta function mass function'
+         IF (hmod%imf == imf_Jenkins) WRITE (*, *) 'HALOMODEL: Jenkins et al. (2001) mass function'
+         IF (hmod%imf == imf_Despali) WRITE (*, *) 'HALOMODEL: Despali et al. (2016) mass function'
+         IF (hmod%imf == imf_T08_z) WRITE (*, *) 'HALOMODEL: Tinker et al. (2008) mass function'
+         IF (hmod%imf == imf_Warren) WRITE (*, *) 'HALOMODEL: Warren et al. (2006) mass function'
+         IF (hmod%imf == imf_Reed) WRITE (*, *) 'HALOMODEL: Reed et al. (2007) mass function'
          IF (hmod%imf == imf_Bhattacharya) WRITE (*, *) 'HALOMODEL: Bhattacharya et al. (2011) mass function'
          IF (hmod%imf == imf_ST2002) WRITE (*, *) 'HALOMODEL: Sheth & Tormen (2002) mass function'
          IF (hmod%imf == imf_ST_free) WRITE (*, *) 'HALOMODEL: Sheth & Tormen general form of mass function'
@@ -2632,6 +2671,7 @@ CONTAINS
          IF (hmod%imf == imf_T10_cal) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with calibrated halo bias and no z dependence'
          IF (hmod%imf == imf_SMT) WRITE (*, *) 'HALOMODEL: Sheth, Mo & Tormen (1999) mass function with calibrated halo bias'
          IF (hmod%imf == imf_Peacock) WRITE (*, *) 'HALOMODEL: Peacock (2007) mass function'
+         IF (hmod%imf == imf_Courtin) WRITE (*, *) 'HALOMODEL: Courtin (2007) mass function'
 
          ! Concentration-mass relation
          IF (hmod%iconc == iconc_Bullock_full) WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
@@ -2644,6 +2684,8 @@ CONTAINS
          IF (hmod%iconc == iconc_Duffy_relaxed_200c) WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Duffy et al. (2008) concentration-mass relation'
          IF (hmod%iconc == iconc_Child) WRITE (*, *) 'HALOMODEL: Child et al. (2018) M200c concentration-mass relation'
          IF (hmod%iconc == iconc_Diemer) WRITE (*, *) 'HALOMODEL: Diemer & Kravstov (2019) M200c concentration-mass relation'
+         IF (hmod%iconc == iconc_Neto_full) WRITE (*, *) 'HALOMODEL: Full sample for M200c Neto et al. (2007) concentration-mass relation'
+         IF (hmod%iconc == iconc_Neto_relaxed) WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Neto et al. (2007) concentration-mass relation'
 
          ! Concentration-mass relation correction
          IF (hmod%iDolag == 0) WRITE (*, *) 'HALOMODEL: No concentration-mass correction for dark energy'
@@ -2836,7 +2878,7 @@ CONTAINS
          WRITE (*, fmt=fmt) 'delta_c:', hmod%dc
          WRITE (*, fmt=fmt) 'Amplitude:', hmod%Amf
          WRITE (*, fmt=fmt) 'Amplitude z:', hmod%Amfz
-         IF (is_in_array(hmod%imf, [imf_ST, imf_Despali, imf_ST2002, imf_ST_free, imf_SMT])) THEN
+         IF (is_in_array(hmod%imf, [imf_ST, imf_Despali, imf_ST2002, imf_ST_free, imf_SMT, imf_Courtin])) THEN
             WRITE (*, fmt=fmt) 'Sheth & Tormen p:', hmod%ST_p
             WRITE (*, fmt=fmt) 'Sheth & Tormen q:', hmod%ST_q
             WRITE (*, fmt=fmt) 'Sheth & Tormen A:', hmod%ST_A
@@ -4635,7 +4677,7 @@ CONTAINS
             V = rvoid**3
          END IF
 
-         IF (simple .EQV. .FALSE.) THEN
+         IF (.NOT. simple) THEN
             integrand(i) = g_nu(nu, hmod)*wk**2/V
          END IF
 
@@ -5010,7 +5052,7 @@ CONTAINS
       WRITE (*, *) 'HALO_DEFINITIONS: ', trim(fmass)
       WRITE (*, *) 'HALO_DEFINITIONS: ', trim(fconc)
 
-      IF (hmod%has_mass_conversions .EQV. .FALSE.) CALL convert_mass_definitions(hmod, cosm)
+      IF (.NOT. hmod%has_mass_conversions) CALL convert_mass_definitions(hmod, cosm)
 
       OPEN (7, file=fradius)
       OPEN (8, file=fmass)
@@ -5242,6 +5284,8 @@ CONTAINS
          Delta_v = 200.
       ELSE IF (hmod%iDv == iDv_Bryan) THEN
          Delta_v = Dv_BryanNorman(a, cosm)
+      ELSE IF (hmod%iDv == iDv_virial) THEN
+         Delta_v = Dv_virial(a, cosm)
       ELSE IF (hmod%iDv == iDv_HMcode2015 .OR. hmod%iDv == iDv_HMcode2016) THEN
          ! This has Omega_m(a) dependence in HMcode (2016), maybe cold would have been better?
          Delta_v = hmod%Dv0*Omega_m(a, cosm)**hmod%Dv1 
@@ -5257,7 +5301,7 @@ CONTAINS
          Delta_v = Dv_Mead(a, cosm)
       ELSE IF (hmod%iDv == iDv_SC) THEN
          Delta_v = Dv_spherical(a, cosm)
-      ELSE IF (hmod%iDv == iDv_unity) THEN
+      ELSE IF (hmod%iDv == iDv_Lagrange) THEN
          Delta_v = 1.
       ELSE IF (hmod%iDv == iDv_200c) THEN
          Delta_v = 200./Omega_m(a, cosm)
@@ -6651,22 +6695,17 @@ CONTAINS
             hmod%c(i) = conc_Bullock(z, hmod%zc(i))
          ELSE IF (hmod%iconc == iconc_Bullock_simple) THEN
             hmod%c(i) = conc_Bullock_simple(m, mnl)
-         ELSE IF (hmod%iconc == iconc_Duffy_full_200) THEN
-            hmod%c(i) = conc_Duffy_full_M200(m, z)
-         ELSE IF (hmod%iconc == iconc_Duffy_full_vir) THEN
-            hmod%c(i) = conc_Duffy_full_virial(m, z)
-         ELSE IF (hmod%iconc == iconc_Duffy_full_200c) THEN
-            hmod%c(i) = conc_Duffy_full_M200c(m, z)
-         ELSE IF (hmod%iconc == iconc_Duffy_relaxed_200) THEN
-            hmod%c(i) = conc_Duffy_relaxed_M200(m, z)
-         ELSE IF (hmod%iconc == iconc_Duffy_relaxed_vir) THEN
-            hmod%c(i) = conc_Duffy_relaxed_virial(m, z)
-         ELSE IF (hmod%iconc == iconc_Duffy_relaxed_200c) THEN
-            hmod%c(i) = conc_Duffy_relaxed_M200c(m, z)
+         ELSE IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200, iconc_Duffy_full_vir, iconc_Duffy_full_200c, &
+            iconc_Duffy_relaxed_200, iconc_Duffy_relaxed_vir, iconc_Duffy_relaxed_200c])) THEN
+            hmod%c(i) = conc_Duffy(m, hmod)
          ELSE IF (hmod%iconc == iconc_Child) THEN
             hmod%c(i) = conc_Child(m, mnl)
          ELSE IF (hmod%iconc == iconc_Diemer) THEN
             hmod%c(i) = conc_Diemer(hmod%nu(i), hmod%rr(i), fg, a, cosm)
+         ELSE IF (hmod%iconc == iconc_Neto_full) THEN
+            hmod%c(i) = conc_Neto_full(m)
+         ELSE IF (hmod%iconc == iconc_Neto_relaxed) THEN
+            hmod%c(i) = conc_Neto_relaxed(m)
          ELSE
             STOP 'FILL_HALO_CONCENTRATION: Error, iconc specified incorrectly'
          END IF
@@ -6858,111 +6897,74 @@ CONTAINS
 
    END SUBROUTINE zcoll_Bullock
 
-   FUNCTION conc_Bullock_simple(m, mstar)
+   REAL FUNCTION conc_Bullock_simple(M, Mstar)
 
       ! The simple concentration-mass relation from Bullock et al. (2001; astro-ph/9908159 equation 18)
-      REAL :: conc_Bullock_simple
-      REAL, INTENT(IN) :: m, mstar
+      REAL, INTENT(IN) :: M     ! Halo mass [Msun/h]
+      REAL, INTENT(IN) :: Mstar ! Pivot mass [Msun/h]
 
-      conc_Bullock_simple = 9.*(m/mstar)**(-0.13)
+      conc_Bullock_simple = 9.*(M/Mstar)**(-0.13)
 
    END FUNCTION conc_Bullock_simple
 
-   REAL FUNCTION conc_Duffy_full_M200c(m, z)
+   REAL FUNCTION conc_Neto_full(M)
+
+      ! Neto et al. (2007; ) concentration-mass relation for full halo sample with M200c definition at z=0 in Millennium
+      REAL, INTENT(IN) :: M ! Halo mass [Msun/h]
+
+      conc_Neto_full = 4.67*(M/1e14)**(-0.11) ! Equation (5)
+
+   END FUNCTION conc_Neto_full
+
+   REAL FUNCTION conc_Neto_relaxed(M)
+
+      ! Neto et al. (2007; ) concentration-mass relation for relaxed halo sample with M200c definition at z=0 in Millennium
+      REAL, INTENT(IN) :: M ! Halo mass [Msun/h]
+
+      conc_Neto_relaxed = 5.26*(M/1e14)**(-0.10) ! Equation (4)
+
+   END FUNCTION conc_Neto_relaxed
+
+   REAL FUNCTION conc_Duffy(M, hmod)
 
       ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: z
+      REAL, INTENT(IN) :: M
+      TYPE(halomod), INTENT(IN) :: hmod
+      REAL :: A, B, C
+      REAL, PARAMETER :: M_piv = 2e12 ! Pivot mass [Msun/h]
 
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
-      REAL, PARAMETER :: A = 5.71
-      REAL, PARAMETER :: B = -0.084
-      REAL, PARAMETER :: C = -0.47
-
-      ! Equation (4) in 0804.2486, parameters from 4th row of Table 1
-      conc_Duffy_full_M200c = A*(m/m_piv)**B*(1.+z)**C
-
-   END FUNCTION conc_Duffy_full_M200c
-
-   REAL FUNCTION conc_Duffy_relaxed_M200c(m, z)
-
-      ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: z
-
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
-      REAL, PARAMETER :: A = 6.71
-      REAL, PARAMETER :: B = -0.091
-      REAL, PARAMETER :: C = -0.44
-
-      ! Equation (4) in 0804.2486, parameters from 4th row of Table 1
-      conc_Duffy_relaxed_M200c = A*(m/m_piv)**B*(1.+z)**C
-
-   END FUNCTION conc_Duffy_relaxed_M200c
-
-   REAL FUNCTION conc_Duffy_full_virial(m, z)
-
-      ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: z
-
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
-      REAL, PARAMETER :: A = 7.85
-      REAL, PARAMETER :: B = -0.081
-      REAL, PARAMETER :: C = -0.71
-
-      ! Equation (4) in 0804.2486, parameters from 6th row of Table 1
-      conc_Duffy_full_virial = A*(m/m_piv)**B*(1.+z)**C
-
-   END FUNCTION conc_Duffy_full_virial
-
-   REAL FUNCTION conc_Duffy_relaxed_virial(m, z)
-
-      ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: z
-
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
-      REAL, PARAMETER :: A = 9.23
-      REAL, PARAMETER :: B = -0.090
-      REAL, PARAMETER :: C = -0.69
-
-      ! Equation (4) in 0804.2486, parameters from 6th row of Table 1
-      conc_Duffy_relaxed_virial = A*(m/m_piv)**B*(1.+z)**C
-
-   END FUNCTION conc_Duffy_relaxed_virial
-
-   REAL FUNCTION conc_Duffy_full_M200(m, z)
-
-      ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: z
-
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
-      REAL, PARAMETER :: A = 10.14
-      REAL, PARAMETER :: B = -0.081
-      REAL, PARAMETER :: C = -1.01
+      IF (hmod%iconc == iconc_Duffy_relaxed_200) THEN
+         A = 11.93
+         B = -0.090
+         C = -0.99
+      ELSE IF (hmod%iconc == iconc_Duffy_full_200) THEN
+         A = 10.14
+         B = -0.081
+         C = -1.01
+      ELSE IF (hmod%iconc == iconc_Duffy_relaxed_vir) THEN
+         A = 9.23
+         B = -0.090
+         C = -0.69
+      ELSE IF (hmod%iconc == iconc_Duffy_full_vir) THEN
+         A = 7.85
+         B = -0.081
+         C = -0.71
+      ELSE IF (hmod%iconc == iconc_Duffy_relaxed_200c) THEN
+         A = 6.71
+         B = -0.091
+         C = -0.44
+      ELSE IF (hmod%iconc == iconc_Duffy_full_200c) THEN
+         A = 5.71
+         B = -0.084
+         C = -0.47
+      ELSE
+         STOP 'CONC_DUFFY: Error, Duffy concentration model not recognised'
+      END IF
 
       ! Equation (4) in 0804.2486, parameters from 10th row of Table 1
-      conc_Duffy_full_M200 = A*(m/m_piv)**B*(1.+z)**C
+      conc_Duffy = A*(M/M_piv)**B*(1.+hmod%z)**C
 
-   END FUNCTION conc_Duffy_full_M200
-
-   REAL FUNCTION conc_Duffy_relaxed_M200(m, z)
-
-      ! Duffy et al (2008; 0804.2486) c(M) relation for WMAP5, See Table 1
-      REAL, INTENT(IN) :: m
-      REAL, INTENT(IN) :: z
-
-      REAL, PARAMETER :: m_piv = 2e12 ! Pivot mass [Msun/h]
-      REAL, PARAMETER :: A = 11.93
-      REAL, PARAMETER :: B = -0.090
-      REAL, PARAMETER :: C = -0.99
-
-      ! Equation (4) in 0804.2486, parameters from 10th row of Table 1
-      conc_Duffy_relaxed_M200 = A*(m/m_piv)**B*(1.+z)**C
-
-   END FUNCTION conc_Duffy_relaxed_M200
+   END FUNCTION conc_Duffy
 
    REAL FUNCTION conc_Child(m, mnl)
 
@@ -6977,7 +6979,6 @@ CONTAINS
       REAL, PARAMETER :: c0 = 3.59
 
       f = (m/mnl)/b
-
       conc_Child = A*((f/(1.+f))**p-1.)+c0
 
    END FUNCTION conc_Child
@@ -7001,17 +7002,16 @@ CONTAINS
       REAL, PARAMETER :: ca = 0.20
       INTEGER, PARAMETER :: flag_power = flag_matter
 
-      ! Suppress warnings
+      ! Suppress warning
       alpha = nu
 
-      STOP 'CONC_DIEMER: Need to implement this effectively, need neff(M)'
       n_eff = neff(kappa*r, a, flag_power, cosm)
-
       bigA = a0*(1.+a1*(n_eff+3.))
       bigB = b0*(1.+b1*(n_eff+3.))
       bigC = 1.-ca*(1.-fg)
       
       conc_Diemer = 1.
+      STOP 'CONC_DIEMER: Not fully implemented'
 
    END FUNCTION conc_Diemer
 
@@ -7245,9 +7245,6 @@ CONTAINS
 
       IF (hmod%halo_DMONLY == 1) THEN
          irho = irho_NFW
-      !ELSE IF (hmod%halo_DMONLY == 2) THEN
-         ! Non-analyical NFW
-         !irho = 4
       ELSE IF (hmod%halo_DMONLY == 3) THEN
          irho = irho_tophat
       ELSE IF (hmod%halo_DMONLY == 4) THEN
@@ -8404,8 +8401,8 @@ CONTAINS
 
       z = hmod%z
       win_CIB = grey_body_nu((1.+z)*nu, T, beta) ! Get the black-body radiance [W m^-2 Sr^-1 Hz^-1]
-      win_CIB = win_CIB/Jansky     ! Convert units to Jansky [Jy Sr^-1]
-      win_CIB = win_CIB*(a*rv)**2  ! [Jy Sr^-1 (Mpc/h)^2]
+      win_CIB = win_CIB/Jansky ! Convert units to Jansky [Jy Sr^-1]
+      win_CIB = win_CIB*(a*rv)**2 ! [Jy Sr^-1 (Mpc/h)^2]
       !win_CIB=win_CIB/(1e-3+luminosity_distance(a,cosm))**2 ! Bad idea because divide by zero when z=0
 
    END FUNCTION win_CIB
@@ -8453,7 +8450,7 @@ CONTAINS
       REAL :: r, rmin, rmax, p1, p2, frac
       REAL :: r0, alpha, c_HI, r_HI, z
 
-      IF (hmod%has_HI .EQV. .FALSE.) CALL init_HI(hmod, cosm)
+      IF (.NOT. hmod%has_HI) CALL init_HI(hmod, cosm)
 
       frac = halo_HI_fraction(m, hmod, cosm)
 
@@ -8554,7 +8551,7 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = 3
       INTEGER, PARAMETER :: imeth = 2
 
-      IF (hmod%has_mass_conversions .EQV. .FALSE.) CALL convert_mass_definitions(hmod, cosm)
+      IF (.NOT. hmod%has_mass_conversions) CALL convert_mass_definitions(hmod, cosm)
 
       ! Get r500 for UPP
       r500c = exp(find(log(m), hmod%log_m, log(hmod%r500c), hmod%n, iorder, ifind, imeth)) ! [Mpc/h]
@@ -8624,6 +8621,12 @@ CONTAINS
          ELSE IF (irho == irho_NFW) THEN
             y = r/rs
             rho = 1./(y*(1.+y)**2)
+         ELSE IF (irho == irho_Hernquest) THEN
+            y = r/rs
+            rho = 1./(y*(1.+y)**3)
+         ELSE IF (irho == irho_Burket) THEN
+            y = r/rs
+            rho = 1./((1.+y)*(1.+y**2))
          ELSE IF (irho == irho_beta) THEN
             ! Isothermal beta model (X-ray gas; SZ profiles; beta=2/3 fixed)
             ! Also known as 'cored isothermal profile'
@@ -8952,7 +8955,7 @@ CONTAINS
             IF (imeth == 12) WRITE (*, *) 'WININT_SPEED_TESTS: Hybrid with cubic approximation for bumps'
             IF (imeth == 13) WRITE (*, *) 'WININT_SPEED_TESTS: Full hybrid'
 
-            IF (timing .EQV. .FALSE.) THEN
+            IF (.NOT. timing) THEN
                outfile = number_file(base, imeth, ext)
                WRITE (*, *) 'WININT_SPEED_TESTS: Writing data: ', trim(outfile)
                OPEN (7, file=outfile)
@@ -9551,7 +9554,7 @@ CONTAINS
       ! Initialise anything to do with the halo mass function
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      IF (is_in_array(hmod%imf, [imf_ST, imf_Despali, imf_ST2002, imf_ST_free, imf_SMT])) THEN
+      IF (is_in_array(hmod%imf, [imf_ST, imf_Despali, imf_ST2002, imf_ST_free, imf_SMT, imf_Courtin])) THEN
          CALL init_ST(hmod)
       ELSE IF (hmod%imf == imf_T08 .OR. hmod%imf == imf_T08_z) THEN
          CALL init_Tinker2008(hmod)
@@ -9573,15 +9576,18 @@ CONTAINS
       impose_norm = .TRUE.
       IF (hmod%imf == imf_PS) THEN
          ! This is never used, but shows that PS can easily be mapped to ST form
-         p = 0.
+         p = 0. ! Note that p=0 brings a factor of 2 in front of ST form
          q = 1.
+         !A = 0.5*sqrt(2./pi) ! 1/sqrt(2*pi) factor of 2 from ST form with p=0
       ELSE IF (hmod%imf == imf_ST .OR. hmod%imf == imf_SMT) THEN
          p = 0.3
          q = 0.707
+         !A = 0.3222*sqrt(2.*q/pi) ! This is A=0.2162
       ELSE IF (hmod%imf == imf_Despali) THEN
-         p = 0.2579
-         q = 0.7663
-         A = 0.3298
+         ! All z and all cosmolgy results from Table 3; note that Despali uses nu=(dc/sig)^2
+         p = 0.2536
+         q = 0.7689
+         A = 0.3295*sqrt(2.*q/pi) ! Be careful with factors of sqrt(2q/pi) in normalisation
          impose_norm = .FALSE. ! A is set independently, mass normalisation not imposed
       ELSE IF (hmod%imf == imf_ST2002) THEN
          ! Sheth & Tormen (2002), only change is q = 0.707 -> 0.75
@@ -9590,11 +9596,18 @@ CONTAINS
       ELSE IF (hmod%imf == imf_ST_free) THEN
          p = hmod%ST_p
          q = hmod%ST_q
+      ELSE IF (hmod%imf == imf_Courtin) THEN
+         ! Equation (22) and paragraph below in Courtin et al. (2011)
+         p = 0.100 ! Very different from regular p=0.3 in ST form
+         q = 0.695 ! Called 'a' in this paper
+         A = 0.348*sqrt(2.*q/pi) ! Be careful with factors of sqrt(2q/pi) in normalisation
+         impose_norm = .FALSE. ! A is set independently, mass normalisation not imposed
       ELSE
          STOP 'INIT_ST: Error, imf set incorrectly'
       END IF
 
       ! Normalisation involves Gamma function
+      ! Note that Gamma(0.5)=sqrt(pi); A=0.5*sqrt(2q/pi) if p=0; A=0.5*sqrt(2/pi) if p=0 and q=1
       IF (impose_norm) THEN
          A = sqrt(2.*q)/(sqrt(pi)+Gamma(0.5-p)/2.**p)
       END IF
@@ -9763,7 +9776,7 @@ CONTAINS
 
       IF (hmod%imf == imf_PS) THEN
          g_nu = g_PS(nu)
-      ELSE IF (is_in_array(hmod%imf, [imf_ST, imf_Despali, imf_ST2002, imf_ST_free, imf_SMT])) THEN
+      ELSE IF (is_in_array(hmod%imf, [imf_ST, imf_Despali, imf_ST2002, imf_ST_free, imf_SMT, imf_Courtin])) THEN
          g_nu = g_ST(nu, hmod)
       ELSE IF (is_in_array(hmod%imf, [imf_T10_PBS_z, imf_T10_PBS, imf_T10_cal_z, imf_T10_cal])) THEN
          g_nu = g_Tinker2010(nu, hmod)
@@ -9814,7 +9827,7 @@ CONTAINS
       p = hmod%ST_p
       q = hmod%ST_q
 
-      g_st = A*(1.+((q*nu**2)**(-p)))*exp(-q*nu**2/2.)
+      g_st = A*(1.+(q*nu**2)**(-p))*exp(-q*nu**2/2.)
 
    END FUNCTION g_ST
 
@@ -9906,9 +9919,11 @@ CONTAINS
       G1 = exp(-(log(omeg)-0.788)**2/(2.*0.6**2))
       G2 = exp(-(log(omeg)-1.138)**2/(2.*0.2**2))
 
-      ! TODO: Implement this
+      ! TODO: Implement this, probably need neff(M) to be calculated in init_halomod
       STOP 'G_REED: Need to implement neff(M) here'
-      ne = 0. 
+      !M = 
+      !r = 
+      !ne = neff(r, hmod%a, flag_matter, cosm)
 
       ! Equation (12)
       ! Note that there are typos in the paper, see my emails
@@ -9986,7 +10001,7 @@ CONTAINS
       ELSE
          IF (hmod%imf == imf_PS) THEN
             b_nu = b_PS(nu, hmod)
-         ELSE IF (is_in_array(hmod%imf, [imf_ST, imf_Despali, imf_ST2002, imf_ST_free])) THEN
+         ELSE IF (is_in_array(hmod%imf, [imf_ST, imf_Despali, imf_ST2002, imf_ST_free, imf_Courtin])) THEN
             b_nu = b_ST(nu, hmod)
          ELSE IF (hmod%imf == imf_T10_PBS_z .OR. hmod%imf == imf_T10_PBS) THEN
             b_nu = b_Tinker2010_PBsplit(nu, hmod)
@@ -10247,7 +10262,7 @@ CONTAINS
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
 
-      IF (is_in_array(hmod%imf, [imf_PS, imf_ST, imf_Despali, imf_ST2002, imf_ST_free])) THEN
+      IF (is_in_array(hmod%imf, [imf_PS, imf_ST, imf_Despali, imf_ST2002, imf_ST_free, imf_Courtin])) THEN
          b2_nu = b2_ST(nu, hmod)
       ELSE
          STOP 'B2_NU: Error, second-order bias not specified this mass function'
@@ -10268,7 +10283,7 @@ CONTAINS
          ! Press & Schecter (1974)
          p = 0.
          q = 1.
-      ELSE IF (is_in_array(hmod%imf, [imf_ST, imf_Despali, imf_ST2002, imf_ST_free])) THEN
+      ELSE IF (is_in_array(hmod%imf, [imf_ST, imf_Despali, imf_ST2002, imf_ST_free, imf_Courtin])) THEN
          p = hmod%ST_p
          q = hmod%ST_q
       ELSE
