@@ -89,7 +89,7 @@ CONTAINS
          y = find(x, xtab, ytab, n, iorder, ifind, iinterp)
          IF (abs(y) < acc) THEN
             EXIT
-         ELSE IF (positive(y1) .EQV. positive(y)) THEN
+         ELSE IF (positive(y1) .AND. positive(y)) THEN
             x1 = x
             y1 = y
          ELSE
@@ -123,7 +123,7 @@ CONTAINS
       x2 = x2_ini
       f1 = f(x1)
       f2 = f(x2)
-      IF (positive(f1) .EQV. positive(f2)) STOP 'FIND_ROOT: Error, initial guesses must be either side of the root'
+      IF (positive(f1) .AND. positive(f2)) STOP 'FIND_ROOT: Error, initial guesses must be either side of the root'
 
       ! Loop until convergence achieved
       DO
@@ -136,7 +136,7 @@ CONTAINS
          IF (abs(fm) < acc) THEN
             ! Convergence has been met
             EXIT
-         ELSE IF (positive(fm) .EQV. positive(f1)) THEN
+         ELSE IF (positive(fm) .AND. positive(f1)) THEN
             ! If f(x1) and f(xm) have the same sign then the root is between xm and x2, so update x1, f1 ...
             x1 = xm
             f1 = fm

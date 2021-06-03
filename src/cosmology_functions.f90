@@ -104,9 +104,11 @@ MODULE cosmology_functions
    PUBLIC :: Dv_BryanNorman
    PUBLIC :: Dv_Mead
    PUBLIC :: Dv_Spherical
+   PUBLIC :: Dv_virial
    PUBLIC :: dc_NakamuraSuto
    PUBLIC :: dc_Mead
    PUBLIC :: dc_Spherical
+   PUBLIC :: dc_NFW
 
    ! Power spectrum
    PUBLIC :: Pk_Delta
@@ -2661,7 +2663,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'HUBBLE2: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'HUBBLE2: Error, cosmology is not initialised'
       Hubble2 = &
          cosm%Om_c*X_c(a)+ &
          cosm%Om_b*X_b(a)+ &
@@ -2695,7 +2697,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'AH: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'AH: Error, cosmology is not initialised'
       AH = &
          cosm%Om_c*(1.+3.*w_c)*X_c(a)+ &
          cosm%Om_b*(1.+3.*w_b)*X_b(a)+ &
@@ -2729,7 +2731,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_M: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA_M: Error, cosmology is not initialised'
       Omega_m = cosm%Om_m*X_m(a)/Hubble2(a, cosm)
 
    END FUNCTION Omega_m
@@ -2741,7 +2743,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_M_NORAD: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA_M_NORAD: Error, cosmology is not initialised'
       IF (a > cosm%a_nu) THEN
          Omega_m_norad = cosm%Om_m*X_m(a)/Hubble2_norad(a, cosm)
       ELSE
@@ -2756,7 +2758,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_C: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA_C: Error, cosmology is not initialised'
       Omega_c = cosm%Om_c*X_c(a)/Hubble2(a, cosm)
 
    END FUNCTION Omega_c
@@ -2767,7 +2769,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_B: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA_B: Error, cosmology is not initialised'
       Omega_b = cosm%Om_b*X_b(a)/Hubble2(a, cosm)
 
    END FUNCTION Omega_b
@@ -2779,7 +2781,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_COLD_NORAD: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA_COLD_NORAD: Error, cosmology is not initialised'
       Omega_cold_norad = (cosm%Om_c*X_c(a)+cosm%Om_b*X_b(a))/Hubble2_norad(a, cosm)
 
    END FUNCTION Omega_cold_norad
@@ -2791,7 +2793,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_R: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA_R: Error, cosmology is not initialised'
       Omega_r = cosm%Om_r*X_r(a)/Hubble2(a, cosm)
 
    END FUNCTION Omega_r
@@ -2802,7 +2804,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_G: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA_G: Error, cosmology is not initialised'
       Omega_g = cosm%Om_g*X_g(a)/Hubble2(a, cosm)
 
    END FUNCTION Omega_g
@@ -2813,7 +2815,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_NU: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA_NU: Error, cosmology is not initialised'
       Omega_nu = cosm%Om_nu*X_nu(a, cosm)/Hubble2(a, cosm)
 
    END FUNCTION Omega_nu
@@ -2824,7 +2826,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_V: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA_V: Error, cosmology is not initialised'
       Omega_v = cosm%Om_v*X_v(a)/Hubble2(a, cosm)
 
    END FUNCTION Omega_v
@@ -2835,7 +2837,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA_W: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA_W: Error, cosmology is not initialised'
       Omega_w = cosm%Om_w*X_de(a, cosm)/Hubble2(a, cosm)
 
    END FUNCTION Omega_w
@@ -2846,7 +2848,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%is_init .EQV. .FALSE.) STOP 'OMEGA: Error, cosmology is not initialised'
+      IF (.NOT. cosm%is_init) STOP 'OMEGA: Error, cosmology is not initialised'
       Omega = &
          Omega_c(a, cosm)+ &
          Omega_b(a, cosm)+ &
@@ -4422,7 +4424,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
+      IF (.NOT. cosm%has_growth) CALL init_growth(cosm)
       IF (a == 1.) THEN
          grow = 1.
       ELSE
@@ -4490,7 +4492,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
+      IF (.NOT. cosm%has_growth) CALL init_growth(cosm)
       ungrow = cosm%gnorm*grow(a, cosm)
 
    END FUNCTION ungrow
@@ -4555,7 +4557,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
+      IF (.NOT. cosm%has_growth) CALL init_growth(cosm)
       growth_rate = evaluate_interpolator(a, cosm%grate)
 
    END FUNCTION growth_rate
@@ -4630,7 +4632,7 @@ CONTAINS
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      IF (cosm%has_growth .EQV. .FALSE.) CALL init_growth(cosm)
+      IF (.NOT. cosm%has_growth) CALL init_growth(cosm)
       acc_growth = evaluate_interpolator(a, cosm%agrow)
 
    END FUNCTION acc_growth
@@ -4973,7 +4975,18 @@ CONTAINS
       r_Vainshtein_DGP = (16.*GN*M*cosm%H0rc**2)/(9.*beta_DGP(a, cosm)**2)
       r_Vainshtein_DGP = r_Vainshtein_DGP**(1./3.)
   
-    END FUNCTION r_Vainshtein_DGP
+   END FUNCTION r_Vainshtein_DGP
+
+   REAL FUNCTION dc_NFW(a, cosm)
+
+      ! LCDM delta_c approximation from Navarro, Frenk & White (1997)
+      ! In Open models replace the 0.0055 power with 0.0185
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      dc_NFW = dc0*Omega_m(a, cosm)**0.0055 ! Equation (A14)
+
+   END FUNCTION dc_NFW
 
    REAL FUNCTION dc_NakamuraSuto(a, cosm)
 
@@ -4991,34 +5004,6 @@ CONTAINS
       dc_NakamuraSuto = dc0*(1.+0.012299*log10(Om_mz))
 
    END FUNCTION dc_NakamuraSuto
-
-   REAL FUNCTION Dv_BryanNorman(a, cosm)
-
-      ! Bryan & Norman (1998; arXiv:astro-ph/9710107) spherical over-density fitting function
-      ! Here overdensity is defined relative to the background matter density, rather than the critical density
-      REAL, INTENT(IN) :: a
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: x, Om_mz
-      LOGICAL :: cold = cold_Bryan
-
-      IF (cold) THEN
-         Om_mz = Omega_cold_norad(a, cosm)
-      ELSE
-         Om_mz = Omega_m_norad(a, cosm)
-      END IF
-      x = Om_mz-1.
-
-      IF (cosm%Om_v == 0. .AND. cosm%Om_w == 0.) THEN
-         ! Open model results
-         Dv_BryanNorman = Dv0+60.*x-32.*x**2
-         Dv_BryanNorman = Dv_BryanNorman/Om_mz
-      ELSE
-         ! LCDM results
-         Dv_BryanNorman = Dv0+82.*x-39.*x**2
-         Dv_BryanNorman = Dv_BryanNorman/Om_mz
-      END IF
-
-   END FUNCTION Dv_BryanNorman
 
    REAL FUNCTION dc_Mead(a, cosm)
 
@@ -5057,6 +5042,46 @@ CONTAINS
       dc_Mead = dc_Mead*dc0*(1.-0.041*cosm%f_nu)
 
    END FUNCTION dc_Mead
+
+   REAL FUNCTION Dv_virial(a, cosm)
+
+      ! Rough approximation for virialised overdensity
+      ! Maybe attributable to Lahav et al. (1991) or Eke, Cole & Frenk (1996)
+      ! Relative to background matter density here, rather than critical density
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      Dv_virial = Dv0*Omega_m(a, cosm)**(-0.55)
+
+   END FUNCTION Dv_virial
+
+   REAL FUNCTION Dv_BryanNorman(a, cosm)
+
+      ! Bryan & Norman (1998; arXiv:astro-ph/9710107) spherical over-density fitting function
+      ! Here overdensity is defined relative to the background matter density, rather than the critical density
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: x, Om_mz
+      LOGICAL :: cold = cold_Bryan
+
+      IF (cold) THEN
+         Om_mz = Omega_cold_norad(a, cosm)
+      ELSE
+         Om_mz = Omega_m_norad(a, cosm)
+      END IF
+      x = Om_mz-1.
+
+      IF (cosm%Om_v == 0. .AND. cosm%Om_w == 0.) THEN
+         ! Open model results
+         Dv_BryanNorman = Dv0+60.*x-32.*x**2
+         Dv_BryanNorman = Dv_BryanNorman/Om_mz
+      ELSE
+         ! LCDM results
+         Dv_BryanNorman = Dv0+82.*x-39.*x**2
+         Dv_BryanNorman = Dv_BryanNorman/Om_mz
+      END IF
+
+   END FUNCTION Dv_BryanNorman
 
    REAL FUNCTION Dv_Mead(a, cosm)
 
@@ -5115,7 +5140,7 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = ifind_interp_dc
       INTEGER, PARAMETER :: imeth = imeth_interp_dc
 
-      IF (cosm%has_spherical .EQV. .FALSE.) CALL init_spherical_collapse(cosm)
+      IF (.NOT. cosm%has_spherical) CALL init_spherical_collapse(cosm)
 
       IF (a < cosm%dc%xmin) THEN
          dc_spherical = dc0
@@ -5134,7 +5159,7 @@ CONTAINS
       INTEGER, PARAMETER :: ifind = ifind_interp_Dv
       INTEGER, PARAMETER :: imeth = imeth_interp_Dv
 
-      IF (cosm%has_spherical .EQV. .FALSE.) CALL init_spherical_collapse(cosm)
+      IF (.NOT. cosm%has_spherical) CALL init_spherical_collapse(cosm)
 
       IF (a < cosm%Dv%xmin) THEN
          Dv_spherical = Dv0
