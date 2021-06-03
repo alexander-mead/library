@@ -157,6 +157,18 @@ MODULE HMx
    PUBLIC :: field_neutrino
    PUBLIC :: field_haloes
 
+   ! Halo definitions
+   PUBLIC :: iDv_200
+   PUBLIC :: iDv_Bryan
+   PUBLIC :: iDv_HMcode2016
+   PUBLIC :: iDv_Mead
+   PUBLIC :: iDv_SC
+   PUBLIC :: iDv_unity
+   PUBLIC :: iDv_200c
+   PUBLIC :: iDv_HMcode2015
+   PUBLIC :: iDv_178
+   PUBLIC :: iDv_user
+
    ! Mass functions
    PUBLIC :: imf_PS
    PUBLIC :: imf_ST
@@ -167,7 +179,6 @@ MODULE HMx
    PUBLIC :: imf_T08_z
    PUBLIC :: imf_Warren
    PUBLIC :: imf_Bhattacharya
-   !PUBLIC :: imf_T10_nobias
    PUBLIC :: imf_ST2002
    PUBLIC :: imf_ST_free
    PUBLIC :: imf_Philcox
@@ -177,26 +188,18 @@ MODULE HMx
    PUBLIC :: imf_T10_cal_z
    PUBLIC :: imf_SMT
    PUBLIC :: imf_Peacock
-         !  1 - Press & Schecter (1974)
-      !  2 - Sheth & Tormen (1999)
-      !  3 - Tinker et al. (2010) with z dependence for Dv=200
-      !  4 - Delta function in mass
-      !  5 - Jenkins et al. (2001)
-      !  6 - Despali et al. (2016)
-      !  7 - Tinker et al. (2008) with z dependence
-      !  8 - Warren et al. (2006; astro-ph/0506395)
-      !  9 - Reed et al. (2007; astro-ph/0607150)
-      ! 10 - Bhattacharya et al. (2011; 1005.2239)
-      ! 11 - Tinker et al. (2010) but with no halo bias
-      ! 12 - Sheth & Tormen (2002)
-      ! 13 - Sheth & Tormen form, but with free parameters
-      ! 14 - Philcox et al. (2020)
-      ! 15 - Tinker et al. (2008) no z dependence
-      ! 16 - Tinker et al. (2010) no z dependence
-      ! 17 - Tinker et al. (2010) with calibrated bias and z dependence for Dv=200
-      ! 18 - Tinker et al. (2010) with calibrated bias and no z dependence
-      ! 19 - Sheth, Mo & Tormen (2001) with calibrated halo bias
-      ! 20 - Peacock (2007)
+
+   ! Concentration-mass relations
+   PUBLIC :: iconc_Bullock_full
+   PUBLIC :: iconc_Bullock_simple
+   PUBLIC :: iconc_Duffy_full_200
+   PUBLIC :: iconc_Duffy_full_vir
+   PUBLIC :: iconc_Duffy_full_200c
+   PUBLIC :: iconc_Duffy_relaxed_200
+   PUBLIC :: iconc_Duffy_relaxed_vir
+   PUBLIC :: iconc_Duffy_relaxed_200c
+   PUBLIC :: iconc_Child
+   PUBLIC :: iconc_Diemer
 
    ! Haloes
    PUBLIC :: irho_delta
@@ -642,10 +645,22 @@ MODULE HMx
    INTEGER, PARAMETER :: irho_NFW_mod = 27
    INTEGER, PARAMETER :: irho_shell = 28
 
+   ! Halo definitions
+   INTEGER, PARAMETER :: iDv_200 = 1 ! M200
+   INTEGER, PARAMETER :: iDv_Bryan = 2 ! Bryan & Norman fitting function
+   INTEGER, PARAMETER :: iDv_HMcode2016 = 3
+   INTEGER, PARAMETER :: iDv_Mead = 4 ! Mead fitting function
+   INTEGER, PARAMETER :: iDv_SC = 5 ! Spherical-collapse calculation
+   INTEGER, PARAMETER :: iDv_unity = 6 ! Lagrangian radius haloes
+   INTEGER, PARAMETER :: iDv_200c = 7 ! M200c
+   INTEGER, PARAMETER :: iDv_HMcode2015 = 8
+   INTEGER, PARAMETER :: iDv_178 = 9 ! Actually 18pi^2
+   INTEGER, PARAMETER :: iDv_user = 10 ! Specify via the hmod%Dv0 parameter
+
    ! Mass functions
    INTEGER, PARAMETER :: imf_PS = 1
    INTEGER, PARAMETER :: imf_ST = 2
-   INTEGER, PARAMETER :: imf_T10_PBS_z = 3 ! Tinker (2010) with z dependent parameters for Dv=200
+   INTEGER, PARAMETER :: imf_T10_PBS_z = 3 ! Tinker (2010) with PBS bias and z dependent parameters for Dv=200
    INTEGER, PARAMETER :: imf_delta = 4 ! Delta function mass function
    INTEGER, PARAMETER :: imf_Jenkins = 5
    INTEGER, PARAMETER :: imf_Despali = 6
@@ -658,11 +673,23 @@ MODULE HMx
    INTEGER, PARAMETER :: imf_ST_free = 13 ! Sheth & Tormen form, but with free p and q parameters
    INTEGER, PARAMETER :: imf_Philcox = 14
    INTEGER, PARAMETER :: imf_T08 = 15 ! Tinker (2008) with no explicit z dependence
-   INTEGER, PARAMETER :: imf_T10_PBS = 16 ! Tinker (2010) with no explicit z dependence
+   INTEGER, PARAMETER :: imf_T10_PBS = 16 ! Tinker (2010) with PBS bias and no explicit z dependence
    INTEGER, PARAMETER :: imf_T10_cal_z = 17 ! Tinker (2010) with calibrated bias and z dependent parameters for Dv=200
    INTEGER, PARAMETER :: imf_T10_cal = 18 ! Tinker (2010) with calibrated bias and no explicit z depenendence
    INTEGER, PARAMETER :: imf_SMT = 19 ! Sheth & Tormen (1999) form but with calibrated halo bias
    INTEGER, PARAMETER :: imf_Peacock = 20
+
+   ! Concentration-mass relations
+   INTEGER, PARAMETER :: iconc_Bullock_full = 1
+   INTEGER, PARAMETER :: iconc_Bullock_simple = 2
+   INTEGER, PARAMETER :: iconc_Duffy_full_200 = 3
+   INTEGER, PARAMETER :: iconc_Duffy_full_vir = 4
+   INTEGER, PARAMETER :: iconc_Duffy_full_200c = 5
+   INTEGER, PARAMETER :: iconc_Duffy_relaxed_200 = 6
+   INTEGER, PARAMETER :: iconc_Duffy_relaxed_vir = 7
+   INTEGER, PARAMETER :: iconc_Duffy_relaxed_200c = 8
+   INTEGER, PARAMETER :: iconc_Child = 9
+   INTEGER, PARAMETER :: iconc_Diemer = 10
 
    ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
@@ -959,17 +986,7 @@ CONTAINS
       hmod%imf = imf_ST
 
       ! Concentration-mass relation
-      !  1 - Full Bullock et al. (2001; astro-ph/9909159)
-      !  2 - Simple Bullock et al. (2001; astro-ph/9909159)
-      !  3 - Duffy et al. (2008; astro-ph/0804.2486): full 200m
-      !  4 - Duffy et al. (2008; astro-ph/0804.2486): full virial
-      !  5 - Duffy et al. (2008; astro-ph/0804.2486): full 200c
-      !  6 - Duffy et al. (2008; astro-ph/0804.2486): relaxed 200m
-      !  7 - Duffy et al. (2008; astro-ph/0804.2486): relaxed virial
-      !  8 - Duffy et al. (2008; astro-ph/0804.2486): relaxed 200c
-      !  9 -
-      ! 10 -
-      hmod%iconc = 4
+      hmod%iconc = iconc_Duffy_full_vir
 
       ! How to calculate sigma(R); either cold matter (two definitions) or all matter
       hmod%flag_sigma = flag_ucold
@@ -984,16 +1001,7 @@ CONTAINS
       hmod%idc = 2
 
       ! Virial density relative to background matter
-      ! 1 - Fixed M200
-      ! 2 - Bryan & Norman (1998) fitting function
-      ! 3 - HMcode (2016)
-      ! 4 - Mead (2017) fitting function
-      ! 5 - Spherical-collapse calculation
-      ! 6 - Fixed to unity to give Lagrangian radius
-      ! 7 - For M200c
-      ! 8 - HMcode (2015)
-      ! 9 - Fixed to 18pi^2 ~ 178
-      hmod%iDv = 2
+      hmod%iDv = iDv_Bryan
 
       ! eta for halo window function
       ! 0 - No
@@ -1463,9 +1471,9 @@ CONTAINS
          ! 95 - HMcode (2016) w/ neutrino halo-mass fix and CAMB mass range and points
          hmod%ip2h = 1
          hmod%i1hdamp = 1
-         hmod%iconc = 1
+         hmod%iconc = iconc_Bullock_full
          hmod%idc = 3
-         hmod%iDv = 3
+         hmod%iDv = iDv_HMcode2016
          hmod%ieta = 1
          hmod%iAs = 1
          hmod%i2hdamp = 2
@@ -1492,6 +1500,7 @@ CONTAINS
             !  7 - HMcode (2015)
             ! 66 - HMcode (2015) but with CAMB halo mass range and number of mass points
             hmod%idc = 6
+            hmod%iDv = iDv_HMcode2015
             hmod%i2hdamp = 1
             hmod%itrans = 1
             hmod%iDolag = 1
@@ -1570,8 +1579,8 @@ CONTAINS
          ! Note that Delta_v = 200 is not consistent with the ST mass function
          hmod%ip2h = 1
          hmod%idc = 1
-         hmod%iDv = 1
-         hmod%iconc = 1
+         hmod%iDv = iDv_200
+         hmod%iconc = iconc_Bullock_full
       ELSE IF (ihm == 3) THEN
          ! Standard halo-model calculation (Seljak 2000)
          ! This is the default, so do nothing here
@@ -1583,19 +1592,19 @@ CONTAINS
       ELSE IF (ihm == 5) THEN
          ! Standard halo-model calculation but with Delta_v = 200 and delta_c = 1.686 fixed and Bullock c(M)
          hmod%idc = 1
-         hmod%iDv = 1
-         hmod%iconc = 1
+         hmod%iDv = iDv_200
+         hmod%iconc = iconc_Bullock_full
       ELSE IF (ihm == 6) THEN
          ! Half-accurate halo-model calculation, inspired by (HMcode 2015, 2016)
          hmod%i1hdamp = 2
          hmod%i2hdamp = 2
          hmod%safe_negative = .TRUE.
          hmod%idc = 3
-         hmod%iDv = 3
+         hmod%iDv = iDv_HMcode2016
          hmod%ieta = 1
          hmod%iAs = 1
          hmod%itrans = 1
-         hmod%iconc = 1
+         hmod%iconc = iconc_Bullock_full
          hmod%iDolag = 2
       ELSE IF (ihm == 8) THEN
          ! Include scatter in halo properties
@@ -1603,35 +1612,35 @@ CONTAINS
          hmod%conc_scatter = .TRUE.
       ELSE IF (ihm == 9) THEN
          ! For CCL comparison and benchmark generation
-         hmod%n = 2048   ! Increase accuracy for the CCL benchmarks
+         hmod%n = 2048 ! Increase accuracy for the CCL benchmarks
          hmod%acc = 1e-5 ! Increase accuracy for the CCL benchmarks
          hmod%ip2h = 2
          hmod%i2hcor = 2
          hmod%ibias = 1
          hmod%i1hdamp = 0
          hmod%imf = imf_ST
-         hmod%iconc = 4 ! 4 - Virial Duffy relation for full sample
-         hmod%idc = 2   ! 2 - Virial dc
-         hmod%iDv = 2   ! 2 - Virial Dv
-         hmod%ieta = 0  ! 0 - No
+         hmod%iconc = iconc_Duffy_full_vir ! 4 - Virial Duffy relation for full sample
+         hmod%idc = 2 ! 2 - Virial dc
+         hmod%iDv = iDv_Bryan
+         hmod%ieta = 0 ! 0 - No
          hmod%iAs = 0
          hmod%i2hdamp = 0
          hmod%itrans = 0
          hmod%iDolag = 0
       ELSE IF (ihm == 10) THEN
          ! For mass conversions comparison with Wayne Hu's code
-         hmod%iconc = 2
+         hmod%iconc = iconc_Bullock_simple
          hmod%idc = 1
-         hmod%iDv = 1
+         hmod%iDv = iDv_200
       ELSE IF (ihm == 11) THEN
          ! UPP
          hmod%electron_pressure = 1
       ELSE IF (ihm == 12) THEN
          ! Spherical-collapse model to produce Mead (2017) results
          hmod%idc = 5    ! 5 - Spherical-collapse calculation for delta_c
-         hmod%iDv = 5    ! 5 - Spherical-collapse calculation for Delta_v
+         hmod%iDv = iDv_SC
          hmod%imf = imf_ST
-         hmod%iconc = 1  ! 1 - Bullock et al. c(M) relation
+         hmod%iconc = iconc_Bullock_full
          hmod%iDolag = 1 ! 1 - This is important for the accuracy of the z=0 results presented in Mead (2017)
       ELSE IF (ihm == 13) THEN
          ! Experimental sigmoid transition
@@ -1680,7 +1689,7 @@ CONTAINS
       ELSE IF (ihm == 26) THEN
          ! Delta function mass function
          hmod%ip2h = 2        ! Standard two-halo term
-         hmod%iDv = 6         ! Lagrangian radius haloes
+         hmod%iDv = iDv_unity
          hmod%imf = imf_delta ! Delta function mass function
          hmod%halo_DMONLY = 3 ! Top-hat halo profile
       ELSE IF (ihm == 27) THEN
@@ -1888,20 +1897,20 @@ CONTAINS
          hmod%eta = -0.3
       ELSE IF (ihm == 42) THEN
          ! Tinker (2010) and stuff apprpriate for M200c
+         hmod%idc = 1 ! Fixed to 1.686
          hmod%imf = imf_T10_PBS_z ! Tinker mass function and bias
-         hmod%iDv = 7   ! M200c
-         hmod%iconc = 5 ! Duffy for M200c for full sample
-         hmod%idc = 1   ! Fixed to 1.686
+         hmod%iDv = iDv_200c
+         hmod%iconc = iconc_Duffy_full_200c
       ELSE IF (ihm == 43) THEN
          ! Standard halo model but as response with HMcode (2016) but only for matter spectra
          hmod%response_baseline = HMcode2016
          hmod%response_matter_only = .TRUE.
       ELSE IF (ihm == 44) THEN
          ! Tinker (2010) and stuff apprpriate for M200
+         hmod%idc = 1 ! Fixed to 1.686
          hmod%imf = imf_T10_PBS_z
-         hmod%iDv = 1   ! M200
-         hmod%iconc = 3 ! Duffy for M200 for full sample
-         hmod%idc = 1   ! Fixed to 1.686
+         hmod%iDv = iDv_200
+         hmod%iconc = iconc_Duffy_full_200
       ELSE IF (ihm == 45) THEN
          ! No stars
          hmod%Astar = 0.
@@ -1933,8 +1942,8 @@ CONTAINS
             hmod%imf = imf_T10_cal_z ! Tinker 2010 mass function and calibrated bias
          END IF  
          IF (ihm == 24) THEN
-            hmod%iDv = 7   ! M200c
-            hmod%iconc = 5 ! Duffy M200c concentrations for full sample
+            hmod%iDv = iDv_200c
+            hmod%iconc = iconc_Duffy_full_200c
          END IF
          IF (ihm == 117 .OR. ihm == 118) THEN
             hmod%stitch_bnl_nu = .TRUE.
@@ -1945,7 +1954,7 @@ CONTAINS
       ELSE IF(ihm == 52) THEN
          ! Standard halo model but with Mead (2017) spherical-collapse fitting function
          hmod%idc = 4 ! Mead (2017) fitting function for delta_c
-         hmod%iDv = 4 ! Mead (2017) fitting function for Delta_v
+         hmod%iDv = iDv_Mead
       ELSE IF (ihm == 54) THEN
          ! Such that hydro model masquerades as DMONLY
          hmod%frac_bound_gas = 3     ! Universal baryon fraction as bound gas
@@ -2038,13 +2047,13 @@ CONTAINS
       ELSE IF (ihm == 67) THEN
          ! Standard halo-model calculation but with Delta_v = 200 and delta_c = 1.686
          hmod%idc = 1
-         hmod%iDv = 1
+         hmod%iDv = iDv_200
       ELSE IF (ihm == 68) THEN
          ! Standard halo-model calculation but with Bullock c(M)
-         hmod%iconc = 1
+         hmod%iconc = iconc_Bullock_full
       ELSE IF (ihm == 69) THEN
          ! Standard halo-model calculation but with simple Bullock c(M)
-         hmod%iconc = 2
+         hmod%iconc = iconc_Bullock_simple
       ELSE IF (ihm == 70) THEN
          ! Standard but with no Dolag correction
          hmod%iDolag = 0
@@ -2065,7 +2074,7 @@ CONTAINS
          hmod%idc = 4
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
-         hmod%iDv = 4
+         hmod%iDv = iDv_Mead
       ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 123, 124, 125])) THEN
          ! HMcode (2020)
          !  77 - Unfitted
@@ -2082,8 +2091,8 @@ CONTAINS
          hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
          hmod%i2hdamp = 3 ! 3 - fdamp for perturbation theory      
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
-         hmod%iDv = 4     ! 4 - Delta_v from Mead (2017) fit
-         hmod%iconc = 1   ! 1 - Bullock c(M) relation   
+         hmod%iDv = iDv_Mead
+         hmod%iconc = iconc_Bullock_full
          hmod%iDolag = 3  ! 3 - Dolag c(M) correction with sensible z evolution
          hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
          hmod%ieta = 3    ! 3 - HMcode 2020 eta bloating
@@ -2182,16 +2191,16 @@ CONTAINS
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
-         hmod%iDv = 9 ! 9 - ~ 178
+         hmod%iDv = iDv_178
          hmod%imf = imf_Jenkins
       ELSE IF (ihm == 87) THEN
          ! Despali et al. (2016) mass function
          hmod%imf = imf_Despali
       ELSE IF (ihm == 88) THEN
          ! Child et al. (2018) concentration-mass relation
-         hmod%iDv = 7 ! M200c definitions
+         hmod%iDv = iDv_200c
          hmod%imf = imf_T10_PBS ! Tinker (for M200c)
-         hmod%iconc = 9 ! Child et al.
+         hmod%iconc = iconc_Child
       ELSE IF (ihm == 89) THEN
          ! All gas is bound gas
          hmod%frac_bound_gas = 3
@@ -2227,7 +2236,7 @@ CONTAINS
       ELSE IF(ihm == 101) THEN
          ! Standard halo model but with spherical-collapse calculation
          hmod%idc = 5 ! Collapse calculation for delta_c
-         hmod%iDv = 5 ! Collapse calculation for Delta_v
+         hmod%iDv = iDv_SC
       ELSE IF (ihm == 105 .OR. ihm == 106) THEN
          ! Slightly adjusted standard and non-linear bias model
          ! Adjusted to get hydro power large-scale amplitude more correct
@@ -2272,12 +2281,12 @@ CONTAINS
          hmod%imf = imf_T10_cal_z
       ELSE IF (ihm == 126) THEN
          hmod%imf = imf_T10_cal_z
-         hmod%iDv = 1   ! 1 - M200
-         hmod%iconc = 3 ! 3 - Duffy full sample M200
+         hmod%iDv = iDv_200
+         hmod%iconc = iconc_Duffy_full_200
       ELSE IF (ihm == 127) THEN
          hmod%imf = imf_T10_cal_z
-         hmod%iDv = 7   ! 7 - M200c
-         hmod%iconc = 5 ! 5 - Duffy full sample M200c
+         hmod%iDv = iDv_200c
+         hmod%iconc = iconc_Duffy_full_200c
       ELSE IF (ihm == 128) THEN
          ! Neglect galaxy-number variance contribution to one-halo term
          hmod%add_variances = .FALSE.
@@ -2565,16 +2574,16 @@ CONTAINS
          IF (hmod%idc == 6) WRITE (*, *) 'HALOMODEL: delta_c from HMcode (2015) power spectrum fit'
 
          ! Delta_v
-         IF (hmod%iDv == 1)  WRITE (*, *) 'HALOMODEL: Delta_v = 200 fixed'
-         IF (hmod%iDv == 2)  WRITE (*, *) 'HALOMODEL: Delta_v from Bryan & Norman (1998) fitting function'
-         IF (hmod%iDv == 3)  WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2016) power spectrum fit'
-         IF (hmod%iDv == 4)  WRITE (*, *) 'HALOMODEL: Delta_v from Mead (2017) fitting function'
-         IF (hmod%iDv == 5)  WRITE (*, *) 'HALOMODEL: Delta_v from spherical-collapse calculation'
-         IF (hmod%iDv == 6)  WRITE (*, *) 'HALOMODEL: Delta_v to give haloes Lagrangian radius'
-         IF (hmod%iDv == 7)  WRITE (*, *) 'HALOMODEL: Delta_v for M200c'
-         IF (hmod%iDv == 8)  WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2015) power spectrum fit'
-         IF (hmod%iDv == 9)  WRITE (*, *) 'HALOMODEL: Delta_v = 178 fixed'
-         IF (hmod%iDv == 10) WRITE (*, *) 'HALOMODEL: Delta_v user defined'
+         IF (hmod%iDv == iDv_200) WRITE (*, *) 'HALOMODEL: Delta_v = 200 fixed'
+         IF (hmod%iDv == iDv_Bryan) WRITE (*, *) 'HALOMODEL: Delta_v from Bryan & Norman (1998) fitting function'
+         IF (hmod%iDv == iDv_HMcode2016) WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2016) power spectrum fit'
+         IF (hmod%iDv == iDv_Mead) WRITE (*, *) 'HALOMODEL: Delta_v from Mead (2017) fitting function'
+         IF (hmod%iDv == iDv_SC) WRITE (*, *) 'HALOMODEL: Delta_v from spherical-collapse calculation'
+         IF (hmod%iDv == iDv_unity) WRITE (*, *) 'HALOMODEL: Delta_v to give haloes Lagrangian radius'
+         IF (hmod%iDv == iDv_200c) WRITE (*, *) 'HALOMODEL: Delta_v for M200c'
+         IF (hmod%iDv == iDv_HMcode2015) WRITE (*, *) 'HALOMODEL: Delta_v from HMcode (2015) power spectrum fit'
+         IF (hmod%iDv == iDv_178) WRITE (*, *) 'HALOMODEL: Delta_v = 178 fixed'
+         IF (hmod%iDv == iDv_user) WRITE (*, *) 'HALOMODEL: Delta_v user defined'
 
          ! Form of the two-halo term
          IF (hmod%ip2h == 0) WRITE (*, *) 'HALOMODEL: No two-halo term'
@@ -2625,16 +2634,16 @@ CONTAINS
          IF (hmod%imf == imf_Peacock) WRITE (*, *) 'HALOMODEL: Peacock (2007) mass function'
 
          ! Concentration-mass relation
-         IF (hmod%iconc == 1)  WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
-         IF (hmod%iconc == 2)  WRITE (*, *) 'HALOMODEL: Simple Bullock et al. (2001) concentration-mass relation'
-         IF (hmod%iconc == 3)  WRITE (*, *) 'HALOMODEL: Full sample for M200 Duffy et al. (2008) concentration-mass relation'
-         IF (hmod%iconc == 4)  WRITE (*, *) 'HALOMODEL: Full sample for Mv Duffy et al. (2008) concentration-mass relation'
-         IF (hmod%iconc == 5)  WRITE (*, *) 'HALOMODEL: Full sample for M200c Duffy et al. (2008) concentration-mass relation'
-         IF (hmod%iconc == 6)  WRITE (*, *) 'HALOMODEL: Relaxed sample for M200 Duffy et al. (2008) concentration-mass relation'
-         IF (hmod%iconc == 7)  WRITE (*, *) 'HALOMODEL: Relaxed sample for Mv Duffy et al. (2008) concentration-mass relation'
-         IF (hmod%iconc == 8)  WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Duffy et al. (2008) concentration-mass relation'
-         IF (hmod%iconc == 9)  WRITE (*, *) 'HALOMODEL: Child et al. (2018) M200c concentration-mass relation'
-         IF (hmod%iconc == 10) WRITE (*, *) 'HALOMODEL: Diemer & Kravstov (2019) M200c concentration-mass relation'
+         IF (hmod%iconc == iconc_Bullock_full) WRITE (*, *) 'HALOMODEL: Full Bullock et al. (2001) concentration-mass relation'
+         IF (hmod%iconc == iconc_Bullock_simple) WRITE (*, *) 'HALOMODEL: Simple Bullock et al. (2001) concentration-mass relation'
+         IF (hmod%iconc == iconc_Duffy_full_200) WRITE (*, *) 'HALOMODEL: Full sample for M200 Duffy et al. (2008) concentration-mass relation'
+         IF (hmod%iconc == iconc_Duffy_full_vir) WRITE (*, *) 'HALOMODEL: Full sample for Mv Duffy et al. (2008) concentration-mass relation'
+         IF (hmod%iconc == iconc_Duffy_full_200c) WRITE (*, *) 'HALOMODEL: Full sample for M200c Duffy et al. (2008) concentration-mass relation'
+         IF (hmod%iconc == iconc_Duffy_relaxed_200) WRITE (*, *) 'HALOMODEL: Relaxed sample for M200 Duffy et al. (2008) concentration-mass relation'
+         IF (hmod%iconc == iconc_Duffy_relaxed_vir) WRITE (*, *) 'HALOMODEL: Relaxed sample for Mv Duffy et al. (2008) concentration-mass relation'
+         IF (hmod%iconc == iconc_Duffy_relaxed_200c) WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Duffy et al. (2008) concentration-mass relation'
+         IF (hmod%iconc == iconc_Child) WRITE (*, *) 'HALOMODEL: Child et al. (2018) M200c concentration-mass relation'
+         IF (hmod%iconc == iconc_Diemer) WRITE (*, *) 'HALOMODEL: Diemer & Kravstov (2019) M200c concentration-mass relation'
 
          ! Concentration-mass relation correction
          IF (hmod%iDolag == 0) WRITE (*, *) 'HALOMODEL: No concentration-mass correction for dark energy'
@@ -5229,40 +5238,32 @@ CONTAINS
       ! Scale factor
       a = hmod%a
 
-      IF (hmod%iDv == 1) THEN
-         ! Fixed value; M200
+      IF (hmod%iDv == iDv_200) THEN
          Delta_v = 200.
-      ELSE IF (hmod%iDv == 2) THEN
-         ! From Bryan & Norman (1998; arXiv:astro-ph/9710107) fitting functions
+      ELSE IF (hmod%iDv == iDv_Bryan) THEN
          Delta_v = Dv_BryanNorman(a, cosm)
-      ELSE IF (hmod%iDv == 3 .OR. hmod%iDv == 8) THEN
-         ! From HMcode(2015, 2016)  
+      ELSE IF (hmod%iDv == iDv_HMcode2015 .OR. hmod%iDv == iDv_HMcode2016) THEN
          ! This has Omega_m(a) dependence in HMcode (2016), maybe cold would have been better?
          Delta_v = hmod%Dv0*Omega_m(a, cosm)**hmod%Dv1 
-         IF (hmod%iDv == 3) THEN
-            ! HMcode(2016) additions           
+         IF (hmod%iDv == iDv_HMcode2016) THEN
+            ! Modified gravity stuff from HMcode (2016)         
             IF (cosm%img == img_nDGP) THEN
                Delta_v = Delta_v*(1.-a*0.0388*cosm%H0rc**(-0.7))
             ELSE IF (cosm%img == img_fR) THEN
                Delta_v = Delta_v*Geff_fR(M, a, cosm)**(-0.5)
             END IF
          END IF
-      ELSE IF (hmod%iDv == 4) THEN
-         ! From Mead (2017) fitting function
+      ELSE IF (hmod%iDv == iDv_Mead) THEN
          Delta_v = Dv_Mead(a, cosm)
-      ELSE IF (hmod%iDv == 5) THEN
-         ! From spheircal-collapse calculation
+      ELSE IF (hmod%iDv == iDv_SC) THEN
          Delta_v = Dv_spherical(a, cosm)
-      ELSE IF (hmod%iDv == 6) THEN
-         ! Lagrangian radius
+      ELSE IF (hmod%iDv == iDv_unity) THEN
          Delta_v = 1.
-      ELSE IF (hmod%iDv == 7) THEN
-         ! M200c
+      ELSE IF (hmod%iDv == iDv_200c) THEN
          Delta_v = 200./Omega_m(a, cosm)
-      ELSE IF (hmod%iDv == 9) THEN
-         ! 18pi^2 ~178
+      ELSE IF (hmod%iDv == iDv_178) THEN
          Delta_v = Dv0
-      ELSE IF (hmod%iDv == 10) THEN
+      ELSE IF (hmod%iDv == iDv_user) THEN
          Delta_v = hmod%Dv0
       ELSE
          STOP 'DELTA_V: Error, iDv defined incorrectly'
@@ -6624,7 +6625,7 @@ CONTAINS
       ! Fill look-up table with halo concentrations as a function of halo mass
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: mnl, m, zc, z, a, fg, rr, nu
+      REAL :: mnl, m, z, a, fg
       INTEGER :: i
 
       ! Get the redshift
@@ -6632,12 +6633,12 @@ CONTAINS
       a = hmod%a
 
       ! Any initialisation for the c(M) relation goes here
-      IF (hmod%iconc == 1) THEN
+      IF (hmod%iconc == iconc_Bullock_full) THEN
          ! Fill the collapse z look-up table
          CALL zcoll_Bullock(z, hmod, cosm)
-      ELSE IF (hmod%iconc == 2 .OR. hmod%iconc == 9) THEN
+      ELSE IF (hmod%iconc == iconc_Bullock_simple .OR. hmod%iconc == iconc_Child) THEN
          mnl = hmod%mnl
-      ELSE IF (hmod%iconc == 10) THEN
+      ELSE IF (hmod%iconc == iconc_Diemer) THEN
          fg = growth_rate(hmod%a, cosm)
       END IF
 
@@ -6645,36 +6646,27 @@ CONTAINS
       DO i = 1, hmod%n
 
          ! Choose concentration-mass relation
-         IF (hmod%iconc == 1) THEN
-            zc = hmod%zc(i)
-            hmod%c(i) = conc_Bullock(z, zc)
-         ELSE IF (hmod%iconc == 2) THEN
-            m = hmod%m(i)
+         m = hmod%m(i)
+         IF (hmod%iconc == iconc_Bullock_full) THEN
+            hmod%c(i) = conc_Bullock(z, hmod%zc(i))
+         ELSE IF (hmod%iconc == iconc_Bullock_simple) THEN
             hmod%c(i) = conc_Bullock_simple(m, mnl)
-         ELSE IF (hmod%iconc == 3) THEN
-            m = hmod%m(i)
+         ELSE IF (hmod%iconc == iconc_Duffy_full_200) THEN
             hmod%c(i) = conc_Duffy_full_M200(m, z)
-         ELSE IF (hmod%iconc == 4) THEN
-            m = hmod%m(i)
+         ELSE IF (hmod%iconc == iconc_Duffy_full_vir) THEN
             hmod%c(i) = conc_Duffy_full_virial(m, z)
-         ELSE IF (hmod%iconc == 5) THEN
+         ELSE IF (hmod%iconc == iconc_Duffy_full_200c) THEN
             hmod%c(i) = conc_Duffy_full_M200c(m, z)
-         ELSE IF (hmod%iconc == 6) THEN
-            m = hmod%m(i)
+         ELSE IF (hmod%iconc == iconc_Duffy_relaxed_200) THEN
             hmod%c(i) = conc_Duffy_relaxed_M200(m, z)
-         ELSE IF (hmod%iconc == 7) THEN
-            m = hmod%m(i)
+         ELSE IF (hmod%iconc == iconc_Duffy_relaxed_vir) THEN
             hmod%c(i) = conc_Duffy_relaxed_virial(m, z)
-         ELSE IF (hmod%iconc == 8) THEN
-            m = hmod%m(i)
+         ELSE IF (hmod%iconc == iconc_Duffy_relaxed_200c) THEN
             hmod%c(i) = conc_Duffy_relaxed_M200c(m, z)
-         ELSE IF (hmod%iconc == 9) THEN
-            m = hmod%m(i)
+         ELSE IF (hmod%iconc == iconc_Child) THEN
             hmod%c(i) = conc_Child(m, mnl)
-         ELSE IF (hmod%iconc == 10) THEN
-            nu = hmod%nu(i)
-            rr = hmod%rr(i)
-            hmod%c(i) = conc_Diemer(nu, rr, fg, a, cosm)
+         ELSE IF (hmod%iconc == iconc_Diemer) THEN
+            hmod%c(i) = conc_Diemer(hmod%nu(i), hmod%rr(i), fg, a, cosm)
          ELSE
             STOP 'FILL_HALO_CONCENTRATION: Error, iconc specified incorrectly'
          END IF
@@ -6691,8 +6683,7 @@ CONTAINS
       ! This only rescales the concentrations of haloes that *contain* substantial amounts of gas
       ! TODO: This should be removed. It has the possibility to go very wrong, also unnecessary for non-hydro
       DO i = 1, hmod%n
-         m = hmod%m(i)
-         hmod%c(i) = hmod%c(i)*hydro_concentration_modification(m, hmod, cosm)
+         hmod%c(i) = hmod%c(i)*hydro_concentration_modification(hmod%m(i), hmod, cosm)
       END DO
 
    END SUBROUTINE fill_halo_concentration
@@ -6829,7 +6820,7 @@ CONTAINS
       a = scale_factor_z(z)
 
       ! Fills up a table for sigma(fM) for Bullock c(m) relation
-      IF (hmod%iconc == 1) THEN
+      IF (hmod%iconc == iconc_Bullock_full) THEN
          f = hmod%fM**(1./3.)
          DO i = 1, hmod%n
             rf = hmod%rr(i)*f
@@ -8599,40 +8590,7 @@ CONTAINS
 
    REAL FUNCTION rho(r, rmin, rmax, rv, rs, p1, p2, irho)
 
-      ! This is an UNNORMALISED halo profile of any sort
-
-      ! Types of profile
-      ! ================
-      !  0 - Delta function at r=0
-      !  1 - Isothermal: r^-2
-      !  2 - Top hat: rho ~ constant
-      !  3 - Moore (1999)
-      !  4 - NFW (1997)
-      !  5 -
-      !  6 - Beta model with beta=2/3
-      !  7 - Star profile
-      !  8 - Komatsu & Seljak (2001) according to Schneider & Teyssier (2015)
-      !  9 - Stellar profile from Schneider & Teyssier (2015)
-      ! 10 - Ejected gas profile (Schneider & Teyssier 2015)
-      ! 11 - Simplified Komatsu & Seljak (2001) density
-      ! 12 - Simplified Komatsu & Seljak (2001) temperature
-      ! 13 - Simplified Komatsu & Seljak (2001) pressure
-      ! 14 - Universal pressure profile
-      ! 15 - Isothermal beta model, beta=0.86 (Ma et al. 2015)
-      ! 16 - Isothermal exterior
-      ! 17 - Power-law profile
-      ! 18 - Cubic profile: r^-3
-      ! 19 - Smooth profile (rho = 0, not really physical)
-      ! 20 - Exponential profile
-      ! 21 - Full Komatsu & Seljak (2001) density
-      ! 22 - Full Komatsu & Seljak (2001) temperature
-      ! 23 - Full Komatsu & Seljak (2001) pressure
-      ! 24 - Cored NFW profile (Copeland, Taylor & Hall 2018)
-      ! 25 - Polynomial with central hole (Villaescusa-Navarro et al. 2018)
-      ! 26 - Modified NFW with central hole (Villaescusa-Navarro et al. 2018)
-      ! 27 - Modified NFW (Padmanabhan & Refregier 2018)
-      ! 28 - Shell
-
+      ! This is the real-space un-normalised halo profile (just some function of r)
       REAL, INTENT(IN) :: r, rmin, rmax, rv, rs, p1, p2 ! Standard profile parameters
       INTEGER, INTENT(IN) :: irho
       REAL :: y, ct, t, c, beta, Gamma, r500c, rt, A, re, rstar, B, rb, r0, alpha, rh, eta0
@@ -9651,9 +9609,8 @@ CONTAINS
    SUBROUTINE init_Tinker2008(hmod)
 
       ! Initialise the parameters of the Tinker et al. (2008) mass function and bias
-      ! This mass function is not normalised properly
-      ! TODO: Appendix B presents and interpolating scheme in log(Delta_v) that should be implemented
-      ! TODO: Appendix C presents a normalised mass function that should be implemented (separately)
+      ! Mass function is not normalised properly; Tinker (2010) form is normalised correctly and is from Appendix C of Tinker (2008)
+      ! TODO: Appendix B presents and interpolating scheme in log(Delta_v) that could be implemented
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: bigA, a, b, c
       REAL :: z, log_Dv, alpha
@@ -9668,24 +9625,37 @@ CONTAINS
       REAL, PARAMETER :: bigA_z_exp = -0.14
       REAL, PARAMETER :: a_z_exp = -0.06
 
-      INTEGER, PARAMETER :: iorder = 1 ! Order for interpolation
-      INTEGER, PARAMETER :: ifind = 3  ! Scheme for finding (3 - Mid-point splitting)
-      INTEGER, PARAMETER :: imeth = 2  ! Method for interpolation (2 - Lagrange polynomial)
+      ! Interpolation of mass-function parameters
+      LOGICAL, PARAMETER :: Tinker_interp = .FALSE.
+      INTEGER, PARAMETER :: iorder_interp = 1 ! Order for interpolation
+      INTEGER, PARAMETER :: ifind_interp = 3  ! Scheme for finding (3 - Mid-point splitting)
+      INTEGER, PARAMETER :: imeth_interp = 2  ! Method for interpolation (2 - Lagrange polynomial)
 
       ! Delta_v dependence
-      IF (hmod%mass_dependent_Dv) THEN
-         STOP 'INIT_TINKER2008: Error, this does not work with mass-dependent Delta_v'
+      IF (hmod%mass_dependent_Dv) STOP 'INIT_TINKER2008: Error, this does not work with mass-dependent Delta_v'
+      IF (Tinker_interp) THEN
+         ! From appendix B
+         log_Dv = log10(hmod%Dv)
+         STOP 'INIT_INTER2008: The Tinker interpolation scheme from appendix B has not been tested'
+         IF (hmod%Dv >= 1600.) THEN
+            bigA = 0.26               ! Equation (B1)
+         ELSE
+            bigA = 0.1*log_Dv-0.05    ! Equation (B1)
+         END IF
+         a = 1.43+(log_Dv-2.3)**1.5   ! Equation (B2)
+         b = 1.0+(log_Dv-1.6)**(-1.5) ! Equation (B3)
+         c = 1.2+(log_Dv-2.35)**1.6   ! Equation (B4)
       ELSE
          log_Dv = log(hmod%Dv)
+         bigA = find(log_Dv, log_Deltav, bigAs, n, iorder_interp, ifind_interp, imeth_interp)
+         a = find(log_Dv, log_Deltav, as, n, iorder_interp, ifind_interp, imeth_interp)
+         b = find(log_Dv, log_Deltav, bs, n, iorder_interp, ifind_interp, imeth_interp)
+         c = find(log_Dv, log_Deltav, cs, n, iorder_interp, ifind_interp, imeth_interp)
       END IF
-      bigA = find(log_Dv, log_Deltav, bigAs, n, iorder, ifind, imeth)
-      a = find(log_Dv, log_Deltav, as, n, iorder, ifind, imeth)
-      b = find(log_Dv, log_Deltav, bs, n, iorder, ifind, imeth)
-      c = find(log_Dv, log_Deltav, cs, n, iorder, ifind, imeth)
 
       ! Redshift dependence (only calibrated for M200 in paper)
       IF (hmod%imf == imf_T08_z) THEN
-         z = hmod%z
+         z = min(hmod%z, 3.) ! Max z = 3 recommendation from Tinker et al. (2008)
          bigA = bigA*(1.+z)**bigA_z_exp                    ! Equation (5)
          a = a*(1.+z)**a_z_exp                             ! Equation (6)
          alpha = 10**(-(0.75/log10(exp(log_Dv)/75.))**1.2) ! Equation (8)
@@ -9736,11 +9706,8 @@ CONTAINS
       END IF
 
       ! Delta_v dependence
-      IF (hmod%mass_dependent_Dv) THEN
-         STOP 'INIT_TINKER2010: Error, this does not work with mass-dependent Delta_v'
-      ELSE
-         log_Dv = log(hmod%Dv)
-      END IF
+      IF (hmod%mass_dependent_Dv) STOP 'INIT_TINKER2010: Error, this does not work with mass-dependent Delta_v'
+      log_Dv = log(hmod%Dv)
       alpha = find(log_Dv, log_Deltav, alpha0, n, iorder, ifind, imeth)
       beta = find(log_Dv, log_Deltav, beta0, n, iorder, ifind, imeth)
       gamma = find(log_Dv, log_Deltav, gamma0, n, iorder, ifind, imeth)
