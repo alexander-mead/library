@@ -2207,15 +2207,15 @@ CONTAINS
          hmod%iDv = iDv_178
          hmod%imf = imf_Jenkins
       ELSE IF (ihm == 87) THEN
-         ! Despali et al. (2016) mass function
+         ! Despali et al. (2016) mass function; virial definition
          hmod%imf = imf_Despali
       ELSE IF (ihm == 130) THEN
-         ! Courtin et al. (2011) mass function
+         ! Courtin et al. (2011) mass function; virial definition
          hmod%imf = imf_Courtin
       ELSE IF (ihm == 88) THEN
          ! Child et al. (2018) concentration-mass relation
          hmod%iDv = iDv_200c
-         hmod%imf = imf_T10_PBS ! Tinker (for M200c)
+         hmod%imf = imf_T10_PBS
          hmod%iconc = iconc_Child
       ELSE IF (ihm == 89) THEN
          ! All gas is bound gas
@@ -2242,7 +2242,7 @@ CONTAINS
          hmod%flag_sigma = flag_matter
       ELSE IF (ihm == 98) THEN
          ! No correction for neutrino mass applied to DMONLY haloes
-         hmod%DMONLY_neutrino_halo_mass_correction = .FALSE.        
+         hmod%DMONLY_neutrino_halo_mass_correction = .FALSE.
       ELSE IF (ihm == 99) THEN
          ! Cold sigma calculated using 1+delta_c = rho_c/mean_rho_m
          hmod%flag_sigma = flag_cold
@@ -2312,7 +2312,7 @@ CONTAINS
       hmod%name = names(ihm)
 
       IF (verbose) THEN
-         WRITE (*, *) 'ASSIGN_HALOMOD: ', TRIM(names(ihm))
+         WRITE (*, *) 'ASSIGN_HALOMOD: ', trim(names(ihm))
          WRITE (*, *) 'ASSIGN_HALOMOD: Done'
          WRITE (*, *)
       END IF
