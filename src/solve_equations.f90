@@ -44,8 +44,10 @@ CONTAINS
 
    REAL FUNCTION solve_find(xtab, ytab)
 
-      ! Solves y(x)=0. for x
+      ! Solves y(x) = 0 for x
       ! Can also do x = exp(solve_find(log(xtab), ytab) if better
+      ! e.g., consider y(x) = x-4; solve_find(x, y) will return 4 (i.e., value when y=0) when x, y tabulated
+      ! e.g., consider y(x) = tan(x)-x; solve_find(x, y) will return 4.493 (or 0) iff this value is bracketed by tabulations
       REAL, INTENT(IN) :: xtab(:)
       REAL, INTENT(IN) :: ytab(:)
       INTEGER, PARAMETER :: iorder = 3
