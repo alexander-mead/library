@@ -204,6 +204,7 @@ MODULE HMx
    PUBLIC :: iconc_Diemer
    PUBLIC :: iconc_Neto_full
    PUBLIC :: iconc_Neto_relaxed
+   PUBLIC :: iconc_NFW
 
    ! Haloes
    PUBLIC :: irho_delta
@@ -702,6 +703,7 @@ MODULE HMx
    INTEGER, PARAMETER :: iconc_Diemer = 10
    INTEGER, PARAMETER :: iconc_Neto_full = 11
    INTEGER, PARAMETER :: iconc_Neto_relaxed = 12
+   INTEGER, PARAMETER :: iconc_NFW = 13
 
    ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
@@ -944,6 +946,7 @@ CONTAINS
       names(128) = 'Neglect galaxy number variance contribution in one-halo term'
       names(129) = 'Non-linear halo bias from Dark Quest'
       names(130) = 'Courtin mass function'
+      names(131) = 'NFW concentration-mass relation'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2213,10 +2216,15 @@ CONTAINS
          ! Courtin et al. (2011) mass function; virial definition
          hmod%imf = imf_Courtin
       ELSE IF (ihm == 88) THEN
-         ! Child et al. (2018) concentration-mass relation
+         ! Child et al. (2018) concentration-mass relation; M200c
          hmod%iDv = iDv_200c
          hmod%imf = imf_T10_PBS
          hmod%iconc = iconc_Child
+      ELSE IF (ihm == 131) THEN
+         ! NFW concentration-mass relation; M200c
+         hmod%iDv = iDv_200c
+         hmod%imf = imf_T10_PBS
+         hmod%iconc = iconc_NFW
       ELSE IF (ihm == 89) THEN
          ! All gas is bound gas
          hmod%frac_bound_gas = 3
@@ -2569,7 +2577,7 @@ CONTAINS
             WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200 c(M) relation without a M200 halo definition'
          END IF
          IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200c, iconc_Duffy_relaxed_200c, iconc_Child, iconc_Diemer, &
-            iconc_Neto_full, iconc_Neto_relaxed]) .AND. &
+            iconc_Neto_full, iconc_Neto_relaxed, iconc_NFW]) .AND. &
             .NOT. is_in_array(hmod%iDv, [iDv_200c])) THEN
             WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200c c(M) relation without a M200c halo definition'
          END IF
@@ -2690,6 +2698,7 @@ CONTAINS
          IF (hmod%iconc == iconc_Diemer) WRITE (*, *) 'HALOMODEL: Diemer & Kravstov (2019) M200c concentration-mass relation'
          IF (hmod%iconc == iconc_Neto_full) WRITE (*, *) 'HALOMODEL: Full sample for M200c Neto et al. (2007) concentration-mass relation'
          IF (hmod%iconc == iconc_Neto_relaxed) WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Neto et al. (2007) concentration-mass relation'
+         IF (hmod%iconc == iconc_NFW) WRITE(*, *) 'HALOMODEL: Original NFW concentration-mass relation'
 
          ! Concentration-mass relation correction
          IF (hmod%iDolag == 0) WRITE (*, *) 'HALOMODEL: No concentration-mass correction for dark energy'
@@ -5098,7 +5107,7 @@ CONTAINS
          STOP 'HALO_PROPERTIES: Error, need to make this better with z'
       END IF
 
-      output = trim(dir)//'/properies'//trim(ext)
+      output = trim(dir)//'/properties'//trim(ext)
       WRITE (*, *) 'HALO_PROPERTIES: ', trim(output)
 
       OPEN (7, file=output)
@@ -6682,18 +6691,19 @@ CONTAINS
 
       ! Any initialisation for the c(M) relation goes here
       IF (hmod%iconc == iconc_Bullock_full) THEN
-         ! Fill the collapse z look-up table
-         CALL zcoll_Bullock(z, hmod, cosm)
+         CALL zcoll_Bullock(hmod, cosm) ! Fill the collapse-z look-up table for Bullock
       ELSE IF (hmod%iconc == iconc_Bullock_simple .OR. hmod%iconc == iconc_Child) THEN
          mnl = hmod%mnl
       ELSE IF (hmod%iconc == iconc_Diemer) THEN
          fg = growth_rate(hmod%a, cosm)
+      ELSE IF (hmod%iconc == iconc_NFW) THEN
+         CALL init_conc_NFW(hmod, cosm)
       END IF
 
       ! Fill concentration-mass for all halo masses
       DO i = 1, hmod%n
 
-         ! Choose concentration-mass relation
+         ! Evaluate the concentration-mass relation (if necessary)
          m = hmod%m(i)
          IF (hmod%iconc == iconc_Bullock_full) THEN
             hmod%c(i) = conc_Bullock(z, hmod%zc(i))
@@ -6710,8 +6720,8 @@ CONTAINS
             hmod%c(i) = conc_Neto_full(m)
          ELSE IF (hmod%iconc == iconc_Neto_relaxed) THEN
             hmod%c(i) = conc_Neto_relaxed(m)
-         ELSE
-            STOP 'FILL_HALO_CONCENTRATION: Error, iconc specified incorrectly'
+         !ELSE
+         !   STOP 'FILL_HALO_CONCENTRATION: Error, iconc specified incorrectly'
          END IF
 
          ! Rescale halo concentrations via the 'A' HMcode parameter
@@ -6839,6 +6849,46 @@ CONTAINS
 
    END SUBROUTINE Dolag_correction
 
+   SUBROUTINE init_conc_NFW(hmod, cosm)
+
+      ! TODO: Check this carefully, the concentration seems too high
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL, ALLOCATABLE :: c(:), logc(:), solve(:)
+      INTEGER :: i, j
+      REAL :: a, z, gc, ac, ds, rhoc
+      REAL, PARAMETER :: f = 0.01
+      REAL, PARAMETER :: cmin = 1.
+      REAL, PARAMETER :: cmax = 50.
+      INTEGER :: nc = 33
+
+      ! Redshift and scale factor
+      z = hmod%z; a = hmod%a; rhoc = comoving_critical_density(a, cosm)
+      CALL fill_array(cmin, cmax, c, nc, ilog=.TRUE.)
+      logc = log(c)
+
+      ! Loop over all halo masses
+      DO i = 1, hmod%n
+
+         ! Collape redshift (assumes that delta_c does not evolve appreciable with redshift)
+         hmod%sigf(i) = sigma(f*hmod%rr(i), a, hmod%flag_sigma, cosm) ! Variance corresponding to collapse fraction
+         gc = grow(a, cosm)/(1.+(0.477/hmod%dc)*sqrt(2.*(hmod%sigf(i)**2-hmod%sig(i)**2))) ! Equation (A5)-ish
+         ac = inverse_interpolator(gc, cosm%grow) ! Have calculated g(zc) so need to invert this to get zc
+         hmod%zc(i) = redshift_a(ac) ! Redshift from scale factor
+         ds = 3e3*Omega_m(a, cosm)*((1.+hmod%zc(i))/(1.+z))**3 ! Equation (A20) to calculate NFW proportionality constant
+
+         ! Now need to invert the relation between the proportionality constant and concentration
+         ALLOCATE(solve(nc))
+         DO j = 1, nc
+            solve(j) = hmod%M(i)/(4.*pi*hmod%rv(i)**3)*(c(j)**3/NFW_factor(c(j)))/rhoc-ds
+         END DO
+         hmod%c(i) = exp(solve_find(logc, solve))
+         DEALLOCATE(solve)
+
+      END DO
+
+   END SUBROUTINE init_conc_NFW
+
    REAL FUNCTION conc_Bullock(z, zc)
 
       ! Calculate the Bullock (2001; astro-ph/9908159) concentration
@@ -6850,29 +6900,24 @@ CONTAINS
 
    END FUNCTION conc_Bullock
 
-   SUBROUTINE zcoll_Bullock(z, hmod, cosm)
+   SUBROUTINE zcoll_Bullock(hmod, cosm)
 
       ! This fills up the halo collapse redshift table as per Bullock relations
-      ! TODO: Convert to using solve root-finding routines
-      REAL, INTENT(IN) :: z
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: dc, af, zf, RHS, a, rf, sig, growz, f
+      REAL :: z, dc, af, zf, RHS, a, rf, sig, growz, f
       INTEGER :: i
 
-      a = scale_factor_z(z)
+      z = hmod%z
+      a = hmod%a
 
       ! Fills up a table for sigma(fM) for Bullock c(m) relation
-      IF (hmod%iconc == iconc_Bullock_full) THEN
-         f = hmod%fM**(1./3.)
-         DO i = 1, hmod%n
-            rf = hmod%rr(i)*f
-            sig = sigma(rf, a, hmod%flag_sigma, cosm)
-            hmod%sigf(i) = sig
-         END DO   
-      ELSE
-         STOP 'ZCOLL_BULLOCK: Error, halo concentration model specified incorrectly'
-      END IF
+      f = hmod%fM**(1./3.)
+      DO i = 1, hmod%n
+         rf = hmod%rr(i)*f
+         sig = sigma(rf, a, hmod%flag_sigma, cosm)
+         hmod%sigf(i) = sig
+      END DO
 
       ! I don't think this is really consistent with dc varying as a function of z
       ! but the change will *probably* be *very* small
@@ -6883,20 +6928,14 @@ CONTAINS
 
       ! Do numerical inversion
       DO i = 1, hmod%n
-
-         ! TODO: Probably more consistent to use sigma(R,a) here
-         RHS = dc*growz/hmod%sigf(i)
-
+         RHS = dc*growz/hmod%sigf(i) ! TODO: Probably more consistent to use sigma(R,a) here
          IF (RHS > growz) THEN
-            ! If the halo forms 'in the future' then set the formation z to the current z
-            zf = z
+            zf = z ! If the halo forms 'in the future' then set the formation z to the current z
          ELSE
             af = inverse_interpolator(RHS, cosm%grow)
             zf = redshift_a(af)
          END IF
-
          hmod%zc(i) = zf
-
       END DO
 
    END SUBROUTINE zcoll_Bullock
