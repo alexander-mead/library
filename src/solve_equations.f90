@@ -45,16 +45,15 @@ CONTAINS
    REAL FUNCTION solve_find(xtab, ytab)
 
       ! Solves y(x)=0. for x
+      ! Can also do x = exp(solve_find(log(xtab), ytab) if better
       REAL, INTENT(IN) :: xtab(:)
       REAL, INTENT(IN) :: ytab(:)
-      INTEGER :: n
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: ifind = 3
       INTEGER, PARAMETER :: imeth = 2
       REAL, PARAMETER :: a = 0. ! y(x)=a; a=0 here
 
-      n = size(xtab)
-      solve_find = find(a, ytab, xtab, n, iorder, ifind, imeth)
+      solve_find = find(a, ytab, xtab, size(xtab), iorder, ifind, imeth)
 
    END FUNCTION solve_find
 
