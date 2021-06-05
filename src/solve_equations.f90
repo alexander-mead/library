@@ -10,6 +10,7 @@ MODULE solve_equations
    PRIVATE
 
    PUBLIC :: solve_quadratic
+   PUBLIC :: solve_gradient
    PUBLIC :: solve_find
    PUBLIC :: solve_bisect_tables
    PUBLIC :: solve_bisect_function
@@ -41,6 +42,43 @@ CONTAINS
       solve_quadratic(2) = (-root-b)/(2.*a)
 
    END FUNCTION solve_quadratic
+
+   REAL FUNCTION solve_gradient(x1in, x2in, f, acc_opt)
+
+      ! Solves for x0 with f(x0) = 0; initial guesses x1 and x2
+      USE special_functions
+      REAL, INTENT(IN) :: x1in, x2in
+      REAL, EXTERNAL :: f
+      REAL, OPTIONAL, INTENT(IN) :: acc_opt
+      REAL :: x1, x2, f1, f2, a0, a1, xnew, acc
+      REAL, PARAMETER :: acc_def = 1e-6
+      INTERFACE
+         FUNCTION f(x)
+            REAL, INTENT(IN) :: x
+         END FUNCTION f
+      END INTERFACE
+
+      acc = default_or_optional(acc_def, acc_opt)
+      x1 = x1in; x2 = x2in
+      f1 = f(x1); f2 = f(x2)
+      DO
+         IF ((min(abs(f1), abs(f2))) <= acc) EXIT
+         CALL fix_polynomial(a1, a0, [x1, x2], [f1, f2])
+         xnew = -a0/a1
+         IF (abs(f1) < abs(f2)) THEN
+            x2 = xnew; f2 = f(x2)
+         ELSE
+            x1 = xnew; f1 = f(x1)
+         END IF
+      END DO
+
+      IF (abs(f1) <= acc) THEN
+         solve_gradient = x1
+      ELSE
+         solve_gradient = x2
+      END IF
+
+   END FUNCTION solve_gradient
 
    REAL FUNCTION solve_find(xtab, ytab)
 
@@ -115,16 +153,14 @@ CONTAINS
 
       INTERFACE
          FUNCTION f(x)
-            REAL, INTENT(IN) :: x          
+            REAL, INTENT(IN) :: x
          END FUNCTION f
       END INTERFACE
 
       ! Calcualte the values of the function at the initial guess points
-      x1 = x1_ini
-      x2 = x2_ini
-      f1 = f(x1)
-      f2 = f(x2)
-      IF (positive(f1) .AND. positive(f2)) STOP 'FIND_ROOT: Error, initial guesses must be either side of the root'
+      x1 = x1_ini; x2 = x2_ini
+      f1 = f(x1); f2 = f(x2)
+      IF (positive(f1) .AND. positive(f2)) STOP 'FIND_ROOT: Error, initial guesses must bracket the root'
 
       ! Loop until convergence achieved
       DO
@@ -139,12 +175,10 @@ CONTAINS
             EXIT
          ELSE IF (positive(fm) .AND. positive(f1)) THEN
             ! If f(x1) and f(xm) have the same sign then the root is between xm and x2, so update x1, f1 ...
-            x1 = xm
-            f1 = fm
+            x1 = xm; f1 = fm
          ELSE
             ! ...otherwise update x2 and f2.
-            x2 = xm
-            f2 = fm
+            x2 = xm; f2 = fm
          END IF
 
       END DO
