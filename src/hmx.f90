@@ -205,6 +205,7 @@ MODULE HMx
    PUBLIC :: iconc_Neto_full
    PUBLIC :: iconc_Neto_relaxed
    PUBLIC :: iconc_NFW
+   PUBLIC :: iconc_ENS
 
    ! Haloes
    PUBLIC :: irho_delta
@@ -703,7 +704,8 @@ MODULE HMx
    INTEGER, PARAMETER :: iconc_Diemer = 10
    INTEGER, PARAMETER :: iconc_Neto_full = 11
    INTEGER, PARAMETER :: iconc_Neto_relaxed = 12
-   INTEGER, PARAMETER :: iconc_NFW = 13
+   INTEGER, PARAMETER :: iconc_NFW = 13 ! Navarro, Frenk & White (1997)
+   INTEGER, PARAMETER :: iconc_ENS = 14 ! Eke, Navarro & Steinmetz (2001; https://arxiv.org/abs/astro-ph/0012337)
 
    ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
@@ -945,8 +947,9 @@ CONTAINS
       names(127) = 'Tinker (2010) mass function: M200c'
       names(128) = 'Neglect galaxy number variance contribution in one-halo term'
       names(129) = 'Non-linear halo bias from Dark Quest'
-      names(130) = 'Courtin mass function'
-      names(131) = 'NFW concentration-mass relation'
+      names(130) = 'Courtin et al. (2011) mass function'
+      names(131) = 'NFW (1997) concentration-mass relation'
+      names(132) = 'ENS (2001) concentration-mass relation'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2225,6 +2228,9 @@ CONTAINS
          hmod%iDv = iDv_200c
          hmod%imf = imf_T10_PBS
          hmod%iconc = iconc_NFW
+      ELSE IF (ihm == 132) THEN
+         ! ENS concentration-mass relation; Mvir
+         hmod%iconc = iconc_ENS
       ELSE IF (ihm == 89) THEN
          ! All gas is bound gas
          hmod%frac_bound_gas = 3
@@ -2398,14 +2404,14 @@ CONTAINS
       ! Lagrangian and virial radius
       hmod%rr = Lagrangian_radius(hmod%m, cosm)
       IF (hmod%DMONLY_neutrinos_affect_virial_radius) THEN
-         hmod%rr = hmod%rr*(1.-cosm%f_nu)**(1./3.)
+         hmod%rr = hmod%rr*cbrt(1.-cosm%f_nu)
       END IF
       IF(hmod%mass_dependent_Dv) THEN
          DO i = 1, hmod%n
             hmod%rv(i) = virial_radius(hmod%m(i), hmod, cosm)
          END DO
       ELSE
-         hmod%rv = hmod%rr/hmod%Dv**(1./3.)
+         hmod%rv = hmod%rr/cbrt(hmod%Dv)
       END IF
 
       ! Sigma and nu
@@ -2568,7 +2574,7 @@ CONTAINS
          END IF
 
          ! Concentration
-         IF (is_in_array(hmod%iconc, [iconc_Bullock_full, iconc_Bullock_simple, iconc_Duffy_full_vir, iconc_Duffy_relaxed_vir]) .AND. &
+         IF (is_in_array(hmod%iconc, [iconc_Bullock_full, iconc_Bullock_simple, iconc_Duffy_full_vir, iconc_Duffy_relaxed_vir, iconc_ENS]) .AND. &
             is_in_array(hmod%iDv, [iDv_200, iDv_200c, iDv_178])) THEN
             WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial c(M) relation with a fixed halo definition'
          END IF
@@ -2699,6 +2705,7 @@ CONTAINS
          IF (hmod%iconc == iconc_Neto_full) WRITE (*, *) 'HALOMODEL: Full sample for M200c Neto et al. (2007) concentration-mass relation'
          IF (hmod%iconc == iconc_Neto_relaxed) WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Neto et al. (2007) concentration-mass relation'
          IF (hmod%iconc == iconc_NFW) WRITE(*, *) 'HALOMODEL: Original NFW concentration-mass relation'
+         IF (hmod%iconc == iconc_ENS) WRITE(*, *) 'HALOMODEL: Eke, Navarro & Steinmetz (2001) concentration-mass relation'
 
          ! Concentration-mass relation correction
          IF (hmod%iDolag == 0) WRITE (*, *) 'HALOMODEL: No concentration-mass correction for dark energy'
@@ -6635,6 +6642,19 @@ CONTAINS
 
    END FUNCTION NFW_factor
 
+   REAL FUNCTION NFW_enclosed_mass_fraction(r, rv, rs)
+
+      ! Fraction of mass enclosed at radius 'r' by an NFW profile
+      REAL, INTENT(IN) :: r  ! Enclosing radius [Mpc/h]
+      REAL, INTENT(IN) :: rv ! Virial radius [Mpc/h]
+      REAL, INTENT(IN) :: rs ! Scale radius [Mpc/h]
+      REAL :: c
+
+      c = rv/rs ! Halo concentration
+      NFW_enclosed_mass_fraction = NFW_factor(r/rs)/NFW_factor(c)
+
+   END FUNCTION NFW_enclosed_mass_fraction
+
    REAL FUNCTION virial_radius(m, hmod, cosm)
 
       ! Comoving halo virial radius
@@ -6642,7 +6662,7 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
 
-      virial_radius = (3.*m/(4.*pi*comoving_matter_density(cosm)*Delta_v(m, hmod, cosm)))**(1./3.)
+      virial_radius = cbrt(3.*m/(4.*pi*comoving_matter_density(cosm)*Delta_v(m, hmod, cosm)))
 
    END FUNCTION virial_radius
 
@@ -6698,6 +6718,8 @@ CONTAINS
          fg = growth_rate(hmod%a, cosm)
       ELSE IF (hmod%iconc == iconc_NFW) THEN
          CALL init_conc_NFW(hmod, cosm)
+      ELSE IF (hmod%iconc == iconc_ENS) THEN
+         CALL init_conc_ENS(hmod, cosm)
       END IF
 
       ! Fill concentration-mass for all halo masses
@@ -6889,6 +6911,85 @@ CONTAINS
 
    END SUBROUTINE init_conc_NFW
 
+   SUBROUTINE init_conc_ENS(hmod, cosm)
+
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: i
+      REAL :: rv, M, c1, c2, f1, f2, a1, a0, cnew
+      REAL, PARAMETER :: c1_init = 4.
+      REAL, PARAMETER :: c2_init = 5.
+      REAL, PARAMETER :: acc = 1e-3 ! Does not need to be very accurate
+
+      c1 = c1_init; c2 = c2_init
+      DO i = hmod%n, 1, -1
+
+         rv = hmod%rv(i)
+         M = hmod%M(i)
+         f1 = ENS_function(c1, rv, M, hmod, cosm)-c1; f2 = ENS_function(c2, rv, M, hmod, cosm)-c2
+         DO
+            IF ((min(abs(f1), abs(f2))) <= acc) EXIT
+            CALL fix_polynomial(a1, a0, [c1, c2], [f1, f2])
+            cnew = -a0/a1
+            IF (abs(f1) < abs(f2)) THEN
+               c2 = cnew; f2 = ENS_function(c2, rv, M, hmod, cosm)-c2
+            ELSE
+               c1 = cnew; f1 = ENS_function(c1, rv, M, hmod, cosm)-c1
+            END IF
+         END DO
+
+         IF (abs(f1) <= acc) THEN
+            hmod%c(i) = c1
+         ELSE
+            hmod%c(i) = c2
+         END IF
+
+      END DO
+
+   END SUBROUTINE init_conc_ENS
+
+   REAL FUNCTION sigma_eff_ENS(M, hmod, cosm)
+
+      ! Sigma_eff(M) from equation (12) in ENS
+      ! Note that this computes the sigma_eff at whatever 'z' value the halomodel is initialised for
+      ! ENS defines this to be at z=0, so need to be careful and divide through by growth later
+      REAL, INTENT(IN) :: M
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: R, sig, dsig
+
+      R = Lagrangian_radius(M, cosm)
+      sig = sigma(R, hmod%a, hmod%flag_sigma, cosm)
+      dsig = dsigma(R, hmod%a, hmod%flag_sigma, cosm)/6. ! Factor 6 because I compute d ln sig^2 / d ln R, but need d ln sig / d ln M
+      sigma_eff_ENS = -sig*dsig ! Careful with minus sign
+
+   END FUNCTION sigma_eff_ENS
+
+   REAL FUNCTION ENS_function(c, rv, M, hmod, cosm)
+
+      ! Long ENS function that arises in calculating c(M)
+      ! If cc = c then this will be converged and that c value will be correct for this rv
+      REAL, INTENT(IN) :: c
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: M
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: a, rs, Ms, sigeff, gc, ac, Dv_ratio, Om_ratio
+      REAL, PARAMETER :: fs = 2.17
+      REAL, PARAMETER :: Csig = 28.
+
+      rs = rv/c ! Scale radius
+      a = hmod%a ! Scale factor
+      Ms = M*NFW_enclosed_mass_fraction(fs*rs, rv, rs) ! Mass enclosed by NFW at maximum-circular-velocity radius
+      sigeff = sigma_eff_ENS(Ms, hmod, cosm)/grow(a, cosm) ! sigma_eff(M) always at z=0 in ENS paper, so divide by growth
+      gc = 1./(Csig*sigeff) ! Growth factor at collapse
+      ac = inverse_interpolator(gc, cosm%grow) ! Invert growth to get collapse
+      Dv_ratio = Dv_BryanNorman(ac, cosm)/Dv_BryanNorman(a, cosm) ! Note collapse 'a' in numerator
+      Om_ratio = Omega_m(ac, cosm)/Omega_m(a, cosm) ! Note collapse 'a' in numerator
+      ENS_function = (a/ac)*cbrt(Dv_ratio/Om_ratio) ! Compute the c(M) according to ENS
+
+   END FUNCTION ENS_function
+
    REAL FUNCTION conc_Bullock(z, zc)
 
       ! Calculate the Bullock (2001; astro-ph/9908159) concentration
@@ -6912,7 +7013,7 @@ CONTAINS
       a = hmod%a
 
       ! Fills up a table for sigma(fM) for Bullock c(m) relation
-      f = hmod%fM**(1./3.)
+      f = cbrt(hmod%fM)
       DO i = 1, hmod%n
          rf = hmod%rr(i)*f
          sig = sigma(rf, a, hmod%flag_sigma, cosm)
