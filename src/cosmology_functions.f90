@@ -3,6 +3,7 @@ MODULE cosmology_functions
    USE basic_operations
    USE array_operations
    USE string_operations
+   USE special_functions
    USE interpolate
    USE constants
    USE file_info 
@@ -1772,7 +1773,7 @@ CONTAINS
       IF (cosm%verbose) WRITE (*, *) 'INIT_COSMOLOGY: Calculating derived parameters'
 
       ! Calculate radiation density (includes photons and neutrinos at recombination)
-      cosm%T_nu = cosm%T_CMB*(4./11.)**(1./3.)           ! Neutrino temperature [K]
+      cosm%T_nu = cosm%T_CMB*cbrt(4./11.)                ! Neutrino temperature [K]
       rho_g = 4.*SBconst*cosm%T_CMB**4/c_light**3        ! Photon physical density at z=0 from CMB temperature [kg/m^3]
       Om_g_h2 = rho_g/critical_density                   ! Photon cosmological density [h^2]
       cosm%Om_g = Om_g_h2/cosm%h**2                      ! Photon density parameter
@@ -4349,7 +4350,7 @@ CONTAINS
 
    REAL FUNCTION ddsigma(r, a, flag, cosm)
 
-      ! Integral for calculating dln(sigma^2)/dlnR
+      ! Integral for calculating d^2ln(sigma^2)/dlnR^2
       ! Transformation is kR = (1/t-1)**alpha
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: a
@@ -4947,10 +4948,9 @@ CONTAINS
       REAL :: M, r, r3
       REAL, PARAMETER :: eps = 1e-2
 
-      M = 1. ! Mass perturbation can be anything, it cancels out in the end  
-      !r = (3.*M/(4.*pi*comoving_matter_density(cosm)*d))**(1./3.) 
+      M = 1. ! Mass perturbation can be anything, it cancels out in the end
       r = Lagrangian_radius(d, cosm) ! Convert the mass perturbation to a comoving radius (M=4*pi*r^3*delta/3)
-      r = r*a ! Convert comoving -> physical radius      
+      r = r*a ! Convert comoving -> physical radius
       r3 = (r/r_Vainshtein_DGP(M, a, cosm))**3 ! G_nl depends on r3 only
       IF((1./r3) < eps) THEN
          ! High r3 expansion to avoid cancellation problems
@@ -4973,7 +4973,7 @@ CONTAINS
       REAL, PARAMETER :: GN = bigG_cos/H0_cos**2 ! G/H0^2 in units (Mpc/h)^3 (M_sun/h)^-1
       
       r_Vainshtein_DGP = (16.*GN*M*cosm%H0rc**2)/(9.*beta_DGP(a, cosm)**2)
-      r_Vainshtein_DGP = r_Vainshtein_DGP**(1./3.)
+      r_Vainshtein_DGP = cbrt(r_Vainshtein_DGP)
   
    END FUNCTION r_Vainshtein_DGP
 
@@ -5048,11 +5048,16 @@ CONTAINS
       ! Rough approximation for virialised overdensity
       ! Maybe attributable to Lahav et al. (1991) or Eke, Cole & Frenk (1996)
       ! Relative to background matter density here, rather than critical density
-      ! Power would be 0.3-1=-0.7 for an open model
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: pow
 
-      Dv_virial = Dv0*Omega_m(a, cosm)**(-0.55) ! -0.55=0.45-1
+      IF (cosm%Om_v == 0. .AND. cosm%Om_w == 0.) THEN
+         pow = -0.70 ! 0.30-1.00 = -0.70 for open cosmology
+      ELSE
+         pow = -0.55 ! 0.45-1.00 = -0.55 for LCDM
+      END IF
+      Dv_virial = Dv0*Omega_m(a, cosm)**pow
 
    END FUNCTION Dv_virial
 
@@ -5073,14 +5078,11 @@ CONTAINS
       x = Om_mz-1.
 
       IF (cosm%Om_v == 0. .AND. cosm%Om_w == 0.) THEN
-         ! Open model results
-         Dv_BryanNorman = Dv0+60.*x-32.*x**2
-         Dv_BryanNorman = Dv_BryanNorman/Om_mz
+         Dv_BryanNorman = Dv0+60.*x-32.*x**2 ! Open model
       ELSE
-         ! LCDM results
-         Dv_BryanNorman = Dv0+82.*x-39.*x**2
-         Dv_BryanNorman = Dv_BryanNorman/Om_mz
+         Dv_BryanNorman = Dv0+82.*x-39.*x**2 ! LCDM
       END IF
+      Dv_BryanNorman = Dv_BryanNorman/Om_mz
 
    END FUNCTION Dv_BryanNorman
 
@@ -5227,7 +5229,7 @@ CONTAINS
 
             ALLOCATE (rnl(n))
 
-            rnl = aa*(1.+dnl)**(-1./3.)
+            rnl = aa/cbrt(1.+dnl)
 
             ! Find the collapse point (very crude)
             ! More accurate calculations seem to be worse
