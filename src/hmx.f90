@@ -5,7 +5,6 @@ MODULE HMx
    ! Module usage statements
    USE constants
    USE array_operations
-   USE solve_equations
    USE special_functions
    USE string_operations
    USE calculus_table
@@ -206,6 +205,7 @@ MODULE HMx
    PUBLIC :: iconc_Neto_relaxed
    PUBLIC :: iconc_NFW
    PUBLIC :: iconc_ENS
+   PUBLIC :: iconc_Prada
 
    ! Haloes
    PUBLIC :: irho_delta
@@ -706,6 +706,7 @@ MODULE HMx
    INTEGER, PARAMETER :: iconc_Neto_relaxed = 12
    INTEGER, PARAMETER :: iconc_NFW = 13 ! Navarro, Frenk & White (1997)
    INTEGER, PARAMETER :: iconc_ENS = 14 ! Eke, Navarro & Steinmetz (2001; https://arxiv.org/abs/astro-ph/0012337)
+   INTEGER, PARAMETER :: iconc_Prada = 15 ! Prada et al. (2012; https://arxiv.org/abs/1104.5130)
 
    ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
@@ -950,6 +951,8 @@ CONTAINS
       names(130) = 'Courtin et al. (2011) mass function'
       names(131) = 'NFW (1997) concentration-mass relation'
       names(132) = 'ENS (2001) concentration-mass relation'
+      names(133) = 'Prada et al. (2012) concentration-mass relation'
+      names(134) = 'Neto et al. (2007) concentration-mass relation'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2223,11 +2226,16 @@ CONTAINS
          hmod%iDv = iDv_200c
          hmod%imf = imf_T10_PBS
          hmod%iconc = iconc_Child
-      ELSE IF (ihm == 131) THEN
-         ! NFW concentration-mass relation; M200c
+      ELSE IF (is_in_array(ihm, [131, 133, 134])) THEN
+         ! M200c concentration-mass relations
+         ! 131 - NFW (1997)
+         ! 133 - Prada et al. (2012)
+         ! 134 - Neto et al. (2008)
          hmod%iDv = iDv_200c
          hmod%imf = imf_T10_PBS
-         hmod%iconc = iconc_NFW
+         IF (ihm == 131) hmod%iconc = iconc_NFW
+         IF (ihm == 133) hmod%iconc = iconc_Prada
+         IF (ihm == 134) hmod%iconc = iconc_Neto_full
       ELSE IF (ihm == 132) THEN
          ! ENS concentration-mass relation; Mvir
          hmod%iconc = iconc_ENS
@@ -2583,7 +2591,7 @@ CONTAINS
             WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200 c(M) relation without a M200 halo definition'
          END IF
          IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200c, iconc_Duffy_relaxed_200c, iconc_Child, iconc_Diemer, &
-            iconc_Neto_full, iconc_Neto_relaxed, iconc_NFW]) .AND. &
+            iconc_Neto_full, iconc_Neto_relaxed, iconc_NFW, iconc_Prada]) .AND. &
             .NOT. is_in_array(hmod%iDv, [iDv_200c])) THEN
             WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200c c(M) relation without a M200c halo definition'
          END IF
@@ -2706,6 +2714,7 @@ CONTAINS
          IF (hmod%iconc == iconc_Neto_relaxed) WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Neto et al. (2007) concentration-mass relation'
          IF (hmod%iconc == iconc_NFW) WRITE(*, *) 'HALOMODEL: Original NFW concentration-mass relation'
          IF (hmod%iconc == iconc_ENS) WRITE(*, *) 'HALOMODEL: Eke, Navarro & Steinmetz (2001) concentration-mass relation'
+         IF (hmod%iconc == iconc_Prada) WRITE(*, *) 'HALOMODEL: Prada et al. (2012) concentration-mass relation'
 
          ! Concentration-mass relation correction
          IF (hmod%iDolag == 0) WRITE (*, *) 'HALOMODEL: No concentration-mass correction for dark energy'
@@ -6553,7 +6562,8 @@ CONTAINS
 
    SUBROUTINE convert_mass_definition(r1, c1, m1, D1, rho1, r2, c2, m2, D2, rho2, n)
 
-      !Converts mass definition from Delta_1 rho_1 overdense to Delta_2 rho_2 overdense
+      ! Converts mass definition from Delta_1 rho_1 overdense to Delta_2 rho_2 overdense
+      USE root_finding
       INTEGER, INTENT(IN) :: n   ! Number of entries in tables
       REAL, INTENT(IN) :: r1(n)  ! Array of initial virial radii [Mpc/h]
       REAL, INTENT(IN) :: c1(n)  ! Array of initial halo concentration
@@ -6632,13 +6642,12 @@ CONTAINS
 
    END SUBROUTINE convert_mass_definition
 
-   REAL FUNCTION NFW_factor(x)
+   REAL FUNCTION NFW_factor(c)
 
       ! The NFW 'mass' factor that crops up all the time
-      ! This is X(c) in M(r) = M X(r/rs) / X(c)
-      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: c
 
-      NFW_factor = log(1.+x)-x/(1.+x)
+      NFW_factor = log(1.+c)-c/(1.+c)
 
    END FUNCTION NFW_factor
 
@@ -6654,6 +6663,20 @@ CONTAINS
       NFW_enclosed_mass_fraction = NFW_factor(r/rs)/NFW_factor(c)
 
    END FUNCTION NFW_enclosed_mass_fraction
+
+   REAL FUNCTION NFW_rhos(M, rv, rs)
+
+      ! NFW profile constant of proportionality (units of density)
+      ! rho_NFW(r) =  rhos/[(r/rs)*(1+r/rs)^2]
+      REAL, INTENT(IN) :: M  ! Halo mass [Msun/h]
+      REAL, INTENT(IN) :: rv ! Virial radius [Mpc/h]
+      REAL, INTENT(IN) :: rs ! Scale radius [Mpc/h
+      REAL :: c
+
+      c = rv/rs ! Halo concentration
+      NFW_rhos = (M/(4.*pi*rv**3))*(c**3)/NFW_factor(c)
+
+   END FUNCTION NFW_rhos
 
    REAL FUNCTION virial_radius(m, hmod, cosm)
 
@@ -6717,12 +6740,14 @@ CONTAINS
       ELSE IF (hmod%iconc == iconc_Diemer) THEN
          fg = growth_rate(hmod%a, cosm)
       ELSE IF (hmod%iconc == iconc_NFW) THEN
-         CALL init_conc_NFW(hmod, cosm)
+         CALL fill_conc_NFW(hmod, cosm)
       ELSE IF (hmod%iconc == iconc_ENS) THEN
-         CALL init_conc_ENS(hmod, cosm)
+         CALL fill_conc_ENS(hmod, cosm)
+      ELSE IF (hmod%iconc == iconc_Prada) THEN
+         CALL fill_conc_Prada(hmod, cosm)
       END IF
 
-      ! Fill concentration-mass for all halo masses
+      ! Fill concentration-mass for all halo masses for those than need to be looped over
       DO i = 1, hmod%n
 
          ! Evaluate the concentration-mass relation (if necessary)
@@ -6742,8 +6767,6 @@ CONTAINS
             hmod%c(i) = conc_Neto_full(m)
          ELSE IF (hmod%iconc == iconc_Neto_relaxed) THEN
             hmod%c(i) = conc_Neto_relaxed(m)
-         !ELSE
-         !   STOP 'FILL_HALO_CONCENTRATION: Error, iconc specified incorrectly'
          END IF
 
          ! Rescale halo concentrations via the 'A' HMcode parameter
@@ -6871,23 +6894,21 @@ CONTAINS
 
    END SUBROUTINE Dolag_correction
 
-   SUBROUTINE init_conc_NFW(hmod, cosm)
+   SUBROUTINE fill_conc_NFW(hmod, cosm)
 
       ! TODO: Check this carefully, the concentration seems too high
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL, ALLOCATABLE :: c(:), logc(:), solve(:)
-      INTEGER :: i, j
-      REAL :: a, z, gc, ac, ds, rhoc
+      INTEGER :: i
+      REAL :: a, z, gc, ac, ds, rhoc, M, rv
+      REAL :: c1, c2, f1, f2, cnew, a1, a0
       REAL, PARAMETER :: f = 0.01
-      REAL, PARAMETER :: cmin = 1.
-      REAL, PARAMETER :: cmax = 50.
-      INTEGER :: nc = 33
+      INTEGER, PARAMETER :: c1_init = 4.
+      INTEGER, PARAMETER :: c2_init = 5.
+      REAL, PARAMETER :: acc_root = 1e-3
 
       ! Redshift and scale factor
       z = hmod%z; a = hmod%a; rhoc = comoving_critical_density(a, cosm)
-      CALL fill_array(cmin, cmax, c, nc, ilog=.TRUE.)
-      logc = log(c)
 
       ! Loop over all halo masses
       DO i = 1, hmod%n
@@ -6898,21 +6919,37 @@ CONTAINS
          ac = inverse_interpolator(gc, cosm%grow) ! Have calculated g(zc) so need to invert this to get zc
          hmod%zc(i) = redshift_a(ac) ! Redshift from scale factor
          ds = 3e3*Omega_m(a, cosm)*((1.+hmod%zc(i))/(1.+z))**3 ! Equation (A20) to calculate NFW proportionality constant
+         M = hmod%M(i)
+         rv = hmod%rv(i)
 
          ! Now need to invert the relation between the proportionality constant and concentration
-         ALLOCATE(solve(nc))
-         DO j = 1, nc
-            solve(j) = hmod%M(i)/(4.*pi*hmod%rv(i)**3)*(c(j)**3/NFW_factor(c(j)))/rhoc-ds
+         c1 = c1_init; c2 = c2_init
+         f1 = NFW_rhos(M, rv, rv/c1)/rhoc-ds; f2 = NFW_rhos(M, rv, rv/c2)/rhoc-ds
+         DO
+            IF ((min(abs(f1), abs(f2))) <= acc_root) EXIT
+            CALL fix_polynomial(a1, a0, [c1, c2], [f1, f2])
+            cnew = -a0/a1 ! x intercept
+            IF (abs(f1) < abs(f2)) THEN
+               c2 = cnew; f2 = NFW_rhos(M, rv, rv/c2)/rhoc-ds ! Guess 1 was better, so replace 2...
+            ELSE
+               c1 = cnew; f1 = NFW_rhos(M, rv, rv/c1)/rhoc-ds ! ...otherwise guess 2 was better, so replace 1
+            END IF
          END DO
-         hmod%c(i) = exp(solve_find(logc, solve))
-         DEALLOCATE(solve)
+         IF (abs(f1) <= acc_root) THEN
+            hmod%c(i) = c1
+         ELSE
+            hmod%c(i) = c2
+         END IF
 
       END DO
 
-   END SUBROUTINE init_conc_NFW
+   END SUBROUTINE fill_conc_NFW
 
-   SUBROUTINE init_conc_ENS(hmod, cosm)
+   SUBROUTINE fill_conc_ENS(hmod, cosm)
 
+      ! Eke, Navarro & Steinmetz (2001; ) concentration-mass relation
+      ! TODO: Check this carefully, the concentration seems too low
+      ! TODO: Could also extract zc from this for hmod%zc
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: i
@@ -6946,13 +6983,13 @@ CONTAINS
 
       END DO
 
-   END SUBROUTINE init_conc_ENS
+   END SUBROUTINE fill_conc_ENS
 
    REAL FUNCTION sigma_eff_ENS(M, hmod, cosm)
 
       ! Sigma_eff(M) from equation (12) in ENS
       ! Note that this computes the sigma_eff at whatever 'z' value the halomodel is initialised for
-      ! ENS defines this to be at z=0, so need to be careful and divide through by growth later
+      ! ENS defines sigma_eff to be at z=0, so need to be careful and divide through by growth later
       REAL, INTENT(IN) :: M
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
@@ -6975,8 +7012,8 @@ CONTAINS
       TYPE(halomod), INTENT(IN) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: a, rs, Ms, sigeff, gc, ac, Dv_ratio, Om_ratio
-      REAL, PARAMETER :: fs = 2.17
-      REAL, PARAMETER :: Csig = 28.
+      REAL, PARAMETER :: fs = 2.17  ! r = 2.17rs at maximum circular-velocity radius (apparently)
+      REAL, PARAMETER :: Csig = 28. ! Single fitted ENS parameter
 
       rs = rv/c ! Scale radius
       a = hmod%a ! Scale factor
@@ -6989,6 +7026,72 @@ CONTAINS
       ENS_function = (a/ac)*cbrt(Dv_ratio/Om_ratio) ! Compute the c(M) according to ENS
 
    END FUNCTION ENS_function
+
+   SUBROUTINE fill_conc_Prada(hmod, cosm)
+
+      ! Prada et al. (2012; https://arxiv.org/abs/1104.5130) halo mass-concentration relation
+      ! TODO: Why does this take ages to evaluate for high-mass haloes (~ 10^16 Msun/h) at z=2; no iterative steps?
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      INTEGER :: i
+      REAL :: x, B0, B1, sigp, bigC
+      REAL, PARAMETER :: xmin = 1.393
+
+      ! Evaluate Prada B0 and B1 functions (equations 18)
+      x = hmod%a*cbrt(cosm%Om_de/cosm%Om_m)   ! Equation (13)
+      B0 = cmin_Prada(x)/cmin_Prada(xmin)           ! First of equations (18)
+      B1 = siginvmin_Prada(x)/siginvmin_Prada(xmin) ! Second of equations (18)
+
+      ! Loop over halo masses and evaluate concentration
+      DO i = 1, hmod%n
+         sigp = hmod%sig(i)*B1   ! sigma'(M,x), equation (15)
+         bigC = bigC_Prada(sigp) ! Italic C, equation (16)
+         hmod%c(i) = B0*bigC     ! Halo concentration, equation (14)
+      END DO
+
+   END SUBROUTINE fill_conc_Prada
+
+   REAL FUNCTION cmin_Prada(x)
+
+      ! Equation (19), parameters from equations (21)
+      REAL, INTENT(IN) :: x
+      REAL :: f
+      REAL, PARAMETER :: c0 = 3.681
+      REAL, PARAMETER :: c1 = 5.033
+      REAL, PARAMETER :: alpha = 6.948
+      REAL, PARAMETER :: x0 = 0.424
+
+      f = atan(alpha*(x-x0))/pi
+      cmin_Prada = c0+(c1-c0)*(f+0.5)
+
+   END FUNCTION cmin_Prada
+
+   REAL FUNCTION siginvmin_Prada(x)
+
+      ! Equation (20), parameters from equations (22)
+      REAL, INTENT(IN) :: x
+      REAL :: f
+      REAL, PARAMETER :: siginv0 = 1.047
+      REAL, PARAMETER :: siginv1 = 1.646
+      REAL, PARAMETER :: beta = 7.386
+      REAL, PARAMETER :: x1 = 0.526
+
+      f = atan(beta*(x-x1))/pi
+      siginvmin_Prada = siginv0+(siginv1-siginv0)*(f+0.5)
+
+   END FUNCTION siginvmin_Prada
+
+   REAL FUNCTION bigC_Prada(sig)
+
+      REAL, INTENT(IN) :: sig
+      REAL, PARAMETER :: A = 2.881
+      REAL, PARAMETER :: b = 1.257
+      REAL, PARAMETER :: c = 1.022
+      REAL, PARAMETER :: d = 0.060
+
+      bigC_Prada = A*(1.+(sig/b)**c)*exp(d/sig**2)
+
+   END FUNCTION bigC_Prada
 
    REAL FUNCTION conc_Bullock(z, zc)
 
