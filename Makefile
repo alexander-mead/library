@@ -71,7 +71,7 @@ _OBJ = \
 	fitting.o \
 	ode_solvers.o \
 	orbits.o \
-	solve_equations.o \
+	root_finding.o \
 	statistics.o \
 	minimization.o \
 	gadget_stuff.o \

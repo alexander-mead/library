@@ -1,4 +1,4 @@
-MODULE solve_equations
+MODULE root_finding
 
    ! TODO: Write a wrapper for solve routines
    USE basic_operations
@@ -46,6 +46,7 @@ CONTAINS
    REAL FUNCTION solve_gradient(x1in, x2in, f, acc_opt)
 
       ! Solves for x0 with f(x0) = 0; initial guesses x1 and x2
+      ! e.g., f(x) = x^2-4 would find either x = -2 or x = 2 depending on the initial guess
       USE special_functions
       REAL, INTENT(IN) :: x1in, x2in
       REAL, EXTERNAL :: f
@@ -64,11 +65,11 @@ CONTAINS
       DO
          IF ((min(abs(f1), abs(f2))) <= acc) EXIT
          CALL fix_polynomial(a1, a0, [x1, x2], [f1, f2])
-         xnew = -a0/a1
+         xnew = -a0/a1 ! x intercept
          IF (abs(f1) < abs(f2)) THEN
-            x2 = xnew; f2 = f(x2)
+            x2 = xnew; f2 = f(x2) ! Guess 1 was better, so replace 2...
          ELSE
-            x1 = xnew; f1 = f(x1)
+            x1 = xnew; f1 = f(x1) ! ...otherwise guess 2 was better, so replace 1
          END IF
       END DO
 
@@ -187,4 +188,4 @@ CONTAINS
 
    END FUNCTION solve_bisect_function
 
-END MODULE solve_equations
+END MODULE root_finding
