@@ -39,6 +39,7 @@ MODULE cosmology_functions
    PUBLIC :: Omega_nu
    PUBLIC :: Omega_v
    PUBLIC :: Omega_w
+   PUBLIC :: Omega_de
    PUBLIC :: Omega
    PUBLIC :: w_de
    PUBLIC :: w_de_total
@@ -254,6 +255,7 @@ MODULE cosmology_functions
       REAL :: age, horizon               ! Derived distance/time
       REAL :: YHe                        ! Derived thermal parameters
       REAL :: Om_ws, astar, a1n, a2n     ! Derived DE parameters
+      REAL :: Om_de                      ! More DE
       REAL :: gnorm                      ! Growth-factor normalisation
       REAL :: kbox                       ! Wavenumber of box mode
       LOGICAL :: scale_dependent_growth  ! Is the linear growth scale dependent in this cosmology?
@@ -1877,6 +1879,7 @@ CONTAINS
       END IF
 
       ! Derived cosmological parameters
+      ! TODO: Does it make sense to do this before dark-energy initialisation?
       cosm%Om_c = cosm%Om_m-cosm%Om_b ! Omega_m defined to include CDM, baryons and massive neutrinos
       IF (cosm%m_nu .NE. 0.) cosm%Om_c = cosm%Om_c-cosm%Om_nu
       cosm%Om = cosm%Om_m+cosm%Om_v+cosm%Om_w    ! Ignore radiation here
@@ -1939,9 +1942,9 @@ CONTAINS
       IF ((cosm%iw == iw_LCDM) .AND. (cosm%w .NE. -1.)) STOP 'INIT_COSMOLOGY: Dark energy is set to LCDM but w is not -1'
 
       ! Extra initialisation for dark-energy models
+      ! TODO: Does it make sense to do this after Omega initialisation?
       IF (cosm%iw == iw_IDE1) THEN
          ! IDE I
-         !Om_w=Om_w*(Om_m*astar**(-3)+Om_v)/(X(astar)*(1.-Om_w))
          f1 = cosm%Om_ws*X_de(cosm%astar, cosm)+cosm%Om_ws*cosm%astar**(-2)
          f2 = X_de(cosm%astar, cosm)*(1.-cosm%Om_ws)+cosm%Om_ws*cosm%astar**(-2)
          cosm%Om_w = cosm%Om_ws*(Hubble2(cosm%a, cosm)-f1/f2)
@@ -1971,13 +1974,15 @@ CONTAINS
          f2 = cosm%Om_w*(1.-cosm%Om_ws)
          cosm%a2 = cosm%astar*(f1/f2)**(1./(3.*(1.+cosm%ws)))
       END IF
+      cosm%Om_de = cosm%Om_w+cosm%Om_v ! Total dark energy
 
-      ! Useful variables
-      cosm%age = 0.      
+      ! Fix useful variables before they are computed
+      cosm%age = 0.
       cosm%gnorm = 0.
       cosm%horizon = 0.
 
       ! Interpolators
+      ! TODO: Do this first?
       CALL reset_interpolator_status(cosm)
 
       ! Switch analytical transfer function
@@ -2843,6 +2848,17 @@ CONTAINS
 
    END FUNCTION Omega_w
 
+   REAL FUNCTION Omega_de(a, cosm)
+
+      ! This calculates Omega_de total variations with cosmology
+      ! Includes Omega_w and Omega_v
+      REAL, INTENT(IN) :: a
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+
+      Omega_de = Omega_v(a, cosm)+Omega_w(a, cosm)
+
+   END FUNCTION Omega_de
+
    REAL FUNCTION Omega(a, cosm)
 
       ! This calculates total Omega variations with a
@@ -2959,7 +2975,7 @@ CONTAINS
          w_de_total = -1.
       ELSE
          w_de_total = w_de(a, cosm)*Omega_w(a, cosm)-Omega_v(a, cosm)
-         w_de_total = w_de_total/(Omega_w(a, cosm)+Omega_v(a, cosm))
+         w_de_total = w_de_total/Omega_de(a, cosm)
       END IF
 
    END FUNCTION w_de_total
@@ -3193,7 +3209,7 @@ CONTAINS
          convert_cosmology%w = -1.
          convert_cosmology%wa = 0.
          convert_cosmology%Om_w = 0.
-         convert_cosmology%Om_v = cosm%Om_v+cosm%Om_w
+         convert_cosmology%Om_v = cosm%Om_de
       END IF
 
       ! Flatten by forcing the dark-energy or vacuum density to sum with matter to unity
@@ -4468,8 +4484,8 @@ CONTAINS
       ! Get all necessary Omega values
       Om_mz = Omega_m_norad(a, cosm)
       Om_m = cosm%Om_m
-      Om_vz = Omega_v(a, cosm)+Omega_w(a, cosm)    
-      Om_v = cosm%Om_v+cosm%Om_w
+      Om_vz = Omega_de(a, cosm)
+      Om_v = cosm%Om_de
 
       ! Now call CPT twice, second time to normalise it
       grow_CPT = CPT(a, Om_mz, Om_vz)/CPT(1., Om_m, Om_v)
@@ -4896,7 +4912,7 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: Om_v
 
-      Om_v = cosm%Om_v+cosm%Om_w
+      Om_v = cosm%Om_de
       Rbar=3.*(cosm%Om_m*(a**(-3))+4.*Om_v)/Hdist**2
 
    END FUNCTION Rbar
@@ -4908,7 +4924,7 @@ CONTAINS
       TYPE(cosmology), INTENT(IN) :: cosm
       REAL :: c1, c2, Om_v
 
-      Om_v = cosm%Om_v+cosm%Om_w
+      Om_v = cosm%Om_de
       c1 = 1.+4.*Om_v/cosm%Om_m
       c2 = (a**(-3))+4.*Om_v/cosm%Om_m
 
@@ -4980,11 +4996,16 @@ CONTAINS
    REAL FUNCTION dc_NFW(a, cosm)
 
       ! LCDM delta_c approximation from Navarro, Frenk & White (1997)
-      ! In Open models replace the 0.0055 power with 0.0185
       REAL, INTENT(IN) :: a
       TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: pow
 
-      dc_NFW = dc0*Omega_m(a, cosm)**0.0055 ! Equation (A14)
+      IF (cosm%Om_v == 0. .AND. cosm%Om_w == 0.) THEN
+         pow = 0.0185 ! Open
+      ELSE
+         pow = 0.0055 ! LCDM
+      END IF
+      dc_NFW = dc0*Omega_m_norad(a, cosm)**pow ! Equation (A14)
 
    END FUNCTION dc_NFW
 
@@ -5057,7 +5078,7 @@ CONTAINS
       ELSE
          pow = -0.55 ! 0.45-1.00 = -0.55 for LCDM
       END IF
-      Dv_virial = Dv0*Omega_m(a, cosm)**pow
+      Dv_virial = Dv0*Omega_m_norad(a, cosm)**pow
 
    END FUNCTION Dv_virial
 
@@ -7433,9 +7454,9 @@ CONTAINS
       real :: f1a, f2a, f3a, f1b, f2b, f3b, frac
 
       ! Necessary cosmological parameters
-      Om_m = cosm%Om_m        
+      Om_m = cosm%Om_m
       Om_mz = Omega_m(a, cosm)
-      Om_vz = Omega_v(a, cosm)+Omega_w(a, cosm) ! Note this well
+      Om_vz = Omega_de(a, cosm) ! Note this well
       wz = w_de(a, cosm) ! Choice here; do you use w or w(z)? w(z) is better I think; CAMB makes w(z) choice too
       fnu = cosm%Om_nu/cosm%Om_m
 
