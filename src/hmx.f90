@@ -206,6 +206,9 @@ MODULE HMx
    PUBLIC :: iconc_NFW
    PUBLIC :: iconc_ENS
    PUBLIC :: iconc_Prada
+   PUBLIC :: iconc_Klypin
+   PUBLIC :: iconc_Okoli
+   PUBLIC :: iconc_Maccio
 
    ! Haloes
    PUBLIC :: irho_delta
@@ -238,6 +241,7 @@ MODULE HMx
    PUBLIC :: irho_shell
    PUBLIC :: irho_Burket
    PUBLIC :: irho_Hernquest
+   PUBLIC :: irho_Einasto
 
    !!! Fitting parameters !!!
 
@@ -654,6 +658,7 @@ MODULE HMx
    INTEGER, PARAMETER :: irho_NFW_mod = 27
    INTEGER, PARAMETER :: irho_shell = 28
    INTEGER, PARAMETER :: irho_Burket = 29
+   INTEGER, PARAMETER :: irho_Einasto = 30
 
    ! Halo definitions
    INTEGER, PARAMETER :: iDv_200 = 1 ! M200
@@ -701,12 +706,15 @@ MODULE HMx
    INTEGER, PARAMETER :: iconc_Duffy_relaxed_vir = 7
    INTEGER, PARAMETER :: iconc_Duffy_relaxed_200c = 8
    INTEGER, PARAMETER :: iconc_Child = 9
-   INTEGER, PARAMETER :: iconc_Diemer = 10
+   INTEGER, PARAMETER :: iconc_Diemer = 10 ! Diemer & Joyce (2019; https://arxiv.org/abs/1809.07326)
    INTEGER, PARAMETER :: iconc_Neto_full = 11
    INTEGER, PARAMETER :: iconc_Neto_relaxed = 12
    INTEGER, PARAMETER :: iconc_NFW = 13 ! Navarro, Frenk & White (1997)
    INTEGER, PARAMETER :: iconc_ENS = 14 ! Eke, Navarro & Steinmetz (2001; https://arxiv.org/abs/astro-ph/0012337)
    INTEGER, PARAMETER :: iconc_Prada = 15 ! Prada et al. (2012; https://arxiv.org/abs/1104.5130)
+   INTEGER, PARAMETER :: iconc_Klypin = 16 ! Klypin et al. (2014; https://arxiv.org/abs/1411.4001)
+   INTEGER, PARAMETER :: iconc_Okoli = 17 ! Okoli & Afshordi (2015; https://arxiv.org/abs/1510.03868)
+   INTEGER, PARAMETER :: iconc_Maccio = 18 ! Maccio et al. (2008; https://arxiv.org/abs/0805.1926)
 
    ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
@@ -953,6 +961,10 @@ CONTAINS
       names(132) = 'ENS (2001) concentration-mass relation'
       names(133) = 'Prada et al. (2012) concentration-mass relation'
       names(134) = 'Neto et al. (2007) concentration-mass relation'
+      names(135) = 'Klypin et al. (2014) concentration-mass relation'
+      names(136) = 'Okoli & Afshordi (2015) concentration-mass relation'
+      names(137) = 'Maccio et al. (2008) concentration-mass relation'
+      names(138) = 'Diemer & Joyce (2019) concentration-mass relation'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2071,11 +2083,11 @@ CONTAINS
          hmod%idc = 1
          hmod%iDv = iDv_200
       ELSE IF (ihm == 68) THEN
-         ! Standard halo-model calculation but with Bullock c(M)
          hmod%iconc = iconc_Bullock_full
       ELSE IF (ihm == 69) THEN
-         ! Standard halo-model calculation but with simple Bullock c(M)
          hmod%iconc = iconc_Bullock_simple
+      ELSE IF (ihm == 137) THEN
+         hmod%iconc = iconc_Maccio
       ELSE IF (ihm == 70) THEN
          ! Standard but with no Dolag correction
          hmod%iDolag = 0
@@ -2221,21 +2233,17 @@ CONTAINS
       ELSE IF (ihm == 130) THEN
          ! Courtin et al. (2011) mass function; virial definition
          hmod%imf = imf_Courtin
-      ELSE IF (ihm == 88) THEN
-         ! Child et al. (2018) concentration-mass relation; M200c
-         hmod%iDv = iDv_200c
-         hmod%imf = imf_T10_PBS
-         hmod%iconc = iconc_Child
-      ELSE IF (is_in_array(ihm, [131, 133, 134])) THEN
+      ELSE IF (is_in_array(ihm, [88, 131, 133, 134, 135, 136, 138])) THEN
          ! M200c concentration-mass relations
-         ! 131 - NFW (1997)
-         ! 133 - Prada et al. (2012)
-         ! 134 - Neto et al. (2008)
          hmod%iDv = iDv_200c
          hmod%imf = imf_T10_PBS
+         IF (ihm == 88)  hmod%iconc = iconc_Child
          IF (ihm == 131) hmod%iconc = iconc_NFW
          IF (ihm == 133) hmod%iconc = iconc_Prada
          IF (ihm == 134) hmod%iconc = iconc_Neto_full
+         IF (ihm == 135) hmod%iconc = iconc_Klypin
+         IF (ihm == 136) hmod%iconc = iconc_Okoli
+         IF (ihm == 138) hmod%iconc = iconc_Diemer
       ELSE IF (ihm == 132) THEN
          ! ENS concentration-mass relation; Mvir
          hmod%iconc = iconc_ENS
@@ -2582,7 +2590,8 @@ CONTAINS
          END IF
 
          ! Concentration
-         IF (is_in_array(hmod%iconc, [iconc_Bullock_full, iconc_Bullock_simple, iconc_Duffy_full_vir, iconc_Duffy_relaxed_vir, iconc_ENS]) .AND. &
+         IF (is_in_array(hmod%iconc, [iconc_Bullock_full, iconc_Bullock_simple, iconc_Duffy_full_vir, iconc_Duffy_relaxed_vir, &
+            iconc_ENS, iconc_Maccio]) .AND. &
             is_in_array(hmod%iDv, [iDv_200, iDv_200c, iDv_178])) THEN
             WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial c(M) relation with a fixed halo definition'
          END IF
@@ -2591,7 +2600,7 @@ CONTAINS
             WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200 c(M) relation without a M200 halo definition'
          END IF
          IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200c, iconc_Duffy_relaxed_200c, iconc_Child, iconc_Diemer, &
-            iconc_Neto_full, iconc_Neto_relaxed, iconc_NFW, iconc_Prada]) .AND. &
+            iconc_Neto_full, iconc_Neto_relaxed, iconc_NFW, iconc_Prada, iconc_Klypin, iconc_Okoli]) .AND. &
             .NOT. is_in_array(hmod%iDv, [iDv_200c])) THEN
             WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200c c(M) relation without a M200c halo definition'
          END IF
@@ -2709,12 +2718,15 @@ CONTAINS
          IF (hmod%iconc == iconc_Duffy_relaxed_vir) WRITE (*, *) 'HALOMODEL: Relaxed sample for Mv Duffy et al. (2008) concentration-mass relation'
          IF (hmod%iconc == iconc_Duffy_relaxed_200c) WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Duffy et al. (2008) concentration-mass relation'
          IF (hmod%iconc == iconc_Child) WRITE (*, *) 'HALOMODEL: Child et al. (2018) M200c concentration-mass relation'
-         IF (hmod%iconc == iconc_Diemer) WRITE (*, *) 'HALOMODEL: Diemer & Kravstov (2019) M200c concentration-mass relation'
+         IF (hmod%iconc == iconc_Diemer) WRITE (*, *) 'HALOMODEL: Diemer & Joyce (2019) M200c concentration-mass relation'
          IF (hmod%iconc == iconc_Neto_full) WRITE (*, *) 'HALOMODEL: Full sample for M200c Neto et al. (2007) concentration-mass relation'
          IF (hmod%iconc == iconc_Neto_relaxed) WRITE (*, *) 'HALOMODEL: Relaxed sample for M200c Neto et al. (2007) concentration-mass relation'
          IF (hmod%iconc == iconc_NFW) WRITE(*, *) 'HALOMODEL: Original NFW concentration-mass relation'
          IF (hmod%iconc == iconc_ENS) WRITE(*, *) 'HALOMODEL: Eke, Navarro & Steinmetz (2001) concentration-mass relation'
-         IF (hmod%iconc == iconc_Prada) WRITE(*, *) 'HALOMODEL: Prada et al. (2012) concentration-mass relation'
+         IF (hmod%iconc == iconc_Prada) WRITE(*, *) 'HALOMODEL: Prada et al. (2012) M200c concentration-mass relation'
+         IF (hmod%iconc == iconc_Klypin) WRITE(*, *) 'HALOMODEL: Klypin et al. (2014) M200c concentration-mass relation'
+         IF (hmod%iconc == iconc_Okoli) WRITE(*, *) 'HALOMODEL: Okoli & Afshordi (2015) M200c concentration-mass relation'
+         IF (hmod%iconc == iconc_Maccio) WRITE(*, *) 'HALOMODEL: Maccio et al. (2008) Mvir concentration-mass relation'
 
          ! Concentration-mass relation correction
          IF (hmod%iDolag == 0) WRITE (*, *) 'HALOMODEL: No concentration-mass correction for dark energy'
@@ -6725,7 +6737,7 @@ CONTAINS
       ! Fill look-up table with halo concentrations as a function of halo mass
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: mnl, m, z, a, fg
+      REAL :: m, z, a, Ht
       INTEGER :: i
 
       ! Get the redshift
@@ -6733,18 +6745,18 @@ CONTAINS
       a = hmod%a
 
       ! Any initialisation for the c(M) relation goes here
-      IF (hmod%iconc == iconc_Bullock_full) THEN
+      IF (hmod%iconc == iconc_Bullock_full .OR. hmod%iconc == iconc_Maccio) THEN
          CALL zcoll_Bullock(hmod, cosm) ! Fill the collapse-z look-up table for Bullock
-      ELSE IF (hmod%iconc == iconc_Bullock_simple .OR. hmod%iconc == iconc_Child) THEN
-         mnl = hmod%mnl
       ELSE IF (hmod%iconc == iconc_Diemer) THEN
-         fg = growth_rate(hmod%a, cosm)
+         CALL fill_conc_Diemer(hmod, cosm)
       ELSE IF (hmod%iconc == iconc_NFW) THEN
          CALL fill_conc_NFW(hmod, cosm)
       ELSE IF (hmod%iconc == iconc_ENS) THEN
          CALL fill_conc_ENS(hmod, cosm)
       ELSE IF (hmod%iconc == iconc_Prada) THEN
          CALL fill_conc_Prada(hmod, cosm)
+      ELSE IF (hmod%iconc == iconc_Okoli) THEN
+         Ht = sqrt(Hubble2(a, cosm))*cosmic_time(a, cosm)/Htime
       END IF
 
       ! Fill concentration-mass for all halo masses for those than need to be looped over
@@ -6754,19 +6766,23 @@ CONTAINS
          m = hmod%m(i)
          IF (hmod%iconc == iconc_Bullock_full) THEN
             hmod%c(i) = conc_Bullock(z, hmod%zc(i))
+         ELSE IF (hmod%iconc == iconc_Maccio) THEN
+            hmod%c(i) = conc_Maccio(z, hmod%zc(i), cosm)
          ELSE IF (hmod%iconc == iconc_Bullock_simple) THEN
-            hmod%c(i) = conc_Bullock_simple(m, mnl)
+            hmod%c(i) = conc_Bullock_simple(m, hmod%mnl)
          ELSE IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200, iconc_Duffy_full_vir, iconc_Duffy_full_200c, &
             iconc_Duffy_relaxed_200, iconc_Duffy_relaxed_vir, iconc_Duffy_relaxed_200c])) THEN
             hmod%c(i) = conc_Duffy(m, hmod)
          ELSE IF (hmod%iconc == iconc_Child) THEN
-            hmod%c(i) = conc_Child(m, mnl)
-         ELSE IF (hmod%iconc == iconc_Diemer) THEN
-            hmod%c(i) = conc_Diemer(hmod%nu(i), hmod%rr(i), fg, a, cosm)
+            hmod%c(i) = conc_Child(m, hmod%mnl)
          ELSE IF (hmod%iconc == iconc_Neto_full) THEN
             hmod%c(i) = conc_Neto_full(m)
          ELSE IF (hmod%iconc == iconc_Neto_relaxed) THEN
             hmod%c(i) = conc_Neto_relaxed(m)
+         ELSE IF (hmod%iconc == iconc_Klypin) THEN
+            hmod%c(i) = conc_Klypin(hmod%nu(i))
+         ELSE IF (hmod%iconc == iconc_Okoli) THEN
+            hmod%c(i) = conc_Okoli(hmod%nu(i), Ht)
          END IF
 
          ! Rescale halo concentrations via the 'A' HMcode parameter
@@ -7104,6 +7120,22 @@ CONTAINS
 
    END FUNCTION conc_Bullock
 
+   REAL FUNCTION conc_Maccio(z, zc, cosm)
+
+      ! Calculate the Maccio (2008; https://arxiv.org/abs/0805.1926) concentration
+      REAL, INTENT(IN) :: z
+      REAL, INTENT(IN) :: zc
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: a, ac, Dv_ratio, rho_ratio
+      REAL, PARAMETER :: K = 3.6 ! WMAP5 (middle from Fig. 6)
+
+      a = scale_factor_z(z); ac = scale_factor_z(zc)
+      Dv_ratio = Dv_BryanNorman(ac, cosm)/Dv_BryanNorman(a, cosm)
+      rho_ratio = physical_matter_density(ac, cosm)/physical_matter_density(a, cosm)
+      conc_Maccio = K*cbrt(Dv_ratio*rho_ratio)
+
+   END FUNCTION conc_Maccio
+
    SUBROUTINE zcoll_Bullock(hmod, cosm)
 
       ! This fills up the halo collapse redshift table as per Bullock relations
@@ -7230,37 +7262,105 @@ CONTAINS
 
    END FUNCTION conc_Child
 
-   REAL FUNCTION conc_Diemer(nu, r, fg, a, cosm)
+   SUBROUTINE fill_conc_Diemer(hmod, cosm)
 
-      ! Diemer & Joyce (2019) concentration-mass relation
+      ! Diemer & Joyce (2019; https://arxiv.org/abs/1809.07326) concentration-mass relation
       ! Parameters taken from 'mean' column of Table 2
       ! Relation is for M200c halo-boundary definition
-      REAL, INTENT(IN) :: nu
-      REAL, INTENT(IN) :: r
-      REAL, INTENT(IN) :: fg
-      REAL, INTENT(IN) :: a
+      TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: bigA, bigB, bigC, alpha, n_eff
+      INTEGER :: i
+      REAL :: bigA, bigB, bigC, alpha, n, R, nu, arg
+      REAL :: f1, f2, c1, c2, cnew, aa1, aa0
       REAL, PARAMETER :: kappa = 0.42
       REAL, PARAMETER :: a0 = 2.37
       REAL, PARAMETER :: a1 = 1.74
       REAL, PARAMETER :: b0 = 3.39
       REAL, PARAMETER :: b1 = 1.82
       REAL, PARAMETER :: ca = 0.20
-      INTEGER, PARAMETER :: flag_power = flag_matter
+      REAL, PARAMETER :: c1_init = 4.
+      REAL, PARAMETER :: c2_init = 5.
+      REAL, PARAMETER :: acc_root = 1e-3
 
-      ! Suppress warning
-      alpha = nu
+      ! Things that are independent of halo mass
+      alpha = growth_rate(hmod%a, cosm) ! Equation (29) strange nomenclature in paper
+      bigC = 1.-ca*(1.-alpha)
 
-      n_eff = neff(kappa*r, a, flag_power, cosm)
-      bigA = a0*(1.+a1*(n_eff+3.))
-      bigB = b0*(1.+b1*(n_eff+3.))
-      bigC = 1.-ca*(1.-fg)
-      
-      conc_Diemer = 1.
-      STOP 'CONC_DIEMER: Not fully implemented'
+      ! Initial guesses for high-mass halo concentration
+      c1 = c1_init; c2 = c2_init 
 
-   END FUNCTION conc_Diemer
+      ! Loop from highest halo mass down to lowest
+      DO i = hmod%n, 1, -1
+
+         ! Things related to halo mass
+         R = hmod%rr(i)
+         n = neff(kappa*R, hmod%a, hmod%flag_sigma, cosm) ! Equation (20), standard definition
+         
+         ! Equations (32)
+         bigA = a0*(1.+a1*(n+3.))
+         bigB = b0*(1.+b1*(n+3.))
+         
+         ! Calculate argument of G-inverse function; equation (31)
+         nu = hmod%nu(i)
+         arg = (bigA/nu)*(1.+nu**2/bigB)
+
+         ! Root finding for c from equation (31)
+         f1 = f_Diemer(c1/bigC, n, arg); f2 = f_Diemer(c2/bigC, n, arg)
+         DO
+            IF ((min(abs(f1), abs(f2))) <= acc_root) EXIT
+            CALL fix_polynomial(aa1, aa0, [c1, c2], [f1, f2])
+            cnew = -aa0/aa1 ! x intercept
+            IF (abs(f1) < abs(f2)) THEN
+               c2 = cnew; f2 = f_Diemer(c2/bigC, n, arg) ! Guess 1 was better, so replace 2...
+            ELSE
+               c1 = cnew; f1 = f_Diemer(c1/bigC, n, arg) ! ...otherwise guess 2 was better, so replace 1
+            END IF
+         END DO
+
+         IF (abs(f1) <= acc_root) THEN
+            hmod%c(i) = c1
+         ELSE
+            hmod%c(i) = c2
+         END IF
+
+      END DO
+
+   END SUBROUTINE fill_conc_Diemer
+
+   REAL FUNCTION f_Diemer(x, n, A)
+
+      ! Equation (30) minus the argument of G-inverse from equation (31)
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: n
+      REAL, INTENT(IN) :: A
+
+      f_Diemer = x/NFW_factor(x)**((5.+n)/6.)-A
+
+   END FUNCTION f_Diemer
+
+   REAL FUNCTION conc_Klypin(nu)
+
+      ! Klypin et al. (2014; https://arxiv.org/abs/1411.4001) concentration-mass relation
+      ! TODO: Check this carefully, paper also provides fits for the alpha 'shape' Einasto parameter in terms of nu
+      REAL, INTENT(IN) :: nu
+
+      conc_Klypin = 6.5*(nu**(-1.6))*(1.+0.21*nu**2) ! Equation (22)
+
+   END FUNCTION conc_Klypin
+
+   REAL FUNCTION conc_Okoli(nu, Ht)
+
+      ! Okoli & Afshordi (2015; https://arxiv.org/abs/1510.03868) concentration-mass relation
+      ! TODO: Check this carefully
+      ! TODO: What does the +/- term mean in equation (56)?
+      REAL, INTENT(IN) :: nu
+      REAL, INTENT(IN) :: Ht
+      REAL :: y
+
+      y = 0.42+0.2*nu**(-1.23)/Ht          ! Equation (56) (what about the +/- 0.083*nu**(-0.6)?)
+      conc_Okoli = 10.**(0.78*log(y)+1.09) ! Equation (58) (assuming log means log10)
+
+   END FUNCTION conc_Okoli
 
    REAL FUNCTION baryonify_wk(wk, m, hmod, cosm)
 
@@ -7275,7 +7375,6 @@ CONTAINS
       sb = HMcode_sbar(cosm, hmod)
       wkn = wkn*DMONLY_halo_mass_fraction(m, hmod, cosm) ! Account for gas expulsion
       wkn = wkn+sb*m/comoving_matter_density(cosm)       ! Account for star formation
-
       baryonify_wk = wkn
 
    END FUNCTION baryonify_wk
@@ -8871,6 +8970,10 @@ CONTAINS
          ELSE IF (irho == irho_Hernquest) THEN
             y = r/rs
             rho = 1./(y*(1.+y)**3)
+         ELSE IF (irho == irho_Einasto) THEN
+            y = r/rs
+            alpha = p1 ! Shape parameter (~0.13 for nu=1; 0.18 looks like NFW)
+            rho = exp(-(2./alpha)*(y**alpha-1.))
          ELSE IF (irho == irho_Burket) THEN
             y = r/rs
             rho = 1./((1.+y)*(1.+y**2))
