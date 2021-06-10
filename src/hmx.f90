@@ -337,6 +337,9 @@ MODULE HMx
    ! Halo-model stuff that needs to be recalculated for each new z
    TYPE halomod
 
+      ! Number for model used
+      INTEGER :: ihm
+
       ! Redshift and scale factor
       REAL :: z, a
 
@@ -388,8 +391,11 @@ MODULE HMx
       ! Look-up tables
       REAL :: mmin, mmax
       REAL, ALLOCATABLE :: c(:), rv(:), nu(:), sig(:), zc(:), m(:), rr(:), sigf(:), log_m(:)!, mr(:)
-      REAL, ALLOCATABLE :: r500(:), m500(:), c500(:), r200(:), m200(:), c200(:)
-      REAL, ALLOCATABLE :: r500c(:), m500c(:), c500c(:), r200c(:), m200c(:), c200c(:)
+      REAL, ALLOCATABLE :: mvir(:), rvir(:), cvir(:)
+      REAL, ALLOCATABLE :: m500(:), r500(:), c500(:)
+      REAL, ALLOCATABLE :: m200(:), r200(:), c200(:)
+      REAL, ALLOCATABLE :: m500c(:), r500c(:), c500c(:)
+      REAL, ALLOCATABLE :: m200c(:), r200c(:), c200c(:)
       INTEGER :: n
 
       ! Window-function (not used?)
@@ -625,96 +631,94 @@ MODULE HMx
    INTEGER, PARAMETER :: field_haloes = 24
    INTEGER, PARAMETER :: field_n = 24
 
-   ! Halo types
-   ! TODO: Add Hernquest; Burket profiles
-   INTEGER, PARAMETER :: irho_delta = 0
-   INTEGER, PARAMETER :: irho_iso = 1
-   INTEGER, PARAMETER :: irho_tophat = 2
-   INTEGER, PARAMETER :: irho_M99 = 3
-   !INTEGER, PARAMETER :: irho_NFW_num = 4
-   INTEGER, PARAMETER :: irho_Hernquest = 4
-   INTEGER, PARAMETER :: irho_NFW = 5
-   INTEGER, PARAMETER :: irho_beta = 6 ! Cored isothermal beta profile
-   INTEGER, PARAMETER :: irho_star_F14 = 7 ! Star density profile from Fedeli (2014)
-   INTEGER, PARAMETER :: irho_KS02_ST15 = 8 ! Komatsu & Seljak (2002) density but from Schneider & Teyssier (2015) 
-   INTEGER, PARAMETER :: irho_star_ST15 = 9 ! Stellar density from Schneider & Teyssier (2015)
-   INTEGER, PARAMETER :: irho_ejected_ST15 = 10
-   INTEGER, PARAMETER :: irho_KS02s_dens = 11 ! Simplified Komatsu & Seljak (2002) density
-   INTEGER, PARAMETER :: irho_KS02s_temp = 12 ! Simplified Komatsu & Seljak (2002) temperature
-   INTEGER, PARAMETER :: irho_KS02s_pres = 13 ! Simplified Komatsu & Seljak (2002) pressure
-   INTEGER, PARAMETER :: irho_UPP = 14
-   INTEGER, PARAMETER :: irho_beta_Ma15 = 15 ! TODO: Combine with irho_beta
-   INTEGER, PARAMETER :: irho_iso_ext = 16 ! TODO: Combine with irho_iso
-   INTEGER, PARAMETER :: irho_powlaw = 17
-   INTEGER, PARAMETER :: irho_cubic = 18
-   INTEGER, PARAMETER :: irho_smooth = 19
-   INTEGER, PARAMETER :: irho_exp = 20
-   INTEGER, PARAMETER :: irho_KS02_dens = 21
-   INTEGER, PARAMETER :: irho_KS02_temp = 22
-   INTEGER, PARAMETER :: irho_KS02_pres = 23
-   INTEGER, PARAMETER :: irho_NFW_cored = 24
-   INTEGER, PARAMETER :: irho_poly_hole = 25
-   INTEGER, PARAMETER :: irho_NFW_hole = 26
-   INTEGER, PARAMETER :: irho_NFW_mod = 27
-   INTEGER, PARAMETER :: irho_shell = 28
-   INTEGER, PARAMETER :: irho_Burket = 29
-   INTEGER, PARAMETER :: irho_Einasto = 30
+   ! Halo profiles
+   INTEGER, PARAMETER :: irho_delta = 0         ! Delta function
+   INTEGER, PARAMETER :: irho_iso = 1           ! Isothermal
+   INTEGER, PARAMETER :: irho_tophat = 2        ! Spherical top hat
+   INTEGER, PARAMETER :: irho_M99 = 3           ! Moore et al. (1999; ) matter density
+   INTEGER, PARAMETER :: irho_Hernquest = 4     ! Hernquist (????; ) matter density
+   INTEGER, PARAMETER :: irho_NFW = 5           ! Navarro, Frenk & White (1997; NFW; ) matter density
+   INTEGER, PARAMETER :: irho_beta = 6          ! Cored isothermal beta profile
+   INTEGER, PARAMETER :: irho_star_F14 = 7      ! Star density from Fedeli (2014; )
+   INTEGER, PARAMETER :: irho_KS02_ST15 = 8     ! Komatsu & Seljak (2002) density but from Schneider & Teyssier (2015; ) 
+   INTEGER, PARAMETER :: irho_star_ST15 = 9     ! Stellar density from Schneider & Teyssier (2015; )
+   INTEGER, PARAMETER :: irho_ejected_ST15 = 10 ! Ejected gas density from Schneider & Teyssier (2015; )
+   INTEGER, PARAMETER :: irho_KS02s_dens = 11   ! Simplified Komatsu & Seljak (2002; ) density
+   INTEGER, PARAMETER :: irho_KS02s_temp = 12   ! Simplified Komatsu & Seljak (2002; ) temperature
+   INTEGER, PARAMETER :: irho_KS02s_pres = 13   ! Simplified Komatsu & Seljak (2002; ) pressure
+   INTEGER, PARAMETER :: irho_UPP = 14          ! Universal pressure profile from Arnaud et al. (2010; )
+   INTEGER, PARAMETER :: irho_beta_Ma15 = 15    ! TODO: Combine with irho_beta and remove
+   INTEGER, PARAMETER :: irho_iso_ext = 16      ! TODO: Combine with irho_iso and remove
+   INTEGER, PARAMETER :: irho_powlaw = 17       ! Power law
+   INTEGER, PARAMETER :: irho_cubic = 18        ! Cubic (diverges at origin)
+   INTEGER, PARAMETER :: irho_smooth = 19       ! Completely smooth distribution
+   INTEGER, PARAMETER :: irho_exp = 20          ! Exponential profile
+   INTEGER, PARAMETER :: irho_KS02_dens = 21    ! Komatsu & Seljak (2002; ) density
+   INTEGER, PARAMETER :: irho_KS02_temp = 22    ! Komatsu & Seljak (2002; ) temperature
+   INTEGER, PARAMETER :: irho_KS02_pres = 23    ! Komatsu & Seljak (2002; ) pressure
+   INTEGER, PARAMETER :: irho_NFW_cored = 24    ! Cored NFW profile
+   INTEGER, PARAMETER :: irho_poly_hole = 25    ! Polynomial profile with a central hole
+   INTEGER, PARAMETER :: irho_NFW_hole = 26     ! NFW profile with a central hole
+   INTEGER, PARAMETER :: irho_NFW_mod = 27      ! Modified NFW
+   INTEGER, PARAMETER :: irho_shell = 28        ! Shell
+   INTEGER, PARAMETER :: irho_Burket = 29       ! Burket et al. (????; ) matter density
+   INTEGER, PARAMETER :: irho_Einasto = 30      ! Einasto (from Navarro et al. 2004) matter density
 
    ! Halo definitions
-   INTEGER, PARAMETER :: iDv_200 = 1 ! M200
-   INTEGER, PARAMETER :: iDv_Bryan = 2 ! Bryan & Norman fitting function
-   INTEGER, PARAMETER :: iDv_HMcode2016 = 3
-   INTEGER, PARAMETER :: iDv_Mead = 4 ! Mead fitting function
-   INTEGER, PARAMETER :: iDv_SC = 5 ! Spherical-collapse calculation
-   INTEGER, PARAMETER :: iDv_Lagrange = 6 ! Lagrangian radius haloes
-   INTEGER, PARAMETER :: iDv_200c = 7 ! M200c
-   INTEGER, PARAMETER :: iDv_HMcode2015 = 8
-   INTEGER, PARAMETER :: iDv_178 = 9 ! Actually 18pi^2
-   INTEGER, PARAMETER :: iDv_user = 10 ! Specify via the hmod%Dv0 parameter
-   INTEGER, PARAMETER :: iDv_virial = 11
+   INTEGER, PARAMETER :: iDv_200 = 1        ! M200
+   INTEGER, PARAMETER :: iDv_Bryan = 2      ! Bryan & Norman (1998; ) fitting function
+   INTEGER, PARAMETER :: iDv_HMcode2016 = 3 ! Calibrated HMcode relation from Mead et al. (2016; )
+   INTEGER, PARAMETER :: iDv_Mead = 4       ! Mead (2017; ) fitting function
+   INTEGER, PARAMETER :: iDv_SC = 5         ! Spherical-collapse calculation (expensive)
+   INTEGER, PARAMETER :: iDv_Lagrange = 6   ! Lagrangian radius haloes
+   INTEGER, PARAMETER :: iDv_200c = 7       ! M200c
+   INTEGER, PARAMETER :: iDv_HMcode2015 = 8 ! Calibrated HMcode relation from Mead et al. (2015; )
+   INTEGER, PARAMETER :: iDv_178 = 9        ! Actually 18pi^2 ~ 178
+   INTEGER, PARAMETER :: iDv_user = 10      ! Specify via the hmod%Dv0 parameter
+   INTEGER, PARAMETER :: iDv_virial = 11    ! Fitted Delta_vir from Eke, Cole & Frenk (1996; ) 
 
    ! Mass functions
-   INTEGER, PARAMETER :: imf_PS = 1
-   INTEGER, PARAMETER :: imf_ST = 2
-   INTEGER, PARAMETER :: imf_T10_PBS_z = 3 ! Tinker (2010) with PBS bias and z dependent parameters for Dv=200
-   INTEGER, PARAMETER :: imf_delta = 4 ! Delta function mass function
-   INTEGER, PARAMETER :: imf_Jenkins = 5
-   INTEGER, PARAMETER :: imf_Despali = 6
-   INTEGER, PARAMETER :: imf_T08_z = 7 ! Tinker (2008) with z dependent parameters for Dv=200
-   INTEGER, PARAMETER :: imf_Warren = 8
-   INTEGER, PARAMETER :: imf_Reed = 9
-   INTEGER, PARAMETER :: imf_Bhattacharya = 10
-   !INTEGER, PARAMETER :: imf_T10_nobias = 11 ! Tinker (2010) with b=1 forced
-   INTEGER, PARAMETER :: imf_ST2002 = 12 ! Only change q = 0.707 -> 0.75 from 1999 paper
-   INTEGER, PARAMETER :: imf_ST_free = 13 ! Sheth & Tormen form, but with free p and q parameters
-   INTEGER, PARAMETER :: imf_Philcox = 14
-   INTEGER, PARAMETER :: imf_T08 = 15 ! Tinker (2008) with no explicit z dependence
-   INTEGER, PARAMETER :: imf_T10_PBS = 16 ! Tinker (2010) with PBS bias and no explicit z dependence
-   INTEGER, PARAMETER :: imf_T10_cal_z = 17 ! Tinker (2010) with calibrated bias and z dependent parameters for Dv=200
-   INTEGER, PARAMETER :: imf_T10_cal = 18 ! Tinker (2010) with calibrated bias and no explicit z depenendence
-   INTEGER, PARAMETER :: imf_SMT = 19 ! Sheth & Tormen (1999) form but with calibrated halo bias
-   INTEGER, PARAMETER :: imf_Peacock = 20
-   INTEGER, PARAMETER :: imf_Courtin = 21
+   INTEGER, PARAMETER :: imf_PS = 1            ! Press & Schecter (1974; )
+   INTEGER, PARAMETER :: imf_ST = 2            ! Sheth & Tormen (1999; astro-ph/9901122)
+   INTEGER, PARAMETER :: imf_T10_PBS_z = 3     ! Tinker (2010; ) with PBS bias and z dependent parameters calibrated for Dv=200
+   INTEGER, PARAMETER :: imf_delta = 4         ! Delta function mass function
+   INTEGER, PARAMETER :: imf_Jenkins = 5       ! Jenkins et al. (2001; astro-ph/0005260)
+   INTEGER, PARAMETER :: imf_Despali = 6       ! Despali et al. (2016; )
+   INTEGER, PARAMETER :: imf_T08_z = 7         ! Tinker (2008; ) with z dependent parameters calibrated for Dv=200
+   INTEGER, PARAMETER :: imf_Warren = 8        ! Warren et al. (2006; )
+   INTEGER, PARAMETER :: imf_Reed = 9          ! Reed et al. (2007; )
+   INTEGER, PARAMETER :: imf_Bhattacharya = 10 ! Bhattacharya et al. (2011; )
+   INTEGER, PARAMETER :: imf_Courtin = 11      ! Courtin et al. (2011; )
+   INTEGER, PARAMETER :: imf_ST2002 = 12       ! Sheth & Tormen (2002; ), only change q = 0.707 -> 0.75 from 1999 paper
+   INTEGER, PARAMETER :: imf_ST_free = 13      ! Sheth & Tormen form, but with free p and q parameters
+   INTEGER, PARAMETER :: imf_Philcox = 14      ! Philcox et al. (2020; )
+   INTEGER, PARAMETER :: imf_T08 = 15          ! Tinker et al. (2008; ) with no explicit z dependence
+   INTEGER, PARAMETER :: imf_T10_PBS = 16      ! Tinker et al. (2010; ) with PBS bias and no explicit z dependence (same as Tinker 2008 appendix)
+   INTEGER, PARAMETER :: imf_T10_cal_z = 17    ! Tinker et al. (2010; ) with calibrated bias and z dependent parameters for Dv=200
+   INTEGER, PARAMETER :: imf_T10_cal = 18      ! Tinker et al. (2010; ) with calibrated bias and no explicit z depenendence
+   INTEGER, PARAMETER :: imf_SMT = 19          ! Sheth & Tormen (1999; astro-ph/9901122) form but with calibrated halo bias
+   INTEGER, PARAMETER :: imf_Peacock = 20      ! Peacock (2007; )
 
    ! Concentration-mass relations
-   INTEGER, PARAMETER :: iconc_Bullock_full = 1
-   INTEGER, PARAMETER :: iconc_Bullock_simple = 2
-   INTEGER, PARAMETER :: iconc_Duffy_full_200 = 3
-   INTEGER, PARAMETER :: iconc_Duffy_full_vir = 4
-   INTEGER, PARAMETER :: iconc_Duffy_full_200c = 5
-   INTEGER, PARAMETER :: iconc_Duffy_relaxed_200 = 6
-   INTEGER, PARAMETER :: iconc_Duffy_relaxed_vir = 7
-   INTEGER, PARAMETER :: iconc_Duffy_relaxed_200c = 8
-   INTEGER, PARAMETER :: iconc_Child = 9
-   INTEGER, PARAMETER :: iconc_Diemer = 10 ! Diemer & Joyce (2019; https://arxiv.org/abs/1809.07326)
-   INTEGER, PARAMETER :: iconc_Neto_full = 11
-   INTEGER, PARAMETER :: iconc_Neto_relaxed = 12
-   INTEGER, PARAMETER :: iconc_NFW = 13 ! Navarro, Frenk & White (1997)
-   INTEGER, PARAMETER :: iconc_ENS = 14 ! Eke, Navarro & Steinmetz (2001; https://arxiv.org/abs/astro-ph/0012337)
-   INTEGER, PARAMETER :: iconc_Prada = 15 ! Prada et al. (2012; https://arxiv.org/abs/1104.5130)
-   INTEGER, PARAMETER :: iconc_Klypin = 16 ! Klypin et al. (2014; https://arxiv.org/abs/1411.4001)
-   INTEGER, PARAMETER :: iconc_Okoli = 17 ! Okoli & Afshordi (2015; https://arxiv.org/abs/1510.03868)
-   INTEGER, PARAMETER :: iconc_Maccio = 18 ! Maccio et al. (2008; https://arxiv.org/abs/0805.1926)
+   ! TODO: Add Diemer & Kravtsov (2015); Ludlow et al. (2014, 2016)
+   INTEGER, PARAMETER :: iconc_Bullock_full = 1       ! Full relation from Bullock et al. (2001; ) for Mvir
+   INTEGER, PARAMETER :: iconc_Bullock_simple = 2     ! Simple relation from Bullock et al. (2001; ) for Mvir
+   INTEGER, PARAMETER :: iconc_Duffy_full_200 = 3     ! Duffy et al. (2008; ) for full halo sample with M200
+   INTEGER, PARAMETER :: iconc_Duffy_full_vir = 4     ! Duffy et al. (2008; ) for full halo sample with Mvir
+   INTEGER, PARAMETER :: iconc_Duffy_full_200c = 5    ! Duffy et al. (2008; ) for full halo sample with M200c
+   INTEGER, PARAMETER :: iconc_Duffy_relaxed_200 = 6  ! Duffy et al. (2008; ) for relaxed halo subsample with M200
+   INTEGER, PARAMETER :: iconc_Duffy_relaxed_vir = 7  ! Duffy et al. (2008; ) for relaxed halo subsample with Mvir
+   INTEGER, PARAMETER :: iconc_Duffy_relaxed_200c = 8 ! Duffy et al. (2008; ) for relaxed halo subsample with M200c
+   INTEGER, PARAMETER :: iconc_Child = 9              ! Child et al. (2018; ) for M200c
+   INTEGER, PARAMETER :: iconc_Diemer = 10            ! Diemer & Joyce (2019; https://arxiv.org/abs/1809.07326) for M200c
+   INTEGER, PARAMETER :: iconc_Neto_full = 11         ! Neto et al. (2007; ) for full halo sample fir M200c
+   INTEGER, PARAMETER :: iconc_Neto_relaxed = 12      ! Neto et al. (2007; ) for relaxed halo subsample for M200c
+   INTEGER, PARAMETER :: iconc_NFW = 13               ! Navarro, Frenk & White (1997; https://arxiv.org/abs/astro-ph/9611107) for M200c
+   INTEGER, PARAMETER :: iconc_ENS = 14               ! Eke, Navarro & Steinmetz (2001; https://arxiv.org/abs/astro-ph/0012337) for Mvir
+   INTEGER, PARAMETER :: iconc_Prada = 15             ! Prada et al. (2012; https://arxiv.org/abs/1104.5130) for M200c
+   INTEGER, PARAMETER :: iconc_Klypin = 16            ! Klypin et al. (2014; https://arxiv.org/abs/1411.4001) for M200c
+   INTEGER, PARAMETER :: iconc_Okoli = 17             ! Okoli & Afshordi (2015; https://arxiv.org/abs/1510.03868) for M200c
+   INTEGER, PARAMETER :: iconc_Maccio = 18            ! Maccio et al. (2008; https://arxiv.org/abs/0805.1926) for Mvir
 
    ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
@@ -1441,7 +1445,7 @@ CONTAINS
       ! NFW core radius
       hmod%rcore = 0.1
 
-      ! Sheth & Tormen (1999) mass function parameters
+      ! Sheth & Tormen mass function parameters
       hmod%ST_p = 0.3
       hmod%ST_q = 0.707 ! 0.75 is proposed in Sheth & Tormen (2002)
 
@@ -1490,6 +1494,7 @@ CONTAINS
          WRITE (*, *)
       END IF
 
+      hmod%ihm = ihm
       IF (is_in_array(ihm, [1, 7, 15, 28, 31, 50, 51, 53, 64, 66, 92, 95])) THEN
          !  1 - HMcode (2016)
          !  7 - HMcode (2015)
@@ -1996,7 +2001,8 @@ CONTAINS
          hmod%Astar = 0.             ! No stars
          hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
          hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
-      ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, 60, 61, 62, 63, 65, 81, 82, 83, 84, 85, 86])) THEN
+      ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, 62, 63, 65, 81, 82, 83, 84, 85, 86, &
+         HMx2020_matter_w_temp_scaling, HMx2020_matter_pressure_w_temp_scaling])) THEN
          ! HMx2020: Baseline
          hmod%response_baseline = HMcode2016 ! Model should be calculated as a response
          hmod%halo_central_stars = 3   ! 3 - Delta function for central stars
@@ -2030,9 +2036,7 @@ CONTAINS
             hmod%Astarz = -0.00818
             hmod%eta = -0.35052
             hmod%mstarz = -0.30727
-         ELSE IF (ihm == 59 &
-                  .OR. ihm == HMx2020_matter_w_temp_scaling &
-                  .OR. ihm == HMx2020_matter_pressure_w_temp_scaling) THEN      
+         ELSE IF (is_in_array(ihm, [59, HMx2020_matter_w_temp_scaling, HMx2020_matter_pressure_w_temp_scaling])) THEN
             ! 59 - HMx2020 with temperature scaling that fits stars
             ! 60 - HMx2020 with temperature scaling that fits matter (stars fixed)
             ! 61 - HMx2020 with temperature scaling that fits matter, pressure (stars fixed)
@@ -2225,8 +2229,10 @@ CONTAINS
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
-         hmod%iDv = iDv_178
+         ! NOTE: Not obvious how to convert FoF 0.2 to a spherical overdensity
+         hmod%iDv = iDv_200
          hmod%imf = imf_Jenkins
+         hmod%iconc = iconc_Duffy_full_200
       ELSE IF (ihm == 87) THEN
          ! Despali et al. (2016) mass function; virial definition
          hmod%imf = imf_Despali
@@ -2437,7 +2443,7 @@ CONTAINS
       hmod%nu = hmod%dc/hmod%sig
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: M, R, rv, sigma, nu tables filled'
-      IF (hmod%nu(1) > 1.) WRITE(*, *) 'INIT_HALOMOD: WARNING: lowest nu value stored is greater than unity, z:', real(hmod%z)
+      IF (hmod%nu(1) > 1.) WRITE(*, *) 'INIT_HALOMOD: WARNING: lowest nu value stored is greater than unity, z =', real(hmod%z), 'ihm =', hmod%ihm
 
       ! For spectra with finite variance we have cut-off masses etc.
       IF(cosm%warm) THEN
@@ -2586,23 +2592,23 @@ CONTAINS
          ! Mass function
          IF (is_in_array(hmod%imf, [imf_ST, imf_ST2002, imf_SMT, imf_Despali, imf_Courtin]) .AND. &
             is_in_array(hmod%iDv, [iDv_200, iDv_200c, iDv_178])) THEN
-            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial halo mass function with a fixed halo definition'
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial halo mass function with a fixed halo definition: ihm =', hmod%ihm
          END IF
 
          ! Concentration
          IF (is_in_array(hmod%iconc, [iconc_Bullock_full, iconc_Bullock_simple, iconc_Duffy_full_vir, iconc_Duffy_relaxed_vir, &
             iconc_ENS, iconc_Maccio]) .AND. &
             is_in_array(hmod%iDv, [iDv_200, iDv_200c, iDv_178])) THEN
-            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial c(M) relation with a fixed halo definition'
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial c(M) relation with a fixed halo definition: ihm =', hmod%ihm
          END IF
          IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200, iconc_Duffy_relaxed_200]) .AND. &
             .NOT. is_in_array(hmod%iDv, [iDv_200])) THEN
-            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200 c(M) relation without a M200 halo definition'
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200 c(M) relation without a M200 halo definition: ihm =', hmod%ihm
          END IF
          IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200c, iconc_Duffy_relaxed_200c, iconc_Child, iconc_Diemer, &
             iconc_Neto_full, iconc_Neto_relaxed, iconc_NFW, iconc_Prada, iconc_Klypin, iconc_Okoli]) .AND. &
             .NOT. is_in_array(hmod%iDv, [iDv_200c])) THEN
-            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200c c(M) relation without a M200c halo definition'
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200c c(M) relation without a M200c halo definition: ihm =', hmod%ihm
          END IF
 
       END IF
@@ -2882,9 +2888,9 @@ CONTAINS
          IF (hmod%itrans == 5) WRITE (*, *) 'HALOMODEL: Experimental smoothed transition 2'
 
          ! Response
-         IF (hmod%response_baseline .NE. 0) THEN
+         IF (hmod%response_baseline /= 0) THEN
             WRITE (*, *) 'HALOMODEL: Halo model is response with baseline:', hmod%response_baseline
-            IF (hmod%response_denominator .NE. 0) THEN
+            IF (hmod%response_denominator /= 0) THEN
                WRITE (*, *) 'HALOMODEL: Response denominator:', hmod%response_denominator
             ELSE
                WRITE (*, *) 'HALOMODEL: Response denominator is DMONLY model'
@@ -5099,9 +5105,9 @@ CONTAINS
       OPEN (8, file=fmass)
       OPEN (9, file=fconc)
       DO i = 1, hmod%n
-         WRITE (7, *) hmod%rv(i), hmod%r200(i), hmod%r500(i), hmod%r200c(i), hmod%r500c(i)
-         WRITE (8, *) hmod%m(i), hmod%m200(i), hmod%m500(i), hmod%m200c(i), hmod%m500c(i)
-         WRITE (9, *) hmod%c(i), hmod%c200(i), hmod%c500(i), hmod%c200c(i), hmod%c500c(i)
+         WRITE (7, *) hmod%rv(i), hmod%r200(i), hmod%r500(i), hmod%r200c(i), hmod%r500c(i), hmod%rvir(i)
+         WRITE (8, *) hmod%m(i),  hmod%m200(i), hmod%m500(i), hmod%m200c(i), hmod%m500c(i), hmod%mvir(i)
+         WRITE (9, *) hmod%c(i),  hmod%c200(i), hmod%c500(i), hmod%c200c(i), hmod%c500c(i), hmod%cvir(i)
       END DO
       CLOSE (7)
       CLOSE (8)
@@ -6173,6 +6179,7 @@ CONTAINS
       ALLOCATE (hmod%log_m(n))
       ALLOCATE (hmod%zc(n), hmod%m(n), hmod%c(n), hmod%rv(n))!, hmod%mr(n))
       ALLOCATE (hmod%nu(n), hmod%rr(n), hmod%sigf(n), hmod%sig(n))
+      ALLOCATE (hmod%mvir(n), hmod%rvir(n), hmod%cvir(n))
       ALLOCATE (hmod%m500(n), hmod%r500(n), hmod%c500(n))
       ALLOCATE (hmod%m500c(n), hmod%r500c(n), hmod%c500c(n))
       ALLOCATE (hmod%m200(n), hmod%r200(n), hmod%c200(n))
@@ -6188,21 +6195,11 @@ CONTAINS
       hmod%sigf = 0.
       hmod%sig = 0.
 
-      hmod%m500 = 0.
-      hmod%r500 = 0.
-      hmod%c500 = 0.
-
-      hmod%m500c = 0.
-      hmod%r500c = 0.
-      hmod%c500c = 0.
-
-      hmod%m200 = 0.
-      hmod%r200 = 0.
-      hmod%c200 = 0.
-
-      hmod%m200c = 0.
-      hmod%r200c = 0.
-      hmod%c200c = 0.
+      hmod%mvir = 0.; hmod%rvir = 0.; hmod%cvir = 0.
+      hmod%m500 = 0.; hmod%r500 = 0.; hmod%c500 = 0.
+      hmod%m200 = 0.; hmod%r200 = 0.; hmod%c200 = 0.
+      hmod%m500c = 0.; hmod%r500c = 0.; hmod%c500c = 0.
+      hmod%m200c = 0.; hmod%r200c = 0.; hmod%c200c = 0.
 
    END SUBROUTINE allocate_halomod
 
@@ -6215,8 +6212,11 @@ CONTAINS
       DEALLOCATE (hmod%log_m)
       DEALLOCATE (hmod%zc, hmod%m, hmod%c, hmod%rv)!, hmod%mr)
       DEALLOCATE (hmod%nu, hmod%rr, hmod%sigf, hmod%sig)
-      DEALLOCATE (hmod%m500, hmod%r500, hmod%c500, hmod%m500c, hmod%r500c, hmod%c500c)
-      DEALLOCATE (hmod%m200, hmod%r200, hmod%c200, hmod%m200c, hmod%r200c, hmod%c200c)
+      DEALLOCATE (hmod%mvir, hmod%rvir, hmod%cvir)
+      DEALLOCATE (hmod%m500, hmod%r500, hmod%c500)
+      DEALLOCATE (hmod%m500c, hmod%r500c, hmod%c500c)
+      DEALLOCATE (hmod%m200, hmod%r200, hmod%c200)
+      DEALLOCATE (hmod%m200c, hmod%r200c, hmod%c200c)
 
    END SUBROUTINE deallocate_halomod
 
@@ -6548,7 +6548,7 @@ CONTAINS
       ! Create look-up tables for conversions between mass definitions
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: rhom, rhoc, Dv, a
+      REAL :: rhom, rhoc, Dvir, a
 
       ! Scale factor
       a = hmod%a
@@ -6559,14 +6559,15 @@ CONTAINS
       IF (hmod%mass_dependent_Dv) THEN
          STOP 'CONVERT_MASS_DEFINITIONS: Error, this does not work for a mass-dependent Delta_v'
       ELSE
-         Dv = Delta_v(M0_Dv_default, hmod, cosm)
+         Dvir = Delta_v(M0_Dv_default, hmod, cosm)
       END IF
 
-      ! Calculate Delta = 200, 500 and Delta_c = 200, 500 quantities
-      CALL convert_mass_definition(hmod%rv, hmod%c, hmod%m, Dv, 1., hmod%r500, hmod%c500, hmod%m500, 500., 1., hmod%n)
-      CALL convert_mass_definition(hmod%rv, hmod%c, hmod%m, Dv, 1., hmod%r200, hmod%c200, hmod%m200, 200., 1., hmod%n)
-      CALL convert_mass_definition(hmod%rv, hmod%c, hmod%m, Dv, rhom, hmod%r500c, hmod%c500c, hmod%m500c, 500., rhoc, hmod%n)
-      CALL convert_mass_definition(hmod%rv, hmod%c, hmod%m, Dv, rhom, hmod%r200c, hmod%c200c, hmod%m200c, 200., rhoc, hmod%n)
+      ! Calculate Delta = 200, vir, 500 and Delta_c = 200, 500 quantities
+      CALL convert_mass_definition(hmod%rv, hmod%c, hmod%m, hmod%Dv, rhom, hmod%rvir, hmod%cvir, hmod%mvir, Dvir, rhom, hmod%n)
+      CALL convert_mass_definition(hmod%rv, hmod%c, hmod%m, hmod%Dv, rhom, hmod%r500, hmod%c500, hmod%m500, 500., rhom, hmod%n)
+      CALL convert_mass_definition(hmod%rv, hmod%c, hmod%m, hmod%Dv, rhom, hmod%r200, hmod%c200, hmod%m200, 200., rhom, hmod%n)
+      CALL convert_mass_definition(hmod%rv, hmod%c, hmod%m, hmod%Dv, rhom, hmod%r500c, hmod%c500c, hmod%m500c, 500., rhoc, hmod%n)
+      CALL convert_mass_definition(hmod%rv, hmod%c, hmod%m, hmod%Dv, rhom, hmod%r200c, hmod%c200c, hmod%m200c, 200., rhoc, hmod%n)
 
       hmod%has_mass_conversions = .TRUE.
 
@@ -6575,6 +6576,7 @@ CONTAINS
    SUBROUTINE convert_mass_definition(r1, c1, m1, D1, rho1, r2, c2, m2, D2, rho2, n)
 
       ! Converts mass definition from Delta_1 rho_1 overdense to Delta_2 rho_2 overdense
+      ! TODO: Use more efficient root finding (e.g., gradient method)
       USE root_finding
       INTEGER, INTENT(IN) :: n   ! Number of entries in tables
       REAL, INTENT(IN) :: r1(n)  ! Array of initial virial radii [Mpc/h]
@@ -6627,7 +6629,8 @@ CONTAINS
             !f(j)=r1(i)**2*rho1*D1-r(j)**2*rho2*D2 ! Isothemral sphere
          END DO
 
-         ! First find the radius R | f(R)=0; I am fairly certain that I can use log on 'r' here
+         ! First find the radius R | f(R)=0
+         ! TODO: Improve root-finding scheme
          r2(i) = exp(solve_find(log(r), f))
 
          ! Now do the concentration and mass conversions
@@ -6912,71 +6915,83 @@ CONTAINS
 
    SUBROUTINE fill_conc_NFW(hmod, cosm)
 
+      ! Navarro, Frenk & White (1997; https://arxiv.org/abs/astro-ph/9611107) concentration-mass relation
       ! TODO: Check this carefully, the concentration seems too high
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: i
-      REAL :: a, z, gc, ac, ds, rhoc, M, rv
+      REAL :: a, z, gc, ac, ds, rhoc, M, rv!, rhom
       REAL :: c1, c2, f1, f2, cnew, a1, a0
       REAL, PARAMETER :: f = 0.01
+      REAL, PARAMETER :: A_NFW = 3e3 ! Or 3.41e3 for LCDM from Table 1?
       INTEGER, PARAMETER :: c1_init = 4.
       INTEGER, PARAMETER :: c2_init = 5.
-      REAL, PARAMETER :: acc_root = 1e-3
+      REAL, PARAMETER :: acc = 1e-6
+
+      WRITE(*, *) 'FILL_CONC_NFW: WARNING: Check this carefully, halo concentrations seem too high'
 
       ! Redshift and scale factor
       z = hmod%z; a = hmod%a; rhoc = comoving_critical_density(a, cosm)
+      !rhom = comoving_matter_density(cosm)
 
       ! Loop over all halo masses
-      DO i = 1, hmod%n
+      c1 = c1_init; c2 = c2_init
+      DO i = hmod%n, 1, -1
 
          ! Collape redshift (assumes that delta_c does not evolve appreciable with redshift)
          hmod%sigf(i) = sigma(f*hmod%rr(i), a, hmod%flag_sigma, cosm) ! Variance corresponding to collapse fraction
          gc = grow(a, cosm)/(1.+(0.477/hmod%dc)*sqrt(2.*(hmod%sigf(i)**2-hmod%sig(i)**2))) ! Equation (A5)-ish
          ac = inverse_interpolator(gc, cosm%grow) ! Have calculated g(zc) so need to invert this to get zc
          hmod%zc(i) = redshift_a(ac) ! Redshift from scale factor
-         ds = 3e3*Omega_m(a, cosm)*((1.+hmod%zc(i))/(1.+z))**3 ! Equation (A20) to calculate NFW proportionality constant
+         ds = A_NFW*Omega_m(a, cosm)*((1.+hmod%zc(i))/(1.+z))**3 ! Equation (A20) to calculate NFW proportionality constant
+         !ds = A_NFW*((1.+hmod%zc(i))/(1.+z))**3
          M = hmod%M(i)
          rv = hmod%rv(i)
+         !WRITE(*, *) i, log10(M), hmod%zc(i)
 
          ! Now need to invert the relation between the proportionality constant and concentration
-         c1 = c1_init; c2 = c2_init
          f1 = NFW_rhos(M, rv, rv/c1)/rhoc-ds; f2 = NFW_rhos(M, rv, rv/c2)/rhoc-ds
+         !f1 = NFW_rhos(M, rv, rv/c1)/rhom-ds; f2 = NFW_rhos(M, rv, rv/c2)/rhom-ds
          DO
-            IF ((min(abs(f1), abs(f2))) <= acc_root) EXIT
+            IF ((min(abs(f1), abs(f2))) <= acc) EXIT
             CALL fix_polynomial(a1, a0, [c1, c2], [f1, f2])
             cnew = -a0/a1 ! x intercept
             IF (abs(f1) < abs(f2)) THEN
                c2 = cnew; f2 = NFW_rhos(M, rv, rv/c2)/rhoc-ds ! Guess 1 was better, so replace 2...
+               !c2 = cnew; f2 = NFW_rhos(M, rv, rv/c2)/rhom-ds ! Guess 1 was better, so replace 2...
             ELSE
                c1 = cnew; f1 = NFW_rhos(M, rv, rv/c1)/rhoc-ds ! ...otherwise guess 2 was better, so replace 1
+               !c1 = cnew; f1 = NFW_rhos(M, rv, rv/c1)/rhom-ds ! ...otherwise guess 2 was better, so replace 1
             END IF
          END DO
-         IF (abs(f1) <= acc_root) THEN
+         IF (abs(f1) <= acc) THEN
             hmod%c(i) = c1
          ELSE
             hmod%c(i) = c2
          END IF
 
       END DO
+      !STOP
 
    END SUBROUTINE fill_conc_NFW
 
    SUBROUTINE fill_conc_ENS(hmod, cosm)
 
-      ! Eke, Navarro & Steinmetz (2001; ) concentration-mass relation
-      ! TODO: Check this carefully, the concentration seems too low
-      ! TODO: Could also extract zc from this for hmod%zc
+      ! Eke, Navarro & Steinmetz (2001; https://arxiv.org/abs/astro-ph/0012337) concentration-mass relation
+      ! TODO: Check redshift evolution
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       INTEGER :: i
-      REAL :: rv, M, c1, c2, f1, f2, a1, a0, cnew
+      REAL :: rv, M, c1, c2, f1, f2, a1, a0, cnew, ac
       REAL, PARAMETER :: c1_init = 4.
       REAL, PARAMETER :: c2_init = 5.
       REAL, PARAMETER :: acc = 1e-3 ! Does not need to be very accurate
 
+      WRITE(*, *) 'FILL_CONC_ENS: WARNING: Check this more carefully, particularly z evolution'
+
+      ! Root finding for c(M)
       c1 = c1_init; c2 = c2_init
       DO i = hmod%n, 1, -1
-
          rv = hmod%rv(i)
          M = hmod%M(i)
          f1 = ENS_function(c1, rv, M, hmod, cosm)-c1; f2 = ENS_function(c2, rv, M, hmod, cosm)-c2
@@ -6990,16 +7005,63 @@ CONTAINS
                c1 = cnew; f1 = ENS_function(c1, rv, M, hmod, cosm)-c1
             END IF
          END DO
-
          IF (abs(f1) <= acc) THEN
             hmod%c(i) = c1
          ELSE
             hmod%c(i) = c2
          END IF
-
+         ! Re-calculate collapse redshift for the correct (root-found) c(M)
+         ! Wasteful because this has been calculated previously
+         ac = ENS_collapse_a(hmod%c(i), rv, M, hmod, cosm) 
+         hmod%zc(i) = redshift_a(ac)
       END DO
 
    END SUBROUTINE fill_conc_ENS
+
+   REAL FUNCTION ENS_function(c, rv, M, hmod, cosm)
+
+      ! The concentration of an ENS halo
+      REAL, INTENT(IN) :: c
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: M
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: a, ac, Dv_ratio
+
+      a = hmod%a                                                  ! Current scale factor
+      ac = ENS_collapse_a(c, rv, M, hmod, cosm)                   ! Collapse scale factor
+      Dv_ratio = Dv_BryanNorman(ac, cosm)/Dv_BryanNorman(a, cosm) ! Note collapse 'a' in numerator
+      ENS_function = (a/ac)*cbrt(Dv_ratio)                        ! Compute the c(M) according to ENS
+
+   END FUNCTION ENS_function
+
+   REAL FUNCTION ENS_collapse_a(c, rv, M, hmod, cosm)
+
+      ! Collapse scale factor of an ENS-concentrated NFW halo (equation 13)
+      ! NOTE: This can be greater than the current scale factor for very (unrealistically) high-mass haloes
+      REAL, INTENT(IN) :: c
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: M
+      TYPE(halomod), INTENT(IN) :: hmod
+      TYPE(cosmology), INTENT(INOUT) :: cosm
+      REAL :: rs, a, Ms, sigeff, gc, ac
+      REAL, PARAMETER :: fs = 2.17  ! r = 2.17rs at maximum circular-velocity radius (apparently)
+      REAL, PARAMETER :: Csig = 28. ! Single fitted ENS parameter
+      LOGICAL, PARAMETER :: allow_future_collapse = .FALSE.
+
+      rs = rv/c                                            ! Halo scale radius [Mpc/h]
+      a = hmod%a                                           ! Scale factor
+      Ms = M*NFW_enclosed_mass_fraction(fs*rs, rv, rs)     ! Mass enclosed by NFW at maximum-circular-velocity radius [Msun/h]
+      sigeff = sigma_eff_ENS(Ms, hmod, cosm)/grow(a, cosm) ! sigma_eff(M) always at z=0 in ENS paper, so divide by growth
+      gc = 1./(Csig*sigeff)                                ! Growth factor at collapse
+      ac = inverse_interpolator(gc, cosm%grow)             ! Invert growth to get collapse scale factor
+      IF ((.NOT. allow_future_collapse) .AND. ac > a) THEN
+         ENS_collapse_a = a
+      ELSE
+         ENS_collapse_a = ac
+      END IF
+
+   END FUNCTION ENS_collapse_a
 
    REAL FUNCTION sigma_eff_ENS(M, hmod, cosm)
 
@@ -7017,31 +7079,6 @@ CONTAINS
       sigma_eff_ENS = -sig*dsig ! Careful with minus sign
 
    END FUNCTION sigma_eff_ENS
-
-   REAL FUNCTION ENS_function(c, rv, M, hmod, cosm)
-
-      ! Long ENS function that arises in calculating c(M)
-      ! If cc = c then this will be converged and that c value will be correct for this rv
-      REAL, INTENT(IN) :: c
-      REAL, INTENT(IN) :: rv
-      REAL, INTENT(IN) :: M
-      TYPE(halomod), INTENT(IN) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: a, rs, Ms, sigeff, gc, ac, Dv_ratio, Om_ratio
-      REAL, PARAMETER :: fs = 2.17  ! r = 2.17rs at maximum circular-velocity radius (apparently)
-      REAL, PARAMETER :: Csig = 28. ! Single fitted ENS parameter
-
-      rs = rv/c ! Scale radius
-      a = hmod%a ! Scale factor
-      Ms = M*NFW_enclosed_mass_fraction(fs*rs, rv, rs) ! Mass enclosed by NFW at maximum-circular-velocity radius
-      sigeff = sigma_eff_ENS(Ms, hmod, cosm)/grow(a, cosm) ! sigma_eff(M) always at z=0 in ENS paper, so divide by growth
-      gc = 1./(Csig*sigeff) ! Growth factor at collapse
-      ac = inverse_interpolator(gc, cosm%grow) ! Invert growth to get collapse
-      Dv_ratio = Dv_BryanNorman(ac, cosm)/Dv_BryanNorman(a, cosm) ! Note collapse 'a' in numerator
-      Om_ratio = Omega_m(ac, cosm)/Omega_m(a, cosm) ! Note collapse 'a' in numerator
-      ENS_function = (a/ac)*cbrt(Dv_ratio/Om_ratio) ! Compute the c(M) according to ENS
-
-   END FUNCTION ENS_function
 
    SUBROUTINE fill_conc_Prada(hmod, cosm)
 
@@ -7273,17 +7310,14 @@ CONTAINS
       REAL :: bigA, bigB, bigC, alpha, n, R, nu, arg
       REAL :: f1, f2, c1, c2, cnew, aa1, aa0
       REAL, PARAMETER :: kappa = 0.42
-      REAL, PARAMETER :: a0 = 2.37
-      REAL, PARAMETER :: a1 = 1.74
-      REAL, PARAMETER :: b0 = 3.39
-      REAL, PARAMETER :: b1 = 1.82
+      REAL, PARAMETER :: a0 = 2.37, a1 = 1.74
+      REAL, PARAMETER :: b0 = 3.39, b1 = 1.82
       REAL, PARAMETER :: ca = 0.20
-      REAL, PARAMETER :: c1_init = 4.
-      REAL, PARAMETER :: c2_init = 5.
-      REAL, PARAMETER :: acc_root = 1e-3
+      REAL, PARAMETER :: c1_init = 4., c2_init = 5.
+      REAL, PARAMETER :: acc = 1e-3
 
       ! Things that are independent of halo mass
-      alpha = growth_rate(hmod%a, cosm) ! Equation (29) strange nomenclature in paper
+      alpha = growth_rate(hmod%a, cosm) ! Equation (29) strange nomenclature in paper: d ln D / d ln a
       bigC = 1.-ca*(1.-alpha)
 
       ! Initial guesses for high-mass halo concentration
@@ -7307,7 +7341,7 @@ CONTAINS
          ! Root finding for c from equation (31)
          f1 = f_Diemer(c1/bigC, n, arg); f2 = f_Diemer(c2/bigC, n, arg)
          DO
-            IF ((min(abs(f1), abs(f2))) <= acc_root) EXIT
+            IF ((min(abs(f1), abs(f2))) <= acc) EXIT
             CALL fix_polynomial(aa1, aa0, [c1, c2], [f1, f2])
             cnew = -aa0/aa1 ! x intercept
             IF (abs(f1) < abs(f2)) THEN
@@ -7317,7 +7351,7 @@ CONTAINS
             END IF
          END DO
 
-         IF (abs(f1) <= acc_root) THEN
+         IF (abs(f1) <= acc) THEN
             hmod%c(i) = c1
          ELSE
             hmod%c(i) = c2
@@ -7329,7 +7363,8 @@ CONTAINS
 
    REAL FUNCTION f_Diemer(x, n, A)
 
-      ! Equation (30) minus the argument of G-inverse from equation (31)
+      ! Equation (30) minus the argument of G-inverse (tilde) from equation (31)
+      ! The value of c, where x = c/C(alpha) is the (hopefully unique) root of this function.
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: n
       REAL, INTENT(IN) :: A
@@ -10163,8 +10198,8 @@ CONTAINS
 
    REAL FUNCTION g_ST(nu, hmod)
 
-      ! Sheth & Tormen (1999) mass function, equation (10) in astro-ph/9901122
-      ! Note I use nu=dc/sigma(M) while Sheth & Tormen (1999) use nu=(dc/sigma)^2
+      ! Sheth & Tormen (1999; ST; astro-ph/9901122) mass function, equation (10)
+      ! Note I use nu=dc/sigma(M) while ST use nu=(dc/sigma)^2
       ! Haloes defined with SO relative to mean matter density with spherical-collapse Delta_v relation
       ! A redshift dependent delta_c is used for barrier height, again from spherical collapse
       ! TODO: Implement Taylor expansion for low nu
@@ -10217,7 +10252,7 @@ CONTAINS
 
    REAL FUNCTION g_Jenkins(nu, hmod)
 
-      ! Mass function from astro-ph/0005260
+      ! Jenkins et al. (2001; astro-ph/0005260) mass function
       ! Haloes defined with FoF with b = 0.2
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
@@ -10412,7 +10447,7 @@ CONTAINS
 
    REAL FUNCTION b_ST(nu, hmod)
 
-      ! Sheth & Tormen (1999) halo bias (equation 12 in https://arxiv.org/abs/astro-ph/9901122) from peak-background split
+      ! Sheth & Tormen (1999; https://arxiv.org/abs/astro-ph/9901122) halo bias (equation 12) from peak-background split
       ! Haloes defined with SO relative to mean matter density with spherical-collapse Delta_v relation
       ! A redshift dependent delta_c is used for barrier height, again from spherical-collapse
       REAL, INTENT(IN) :: nu
@@ -10622,7 +10657,7 @@ CONTAINS
 
    REAL FUNCTION b2_ST(nu, hmod)
 
-      ! Sheth & Tormen (1999) second-order bias
+      ! Sheth & Tormen (1999; https://arxiv.org/abs/astro-ph/9901122) second-order bias
       ! Notation follows from Cooray & Sheth (2002) pp 25-26
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(INOUT) :: hmod
