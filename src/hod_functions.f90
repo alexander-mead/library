@@ -139,7 +139,11 @@ MODULE HOD_functions
          IF (hod%ihod == ihod_Zehavi) THEN
             mean_satellites = (M/hod%M1)**hod%alpha
          ELSE IF (hod%ihod == ihod_Zheng) THEN
-            mean_satellites = ((M-hod%M0)/hod%M1)**hod%alpha ! It is stupid that the denominator is not M1-M0
+            IF (M > hmod%M0) THEN
+               mean_satellites = ((M-hod%M0)/hod%M1)**hod%alpha ! It is stupid that the denominator is not M1-M0
+            ELSE
+               mean_satelllites = 0.
+            END IF
          ELSE IF (is_in_array(hod%ihod, [ihod_toy, ihod_toy_int, ihod_toy_noscatter])) THEN
             mean_satellites = (M/hod%Mmin)-1.+eps ! eps to stop negative values
             IF (is_in_array(hod%ihod, [ihod_toy_int, ihod_toy_noscatter])) mean_satellites = floor(mean_satellites)
