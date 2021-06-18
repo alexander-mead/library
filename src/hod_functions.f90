@@ -82,7 +82,7 @@ MODULE HOD_functions
 
       ! Set the statistical models for the distribution of central and satellite galaxies
       hod%stats_cen = stats_Bernoulli
-      hod%stats_sat = stats_Poisson
+      hod%stats_sat = stats_Poisson_central
 
       ! Minimum and maximum halo masses to host a galaxy
       hod%Mmin = Mmin_def
@@ -139,11 +139,9 @@ MODULE HOD_functions
          IF (hod%ihod == ihod_Zehavi) THEN
             mean_satellites = (M/hod%M1)**hod%alpha
          ELSE IF (hod%ihod == ihod_Zheng) THEN
-            IF (M > hod%M0) THEN
-               mean_satellites = ((M-hod%M0)/hod%M1)**hod%alpha ! It is stupid that the denominator is not M1-M0
-            ELSE
-               mean_satellites = 0.
-            END IF
+            ! No satellite galaxies if M < M0
+            ! It is annoying that the denominator is not M1-M0
+            mean_satellites = Heaviside(M-hod%M0)*((M-hod%M0)/hod%M1)**hod%alpha 
          ELSE IF (is_in_array(hod%ihod, [ihod_toy, ihod_toy_int, ihod_toy_noscatter])) THEN
             mean_satellites = (M/hod%Mmin)-1.+eps ! eps to stop negative values
             IF (is_in_array(hod%ihod, [ihod_toy_int, ihod_toy_noscatter])) mean_satellites = floor(mean_satellites)
