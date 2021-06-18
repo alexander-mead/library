@@ -22,8 +22,8 @@ MODULE HOD_functions
    PUBLIC :: variance_galaxies
 
    ! Realisation
-   PUBLIC :: random_number_of_centrals
-   PUBLIC :: random_number_of_satellites
+   !PUBLIC :: random_number_of_centrals
+   !PUBLIC :: random_number_of_satellites
    PUBLIC :: random_number_of_galaxies
 
    ! HOD models
@@ -41,9 +41,10 @@ MODULE HOD_functions
    END TYPE hodmod
 
    ! Statistical models
-   INTEGER, PARAMETER :: stats_delta = 0
-   INTEGER, PARAMETER :: stats_Bernoulli = 1
-   INTEGER, PARAMETER :: stats_Poisson = 2
+   INTEGER, PARAMETER :: stats_delta = 0           ! Delta function statistics
+   INTEGER, PARAMETER :: stats_Bernoulli = 1       ! Bernoulli statistics (central galaxies if only 0 or 1 possible)
+   INTEGER, PARAMETER :: stats_Poisson = 2         ! Poisson statistics (usual for satellite galaxies)
+   INTEGER, PARAMETER :: stats_Poisson_central = 3 ! Modified Poisson via central condition
 
    ! Defaults
    REAL, PARAMETER :: Mmin_def = 1e12
@@ -107,17 +108,15 @@ MODULE HOD_functions
    REAL FUNCTION mean_centrals(M, hod)
 
       ! Mean number of central galaxies in a halo
-      ! Note that this is the mean, not necessarily 0 or 1, but should probably be between 0 and 1
+      ! Note that this is the mean, not necessarily 0 or 1, but should (probably) be between 0 and 1
       REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
       TYPE(hodmod), INTENT(IN) :: hod ! HOD model
 
       IF (between(M, hod%Mmin, hod%Mmax)) THEN
-         IF (hod%ihod == ihod_Zehavi) THEN
-            mean_centrals = Heaviside(M-hod%Mmin, 1.)
-         ELSE IF (hod%ihod == ihod_Zheng) THEN
+         IF (hod%ihod == ihod_Zheng) THEN
             mean_centrals = 0.5*(1.+erf(log10(M/hod%Mmin)/hod%sigma)) ! Weird combination of erf with log10
-         ELSE IF (is_in_array(hod%ihod, [ihod_toy, ihod_toy_int, ihod_toy_noscatter])) THEN
-            mean_centrals = 1.
+         ELSE IF (is_in_array(hod%ihod, [ihod_Zehavi, ihod_toy, ihod_toy_int, ihod_toy_noscatter])) THEN
+            mean_centrals = 1. ! mean_centrals is only ever 0 or 1 in these HOD models
          ELSE
             STOP 'MEAN_CENTRALS: Error, HOD not recognised'
          END IF
@@ -131,18 +130,19 @@ MODULE HOD_functions
 
       ! Mean number of satellite galaxies in a halo
       ! Note that this is not an integer in general
-      REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
-      TYPE(hodmod), INTENT(IN) :: hod ! HOD model
-      REAL, PARAMETER :: eps = eps_sat
+      ! Note that this may be reduced from the expectation from the HOD if the central condition is imposed
+      REAL, INTENT(IN) :: M            ! Halo mass [Msun/h]
+      TYPE(hodmod), INTENT(IN) :: hod  ! HOD model
+      REAL, PARAMETER :: eps = eps_sat ! To stop negative values: TODO: Necessary?
 
       IF (between(M, hod%Mmin, hod%Mmax)) THEN
          IF (hod%ihod == ihod_Zehavi) THEN
             mean_satellites = (M/hod%M1)**hod%alpha
          ELSE IF (hod%ihod == ihod_Zheng) THEN
-            IF (M > hmod%M0) THEN
+            IF (M > hod%M0) THEN
                mean_satellites = ((M-hod%M0)/hod%M1)**hod%alpha ! It is stupid that the denominator is not M1-M0
             ELSE
-               mean_satelllites = 0.
+               mean_satellites = 0.
             END IF
          ELSE IF (is_in_array(hod%ihod, [ihod_toy, ihod_toy_int, ihod_toy_noscatter])) THEN
             mean_satellites = (M/hod%Mmin)-1.+eps ! eps to stop negative values
@@ -153,6 +153,10 @@ MODULE HOD_functions
       ELSE
          mean_satellites = 0.
       END IF
+
+      ! Note very carefully this in this case the mean you get from the standard HOD is *not* the actual mean
+      ! The actual mean is always less; this is very important
+      IF (hod%stats_sat == stats_Poisson_central) mean_satellites = mean_satellites*mean_centrals(M, hod)
 
    END FUNCTION mean_satellites
 
@@ -196,15 +200,21 @@ MODULE HOD_functions
       ! Variance in the number of satellite galaxies in a halo
       REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
       TYPE(hodmod), INTENT(IN) :: hod ! HOD model
-      REAL :: mean
+      REAL :: mean, Nc
 
       mean = mean_satellites(M, hod)
       IF (mean .NE. 0.) THEN
          IF (hod%stats_sat == stats_delta) THEN
             variance_satellites = 0.
          ELSE IF (hod%stats_sat == stats_Poisson) THEN
-            ! Variance for a Poisson distribution is equal to the mean
-            variance_satellites = mean
+            variance_satellites = mean ! Variance for a Poisson distribution is equal to the mean
+         ELSE IF (hod%stats_sat == stats_Poisson_central) THEN
+            Nc = mean_centrals(M, hod)
+            IF (Nc == 0.) THEN
+               variance_satellites = 0.
+            ELSE
+               variance_satellites = mean+(-1.+1./Nc)*mean**2 ! See notes
+            END IF
          ELSE
             STOP 'VARIANCE_SATELLITES: Error, satellite statistics not recognised'
          END IF
@@ -217,7 +227,7 @@ MODULE HOD_functions
    REAL FUNCTION variance_galaxies(M, hod)
 
       ! Variance in the total number of galaxies in a halo
-      ! Ignores possible covariance between the number of centrals and number of satellites
+      ! Ignores any possible covariance between the number of centrals and number of satellites
       REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
       TYPE(hodmod), INTENT(IN) :: hod ! HOD model
 
@@ -225,54 +235,96 @@ MODULE HOD_functions
 
    END FUNCTION variance_galaxies
 
-   INTEGER FUNCTION random_number_of_centrals(M, hod)
+   SUBROUTINE random_number_of_galaxies(Nc, Ns, M, hod)
 
-      ! Draw from the random distribution to get a number of central galaxies in a halo
-      ! This should probably be either 0 or 1
+      ! Draw random numbers of central and satellite galaxies
+      ! This must be done jointly if the central condition is to be imposed
+      INTEGER, INTENT(OUT) :: Nc, Ns  ! Numbers of central and satellite galaxies
       REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
       TYPE(hodmod), INTENT(IN) :: hod ! HOD model
-      REAL :: mean
+      REAL :: mean_c, mean_s
 
-      mean = mean_centrals(M, hod)
+      mean_c = mean_centrals(M, hod)
       IF (hod%stats_cen == stats_delta) THEN
-         random_number_of_centrals = nint(mean)
+         Nc = nint(mean_c)
       ELSE IF (hod%stats_cen == stats_Bernoulli) THEN
-         random_number_of_centrals = random_Bernoulli(mean)
+         Nc = random_Bernoulli(mean_c)
       ELSE
-         STOP 'RANDOM_NUMBER_OF_CENTRALS: Error, central statistics not recognised'
+         STOP 'RANDOM_NUMBER_OF_GALAXIES: Error, central statistics not recognised'
       END IF
 
-   END FUNCTION random_number_of_centrals
-
-   INTEGER FUNCTION random_number_of_satellites(M, hod)
-
-      ! Draw from the random distribution to get a number of satellite galaxies in a halo
-      REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
-      TYPE(hodmod), INTENT(IN) :: hod ! HOD model
-      REAL :: mean
-
-      mean = mean_satellites(M, hod)
+      mean_s = mean_satellites(M, hod)
       IF (hod%stats_sat == stats_delta) THEN
-         random_number_of_satellites = nint(mean)
+         Ns = nint(mean_s)
       ELSE IF (hod%stats_sat == stats_Poisson) THEN
-         random_number_of_satellites = random_Poisson(mean)
+         Ns = random_Poisson(mean_s)
+      ELSE IF (hod%stats_sat == stats_Poisson_central) THEN
+         IF (Nc == 0) THEN
+            Ns = 0 ! Central condition
+         ELSE
+            Ns = random_Poisson(mean_s*mean_c) ! Boost mean here because using Poisson, which is *not* the actual distribution
+         END IF
       ELSE
-         STOP 'RANDOM_NUMBER_OF_SATELLITES: Error, satellite statistics not recognised'
+         STOP 'RANDOM_NUMBER_OF_GALAXIES: Error, satellite statistics not recognised'
       END IF
 
-   END FUNCTION random_number_of_satellites
+   END SUBROUTINE random_number_of_galaxies
 
-   INTEGER FUNCTION random_number_of_galaxies(M, hod)
+   ! INTEGER FUNCTION random_number_of_centrals(M, hod)
 
-      ! Draw from the random distribution to get a total number of galaxies in a halo
-      REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
-      TYPE(hodmod), INTENT(IN) :: hod ! HOD model
-      INTEGER :: Nc, Ns
+   !    ! Draw from the random distribution to get a number of central galaxies in a halo
+   !    ! This should probably be either 0 or 1
+   !    REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
+   !    TYPE(hodmod), INTENT(IN) :: hod ! HOD model
+   !    REAL :: Nc, Ns
 
-      Nc = random_number_of_centrals(M, hod)
-      Ns = random_number_of_satellites(M, hod)
-      random_number_of_galaxies = Nc+Ns
+   !    !mean = mean_centrals(M, hod)
+   !    !IF (hod%stats_cen == stats_delta) THEN
+   !    !   random_number_of_centrals = nint(mean)
+   !    !ELSE IF (hod%stats_cen == stats_Bernoulli) THEN
+   !    !   random_number_of_centrals = random_Bernoulli(mean)
+   !    !ELSE
+   !    !   STOP 'RANDOM_NUMBER_OF_CENTRALS: Error, central statistics not recognised'
+   !    !END IF
+   !    CALL draw_random_number_of_galaxies(Nc, Ns, M, hod)
+   !    random_number_of_satellites = Nc
 
-   END FUNCTION random_number_of_galaxies
+   ! END FUNCTION random_number_of_centrals
+
+   ! INTEGER FUNCTION random_number_of_satellites(M, hod)
+
+   !    ! Draw from the random distribution to get a number of satellite galaxies in a halo
+   !    REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
+   !    TYPE(hodmod), INTENT(IN) :: hod ! HOD model
+   !    REAL :: Nc, Ns
+
+   !    !mean = mean_satellites(M, hod)
+   !    !IF (hod%stats_sat == stats_delta) THEN
+   !    !   random_number_of_satellites = nint(mean)
+   !    !ELSE IF (hod%stats_sat == stats_Poisson) THEN
+   !    !   random_number_of_satellites = random_Poisson(mean)
+   !    !ELSE IF (hod%stats_sat == stats_Poisson_central) THEN
+   !    !   STOP 'RANDOM_NUMBER_OF_SATELLITES: Error, if the central condition is imposed you must jointly draw central and satellite galaxies'
+   !    !ELSE
+   !    !   STOP 'RANDOM_NUMBER_OF_SATELLITES: Error, satellite statistics not recognised'
+   !    !END IF
+   !    CALL draw_random_number_of_galaxies(Nc, Ns, M, hod)
+   !    random_number_of_satellites = Ns
+
+   ! END FUNCTION random_number_of_satellites
+
+   ! INTEGER FUNCTION random_number_of_galaxies(M, hod)
+
+   !    ! Draw from the random distribution to get a total number of galaxies in a halo
+   !    REAL, INTENT(IN) :: M           ! Halo mass [Msun/h]
+   !    TYPE(hodmod), INTENT(IN) :: hod ! HOD model
+   !    INTEGER :: Nc, Ns
+
+   !    !Nc = random_number_of_centrals(M, hod)
+   !    !Ns = random_number_of_satellites(M, hod)
+   !    CALL draw_random_number_of_galaxies(Nc, Ns, M, hod)
+   !    random_number_of_galaxies = Nc+Ns
+
+   ! END FUNCTION random_number_of_galaxies
 
 END MODULE HOD_functions
