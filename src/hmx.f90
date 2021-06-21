@@ -1219,8 +1219,8 @@ CONTAINS
       ! Safeguard against negative terms in cross correlations
       hmod%safe_negative = .FALSE.
 
-      ! HMcode parameter defaults
-      hmod%Dv0 = 200. ! This should really be from the Bryan & Norman formula
+      ! HMcode parameter defaults (should mean no HMcode)
+      hmod%Dv0 = 200. ! Should really be from Bryan & Norman (1998; like ST mass function) but 200 is what I used for 2015 paper
       hmod%Dv1 = 0.
       hmod%dc0 = 1.686
       hmod%dc1 = 0.
@@ -1546,7 +1546,7 @@ CONTAINS
             hmod%f0 = 0.188
             hmod%f1 = 4.29
             hmod%alp0 = 2.93
-            hmod%alp1 = 1.77       
+            hmod%alp1 = 1.77
             hmod%Dvnu = 0.
             hmod%dcnu = 0.
             hmod%flag_sigma = flag_matter
@@ -2127,16 +2127,17 @@ CONTAINS
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
-         hmod%i2hdamp = 3 ! 3 - fdamp for perturbation theory      
+         hmod%i2hdamp = 3 ! 3 - fdamp for perturbation theory
          hmod%idc = 4     ! 4 - delta_c from Mead (2017) fit
          hmod%iDv = iDv_Mead
          hmod%iconc = iconc_Bullock_full
          hmod%iDolag = 3  ! 3 - Dolag c(M) correction with sensible z evolution
          hmod%iAs = 2     ! 2 - Vary c(M) relation prefactor with sigma8 dependence
          hmod%ieta = 3    ! 3 - HMcode 2020 eta bloating
-         hmod%zD = 10.    ! 10 vs 100 makes a difference for EDE-type cosmologies
+         hmod%zD = 10.    ! z=10 vs 100 does make a difference for EDE-type cosmologies
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
+         !hmod%safe_negative = .TRUE. ! Reduce full power to standard sum if one- or two-halo term is negative
          IF (ihm == 123 .OR. ihm == 124 .OR. ihm == 125) THEN
             hmod%mmin = 1e0  ! Reduced lower-mass limit
             hmod%mmax = 1e18 ! Increased upper-mass limit
@@ -2195,7 +2196,7 @@ CONTAINS
                hmod%response_denominator = 125
             ELSE
                STOP
-            END IF         
+            END IF
             hmod%As = 3.44
             hmod%As_T = -0.496
             hmod%Az = -0.0671
@@ -2211,8 +2212,8 @@ CONTAINS
          END IF
          IF (ihm == 104) THEN
             ! 104 - HMx response baryon model
-            hmod%response_baseline = HMcode2020   
-            hmod%HMx_mode = 1              ! 1 - HMcode 2020 scalings with z and T_AGN         
+            hmod%response_baseline = HMcode2020
+            hmod%HMx_mode = 1              ! 1 - HMcode 2020 scalings with z and T_AGN
             hmod%frac_bound_gas = 2        ! 2 - Schneider & Teyssier 2015 baryon fraction
             hmod%frac_stars = 2            ! 2 - Constant fraction of halo in stars
             hmod%frac_central_stars = 1    ! 1 - All stars are central stars
@@ -3749,6 +3750,8 @@ CONTAINS
          IF (hmod%response_baseline .NE. 0) THEN
 
             ! If doing a response then calculate a DMONLY prediction for both the current halomodel and HMcode
+            vars_zero = 0.
+            shots_zero = 0.
             CALL calculate_HMx_ka(dmonly, wk0_base, vars_zero, shots_zero, 1, k(i), pow_li(i), base_2h(i), base_1h(i), base_hm(i), hmod_base, cosm)
             IF (hmod%response_denominator .NE. 0) THEN
                CALL calculate_HMx_ka(dmonly, wk0_den, vars_zero, shots_zero, 1, k(i), pow_li(i), powg_2h(i), powg_1h(i), powg_hm(i), hmod_den, cosm)
@@ -4629,13 +4632,11 @@ CONTAINS
       TYPE(halomod), INTENT(INOUT) :: hmod
       REAL :: alpha, pow, con
 
-      ! alpha is set to one sometimes, which is just the standard halo-model sum of terms
+      ! alpha is set to unity sometimes, which is just the standard halo-model sum of terms
       IF (hmod%itrans == 1 .OR. hmod%itrans == 2 .OR. hmod%itrans == 3 .OR. hmod%itrans == 5) THEN
-
-         ! If either term is less than zero then we need to be careful
+         
+         ! If either term is less than zero then need to be careful
          IF (pow_2h < 0. .OR. pow_1h < 0.) THEN
-
-            ! Either the safe option and just sum the components
             IF (hmod%safe_negative) THEN
                p_hm = pow_2h+pow_1h
             ELSE
@@ -4645,13 +4646,9 @@ CONTAINS
                WRITE (*, *) 'P_HM: One-halo term:', pow_1h
                STOP 'P_HM: Error, either two- or one-halo term negative, which is a problem for smoothed transition'
             END IF
-
          ELSE
-
-            ! Do the standard smoothed transition
             alpha = hmod%HMcode_alpha
-            p_hm = (pow_2h**alpha+pow_1h**alpha)**(1./alpha)
-
+            p_hm = (pow_2h**alpha+pow_1h**alpha)**(1./alpha) ! Smoothed transition
          END IF
 
       ELSE IF (hmod%itrans == 4) THEN
