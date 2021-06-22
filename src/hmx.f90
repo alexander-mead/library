@@ -209,6 +209,7 @@ MODULE HMx
    PUBLIC :: iconc_Klypin
    PUBLIC :: iconc_Okoli
    PUBLIC :: iconc_Maccio
+   PUBLIC :: iconc_Seljak
 
    ! Haloes
    PUBLIC :: irho_delta
@@ -719,6 +720,7 @@ MODULE HMx
    INTEGER, PARAMETER :: iconc_Klypin = 16            ! Klypin et al. (2014; https://arxiv.org/abs/1411.4001) for M200c
    INTEGER, PARAMETER :: iconc_Okoli = 17             ! Okoli & Afshordi (2015; https://arxiv.org/abs/1510.03868) for M200c
    INTEGER, PARAMETER :: iconc_Maccio = 18            ! Maccio et al. (2008; https://arxiv.org/abs/0805.1926) for Mvir
+   INTEGER, PARAMETER :: iconc_Seljak = 19            ! Seljak (2000; https://arxiv.org/abs/astro-ph/0001493) for Mvir
 
    ! Parameters to pass to minimization routines
    INTEGER, PARAMETER :: param_alpha = 1
@@ -969,6 +971,7 @@ CONTAINS
       names(136) = 'Okoli & Afshordi (2015) concentration-mass relation'
       names(137) = 'Maccio et al. (2008) concentration-mass relation'
       names(138) = 'Diemer & Joyce (2019) concentration-mass relation'
+      names(139) = 'Seljak (2000) concentration-mass relation'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2092,6 +2095,8 @@ CONTAINS
          hmod%iconc = iconc_Bullock_simple
       ELSE IF (ihm == 137) THEN
          hmod%iconc = iconc_Maccio
+      ELSE IF (ihm == 139) THEN
+         hmod%iconc = iconc_Seljak
       ELSE IF (ihm == 70) THEN
          ! Standard but with no Dolag correction
          hmod%iDolag = 0
@@ -2598,7 +2603,7 @@ CONTAINS
 
          ! Concentration
          IF (is_in_array(hmod%iconc, [iconc_Bullock_full, iconc_Bullock_simple, iconc_Duffy_full_vir, iconc_Duffy_relaxed_vir, &
-            iconc_ENS, iconc_Maccio]) .AND. &
+            iconc_ENS, iconc_Maccio, iconc_Seljak]) .AND. &
             is_in_array(hmod%iDv, [iDv_200, iDv_200c, iDv_178])) THEN
             WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial c(M) relation with a fixed halo definition: ihm:', hmod%ihm
          END IF
@@ -2734,6 +2739,7 @@ CONTAINS
          IF (hmod%iconc == iconc_Klypin) WRITE(*, *) 'HALOMODEL: Klypin et al. (2014) M200c concentration-mass relation'
          IF (hmod%iconc == iconc_Okoli) WRITE(*, *) 'HALOMODEL: Okoli & Afshordi (2015) M200c concentration-mass relation'
          IF (hmod%iconc == iconc_Maccio) WRITE(*, *) 'HALOMODEL: Maccio et al. (2008) Mvir concentration-mass relation'
+         IF (hmod%iconc == iconc_Seljak) WRITE (*, *) 'HALOMODEL: Seljak (2000) concentration-mass relation'
 
          ! Concentration-mass relation correction
          IF (hmod%iDolag == 0) WRITE (*, *) 'HALOMODEL: No concentration-mass correction for dark energy'
@@ -6769,7 +6775,7 @@ CONTAINS
          ELSE IF (hmod%iconc == iconc_Maccio) THEN
             hmod%c(i) = conc_Maccio(z, hmod%zc(i), cosm)
          ELSE IF (hmod%iconc == iconc_Bullock_simple) THEN
-            hmod%c(i) = conc_Bullock_simple(m, hmod%mnl)
+            hmod%c(i) = conc_Bullock_simple(m, z, hmod%mnl)
          ELSE IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200, iconc_Duffy_full_vir, iconc_Duffy_full_200c, &
             iconc_Duffy_relaxed_200, iconc_Duffy_relaxed_vir, iconc_Duffy_relaxed_200c])) THEN
             hmod%c(i) = conc_Duffy(m, hmod)
@@ -6783,6 +6789,8 @@ CONTAINS
             hmod%c(i) = conc_Klypin(hmod%nu(i))
          ELSE IF (hmod%iconc == iconc_Okoli) THEN
             hmod%c(i) = conc_Okoli(hmod%nu(i), Ht)
+         ELSE IF (hmod%iconc == iconc_Seljak) THEN
+            hmod%c(i) = conc_Seljak(m, z, hmod%mnl)
          END IF
 
          ! Rescale halo concentrations via the 'A' HMcode parameter
@@ -7210,15 +7218,28 @@ CONTAINS
 
    END SUBROUTINE zcoll_Bullock
 
-   REAL FUNCTION conc_Bullock_simple(M, Mstar)
+   REAL FUNCTION conc_Bullock_simple(M, z, Mstar)
 
       ! The simple concentration-mass relation from Bullock et al. (2001; astro-ph/9908159 equation 18)
       REAL, INTENT(IN) :: M     ! Halo mass [Msun/h]
+      REAL, INTENT(IN) :: z     ! Redshift
       REAL, INTENT(IN) :: Mstar ! Pivot mass [Msun/h]
 
-      conc_Bullock_simple = 9.*(M/Mstar)**(-0.13)
+      conc_Bullock_simple = (9./(1.+z))*(M/Mstar)**(-0.13)
 
    END FUNCTION conc_Bullock_simple
+
+   REAL FUNCTION conc_Seljak(M, z, Mstar)
+
+      ! The concentration-mass relation from Seljak (2000) halo model fitted to PD96
+      ! This has exactly the same form as the simple Bullock et al. (2001) relation, just a steeper power
+      REAL, INTENT(IN) :: M     ! Halo mass [Msun/h]
+      REAL, INTENT(IN) :: z     ! Redshift
+      REAL, INTENT(IN) :: Mstar ! Pivot mass [Msun/h]
+
+      conc_Seljak = (9./(1.+z))*(M/Mstar)**(-0.2)
+
+   END FUNCTION conc_Seljak
 
    REAL FUNCTION conc_Neto_full(M)
 
