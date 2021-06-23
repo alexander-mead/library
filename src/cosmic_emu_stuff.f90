@@ -42,7 +42,7 @@ MODULE cosmic_emu_stuff
    REAL, PARAMETER :: kmax_rebin_CosmicEmu = 1.
    !REAL, PARAMETER :: kmax_rebin_CosmicEmu = 2.7 ! This is the maximum
    !REAL, PARAMETER :: kmax_rebin_CosmicEmu = 0.2 ! Perturbation-theory studies
-   INTEGER, PARAMETER :: nk_rebin_CosmicEmu = 128
+   INTEGER, PARAMETER :: nk_rebin_CosmicEmu = 129
    CHARACTER(len=256), PARAMETER :: params_CosmicEmu = 'emu_params.txt'
    CHARACTER(len=256), PARAMETER :: output_CosmicEmu = 'emu_power.dat'
    CHARACTER(len=256), PARAMETER :: exe_CosmicEmu = '/Users/Mead/Physics/CosmicEmu/emu.exe'
@@ -53,7 +53,7 @@ MODULE cosmic_emu_stuff
    ! Franken Emu
    REAL, PARAMETER :: kmin_rebin_FrankenEmu = 1e-2
    REAL, PARAMETER :: kmax_rebin_FrankenEmu = 10.
-   INTEGER, PARAMETER :: nk_rebin_FrankenEmu = 128
+   INTEGER, PARAMETER :: nk_rebin_FrankenEmu = 129
    CHARACTER(len=256), PARAMETER :: params_FrankenEmu = 'emu_params.txt'
    CHARACTER(len=256), PARAMETER :: output_FrankenEmu = 'emu_power.dat'
    CHARACTER(len=256), PARAMETER :: exe_FrankenEmu = '/Users/Mead/Physics/FrankenEmu/emu.exe'
@@ -61,7 +61,7 @@ MODULE cosmic_emu_stuff
    ! Mira Titan
    REAL, PARAMETER :: kmin_rebin_MiraTitan = 1e-2
    REAL, PARAMETER :: kmax_rebin_MiraTitan = 7.
-   INTEGER, PARAMETER :: nk_rebin_MiraTitan = 128
+   INTEGER, PARAMETER :: nk_rebin_MiraTitan = 129
    CHARACTER(len=256), PARAMETER :: params_MiraTitan = 'xstar.dat'
    CHARACTER(len=256), PARAMETER :: output_MiraTitan = 'EMU0.txt'
    CHARACTER(len=256), PARAMETER :: exe_MiraTitan = '/Users/Mead/Physics/MiraTitan/P_tot/emu.exe'
@@ -91,7 +91,7 @@ MODULE cosmic_emu_stuff
    CHARACTER(len=256), PARAMETER :: varbase_NGenHALOFIT = 'Planck2013.Step_ByHand.HighAcc_matterpower'
    REAL, PARAMETER :: kmin_lin_NGenHALOFIT = 1e-3
    REAL, PARAMETER :: kmax_lin_NGenHALOFIT = 1e2
-   INTEGER, PARAMETER :: nk_plin_NGenHALOFIT = 128
+   INTEGER, PARAMETER :: nk_plin_NGenHALOFIT = 129
    REAL, PARAMETER :: As_NGenHALOFIT = 2.14485e-9
    REAL, PARAMETER :: kpiv_noh_default_NGenHALOFIT = 0.05
    REAL, PARAMETER :: eps_kpiv_NGenHALOFIT = 1e-4

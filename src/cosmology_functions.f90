@@ -320,7 +320,7 @@ MODULE cosmology_functions
    ! Dark energy integration and interpolation
    REAL, PARAMETER :: amin_Xde = 1e-4                ! Minimum scale factor for direction integration to get Xde
    REAL, PARAMETER :: amax_Xde = 1.                  ! Maximum scale factor for direction integration to get Xde
-   INTEGER, PARAMETER :: n_Xde = 128                 ! Number of points for Xde interpolation
+   INTEGER, PARAMETER :: n_Xde = 129                 ! Number of points for Xde interpolation
    LOGICAL, PARAMETER :: tabulate_Xde = .TRUE.       ! Tabulate Xde for interpolation
    REAL, PARAMETER :: acc_integration_Xde = acc_cosm ! Accuracy for direct integration of dark energy density
    INTEGER, PARAMETER :: iorder_integration_Xde = 3  ! Polynomial order for time integration
@@ -338,7 +338,7 @@ MODULE cosmology_functions
    ! Distance
    REAL, PARAMETER :: amin_distance = 1e-4               ! Minimum scale factor in look-up table
    REAL, PARAMETER :: amax_distance = 1.                 ! Maximum scale factor in look-up table
-   INTEGER, PARAMETER :: n_distance = 128                ! Number of scale factor entries in look-up table
+   INTEGER, PARAMETER :: n_distance = 129                ! Number of scale factor entries in look-up table
    REAL, PARAMETER :: atay_distance = 1e-5               ! Below this do a Taylor expansion to avoid divergence
    INTEGER, PARAMETER :: iorder_integration_distance = 3 ! Polynomial order for distance integration
    INTEGER, PARAMETER :: iorder_interp_distance = 3      ! Polynomial order for distance interpolation
@@ -348,7 +348,7 @@ MODULE cosmology_functions
    ! Time
    REAL, PARAMETER :: amin_time = 1e-4               ! Minimum scale factor in look-up table
    REAL, PARAMETER :: amax_time = 1.                 ! Maximum scale factor in look-up table
-   INTEGER, PARAMETER :: n_time = 128                ! Number of scale factor entries in look-up table
+   INTEGER, PARAMETER :: n_time = 129                ! Number of scale factor entries in look-up table
    REAL, PARAMETER :: atay_time = 1e-5               ! Below this do a Taylor expansion to avoid divergence
    INTEGER, PARAMETER :: iorder_integration_time = 3 ! Polynomial order for time integration
    INTEGER, PARAMETER :: iorder_interp_time = 3      ! Polynomial order for time interpolation
@@ -375,22 +375,22 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: flag_ucold = 3        ! Flag to get the cold (CDM+baryons) power spectrum with 1+delta = rho_cold/mean_rho_cold
 
    ! Linear power interpolation
-   ! NOTE: In CAMB HMcode different accuracy parameters are used, for example linear interpolation
+   ! NOTE: In CAMB HMcode different accuracy parameters are used: nk_plin = 512, iorder_interp_plin = 1
    LOGICAL, PARAMETER :: interp_all_power = .FALSE.      ! Create interpolators for all linear power spectra, even analytical ones
    REAL, PARAMETER :: kmin_plin = 1e-3                   ! Minimum wavenumber used [h/Mpc]
    REAL, PARAMETER :: kmax_plin = 1e2                    ! Maximum wavenumber used [h/Mpc]
-   INTEGER, PARAMETER :: nk_plin = 128                   ! Number of k points to use
+   INTEGER, PARAMETER :: nk_plin = 129                   ! Number of k points to use
    REAL, PARAMETER :: amin_plin = 0.1                    ! Minimum a value for Pk growth if scale dependent
    REAL, PARAMETER :: amax_plin = 1.0                    ! Maximum a value for Pk growth if scale dependent
-   INTEGER, PARAMETER :: na_plin = 16                    ! Number of a values if growth is scale dependent
-   INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Polynomial order
-   INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in table (only linear if rebinning)
+   INTEGER, PARAMETER :: na_plin = 17                    ! Number of a values if growth is scale dependent
+   INTEGER, PARAMETER :: iorder_interp_plin = 3          ! Polynomial order for interpolation
+   INTEGER, PARAMETER :: ifind_interp_plin = ifind_split ! Finding scheme in interpolation tables (only linear if rebinning)
    INTEGER, PARAMETER :: iinterp_plin = iinterp_Lagrange ! Method for interpolation polynomials
    INTEGER, PARAMETER :: iextrap_plin = iextrap_lin      ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_plin = .TRUE.             ! Pre-calculate interpolation coefficients
 
    ! CAMB interface
-   ! NOTE: rebin_CAMB makes a big difference in comparisons with CAMB HMcode; in CAMB P(k) *is* generally rebinned
+   ! NOTE: rebin_CAMB makes a difference in comparisons with CAMB HMcode; in CAMB P(k) *is* generally rebinned
    REAL, PARAMETER :: pk_min_CAMB = 1e-10                      ! Minimum value of power at low k (remove k with less than this) 
    REAL, PARAMETER :: nmax_CAMB = 2.                           ! How many times more to go than kmax due to inaccuracy near k limit
    CHARACTER(len=256), PARAMETER :: de_CAMB = 'ppf'            ! CAMB dark-energy prescription, either 'ppf' or 'fluid'
@@ -398,6 +398,16 @@ MODULE cosmology_functions
    INTEGER, PARAMETER :: iorder_rebin_CAMB = 3                 ! Polynomial order for interpolation if rebinning P(k)
    INTEGER, PARAMETER :: ifind_rebin_CAMB = ifind_split        ! Finding scheme for interpolation if rebinning P(k) (*definitely* not linear)
    INTEGER, PARAMETER :: iinterp_rebin_CAMB = iinterp_Lagrange ! Interpolation scheme if rebinning P(k)
+
+   ! CAMB interface with CAMB HMcode parameters
+   ! NOTE: These commented-out parameters reflect what is in CAMB, together with nk_plin = 512 and iorder_interp_plin = 1 above
+   !REAL, PARAMETER :: pk_min_CAMB = 1e-10           ! Minimum value of power at low k (remove k with less than this) 
+   !REAL, PARAMETER :: nmax_CAMB = 2.                ! How many times more to go than kmax due to inaccuracy near k limit
+   !CHARACTER(len=256), PARAMETER :: de_CAMB = 'ppf' ! CAMB dark-energy prescription, either 'ppf' or 'fluid'
+   !LOGICAL, PARAMETER :: rebin_CAMB = .TRUE.        ! Should we rebin CAMB or just use default k spacing?
+   !INTEGER, PARAMETER :: iorder_rebin_CAMB = 1      ! Polynomial order for interpolation if rebinning P(k)
+   !INTEGER, PARAMETER :: ifind_rebin_CAMB = 1       ! Finding scheme for interpolation if rebinning P(k) (*definitely* not linear)
+   !INTEGER, PARAMETER :: iinterp_rebin_CAMB = 1     ! Interpolation scheme if rebinning P(k)
 
    ! Cold transfer function methods
    INTEGER, PARAMETER :: iTc_none = 0  ! Assume cold power is indentical to matter
@@ -429,7 +439,7 @@ MODULE cosmology_functions
    ! Wiggle extraction and interpolation
    REAL, PARAMETER :: kmin_wiggle = 5e-3               ! Minimum wavenumber to calulate wiggle [Mpc/h]
    REAL, PARAMETER :: kmax_wiggle = 5.                 ! Maximum wavenumber to calulate wiggle [Mpc/h]
-   INTEGER, PARAMETER :: nk_wiggle = 512               ! Number of k points to store wiggle
+   INTEGER, PARAMETER :: nk_wiggle = 513               ! Number of k points to store wiggle
    LOGICAL, PARAMETER :: store_wiggle = .TRUE.         ! Pre-calculate interpolation coefficients 
    INTEGER, PARAMETER :: iorder_interp_wiggle = 3      ! Order for wiggle interpolator
    INTEGER, PARAMETER :: iextrap_wiggle = iextrap_zero ! Should be zeros because interpolator stores only wiggle
@@ -463,7 +473,7 @@ MODULE cosmology_functions
    ! Growth interpolation
    REAL, PARAMETER :: amin_growth = 1e-3            ! Minimum value to store
    REAL, PARAMETER :: amax_growth = afin_growth     ! Maximum value to store
-   INTEGER, PARAMETER :: na_growth = 128            ! Number of entries for interpolation tables
+   INTEGER, PARAMETER :: na_growth = 129            ! Number of entries for interpolation tables
    INTEGER, PARAMETER :: iorder_interp_grow = 3     ! Polynomial order for growth interpolation
    INTEGER, PARAMETER :: iextrap_grow = iextrap_lin ! Extrapolation scheme
    LOGICAL, PARAMETER :: store_grow = .TRUE.        ! Pre-calculate interpolation coefficients?
@@ -491,10 +501,10 @@ MODULE cosmology_functions
    ! sigma(R) tabulation and interpolation
    REAL, PARAMETER :: rmin_sigma = 1e-4                   ! Minimum r value (NB. sigma(R) needs to be power-law below) [Mpc/h]
    REAL, PARAMETER :: rmax_sigma = 1e3                    ! Maximum r value (NB. sigma(R) needs to be power-law above) [Mpc/h]
-   INTEGER, PARAMETER :: nr_sigma = 128                   ! Number of r entries for sigma(R) tables
+   INTEGER, PARAMETER :: nr_sigma = 129                   ! Number of r entries for sigma(R) tables
    REAL, PARAMETER :: amin_sigma = amin_plin              ! Minimum a value for sigma(R,a) tables when growth is scale dependent
    REAL, PARAMETER :: amax_sigma = amax_plin              ! Maximum a value for sigma(R,a) tables when growth is scale dependent
-   INTEGER, PARAMETER :: na_sigma = 16                    ! Number of a values for sigma(R,a) tables
+   INTEGER, PARAMETER :: na_sigma = 17                    ! Number of a values for sigma(R,a) tables
    INTEGER, PARAMETER :: iorder_interp_sigma = 3          ! Polynomial order for sigma(R) interpolation 
    INTEGER, PARAMETER :: ifind_interp_sigma = ifind_split ! Finding scheme for sigma(R) interpolation (changing to linear not speedy)
    INTEGER, PARAMETER :: sigma_store = flag_ucold         ! Which version of sigma should be tabulated (0 for none)
@@ -521,7 +531,7 @@ MODULE cosmology_functions
    REAL, PARAMETER :: amax_spherical = 2.        ! Maximum scale factor to consider
    REAL, PARAMETER :: dmin_spherical = 1e-7      ! Minimum starting value for perturbation
    REAL, PARAMETER :: dmax_spherical = 1e-3      ! Maximum starting value for perturbation
-   INTEGER, PARAMETER :: m_spherical = 128       ! Number of collapse scale-factors to try to calculate
+   INTEGER, PARAMETER :: m_spherical = 129       ! Number of collapse scale-factors to try to calculate
    INTEGER, PARAMETER :: n_spherical = 100000    ! Number of points for ODE calculations
    REAL, PARAMETER :: dinf_spherical = 1e8       ! Value considered to be 'infinite' for the perturbation
 
@@ -578,7 +588,7 @@ MODULE cosmology_functions
    LOGICAL, PARAMETER :: interp_SPT = .TRUE.       ! Use interpolator for SPT?
    REAL, PARAMETER :: kmin_interpolate_SPT = 5e-3  ! Minimum wavenumber for interpolator [h/Mpc]
    REAL, PARAMETER :: kmax_interpolate_SPT = 0.5   ! Maximum wavenumber for interpolator [h/Mpc]
-   INTEGER, PARAMETER :: nk_interpolate_SPT = 64   ! Number of wavenumber points in interpolator
+   INTEGER, PARAMETER :: nk_interpolate_SPT = 65   ! Number of wavenumber points in interpolator
    INTEGER, PARAMETER :: iorder_interp_SPT = 3     ! Order for interpolation
    INTEGER, PARAMETER :: iextrap_SPT = iextrap_std ! Extrapolation scheme for interpolation
    LOGICAL, PARAMETER :: store_interp_SPT = .TRUE. ! Store coefficients for interpolation?

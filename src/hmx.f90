@@ -500,7 +500,7 @@ MODULE HMx
 
    ! Halo window function integration
    ! NOTE: acc_win governs the speed of calculations with non-analytic halo profile Fourier transforms
-   ! NOTE: It seems that acc_win can be downgraded significantly without impacting accuracy too much
+   ! NOTE: It seems that acc_win can be downgraded significantly without impacting overall accuracy too much
    REAL, PARAMETER :: acc_win = 1e-3           ! Window-function integration accuracy parameter
    INTEGER, PARAMETER :: imeth_win = 12        ! Window-function integration method
    INTEGER, PARAMETER :: winint_order = 3      ! Window-function integration order
@@ -508,7 +508,7 @@ MODULE HMx
    INTEGER, PARAMETER :: nmeth_win = 13        ! Total number of different winint methods
    INTEGER, PARAMETER :: nlim_bumps = 2        ! Do the bumps approximation after this number of bumps
    LOGICAL, PARAMETER :: winint_exit = .FALSE. ! Exit when the contributions to the integral become small
-   LOGICAL, PARAMETER :: analytic_NFW = .TRUE. ! Analytic Fourier Transform for the NFW profile
+   LOGICAL, PARAMETER :: analytic_NFW = .TRUE. ! Analytic Fourier transform for the NFW profile
 
    ! Delta_v
    REAL, PARAMETER :: M0_Dv_default = 1e14 ! If Delta_v is halo-mass dependent (e.g., modified gravity) then write it at this mass
@@ -533,7 +533,7 @@ MODULE HMx
    INTEGER, PARAMETER :: iorder_inversion_rnl = 3                 ! Order for interpolation inversion
    INTEGER, PARAMETER :: ifind_inversion_rnl = ifind_split        ! Finding scheme for table
    INTEGER, PARAMETER :: iinterp_inversion_rnl = iinterp_Lagrange ! Interpolation method
-   LOGICAL, PARAMETER :: rnl_extrap = .FALSE.                     ! Extrapolate to find r_nl or use nu(1)? REVERT
+   LOGICAL, PARAMETER :: rnl_extrap = .FALSE.                     ! Extrapolate to find r_nl or use nu(1)?
 
    ! Voids
    REAL, PARAMETER :: void_underdensity = -1.      ! Void underdensity
@@ -978,7 +978,7 @@ CONTAINS
       ! Default options
       hmod%mmin = 1e7  ! Lower mass limit for integration [Msun/h]
       hmod%mmax = 1e17 ! Upper mass limit for integration [Msun/h]
-      hmod%n = 128     ! Number of points in integration (128 is okay, 1024 is better)
+      hmod%n = 129     ! Number of points in integration (129 is okay, 1025 is better)
       hmod%acc = 1e-4  ! Accuracy for continuous integrals (1e-3 is okay, 1e-4 is better)
 
       ! Small and large values for nu (6 is okay, corrections are suppressed by exp(-large_nu^2)
@@ -1618,7 +1618,7 @@ CONTAINS
             ! CAMB mass range
             hmod%mmin = 1e0
             hmod%mmax = 1e18
-            hmod%n = 256
+            hmod%n = 257
          END IF
       ELSE IF (ihm == 2) THEN
          ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686)
@@ -2154,7 +2154,7 @@ CONTAINS
          IF (ihm == 123 .OR. ihm == 124 .OR. ihm == 125) THEN
             hmod%mmin = 1e0  ! Reduced lower-mass limit
             hmod%mmax = 1e18 ! Increased upper-mass limit
-            hmod%n = 256     ! Increase number of points in mass
+            hmod%n = 257     ! Increase number of points in mass
          END IF
          IF (ihm == 78) THEN
             ! Model 3: 0.00926 for Cosmic Emu
@@ -5223,7 +5223,7 @@ CONTAINS
       INTEGER, ALLOCATABLE :: fields(:)
       REAL, PARAMETER :: rmin = 1e-3  ! Mininum r/rv
       REAL, PARAMETER :: rmax = 1.1e0 ! Maximum r/rv
-      INTEGER, PARAMETER :: n = 512   ! Number of points
+      INTEGER, PARAMETER :: n = 513   ! Number of points
       LOGICAL, PARAMETER :: real_space = .TRUE. ! Real profiles
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: ifind = 3
@@ -5266,7 +5266,7 @@ CONTAINS
       INTEGER, ALLOCATABLE :: fields(:)
       REAL, PARAMETER :: xmin = 1e-1      ! Minimum r/rv
       REAL, PARAMETER :: xmax = 1e2       ! Maximum r/rv
-      INTEGER, PARAMETER :: n = 512       ! Number of points
+      INTEGER, PARAMETER :: n = 513       ! Number of points
       LOGICAL, PARAMETER :: rsp = .FALSE. ! Fourier profiles
       INTEGER, PARAMETER :: iorder = 3
       INTEGER, PARAMETER :: ifind = 3

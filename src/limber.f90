@@ -86,22 +86,22 @@ MODULE Limber
    REAL, PARAMETER :: dr_max = 0.01 ! Small subtraction from maxdist to prevent numerical issues
 
    ! Limber integration parameters
-   INTEGER, PARAMETER  :: n_cont = 1024 ! Number of samples to take in r for Cl ell contribution calculation
+   INTEGER, PARAMETER  :: n_cont = 1025 ! Number of samples to take in r for Cl ell contribution calculation
    REAL, PARAMETER :: lcorr = 0.5       ! 1/2 in LoVerde (2008) Limber correction k(r)=(l+1/2)/f_k(r)
    REAL, PARAMETER :: acc_Limber = 1e-4 ! Accuracy parameter for Limber integration
 
    ! n(z)
    REAL, PARAMETER :: zmin_nz = 0.  ! Minimum redshift for the analytic n(z) tables
    REAL, PARAMETER :: zmax_nz = 2.5 ! Maximum redshift for the analytic n(z) tables
-   INTEGER, PARAMETER :: n_nz = 128 ! Number of entries in the analytic n(z) tables
+   INTEGER, PARAMETER :: n_nz = 129 ! Number of entries in the analytic n(z) tables
    LOGICAL, PARAMETER :: norm_nz = .TRUE. ! Explicitly normalise the input n(z)
 
    ! Projection kernel options
    REAL, PARAMETER :: rmin_kernel = 0.         ! Minimum r for table
-   INTEGER, PARAMETER :: nx_kernel = 128       ! Number of entires in look-up table
+   INTEGER, PARAMETER :: nx_kernel = 129       ! Number of entires in look-up table
    REAL, PARAMETER :: rmin_lensing = 0.        ! Minimum distance in integral
-   INTEGER, PARAMETER :: nX_lensing = 128      ! Number of entries in X(r) table
-   INTEGER, PARAMETER :: nq_efficiency = 128   ! Number of entries in q(r) table
+   INTEGER, PARAMETER :: nX_lensing = 129      ! Number of entries in X(r) table
+   INTEGER, PARAMETER :: nq_efficiency = 129   ! Number of entries in q(r) table
    !INTEGER, PARAMETER :: iorder_efficiency = 1 ! Order for lensing-efficiency integration over n(z)
 
    ! Gravitational waves
@@ -358,7 +358,7 @@ CONTAINS
 
       REAL, PARAMETER :: lmin = 1e1
       REAL, PARAMETER :: lmax = 1e4
-      INTEGER, PARAMETER :: nl = 16 ! Number of ell values to take, from l=1 to l=2**(n-1); 2^15 ~ 32,000
+      INTEGER, PARAMETER :: nl = 17 ! Number of ell values to take, from l=1 to l=2**(n-1); 2^15 ~ 32,000
 
       ! Create log tables to speed up 2D find routine in find_pka
       logk = log(k)
@@ -1806,10 +1806,10 @@ CONTAINS
 
       REAL, PARAMETER :: kmin_xpow = 1e-3 ! Minimum k to calculate P(k); it will be extrapolated below this by Limber
       REAL, PARAMETER :: kmax_xpow = 1e2  ! Maximum k to calculate P(k); it will be extrapolated above this by Limber
-      INTEGER, PARAMETER :: nk_xpow = 256 ! Number of log-spaced k values (used to be 32)
+      INTEGER, PARAMETER :: nk_xpow = 257 ! Number of log-spaced k values (used to be 32)
       REAL, PARAMETER :: amin_xpow = 0.1  ! Minimum scale factor (problems with one-halo term if amin is less than 0.1)
       REAL, PARAMETER :: amax_xpow = 1.0  ! Maximum scale factor
-      INTEGER, PARAMETER :: na_xpow = 16  ! Number of linearly-spaced scale factores
+      INTEGER, PARAMETER :: na_xpow = 17  ! Number of linearly-spaced scale factores
 
       !IF(repeated_entries(ix,n)) STOP 'XPOW: Error, repeated tracers'
       CALL unique_index(ix, nx, iix, nnx, match)

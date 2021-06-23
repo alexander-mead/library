@@ -406,7 +406,7 @@ CONTAINS
 
       INTEGER, PARAMETER :: na = 1
       LOGICAL, PARAMETER :: verbose = .FALSE.
-      INTEGER, PARAMETER :: nk_rebin = 128
+      INTEGER, PARAMETER :: nk_rebin = 129
       INTEGER, PARAMETER :: iorder_rebin = 3
       INTEGER, PARAMETER :: ifind_rebin = 3
       INTEGER, PARAMETER :: iinterp_rebin = 2
