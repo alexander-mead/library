@@ -352,7 +352,7 @@ MODULE HMx
       INTEGER :: flag_sigma
 
       ! Additions
-      LOGICAL :: add_voids, add_variances, add_shotnoise, proper_discrete
+      LOGICAL :: add_voids, add_variances, add_shotnoise, proper_discrete, consistency
 
       ! Spherical collapse parameters
       REAL :: dc, Dv
@@ -985,6 +985,21 @@ CONTAINS
       hmod%small_nu = small_nu
       hmod%large_nu = large_nu
 
+      ! Linear collapse threshold delta_c
+      ! 1 - Fixed 1.686
+      ! 2 - Nakamura & Suto (1997) fitting function
+      ! 3 - HMcode (2016)
+      ! 4 - Mead (2017) fitting function
+      ! 5 - Spherical-collapse calculation
+      ! 6 - HMcode (2015)
+      hmod%idc = 2
+
+      ! Halo virial density relative to background matter
+      hmod%iDv = iDv_Bryan
+
+      ! Enforce consistency between Dv, dc and ingredient choices?
+      hmod%consistency = .TRUE.
+
       ! Two-halo term
       ! 0 - No two-halo term
       ! 1 - Linear theory
@@ -1016,13 +1031,6 @@ CONTAINS
       ! 5 - Fudge from me
       hmod%ibias = 1
 
-      ! One-halo term large-scale damping
-      ! 0 - No damping
-      ! 1 - HMcode (2015, 2016) exponential damping
-      ! 2 - k^4 at large scales
-      ! 3 - HMcode (2020) k^4 at large scales with sigma8 dependence on wavenumber
-      hmod%i1hdamp = 0
-
       ! Halo mass function and bias
       hmod%imf = imf_ST
 
@@ -1032,47 +1040,6 @@ CONTAINS
       ! How to calculate sigma(R); either cold matter (two definitions) or all matter
       hmod%flag_sigma = flag_ucold
 
-      ! Linear collapse threshold delta_c
-      ! 1 - Fixed 1.686
-      ! 2 - Nakamura & Suto (1997) fitting function
-      ! 3 - HMcode (2016)
-      ! 4 - Mead (2017) fitting function
-      ! 5 - Spherical-collapse calculation
-      ! 6 - HMcode (2015)
-      hmod%idc = 2
-
-      ! Virial density relative to background matter
-      hmod%iDv = iDv_Bryan
-
-      ! eta for halo window function
-      ! 0 - No
-      ! 1 - HMcode (2015, 2016)
-      ! 2 - Same as 1 but with sigma_cold dependence
-      ! 3 - HMcode (2020)
-      hmod%ieta = 1
-
-      ! Concentration-mass rescaling
-      ! 0 - No
-      ! 1 - HMcode (2015, 2016)
-      ! 2 - HMcode (2020) with sigma8 dependence
-      hmod%iAs = 0
-
-      ! Two-halo term damping
-      ! 0 - No
-      ! 1 - HMcode (2015)
-      ! 2 - HMcode (2016)
-      ! 3 - HMcode (2020) perturbation theory and exponential damping
-      hmod%i2hdamp = 0
-
-      ! alpha for two- to one-halo transition region
-      ! 0 - No
-      ! 1 - Smoothed transition with alpha
-      ! 2 - ?
-      ! 3 - New HMx transition
-      ! 4 - Tanh transition
-      ! 5 - HMcode (2020) alpha
-      hmod%itrans = 0
-
       ! Use the Dolag et al. (2004; astro-ph/0309771) c(M) correction for dark energy?
       ! 0 - No
       ! 1 - Exactly as in Dolag et al. (2004)
@@ -1080,6 +1047,44 @@ CONTAINS
       ! 3 - Dolag (2004) with redshift dependence
       ! 4 - Dolag (2004) with redshift dependence and neutrinos removed
       hmod%iDolag = 1
+
+      ! HMcode one-halo term large-scale damping
+      ! 0 - No damping
+      ! 1 - HMcode (2015, 2016) exponential damping
+      ! 2 - k^4 at large scales
+      ! 3 - k^4 at large scales but with HMcode (2020) dependence on wavenumber
+      ! 4 - k^2 at large scales
+      ! 5 - k^2 at large scales but with HMcode (2020) dependence on wavenumber
+      hmod%i1hdamp = 0
+
+      ! HMcode eta for halo window function
+      ! 0 - No
+      ! 1 - HMcode (2015, 2016)
+      ! 2 - Same as 1 but with sigma_cold dependence
+      ! 3 - HMcode (2020)
+      hmod%ieta = 1
+
+      ! HMcode concentration-mass rescaling
+      ! 0 - No
+      ! 1 - HMcode (2015, 2016)
+      ! 2 - HMcode (2020) with sigma8 dependence
+      hmod%iAs = 0
+
+      ! HMcode Two-halo term damping
+      ! 0 - No
+      ! 1 - HMcode (2015)
+      ! 2 - HMcode (2016)
+      ! 3 - HMcode (2020) perturbation theory and exponential damping
+      hmod%i2hdamp = 0
+
+      ! HMcode smoothing for two- to one-halo transition region
+      ! 0 - No
+      ! 1 - Smoothed transition with alpha
+      ! 2 - ?
+      ! 3 - New HMx transition
+      ! 4 - Tanh transition
+      ! 5 - HMcode (2020) alpha
+      hmod%itrans = 0
 
       ! How to ensure that we do not have more baryons than Om_b
       ! 1 - Remove excess mass from stars
@@ -1603,10 +1608,10 @@ CONTAINS
             hmod%dcnu = 0. ! Set to zero because not necessary after halo-mass fix
             hmod%DMONLY_neutrino_halo_mass_correction = .TRUE.
          ELSE IF (ihm == 64) THEN
-            ! 64 - HMcode 2016 but with 2020 baryon recipe
+            ! HMcode 2016 but with 2020 baryon recipe
             hmod%DMONLY_baryon_recipe = .TRUE.
          ELSE IF (ihm == 92 .OR. ihm == 95) THEN
-            ! 92, 95 - HMcode (2016) with neutrino halo-mass fix
+            ! HMcode (2016) with neutrino halo-mass fix
             hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Neutrino halo-mass fix
          END IF
          IF (ihm == 51 .OR. ihm == 66 .OR. ihm == 95) THEN
@@ -1618,11 +1623,12 @@ CONTAINS
       ELSE IF (ihm == 2) THEN
          ! Basic halo model with linear two halo term (Delta_v = 200, delta_c = 1.686)
          ! This is what the original HMcode model was based off
-         ! Note that Delta_v = 200 is not consistent with the ST mass function
+         ! Note that Delta_v = 200 is not consistent with the ST mass function or Bullock c(M)
          hmod%ip2h = 1
          hmod%idc = 1
          hmod%iDv = iDv_200
          hmod%iconc = iconc_Bullock_full
+         hmod%consistency = .FALSE.
       ELSE IF (ihm == 3) THEN
          ! Standard halo-model calculation (Seljak 2000)
          ! This is the default, so do nothing here
@@ -1633,9 +1639,11 @@ CONTAINS
          hmod%safe_negative = .TRUE.
       ELSE IF (ihm == 5) THEN
          ! Standard halo-model calculation but with Delta_v = 200 and delta_c = 1.686 fixed and Bullock c(M)
+         ! Note that Delta_v = 200 is inconsistent with ST mass function or Bullock c(M)
          hmod%idc = 1
          hmod%iDv = iDv_200
          hmod%iconc = iconc_Bullock_full
+         hmod%consistency = .FALSE.
       ELSE IF (ihm == 6) THEN
          ! Half-accurate halo-model calculation, inspired by (HMcode 2015, 2016)
          hmod%i1hdamp = 2
@@ -1706,7 +1714,7 @@ CONTAINS
          hmod%response_baseline = HMcode2016
          hmod%alp0 = 3.24
          hmod%alp1 = 1.85
-         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+         ERROR STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
       ELSE IF (ihm == 20) THEN
          ! Standard halo model but as response with HMcode
          hmod%response_baseline = HMcode2016
@@ -1853,7 +1861,7 @@ CONTAINS
             hmod%cstarp = -0.413
             hmod%fhot = 0.0031
          ELSE
-            STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
+            ERROR STOP 'ASSIGN_HALOMOD: ihm specified incorrectly'
          END IF
          hmod%beta = hmod%alpha
          hmod%betap = hmod%alphap
@@ -1929,7 +1937,7 @@ CONTAINS
             hmod%Twhimz = -8.60318989E-02
             hmod%eta = -0.243649304
          ELSE
-            STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
+            ERROR STOP 'ASSIGN_HALOMOD: ihm specified incorrectly'
          END IF
          hmod%beta = hmod%alpha
          hmod%betap = hmod%alphap
@@ -2200,7 +2208,7 @@ CONTAINS
                hmod%response_baseline = HMcode2020_CAMB
                hmod%response_denominator = 125
             ELSE
-               STOP
+               ERROR STOP 'Something went wrong'
             END IF
             hmod%As = 3.44
             hmod%As_T = -0.496
@@ -2349,7 +2357,7 @@ CONTAINS
          ! Neglect galaxy-number variance contribution to one-halo term
          hmod%add_variances = .FALSE.
       ELSE
-         STOP 'ASSIGN_HALOMOD: Error, ihm specified incorrectly'
+         ERROR STOP 'ASSIGN_HALOMOD: ihm specified incorrectly'
       END IF
       hmod%name = names(ihm)
 
@@ -2375,7 +2383,6 @@ CONTAINS
       LOGICAL, PARAMETER :: check_mf = check_mass_function
       LOGICAL, PARAMETER :: calculate_stars = calculate_Omega_stars
       INTEGER, PARAMETER :: flag_sigmaV = flag_matter
-      LOGICAL, PARAMETER :: consistency_checks = .TRUE.
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: Initialising calculation'
 
@@ -2449,7 +2456,11 @@ CONTAINS
       hmod%nu = hmod%dc/hmod%sig
 
       IF (verbose) WRITE (*, *) 'INIT_HALOMOD: M, R, rv, sigma, nu tables filled'
-      IF (hmod%nu(1) > 1.) WRITE(*, *) 'INIT_HALOMOD: WARNING: lowest nu value stored is greater than unity, z =', real(hmod%z), 'ihm:', hmod%ihm
+      IF (hmod%nu(1) > 1.) THEN
+         WRITE(*, *) 'INIT_HALOMOD: WARNING: Lowest nu value stored is greater than unity'
+         WRITE(*, *) 'INIT_HALOMOD: WARNING: z:', real(hmod%z)
+         WRITE(*, *) 'INIT_HALOMOD: WARNING: ihm:', hmod%ihm
+      END IF
 
       ! For spectra with finite variance we have cut-off masses etc.
       IF(cosm%warm) THEN
@@ -2492,10 +2503,10 @@ CONTAINS
          END IF
 
          IF (check_mf) THEN
-            IF (hmod%gmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu) at low end is less than zero'
-            IF (hmod%gmax < glim) STOP 'INIT_HALOMOD: Error, missing g(nu) at high end is less than zero'
-            IF (hmod%gbmin < 0.) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at low end is less than zero'
-            IF (hmod%gbmax < gblim) STOP 'INIT_HALOMOD: Error, missing g(nu)b(nu) at high end is less than zero'
+            IF (hmod%gmin < 0.) ERROR STOP 'INIT_HALOMOD: Missing g(nu) at low end is less than zero'
+            IF (hmod%gmax < glim) ERROR STOP 'INIT_HALOMOD: Missing g(nu) at high end is less than zero'
+            IF (hmod%gbmin < 0.) ERROR STOP 'INIT_HALOMOD: Missing g(nu)b(nu) at low end is less than zero'
+            IF (hmod%gbmax < gblim) ERROR STOP 'INIT_HALOMOD: Missing g(nu)b(nu) at high end is less than zero'
          END IF
 
       END IF
@@ -2580,11 +2591,11 @@ CONTAINS
       END IF
 
       ! Check for second-order halo bias
-      IF (hmod%ibias == 2) STOP 'INIT_HALOMOD: Error, check the second-order halo bias calculation very carefully'
+      IF (hmod%ibias == 2) ERROR STOP 'INIT_HALOMOD: Check the second-order halo bias calculation very carefully'
 
       ! Check that combination of two-halo term and halo bias is valid
       IF ((hmod%ip2h .NE. 2) .AND. is_in_array(hmod%ibias, [3, 4, 5])) THEN
-         STOP 'INIT_HALOMOD: Error, your combination of two-halo term and halo bias is not supported'
+         ERROR STOP 'INIT_HALOMOD: Your combination of two-halo term and halo bias is not supported'
       END IF
 
       ! HOD
@@ -2593,28 +2604,32 @@ CONTAINS
       hmod%hod%Mmax = hmod%mgal_max
 
       ! Halo definition consistency checks
-      IF (consistency_checks) THEN
+      IF (hmod%consistency) THEN
 
          ! Mass function
          IF (is_in_array(hmod%imf, [imf_ST, imf_ST2002, imf_SMT, imf_Despali, imf_Courtin]) .AND. &
             is_in_array(hmod%iDv, [iDv_200, iDv_200c, iDv_178])) THEN
-            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial halo mass function with a fixed halo definition: ihm:', hmod%ihm
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: Using a virial halo mass function with a fixed halo definition'
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: ihm:', hmod%ihm
          END IF
 
          ! Concentration
          IF (is_in_array(hmod%iconc, [iconc_Bullock_full, iconc_Bullock_simple, iconc_Duffy_full_vir, iconc_Duffy_relaxed_vir, &
             iconc_ENS, iconc_Maccio, iconc_Seljak]) .AND. &
             is_in_array(hmod%iDv, [iDv_200, iDv_200c, iDv_178])) THEN
-            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a virial c(M) relation with a fixed halo definition: ihm:', hmod%ihm
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: Using a virial c(M) relation with a fixed halo definition'
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: ihm:', hmod%ihm
          END IF
          IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200, iconc_Duffy_relaxed_200]) .AND. &
             .NOT. is_in_array(hmod%iDv, [iDv_200])) THEN
-            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200 c(M) relation without a M200 halo definition: ihm:', hmod%ihm
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: Using a M200 c(M) relation without a M200 halo definition'
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: ihm:', hmod%ihm
          END IF
          IF (is_in_array(hmod%iconc, [iconc_Duffy_full_200c, iconc_Duffy_relaxed_200c, iconc_Child, iconc_Diemer, &
             iconc_Neto_full, iconc_Neto_relaxed, iconc_NFW, iconc_Prada, iconc_Klypin, iconc_Okoli]) .AND. &
             .NOT. is_in_array(hmod%iDv, [iDv_200c])) THEN
-            WRITE(*, *) 'INIT_HALOMOD: WARNING: You are using a M200c c(M) relation without a M200c halo definition: ihm:', hmod%ihm
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: Using a M200c c(M) relation without a M200c halo definition'
+            WRITE(*, *) 'INIT_HALOMOD: WARNING: ihm:', hmod%ihm
          END IF
 
       END IF
@@ -2860,7 +2875,7 @@ CONTAINS
          ELSE IF (hmod%flag_sigma == flag_matter) THEN
             WRITE (*, *) 'HALOMODEL: Sigma being calculated using total matter'
          ELSE
-            STOP 'HALOMODEL: Error, flag for cold/matter specified incorreclty'
+            ERROR STOP 'HALOMODEL: Flag for cold/matter specified incorreclty'
          END IF
 
          ! eta for halo window function
@@ -2878,8 +2893,10 @@ CONTAINS
          ! Large-scale one-halo term damping function
          IF (hmod%i1hdamp == 0) WRITE (*, *) 'HALOMODEL: No damping in one-halo term at large scales'
          IF (hmod%i1hdamp == 1) WRITE (*, *) 'HALOMODEL: One-halo large-scale damping via an exponential'
-         IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^4 with simple k*'
+         IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^4'
          IF (hmod%i1hdamp == 3) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^4 with parameterised k*'
+         IF (hmod%i1hdamp == 4) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^2'
+         IF (hmod%i1hdamp == 5) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^2 with parameterised k*'
 
          ! Concentration-mass scaling
          IF (hmod%iAs == 0) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
@@ -3023,7 +3040,7 @@ CONTAINS
          ! HMx
          WRITE (*, *) 'HALOMODEL: HMx parameters'
          WRITE (*, *) dashes
-         IF (hmod%HMx_mode == 4) STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+         IF (hmod%HMx_mode == 4) ERROR STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          IF (hmod%HMx_mode == 1) THEN
             WRITE (*, fmt=fmt) 'eps:', HMx_eps(hmod, cosm)
             WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(HMx_M0(hmod, cosm))
@@ -3102,7 +3119,7 @@ CONTAINS
             WRITE (*, fmt=fmt) 'isothermal beta:', HMx_ibeta(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'beta gas frac:', HMx_gbeta(hmod, cosm)
          ELSE
-            STOP 'PRINT_HALOMOD: Something went wrong'
+            ERROR STOP 'PRINT_HALOMOD: Something went wrong'
          END IF
          WRITE (*, *) dashes
 
@@ -3381,7 +3398,7 @@ CONTAINS
       !IF (i == field_halo_14p5_15p0) halo_type = 'Haloes 10^14.5 -> 10^15.0'
       IF (i == field_neutrino) halo_type = 'Neutrino'
       IF (i == field_haloes) halo_type = 'Haloes'
-      IF (halo_type == '') STOP 'HALO_TYPE: Error, i not specified correctly'
+      IF (halo_type == '') ERROR STOP 'HALO_TYPE: i not specified correctly'
 
    END FUNCTION halo_type
 
@@ -3401,7 +3418,7 @@ CONTAINS
       WRITE (*, *) '==============================='
       WRITE (*, *)
 
-      IF (ip < 1 .OR. ip > field_n) STOP 'SET_HALO_TYPE: Error, you have chosen a halo type that does not exist'
+      IF (ip < 1 .OR. ip > field_n) ERROR STOP 'SET_HALO_TYPE: You have chosen a halo type that does not exist'
 
    END SUBROUTINE set_halo_type
 
@@ -3442,7 +3459,7 @@ CONTAINS
          ihm = version
       END IF
 
-      IF(.NOT. is_HMcode(ihm)) STOP 'CALCULATE_HMCODE_FULL: Error, your HMcode version is not recognized'   
+      IF(.NOT. is_HMcode(ihm)) ERROR STOP 'CALCULATE_HMCODE_FULL: HMcode version is not recognized'   
 
       CALL calculate_halomod_full(k, a, pow_li, pow_2h, pow_1h, pow_hm, nk, na, cosm, ihm)
 
@@ -3966,7 +3983,7 @@ CONTAINS
 
       IF (use_quick_matter) THEN
 
-         IF (repeated_entries(fields)) STOP 'INIT_WINDOWS: Error, repeated fields'
+         IF (repeated_entries(fields)) ERROR STOP 'INIT_WINDOWS: Repeated fields'
 
          ! Get the array positions corresponding to all, cdm, gas, stars, (neutrinos) if they exist
          i_all = array_position(field_matter, fields)
@@ -4115,7 +4132,7 @@ CONTAINS
       INTEGER :: i, i_matter, i_gas, i_freegas, i_pressure, i_dmonly, i_neutrino
 
       ! Check for repeated fields
-      IF (repeated_entries(fields)) STOP 'ADD_SMOOTH_COMPONENT_TO_WINDOWS: Error, repeated fields'
+      IF (repeated_entries(fields)) ERROR STOP 'ADD_SMOOTH_COMPONENT_TO_WINDOWS: Repeated fields'
 
       ! If working with DMONLY haloes and an effective neutrino model
       IF (hmod%DMONLY_baryon_recipe) THEN
@@ -4431,12 +4448,12 @@ CONTAINS
          ELSE IF (hmod%ip2h == 7) THEN
             p_2h = pq 
          ELSE
-            STOP 'P_2H: Error, something went wrong with HALOFIT'
+            ERROR STOP 'P_2H: Something went wrong with HALOFIT'
          END IF
 
       ELSE
 
-         STOP 'P_2H: Error, ip2h not specified correclty'
+         ERROR STOP 'P_2H: ip2h not specified correclty'
 
       END IF
 
@@ -4508,7 +4525,7 @@ CONTAINS
          ELSE IF (iorder == 2) THEN
             b = b2_nu(nu, hmod)
          ELSE
-            STOP 'I_2H: Error, ibias order specified incorrectly'
+            ERROR STOP 'I_2H: ibias order specified incorrectly'
          END IF
 
          integrand(i) = g_nu(nu, hmod)*b*rhom*wk(i)/m
@@ -4534,7 +4551,7 @@ CONTAINS
             ! Advised by Schmidt (2016)
             int = int+hmod%gbmin*rhom*wk(1)/hmod%m(1)
          ELSE
-            STOP 'P_2h: Error, i2hcor not specified correctly'
+            ERROR STOP 'P_2h: i2hcor not specified correctly'
          END IF
 
       END IF
@@ -4550,7 +4567,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: m, g, fac, ks, wk0_product, m0, rhom
       REAL :: integrand(hmod%n)
-      INTEGER :: i, n
+      INTEGER :: i, n, pow
       INTEGER, PARAMETER :: iorder_hm = iorder_1halo_integration
       INTEGER, PARAMETER :: iorder_df = iorder_delta
       INTEGER, PARAMETER :: ifind_df = ifind_delta
@@ -4604,18 +4621,25 @@ CONTAINS
                fac = exp(-((k/ks)**2))
             END IF
             p_1h = p_1h*(1.-fac)
-         ELSE IF (hmod%i1hdamp == 2 .OR. hmod%i1hdamp == 3) THEN
-            ! Note that the power here should be 4 because it multiplies Delta^2(k) ~ k^3 at low k (NOT 7)
-            ! Want f(k<<ks) ~ k^4; f(k>>ks) = 1
+         ELSE IF (is_in_array(hmod%i1hdamp, [2, 3, 4, 5])) THEN
+            ! Note that the power here should be 2/4 because it multiplies Delta^2(k) ~ k^3 at low k, resulting in a steep k^5/7 spectrum
+            ! Want f(k<<ks) ~ k^2/4; f(k>>ks) = 1; motivated by mass (and momentum) conservation
             ks = hmod%HMcode_kstar
             IF (ks == 0.) THEN
                fac = 1.
             ELSE
-               fac = (k/ks)**4/(1.+(k/ks)**4)
+               IF (is_in_array(hmod%i1hdamp, [2, 3])) THEN
+                  pow = 4
+               ELSE IF (is_in_array(hmod%i1hdamp, [4, 5])) THEN
+                  pow = 2
+               ELSE
+                  ERROR STOP 'P_1H: i1hdamp not specified correctly'
+               END IF
+               fac = (k/ks)**pow/(1.+(k/ks)**pow)
             END IF
             p_1h = p_1h*fac
          ELSE
-            STOP 'P_1H: Error, i1hdamp not specified correctly'
+            ERROR STOP 'P_1H: i1hdamp not specified correctly'
          END IF
 
          ! Renormalise the one-halo term if that is desirous
@@ -4624,7 +4648,7 @@ CONTAINS
          END IF
 
       ELSE
-         STOP 'P_1H: Error, ip1h in halomod not set correctly'
+         ERROR STOP 'P_1H: ip1h in halomod not set correctly'
       END IF
 
    END FUNCTION p_1h
@@ -4650,7 +4674,7 @@ CONTAINS
                WRITE (*, *) 'P_HM: a:', hmod%a
                WRITE (*, *) 'P_HM: Two-halo term:', pow_2h
                WRITE (*, *) 'P_HM: One-halo term:', pow_1h
-               STOP 'P_HM: Error, either two- or one-halo term negative, which is a problem for smoothed transition'
+               ERROR STOP 'P_HM: Either two- or one-halo term negative, which is a problem for smoothed transition'
             END IF
          ELSE
             alpha = hmod%HMcode_alpha
@@ -4860,7 +4884,7 @@ CONTAINS
             END IF
          ELSE
             IF(snippet_in_string('Bolshoi', base)) THEN
-               STOP 'INIT_BNL: Searching BNL does not work with Bolshoi yet'
+               ERROR STOP 'INIT_BNL: Searching BNL does not work with Bolshoi yet'
             ELSE
                IF (bnl_method == bnl_method_a) THEN
                   snap = nearest_Multidark_snapshot(hmod%a)
@@ -4873,7 +4897,7 @@ CONTAINS
                   CALL calculate_rescaling_parameters(R1, R2, as_MD, s, a_MD, hmod%a, cosm_MD, cosm, irescale, verbose=.FALSE.)
                   snap = nearest_Multidark_snapshot(a_MD)
                ELSE
-                  STOP 'INIT_BNL: Error, bnl_method is specified incorrectly'     
+                  ERROR STOP 'INIT_BNL: bnl_method is specified incorrectly'     
                END IF
             END IF
          END IF
@@ -4936,7 +4960,7 @@ CONTAINS
          ELSE IF (j == 4) THEN
             hmod%Bnl_lownu_lowk = Bnl_interp
          ELSE
-            STOP 'INIT_BNL: Error, something went wrong with init loop'
+            ERROR STOP 'INIT_BNL: Something went wrong with init loop'
          END IF
 
       END DO
@@ -5043,7 +5067,7 @@ CONTAINS
       ELSE IF (hmod%z == 2.0) THEN
          ext = '_z2.0.dat'
       ELSE
-         STOP 'HALO_DIAGNOSTICS: Error, need to make this better with z'
+         ERROR STOP 'HALO_DIAGNOSTICS: Need to make this better with z'
       END IF
 
       mi1 = NINT(log10(m1))
@@ -5091,7 +5115,7 @@ CONTAINS
       ELSE IF (hmod%z == 2.0) THEN
          ext = '_z2.0.dat'
       ELSE
-         STOP 'HALO_DEFINITIONS: Error, need to make this better with z'
+         ERROR STOP 'HALO_DEFINITIONS: Need to make this better with z'
       END IF
 
       fradius = trim(dir)//'/radius'//trim(ext)
@@ -5141,7 +5165,7 @@ CONTAINS
       ELSE IF (hmod%z == 2.0) THEN
          ext = '_z2.0.dat'
       ELSE
-         STOP 'HALO_PROPERTIES: Error, need to make this better with z'
+         ERROR STOP 'HALO_PROPERTIES: Need to make this better with z'
       END IF
 
       output = trim(dir)//'/properties'//trim(ext)
@@ -5311,7 +5335,7 @@ CONTAINS
          delta_c = dc_spherical(a, cosm)
       ELSE
          WRITE (*, *) 'DELTA_C: idc:', hmod%idc
-         STOP 'DELTA_C: Error, idc defined incorrectly'
+         ERROR STOP 'DELTA_C: idc defined incorrectly'
       END IF
 
       ! Massive neutrino dependence
@@ -5360,7 +5384,7 @@ CONTAINS
       ELSE IF (hmod%iDv == iDv_user) THEN
          Delta_v = hmod%Dv0
       ELSE
-         STOP 'DELTA_V: Error, iDv defined incorrectly'
+         ERROR STOP 'DELTA_V: iDv defined incorrectly'
       END IF
 
       ! Massive neutrino dependence
@@ -5397,13 +5421,13 @@ CONTAINS
          !sigv = sigmaV(0., hmod%a, flag_matter, cosm)
          sigv = hmod%sigv
          HMcode_kstar = hmod%ks/sigv
-      ELSE IF(hmod%i1hdamp == 2) THEN
+      ELSE IF(hmod%i1hdamp == 2 .OR. hmod%i1hdamp == 4) THEN
          HMcode_kstar = hmod%ks
-      ELSE IF (hmod%i1hdamp == 3) THEN
+      ELSE IF (hmod%i1hdamp == 3 .OR. hmod%i1hdamp == 5) THEN
          sig8 = sigma(8., hmod%a, flag_ucold, cosm)
          HMcode_kstar = hmod%ks*sig8**hmod%kp
       ELSE
-         STOP 'HMCODE_KSTAR: Error, i1hdamp  specified incorrectly'
+         ERROR STOP 'HMCODE_KSTAR: i1hdamp  specified incorrectly'
       END IF
 
    END FUNCTION HMcode_kstar
@@ -5432,7 +5456,7 @@ CONTAINS
          !sig = sigma(8., hmod%a, flag_matter, cosm)
          HMcode_fdamp = hmod%f0*sig**hmod%f1
       ELSE
-         STOP 'HMcode_FDAMP: Error, i2hdamp defined incorrectly'
+         ERROR STOP 'HMcode_FDAMP: i2hdamp defined incorrectly'
       END IF
 
       ! Catches extreme values of fdamp that occur for ridiculous cosmologies
@@ -5542,7 +5566,7 @@ CONTAINS
          sig = sigma(8., hmod%a, flag_ucold, cosm)
          HMcode_eta = hmod%eta0*sig**hmod%eta1
       ELSE
-         STOP 'HMcode_ETA: Error, ieta defined incorrectly'
+         ERROR STOP 'HMcode_ETA: ieta defined incorrectly'
       END IF
 
    END FUNCTION HMcode_eta
@@ -5572,7 +5596,7 @@ CONTAINS
          END IF
          HMcode_A = (As*(sig**hmod%Ap)+hmod%Ac)*10**(hmod%z*Az)
       ELSE
-         STOP 'HMcode_A: Error, iAs defined incorrectly'
+         ERROR STOP 'HMcode_A: iAs defined incorrectly'
       END IF
 
       ! Now this is divided by 4 so as to be relative to the Bullock base result
@@ -5613,7 +5637,7 @@ CONTAINS
             alphap = HMx2020_Temperature_scaling(hmod%alphap_array, hmod, cosm)
             alphaz = HMx2020_Temperature_scaling(hmod%alphaz_array, hmod, cosm)
          ELSE
-            STOP 'HMx_ALPHA: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_ALPHA: HMx_mode not specified correctly'
          END IF
          Mpiv = pivot_mass(hmod)
          z = hmod%z
@@ -5622,10 +5646,10 @@ CONTAINS
          ELSE IF (is_in_array(hmod%HMx_mode, [5, 6])) THEN
             HMx_alpha = (alpha+z*alphaz)*((m/Mpiv)**alphap)
          ELSE
-            STOP 'HMx_ALPHA: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_ALPHA: HMx_mode not specified correctly'
          END IF
       ELSE IF (hmod%HMx_mode == 4) THEN
-         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+         ERROR STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_alpha
          B = hmod%B_alpha
          C = hmod%C_alpha
@@ -5684,7 +5708,7 @@ CONTAINS
             eps = HMx2020_Temperature_scaling(hmod%eps_array, hmod, cosm)
             epsz = HMx2020_Temperature_scaling(hmod%epsz_array, hmod, cosm)
          ELSE
-            STOP 'HMx_EPS: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_EPS: HMx_mode not specified correctly'
          END IF
          z = hmod%z
          IF(hmod%HMx_mode == 3) THEN
@@ -5692,10 +5716,10 @@ CONTAINS
          ELSE IF(hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
             HMx_eps = eps+z*epsz
          ELSE
-            STOP 'HMx_EPS: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_EPS: HMx_mode not specified correctly'
          END IF 
       ELSE IF (hmod%HMx_mode == 4) THEN
-         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+         ERROR STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_eps
          B = hmod%B_eps
          C = hmod%C_eps
@@ -5729,7 +5753,7 @@ CONTAINS
             eps2 = HMx2020_Temperature_scaling(hmod%eps2_array, hmod, cosm)
             eps2z = HMx2020_Temperature_scaling(hmod%eps2z_array, hmod, cosm)
          ELSE
-            STOP 'HMX_EPS2: Error, something went wrong'
+            ERROR STOP 'HMX_EPS2: Something went wrong'
          END IF        
          z = hmod%z
          HMx_eps2 = eps2+z*eps2z
@@ -5757,7 +5781,7 @@ CONTAINS
             Gammap = HMx2020_Temperature_scaling(hmod%Gammap_array, hmod, cosm)
             Gammaz = HMx2020_Temperature_scaling(hmod%Gammaz_array, hmod, cosm)
          ELSE
-            STOP 'HMx_GAMMA: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_GAMMA: HMx_mode not specified correctly'
          END IF 
          Mpiv = pivot_mass(hmod)
          z = hmod%z
@@ -5766,10 +5790,10 @@ CONTAINS
          ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
             HMx_Gamma = (Gamma+z*Gammaz)*((m/Mpiv)**Gammap)
          ELSE
-            STOP 'HMx_GAMMA: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_GAMMA: HMx_mode not specified correctly'
          END IF
       ELSE IF (hmod%HMx_mode == 4) THEN
-         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+         ERROR STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_Gamma
          B = hmod%B_Gamma
          C = hmod%C_Gamma
@@ -5809,7 +5833,7 @@ CONTAINS
                Zammap = HMx2020_Temperature_scaling(hmod%Zammap_array, hmod, cosm)
                Zammaz = HMx2020_Temperature_scaling(hmod%Zammaz_array, hmod, cosm)
             ELSE
-               STOP 'HMx_GAMMA_PRESSURE: Error, HMx_mode not specified correctly'
+               ERROR STOP 'HMx_GAMMA_PRESSURE: HMx_mode not specified correctly'
             END IF 
             Mpiv = pivot_mass(hmod)
             z = hmod%z
@@ -5818,7 +5842,7 @@ CONTAINS
             ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
                HMx_Zamma = (Zamma+z*Zammaz)*((m/Mpiv)**Zammap)
             ELSE
-               STOP 'HMx_GAMMA_PRESSURE: Error, HMx_mode not specified correctly'
+               ERROR STOP 'HMx_GAMMA_PRESSURE: HMx_mode not specified correctly'
             END IF
          ELSE
             HMx_Zamma = hmod%Zamma
@@ -5848,7 +5872,7 @@ CONTAINS
             M0 = exp(HMx2020_Temperature_scaling(log(hmod%M0_array), hmod, cosm))
             M0z = HMx2020_Temperature_scaling(hmod%M0z_array, hmod, cosm)
          ELSE
-            STOP 'HMx_M0: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_M0: HMx_mode not specified correctly'
          END IF
          z = hmod%z
          IF(hmod%HMx_mode == 3) THEN
@@ -5856,10 +5880,10 @@ CONTAINS
          ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
             HMx_M0 = M0*exp(M0z*z)
          ELSE
-            STOP 'HMx_M0: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_M0: HMx_mode not specified correctly'
          END IF
       ELSE IF (hmod%HMx_mode == 4) THEN
-         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+         ERROR STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_M0
          B = hmod%B_M0
          C = hmod%C_M0
@@ -5891,7 +5915,7 @@ CONTAINS
             Astar = HMx2020_Temperature_scaling(hmod%Astar_array, hmod, cosm)
             Astarz = HMx2020_Temperature_scaling(hmod%Astarz_array, hmod, cosm)      
          ELSE
-            STOP 'HMx_ASTAR: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_ASTAR: HMx_mode not specified correctly'
          END IF
          z = hmod%z
          IF (hmod%HMx_mode == 3) THEN
@@ -5899,10 +5923,10 @@ CONTAINS
          ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
             HMx_Astar = Astar+z*Astarz
          ELSE
-            STOP 'HMx_ASTAR: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_ASTAR: HMx_mode not specified correctly'
          END IF
       ELSE IF (hmod%HMx_mode == 4) THEN
-         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+         ERROR STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_Astar
          B = hmod%B_Astar
          C = hmod%C_Astar
@@ -5933,7 +5957,7 @@ CONTAINS
             Twhim = exp(HMx2020_Temperature_scaling(log(hmod%Twhim_array), hmod, cosm))
             Twhimz = HMx2020_Temperature_scaling(hmod%Twhimz_array, hmod, cosm)
          ELSE
-            STOP 'HMx_TWHIM: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_TWHIM: HMx_mode not specified correctly'
          END IF
          z = hmod%z
          IF (hmod%HMx_mode == 3) THEN
@@ -5942,10 +5966,10 @@ CONTAINS
             !HMx_Twhim = Twhim*(exp(Twhimz)**z)
             HMx_Twhim = Twhim*exp(Twhimz*z)
          ELSE
-            STOP 'HMx_TWHIM: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_TWHIM: HMx_mode not specified correctly'
          END IF
       ELSE IF (hmod%HMx_mode == 4) THEN
-         STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
+         ERROR STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          A = hmod%A_Twhim
          B = hmod%B_Twhim
          C = hmod%C_Twhim
@@ -5979,7 +6003,7 @@ CONTAINS
             cstarp = HMx2020_Temperature_scaling(hmod%cstarp_array, hmod, cosm)
             cstarz = HMx2020_Temperature_scaling(hmod%cstarz_array, hmod, cosm)
          ELSE
-            STOP 'HMx_CSTAR: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_CSTAR: HMx_mode not specified correctly'
          END IF
          Mpiv = pivot_mass(hmod)
          z = hmod%z
@@ -6019,7 +6043,7 @@ CONTAINS
             Mstar = exp(HMx2020_Temperature_scaling(log(hmod%Mstar_array), hmod, cosm))
             Mstarz = HMx2020_Temperature_scaling(hmod%Mstarz_array, hmod, cosm)
          ELSE
-            STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_MSTAR: HMx_mode not specified correctly'
          END IF
          z = hmod%z
          IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4) THEN
@@ -6027,7 +6051,7 @@ CONTAINS
          ELSE IF(hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
             HMx_Mstar = Mstar*exp(Mstarz*z)
          ELSE  
-            STOP 'HMx_MSTAR: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_MSTAR: HMx_mode not specified correctly'
          END IF
       ELSE
          HMx_Mstar = hmod%Mstar
@@ -6078,7 +6102,7 @@ CONTAINS
             eta = HMx2020_Temperature_scaling(hmod%eta_array, hmod, cosm)
             etaz = HMx2020_Temperature_scaling(hmod%etaz_array, hmod, cosm)        
          ELSE
-            STOP 'HMx_ETA: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_ETA: HMx_mode not specified correctly'
          END IF
          z = hmod%z
          IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 4) THEN
@@ -6086,7 +6110,7 @@ CONTAINS
          ELSE IF (hmod%HMx_mode == 5 .OR. hmod%HMx_mode == 6) THEN
             HMx_eta = eta+z*etaz
          ELSE
-            STOP 'HMx_ETA: Error, HMx_mode not specified correctly'
+            ERROR STOP 'HMx_ETA: HMx_mode not specified correctly'
          END IF
       ELSE
          HMx_eta = hmod%eta
@@ -6560,7 +6584,7 @@ CONTAINS
       rhom = comoving_matter_density(cosm)
       rhoc = comoving_critical_density(a, cosm)
       IF (hmod%mass_dependent_Dv) THEN
-         STOP 'CONVERT_MASS_DEFINITIONS: Error, this does not work for a mass-dependent Delta_v'
+         ERROR STOP 'CONVERT_MASS_DEFINITIONS: This does not work for a mass-dependent Delta_v'
       ELSE
          Dvir = Delta_v(M0_Dv_default, hmod, cosm)
       END IF
@@ -6655,7 +6679,6 @@ CONTAINS
       IF (verbose_convert_mass) THEN
          WRITE (*, *) 'CONVERT_MASS_DEFINITION: Done'
          WRITE (*, *)
-         STOP
       END IF
 
    END SUBROUTINE convert_mass_definition
@@ -6846,7 +6869,7 @@ CONTAINS
 
       IF (hmod%iDolag == 5) THEN
 
-         IF (.NOT. allocated(hmod%zc)) STOP 'DOLAG_CORRECTION: Error, this will only work if collapse redshifts have been defined'
+         IF (.NOT. allocated(hmod%zc)) ERROR STOP 'DOLAG_CORRECTION: This will only work if collapse redshifts have been defined'
 
          ! Set the LCDM cosmology
          cosm_LCDM = convert_cosmology(cosm, make_lambda, make_flat, remove_neutrinos=.FALSE.)
@@ -6885,7 +6908,7 @@ CONTAINS
             ELSE IF (hmod%iDolag == 4) THEN
                remove_neutrinos = .TRUE.
             ELSE
-               STOP 'DOLAG_CORRECTION: Error, iDolag not specified correctly'
+               ERROR STOP 'DOLAG_CORRECTION: iDolag not specified correctly'
             END IF
             cosm_LCDM = convert_cosmology(cosm, make_lambda, make_flat, remove_neutrinos)
 
@@ -6909,7 +6932,7 @@ CONTAINS
                r = g_wCDM/g_LCDM
                hmod%c = hmod%c*rinf/r
             ELSE
-               STOP 'DOLAG_CORRECTION: Error, iDolag specified incorrectly'
+               ERROR STOP 'DOLAG_CORRECTION: iDolag specified incorrectly'
             END IF
 
          END IF
@@ -6933,7 +6956,7 @@ CONTAINS
       INTEGER, PARAMETER :: c2_init = 5.
       REAL, PARAMETER :: acc = 1e-6
 
-      WRITE(*, *) 'FILL_CONC_NFW: WARNING: Check this carefully, halo concentrations seem too high'
+      ERROR STOP 'FILL_CONC_NFW: Check this carefully, halo concentrations seem too high'
 
       ! Redshift and scale factor
       z = hmod%z; a = hmod%a; rhoc = comoving_critical_density(a, cosm)
@@ -6976,7 +6999,6 @@ CONTAINS
          END IF
 
       END DO
-      !STOP
 
    END SUBROUTINE fill_conc_NFW
 
@@ -6992,7 +7014,7 @@ CONTAINS
       REAL, PARAMETER :: c2_init = 5.
       REAL, PARAMETER :: acc = 1e-3 ! Does not need to be very accurate
 
-      WRITE(*, *) 'FILL_CONC_ENS: WARNING: Check this more carefully, particularly z evolution'
+      ERROR STOP 'FILL_CONC_ENS: Check this more carefully, particularly z evolution'
 
       ! Root finding for c(M)
       c1 = c1_init; c2 = c2_init
@@ -7292,7 +7314,7 @@ CONTAINS
          B = -0.084
          C = -0.47
       ELSE
-         STOP 'CONC_DUFFY: Error, Duffy concentration model not recognised'
+         ERROR STOP 'CONC_DUFFY: Duffy concentration model not recognised'
       END IF
 
       ! Equation (4) in 0804.2486, parameters from 10th row of Table 1
@@ -7576,7 +7598,7 @@ CONTAINS
          ELSE IF (ifield == field_CIB_857) THEN
             nu = 857.e9 ! Frequency [Hz]
          ELSE
-            STOP 'WIN_TYPE: Error, ifield specified incorrectly'
+            ERROR STOP 'WIN_TYPE: ifield specified incorrectly'
          END IF
          win = win_CIB(real_space, nu, k, m, rv, rs, hmod, cosm)
       ! ELSE IF (ifield == field_halo_11p0_11p5 .OR. ifield == field_halo_11p5_12p0 .OR. &
@@ -7612,11 +7634,11 @@ CONTAINS
       !      STOP 'WIN_TYPE: Error, ifield specified incorrectly'
       !   END IF
       ELSE IF (ifield == field_haloes) THEN
-         STOP 'WIN: Be careful with haloes and mass ranges here'
+         ERROR STOP 'WIN: Be careful with haloes and mass ranges here'
          win = win_haloes(real_space, mmin, mmax, k, m, rv, rs, hmod, cosm)
       ELSE
          WRITE (*, *) 'WIN_TYPE: ifield:', ifield
-         STOP 'WIN_TYPE: Error, ifield specified incorreclty'
+         ERROR STOP 'WIN_TYPE: ifield specified incorreclty'
       END IF
 
    END FUNCTION win
@@ -7656,7 +7678,7 @@ CONTAINS
       ELSE IF (hmod%halo_DMONLY == 7) THEN
          irho = irho_shell
       ELSE
-         STOP 'WIN_DMONLY: Error, halo_DMONLY specified incorrectly'
+         ERROR STOP 'WIN_DMONLY: halo_DMONLY specified incorrectly'
       END IF
 
       ! Force it to use the gravity-only concentration relation (unapply gas correction)
@@ -7738,7 +7760,7 @@ CONTAINS
          IF (hmod%halo_CDM == 1) THEN
             irho = irho_NFW
          ELSE
-            STOP 'WIN_CDM: Error, halo_CDM specified incorrectly'
+            ERROR STOP 'WIN_CDM: halo_CDM specified incorrectly'
          END IF
 
          IF (real_space) THEN
@@ -7856,7 +7878,7 @@ CONTAINS
             irho_dens = irho_NFW
             irho_pres = irho_delta ! Why?
          ELSE
-            STOP 'WIN_STATIC_GAS: Error, halo_normal_bound_gas not specified correctly'
+            ERROR STOP 'WIN_STATIC_GAS: halo_normal_bound_gas not specified correctly'
          END IF
 
          IF (itype == field_matter .OR. itype == field_gas .OR. itype == field_bound_gas .OR. itype == field_normal_bound_gas) THEN
@@ -7904,7 +7926,7 @@ CONTAINS
 
          ELSE
 
-            STOP 'WIN_STATIC_GAS: Error, itype not specified correctly'
+            ERROR STOP 'WIN_STATIC_GAS: itype not specified correctly'
 
          END IF
 
@@ -7948,7 +7970,7 @@ CONTAINS
          ELSE IF (hmod%halo_cold_bound_gas == 1) THEN
             irho = irho_delta
          ELSE
-            STOP 'WIN_COLD_GAS: Error, halo_cold_bound_gas not specified correctly'
+            ERROR STOP 'WIN_COLD_GAS: halo_cold_bound_gas not specified correctly'
          END IF
 
          IF (itype == field_matter .OR. itype == field_gas .OR. itype == field_bound_gas .OR. itype == field_cold_bound_gas) THEN
@@ -7972,7 +7994,7 @@ CONTAINS
 
          ELSE
 
-            STOP 'WIN_COLD_GAS: Error, itype not specified correctly'
+            ERROR STOP 'WIN_COLD_GAS: itype not specified correctly'
 
          END IF
 
@@ -8020,7 +8042,7 @@ CONTAINS
             irho_dens = irho_iso
             irho_pres = irho_iso
          ELSE
-            STOP 'WIN_HOT_GAS: Error, halo_hot_bound_gas not specified correctly'
+            ERROR STOP 'WIN_HOT_GAS: halo_hot_bound_gas not specified correctly'
          END IF
 
          IF (itype == field_matter .OR. itype == field_gas .OR. itype == field_bound_gas .OR. itype == field_hot_bound_gas) THEN
@@ -8066,7 +8088,7 @@ CONTAINS
 
          ELSE
 
-            STOP 'WIN_HOT_GAS: Error, itype not specified correctly'
+            ERROR STOP 'WIN_HOT_GAS: itype not specified correctly'
 
          END IF
 
@@ -8199,7 +8221,7 @@ CONTAINS
             irho_dens = irho_delta
             irho_pres = irho_dens
          ELSE
-            STOP 'WIN_FREE_GAS: Error, halo_ejected_gas specified incorrectly'
+            ERROR STOP 'WIN_FREE_GAS: halo_ejected_gas specified incorrectly'
          END IF
 
          ! Density profile
@@ -8223,7 +8245,7 @@ CONTAINS
             ! If we are applying a pressure-matching condition
             IF (match_electron_pressure) THEN
 
-               STOP 'WIN_FREE_GAS: Check the units and stuff here *very* carefully'
+               ERROR STOP 'WIN_FREE_GAS: Check the units and stuff here *very* carefully'
 
                r = k
                IF (r > rmin .AND. r < rmax) THEN
@@ -8261,7 +8283,7 @@ CONTAINS
 
          ELSE
 
-            STOP 'WIN_FREE_GAS: Error, itype not specified correctly'
+            ERROR STOP 'WIN_FREE_GAS: itype not specified correctly'
 
          END IF
 
@@ -8340,7 +8362,7 @@ CONTAINS
                irho = irho_NFW
             END IF
          ELSE
-            STOP 'WIN_CENTRAL_STARS: Error, halo_central_stars specified incorrectly'
+            ERROR STOP 'WIN_CENTRAL_STARS: halo_central_stars specified incorrectly'
          END IF
 
          ! So that the stars see the original halo
@@ -8405,7 +8427,7 @@ CONTAINS
             p1 = rstar
             rmax = rv ! Set so that not too much bigger than rstar, otherwise bumps integration misbehaves
          ELSE
-            STOP 'WIN_SATELLITE_STARS: Error, halo_satellite_stars specified incorrectly'
+            ERROR STOP 'WIN_SATELLITE_STARS: halo_satellite_stars specified incorrectly'
          END IF
 
          ! So that the stars see the original halo
@@ -8463,7 +8485,7 @@ CONTAINS
          ELSE IF (hmod%halo_neutrino == 2) THEN
             irho = irho_NFW
          ELSE  
-            STOP 'WIN_NEUTRINO: Error, neutrino profile not specified correctly'
+            ERROR STOP 'WIN_NEUTRINO: halo_neutrino not specified correctly'
          END IF
 
          IF (real_space) THEN
@@ -8499,7 +8521,7 @@ CONTAINS
          ! Otherwise use...
          win_electron_pressure = win_gas(real_space, field_electron_pressure, k, m, rv, rs, hmod, cosm)
       ELSE
-         STOP 'WIN_ELECTRON_PRESSURE: Error, electron_pressure specified incorrectly'
+         ERROR STOP 'WIN_ELECTRON_PRESSURE: electron_pressure specified incorrectly'
       END IF
 
    END FUNCTION win_electron_pressure
@@ -8530,7 +8552,7 @@ CONTAINS
          rmin = 0.
          rmax = 10.*rv
       ELSE
-         STOP 'WIN_VOID: Error, halo_void specified incorrectly'
+         ERROR STOP 'WIN_VOID: halo_void specified incorrectly'
       END IF
 
       IF (real_space) THEN
@@ -8569,7 +8591,7 @@ CONTAINS
          rmin = 0.
          rmax = 10.*rv
       ELSE
-         STOP 'WIN_COMPENSATED_VOID: Error, halo_compensated_void specified incorrectly'
+         ERROR STOP 'WIN_COMPENSATED_VOID: halo_compensated_void specified incorrectly'
       END IF
 
       IF (real_space) THEN
@@ -8720,7 +8742,7 @@ CONTAINS
          ELSE IF (hmod%halo_satellites == 2) THEN
             irho = irho_iso
          ELSE
-            STOP 'WIN_SATELLITES: Error, halo profile not set correctly'
+            ERROR STOP 'WIN_SATELLITES: halo_satellites profile not set correctly'
          END IF
 
          IF (real_space) THEN
@@ -8894,7 +8916,7 @@ CONTAINS
             r_HI = rv/c_HI
             p1 = r_HI
          ELSE
-            STOP 'win_HI: Error, halo_HI not specified correctly'
+            ERROR STOP 'win_HI: halo_HI profile not specified correctly'
          END IF
 
          IF (real_space) THEN
@@ -9044,7 +9066,7 @@ CONTAINS
             ! Komatsu & Seljak (2001) profile with NFW transition radius
             ! VERY slow to calculate the W(k) for some reason
             ! Also creates a weird upturn in P(k) that I do not think can be correct
-            STOP 'RHO: This profile is very difficult for some reason'
+            ERROR STOP 'RHO: This profile is very difficult for some reason'
             t = sqrt(5.)
             rt = rv/t
             y = r/rs
@@ -9087,7 +9109,7 @@ CONTAINS
                y = r/rs
                rho = 1.-B*(1.-log(1.+y)/y)
             ELSE
-               STOP 'RHO: Error, irho specified incorrectly'
+               ERROR STOP 'RHO: irho specified incorrectly'
             END IF
             IF (irho == irho_KS02s_dens .OR. irho == irho_KS02_dens) THEN
                rho = rho**(1./(Gamma-1.))
@@ -9145,7 +9167,7 @@ CONTAINS
             ! Shell must be set to zero everywhere (infinite at shell radius)
             rho = 0.
          ELSE
-            STOP 'RHO: Error, irho not specified correctly'
+            ERROR STOP 'RHO: irho not specified correctly'
          END IF
 
       END IF
@@ -9160,11 +9182,11 @@ CONTAINS
       INTEGER, INTENT(IN) :: irho
 
       IF (irho == irho_delta) THEN
-         STOP 'RHOR2AT0: You should not be here for a delta-function profile'
+         ERROR STOP 'RHOR2AT0: You should not be here for a delta-function profile'
       ELSE IF (irho == irho_iso .OR. irho == irho_star_ST15) THEN
          rhor2at0 = 1.
       ELSE IF (irho == irho_cubic) THEN
-         STOP 'RHOR2AT0: Error, cubic profile diverges at the origin'
+         ERROR STOP 'RHOR2AT0: Cubic profile diverges at the origin'
       ELSE
          rhor2at0 = 0.
       END IF
@@ -9542,7 +9564,7 @@ CONTAINS
                      weight = 1.
                   END IF
                ELSE
-                  STOP 'INTEGRATE_WINDOW_NORMAL: Error, order specified incorrectly'
+                  ERROR STOP 'INTEGRATE_WINDOW_NORMAL: Integration order specified incorrectly'
                END IF
 
                ! Now get r and do the function evaluations
@@ -9634,7 +9656,7 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.*sum_2n-sum_n)/3. ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE_WINDOW_STORE: Error, iorder specified incorrectly'
+                  ERROR STOP 'INTEGRATE_WINDOW_STORE: iorder specified incorrectly'
                END IF
 
             END IF
@@ -9645,7 +9667,7 @@ CONTAINS
                pass = .TRUE.
             ELSE IF (j == jmax) THEN
                pass = .FALSE.
-               STOP 'INTEGRATE_WINDOW_STORE: Integration timed out'
+               ERROR STOP 'INTEGRATE_WINDOW_STORE: Integration timed out'
             ELSE
                pass = .FALSE.
             END IF
@@ -9679,7 +9701,7 @@ CONTAINS
       INTEGER :: i, n
 
       ! This MUST be set to zero for this routine
-      IF (rmin /= 0.) STOP 'WININT_BUMPS: Error, rmin must be zero'
+      IF (rmin /= 0.) ERROR STOP 'WININT_BUMPS: rmin must be zero'
 
       ! Calculate the number of nodes of sinc(k*rmax) for 0<=r<=rmax
       n = floor(k*rmax/pi)
@@ -9769,7 +9791,7 @@ CONTAINS
          x2 = rn+2.*(rm-rn)/3. ! Middle
          x3 = rm ! End
       ELSE
-         STOP 'WININT_APPROX: Error, iorder specified incorrectly'
+         ERROR STOP 'WININT_APPROX: iorder specified incorrectly'
       END IF
 
       y0 = winint_integrand(x0, rmin, rmax, rv, rs, p1, p2, irho)/x0
@@ -9789,7 +9811,7 @@ CONTAINS
          y3 = winint_integrand(x3, rmin, rmax, rv, rs, p1, p2, irho)/x3
          CALL fix_polynomial(a3, a2, a1, a0, [x0, x1, x2, x3], [y0, y1, y2, y3])
       ELSE
-         STOP 'WININT_APPROX: Error, iorder specified incorrectly'
+         ERROR STOP 'WININT_APPROX: iorder specified incorrectly'
       END IF
 
       w = 2.*a0
@@ -10006,7 +10028,7 @@ CONTAINS
          A = 0.348*sqrt(2.*q/pi) ! Be careful with factors of sqrt(2q/pi) in normalisation
          impose_norm = .FALSE. ! A is set independently, mass normalisation not imposed
       ELSE
-         STOP 'INIT_ST: Error, imf set incorrectly'
+         ERROR STOP 'INIT_ST: imf set incorrectly'
       END IF
 
       ! Normalisation involves Gamma function
@@ -10048,11 +10070,11 @@ CONTAINS
       INTEGER, PARAMETER :: imeth_interp = 2  ! Method for interpolation (2 - Lagrange polynomial)
 
       ! Delta_v dependence
-      IF (hmod%mass_dependent_Dv) STOP 'INIT_TINKER2008: Error, this does not work with mass-dependent Delta_v'
+      IF (hmod%mass_dependent_Dv) ERROR STOP 'INIT_TINKER2008: This does not work with mass-dependent Delta_v'
       IF (Tinker_interp) THEN
          ! From appendix B
          log_Dv = log10(hmod%Dv)
-         STOP 'INIT_INTER2008: The Tinker interpolation scheme from appendix B has not been tested'
+         ERROR STOP 'INIT_INTER2008: The Tinker interpolation scheme from appendix B has not been tested'
          IF (hmod%Dv >= 1600.) THEN
             bigA = 0.26               ! Equation (B1)
          ELSE
@@ -10122,7 +10144,7 @@ CONTAINS
       END IF
 
       ! Delta_v dependence
-      IF (hmod%mass_dependent_Dv) STOP 'INIT_TINKER2010: Error, this does not work with mass-dependent Delta_v'
+      IF (hmod%mass_dependent_Dv) ERROR STOP 'INIT_TINKER2010: This does not work with mass-dependent Delta_v'
       log_Dv = log(hmod%Dv)
       alpha = find(log_Dv, log_Deltav, alpha0, n, iorder, ifind, imeth)
       beta = find(log_Dv, log_Deltav, beta0, n, iorder, ifind, imeth)
@@ -10184,7 +10206,7 @@ CONTAINS
       ELSE IF (is_in_array(hmod%imf, [imf_T10_PBS_z, imf_T10_PBS, imf_T10_cal_z, imf_T10_cal])) THEN
          g_nu = g_Tinker2010(nu, hmod)
       ELSE IF (hmod%imf == imf_delta) THEN
-         STOP 'G_NU: Error, this function should not be accessed for delta-mass-functions'
+         ERROR STOP 'G_NU: This function should not be accessed for delta-function mass functions'
       ELSE IF (hmod%imf == imf_Jenkins) THEN
          g_nu = g_Jenkins(nu, hmod)
       ELSE IF (hmod%imf == imf_T08_z .OR. hmod%imf == imf_T08) THEN
@@ -10198,7 +10220,7 @@ CONTAINS
       ELSE IF (hmod%imf == imf_Peacock) THEN
          g_nu = g_Peacock(nu)
       ELSE
-         STOP 'G_NU: Error, imf specified incorrectly'
+         ERROR STOP 'G_NU: imf specified incorrectly'
       END IF
 
       g_nu=g_nu*HMcode_AMF(hmod)
@@ -10323,7 +10345,7 @@ CONTAINS
       G2 = exp(-(log(omeg)-1.138)**2/(2.*0.2**2))
 
       ! TODO: Implement this, probably need neff(M) to be calculated in init_halomod
-      STOP 'G_REED: Need to implement neff(M) here'
+      ERROR STOP 'G_REED: Need to implement neff(M) here'
       !M = 
       !r = 
       !ne = neff(r, hmod%a, flag_matter, cosm)
@@ -10347,7 +10369,7 @@ CONTAINS
       REAL :: bigA, a, p, q, z
 
       IF (hmod%imf == imf_Bhattacharya) THEN
-         STOP 'G_BHATTACHARYA: Check this carefully'
+         ERROR STOP 'G_BHATTACHARYA: Check this carefully'
          z = hmod%z
          bigA = 0.333/(1.+z)**0.11
          a = 0.788/(1.+z)**0.01
@@ -10359,7 +10381,7 @@ CONTAINS
          p = 0.637
          q = 1.663
       ELSE
-         STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
+         ERROR STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
       END IF
 
       f1 = bigA*sqrt(2./pi)*exp(-a*nu**2/2.)
@@ -10622,7 +10644,7 @@ CONTAINS
 
       IF (hmod%imf == imf_Bhattacharya) THEN
          ! Bhattacharya et al. (2011)
-         STOP 'G_BHATTACHARYA: Check this carefully'
+         ERROR STOP 'G_BHATTACHARYA: Check this carefully'
          a = 0.788/(1.+hmod%z)**0.01
          p = 0.807
          q = 1.795
@@ -10632,7 +10654,7 @@ CONTAINS
          p = 0.637
          q = 1.663
       ELSE
-         STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
+         ERROR STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
       END IF
 
       f1 = a*nu**2
@@ -10668,7 +10690,7 @@ CONTAINS
       IF (is_in_array(hmod%imf, [imf_PS, imf_ST, imf_Despali, imf_ST2002, imf_ST_free, imf_Courtin])) THEN
          b2_nu = b2_ST(nu, hmod)
       ELSE
-         STOP 'B2_NU: Error, second-order bias not specified this mass function'
+         ERROR STOP 'B2_NU: Second-order bias not specified this mass function'
       END IF
 
    END FUNCTION b2_nu
@@ -10690,7 +10712,7 @@ CONTAINS
          p = hmod%ST_p
          q = hmod%ST_q
       ELSE
-         STOP 'B2_ST: Error, incorrect mass function'
+         ERROR STOP 'B2_ST: Incorrect mass function'
       END IF
 
       dc = hmod%dc
@@ -10841,7 +10863,7 @@ CONTAINS
       ELSE IF (itype == field_neutrino) THEN
          halo_fraction = halo_neutrino_fraction(m, hmod, cosm)
       ELSE
-         STOP 'HALO_FRACTION: Error, itype not specified correcntly'
+         ERROR STOP 'HALO_FRACTION: itype not specified correcntly'
       END IF
 
    END FUNCTION halo_fraction
@@ -10892,7 +10914,7 @@ CONTAINS
       IF(halo_gas_fraction < frac_min .OR. halo_gas_fraction > frac_max) THEN
          WRITE(*, *) 'HALO_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_GAS_FRACTION: Halo gas fraction:', halo_gas_fraction
-         STOP 'HALO_GAS_FRACTION: Error, halo gas fraction is outside sensible range'
+         ERROR STOP 'HALO_GAS_FRACTION: Halo gas fraction is outside sensible range'
       END IF
 
    END FUNCTION halo_gas_fraction
@@ -10912,7 +10934,7 @@ CONTAINS
       ELSE IF (hmod%normalise_baryons == 2) THEN
          maxgas = cosm%om_b/cosm%om_m - halo_star_fraction(m, hmod, cosm)
       ELSE
-         STOP 'HALO_BOUND_GAS_FRACTION: Error, normalise_baryons not specified correctly'
+         ERROR STOP 'HALO_BOUND_GAS_FRACTION: Normalise_baryons not specified correctly'
       END IF
 
       IF (hmod%frac_bound_gas == 1) THEN
@@ -10938,7 +10960,7 @@ CONTAINS
          !halo_bound_gas_fraction = cosm%om_b/cosm%om_m-halo_star_fraction(m, hmod, cosm) ! ABSOLUTELY DO NOT DO THIS
          halo_bound_gas_fraction = maxgas
       ELSE
-         STOP 'HALO_BOUND_GAS_FRACTION: Error, frac_bound_gas not specified correctly'
+         ERROR STOP 'HALO_BOUND_GAS_FRACTION: frac_bound_gas not specified correctly'
       END IF
 
       ! Remove bound gas if the total gas+star fraction would be greater than universal baryon fraction
@@ -10953,7 +10975,7 @@ CONTAINS
       IF (halo_bound_gas_fraction < frac_min .OR. halo_bound_gas_fraction > frac_max) THEN
          WRITE(*, *) 'HALO_BOUND_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_BOUND_GAS_FRACTION:', halo_bound_gas_fraction
-         STOP 'HALO_BOUND_GAS_FRACTION: Error, halo bound gas fraction is outside sensible range'
+         ERROR STOP 'HALO_BOUND_GAS_FRACTION: Halo bound gas fraction is outside sensible range'
       END IF
 
    END FUNCTION halo_bound_gas_fraction
@@ -10975,7 +10997,7 @@ CONTAINS
       IF(halo_normal_bound_gas_fraction < frac_min .OR. halo_normal_bound_gas_fraction > frac_max) THEN
          WRITE(*, *) 'HALO_STATIC_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_STATIC_GAS_FRACTION:', halo_normal_bound_gas_fraction
-         STOP 'HALO_STATIC_GAS_FRACTION: Error, static gas fraction is outside sensible range'
+         ERROR STOP 'HALO_STATIC_GAS_FRACTION: Static gas fraction is outside sensible range'
       END IF
 
    END FUNCTION halo_normal_bound_gas_fraction
@@ -10992,13 +11014,13 @@ CONTAINS
          ! Constant fraction of cold halo gas
          r = HMx_fcold(hmod, cosm)
       ELSE
-         STOP 'HALO_COLD_GAS_FRACTION: Error, frac_cold_bound_gas not specified correctly'
+         ERROR STOP 'HALO_COLD_GAS_FRACTION: frac_cold_bound_gas not specified correctly'
       END IF
 
       IF(r < frac_min .OR. r > frac_max) THEN
          WRITE(*, *) 'HALO_COLD_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_COLD_GAS_FRACTION: r:', r
-         STOP 'HALO_COLD_GAS_FRACTION: Error, fraction of bound gas that is cold is outside sensible range'
+         ERROR STOP 'HALO_COLD_GAS_FRACTION: Fraction of bound gas that is cold is outside sensible range'
       END IF
       halo_cold_bound_gas_fraction = r*halo_bound_gas_fraction(m, hmod, cosm)
 
@@ -11016,13 +11038,13 @@ CONTAINS
          ! Constant fraction of hot halo gas
          r = HMx_fhot(hmod, cosm)
       ELSE
-         STOP 'HALO_HOT_GAS_FRACTION: Error, frac_hot_bound_gas not specified correctly'
+         ERROR STOP 'HALO_HOT_GAS_FRACTION: frac_hot_bound_gas not specified correctly'
       END IF
 
       IF(r < frac_min .OR. r > frac_max) THEN
          WRITE(*, *) 'HALO_HOT_GAS_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_HOT_GAS_FRACTION: r:', r
-         STOP 'HALO_HOT_GAS_FRACTION: Error, fraction of bound gas that is hot must be between zero and one'
+         ERROR STOP 'HALO_HOT_GAS_FRACTION: Fraction of bound gas that is hot must be between zero and one'
       END IF
       halo_hot_bound_gas_fraction = r*halo_bound_gas_fraction(m, hmod, cosm)
 
@@ -11045,7 +11067,7 @@ CONTAINS
          WRITE(*, *) 'HALO_FREE_GAS_FRACTION: Halo star fraction:', halo_star_fraction(m, hmod, cosm)
          WRITE(*, *) 'HALO_FREE_GAS_FRACTION: Halo bound-gas fraction:', halo_bound_gas_fraction(m, hmod, cosm)        
          WRITE(*, *) 'HALO_FREE_GAS_FRACTION: Halo free-gas fraction:', halo_ejected_gas_fraction
-         STOP 'HALO_FREE_GAS_FRACTION: Error, free-gas fraction is outside sensible range'
+         ERROR STOP 'HALO_FREE_GAS_FRACTION: Free-gas fraction is outside sensible range'
       END IF
 
    END FUNCTION halo_ejected_gas_fraction
@@ -11076,7 +11098,7 @@ CONTAINS
          ! Constant star fraction
          halo_star_fraction = HMx_Astar(hmod, cosm)
       ELSE
-         STOP 'HALO_STAR_FRACTION: Error, frac_stars specified incorrectly'
+         ERROR STOP 'HALO_STAR_FRACTION: frac_stars specified incorrectly'
       END IF
 
       ! Take away from the stars if the sum of bound gas and stars in the halo would be greater than universal baryon fraction
@@ -11093,7 +11115,7 @@ CONTAINS
       IF(halo_star_fraction < frac_min .OR. halo_star_fraction > frac_max) THEN
          WRITE(*, *) 'HALO_STAR_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_STAR_FRACTION: Halo star fraction', halo_star_fraction
-         STOP 'HALO_STAR_FRACTION: Error, star fraction must be between zero and one'
+         ERROR STOP 'HALO_STAR_FRACTION: Star fraction must be between zero and one'
       END IF
 
    END FUNCTION halo_star_fraction
@@ -11119,13 +11141,13 @@ CONTAINS
             r = (m/HMx_Mstar(hmod, cosm))**HMx_eta(hmod, cosm)
          END IF       
       ELSE
-         STOP 'HALO_CENTRAL_STAR_FRACTION: Error, frac_central_stars specified incorrectly'
+         ERROR STOP 'HALO_CENTRAL_STAR_FRACTION: frac_central_stars specified incorrectly'
       END IF
 
       IF(r < frac_min .OR. r > frac_max) THEN
          WRITE(*, *) 'HALO_CENTRAL_STAR_FRACTION: Halo mass [log10(Msun/h)]:', log10(m)
          WRITE(*, *) 'HALO_CENTRAL_STAR_FRACTION: r:', r
-         STOP 'HALO_CENTRAL_STAR_FRACTION: Error, fraction of stars that are central must be between zero and one'
+         ERROR STOP 'HALO_CENTRAL_STAR_FRACTION: Fraction of stars that are central must be between zero and one'
       END IF
       halo_central_star_fraction = r*halo_star_fraction(m, hmod, cosm)
 
@@ -11221,11 +11243,11 @@ CONTAINS
             M0 = 4.1e9
             Mmin = 5.4e10
          ELSE
-            STOP 'HALO_HI_FRACTION: Error, redshift not supported here'
+            ERROR STOP 'HALO_HI_FRACTION: Redshift not supported here'
          END IF
          halo_HI_fraction = (M0/M)*((M/Mmin)**alpha)*exp(-(M/Mmin)**(-0.35))
       ELSE
-         STOP 'HALO_HI_FRACTION: Error, frac_HI specified incorrectly'
+         ERROR STOP 'HALO_HI_FRACTION: frac_HI specified incorrectly'
       END IF
 
    END FUNCTION halo_HI_fraction
@@ -11305,7 +11327,7 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE_HMOD: Error, iorder specified incorrectly'
+                  ERROR STOP 'INTEGRATE_HMOD: iorder specified incorrectly'
                END IF
 
             END IF
@@ -11316,7 +11338,7 @@ CONTAINS
                pass = .TRUE.
             ELSE IF (j == jmax) THEN
                pass = .FALSE.
-               STOP 'INTEGRATE_HMOD: Integration timed out'
+               ERROR STOP 'INTEGRATE_HMOD: Integration timed out'
             ELSE
                pass = .FALSE.
             END IF
@@ -11416,7 +11438,7 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE_HMOD_COSM: Error, iorder specified incorrectly'
+                  ERROR STOP 'INTEGRATE_HMOD_COSM: iorder specified incorrectly'
                END IF
 
             END IF
@@ -11427,7 +11449,7 @@ CONTAINS
                pass = .TRUE.
             ELSE IF (j == jmax) THEN
                pass = .FALSE.
-               STOP 'INTEGRATE_HMOD_COSM: Integration timed out'
+               ERROR STOP 'INTEGRATE_HMOD_COSM: Integration timed out'
             ELSE
                pass = .FALSE.
             END IF
@@ -11525,7 +11547,7 @@ CONTAINS
                ELSE IF (iorder == 3) THEN
                   sum_new = (4.d0*sum_2n-sum_n)/3.d0 ! This is Simpson's rule and cancels error
                ELSE
-                  STOP 'INTEGRATE_SCATTER: Error, iorder specified incorrectly'
+                  ERROR STOP 'INTEGRATE_SCATTER: iorder specified incorrectly'
                END IF
 
             END IF
@@ -11536,7 +11558,7 @@ CONTAINS
                pass = .TRUE.
             ELSE IF (j == jmax) THEN
                pass = .FALSE.
-               STOP 'INTEGRATE_SCATTER: Integration timed out'
+               ERROR STOP 'INTEGRATE_SCATTER: Integration timed out'
             ELSE
                pass = .FALSE.
             END IF
@@ -11655,7 +11677,7 @@ CONTAINS
             output = trim(base)//'_hm.dat'
             pow = pow_hm
          ELSE
-            STOP 'WRITE_POWER_A_MULTIPLE: Error, something went wrong'
+            ERROR STOP 'WRITE_POWER_A_MULTIPLE: something went wrong'
          END IF
          IF (i == 1) THEN
             verbose2 = verbose
