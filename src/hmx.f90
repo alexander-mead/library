@@ -1628,7 +1628,7 @@ CONTAINS
          hmod%idc = 1
          hmod%iDv = iDv_200
          hmod%iconc = iconc_Bullock_full
-         hmod%consistency = .FALSE.
+         hmod%consistency = .FALSE. ! I know that this model is inconsistent
       ELSE IF (ihm == 3) THEN
          ! Standard halo-model calculation (Seljak 2000)
          ! This is the default, so do nothing here
@@ -1643,7 +1643,7 @@ CONTAINS
          hmod%idc = 1
          hmod%iDv = iDv_200
          hmod%iconc = iconc_Bullock_full
-         hmod%consistency = .FALSE.
+         hmod%consistency = .FALSE. ! I know that this model is inconsistent
       ELSE IF (ihm == 6) THEN
          ! Half-accurate halo-model calculation, inspired by (HMcode 2015, 2016)
          hmod%i1hdamp = 2
