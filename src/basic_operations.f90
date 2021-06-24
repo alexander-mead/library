@@ -336,7 +336,7 @@ CONTAINS
       ELSE IF (x == 0. .OR. y == 0. .OR. diff < tiny(x)) THEN
          requal = (diff < eps*tiny(x))
       ELSE
-         requal = (diff/(absx+absy) < 0.5*eps)
+         requal = (diff/(absx+absy) < 0.5*eps) ! June 2020: Added 0.5
       END IF
 
    END FUNCTION requal
