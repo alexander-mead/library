@@ -58,39 +58,34 @@ CONTAINS
          INTEGER, INTENT(IN) :: a(:)
          INTEGER, INTENT(IN) :: i(:)
 
-         IF ((a(1) == i(1) .AND. a(2) == i(2)) .OR. (a(1) == i(2) .AND. a(2) == i(1))) THEN
-            equals_or = .TRUE.
-         ELSE
-            equals_or = .FALSE.
-         END IF
+         !IF ((a(1) == i(1) .AND. a(2) == i(2)) .OR. (a(1) == i(2) .AND. a(2) == i(1))) THEN
+         !   equals_or = .TRUE.
+         !ELSE
+         !   equals_or = .FALSE.
+         !END IF
+         equals_or = (a(1) == i(1) .AND. a(2) == i(2)) .OR. (a(1) == i(2) .AND. a(2) == i(1))
 
    END FUNCTION equals_or
 
    LOGICAL FUNCTION between_real(x, xmin, xmax)
 
+      ! True if xmin <= x <= xmax
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xmin
       REAL, INTENT(IN) :: xmax
 
-      IF (x >= xmin .AND. x <= xmax) THEN
-         between_real = .TRUE.
-      ELSE
-         between_real = .FALSE.
-      END IF
+      between_real = (x >= xmin .AND. x <= xmax)
 
    END FUNCTION between_real
 
    LOGICAL FUNCTION between_integer(x, xmin, xmax)
 
+      ! True if xmin <= x <= xmax
       INTEGER, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: xmin
       INTEGER, INTENT(IN) :: xmax
 
-      IF (x >= xmin .AND. x <= xmax) THEN
-         between_integer = .TRUE.
-      ELSE
-         between_integer = .FALSE.
-      END IF
+      between_integer = (x >= xmin .AND. x <= xmax)
 
    END FUNCTION between_integer
 
@@ -143,19 +138,6 @@ CONTAINS
       END IF
 
    END FUNCTION progression
-
-   ! REAL FUNCTION progression_log(xmin, xmax, i, n)
-
-   !    ! Split the region xmin -> xmax into n log-spaced increments (including both xmin and xmax)
-   !    ! Returns the value at the i-th point, not the logarithm of the value
-   !    ! TODO: Remove
-   !    REAL, INTENT(IN) :: xmin
-   !    REAL, INTENT(IN) :: xmax
-   !    INTEGER, INTENT(IN) :: i, n
-
-   !    progression_log = exp(progression(log(xmin), log(xmax), i, n))
-
-   ! END FUNCTION progression_log
 
    SUBROUTINE increment_real(x, y)
 
@@ -301,15 +283,10 @@ CONTAINS
 
    LOGICAL FUNCTION positive(x)
 
-      ! Logical function that returns .TRUE. if x>=0.
-      ! If x=0. will return true
+      ! Returns .TRUE. if x>=0., if x=0. will return true
       REAL, INTENT(IN) :: x
 
-      IF (x < 0.) THEN
-         positive = .FALSE.
-      ELSE
-         positive = .TRUE.
-      END IF
+      positive = (.NOT. negative(x))
 
    END FUNCTION positive
 
@@ -318,11 +295,7 @@ CONTAINS
       ! Returns true if argument is negative
       REAL, INTENT(IN) :: x
 
-      IF (positive(x)) THEN
-         negative = .FALSE.
-      ELSE
-         negative = .TRUE.
-      END IF
+      negative = (x < 0.)
 
    END FUNCTION negative
 
@@ -331,11 +304,7 @@ CONTAINS
       ! Tests for i being even, returns true if even
       INTEGER, INTENT(IN) :: i
 
-      IF (mod(i, 2) == 0) THEN
-         even = .TRUE.
-      ELSE
-         even = .FALSE.
-      END IF
+      even = (mod(i, 2) == 0)
 
    END FUNCTION even
 
@@ -344,11 +313,7 @@ CONTAINS
       ! Tests for i being odd, returns true if odd
       INTEGER, INTENT(IN) :: i
 
-      IF (even(i)) THEN
-         odd = .FALSE.
-      ELSE
-         odd = .TRUE.
-      END IF
+      odd = (.NOT. even(i))
 
    END FUNCTION odd
 
@@ -369,17 +334,9 @@ CONTAINS
       IF (x == y) THEN
          requal = .TRUE.
       ELSE IF (x == 0. .OR. y == 0. .OR. diff < tiny(x)) THEN
-         IF (diff < eps*tiny(x)) THEN
-            requal = .TRUE.
-         ELSE
-            requal = .FALSE.
-         END IF
+         requal = (diff < eps*tiny(x))
       ELSE
-         IF (diff/(absx+absy) < eps) THEN
-            requal = .TRUE.
-         ELSE
-            requal = .FALSE.
-         END IF
+         requal = (diff/(absx+absy) < 0.5*eps)
       END IF
 
    END FUNCTION requal
@@ -390,11 +347,7 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: x
 
       IF (present(x)) THEN
-         IF (x) THEN
-            present_and_correct = .TRUE.
-         ELSE
-            present_and_correct = .FALSE.
-         END IF
+         present_and_correct = x
       ELSE
          present_and_correct = .FALSE.
       END IF
