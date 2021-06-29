@@ -411,7 +411,7 @@ MODULE HMx
       LOGICAL :: saturation
 
       ! HOD
-      REAL :: mhalo_min, mhalo_max, mgal_min, mgal_max
+      REAL :: mhalo_min, mhalo_max!, mgal_min, mgal_max
       REAL :: n_c, n_s, n_g, n_h, shot_gg, shot_hh
       INTEGER :: ihod
       TYPE(hodmod) :: hod
@@ -688,7 +688,7 @@ MODULE HMx
    INTEGER, PARAMETER :: imf_T08_z = 7         ! Tinker (2008; ) with z dependent parameters calibrated for Dv=200
    INTEGER, PARAMETER :: imf_Warren = 8        ! Warren et al. (2006; )
    INTEGER, PARAMETER :: imf_Reed = 9          ! Reed et al. (2007; )
-   INTEGER, PARAMETER :: imf_Bhattacharya = 10 ! Bhattacharya et al. (2011; )
+   INTEGER, PARAMETER :: imf_Bhattacharya = 10 ! Bhattacharya et al. (2011; https://arxiv.org/abs/1005.2239)
    INTEGER, PARAMETER :: imf_Courtin = 11      ! Courtin et al. (2011; )
    INTEGER, PARAMETER :: imf_ST2002 = 12       ! Sheth & Tormen (2002; ), only change q = 0.707 -> 0.75 from 1999 paper
    INTEGER, PARAMETER :: imf_ST_free = 13      ! Sheth & Tormen form, but with free p and q parameters
@@ -1052,9 +1052,9 @@ CONTAINS
       ! 0 - No damping
       ! 1 - HMcode (2015, 2016) exponential damping
       ! 2 - k^4 at large scales
-      ! 3 - k^4 at large scales but with HMcode (2020) dependence on wavenumber
+      ! 3 - k^4 at large scales with HMcode (2020) dependence on wavenumber
       ! 4 - k^2 at large scales
-      ! 5 - k^2 at large scales but with HMcode (2020) dependence on wavenumber
+      ! 5 - k^4 at large scales with smoothed transition
       hmod%i1hdamp = 0
 
       ! HMcode eta for halo window function
@@ -1443,8 +1443,8 @@ CONTAINS
       ! HOD parameters
       hmod%mhalo_min = 1e12
       hmod%mhalo_max = 1e16
-      hmod%mgal_min = 1e12
-      hmod%mgal_max = 1e16
+      !hmod%mgal_min = 1e12
+      !hmod%mgal_max = 1e16
 
       ! HI parameters
       hmod%HImin = 1e9
@@ -1726,7 +1726,7 @@ CONTAINS
          hmod%halo_central_stars = 2 ! Schneider & Teyssier (2015)
          hmod%response_baseline = HMcode2016
       ELSE IF (ihm == 23) THEN
-         ! Tinker (2010) mass function and bias; virial halo mass
+         ! Tinker et al. (2010) mass function and bias; virial halo mass
          hmod%imf = imf_T10_PBS_z ! Tinker mass function and bias
       ELSE IF (ihm == 25) THEN
          ! Villaescusa-Navarro HI halo model
@@ -1946,7 +1946,7 @@ CONTAINS
          ! Some stellar mass in satellite galaxies
          hmod%eta = -0.3
       ELSE IF (ihm == 42) THEN
-         ! Tinker (2010) and stuff apprpriate for M200c
+         ! Tinker et al. (2010) and stuff apprpriate for M200c
          hmod%idc = 1 ! Fixed to 1.686
          hmod%imf = imf_T10_PBS_z ! Tinker mass function and bias
          hmod%iDv = iDv_200c
@@ -1956,7 +1956,7 @@ CONTAINS
          hmod%response_baseline = HMcode2016
          hmod%response_matter_only = .TRUE.
       ELSE IF (ihm == 44) THEN
-         ! Tinker (2010) and stuff apprpriate for M200
+         ! Tinker et al. (2010) and stuff apprpriate for M200
          hmod%idc = 1 ! Fixed to 1.686
          hmod%imf = imf_T10_PBS_z
          hmod%iDv = iDv_200
@@ -2244,8 +2244,8 @@ CONTAINS
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
          ! NOTE: Not obvious how to convert FoF 0.2 to a spherical overdensity
-         hmod%iDv = iDv_200
          hmod%imf = imf_Jenkins
+         hmod%iDv = iDv_200
          hmod%iconc = iconc_Duffy_full_200
       ELSE IF (ihm == 87) THEN
          ! Despali et al. (2016) mass function; virial definition
@@ -2277,15 +2277,18 @@ CONTAINS
          ! Tinker (2008) mass function
          hmod%imf = imf_T08_z
       ELSE IF (ihm == 93) THEN
-         ! Warren (2006) mass function
-         ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
+         ! Warren (2006) mass function; FoF 0.2
+         ! NOTE: Not obvious how to convert FoF 0.2 to a spherical overdensity
          hmod%imf = imf_Warren
+         hmod%iDv = iDv_200
+         hmod%iconc = iconc_Duffy_full_200
       ELSE IF (ihm == 94) THEN
          ! Reed (2007) mass function
          hmod%imf = imf_Reed
       ELSE IF (ihm == 96) THEN
-         ! Philcox et al. (2020) mass function
-         ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
+         ! Philcox et al. (2020) mass function; FoF 0.2
+         hmod%iDv = iDv_200
+         hmod%iconc = iconc_Duffy_full_200
          hmod%imf = imf_Philcox
       ELSE IF (ihm == 97) THEN
          ! Sigma calculated from total matter power
@@ -2310,9 +2313,11 @@ CONTAINS
          hmod%Astar = 0.0320 ! Stellar mass fraction
          IF (ihm == 106) hmod%ibias = 3 ! Non-linear halo bias
       ELSE IF (ihm == 108) THEN
-         ! Bhattacharya et al. (2011) mass function
-         ! Approrpriate for FoF = 0.2 haloes so should change c(M) too
+         ! Bhattacharya et al. (2011) mass function; FoF 0.2
+         ! NOTE: Not obvious how to convert FoF 0.2 to a spherical overdensity
          hmod%imf = imf_Bhattacharya
+         hmod%iDv = iDv_200
+         hmod%iconc = iconc_Duffy_full_200
       ELSE IF (ihm == 109 .OR. ihm == 111) THEN 
          ! 109 - PT inspired thing
          ! 111 - Fitted PT inspired thing
@@ -2598,10 +2603,8 @@ CONTAINS
          ERROR STOP 'INIT_HALOMOD: Your combination of two-halo term and halo bias is not supported'
       END IF
 
-      ! HOD
+      ! HOD - default values set in hod_functions.f90
       CALL assign_HOD(hmod%ihod, hmod%hod)
-      hmod%hod%Mmin = hmod%mgal_min
-      hmod%hod%Mmax = hmod%mgal_max
 
       ! Halo definition consistency checks
       IF (hmod%consistency) THEN
@@ -2896,7 +2899,7 @@ CONTAINS
          IF (hmod%i1hdamp == 2) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^4'
          IF (hmod%i1hdamp == 3) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^4 with parameterised k*'
          IF (hmod%i1hdamp == 4) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^2'
-         IF (hmod%i1hdamp == 5) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^2 with parameterised k*'
+         IF (hmod%i1hdamp == 5) WRITE (*, *) 'HALOMODEL: One-halo large-scale P(k) ~ (k/k*)^4 with smoothed transition to unity'
 
          ! Concentration-mass scaling
          IF (hmod%iAs == 0) WRITE (*, *) 'HALOMODEL: No rescaling of concentration-mass relation'
@@ -3128,8 +3131,14 @@ CONTAINS
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'log10(M_halo_min) [Msun/h]:', log10(hmod%mhalo_min)
          WRITE (*, fmt=fmt) 'log10(M_halo_max) [Msun/h]:', log10(hmod%mhalo_max)
-         WRITE (*, fmt=fmt) 'log10(M_gal_min) [Msun/h]:', log10(hmod%mgal_min)
-         WRITE (*, fmt=fmt) 'log10(M_gal_max) [Msun/h]:', log10(hmod%mgal_max)
+         WRITE (*, fmt=fmt) 'log10(M_gal_min) [Msun/h]:', log10(hmod%hod%Mmin)
+         WRITE (*, fmt=fmt) 'log10(M_gal_max) [Msun/h]:', log10(hmod%hod%Mmax)
+         WRITE (*, fmt=fmt) 'log10(Mc) [Msun/h]:', log10(hmod%hod%Mc)
+         WRITE (*, fmt=fmt) 'sigma:', hmod%hod%sigma
+         WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(hmod%hod%M0)
+         WRITE (*, fmt=fmt) 'log10(M1) [Msun/h]:', log10(hmod%hod%M1)
+         WRITE (*, fmt=fmt) 'alpha:', hmod%hod%alpha
+         
          WRITE (*, *) dashes
 
          WRITE (*, *) 'HALOMODEL: HI model'
@@ -4565,7 +4574,7 @@ CONTAINS
       REAL, INTENT(IN) :: k
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: m, g, fac, ks, wk0_product, m0, rhom
+      REAL :: m, g, fac, ks, wk0_product, m0, rhom, x, alpha
       REAL :: integrand(hmod%n)
       INTEGER :: i, n, pow
       INTEGER, PARAMETER :: iorder_hm = iorder_1halo_integration
@@ -4628,14 +4637,17 @@ CONTAINS
             IF (ks == 0.) THEN
                fac = 1.
             ELSE
+               x = k/ks
                IF (is_in_array(hmod%i1hdamp, [2, 3])) THEN
-                  pow = 4
-               ELSE IF (is_in_array(hmod%i1hdamp, [4, 5])) THEN
-                  pow = 2
+                  fac = x**4/(1.+x**4)
+               ELSE IF (hmod%i1hdamp == 4) THEN
+                  fac = x**2/(1.+x**2)
+               ELSE IF (hmod%i1hdamp == 5) THEN
+                  alpha = 2. ! 1 recovers standard compensation kernel;  >1 is smoother
+                  fac = x**4/(1.+x**(4/alpha))**alpha
                ELSE
                   ERROR STOP 'P_1H: i1hdamp not specified correctly'
                END IF
-               fac = (k/ks)**pow/(1.+(k/ks)**pow)
             END IF
             p_1h = p_1h*fac
          ELSE
@@ -5421,9 +5433,9 @@ CONTAINS
          !sigv = sigmaV(0., hmod%a, flag_matter, cosm)
          sigv = hmod%sigv
          HMcode_kstar = hmod%ks/sigv
-      ELSE IF(hmod%i1hdamp == 2 .OR. hmod%i1hdamp == 4) THEN
+      ELSE IF(hmod%i1hdamp == 2 .OR. hmod%i1hdamp == 4 .OR. hmod%i1hdamp == 5) THEN
          HMcode_kstar = hmod%ks
-      ELSE IF (hmod%i1hdamp == 3 .OR. hmod%i1hdamp == 5) THEN
+      ELSE IF (hmod%i1hdamp == 3) THEN
          sig8 = sigma(8., hmod%a, flag_ucold, cosm)
          HMcode_kstar = hmod%ks*sig8**hmod%kp
       ELSE
@@ -6292,15 +6304,15 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: nu_min, nu_max
 
-      nu_min = nu_M(hmod%mgal_min, hmod, cosm)
-      nu_max = nu_M(hmod%mgal_max, hmod, cosm)
+      nu_min = nu_M(hmod%hod%Mmin, hmod, cosm)
+      nu_max = nu_M(hmod%hod%Mmax, hmod, cosm)
       hmod%n_c = rhobar_tracer(nu_min, nu_max, rhobar_central_HOD_integrand, hmod, cosm)
       hmod%n_s = rhobar_tracer(nu_min, nu_max, rhobar_satellite_HOD_integrand, hmod, cosm)
       hmod%n_g = hmod%n_c+hmod%n_s
       hmod%shot_gg = 1./hmod%n_g
       IF (verbose_HOD) THEN
-         WRITE (*, *) 'INIT_HOD: Minimum galaxy-halo mass [log10(Msun/h)]:', log10(hmod%mgal_min)
-         WRITE (*, *) 'INIT_HOD: Maximum galaxy-halo mass [log10(Msun/h)]:', log10(hmod%mgal_max)
+         WRITE (*, *) 'INIT_HOD: Minimum galaxy-halo mass [log10(Msun/h)]:', log10(hmod%hod%Mmin)
+         WRITE (*, *) 'INIT_HOD: Maximum galaxy-halo mass [log10(Msun/h)]:', log10(hmod%hod%Mmax)
          WRITE (*, *) 'INIT_HOD: Comoving number density of central galaxies [(Mpc/h)^-3]:', hmod%n_c
          WRITE (*, *) 'INIT_HOD: Comoving number density of satellite galaxies [(Mpc/h)^-3]:', hmod%n_s
          WRITE (*, *) 'INIT_HOD: Comoving number density of all galaxies [(Mpc/h)^-3]:', hmod%n_g
@@ -10361,15 +10373,14 @@ CONTAINS
 
    REAL FUNCTION g_Bhattacharya(nu, hmod)
 
-      ! Bhattacharya et al. (2011; 1005.2239) mass function for FoF b = 0.2 haloes
-      ! Normalised such that all mass is in haloes
+      ! Bhattacharya et al. (2011; https://arxiv.org/abs/1005.2239) mass function for FoF b = 0.2 haloes
+      ! Normalised such that all mass is in haloes; Table 4 in paper
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: f1, f2, f3
       REAL :: bigA, a, p, q, z
 
       IF (hmod%imf == imf_Bhattacharya) THEN
-         ERROR STOP 'G_BHATTACHARYA: Check this carefully'
          z = hmod%z
          bigA = 0.333/(1.+z)**0.11
          a = 0.788/(1.+z)**0.01
@@ -10635,7 +10646,7 @@ CONTAINS
 
    REAL FUNCTION b_Bhattacharya(nu, hmod)
 
-      ! Bhattacharya et al. (2011; 1005.2239) mass function for FoF b = 0.2 haloes
+      ! Bhattacharya et al. (2011; https://arxiv.org/abs/1005.2239) mass function for FoF b = 0.2 haloes
       ! Bias derived using the peak-background split
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
@@ -10644,7 +10655,6 @@ CONTAINS
 
       IF (hmod%imf == imf_Bhattacharya) THEN
          ! Bhattacharya et al. (2011)
-         ERROR STOP 'G_BHATTACHARYA: Check this carefully'
          a = 0.788/(1.+hmod%z)**0.01
          p = 0.807
          q = 1.795
