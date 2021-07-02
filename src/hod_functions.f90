@@ -19,8 +19,8 @@ MODULE HOD_functions
    PUBLIC :: mean_galaxies
    PUBLIC :: variance_centrals
    PUBLIC :: variance_satellites
-   PUBLIC :: variance_galaxies
    PUBLIC :: covariance_centrals_satellites
+   PUBLIC :: variance_galaxies
 
    ! Realisation
    !PUBLIC :: random_number_of_centrals
@@ -28,16 +28,18 @@ MODULE HOD_functions
    PUBLIC :: random_number_of_galaxies
 
    ! HOD models
+   PUBLIC :: ihod_toy
+   PUBLIC :: ihod_toy_int
+   PUBLIC :: ihod_toy_noscatter
    PUBLIC :: ihod_Zehavi
    PUBLIC :: ihod_Zheng
-   PUBLIC :: ihod_toy
-   PUBLIC :: ihod_toy_noscatter
+   PUBLIC :: ihod_Zhai
 
    ! Type for HOD
    TYPE hodmod
       INTEGER :: ihod
       REAL :: Mmin, Mmax
-      REAL :: M0, M1, Mc, sigma, alpha
+      REAL :: M0, M1, Mcen, Mcut, sigma, alpha
       INTEGER :: stats_cen, stats_sat
    END TYPE hodmod
 
@@ -50,11 +52,12 @@ MODULE HOD_functions
    ! Defaults
    REAL, PARAMETER :: Mmin_def = 1e7
    REAL, PARAMETER :: Mmax_def = 1e17
-   REAL, PARAMETER :: Mc_def = 1e13
+   REAL, PARAMETER :: Mcen_def = 1e13
    REAL, PARAMETER :: sigma_def = 0.5
-   REAL, PARAMETER :: M0_def = Mc_def
-   REAL, PARAMETER :: M1_def = Mc_def
+   REAL, PARAMETER :: M0_def = Mcen_def
+   REAL, PARAMETER :: M1_def = Mcen_def
    REAL, PARAMETER :: alpha_def = 1.
+   REAL, PARAMETER :: Mcut_def = 1e14
 
    ! Satellite occupation
    REAL, PARAMETER :: eps_sat = 1e-6
@@ -65,6 +68,7 @@ MODULE HOD_functions
    INTEGER, PARAMETER :: ihod_toy = 3           ! Toy model
    INTEGER, PARAMETER :: ihod_toy_int = 4       ! Toy model with integer numbers of galaxies
    INTEGER, PARAMETER :: ihod_toy_noscatter = 5 ! Toy model with integer numbers of galaxies and no scatter
+   INTEGER, PARAMETER :: ihod_Zhai = 6          ! Zhai et al. (2017; https://arxiv.org/abs/1607.05383)
 
    CONTAINS
 
@@ -81,6 +85,7 @@ MODULE HOD_functions
          WRITE(*, *) '3 - Toy HOD'
          WRITE(*, *) '4 - Toy HOD with no scatter'
          WRITE(*, *) '5 - Toy HOD'
+         WRITE(*, *) '6 - Zhai et al. (2017)'
          READ(*, *) hod%ihod
       ELSE
          hod%ihod = ihod
@@ -95,11 +100,12 @@ MODULE HOD_functions
       hod%Mmax = Mmax_def
 
       ! Default HOD parameters
-      hod%Mc = Mc_def
+      hod%Mcen = Mcen_def
       hod%sigma = sigma_def
       hod%M0 = M0_def
       hod%M1 = M1_def
       hod%alpha = alpha_def
+      hod%Mcut = Mcut_def
 
       ! Set specific HOD model parameters
       IF (hod%ihod == ihod_toy_noscatter) hod%stats_sat = stats_delta
@@ -114,14 +120,14 @@ MODULE HOD_functions
       TYPE(hodmod), INTENT(IN) :: hod ! HOD model
 
       IF (between(M, hod%Mmin, hod%Mmax)) THEN
-         IF (hod%ihod == ihod_Zheng) THEN
+         IF (is_in_array(hod%ihod, [ihod_Zheng, ihod_Zhai])) THEN
             IF (hod%sigma == 0.) THEN
-               mean_centrals = Heaviside(M-hod%Mc, 1.)
+               mean_centrals = Heaviside(M-hod%Mcen, 1.)
             ELSE
-               mean_centrals = 0.5*(1.+erf(log10(M/hod%Mc)/hod%sigma)) ! Weird combination of erf with log10
+               mean_centrals = 0.5*(1.+erf(log10(M/hod%Mcen)/hod%sigma)) ! Weird combination of erf with log10
             END IF
          ELSE IF (is_in_array(hod%ihod, [ihod_Zehavi, ihod_toy, ihod_toy_int, ihod_toy_noscatter])) THEN
-            mean_centrals = Heaviside(M-hod%Mc, 1.) ! mean_centrals is only ever 0 or 1 in these HOD models
+            mean_centrals = Heaviside(M-hod%Mcen, 1.) ! mean_centrals is only ever 0 or 1 in these HOD models
          ELSE
             STOP 'MEAN_CENTRALS: Error, HOD not recognised'
          END IF
@@ -146,7 +152,9 @@ MODULE HOD_functions
          ELSE IF (hod%ihod == ihod_Zheng) THEN
             ! No satellite galaxies if M < M0
             ! It is annoying that the denominator is not M1-M0
-            mean_satellites = Heaviside(M-hod%M0)*((M-hod%M0)/hod%M1)**hod%alpha 
+            mean_satellites = Heaviside(M-hod%M0)*((M-hod%M0)/hod%M1)**hod%alpha
+         ELSE IF (hod%ihod == ihod_Zhai) THEN
+            mean_satellites = ((M/hod%M1)**hod%alpha)*exp(-hod%Mcut/M)
          ELSE IF (is_in_array(hod%ihod, [ihod_toy, ihod_toy_int, ihod_toy_noscatter])) THEN
             mean_satellites = M/hod%M1
             IF (is_in_array(hod%ihod, [ihod_toy_int, ihod_toy_noscatter])) mean_satellites = floor(mean_satellites)

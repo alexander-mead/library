@@ -684,7 +684,7 @@ MODULE HMx
    INTEGER, PARAMETER :: imf_T10_PBS_z = 3     ! Tinker (2010; ) with PBS bias and z dependent parameters calibrated for Dv=200
    INTEGER, PARAMETER :: imf_delta = 4         ! Delta function mass function
    INTEGER, PARAMETER :: imf_Jenkins = 5       ! Jenkins et al. (2001; astro-ph/0005260)
-   INTEGER, PARAMETER :: imf_Despali = 6       ! Despali et al. (2016; )
+   INTEGER, PARAMETER :: imf_Despali = 6       ! Despali et al. (2016; https://arxiv.org/abs/1507.05627)
    INTEGER, PARAMETER :: imf_T08_z = 7         ! Tinker (2008; ) with z dependent parameters calibrated for Dv=200
    INTEGER, PARAMETER :: imf_Warren = 8        ! Warren et al. (2006; )
    INTEGER, PARAMETER :: imf_Reed = 9          ! Reed et al. (2007; )
@@ -874,9 +874,9 @@ CONTAINS
       names(39) = 'HMx: AGN tuned'
       names(40) = 'HMx: AGN 8.0'
       names(41) = 'Put some galaxy mass in the halo/satellites'
-      names(42) = 'Tinker (20xx) mass function and bias; M200c'
+      names(42) = 'Tinker (2010) mass function and bias; M200c'
       names(43) = 'Standard halo-model (Seljak 2000) in matter response'
-      names(44) = 'Tinker (20xx) mass function and bias; M200'
+      names(44) = 'Tinker (2010) mass function and bias; M200'
       names(45) = 'No stars'
       names(46) = 'Isothermal beta model for gas'
       names(47) = 'Isothermal beta model for gas in response'
@@ -1466,7 +1466,8 @@ CONTAINS
       hmod%alpha_numu = 2.5
 
       ! HOD
-      hmod%ihod = 3 ! Default to toy HOD
+      hmod%ihod = ihod_Zheng
+      CALL assign_HOD(hmod%ihod, hmod%hod)
 
       ! Set flags to false
       hmod%has_HOD = .FALSE.
@@ -1947,7 +1948,6 @@ CONTAINS
          hmod%eta = -0.3
       ELSE IF (ihm == 42) THEN
          ! Tinker et al. (2010) and stuff apprpriate for M200c
-         hmod%idc = 1 ! Fixed to 1.686
          hmod%imf = imf_T10_PBS_z ! Tinker mass function and bias
          hmod%iDv = iDv_200c
          hmod%iconc = iconc_Duffy_full_200c
@@ -1957,7 +1957,6 @@ CONTAINS
          hmod%response_matter_only = .TRUE.
       ELSE IF (ihm == 44) THEN
          ! Tinker et al. (2010) and stuff apprpriate for M200
-         hmod%idc = 1 ! Fixed to 1.686
          hmod%imf = imf_T10_PBS_z
          hmod%iDv = iDv_200
          hmod%iconc = iconc_Duffy_full_200
@@ -2287,8 +2286,10 @@ CONTAINS
          hmod%imf = imf_Reed
       ELSE IF (ihm == 96) THEN
          ! Philcox et al. (2020) mass function; FoF 0.2
-         hmod%iDv = iDv_200
-         hmod%iconc = iconc_Duffy_full_200
+         ! NOTE: Not obvious how to convert FoF to Overdensity
+         ! NOTE: Used in tests 106 (for some reason), so should not change halo model here
+         !hmod%iDv = iDv_200
+         !hmod%iconc = iconc_Duffy_full_200
          hmod%imf = imf_Philcox
       ELSE IF (ihm == 97) THEN
          ! Sigma calculated from total matter power
@@ -2603,9 +2604,6 @@ CONTAINS
          ERROR STOP 'INIT_HALOMOD: Your combination of two-halo term and halo bias is not supported'
       END IF
 
-      ! HOD - default values set in hod_functions.f90
-      CALL assign_HOD(hmod%ihod, hmod%hod)
-
       ! Halo definition consistency checks
       IF (hmod%consistency) THEN
 
@@ -2734,7 +2732,7 @@ CONTAINS
          IF (hmod%imf == imf_T10_PBS) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with no z dependence'
          IF (hmod%imf == imf_T10_cal_z) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with calibrated halo bias'
          IF (hmod%imf == imf_T10_cal) WRITE (*, *) 'HALOMODEL: Tinker et al. (2010) mass function with calibrated halo bias and no z dependence'
-         IF (hmod%imf == imf_SMT) WRITE (*, *) 'HALOMODEL: Sheth, Mo & Tormen (1999) mass function with calibrated halo bias'
+         IF (hmod%imf == imf_SMT) WRITE (*, *) 'HALOMODEL: Sheth, Mo & Tormen (2001) mass function with calibrated halo bias'
          IF (hmod%imf == imf_Peacock) WRITE (*, *) 'HALOMODEL: Peacock (2007) mass function'
          IF (hmod%imf == imf_Courtin) WRITE (*, *) 'HALOMODEL: Courtin et al. (2011) mass function'
 
@@ -3133,11 +3131,14 @@ CONTAINS
          WRITE (*, fmt=fmt) 'log10(M_halo_max) [Msun/h]:', log10(hmod%mhalo_max)
          WRITE (*, fmt=fmt) 'log10(M_gal_min) [Msun/h]:', log10(hmod%hod%Mmin)
          WRITE (*, fmt=fmt) 'log10(M_gal_max) [Msun/h]:', log10(hmod%hod%Mmax)
-         WRITE (*, fmt=fmt) 'log10(Mc) [Msun/h]:', log10(hmod%hod%Mc)
+         WRITE (*, fmt=fmt) 'log10(Mcen) [Msun/h]:', log10(hmod%hod%Mcen)
          WRITE (*, fmt=fmt) 'sigma:', hmod%hod%sigma
          WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(hmod%hod%M0)
          WRITE (*, fmt=fmt) 'log10(M1) [Msun/h]:', log10(hmod%hod%M1)
          WRITE (*, fmt=fmt) 'alpha:', hmod%hod%alpha
+         WRITE (*, *) '       Shot-noise in spectra:', hmod%add_shotnoise
+         WRITE (*, *) '   Number variance in spctra:', hmod%add_variances
+         WRITE (*, *) '    Discrete tracers treated:', hmod%proper_discrete
          
          WRITE (*, *) dashes
 
@@ -4200,7 +4201,7 @@ CONTAINS
                ! Correction factor for the gas density profiles
                fc = halo_ejected_gas_fraction(m, hmod, cosm)*m/comoving_matter_density(cosm)
                IF (i_matter /= 0)  wk(i, i_matter) =  wk(i, i_matter)+fc
-               IF (i_gas /= 0)     wk(i, i_gas) = wk(i, i_gas)+fc
+               IF (i_gas /= 0) wk(i, i_gas) = wk(i, i_gas)+fc
                IF (i_freegas /= 0) wk(i, i_freegas) = wk(i, i_freegas)+fc
                IF (i_pressure /= 0) THEN
 
@@ -6287,10 +6288,10 @@ CONTAINS
       hmod%n_h = rhobar_tracer(nu_min, nu_max, rhobar_halo_integrand, hmod, cosm)
       hmod%shot_hh = 1./hmod%n_h
       IF (verbose_HOD) THEN
-         WRITE (*, *) 'INIT_HOD: Minimum tracer halo mass [log10(Msun/h)]:', log10(hmod%mhalo_min)
-         WRITE (*, *) 'INIT_HOD: Maximum tracer halo mass [log10(Msun/h)]:', log10(hmod%mhalo_max)
-         WRITE (*, *) 'INIT_HOD: Comoving number density of all haloes [(Mpc/h)^-3]:', hmod%n_g
-         WRITE (*, *) 'INIT_HOD: Halo shot noise [(Mpc/h)^3]:', hmod%shot_gg
+         WRITE (*, *) 'INIT_HALOES: Minimum tracer halo mass [log10(Msun/h)]:', log10(hmod%mhalo_min)
+         WRITE (*, *) 'INIT_HALOES: Maximum tracer halo mass [log10(Msun/h)]:', log10(hmod%mhalo_max)
+         WRITE (*, *) 'INIT_HALOES: Comoving number density of all haloes [(Mpc/h)^-3]:', hmod%n_g
+         WRITE (*, *) 'INIT_HALOES: Halo shot noise [(Mpc/h)^3]:', hmod%shot_gg
          WRITE (*, *)
       END IF
       hmod%has_haloes = .TRUE.
