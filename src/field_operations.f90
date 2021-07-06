@@ -25,8 +25,8 @@ MODULE field_operations
 
    PUBLIC :: box_mode_power
    PUBLIC :: compute_power_spectrum_pole ! Remove?
-   PUBLIC :: compute_power_spectrum_rsd
-   PUBLIC :: compute_power_spectrum_rsd2
+   !PUBLIC :: compute_power_spectrum_rsd
+   !PUBLIC :: compute_power_spectrum_rsd2
 
    PUBLIC :: field_correlation_function
 
@@ -235,8 +235,8 @@ CONTAINS
 
    SUBROUTINE enforce_Hermiticity(dk, verbose)
 
-      USE FFT
       ! Take an input complex array and force it in to a Hermitian state
+      USE FFT
       COMPLEX, INTENT(INOUT) :: dk(:, :, :)
       LOGICAL, INTENT(IN) :: verbose
       INTEGER :: ix, iy, iz
@@ -277,9 +277,8 @@ CONTAINS
 
    LOGICAL FUNCTION check_Hermiticity(dk)
 
-      USE FFT
-
       ! TODO: Should there be a tolerance parameter here?
+      USE FFT
       COMPLEX, INTENT(IN) :: dk(:, :, :)
       INTEGER :: ix, iy, iz
       INTEGER :: mx, my, mz
@@ -529,36 +528,9 @@ CONTAINS
 
    END SUBROUTINE read_field_binary_3D
 
-!!$  SUBROUTINE read_field8(d,m,infile)
-!!$
-!!$    USE array_operations
-!!$    USE statistics
-!!$    IMPLICIT NONE
-!!$    CHARACTER(len=*), INTENT(IN) :: infile
-!!$    REAL, INTENT(OUT) :: d(m,m,m)
-!!$    DOUBLE PRECISION :: d8(m,m,m)
-!!$    INTEGER, INTENT(IN) :: m
-!!$
-!!$    ! Input unformatted data
-!!$    WRITE(*,*) 'READ_FIELD: Binary input: ', trim(infile)
-!!$    WRITE(*,*) 'READ_FIELD: Mesh size:', m
-!!$    OPEN(7,file=infile,form='unformatted',access='stream',status='old')
-!!$    READ(7) d8
-!!$    CLOSE(7)
-!!$    d=real(d8)
-!!$    WRITE(*,*) 'READ_FIELD: Minimum field value:', minval(d)
-!!$    WRITE(*,*) 'READ_FIELD: Maximum field value:', maxval(d)
-!!$    WRITE(*,*) 'READ_FIELD: Average:', real(mean(splay(d,m,m,m),m**3))
-!!$    WRITE(*,*) 'READ_FIELD: Variance:', real(variance(splay(d,m,m,m),m**3))
-!!$    WRITE(*,*) 'READ_FIELD: Done'
-!!$    WRITE(*,*)
-!!$
-!!$  END SUBROUTINE read_field8
-
    SUBROUTINE write_field_binary_2D(d, m, L, outfile)
 
       ! Write out a binary 'field' file
-
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m)
       REAL, INTENT(IN) :: L
@@ -580,11 +552,10 @@ CONTAINS
 
    END SUBROUTINE write_field_binary_2D
 
-   ! Used to be called write_field
    SUBROUTINE write_field_binary_3D(d, m, L, outfile)
 
       ! Write out a binary 'field' file
-
+      ! Used to be called write_field
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m, m) 
       REAL, INTENT(IN) :: L
@@ -606,9 +577,9 @@ CONTAINS
 
    END SUBROUTINE write_field_binary_3D
 
-   ! Used to be called print_2D_field
    SUBROUTINE write_field_ascii_2D(d, m, L, outfile)
 
+      ! Used to be called print_2D_field
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m), L   
       CHARACTER(len=*), INTENT(IN) :: outfile
@@ -639,9 +610,9 @@ CONTAINS
 
    END SUBROUTINE write_field_ascii_2D
 
-   ! Used to be called print_projected_field
    SUBROUTINE write_3D_field_projection_ascii(d, m, L, nz, outfile)
 
+      ! Used to be called print_projected_field
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(IN) :: d(m, m, m)
       REAL, INTENT(IN) :: L
@@ -768,9 +739,6 @@ CONTAINS
       INTEGER, INTENT(IN) :: m
       REAL, INTENT(INOUT) :: d(m, m, m)
       INTEGER, INTENT(IN) :: ibin
-      !DOUBLE COMPLEX, ALLOCATABLE :: dk(:, :, :)
-      !DOUBLE COMPLEX :: dkout(m, m, m)
-      !DOUBLE PRECISION :: dc(m, m, m)
       COMPLEX, ALLOCATABLE :: dk(:, :, :)
       COMPLEX :: dkout(m, m, m)
       REAL :: dc(m, m, m)
@@ -1348,22 +1316,25 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: sigma(:)     ! Output varaicnce in bin
       LOGICAL, OPTIONAL, INTENT(IN) :: linear_k_range
       INTEGER :: i, ix, iy, n, mn
-      REAL :: kx, ky, kmod, Dk, crap
+      REAL :: kx, ky, kmod, Dk, f, crap
       REAL, ALLOCATABLE :: kbin(:)
-      DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f
-      !INTEGER*8 :: nmodes8(nk)
       INTEGER(int8) :: nmodes8(nk)
 
       REAL, PARAMETER :: dbin = 1e-3 ! Bin slop parameter for first and last bin edges
       LOGICAL, PARAMETER :: logmeank = .FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
 
+      ERROR STOP 'COMPUTE_POWER_SPECTRUM_2D: Check this subroutine very carefully'
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_2D: Computing isotropic power spectrum'
 
       ! Set summation variables to 0.d0
-      k8 = 0.d0
-      pow8 = 0.d0
-      nmodes8 = 0
-      sigma8 = 0.d0
+      !k8 = 0.d0
+      !pow8 = 0.d0
+      !nmodes8 = 0
+      !sigma8 = 0.d0
+
+      ! Allocate arrays
+      ALLOCATE (k(nk), pow(nk), nmodes(nk), sigma(nk))
+      k = 0.; pow = 0.; nmodes = 0; sigma = 0.
 
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_2D: Binning power'
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_2D: Mesh:', m
@@ -1406,12 +1377,12 @@ CONTAINS
                IF (n < 1 .OR. n > nk) THEN
                   CYCLE
                ELSE
-                  k8(n) = k8(n)+kmod
+                  k(n) = k(n)+kmod
                   f = real(conjg(dk1(ix, iy))*dk2(ix, iy))
                   f = f/real(m)**2 ! Note the division by m^4 here
-                  pow8(n) = pow8(n)+f
-                  sigma8(n) = sigma8(n)+f**2
-                  nmodes8(n) = nmodes8(n)+1
+                  pow(n) = pow(n)+f
+                  sigma(n) = sigma(n)+f**2
+                  nmodes(n) = nmodes(n)+1
                END IF
             END IF
 
@@ -1421,43 +1392,42 @@ CONTAINS
       ! Deallocate and reallocate arrays
       ! TODO: Do I need to bother deallocating these arrays?
       ! TODO: Should I pass in allocatable arrays or should they already be allocated?
-      IF (ALLOCATED(k))      DEALLOCATE (k)
-      IF (ALLOCATED(pow))    DEALLOCATE (pow)
-      IF (ALLOCATED(nmodes)) DEALLOCATE (nmodes)
-      IF (ALLOCATED(sigma))  DEALLOCATE (sigma)
-      ALLOCATE (k(nk), pow(nk), nmodes(nk), sigma(nk))
+      !IF (ALLOCATED(k))      DEALLOCATE (k)
+      !IF (ALLOCATED(pow))    DEALLOCATE (pow)
+      !IF (ALLOCATED(nmodes)) DEALLOCATE (nmodes)
+      !IF (ALLOCATED(sigma))  DEALLOCATE (sigma)
 
       ! Now create the power spectrum and k array
       DO i = 1, nk
-         IF (nmodes8(i) == 0) THEN
+         IF (nmodes(i) == 0) THEN
             k(i) = sqrt(kbin(i+1)*kbin(i))
-            pow8(i) = 0.d0
-            sigma8(i) = 0.d0
+            pow(i) = 0.d0
+            sigma(i) = 0.d0
          ELSE
             IF (logmeank) THEN
                k(i) = sqrt(kbin(i+1)*kbin(i))
             ELSE
-               k(i) = real(k8(i))/real(nmodes8(i))
+               k(i) = real(k(i))/real(nmodes(i))
             END IF
-            pow8(i) = pow8(i)/real(nmodes8(i))
-            IF (nmodes8(i) == 1) THEN
-               sigma8(i) = 0
+            pow(i) = pow(i)/real(nmodes(i))
+            IF (nmodes(i) == 1) THEN
+               sigma(i) = 0
             ELSE
-               sigma8(i) = sigma8(i)/real(nmodes8(i)) ! Create <P(k)^2>
-               sigma8(i) = sqrt(sigma8(i)-pow8(i)**2) ! Create biased estimate of sigma
-               sigma8(i) = sigma8(i)*real(nmodes8(i))/real(nmodes8(i)-1) ! Correct for bias
-               sigma8(i) = sigma8(i)/sqrt(real(nmodes8(i))) ! Convert to error on the mean
+               sigma(i) = sigma(i)/real(nmodes(i)) ! Create <P(k)^2>
+               sigma(i) = sqrt(sigma(i)-pow(i)**2) ! Create biased estimate of sigma
+               sigma(i) = sigma(i)*real(nmodes(i))/real(nmodes(i)-1) ! Correct for bias
+               sigma(i) = sigma(i)/sqrt(real(nmodes(i))) ! Convert to error on the mean
             END IF
             Dk = twopi*(k(i)*L/twopi)**2
-            pow8(i) = pow8(i)*Dk
-            sigma8(i) = sigma8(i)*Dk
+            pow(i) = pow(i)*Dk
+            sigma(i) = sigma(i)*Dk
          END IF
       END DO
 
-      ! Convert from double precision to reals
-      pow = real(pow8)
-      sigma = real(sigma8)
-      nmodes = INT(nmodes8)
+      ! Convert from double to single
+      !pow = real(pow8)
+      !sigma = real(sigma8)
+      !nmodes = INT(nmodes8)
 
       WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_2D: Power computed'
       WRITE (*, *)
@@ -1595,14 +1565,12 @@ CONTAINS
       ! Takes in a dk(m,m,m) array and computes the power spectrum
       USE table_integer
       USE special_functions
-
-      ! Takes in a dk(m,m) array and computes the power spectrum
       COMPLEX, INTENT(IN) :: dk1(:, :, :) ! Fourier components of field 1
       COMPLEX, INTENT(IN) :: dk2(:, :, :) ! Fourier components of field 2
       INTEGER, INTENT(IN) :: m     ! Mesh size for fields
       REAL, INTENT(IN) :: L        ! Box size [Mpc/h]
       INTEGER, INTENT(IN) :: ipole ! Multipole to compute
-      INTEGER, INTENT(IN) :: izz    ! Redshift direction
+      INTEGER, INTENT(IN) :: izz   ! Redshift direction
       REAL, INTENT(IN) :: kmin     ! Minimum wavenumber [h/Mpc]
       REAL, INTENT(IN) :: kmax     ! Maximum wavenumber [h/Mpc]
       INTEGER, INTENT(IN) :: nk    ! Number of k bins
@@ -1612,27 +1580,27 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: sigma(:)     ! Output varaicnce in bin
       LOGICAL, OPTIONAL, INTENT(IN) :: linear_k_range
       INTEGER :: i, ix, iy, iz, n, mn
-      REAL :: kx, ky, kz, kmod, Dk, mu
+      REAL :: kx, ky, kz, kmod, Dk, mu, f
       REAL, ALLOCATABLE :: kbin(:)
-      DOUBLE PRECISION :: pow8(nk), k8(nk), sigma8(nk), f
-      INTEGER(int8) :: nmodes8(nk)
-
       REAL, PARAMETER :: dbin = 1e-3           ! Bin slop parameter for first and last bin edges
       LOGICAL, PARAMETER :: logmeank = .FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
 
-      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Computing isotropic power spectrum'
+      ERROR STOP 'COMPUTE_MULTIPOLE_POWER_SPECTRUM_3D: Check this subroutine very carefully'
+      WRITE (*, *) 'COMPUTE_MULTIPOLE_POWER_SPECTRUM_3D: Computing isotropic power spectrum'
 
       ! Set summation variables to 0.d0
-      k8 = 0.d0
-      pow8 = 0.d0
-      nmodes8 = 0
-      sigma8 = 0.d0
+      !k8 = 0.d0
+      !pow8 = 0.d0
+      !nmodes8 = 0
+      !sigma8 = 0.d0
+      ALLOCATE (k(nk), pow(nk), nmodes(nk), sigma(nk))
+      k = 0.; pow = 0.; nmodes = 0; sigma = 0.
 
-      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Binning power'
-      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Mesh:', m
-      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Bins:', nk
-      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: k_min [h/Mpc]:', kmin
-      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: k_max [h/Mpc]:', kmax
+      WRITE (*, *) 'COMPUTE_MULTIPOLE_POWER_SPECTRUM_3D: Binning power'
+      WRITE (*, *) 'COMPUTE_MULTIPOLE_POWER_SPECTRUM_3D: Mesh:', m
+      WRITE (*, *) 'COMPUTE_MULTIPOLE_POWER_SPECTRUM_3D: Bins:', nk
+      WRITE (*, *) 'COMPUTE_MULTIPOLE_POWER_SPECTRUM_3D: k_min [h/Mpc]:', kmin
+      WRITE (*, *) 'COMPUTE_MULTIPOLE_POWER_SPECTRUM_3D: k_max [h/Mpc]:', kmax
 
       ! Fill array of k bins with linear/log spacing
       IF (present_and_correct(linear_k_range)) THEN
@@ -1680,13 +1648,13 @@ CONTAINS
                   IF (n < 1 .OR. n > nk) THEN
                      CYCLE
                   ELSE
-                     k8(n) = k8(n)+kmod
+                     k(n) = k(n)+kmod
                      f = real(conjg(dk1(ix, iy, iz))*dk2(ix, iy, iz))
                      f = f/real(m)**6
-                     f = f*Legendre_polynomial(ipole, mu)*(2.*real(ipole)+1.)
-                     pow8(n) = pow8(n)+f
-                     sigma8(n) = sigma8(n)+f**2
-                     nmodes8(n) = nmodes8(n)+1
+                     f = f*Legendre_polynomial(ipole, mu)*(2.*ipole+1.)
+                     pow(n) = pow(n)+f
+                     sigma(n) = sigma(n)+f**2
+                     nmodes(n) = nmodes(n)+1
                   END IF
                END IF
 
@@ -1697,46 +1665,46 @@ CONTAINS
       ! Deallocate and reallocate arrays
       ! TODO: Do I need to bother deallocating these arrays?
       ! TODO: Should I pass in allocatable arrays or should they already be allocated?
-      IF (ALLOCATED(k))      DEALLOCATE (k)
-      IF (ALLOCATED(pow))    DEALLOCATE (pow)
-      IF (ALLOCATED(nmodes)) DEALLOCATE (nmodes)
-      IF (ALLOCATED(sigma))  DEALLOCATE (sigma)
-      ALLOCATE (k(nk), pow(nk), nmodes(nk), sigma(nk))
+      !IF (ALLOCATED(k))      DEALLOCATE (k)
+      !IF (ALLOCATED(pow))    DEALLOCATE (pow)
+      !IF (ALLOCATED(nmodes)) DEALLOCATE (nmodes)
+      !IF (ALLOCATED(sigma))  DEALLOCATE (sigma)
+      !ALLOCATE (k(nk), pow(nk), nmodes(nk), sigma(nk))
 
       ! Now create the power spectrum and k array
       DO i = 1, nk
-         IF (nmodes8(i) == 0) THEN
+         IF (nmodes(i) == 0) THEN
             k(i) = sqrt(kbin(i+1)*kbin(i))
-            pow8(i) = 0.d0
-            sigma8(i) = 0.d0
+            pow(i) = 0.d0
+            sigma(i) = 0.d0
          ELSE
             IF (logmeank) THEN
                k(i) = sqrt(kbin(i+1)*kbin(i))
             ELSE
-               k(i) = real(k8(i))/real(nmodes8(i))
+               k(i) = real(k(i))/real(nmodes(i))
             END IF
-            pow8(i) = pow8(i)/real(nmodes8(i)) ! Create <P(k)>
-            IF (nmodes8(i) == 1) THEN
-               sigma8(i) = 0
+            pow(i) = pow(i)/real(nmodes(i)) ! Create <P(k)>
+            IF (nmodes(i) == 1) THEN
+               sigma(i) = 0.
             ELSE
-               sigma8(i) = sigma8(i)/real(nmodes8(i)) ! Create <P(k)^2>
-               sigma8(i) = sigma8(i)-pow8(i)**2 ! Create biased estimate of variance
-               sigma8(i) = sigma8(i)*real(nmodes8(i))/real(nmodes8(i)-1) ! Correct for bias
-               sigma8(i) = sqrt(sigma8(i)) ! Create estimate of standard deviation
-               sigma8(i) = sigma8(i)/sqrt(real(nmodes8(i))) ! Convert to error-on-the-mean
+               sigma(i) = sigma(i)/real(nmodes(i)) ! Create <P(k)^2>
+               sigma(i) = sigma(i)-pow(i)**2 ! Create biased estimate of variance
+               sigma(i) = sigma(i)*real(nmodes(i))/real(nmodes(i)-1) ! Correct for bias
+               sigma(i) = sqrt(sigma(i)) ! Create estimate of standard deviation
+               sigma(i) = sigma(i)/sqrt(real(nmodes(i))) ! Convert to error-on-the-mean
             END IF
             Dk = 4.*pi*(k(i)*L/twopi)**3
-            pow8(i) = pow8(i)*Dk
-            sigma8(i) = sigma8(i)*Dk
+            pow(i) = pow(i)*Dk
+            sigma(i) = sigma(i)*Dk
          END IF
       END DO
 
-      ! Convert from double precision to reals
-      pow = real(pow8)
-      sigma = real(sigma8)
-      nmodes = INT(nmodes8)
+      ! Convert from double to single
+      !pow = real(pow8)
+      !sigma = real(sigma8)
+      !nmodes = INT(nmodes8)
 
-      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_3D: Power computed'
+      WRITE (*, *) 'COMPUTE_MULTIPOLE_POWER_SPECTRUM_3D: Power computed'
       WRITE (*, *)
 
    END SUBROUTINE compute_multipole_power_spectrum_3D
@@ -1744,49 +1712,38 @@ CONTAINS
    SUBROUTINE compute_power_spectrum_pole(d, m, L, ipole, iz, kmin, kmax, nk, kval, pow, nmodes)
 
       USE special_functions
-
       INTEGER, INTENT(IN) :: m
-      !DOUBLE COMPLEX, INTENT(IN) :: d(m, m, m)
       COMPLEX, INTENT(IN) :: d(m, m, m)
       REAL, INTENT(IN) :: kmin, kmax, L
       INTEGER, INTENT(IN) :: iz, ipole, nk
-      REAL, ALLOCATABLE, INTENT(INOUT) :: pow(:), kval(:)
-      INTEGER, ALLOCATABLE, INTENT(INOUT) :: nmodes(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: pow(:), kval(:)
+      INTEGER, ALLOCATABLE, INTENT(OUT) :: nmodes(:)
       INTEGER :: i, j, k, n
       REAL :: kx, ky, kz, kmod, mu
       REAL :: kbin(nk+1)
-      DOUBLE PRECISION :: pow8(nk), kval8(nk)
-      !INTEGER*8 :: nmodes8(nk)
-      INTEGER(int8) :: nmodes8(nk)
 
-      STOP 'COMPUTE_POWER_SPECTRUM_POLE: Check this very carefully'
+      STOP 'COMPUTE_POWER_SPECTRUM_POLE: Check this subroutine very carefully, see notes in code'
+      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_POLE: Computing isotropic power spectrum'
 
-      WRITE (*, *) 'Computing isotropic power spectrum'
+      ALLOCATE(pow(nk), kval(nk), nmodes(nk))
+      kval = 0.; pow = 0.; nmodes = 0
 
-      kval = 0.
-      pow = 0.
-      nmodes = 0
-
-      kval8 = 0.d0
-      pow8 = 0.d0
-      nmodes8 = 0
-
-      WRITE (*, *) 'Binning power'
-      WRITE (*, *) 'Bins:', nk
-      WRITE (*, *) 'k_min:', kmin
-      WRITE (*, *) 'k_max:', kmax
+      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_POLE: Binning power'
+      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_POLE: Bins:', nk
+      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_POLE: k_min:', kmin
+      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_POLE: k_max:', kmax
 
       ! Log-spaced bins
+      ! TODO: Surely this needs to be in a loop? Use allocate function?
       kbin(i) = progression(kmin, kmax, i, nk+1, ilog=.TRUE.)
 
       !Explicitly extend the bins to be sure to include all modes
       !This is necessary due to rounding errors!
       !    kbin(1)=kbin(1)*0.999
       !    kbin(bins+1)=kbin(bins+1)*1.001
-
       !m=SIZE(d(:,1,1))
 
-      WRITE (*, *) 'Mesh:', m
+      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_POLE: Mesh:', m
 
       DO k = 1, m
          DO j = 1, m
@@ -1820,9 +1777,9 @@ CONTAINS
                IF (n < 1 .OR. n > nk) THEN
                   CYCLE
                ELSE
-                  pow8(n) = pow8(n)+(abs(d(i, j, k))**2.)*Legendre_polynomial(ipole, mu)*(2.*real(ipole)+1.)
-                  kval8(n) = kval8(n)+kmod
-                  nmodes8(n) = nmodes8(n)+1
+                  pow(n) = pow(n)+(abs(d(i, j, k))**2)*Legendre_polynomial(ipole, mu)*(2.*ipole+1.)
+                  kval(n) = kval(n)+kmod
+                  nmodes(n) = nmodes(n)+1
                END IF
 
             END DO
@@ -1830,285 +1787,285 @@ CONTAINS
       END DO
 
       !Deallocate and re-allocate arrays
-      IF (ALLOCATED(kval)) DEALLOCATE (kval)
-      IF (ALLOCATED(pow)) DEALLOCATE (pow)
-      IF (ALLOCATED(nmodes)) DEALLOCATE (nmodes)
-      ALLOCATE (kval(nk), pow(nk), nmodes(nk))
+      !IF (ALLOCATED(kval)) DEALLOCATE (kval)
+      !IF (ALLOCATED(pow)) DEALLOCATE (pow)
+      !IF (ALLOCATED(nmodes)) DEALLOCATE (nmodes)
+      !ALLOCATE (kval(nk), pow(nk), nmodes(nk))
 
       DO i = 1, nk
-         kval(i) = (kbin(i+1)+kbin(i))/2.
-         IF (nmodes8(i) == 0) THEN
-            pow8(i) = 0.
+         kval(i) = (kbin(i+1)+kbin(i))/2. ! Should be sqrt(kmax*kmin) for log
+         IF (nmodes(i) == 0) THEN
+            pow(i) = 0.
          ELSE
-            pow8(i) = pow8(i)/real(nmodes8(i))
-            pow8(i) = pow8(i)*((L*kval(i))**3)/(2.*pi**2)
+            pow(i) = pow(i)/real(nmodes(i))
+            pow(i) = pow(i)*((L*kval(i))**3)/(2.*pi**2) ! Not sure this is good; create P(k) and then Delta(k)?
          END IF
       END DO
 
-      pow = real(pow8)/(real(m)**6)
+      pow = pow/real(m)**6
 
       !Divide by 2 because double count Hermitian conjugates
-      nmodes = INT(nmodes8)/2
+      nmodes = nmodes/2
 
-      WRITE (*, *) 'Power computed'
+      WRITE (*, *) 'COMPUTE_POWER_SPECTRUM_POLE: Power computed'
       WRITE (*, *)
 
    END SUBROUTINE compute_power_spectrum_pole
 
-   SUBROUTINE compute_power_spectrum_rsd(d, L, kmin, kmax, nk, kv, mu, pow, nmodes, iz)
+   ! SUBROUTINE compute_power_spectrum_rsd(d, L, kmin, kmax, nk, kv, mu, pow, nmodes, iz)
 
-      INTEGER :: i, j, k, m, ii, jj, nk, iz
-      REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, mus
-      REAL :: pow(nk, nk), kv(nk), kbin(nk+1), mu(nk), mubin(nk+1)
-      DOUBLE PRECISION :: pow8(nk, nk)
-      INTEGER :: nmodes(nk, nk)
-      !INTEGER*8 :: nmodes8(nk, nk)
-      INTEGER(int8) :: nmodes8(nk, nk)
-      !DOUBLE COMPLEX :: d(:, :, :)
-      COMPLEX :: d(:, :, :)
+   !    INTEGER :: i, j, k, m, ii, jj, nk, iz
+   !    REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, mus
+   !    REAL :: pow(nk, nk), kv(nk), kbin(nk+1), mu(nk), mubin(nk+1)
+   !    !DOUBLE PRECISION :: pow8(nk, nk)
+   !    INTEGER :: nmodes(nk, nk)
+   !    !INTEGER*8 :: nmodes8(nk, nk)
+   !    INTEGER(int8) :: nmodes8(nk, nk)
+   !    !DOUBLE COMPLEX :: d(:, :, :)
+   !    COMPLEX :: d(:, :, :)
 
-      STOP 'COMPUTE_POWER_SPECTRUM_RSD: Check this very carefully'
+   !    STOP 'COMPUTE_POWER_SPECTRUM_RSD: Check this very carefully'
 
-      WRITE (*, *) 'Computing RSD power spectrum'
+   !    WRITE (*, *) 'Computing RSD power spectrum'
 
-      kbin = 0.
-      mubin = 0.
-      kv = 0.
-      mu = 0.
-      pow = 0.
-      nmodes = 0
+   !    kbin = 0.
+   !    mubin = 0.
+   !    kv = 0.
+   !    mu = 0.
+   !    pow = 0.
+   !    nmodes = 0
 
-      pow8 = 0.d0
-      nmodes8 = 0
+   !    pow8 = 0.d0
+   !    nmodes8 = 0
 
-      WRITE (*, *) 'Binning power'
-      WRITE (*, *) 'Bins:', nk
-      WRITE (*, *) 'k_min:', kmin
-      WRITE (*, *) 'k_max:', kmax
+   !    WRITE (*, *) 'Binning power'
+   !    WRITE (*, *) 'Bins:', nk
+   !    WRITE (*, *) 'k_min:', kmin
+   !    WRITE (*, *) 'k_max:', kmax
 
-      a = kmin
-      b = kmax
+   !    a = kmin
+   !    b = kmax
 
-      a = log10(a)
-      b = log10(b)
+   !    a = log10(a)
+   !    b = log10(b)
 
-      !DO i=1,bins+1
-      !   kbin(i)=a+(b-a)*float(i-1)/float(bins)
-      !END DO
-      kbin(i) = progression(a, b, i, nk+1)
+   !    !DO i=1,bins+1
+   !    !   kbin(i)=a+(b-a)*float(i-1)/float(bins)
+   !    !END DO
+   !    kbin(i) = progression(a, b, i, nk+1)
 
-      !DO i=1,bins+1
-      !   mubin(i)=float(i-1)/float(bins)
-      !END DO
-      mubin(i) = progression(0., 1., i, nk+1)
+   !    !DO i=1,bins+1
+   !    !   mubin(i)=float(i-1)/float(bins)
+   !    !END DO
+   !    mubin(i) = progression(0., 1., i, nk+1)
 
-      DO i = 1, nk
-         kv(i) = (kbin(i)+kbin(i+1))/2.
-         mu(i) = (mubin(i)+mubin(i+1))/2.
-      END DO
+   !    DO i = 1, nk
+   !       kv(i) = (kbin(i)+kbin(i+1))/2.
+   !       mu(i) = (mubin(i)+mubin(i+1))/2.
+   !    END DO
 
-      kbin = 10.**kbin
-      kv = 10.**kv
+   !    kbin = 10.**kbin
+   !    kv = 10.**kv
 
-      !Explicitly extend the bins to be sure to include all modes
-      !This is necessary due to rounding errors!
-      kbin(1) = kbin(1)*0.999
-      kbin(nk+1) = kbin(nk+1)*1.001
-      mubin(1) = -0.001
-      mubin(nk+1) = 1.001
+   !    !Explicitly extend the bins to be sure to include all modes
+   !    !This is necessary due to rounding errors!
+   !    kbin(1) = kbin(1)*0.999
+   !    kbin(nk+1) = kbin(nk+1)*1.001
+   !    mubin(1) = -0.001
+   !    mubin(nk+1) = 1.001
 
-      m = SIZE(d(:, 1, 1))
+   !    m = SIZE(d(:, 1, 1))
 
-      WRITE (*, *) 'Mesh:', m
+   !    WRITE (*, *) 'Mesh:', m
 
-      DO k = 1, m
-         DO j = 1, m
-            DO i = 1, m
+   !    DO k = 1, m
+   !       DO j = 1, m
+   !          DO i = 1, m
 
-               IF (i == 1 .AND. j == 1 .AND. k == 1) CYCLE
+   !             IF (i == 1 .AND. j == 1 .AND. k == 1) CYCLE
 
-               CALL k_fft(i, j, k, m, kx, ky, kz, kmod, L)
+   !             CALL k_fft(i, j, k, m, kx, ky, kz, kmod, L)
 
-               IF (iz == 1) THEN
-                  mus = kx/kmod
-               ELSE IF (iz == 2) THEN
-                  mus = ky/kmod
-               ELSE IF (iz == 3) THEN
-                  mus = kz/kmod
-               ELSE
-                  STOP 'COMPUTE_POWER_SPECTRUM_RSD: Error, iz not specified correctly'
-               END IF
+   !             IF (iz == 1) THEN
+   !                mus = kx/kmod
+   !             ELSE IF (iz == 2) THEN
+   !                mus = ky/kmod
+   !             ELSE IF (iz == 3) THEN
+   !                mus = kz/kmod
+   !             ELSE
+   !                STOP 'COMPUTE_POWER_SPECTRUM_RSD: Error, iz not specified correctly'
+   !             END IF
 
-               mus = abs(mus)
+   !             mus = abs(mus)
 
-               !             WRITE(*,*) mus, kbin(1), kbin(2), kmod
-               !             IF(i==10) STOP
+   !             !             WRITE(*,*) mus, kbin(1), kbin(2), kmod
+   !             !             IF(i==10) STOP
 
-               DO jj = 1, nk
-                  IF (kmod >= kbin(jj) .AND. kmod <= kbin(jj+1)) THEN
-                     DO ii = 1, nk
-                        IF (mus >= mubin(ii) .AND. mus <= mubin(ii+1)) THEN
-                           pow8(ii, jj) = pow8(ii, jj)+abs(d(i, j, k))**2.
-                           nmodes8(ii, jj) = nmodes8(ii, jj)+1
-                           EXIT
-                        END IF
-                     END DO
-                     EXIT
-                  END IF
-               END DO
+   !             DO jj = 1, nk
+   !                IF (kmod >= kbin(jj) .AND. kmod <= kbin(jj+1)) THEN
+   !                   DO ii = 1, nk
+   !                      IF (mus >= mubin(ii) .AND. mus <= mubin(ii+1)) THEN
+   !                         pow8(ii, jj) = pow8(ii, jj)+abs(d(i, j, k))**2.
+   !                         nmodes8(ii, jj) = nmodes8(ii, jj)+1
+   !                         EXIT
+   !                      END IF
+   !                   END DO
+   !                   EXIT
+   !                END IF
+   !             END DO
 
-            END DO
-         END DO
-      END DO
+   !          END DO
+   !       END DO
+   !    END DO
 
-      DO jj = 1, nk
-         DO ii = 1, nk
-            IF (nmodes8(ii, jj) == 0) THEN
-               pow8(ii, jj) = 0.
-            ELSE
-               pow8(ii, jj) = pow8(ii, jj)/real(nmodes8(ii, jj))
-               pow8(ii, jj) = pow8(ii, jj)*((L*kv(jj))**3.)/(2.*pi**2.)
-            END IF
-         END DO
-      END DO
+   !    DO jj = 1, nk
+   !       DO ii = 1, nk
+   !          IF (nmodes8(ii, jj) == 0) THEN
+   !             pow8(ii, jj) = 0.
+   !          ELSE
+   !             pow8(ii, jj) = pow8(ii, jj)/real(nmodes8(ii, jj))
+   !             pow8(ii, jj) = pow8(ii, jj)*((L*kv(jj))**3.)/(2.*pi**2.)
+   !          END IF
+   !       END DO
+   !    END DO
 
-      pow = real(pow8)/(real(m)**6)
+   !    pow = real(pow8)/(real(m)**6)
 
-      !Divide by 2 because double count Hermitian conjugates
-      nmodes = INT(nmodes8)/2
+   !    !Divide by 2 because double count Hermitian conjugates
+   !    nmodes = INT(nmodes8)/2
 
-      WRITE (*, *) 'Power computed'
-      WRITE (*, *)
+   !    WRITE (*, *) 'Power computed'
+   !    WRITE (*, *)
 
-   END SUBROUTINE compute_power_spectrum_rsd
+   ! END SUBROUTINE compute_power_spectrum_rsd
 
-   SUBROUTINE compute_power_spectrum_rsd2(d, L, kmin, kmax, nk, kpar, kper, pow, nmodes, iz)
+   ! SUBROUTINE compute_power_spectrum_rsd2(d, L, kmin, kmax, nk, kpar, kper, pow, nmodes, iz)
 
-      INTEGER :: i, j, k, m, ii, jj, nk, iz
-      REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, kpers, kpars
-      REAL :: pow(nk, nk), kpar(nk), kparbin(nk+1), kper(nk), kperbin(nk+1)
-      !DOUBLE PRECISION :: pow8(nk, nk)
-      REAL :: pow8(nk, nk)
-      INTEGER :: nmodes(nk, nk)
-      !INTEGER*8 :: nmodes8(nk, nk)
-      INTEGER(int8) :: nmodes8(nk, nk)
-      !DOUBLE COMPLEX :: d(:, :, :)
-      COMPLEX :: d(:, :, :)
+   !    INTEGER :: i, j, k, m, ii, jj, nk, iz
+   !    REAL :: kx, ky, kz, kmod, L, kmin, kmax, a, b, kpers, kpars
+   !    REAL :: pow(nk, nk), kpar(nk), kparbin(nk+1), kper(nk), kperbin(nk+1)
+   !    !DOUBLE PRECISION :: pow8(nk, nk)
+   !    REAL :: pow8(nk, nk)
+   !    INTEGER :: nmodes(nk, nk)
+   !    !INTEGER*8 :: nmodes8(nk, nk)
+   !    INTEGER(int8) :: nmodes8(nk, nk)
+   !    !DOUBLE COMPLEX :: d(:, :, :)
+   !    COMPLEX :: d(:, :, :)
 
-      STOP 'COMPUTE_POWER_SPECTRUM_RSD2: Check this very carefully'
+   !    STOP 'COMPUTE_POWER_SPECTRUM_RSD2: Check this very carefully'
 
-      WRITE (*, *) 'Computing rsd power spectrum'
+   !    WRITE (*, *) 'Computing rsd power spectrum'
 
-      kparbin = 0.
-      kperbin = 0.
-      kpar = 0.
-      kper = 0.
-      pow = 0.
-      nmodes = 0
+   !    kparbin = 0.
+   !    kperbin = 0.
+   !    kpar = 0.
+   !    kper = 0.
+   !    pow = 0.
+   !    nmodes = 0
 
-      pow8 = 0.d0
-      nmodes8 = 0
+   !    pow8 = 0.d0
+   !    nmodes8 = 0
 
-      WRITE (*, *) 'Binning power'
-      WRITE (*, *) 'Bins:', nk
-      WRITE (*, *) 'k_min:', kmin
-      WRITE (*, *) 'k_max:', kmax
+   !    WRITE (*, *) 'Binning power'
+   !    WRITE (*, *) 'Bins:', nk
+   !    WRITE (*, *) 'k_min:', kmin
+   !    WRITE (*, *) 'k_max:', kmax
 
-      a = kmin
-      b = kmax
+   !    a = kmin
+   !    b = kmax
 
-      a = log10(a)
-      b = log10(b)
+   !    a = log10(a)
+   !    b = log10(b)
 
-      !DO i=1,bins+1
-      !   kparbin(i)=a+(b-a)*float(i-1)/float(bins)
-      !END DO
-      kparbin(i) = progression(a, b, i, nk+1)
+   !    !DO i=1,bins+1
+   !    !   kparbin(i)=a+(b-a)*float(i-1)/float(bins)
+   !    !END DO
+   !    kparbin(i) = progression(a, b, i, nk+1)
 
-      DO i = 1, nk
-         kpar(i) = (kparbin(i)+kparbin(i+1))/2.
-      END DO
+   !    DO i = 1, nk
+   !       kpar(i) = (kparbin(i)+kparbin(i+1))/2.
+   !    END DO
 
-      kparbin = 10.**kparbin
-      kpar = 10.**kpar
+   !    kparbin = 10.**kparbin
+   !    kpar = 10.**kpar
 
-      !Explicitly extend the bins to be sure to include all modes
-      !This is necessary due to rounding errors!
-      kparbin(1) = kparbin(1)*0.999
-      kparbin(nk+1) = kparbin(nk+1)*1.001
+   !    !Explicitly extend the bins to be sure to include all modes
+   !    !This is necessary due to rounding errors!
+   !    kparbin(1) = kparbin(1)*0.999
+   !    kparbin(nk+1) = kparbin(nk+1)*1.001
 
-      kperbin = kparbin
-      kper = kpar
+   !    kperbin = kparbin
+   !    kper = kpar
 
-      m = SIZE(d(:, 1, 1))
+   !    m = SIZE(d(:, 1, 1))
 
-      WRITE (*, *) 'Mesh:', m
+   !    WRITE (*, *) 'Mesh:', m
 
-      DO k = 1, m
-         DO j = 1, m
-            DO i = 1, m
+   !    DO k = 1, m
+   !       DO j = 1, m
+   !          DO i = 1, m
 
-               IF (i == 1 .AND. j == 1 .AND. k == 1) CYCLE
+   !             IF (i == 1 .AND. j == 1 .AND. k == 1) CYCLE
 
-               CALL k_fft(i, j, k, m, kx, ky, kz, kmod, L)
+   !             CALL k_fft(i, j, k, m, kx, ky, kz, kmod, L)
 
-               IF (iz == 1) THEN
-                  kpars = abs(kx)
-                  kpers = sqrt(ky**2.+kz**2.)
-               ELSE IF (iz == 2) THEN
-                  kpars = abs(ky)
-                  kpers = sqrt(kz**2.+kx**2.)
-               ELSE IF (iz == 3) THEN
-                  kpars = abs(kz)
-                  kpers = sqrt(kx**2.+ky**2.)
-               ELSE
-                  STOP 'COMPUTE_POWER_SPECTRUM_RSD2: Error, iz not specified correctly'
-               END IF
+   !             IF (iz == 1) THEN
+   !                kpars = abs(kx)
+   !                kpers = sqrt(ky**2.+kz**2.)
+   !             ELSE IF (iz == 2) THEN
+   !                kpars = abs(ky)
+   !                kpers = sqrt(kz**2.+kx**2.)
+   !             ELSE IF (iz == 3) THEN
+   !                kpars = abs(kz)
+   !                kpers = sqrt(kx**2.+ky**2.)
+   !             ELSE
+   !                STOP 'COMPUTE_POWER_SPECTRUM_RSD2: Error, iz not specified correctly'
+   !             END IF
 
-               DO jj = 1, nk
-                  IF (kpars >= kparbin(jj) .AND. kpars <= kparbin(jj+1)) THEN
-                     DO ii = 1, nk
-                        IF (kpers >= kperbin(ii) .AND. kpers <= kperbin(ii+1)) THEN
-                           pow8(ii, jj) = pow8(ii, jj)+abs(d(i, j, k))**2.
-                           nmodes8(ii, jj) = nmodes8(ii, jj)+1
-                           EXIT
-                        END IF
-                     END DO
-                     EXIT
-                  END IF
-               END DO
+   !             DO jj = 1, nk
+   !                IF (kpars >= kparbin(jj) .AND. kpars <= kparbin(jj+1)) THEN
+   !                   DO ii = 1, nk
+   !                      IF (kpers >= kperbin(ii) .AND. kpers <= kperbin(ii+1)) THEN
+   !                         pow8(ii, jj) = pow8(ii, jj)+abs(d(i, j, k))**2.
+   !                         nmodes8(ii, jj) = nmodes8(ii, jj)+1
+   !                         EXIT
+   !                      END IF
+   !                   END DO
+   !                   EXIT
+   !                END IF
+   !             END DO
 
-            END DO
-         END DO
-      END DO
+   !          END DO
+   !       END DO
+   !    END DO
 
-      !    DO jj=1,bins
-      !       DO ii=1,bins
-      !          pow(ii,jj)=pow(ii,jj)/log(kperbin(ii+1)/kperbin(ii))
-      !          pow(ii,jj)=pow(ii,jj)/log(kparbin(jj+1)/kparbin(jj))
-      !       END DO
-      !    END DO
+   !    !    DO jj=1,bins
+   !    !       DO ii=1,bins
+   !    !          pow(ii,jj)=pow(ii,jj)/log(kperbin(ii+1)/kperbin(ii))
+   !    !          pow(ii,jj)=pow(ii,jj)/log(kparbin(jj+1)/kparbin(jj))
+   !    !       END DO
+   !    !    END DO
 
-      DO jj = 1, nk
-         DO ii = 1, nk
-            IF (nmodes8(ii, jj) == 0) THEN
-               pow8(ii, jj) = 0.
-            ELSE
-               pow8(ii, jj) = pow8(ii, jj)/real(nmodes8(ii, jj))
-               pow8(ii, jj) = pow8(ii, jj)*(L**3.*kpar(jj)*kper(ii)**2.)/(2.*pi**2.)
-            END IF
-         END DO
-      END DO
+   !    DO jj = 1, nk
+   !       DO ii = 1, nk
+   !          IF (nmodes8(ii, jj) == 0) THEN
+   !             pow8(ii, jj) = 0.
+   !          ELSE
+   !             pow8(ii, jj) = pow8(ii, jj)/real(nmodes8(ii, jj))
+   !             pow8(ii, jj) = pow8(ii, jj)*(L**3.*kpar(jj)*kper(ii)**2.)/(2.*pi**2.)
+   !          END IF
+   !       END DO
+   !    END DO
 
-      pow = real(pow8)/(real(m)**6)
+   !    pow = real(pow8)/(real(m)**6)
 
-      !Divide by 2 because double count Hermitian conjugates
-      nmodes = INT(nmodes8)/2
+   !    !Divide by 2 because double count Hermitian conjugates
+   !    nmodes = INT(nmodes8)/2
 
-      WRITE (*, *) 'Power computed'
-      WRITE (*, *)
+   !    WRITE (*, *) 'Power computed'
+   !    WRITE (*, *)
 
-   END SUBROUTINE compute_power_spectrum_rsd2
+   ! END SUBROUTINE compute_power_spectrum_rsd2
 
    REAL FUNCTION box_mode_power(dk)
 
@@ -2177,18 +2134,20 @@ CONTAINS
       !INTEGER*8, INTENT(OUT) :: n_array(n)
       INTEGER(int8), INTENT(OUT) :: n_array(n)
       REAL:: rmin, rmax
-      DOUBLE PRECISION :: xi8_array(n)
+      !DOUBLE PRECISION :: xi8_array(n)
       INTEGER :: i1, i2, i3, j1, j2, j3, i(3), j(3), k, dim
       REAL :: r, x1(3), x2(3)
+
+      ERROR STOP 'FIELD_CORRELATION_FUNCTION: Check this very carefully'
 
       rmin = r_array(1)
       rmax = r_array(n)
 
-      WRITE (*, *) 'CORRELATION_FUNCTION: rmin [Mpc/h]:', rmin
-      WRITE (*, *) 'CORRELATION_FUNCTION: rmax [Mpc/h]:', rmax
-      WRITE (*, *) 'CORRELATION_FUNCTION: number of r bins:', n
+      WRITE (*, *) 'FIELD_CORRELATION_FUNCTION: rmin [Mpc/h]:', rmin
+      WRITE (*, *) 'FIELD_CORRELATION_FUNCTION: rmax [Mpc/h]:', rmax
+      WRITE (*, *) 'FIELD_CORRELATION_FUNCTION: number of r bins:', n
 
-      xi8_array = 0.d0
+      xi_array = 0.d0
       n_array = 0
 
       DO i3 = 1, m
@@ -2221,8 +2180,8 @@ CONTAINS
                            CYCLE
                         ELSE
                            k = find_table_integer(r, r_array, ifind_split)
-                           IF (k < 1 .OR. k > n) STOP 'Integer finding has failed'
-                           xi8_array(k) = xi8_array(k)+d(i(1), i(2), i(3))*d(j(1), j(2), j(3))
+                           IF (k < 1 .OR. k > n) ERROR STOP 'FIELD_CORRELATION_FUNCTION: Integer finding has failed'
+                           xi_array(k) = xi_array(k)+d(i(1), i(2), i(3))*d(j(1), j(2), j(3))
                            n_array(k) = n_array(k)+1
                         END IF
 
@@ -2233,10 +2192,9 @@ CONTAINS
             END DO
          END DO
       END DO
+      xi_array = xi_array/n_array
 
-      xi_array = real(xi8_array/real(n_array))
-
-      WRITE (*, *) 'CORRELATION_FUNCTION: done'
+      WRITE (*, *) 'FIELD_CORRELATION_FUNCTION: done'
       WRITE (*, *)
 
    END SUBROUTINE field_correlation_function
