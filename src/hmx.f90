@@ -4579,7 +4579,7 @@ CONTAINS
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: m, g, fac, ks, wk0_product, m0, rhom, x, alpha
       REAL :: integrand(hmod%n)
-      INTEGER :: i, n, pow
+      INTEGER :: i, n
       INTEGER, PARAMETER :: iorder_hm = iorder_1halo_integration
       INTEGER, PARAMETER :: iorder_df = iorder_delta
       INTEGER, PARAMETER :: ifind_df = ifind_delta
@@ -10223,13 +10223,13 @@ CONTAINS
       ELSE IF (hmod%imf == imf_delta) THEN
          ERROR STOP 'G_NU: This function should not be accessed for delta-function mass functions'
       ELSE IF (hmod%imf == imf_Jenkins) THEN
-         g_nu = g_Jenkins(nu, hmod)
+         g_nu = g_Jenkins(nu)
       ELSE IF (hmod%imf == imf_T08_z .OR. hmod%imf == imf_T08) THEN
          g_nu = g_Tinker2008(nu, hmod)
       ELSE IF (hmod%imf == imf_Warren) THEN
-         g_nu = g_Warren(nu, hmod)
+         g_nu = g_Warren(nu)
       ELSE IF (hmod%imf == imf_Reed) THEN
-         g_nu = g_Reed(nu, hmod)
+         g_nu = g_Reed(nu)
       ELSE IF (hmod%imf == imf_Bhattacharya .OR. hmod%imf == imf_Philcox) THEN
          g_nu = g_Bhattacharya(nu, hmod)
       ELSE IF (hmod%imf == imf_Peacock) THEN
@@ -10247,7 +10247,7 @@ CONTAINS
       ! Press & Scheter (1974) mass function
       REAL, INTENT(IN) :: nu
 
-      g_PS = sqrt(2./pi)*exp(-(nu**2)/2.)
+      g_PS = sqrt(2./pi)*exp(-nu**2/2.)
 
    END FUNCTION g_PS
 
@@ -10266,8 +10266,7 @@ CONTAINS
       A = hmod%ST_A
       p = hmod%ST_p
       q = hmod%ST_q
-
-      g_st = A*(1.+(q*nu**2)**(-p))*exp(-q*nu**2/2.)
+      g_ST = A*(1.+(q*nu**2)**(-p))*exp(-q*nu**2/2.)
 
    END FUNCTION g_ST
 
@@ -10283,7 +10282,7 @@ CONTAINS
       a = hmod%Tinker_a
       b = hmod%Tinker_b
       c = hmod%Tinker_c
-      sig = hmod%dc/nu
+      sig = dc0/nu
       g_Tinker2008 = (bigA/nu)*((sig/b)**(-a)+1.)*exp(-c/sig**2)
 
    END FUNCTION g_Tinker2008
@@ -10305,27 +10304,24 @@ CONTAINS
 
    END FUNCTION g_Tinker2010
 
-   REAL FUNCTION g_Jenkins(nu, hmod)
+   REAL FUNCTION g_Jenkins(nu)
 
       ! Jenkins et al. (2001; astro-ph/0005260) mass function
       ! Haloes defined with FoF with b = 0.2
       REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
       REAL :: x, sig
 
-      !x = log(nu)-0.0876 ! 0.0876 = 0.61-ln(1.686)
-      sig = hmod%dc/nu
+      sig = dc0/nu
       x = -log(sig)+0.61
       g_Jenkins = 0.315*exp(-abs(x)**3.8)/nu
 
    END FUNCTION g_Jenkins
 
-   REAL FUNCTION g_Warren(nu, hmod)
+   REAL FUNCTION g_Warren(nu)
 
       ! Warren et al. (2006; astro-ph/0506395) mass function for FoF = 0.2 haloes
       ! The paper claims that this relates to ~280x mean matter density haloes
       REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
       REAL :: sig
       REAL, PARAMETER :: bigA = 0.7234 ! Parameters from Equation (8)
       REAL, PARAMETER :: a = 1.625
@@ -10333,18 +10329,17 @@ CONTAINS
       REAL, PARAMETER :: c = 1.1982
 
       ! Equation (5), conversion from f(sigma) to g(nu) via 1/nu factor
-      sig = hmod%dc/nu
+      sig = dc0/nu
       g_Warren = (bigA/nu)*(sig**(-a)+b)*exp(-c/sig**2) 
 
    END FUNCTION g_Warren
 
-   REAL FUNCTION g_Reed(nu, hmod)
+   REAL FUNCTION g_Reed(nu)
 
       ! Reed et al. (2007; astro-ph/0607150) mass function
       ! TODO: Halo definition is ...
       ! NOTE: Paper contains typos in formulae in equations (10) and (12) be very careful
       REAL, INTENT(IN) :: nu
-      TYPE(halomod), INTENT(IN) :: hmod
       REAL :: omeg, sig, G1, G2, f1, f2, f3, ne
       REAL, PARAMETER :: bigA = 0.310 ! Below equation (12)
       REAL, PARAMETER :: c = 1.08     ! Below equation (11)
@@ -10352,7 +10347,7 @@ CONTAINS
       REAL, PARAMETER :: a = ca/c
       REAL, PARAMETER :: p = 0.3      ! Below equation (5) from Sheth & Tormen
 
-      sig = hmod%dc/nu
+      sig = dc0/nu
       omeg = sqrt(ca)*nu
 
       ! Equation (12)
@@ -10397,11 +10392,9 @@ CONTAINS
       ELSE
          ERROR STOP 'G_BHATTACHARYA: Mass function specified incorrectly'
       END IF
-
       f1 = bigA*sqrt(2./pi)*exp(-a*nu**2/2.)
       f2 = 1.+(a*nu**2)**(-p)
       f3 = (a*nu**2)**(q/2.)
-      
       g_Bhattacharya = f1*f2*f3/nu
 
    END FUNCTION g_Bhattacharya
@@ -10540,17 +10533,13 @@ CONTAINS
       ! Note that the 2008 mass function is not normalised correctly, so this will not have the integral constraint
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: dc, sig
-      REAL :: a, b, c
+      REAL :: a, b, c, sig
 
       a = hmod%Tinker_a
       b = hmod%Tinker_b
       c = hmod%Tinker_c
-
-      dc = hmod%dc
-      sig = dc/nu
-
-      b_Tinker2008 = 1.-(a*b**a/(sig**a+b**a)-2.*c/sig**2)/dc
+      sig = dc0/nu
+      b_Tinker2008 = 1.-(a*b**a/(sig**a+b**a)-2.*c/sig**2)/hmod%dc
 
    END FUNCTION b_Tinker2008
 
@@ -10570,9 +10559,7 @@ CONTAINS
       a = hmod%Tinker_a
       b = hmod%Tinker_b
       c = hmod%Tinker_c
-
       dc = hmod%dc
-
       b_Tinker2010_calibrated = 1.-bigA*nu**a/(nu**a+dc**a)+bigB*nu**b+bigC*nu**c
 
    END FUNCTION b_Tinker2010_calibrated
@@ -10590,9 +10577,7 @@ CONTAINS
       gamma = hmod%Tinker_gamma
       phi = hmod%Tinker_phi
       eta = hmod%Tinker_eta
-
       dc = hmod%dc
-
       f1 = (gamma*nu**2-(1.+2.*eta))/dc
       f2 = (2.*phi/dc)/(1.+(beta*nu)**(2.*phi))
       b_Tinker2010_PBsplit = 1.+f1+f2
@@ -10606,10 +10591,8 @@ CONTAINS
       TYPE(halomod), INTENT(IN) :: hmod
       REAL :: x, sig
 
-      !x = log(nu)-0.0876
-      sig = hmod%dc/nu
+      sig = dc0/nu
       x = -log(sig)+0.61
-
       IF (x > 0.) THEN
          b_Jenkins = 1.+3.8*abs(x)**2.8/hmod%dc
       ELSE
@@ -10624,13 +10607,12 @@ CONTAINS
       ! Bias from peak-backgound split applied to Warren et al. (2006) mass function
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: sig, dc
+      REAL :: sig
       REAL, PARAMETER :: b = 0.2538
       REAL, PARAMETER :: c = 1.1982
 
-      dc = hmod%dc
-      sig = dc/nu
-      b_Warren = 1.-(b/(1.+b*sig**b)-2.*c/sig**2)/dc
+      sig = dc0/nu
+      b_Warren = 1.-(b/(1.+b*sig**b)-2.*c/sig**2)/hmod%dc
 
    END FUNCTION b_Warren
 
@@ -10653,7 +10635,7 @@ CONTAINS
       ! Bias derived using the peak-background split
       REAL, INTENT(IN) :: nu
       TYPE(halomod), INTENT(IN) :: hmod
-      REAL :: f1, f2, f3, dc
+      REAL :: f1, f2, f3
       REAL :: a, p, q
 
       IF (hmod%imf == imf_Bhattacharya) THEN
@@ -10673,9 +10655,7 @@ CONTAINS
       f1 = a*nu**2
       f2 = 2*p/(1.+(a*nu**2)**p)
       f3 = q
-      dc = hmod%dc
-
-      b_Bhattacharya = (f1-f2+f3)/dc
+      b_Bhattacharya = (f1-f2+f3)/hmod%dc
 
    END FUNCTION b_Bhattacharya
 

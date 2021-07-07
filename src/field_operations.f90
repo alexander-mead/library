@@ -1318,7 +1318,7 @@ CONTAINS
       INTEGER :: i, ix, iy, n, mn
       REAL :: kx, ky, kmod, Dk, f, crap
       REAL, ALLOCATABLE :: kbin(:)
-      INTEGER(int8) :: nmodes8(nk)
+      !INTEGER(int8) :: nmodes8(nk)
 
       REAL, PARAMETER :: dbin = 1e-3 ! Bin slop parameter for first and last bin edges
       LOGICAL, PARAMETER :: logmeank = .FALSE. ! Enable this to assign k to the log-mean of the bin (foolish)
