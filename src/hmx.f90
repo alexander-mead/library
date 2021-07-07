@@ -972,6 +972,7 @@ CONTAINS
       names(137) = 'Maccio et al. (2008) concentration-mass relation'
       names(138) = 'Diemer & Joyce (2019) concentration-mass relation'
       names(139) = 'Seljak (2000) concentration-mass relation'
+      names(140) = 'HMx with non-linear halo bias'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -1300,9 +1301,9 @@ CONTAINS
       hmod%Theat_array(3) = 10**8.0
 
       ! Non-virial temperature correction for static gas
-      hmod%alpha = 1.0
-      hmod%alphap = 0.0
-      hmod%alphaz = 0.0
+      hmod%alpha = 1.
+      hmod%alphap = 0.
+      hmod%alphaz = 0.
       hmod%alpha_array = hmod%alpha
       hmod%alphap_array = hmod%alphap
       hmod%alphaz_array = hmod%alphaz
@@ -1313,13 +1314,13 @@ CONTAINS
       hmod%E_alpha = 52.516
 
       ! Non-virial temperature correction for hot gas
-      hmod%beta = 1.0
-      hmod%betap = 0.0
-      hmod%betaz = 0.0
+      hmod%beta = 1.
+      hmod%betap = 0.
+      hmod%betaz = 0.
 
       ! Low-gas-content concentration modification
-      hmod%eps = 0.0
-      hmod%epsz = 0.0
+      hmod%eps = 0.
+      hmod%epsz = 0.
       hmod%eps_array = hmod%eps
       hmod%epsz_array = hmod%epsz
       hmod%A_eps = -0.289
@@ -1335,7 +1336,7 @@ CONTAINS
 
       ! Polytropic gas index
       hmod%Gamma = 1.17
-      hmod%Gammap = 0.0
+      hmod%Gammap = 0.
       hmod%Gammaz = 0.
       hmod%Gamma_array = hmod%Gamma
       hmod%Gammap_array = hmod%Gammap
@@ -1356,7 +1357,7 @@ CONTAINS
 
       ! Halo mass that has lost half gas
       hmod%M0 = 1e14
-      hmod%M0z = 0.0
+      hmod%M0z = 0.
       hmod%M0_array = hmod%M0
       hmod%M0z_array = hmod%M0z
       hmod%A_M0 = -0.007
@@ -1367,7 +1368,7 @@ CONTAINS
 
       ! Maximum star-formation efficiency
       hmod%Astar = 0.03
-      hmod%Astarz = 0.0
+      hmod%Astarz = 0.
       hmod%Astar_array = hmod%Astar
       hmod%Astarz_array = hmod%Astarz
       hmod%A_Astar = 0.004
@@ -1377,7 +1378,7 @@ CONTAINS
 
       ! WHIM temperature [K]
       hmod%Twhim = 10**6.5
-      hmod%Twhimz = 0.0
+      hmod%Twhimz = 0.
       hmod%Twhim_array = hmod%Twhim
       hmod%Twhimz_array = hmod%Twhimz
       hmod%A_Twhim = -0.024
@@ -1387,8 +1388,8 @@ CONTAINS
 
       ! Stellar concentration c_* = rv/r_*
       hmod%cstar = 10.
-      hmod%cstarp = 0.0
-      hmod%cstarz = 0.0
+      hmod%cstarp = 0.
+      hmod%cstarz = 0.
       hmod%cstar_array = hmod%cstar
       hmod%cstarz_array = hmod%cstarz
 
@@ -1397,30 +1398,30 @@ CONTAINS
 
       ! M* for most efficient halo mass for star formation
       hmod%Mstar = 10**12.5
-      hmod%Mstarz = 0.0
+      hmod%Mstarz = 0.
       hmod%Mstar_array = hmod%Mstar
       hmod%Mstarz_array = hmod%Mstarz
 
       ! Fraction of bound gas that is cold
-      hmod%fcold = 0.0
+      hmod%fcold = 0.
 
       ! Fraction of bound gas that is hot
-      hmod%fhot = 0.0
+      hmod%fhot = 0.
 
       ! Power-law for central galaxy mass fraction
-      hmod%eta = 0.0
-      hmod%etaz = 0.0
+      hmod%eta = 0.
+      hmod%etaz = 0.
       hmod%eta_array = hmod%eta
       hmod%etaz_array = hmod%etaz
 
       ! Isothermal beta power index
       hmod%ibeta = 2./3.
-      hmod%ibetap = 0.0
-      hmod%ibetaz = 0.0
+      hmod%ibetap = 0.
+      hmod%ibetaz = 0.
 
       ! Gas fraction power-law
       hmod%gbeta = 0.6
-      hmod%gbetaz = 0.0
+      hmod%gbetaz = 0.
 
       !!! !!!
 
@@ -1728,10 +1729,10 @@ CONTAINS
          hmod%response_baseline = HMcode2016
       ELSE IF (ihm == 23) THEN
          ! Tinker et al. (2010) mass function and bias; virial halo mass
-         hmod%imf = imf_T10_PBS_z ! Tinker mass function and bias
+         hmod%imf = imf_T10_cal ! Tinker mass function and bias
       ELSE IF (ihm == 25) THEN
          ! Villaescusa-Navarro HI halo model
-         hmod%imf = imf_T10_PBS_z ! Tinker mass function
+         hmod%imf = imf_T10_cal ! Tinker mass function
          hmod%frac_HI = 3 ! HI mass fraction with z evolution (Villaescusa-Navarro et al. 1804.09180)
          !hmod%halo_HI = 3 ! Exponentially cored polynomial (Villaescusa-Navarro et al. 1804.09180)
          !hmod%halo_HI = 2 ! Delta function
@@ -1948,7 +1949,7 @@ CONTAINS
          hmod%eta = -0.3
       ELSE IF (ihm == 42) THEN
          ! Tinker et al. (2010) and stuff apprpriate for M200c
-         hmod%imf = imf_T10_PBS_z ! Tinker mass function and bias
+         hmod%imf = imf_T10_cal ! Tinker mass function and bias
          hmod%iDv = iDv_200c
          hmod%iconc = iconc_Duffy_full_200c
       ELSE IF (ihm == 43) THEN
@@ -1957,7 +1958,7 @@ CONTAINS
          hmod%response_matter_only = .TRUE.
       ELSE IF (ihm == 44) THEN
          ! Tinker et al. (2010) and stuff apprpriate for M200
-         hmod%imf = imf_T10_PBS_z
+         hmod%imf = imf_T10_cal
          hmod%iDv = iDv_200
          hmod%iconc = iconc_Duffy_full_200
       ELSE IF (ihm == 45) THEN
@@ -1971,24 +1972,24 @@ CONTAINS
          hmod%halo_normal_bound_gas = 2
          hmod%response_baseline = HMcode2016
       ELSE IF (is_in_array(ihm, [24, 48, 49, 107, 114, 116, 117, 118, 129])) THEN
-         ! Non-linear halo bias
+         ! Non-linear halo bias; Mvir haloes
          !  24 - Tinker 2010 with M200c haloes
          !  48 - Sheth & Tormen (1999)
          !  49 - Tinker 2010 mass function with peak-background split halo bias
-         ! 107 - Tinker 2010 mass function with peak-background split halo bias and no extrapolation
+         ! 107 - Tinker 2010 mass function with peak-background split halo bias and no Bnl extrapolation
          ! 114 - DEFAULT: Tinker 2010
          ! 116 - Tinker 2010 and no extrapolation
          ! 117 - Tinker 2010 and adding Bolshoi for low-mass haloes
          ! 118 - Tinker 2010 and adding Bolshoi for low-mass haloes and no extrapolation
          ! 129 - From Dark Quest
          hmod%ibias = 3 ! Non-linear halo bias
-         !hmod%i1hdamp = 3 ! One-halo damping like k^4         
+         !hmod%i1hdamp = 3 ! One-halo damping like k^4
          IF (ihm == 48) THEN
             hmod%imf = imf_ST
          ELSE IF (ihm == 49 .OR. ihm == 107) THEN
-            hmod%imf = imf_T10_PBS_z ! Tinker 2010 with peak-background split bias
+            hmod%imf = imf_T10_PBS ! Tinker 2010 with peak-background split bias
          ELSE
-            hmod%imf = imf_T10_cal_z ! Tinker 2010 mass function and calibrated bias
+            hmod%imf = imf_T10_cal ! Tinker 2010 mass function and calibrated bias
          END IF  
          IF (ihm == 24) THEN
             hmod%iDv = iDv_200c
@@ -2011,15 +2012,16 @@ CONTAINS
          hmod%Astar = 0.             ! No stars
          hmod%frac_central_stars = 1 ! All stars are central stars (not necessary, but maybe speeds up)
          hmod%frac_stars = 2         ! Constant star fraction (not necessary, but maybe speeds up)
-      ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, 62, 63, 65, 81, 82, 83, 84, 85, 86, &
+      ELSE IF (is_in_array(ihm, [55, 56, 57, 58, 59, 62, 63, 65, 81, 82, 83, 84, 85, 86, 140, &
          HMx2020_matter_w_temp_scaling, HMx2020_matter_pressure_w_temp_scaling])) THEN
          ! HMx2020: Baseline
          hmod%response_baseline = HMcode2016 ! Model should be calculated as a response
          hmod%halo_central_stars = 3   ! 3 - Delta function for central stars
          hmod%halo_satellite_stars = 1 ! 1 - NFW
-         hmod%eta = -0.3               ! eta to split central and satellitee galaxies
+         hmod%eta = -0.3               ! eta to split central and satellite galaxies
          hmod%HMx_mode = 5             ! HMx2020 possible M and z dependence of parameters
-         IF (ihm == 65) hmod%response_baseline = 0 ! No response
+         IF (ihm == 65 .OR. ihm == 140) hmod%response_baseline = 0 ! No response
+         IF (ihm == 140) hmod%ibias = 3
          IF (is_in_array(ihm, [81, 82, 83])) hmod%response_matter_only = .TRUE.
          IF (is_in_array(ihm, [84, 85, 86])) hmod%different_Gammas = .TRUE.
          IF (ihm == 56 .OR. ihm == 81 .OR. ihm == 84) THEN
@@ -2309,9 +2311,9 @@ CONTAINS
          hmod%iDv = iDv_SC
       ELSE IF (ihm == 105 .OR. ihm == 106) THEN
          ! Slightly adjusted standard and non-linear bias model
-         ! Adjusted to get hydro power large-scale amplitude more correct
-         hmod%imf = imf_T10_cal_z
-         hmod%Astar = 0.0320 ! Stellar mass fraction
+         ! Adjusted to get hydro power large-scale amplitude more correct for stars
+         hmod%imf = imf_T10_cal
+         hmod%Astar = 0.0320 ! Slightly increased stellar mass fraction
          IF (ihm == 106) hmod%ibias = 3 ! Non-linear halo bias
       ELSE IF (ihm == 108) THEN
          ! Bhattacharya et al. (2011) mass function; FoF 0.2
@@ -3048,16 +3050,16 @@ CONTAINS
             WRITE (*, fmt=fmt) 'beta:', HMx_beta(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'A*:', HMx_Astar(hmod, cosm)
             WRITE (*, *) dashes
-            WRITE (*, fmt=fmt) 'eps:', hmod%eps  
+            WRITE (*, fmt=fmt) 'eps:', hmod%eps
             IF (hmod%M0 == 0.) THEN 
                WRITE (*, fmt=fmt) 'M0 [Msun/h]:', hmod%M0
             ELSE   
                WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(hmod%M0)
             END IF
-            WRITE (*, fmt=fmt) 'M0 z index:', hmod%M0z         
-            WRITE (*, fmt=fmt) 'beta:', hmod%beta         
+            WRITE (*, fmt=fmt) 'M0 z index:', hmod%M0z
+            WRITE (*, fmt=fmt) 'beta:', hmod%beta
             WRITE (*, fmt=fmt) 'A*:', hmod%Astar
-            WRITE (*, fmt=fmt) 'A* z index:', hmod%Astarz       
+            WRITE (*, fmt=fmt) 'A* z index:', hmod%Astarz
          ELSE IF (hmod%HMx_mode == 3 .OR. hmod%HMx_mode == 5) THEN
             WRITE (*, fmt=fmt) 'alpha:', hmod%alpha
             WRITE (*, fmt=fmt) 'alpha mass index:', hmod%alphap
@@ -3095,11 +3097,11 @@ CONTAINS
             WRITE (*, fmt=fmt) 'f_cold:', hmod%fcold
             WRITE (*, fmt=fmt) 'f_hot:', hmod%fhot
             WRITE (*, fmt=fmt) 'eta:', hmod%eta
-            WRITE (*, fmt=fmt) 'eta z index:', hmod%etaz      
+            WRITE (*, fmt=fmt) 'eta z index:', hmod%etaz
             WRITE (*, fmt=fmt) 'iso beta:', hmod%ibeta
             WRITE (*, fmt=fmt) 'iso beta mass index:', hmod%ibetap
             WRITE (*, fmt=fmt) 'iso beta z index:', hmod%ibetaz
-            WRITE (*, fmt=fmt) 'beta gas:', hmod%gbeta   
+            WRITE (*, fmt=fmt) 'beta gas:', hmod%gbeta
             WRITE (*, fmt=fmt) 'beta gas z index:', hmod%gbetaz
          ELSE IF (hmod%HMx_mode == 6) THEN         
             WRITE (*, fmt=fmt) 'log10(T_heat) [K]:', log10(cosm%Theat)
@@ -3110,7 +3112,7 @@ CONTAINS
             WRITE (*, fmt=fmt) 'Gamma:', HMx_Gamma(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(HMx_M0(hmod, cosm))
             WRITE (*, fmt=fmt) 'A*:', HMx_Astar(hmod, cosm)
-            WRITE (*, fmt=fmt) 'log10(T_WHIM) [K]:', log10(HMx_Twhim(hmod, cosm))          
+            WRITE (*, fmt=fmt) 'log10(T_WHIM) [K]:', log10(HMx_Twhim(hmod, cosm))
             WRITE (*, fmt=fmt) 'c*:', HMx_cstar(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'sigma*:', HMx_sstar(hmod, cosm)
             WRITE (*, fmt=fmt) 'log10(M*):', log10(HMx_Mstar(hmod, cosm))
@@ -9002,8 +9004,8 @@ CONTAINS
       END IF
 
       ! UPP, P(x), equation 4.1 in Ma et al. (2015)
-      m500c = exp(find(log(m), hmod%log_m, log(hmod%m500c), hmod%n, iorder, ifind, imeth)) ![Msun/h]
-      m500c = m500c*(1.-b) ![Msun/h]
+      m500c = exp(find(log(m), hmod%log_m, log(hmod%m500c), hmod%n, iorder, ifind, imeth)) ! [Msun/h]
+      m500c = m500c*(1.-b) ! [Msun/h]
 
       ! Dimensionless Hubble parameter
       a = hmod%a ! Scale-factor appears explicitly here
@@ -9996,7 +9998,7 @@ CONTAINS
          CALL init_ST(hmod)
       ELSE IF (hmod%imf == imf_T08 .OR. hmod%imf == imf_T08_z) THEN
          CALL init_Tinker2008(hmod)
-      ELSE IF (is_in_array(hmod%imf, [imf_T10_PBS_z, imf_T10_PBS, imf_T10_cal_z, imf_T10_cal_z])) THEN
+      ELSE IF (is_in_array(hmod%imf, [imf_T10_PBS_z, imf_T10_PBS, imf_T10_cal_z, imf_T10_cal])) THEN
          CALL init_Tinker2010(hmod)
       END IF
       hmod%has_mass_function = .TRUE.
