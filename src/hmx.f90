@@ -4849,7 +4849,7 @@ CONTAINS
       TYPE(cosmology) :: cosm_MD
       CHARACTER(len=256) :: infile, inbase, base
       CHARACTER(len=256) :: base_bnl, base_bnl_lownu
-      LOGICAL, PARAMETER :: verbose = .TRUE.
+      LOGICAL, PARAMETER :: verbose = .FALSE.
       INTEGER, PARAMETER :: flag = flag_ucold
       INTEGER, PARAMETER :: icos_MD = icos_bnl_rescale
       REAL, PARAMETER :: R1 = bnl_rescale_R1
