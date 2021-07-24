@@ -42,8 +42,8 @@ CONTAINS
       nx = size(y)
 
       DO j = 1, size(f)
-         IF(.NOT. between(f(j), 0., 1.)) THEN
-            STOP 'PERCENTILE: Error, f must be between 0 and 1'
+         IF (.NOT. between(f(j), 0., 1.)) THEN
+            ERROR STOP 'PERCENTILE: Error, f must be between 0 and 1'
          ELSE IF (f(j) == 0.) THEN
             percentiles(j) = minval(x)
          ELSE IF (f(j) == 1.) THEN
@@ -69,8 +69,8 @@ CONTAINS
       REAL :: in
       INTEGER, PARAMETER :: isort = percentile_sort
 
-      IF(.NOT. between(f, 0., 1.)) THEN
-         STOP 'PERCENTILE: Error, f must be between 0 and 1'
+      IF (.NOT. between(f, 0., 1.)) THEN
+         ERROR STOP 'PERCENTILE: Error, f must be between 0 and 1'
       ELSE IF (f == 0.) THEN
          percentile = minval(x)
       ELSE IF (f == 1.) THEN

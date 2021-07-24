@@ -5,7 +5,6 @@ MODULE basic_operations
    PRIVATE
 
    PUBLIC :: progression
-   !PUBLIC :: progression_log ! TODO: Remove
    PUBLIC :: fix_minimum
    PUBLIC :: fix_maximum
    PUBLIC :: read_command_argument
@@ -53,17 +52,12 @@ CONTAINS
 
    LOGICAL FUNCTION equals_or(a, i)
 
-         ! Returns true if a=i and b=j *or* a=j and b=i
-         ! Useful for symmetric things
-         INTEGER, INTENT(IN) :: a(:)
-         INTEGER, INTENT(IN) :: i(:)
+      ! Returns true if a=i and b=j *or* a=j and b=i
+      ! Useful for symmetric things
+      INTEGER, INTENT(IN) :: a(:)
+      INTEGER, INTENT(IN) :: i(:)
 
-         !IF ((a(1) == i(1) .AND. a(2) == i(2)) .OR. (a(1) == i(2) .AND. a(2) == i(1))) THEN
-         !   equals_or = .TRUE.
-         !ELSE
-         !   equals_or = .FALSE.
-         !END IF
-         equals_or = (a(1) == i(1) .AND. a(2) == i(2)) .OR. (a(1) == i(2) .AND. a(2) == i(1))
+      equals_or = (a(1) == i(1) .AND. a(2) == i(2)) .OR. (a(1) == i(2) .AND. a(2) == i(1))
 
    END FUNCTION equals_or
 
@@ -131,7 +125,6 @@ CONTAINS
       ELSE
          IF (present_and_correct(ilog)) THEN
             progression = exp(log(xmin)+log(xmax/xmin)*real(i-1)/real(n-1))
-            !progression = exp(progression(log(xmin), log(xmax), i, n, ilog=.FALSE.))
          ELSE
             progression = xmin+(xmax-xmin)*real(i-1)/real(n-1)
          END IF
@@ -330,7 +323,6 @@ CONTAINS
       absx = abs(x)
       absy = abs(y)
       diff = abs(x-y)
-
       IF (x == y) THEN
          requal = .TRUE.
       ELSE IF (x == 0. .OR. y == 0. .OR. diff < tiny(x)) THEN
@@ -361,7 +353,6 @@ CONTAINS
       REAL :: y
 
       y = abs(x)
-
       DO
          IF (y == 1.) THEN
             first_digit = 1
