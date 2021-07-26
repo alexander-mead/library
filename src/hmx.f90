@@ -61,6 +61,7 @@ MODULE HMx
    PUBLIC :: simple_twohalo
    PUBLIC :: simple_onehalo
    PUBLIC :: init_windows
+   PUBLIC :: add_smooth_component_to_windows
 
    ! Mean things
    PUBLIC :: mean_bias_number_weighted
