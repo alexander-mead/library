@@ -5,7 +5,6 @@ MODULE basic_operations
    PRIVATE
 
    PUBLIC :: progression
-   !PUBLIC :: progression_log ! TODO: Remove
    PUBLIC :: fix_minimum
    PUBLIC :: fix_maximum
    PUBLIC :: read_command_argument
@@ -20,6 +19,7 @@ MODULE basic_operations
    PUBLIC :: increment
    PUBLIC :: default_or_optional
    PUBLIC :: between
+   PUBLIC :: equals_or
 
    INTERFACE swap
       MODULE PROCEDURE swap_real
@@ -50,31 +50,36 @@ MODULE basic_operations
 
 CONTAINS
 
+   LOGICAL FUNCTION equals_or(a, i)
+
+      ! Returns true if a=i and b=j *or* a=j and b=i
+      ! Useful for symmetric things
+      INTEGER, INTENT(IN) :: a(:)
+      INTEGER, INTENT(IN) :: i(:)
+
+      equals_or = (a(1) == i(1) .AND. a(2) == i(2)) .OR. (a(1) == i(2) .AND. a(2) == i(1))
+
+   END FUNCTION equals_or
+
    LOGICAL FUNCTION between_real(x, xmin, xmax)
 
+      ! True if xmin <= x <= xmax
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xmin
       REAL, INTENT(IN) :: xmax
 
-      IF (x >= xmin .AND. x <= xmax) THEN
-         between_real = .TRUE.
-      ELSE
-         between_real = .FALSE.
-      END IF
+      between_real = (x >= xmin .AND. x <= xmax)
 
    END FUNCTION between_real
 
    LOGICAL FUNCTION between_integer(x, xmin, xmax)
 
+      ! True if xmin <= x <= xmax
       INTEGER, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: xmin
       INTEGER, INTENT(IN) :: xmax
 
-      IF (x >= xmin .AND. x <= xmax) THEN
-         between_integer = .TRUE.
-      ELSE
-         between_integer = .FALSE.
-      END IF
+      between_integer = (x >= xmin .AND. x <= xmax)
 
    END FUNCTION between_integer
 
@@ -120,26 +125,12 @@ CONTAINS
       ELSE
          IF (present_and_correct(ilog)) THEN
             progression = exp(log(xmin)+log(xmax/xmin)*real(i-1)/real(n-1))
-            !progression = exp(progression(log(xmin), log(xmax), i, n, ilog=.FALSE.))
          ELSE
             progression = xmin+(xmax-xmin)*real(i-1)/real(n-1)
          END IF
       END IF
 
    END FUNCTION progression
-
-   ! REAL FUNCTION progression_log(xmin, xmax, i, n)
-
-   !    ! Split the region xmin -> xmax into n log-spaced increments (including both xmin and xmax)
-   !    ! Returns the value at the i-th point, not the logarithm of the value
-   !    ! TODO: Remove
-   !    REAL, INTENT(IN) :: xmin
-   !    REAL, INTENT(IN) :: xmax
-   !    INTEGER, INTENT(IN) :: i, n
-
-   !    progression_log = exp(progression(log(xmin), log(xmax), i, n))
-
-   ! END FUNCTION progression_log
 
    SUBROUTINE increment_real(x, y)
 
@@ -285,15 +276,10 @@ CONTAINS
 
    LOGICAL FUNCTION positive(x)
 
-      ! Logical function that returns .TRUE. if x>=0.
-      ! If x=0. will return true
+      ! Returns .TRUE. if x>=0., if x=0. will return true
       REAL, INTENT(IN) :: x
 
-      IF (x < 0.) THEN
-         positive = .FALSE.
-      ELSE
-         positive = .TRUE.
-      END IF
+      positive = (.NOT. negative(x))
 
    END FUNCTION positive
 
@@ -302,11 +288,7 @@ CONTAINS
       ! Returns true if argument is negative
       REAL, INTENT(IN) :: x
 
-      IF (positive(x)) THEN
-         negative = .FALSE.
-      ELSE
-         negative = .TRUE.
-      END IF
+      negative = (x < 0.)
 
    END FUNCTION negative
 
@@ -315,11 +297,7 @@ CONTAINS
       ! Tests for i being even, returns true if even
       INTEGER, INTENT(IN) :: i
 
-      IF (mod(i, 2) == 0) THEN
-         even = .TRUE.
-      ELSE
-         even = .FALSE.
-      END IF
+      even = (mod(i, 2) == 0)
 
    END FUNCTION even
 
@@ -328,11 +306,7 @@ CONTAINS
       ! Tests for i being odd, returns true if odd
       INTEGER, INTENT(IN) :: i
 
-      IF (even(i)) THEN
-         odd = .FALSE.
-      ELSE
-         odd = .TRUE.
-      END IF
+      odd = (.NOT. even(i))
 
    END FUNCTION odd
 
@@ -349,21 +323,12 @@ CONTAINS
       absx = abs(x)
       absy = abs(y)
       diff = abs(x-y)
-
       IF (x == y) THEN
          requal = .TRUE.
       ELSE IF (x == 0. .OR. y == 0. .OR. diff < tiny(x)) THEN
-         IF (diff < eps*tiny(x)) THEN
-            requal = .TRUE.
-         ELSE
-            requal = .FALSE.
-         END IF
+         requal = (diff < eps*tiny(x))
       ELSE
-         IF (diff/(absx+absy) < eps) THEN
-            requal = .TRUE.
-         ELSE
-            requal = .FALSE.
-         END IF
+         requal = (diff/(absx+absy) < 0.5*eps) ! June 2020: Added 0.5
       END IF
 
    END FUNCTION requal
@@ -374,11 +339,7 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(IN) :: x
 
       IF (present(x)) THEN
-         IF (x) THEN
-            present_and_correct = .TRUE.
-         ELSE
-            present_and_correct = .FALSE.
-         END IF
+         present_and_correct = x
       ELSE
          present_and_correct = .FALSE.
       END IF
@@ -392,7 +353,6 @@ CONTAINS
       REAL :: y
 
       y = abs(x)
-
       DO
          IF (y == 1.) THEN
             first_digit = 1

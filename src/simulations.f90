@@ -4,7 +4,11 @@ MODULE simulations
    ! Anything that involves only the fields should go in field_operations.f90
    ! Each routine should take particle properties (e.g., positions) as an argument
 
+   USE constants
    USE basic_operations
+   USE array_operations
+   USE table_integer
+   USE interpolate
    USE field_operations
 
    IMPLICIT NONE
@@ -25,6 +29,9 @@ MODULE simulations
    PUBLIC :: sharp_Fourier_density_contrast
    PUBLIC :: power_spectrum_particles
    PUBLIC :: cross_spectrum_particles
+   PUBLIC :: folded_power_spectrum_particles
+   PUBLIC :: combine_folded_power
+   PUBLIC :: fold_particles
 
    PUBLIC :: generate_randoms
    PUBLIC :: generate_poor_glass
@@ -47,20 +54,14 @@ MODULE simulations
    PUBLIC :: write_slice_ascii
    PUBLIC :: write_adaptive_field
 
-   PUBLIC :: random_spherical_halo_particle
-   PUBLIC :: DMONLY_HMx_halo
-   PUBLIC :: irho_tophat
-   PUBLIC :: irho_isothermal
-   PUBLIC :: irho_shell
-   PUBLIC :: irho_delta
-
+   PUBLIC :: random_halo_particles
    PUBLIC :: make_HOD
 
-   ! These should map to the integers in HMx
-   INTEGER, PARAMETER :: irho_tophat = 1
-   INTEGER, PARAMETER :: irho_isothermal = 2
-   INTEGER, PARAMETER :: irho_shell = 3
-   INTEGER, PARAMETER :: irho_delta = 4
+   ! Random NFW profile generation
+   INTEGER, PARAMETER :: nr_random_NFW = 65
+   INTEGER, PARAMETER :: iorder_random_NFW = 3
+   INTEGER, PARAMETER :: ifind_random_NFW = ifind_split
+   INTEGER, PARAMETER :: iinterp_random_NFW = iinterp_Lagrange
 
    INTERFACE particle_bin
       MODULE PROCEDURE particle_bin_2D
@@ -83,33 +84,11 @@ MODULE simulations
 
 CONTAINS
 
-   INTEGER FUNCTION DMONLY_HMx_halo(irho)
-
-         ! Translates between the haloes defined here and those in HMx
-         INTEGER, INTENT(IN) :: irho
-
-         IF (irho == irho_tophat) THEN
-            DMONLY_HMx_halo = 3
-         ELSE IF (irho == irho_delta) THEN
-            DMONLY_HMx_halo = 4
-         ELSE IF (irho == irho_isothermal) THEN
-            DMONLY_HMx_halo = 6
-         ELSE IF (irho == irho_shell) THEN
-            DMONLY_HMx_halo = 7
-         ELSE
-            STOP 'DMONLT_HALO: Error, translation not possible'
-         END IF
-
-   END FUNCTION DMONLY_HMx_halo
-
    SUBROUTINE correlation_function(rmin, rmax, r, xi, n, nr, x1, x2, w1, w2, n1, n2, L)
 
       ! Calculate the correlation function for the sample with positions 'x' and weights 'w'
       ! CARE: Removed double-precision sums
-      USE array_operations
       USE table_integer
-      USE constants
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n1, n2            ! Total numbers of particles
       INTEGER, INTENT(IN) :: nr                ! Required number of log-spaced bins
       REAL, INTENT(IN) :: rmin, rmax           ! Maximum and maximum distances to calculate xi for [Mpc/h]
@@ -199,7 +178,7 @@ CONTAINS
    SUBROUTINE create_mass_function(mmin, mmax, halo_masses, n_haloes, mass_bins, mass_function, n_bins, L)
 
       USE statistics
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n_haloes                    ! Total number of haloes
       REAL, INTENT(IN) :: mmin                           ! Minimum halo mass for the mass function [Msun/h]
       REAL, INTENT(IN) :: mmax                           ! Maximum halo mass for the mass function [Msun/h]
@@ -227,7 +206,6 @@ CONTAINS
 
    SUBROUTINE halo_mass_cut(mmin, mmax, x, m, n)
 
-      IMPLICIT NONE
       REAL, INTENT(IN) :: mmin
       REAL, INTENT(IN) :: mmax
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :)
@@ -237,7 +215,11 @@ CONTAINS
       INTEGER :: i, j, n_store
 
       WRITE (*, *) 'HALO_MASS_CUT: Number of haloes before cut:', n
-      WRITE (*, *) 'HALO_MASS_CUT: Minimum halo mass before cut log10([Msun/h]):', log10(minval(m))
+      IF (minval(m) == 0.) THEN
+         WRITE (*, *) 'HALO_MASS_CUT: Minimum halo mass before cut [Msun/h]:', minval(m)
+      ELSE
+         WRITE (*, *) 'HALO_MASS_CUT: Minimum halo mass before cut log10([Msun/h]):', log10(minval(m))
+      END IF    
       WRITE (*, *) 'HALO_MASS_CUT: Maximum halo mass before cut log10([Msun/h]):', log10(maxval(m))
       WRITE (*, *) 'HALO_MASS_CUT: Minimum mass for cut log10([Msun/h]):', log10(mmin)
       WRITE (*, *) 'HALO_MASS_CUT: Maximum mass for cut log10([Msun/h]):', log10(mmax)
@@ -281,7 +263,6 @@ CONTAINS
    SUBROUTINE halo_mass_weights(mmin, mmax, m, w)
 
       ! Set the weight, w(i), to one if the halo is in the mass range, zero otherwise
-      IMPLICIT NONE
       REAL, INTENT(IN) :: mmin
       REAL, INTENT(IN) :: mmax
       REAL, INTENT(IN) :: m(:)
@@ -301,7 +282,6 @@ CONTAINS
    SUBROUTINE compute_and_write_power_spectrum(x, L, m, nk, outfile)
 
       ! Compute and write the power spectrum out in some standard format
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(:, :)    
       REAL, INTENT(IN) :: L
       INTEGER, INTENT(IN) :: m
@@ -360,10 +340,8 @@ CONTAINS
 
    END SUBROUTINE write_power_spectrum
 
-   SUBROUTINE power_spectrum_particles(x, L, m, nk, k, Pk, nbin, sig, kmin_opt, kmax_opt)
+   SUBROUTINE power_spectrum_particles(x, L, m, nk, k, Pk, nbin, sig, kmin_opt, kmax_opt, linear_k)
 
-      USE constants
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(:, :)
       REAL, INTENT(IN) :: L
       INTEGER, INTENT(IN) :: m
@@ -374,6 +352,7 @@ CONTAINS
       REAL, ALLOCATABLE, INTENT(OUT) :: sig(:)
       REAL, OPTIONAL, INTENT(IN) :: kmin_opt
       REAL, OPTIONAL, INTENT(IN) :: kmax_opt
+      LOGICAL, OPTIONAL, INTENT(IN) :: linear_k
       COMPLEX :: dk(m, m, m)
       REAL :: kmin, kmax, kmin_def, kmax_def
       INTEGER :: n
@@ -381,6 +360,8 @@ CONTAINS
       ! Default minimum and maximum wavenumbers
       kmin_def = twopi/L
       kmax_def = pi*m/L
+      kmin = default_or_optional(kmin_def, kmin_opt)
+      kmax = default_or_optional(kmax_def, kmax_opt)
 
       IF (size(x, 1) .NE. 3) STOP 'POWER_SPECTRUM_PARTICLES: Error, particles must be in 3D'
       n = size(x, 2)
@@ -390,17 +371,70 @@ CONTAINS
       CALL sharp_Fourier_density_contrast(x, n, L, dk, m)
 
       ! Compute the power spectrum from the density field  
-      kmin = default_or_optional(kmin_def, kmin_opt)
-      kmax = default_or_optional(kmax_def, kmax_opt)
-      CALL compute_power_spectrum(dk, dk, m, L, kmin, kmax, nk, k, Pk, nbin, sig)
+      CALL compute_power_spectrum(dk, dk, m, L, kmin, kmax, nk, k, Pk, nbin, sig, linear_k)
 
    END SUBROUTINE power_spectrum_particles
 
+   SUBROUTINE folded_power_spectrum_particles(x, L, m, nk, k, Pk, nbin, sig, nfold_opt)
+
+      ! TODO: Can it be ensured that k overlap between folds somehow?
+      ! TODO: Combine measurements from different folds to get a reasonable total
+      REAL, INTENT(IN) :: x(:, :)
+      REAL, INTENT(IN) :: L
+      INTEGER, INTENT(IN) :: m
+      INTEGER, INTENT(IN) :: nk
+      REAL, ALLOCATABLE, INTENT(OUT) :: k(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk(:, :)
+      INTEGER, ALLOCATABLE, INTENT(OUT) :: nbin(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: sig(:, :)
+      INTEGER, OPTIONAL, INTENT(IN) :: nfold_opt
+      REAL, ALLOCATABLE :: xfold(:, :)
+      REAL, ALLOCATABLE :: kfold(:), Pkfold(:), sigfold(:)
+      REAL :: Lfold
+      INTEGER, ALLOCATABLE :: nbinfold(:)
+      INTEGER :: ifold
+      INTEGER :: nfold
+      INTEGER, PARAMETER :: nfold_def = 0
+      LOGICAL, PARAMETER :: linear_k = .TRUE.
+
+      ! Number of foldings
+      nfold = default_or_optional(nfold_def, nfold_opt)
+      IF (nfold < 0) STOP 'FOLDED_POWER_SPECTRUM_PARTICLES: Error, number of foldings must be zero or positive'
+
+      ! Make a copy of the particle array to fold
+      ! TODO: Expensive in memory
+      xfold = x
+      Lfold = L
+
+      ! Allocate arrays
+      ALLOCATE(k(nk, nfold+1), Pk(nk, nfold+1), nbin(nk, nfold+1), sig(nk, nfold+1))
+
+      ! Loop over the folds
+      DO ifold = 0, nfold
+
+         ! Make a fold
+         IF (ifold > 0) THEN
+            CALL fold_particles(xfold, Lfold)
+         END IF
+
+         ! Compute power at this level of fold and correct for folding
+         CALL power_spectrum_particles(xfold, Lfold, m, nk, kfold, Pkfold, nbinfold, sigfold)
+         Pkfold = Pkfold*(L/Lfold)**3
+         sigfold = sigfold*(L/Lfold)**3
+
+         ! Fill arrays
+         k(:, ifold+1) = kfold
+         Pk(:, ifold+1) = Pkfold
+         nbin(:, ifold+1) = nbinfold
+         sig(:, ifold+1) = sigfold
+
+      END DO
+
+   END SUBROUTINE folded_power_spectrum_particles
+
    SUBROUTINE cross_spectrum_particles(x1, x2, L, m, nk, k, Pk, nbin, sig, kmin_opt, kmax_opt)
 
-      USE constants
       USE FFT
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x1(:, :)
       REAL, INTENT(IN) :: x2(:, :)
       REAL, INTENT(IN) :: L
@@ -466,14 +500,13 @@ CONTAINS
       dk = dk_out
 
       ! Sharpen the Fourier Transform for the binning
-      CALL sharpen_k(dk, m, m, ibin)
+      CALL sharpen_k(dk, ibin)
 
    END SUBROUTINE sharp_Fourier_density_contrast
 
    SUBROUTINE write_density_slice_ascii(x, n, z1, z2, L, m, outfile)
 
       ! Write out a slice of density field
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n   ! Number of particles
       REAL, INTENT(IN) :: x(3, n) ! Particle positions  
       REAL, INTENT(IN) :: z1     ! Starting point for slab
@@ -513,7 +546,6 @@ CONTAINS
    SUBROUTINE make_projected_density(x, n, z1, z2, L, d, m)
 
       ! Write out a slice of density field
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: m ! Mesh
       INTEGER, INTENT(IN) :: n ! Number of particles
       REAL, INTENT(IN) :: x(3, n) ! Particle positions   
@@ -894,7 +926,7 @@ CONTAINS
    SUBROUTINE random_translation(x, n, L, verbose)
 
       USE random_numbers
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(INOUT) :: x(3, n)    
       REAL, INTENT(IN) :: L
@@ -927,7 +959,7 @@ CONTAINS
    SUBROUTINE random_inversion(x, n, L, verbose)
 
       USE random_numbers
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(INOUT) :: x(3, n)
       REAL, INTENT(IN) :: L
@@ -960,8 +992,7 @@ CONTAINS
       ! This way is memory efficient
       ! TODO: This raises an 'array temporary' warning because non-contiguous sections of x are passed to swap_arrays
       USE random_numbers
-      USE array_operations
-      IMPLICIT NONE
+
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(INOUT) :: x(3, n)  
       LOGICAL, OPTIONAL :: verbose
@@ -1008,7 +1039,6 @@ CONTAINS
 
       ! Bin particle properties onto a mesh, summing as you go
       ! TODO: Adapt for different lengths and different meshes in x,y
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n         ! Total number of particles
       INTEGER, INTENT(IN) :: m         ! Mesh size for density field
       REAL, INTENT(IN) :: x(2, n)       ! 2D particle positions    
@@ -1035,7 +1065,6 @@ CONTAINS
    SUBROUTINE particle_bin_3D(x, n, L, w, d, m, ibin, all, periodic, verbose)
 
       ! Bin particle properties onto a mesh, summing as you go
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n        ! Total number of particles
       INTEGER, INTENT(IN) :: m        ! Mesh size for density field
       REAL, INTENT(IN) :: x(3, n)      ! 3D particle positions  
@@ -1063,7 +1092,6 @@ CONTAINS
 
       ! Bin particle properties onto a mesh, averaging properties over cells
       ! TODO: This should probably not be used if there are any empty cells
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m
       REAL, INTENT(IN) :: x(3, n)    
       REAL, INTENT(IN) :: L
@@ -1072,22 +1100,22 @@ CONTAINS
       INTEGER, INTENT(IN) :: ibin
       LOGICAL, INTENT(IN) :: all
       LOGICAL, INTENT(IN) :: periodic
-      REAL :: number(m, m, m), one(n)
+      REAL :: number(m, m, m), ones(n)
       INTEGER :: i, j, k, sum
 
       IF (periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_3D: Very strange to have periodic and not all particles contribute'
 
       ! Need an array of ones
       ! TODO: wasteful for memory, could use pointer maybe?
-      one = 1.
+      ones = 1.
 
       !Call the binning twice, first to bin particle property and second to count
       IF (ibin == 1) THEN
          CALL NGP_3D(x, n, L, w, d, m, all, verbose=.TRUE.)
-         CALL NGP_3D(x, n, L, one, number, m, all, verbose=.TRUE.)
+         CALL NGP_3D(x, n, L, ones, number, m, all, verbose=.TRUE.)
       ELSE IF (ibin == 2) THEN
          CALL CIC_3D(x, n, L, w, d, m, all, periodic, verbose=.TRUE.)
-         CALL CIC_3D(x, n, L, one, number, m, all, periodic, verbose=.TRUE.)
+         CALL CIC_3D(x, n, L, ones, number, m, all, periodic, verbose=.TRUE.)
       ELSE
          STOP 'PARTICLE_BIN_AVERAGE: Error, ibin not specified correctly'
       END IF
@@ -1118,7 +1146,6 @@ CONTAINS
    SUBROUTINE NGP_2D(x, n, L, w, d, m, all, verbose)
 
       ! Nearest-grid-point binning routine
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n       ! Total number of particles in area
       INTEGER, INTENT(IN) :: m       ! Mesh size for density field
       REAL, INTENT(IN) :: x(2, n)    ! particle positions     
@@ -1182,7 +1209,6 @@ CONTAINS
    SUBROUTINE NGP_3D(x, n, L, w, d, m, all, verbose)
 
       ! Nearest-grid-point binning routine
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
       REAL, INTENT(IN) :: x(3, n)     ! particle positions    
       REAL, INTENT(IN) :: L           ! Area side length
@@ -1245,8 +1271,6 @@ CONTAINS
    SUBROUTINE CIC_2D(x, n, L, w, d, m, all, periodic, verbose)
 
       ! Cloud-in-cell binning routine
-      USE array_operations
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
       REAL, INTENT(IN) :: x(2, n)     ! 2D particle positions     
       REAL, INTENT(IN) :: L           ! Area side length
@@ -1365,8 +1389,6 @@ CONTAINS
    SUBROUTINE CIC_3D(x, n, L, w, d, m, all, periodic, verbose)
 
       ! Cloud-in-cell binning routine
-      USE array_operations
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
       REAL, INTENT(IN) :: x(3, n)     ! 3D particle positions    
       REAL, INTENT(IN) :: L           ! Area side length
@@ -1514,7 +1536,6 @@ CONTAINS
    SUBROUTINE SOD(x, n, L, w, d, m, Rs)
 
       ! Spherical density routine
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n, m
       REAL, INTENT(IN) :: x(3, n)   
       REAL, INTENT(IN) :: L
@@ -1640,7 +1661,6 @@ CONTAINS
 
    SUBROUTINE find_pairs(x, okay, n, rmin, rmax, L, outfile)
 
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x(3, n)
       LOGICAL, INTENT(IN) :: okay(n)
@@ -1680,7 +1700,6 @@ CONTAINS
    SUBROUTINE zshift(x, v, n, Om_m, Om_v, z, iz)
 
       ! Shift particles to redshift space
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n       ! Total number of particles
       REAL, INTENT(INOUT) :: x(3, n) ! Particle positions [Mpc/h]
       REAL, INTENT(IN) :: v(3, n)    ! Particle velocities [km/s] 
@@ -1705,6 +1724,28 @@ CONTAINS
 
    END SUBROUTINE zshift
 
+   SUBROUTINE fold_particles(x, L)
+
+      ! Fold (really translate) particles by half in each dimension
+      REAL, INTENT(INOUT) :: x(:, :) ! Particles
+      REAL, INTENT(INOUT) :: L       ! Length of periodic box
+      INTEGER :: n, dim
+      INTEGER :: i, d
+
+      ! Pre-calculations
+      n = size(x, 2)   ! Number of particles
+      dim = size(x, 1) ! Number of dimensions
+      L = L/2.         ! Half box size
+      
+      ! Loop and do 'folding'
+      DO i = 1, n
+         DO d = 1, dim
+            IF (x(d, i) >= L) x(d, i) = x(d, i)-L
+         END DO
+      END DO
+
+   END SUBROUTINE fold_particles
+
    REAL FUNCTION Hubble2_simple(z, Om_m, Om_v)
 
       ! This calculates the dimensionless squared hubble parameter squared at redshift z!
@@ -1712,7 +1753,6 @@ CONTAINS
       ! It also ignores anything other than vacuum and matter
       ! TODO: Include dark energy?
       ! TODO: Remove in favour of cosmology module?
-      IMPLICIT NONE
       REAL, INTENT(IN) :: z ! Redshift
       REAL, INTENT(IN) :: Om_m, Om_v ! Cosmological parameters
 
@@ -1723,11 +1763,10 @@ CONTAINS
    ! This subroutine was previously called slice
    SUBROUTINE write_slice_ascii(x, n, x1, x2, y1, y2, z1, z2, outfile)
 
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n ! Total number of particles
-      REAL, INTENT(IN) :: x(3, n) ! Particle positions [Mpc/h]   
+      INTEGER, INTENT(IN) :: n                   ! Total number of particles
+      REAL, INTENT(IN) :: x(3, n)                ! Particle positions [Mpc/h]
       REAL, INTENT(IN) :: x1, x2, y1, y2, z1, z2 ! Limits of the slice [Mpc/h]
-      CHARACTER(len=*), INTENT(IN) :: outfile ! Output file
+      CHARACTER(len=*), INTENT(IN) :: outfile    ! Output file
       INTEGER :: i
 
       WRITE (*, *) 'WRITE_SLICE_ASCII: Writing slice'
@@ -1746,14 +1785,13 @@ CONTAINS
 
    REAL FUNCTION shot_noise_simple(L, n)
 
-      !Calculate simulation shot noise for equal mass matter particlers [(Mpc/h)^3]
+      ! Calculate simulation shot noise for equal mass matter particlers [(Mpc/h)^3]
       USE precision
-      IMPLICIT NONE
       REAL, INTENT(IN) :: L ! Box size [Mpc/h]
       !INTEGER*8, INTENT(IN) :: n ! Total number of particles
       INTEGER(int8), INTENT(IN) :: n ! Total number of particles
 
-      !Calculate number density
+      ! Calculate number density
       shot_noise_simple = L**3/real(n)
 
    END FUNCTION shot_noise_simple
@@ -1764,11 +1802,9 @@ CONTAINS
       ! See appendix in HMx paper
       ! Note if this is for mass then u = v = particle_mass/total_mass
       ! CARE: Removed double-precision sums
-      USE array_operations
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n ! Number of particles
-      REAL, INTENT(IN) :: u(n) ! Contributions to the total field u and v per particle  
-      REAL, INTENT(IN) :: v(n) ! Contributions to the total field u and v per particle  
+      REAL, INTENT(IN) :: u(n) ! Contributions to the total field u and v per particle
+      REAL, INTENT(IN) :: v(n) ! Contributions to the total field u and v per particle
       REAL, INTENT(IN) :: L    ! Box size [Mpc/h]
 
       ! Do the sum of the two fields, making sure to use doubles
@@ -1783,8 +1819,6 @@ CONTAINS
 
       ! Calculate simulation shot noise constant P(k) for different-mass tracers [(Mpc/h)^3]
       ! CARE: Removed double-precision sums
-      USE array_operations
-      IMPLICIT NONE
       INTEGER, INTENT(IN) :: n ! Number of particles
       REAL, INTENT(IN) :: L    ! Box size [Mpc/h]
       REAL, INTENT(IN) :: m(n) ! Array of particle masses
@@ -1802,13 +1836,11 @@ CONTAINS
 
       ! Calculates shot noise as Delta^2(k) from a constant-P(k) thing with units [(Mpc/h)^3]
       ! This shot noise is then dimensionless, exactly like Delta^2(k)
-      USE constants
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: k ! Wave vector [h/Mpc]
+      USE cosmology_functions
+      REAL, INTENT(IN) :: k    ! Wave vector [h/Mpc]
       REAL, INTENT(IN) :: shot ! The constant shot-noise term: P(k) [(Mpc/h)^3]
 
-      shot_noise_k = shot*4.*pi*(k/twopi)**3
-      !shot_noise_k = Delta_Pk(shot, k)
+      shot_noise_k = Delta_Pk(shot, k)
 
    END FUNCTION shot_noise_k
 
@@ -1816,11 +1848,7 @@ CONTAINS
    SUBROUTINE write_adaptive_field(xc, yc, Lsub, z1, z2, m, r, x, w, n, L, outfile)
 
       ! Makes a pretty picture of a density field but uses adaptive meshes to make it nice
-      USE array_operations
       USE string_operations
-
-      IMPLICIT NONE
-
       REAL, INTENT(IN) :: xc, yc ! Coordinates of image centre [Mpc/h]
       REAL, INTENT(IN) :: Lsub ! Size of image [Mpc/h]
       REAL, INTENT(IN) :: z1, z2 ! Front and back of image [Mpc/h]
@@ -2182,76 +2210,21 @@ CONTAINS
 
    END SUBROUTINE write_adaptive_field
 
-   FUNCTION random_spherical_halo_particle(rv, irho)
-
-      ! Make x,y,z coordiantes for a random point in an artificial spherical halo
-      USE constants
-      USE random_numbers
-      IMPLICIT NONE
-      REAL :: random_spherical_halo_particle(3)
-      REAL, INTENT(IN) :: rv
-      INTEGER, INTENT(IN) :: irho
-      REAL :: r, theta, phi
-
-      ! Get radial coordinate
-      IF (irho == irho_tophat) THEN
-         r = random_r_constant(rv)
-      ELSE IF (irho == irho_isothermal) THEN
-         r = random_r_isothermal(rv)
-      ELSE IF (irho == irho_shell) THEN
-         r = rv
-      ELSE IF (irho == irho_delta) THEN
-         r = 0.
-      ELSE
-         STOP 'RANDOM_SPHERE: Error, irho specified incorrectly'
-      END IF
-
-      ! Get the isotropic angles
-      theta = random_spherical_theta()
-      phi = random_uniform(0., twopi)
-
-      ! Create the x, y, z coordinates from r, theta, phi
-      random_spherical_halo_particle(1) = r*sin(theta)*cos(phi)
-      random_spherical_halo_particle(2) = r*sin(theta)*sin(phi)
-      random_spherical_halo_particle(3) = r*cos(theta)
-
-   END FUNCTION random_spherical_halo_particle
-
-   REAL FUNCTION random_r_constant(rv)
-
-      ! The radial random weighting for a constant-density halo profile
-      USE random_numbers
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
-
-      ! TODO: Use random polynomial here with n=2: random_uniform(0.,1.)**(1./3.) -> random_polynomial(n)
-      random_r_constant = rv*random_uniform(0.,1.)**(1./3.)
-
-   END FUNCTION random_r_constant
-
-   REAL FUNCTION random_r_isothermal(rv)
-
-      ! The radial random weighting for an isothermal halo profile
-      USE random_numbers
-      IMPLICIT NONE
-      REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
-
-      random_r_isothermal = random_uniform(0., rv)
-
-   END FUNCTION random_r_isothermal
-
-   SUBROUTINE make_HOD(xh, nph, rv, irho, L, x, np)
+   SUBROUTINE make_HOD(xh, nph, rv, rs, irho, L, x, np)
 
       ! Make an HOD realisation
+      ! TODO: Could speed up for NFW by not regenerating the iversion/interpolation halo unless rv, rs change
       REAL, ALLOCATABLE, INTENT(IN) :: xh(:, :) ! Halo position array [Mpc/h]
       INTEGER, INTENT(IN) :: nph(:)             ! Number of particles in each halo
       REAL, INTENT(IN) :: rv(:)                 ! Halo virial radii [Mpc/h]
+      REAL, INTENT(IN) :: rs(:)                 ! Halo scale radii [Mpc/h]
       INTEGER, INTENT(IN) :: irho               ! Halo profile specifier
       REAL, INTENT(IN) :: L                     ! Simulation box size [Mpc/h]
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :) ! HOD particle position array [Mpc/h]
       INTEGER, INTENT(OUT) :: np                ! Total number of HOD particles generated  
       INTEGER :: i, j, k
       INTEGER :: nh
+      REAL, ALLOCATABLE :: xi(:, :)
 
       nh = size(xh, 2)
       IF((nh .NE. size(nph)) .OR. (nh .NE. size(rv))) THEN
@@ -2265,15 +2238,183 @@ CONTAINS
       ! Generate the particles
       k = 0
       DO i = 1, nh
-         DO j = 1, nph(i)
-            k = k + 1
-            x(:, k) = xh(:, i)+random_spherical_halo_particle(rv(i), irho)
-         END DO
+         IF (nph(i) > 0) THEN
+            ALLOCATE(xi(3, nph(i)))
+            CALL random_halo_particles(xi, rv(i), rs(i), irho)
+            DO j = 1, nph(i)
+               k = k + 1
+               x(:, k) = xh(:, i)+xi(:, j)
+            END DO
+            DEALLOCATE(xi)
+         END IF
       END DO
 
       ! Replace particles that may have strayed outside the volume
       CALL replace(x, L)
 
    END SUBROUTINE make_HOD
+
+   SUBROUTINE random_halo_particles(rr, rv, rs, irho)
+
+      ! Get a set of x,y,z coordiantes for a random point in an artificial spherical halo
+      ! The halo centre is fixed to be the coordinate zero point
+      USE random_numbers
+      USE HMx
+      REAL, INTENT(OUT) :: rr(:, :) ! Halo coordinates (should be shape 3,n) [Mpc/h]
+      REAL, INTENT(IN) :: rv        ! Halo virial radius [Mpc/h]
+      REAL, INTENT(IN) :: rs        ! Halo scale radius [Mpc/h]
+      INTEGER, INTENT(IN) :: irho   ! Switch for halo profile (from HMx)
+      REAL, ALLOCATABLE :: r(:)
+      REAL :: theta, phi
+      INTEGER :: i, n
+
+      IF (size(rr, 1) /= 3) STOP 'RANDOM_HALO_PARTICLES: Error, output array must be shape (3, n)'
+      n = size(rr, 2)
+      ALLOCATE(r(n))
+
+      IF (irho == irho_NFW) THEN
+         CALL random_rs_NFW(r, rv, rs)
+      ELSE
+         DO i = 1, n
+            ! Get radial coordinate
+            IF (irho == irho_tophat) THEN
+               r(i) = random_r_constant(rv)
+            ELSE IF (irho == irho_iso) THEN
+               r(i) = random_r_isothermal(rv)
+            ELSE IF (irho == irho_shell) THEN
+               r(i) = rv
+            ELSE IF (irho == irho_delta) THEN
+               r(i) = 0.
+            ELSE
+               STOP 'RANDOM_SPHERE: Error, irho specified incorrectly or not supported'
+            END IF
+         END DO
+      END IF
+
+      ! Generate the full 3D coordinates assuming a spherical profile (isotropic angles)
+      DO i = 1, n
+         theta = random_spherical_theta()    ! Angle from z: Between 0 and pi
+         phi = random_uniform(0., twopi)     ! x-y plane angle
+         rr(1, i) = r(i)*sin(theta)*cos(phi) ! x
+         rr(2, i) = r(i)*sin(theta)*sin(phi) ! y
+         rr(3, i) = r(i)*cos(theta)          ! z
+      END DO
+
+   END SUBROUTINE random_halo_particles
+
+   REAL FUNCTION random_r_constant(rv)
+
+      ! The radial random weighting for a constant-density halo profile
+      USE random_numbers
+      REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
+
+      random_r_constant = rv*random_polynomial(2.)
+
+   END FUNCTION random_r_constant
+
+   REAL FUNCTION random_r_isothermal(rv)
+
+      ! The radial random weighting for an isothermal halo profile
+      USE random_numbers
+      REAL, INTENT(IN) :: rv ! halo virial radius [Mpc/h]
+
+      random_r_isothermal = random_uniform(0., rv)
+
+   END FUNCTION random_r_isothermal
+
+   SUBROUTINE random_rs_NFW(rr, rv, rs)
+
+      ! Get a set of random radii drawn from an NFW distribution
+      ! Has to perform a numerical inversion/interpolation
+      ! If F(x) = ln(1+x) - x/(1+x) then f = F(r/rs) / F(c) with f in [0->1] must be inverted for r
+      USE random_numbers
+      USE interpolate
+      USE HMx
+      REAL, INTENT(OUT) :: rr(:)
+      REAL, INTENT(IN) :: rv
+      REAL, INTENT(IN) :: rs
+      REAL, ALLOCATABLE :: r(:), f(:)
+      REAL :: u
+      INTEGER :: i
+      INTEGER, PARAMETER :: nr = nr_random_NFW
+      INTEGER, PARAMETER :: iorder = iorder_random_NFW
+      INTEGER, PARAMETER :: ifind = ifind_random_NFW
+      INTEGER, PARAMETER :: iinterp = iinterp_random_NFW
+
+      ! Fill array of r vs. f(r) for interpolation/inversion
+      CALL fill_array(0., rv, r, nr)
+      ALLOCATE(f(nr))
+      DO i = 1, nr
+         f(i) = NFW_factor(r(i)/rs)/NFW_factor(rv/rs)
+      END DO
+
+      ! Get n different values of the radius using numerical inversion
+      DO i = 1, size(rr)
+         u = random_unit()
+         rr(i) = find(u, f, r, nr, iorder, ifind, iinterp)
+      END DO
+
+   END SUBROUTINE random_rs_NFW
+   
+   SUBROUTINE combine_folded_power(k, Pk, sig, k_bin, k_tot, Pk_tot, sig_tot)
+
+      ! TODO: Should weight enter the calculation of mean k? Or should this just be an array of ones?
+      ! TODO: Remove power above half-Nyquist at each fold
+      USE statistics
+      REAL, INTENT(IN) :: k(:, :)
+      REAL, INTENT(IN) :: Pk(:, :)
+      REAL, INTENT(IN) :: sig(:, :)
+      REAL, INTENT(IN) :: k_bin(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: k_tot(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: Pk_tot(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: sig_tot(:)
+      REAL, ALLOCATABLE :: weight(:, :), ones(:)
+      REAL, ALLOCATABLE :: w_k(:), w_Pk(:), w_sig(:)
+      INTEGER :: nk, nf
+      INTEGER :: ifold, ik
+
+      ! Check k dimension
+      nk = size(k, 1)
+      IF (size(Pk, 1) /= nk) STOP 'COMBINE_FOLDED_POWER_DATA: Error Pk_fold should have the same first dimension as k_fold'
+      IF (size(sig, 1) /= nk) STOP 'COMBINE_FOLDED_POWER_DATA: Error sig_fold should have the same first dimension as k_fold'
+
+      ! Check fold dimension
+      nf = size(k, 2)
+      IF (size(Pk, 2) /= nf) STOP 'COMBINE_FOLDED_POWER_DATA: Error Pk_fold should have the same second dimension as k_fold'
+      IF (size(sig, 2) /= nf) STOP 'COMBINE_FOLDED_POWER_DATA: Error sig_fold should have the same second dimension as k_fold'
+      nf = nf-1
+
+      ! Create weight array from errors
+      ALLOCATE(weight(nk, nf+1))
+      DO ifold = 1, nf+1
+         DO ik = 1, nk
+            IF (sig(ik, ifold) == 0.) THEN
+               weight(ik, ifold) = 0.
+            ELSE
+               weight(ik, ifold) = 1./sig(ik, ifold)
+            END IF
+         END DO
+      END DO
+      ALLOCATE(ones(nk*(nf+1)))
+      ones = 1.
+
+      ! Histogram k, P(k) and sig(k) 
+      CALL advanced_histogram(reshape(k, [nk*(nf+1)]), reshape(k, [nk*(nf+1)]), ones, k_bin, k_tot, w_k)
+      CALL advanced_histogram(reshape(k, [nk*(nf+1)]), reshape(Pk, [nk*(nf+1)]), reshape(weight, [nk*(nf+1)]), k_bin, Pk_tot, w_Pk)
+      CALL advanced_histogram(reshape(k, [nk*(nf+1)]), reshape(weight**2, [nk*(nf+1)]), ones, k_bin, sig_tot, w_sig)
+
+      ! Normalise results
+      DO ik = 1, size(k_tot)
+         k_tot(ik) = k_tot(ik)/w_k(ik)
+         IF (w_Pk(ik) == 0.) THEN
+            Pk_tot(ik) = 0.
+            sig_tot(ik) = 0.
+         ELSE         
+            Pk_tot(ik) = Pk_tot(ik)/w_Pk(ik)
+            sig_tot(ik) = sqrt(1./sig_tot(ik))
+         END IF
+      END DO
+
+   END SUBROUTINE combine_folded_power
 
 END MODULE simulations

@@ -31,7 +31,6 @@ CONTAINS
    REAL FUNCTION Kepler_period(a, M)
 
       ! Period of an orbit [yr]
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a ! Semi-major axis [au]
       REAL, INTENT(IN) :: M ! Central mass [Msun]
 
@@ -54,7 +53,6 @@ CONTAINS
    REAL FUNCTION orbit_radius(a, e, n)
 
       ! Calculate orbit x,y,z [au]
-      IMPLICIT NONE
       REAL, INTENT(IN) :: a ! Semi-major axis [au]
       REAL, INTENT(IN) :: e ! Eccentricity
       REAL, INTENT(IN) :: n ! True anomaly [rad]
@@ -69,7 +67,6 @@ CONTAINS
    FUNCTION orbit_position(a, e, n, w)
 
       ! Orbit posititon x,y,z [au]
-      IMPLICIT NONE
       REAL :: orbit_position(3)
       REAL, INTENT(IN) :: a ! Semi-major axis [au]
       REAL, INTENT(IN) :: e ! Eccentricity
@@ -92,7 +89,6 @@ CONTAINS
    FUNCTION orbit_velocity(a, e, n, w, M)
 
       ! Orbit velocity vx,vy,vz [2piau/yr]
-      IMPLICIT NONE
       REAL :: orbit_velocity(3)
       REAL, INTENT(IN) :: a ! Semi-major axis [au]
       REAL, INTENT(IN) :: e ! Eccentricity
@@ -120,7 +116,6 @@ CONTAINS
 
       ! Conserved reduced orbital energy
       ! This is negative for bound orbits and positive for unbound orbits
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity []
       REAL, INTENT(IN) :: M    ! Central mass [Msun]
@@ -132,7 +127,6 @@ CONTAINS
    REAL FUNCTION reduced_angular_momentum(x, v)
 
       ! Conserved reduced angular momentum vector
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity [au]
       REAL :: h(3)
@@ -145,7 +139,6 @@ CONTAINS
    FUNCTION Laplace_Runge_Lenz(x, v, M)
 
       ! Conserved Laplace-Runge-Lenz vector
-      IMPLICIT NONE
       REAL :: Laplace_Runge_Lenz(3)
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity [2piau/yr]
@@ -160,7 +153,6 @@ CONTAINS
    REAL FUNCTION semi_latus_rectum(x, v, M)
 
       ! Calculate the semi-latus rectum [au]
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity []
       REAL, INTENT(IN) :: M    ! Central mass [Msun]
@@ -175,7 +167,6 @@ CONTAINS
 
       ! Semi-major axis [au]
       ! Negative for unbound orbits
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity []
       REAL, INTENT(IN) :: M    ! Central mass [Msun]
@@ -189,7 +180,6 @@ CONTAINS
 
       ! Semi-minor axis [au]
       ! Assumes that the orbit is bound. Will break for unbound orbits
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity []
       REAL, INTENT(IN) :: M    ! Central mass [Msun]
@@ -202,7 +192,6 @@ CONTAINS
 
       ! Orbit eccentricity
       ! If e<1 the orbit is bound, if e>1 the orbit is unbound
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity [2piau/yr]
       REAL, INTENT(IN) :: M    ! Central mass [Msun]
@@ -219,7 +208,6 @@ CONTAINS
       ! Plane-polar orbit angle [rad]
       ! Assumes orbit is in the x-y plane
       ! Gives result from 0 to 2pi
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
 
       polar_angle = atan2(x(2), x(1))
@@ -232,7 +220,6 @@ CONTAINS
       ! Orbital true anomaly [rad]
       ! Assumes orbit is in the x-y plane
       ! Gives result from 0 to 2pi
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity [2piau/yr]
       REAL, INTENT(IN) :: M    ! Central mass [Msun]
@@ -247,7 +234,6 @@ CONTAINS
       ! Orbit argument of periapsis [rad]
       ! Assumes orbit is in the x-y plane
       ! Gives result from 0 to 2pi
-      IMPLICIT NONE
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity [2piau/yr]
       REAL, INTENT(IN) :: M    ! Central mass [Msun]

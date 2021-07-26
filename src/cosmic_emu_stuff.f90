@@ -1,11 +1,13 @@
 MODULE cosmic_emu_stuff
 
+   ! TODO: Could remove depdence on coosmology_functions and have internal cosmology type for emulator
+
    USE file_info
+   USE basic_operations
    USE array_operations
    USE string_operations
    USE cosmology_functions
    USE interpolate
-   USE basic_operations
    USE table_integer
 
    IMPLICIT NONE
@@ -25,7 +27,7 @@ MODULE cosmic_emu_stuff
    PUBLIC :: emulator_MiraTitan
    PUBLIC :: emulator_Euclid
    PUBLIC :: emulator_BACCO
-   PUBLIC :: emulator_HALOFIT
+   PUBLIC :: emulator_NGenHALOFIT
 
    ! Emulator versions
    INTEGER, PARAMETER :: emulator_CosmicEmu = 1
@@ -33,14 +35,14 @@ MODULE cosmic_emu_stuff
    INTEGER, PARAMETER :: emulator_MiraTitan = 3
    INTEGER, PARAMETER :: emulator_Euclid = 4
    INTEGER, PARAMETER :: emulator_BACCO = 5
-   INTEGER, PARAMETER :: emulator_HALOFIT = 6
+   INTEGER, PARAMETER :: emulator_NGenHALOFIT = 6
 
    ! Cosmic Emu
    REAL, PARAMETER :: kmin_rebin_CosmicEmu = 1e-2
    REAL, PARAMETER :: kmax_rebin_CosmicEmu = 1.
    !REAL, PARAMETER :: kmax_rebin_CosmicEmu = 2.7 ! This is the maximum
    !REAL, PARAMETER :: kmax_rebin_CosmicEmu = 0.2 ! Perturbation-theory studies
-   INTEGER, PARAMETER :: nk_rebin_CosmicEmu = 128
+   INTEGER, PARAMETER :: nk_rebin_CosmicEmu = 129
    CHARACTER(len=256), PARAMETER :: params_CosmicEmu = 'emu_params.txt'
    CHARACTER(len=256), PARAMETER :: output_CosmicEmu = 'emu_power.dat'
    CHARACTER(len=256), PARAMETER :: exe_CosmicEmu = '/Users/Mead/Physics/CosmicEmu/emu.exe'
@@ -51,7 +53,7 @@ MODULE cosmic_emu_stuff
    ! Franken Emu
    REAL, PARAMETER :: kmin_rebin_FrankenEmu = 1e-2
    REAL, PARAMETER :: kmax_rebin_FrankenEmu = 10.
-   INTEGER, PARAMETER :: nk_rebin_FrankenEmu = 128
+   INTEGER, PARAMETER :: nk_rebin_FrankenEmu = 129
    CHARACTER(len=256), PARAMETER :: params_FrankenEmu = 'emu_params.txt'
    CHARACTER(len=256), PARAMETER :: output_FrankenEmu = 'emu_power.dat'
    CHARACTER(len=256), PARAMETER :: exe_FrankenEmu = '/Users/Mead/Physics/FrankenEmu/emu.exe'
@@ -59,7 +61,7 @@ MODULE cosmic_emu_stuff
    ! Mira Titan
    REAL, PARAMETER :: kmin_rebin_MiraTitan = 1e-2
    REAL, PARAMETER :: kmax_rebin_MiraTitan = 7.
-   INTEGER, PARAMETER :: nk_rebin_MiraTitan = 128
+   INTEGER, PARAMETER :: nk_rebin_MiraTitan = 129
    CHARACTER(len=256), PARAMETER :: params_MiraTitan = 'xstar.dat'
    CHARACTER(len=256), PARAMETER :: output_MiraTitan = 'EMU0.txt'
    CHARACTER(len=256), PARAMETER :: exe_MiraTitan = '/Users/Mead/Physics/MiraTitan/P_tot/emu.exe'
@@ -89,8 +91,8 @@ MODULE cosmic_emu_stuff
    CHARACTER(len=256), PARAMETER :: varbase_NGenHALOFIT = 'Planck2013.Step_ByHand.HighAcc_matterpower'
    REAL, PARAMETER :: kmin_lin_NGenHALOFIT = 1e-3
    REAL, PARAMETER :: kmax_lin_NGenHALOFIT = 1e2
-   INTEGER, PARAMETER :: nk_plin_NGenHALOFIT = 128
-   REAL, PARAMETER :: As_norm_NGenHALOFIT = 2.14485e-9
+   INTEGER, PARAMETER :: nk_plin_NGenHALOFIT = 129
+   REAL, PARAMETER :: As_NGenHALOFIT = 2.14485e-9
    REAL, PARAMETER :: kpiv_noh_default_NGenHALOFIT = 0.05
    REAL, PARAMETER :: eps_kpiv_NGenHALOFIT = 1e-4
    REAL, PARAMETER :: alin_NGenHALOFIT = 1.
@@ -140,7 +142,7 @@ CONTAINS
          CALL calculate_EuclidEmulator_power(k, a, Pk, cosm)
       ELSE IF (version == emulator_BACCO) THEN
          CALL calculate_BACCO_power(k, a, Pk, cosm)
-      ELSE IF (version == emulator_HALOFIT) THEN
+      ELSE IF (version == emulator_NGenHALOFIT) THEN
          CALL calculate_NGenHALOFIT(k, a, Pk, cosm)
       ELSE
          STOP 'CALCULATE_EMULATOR_POWER: Error, emulator version not recognised'
@@ -226,7 +228,7 @@ CONTAINS
       IF (.NOT. requal(cosm%kpiv*cosm%h, kpiv_noh_default, eps_kpiv)) THEN
         WRITE(*, *) 'RUN_NGENHALOFIT: kpiv [h/Mpc]:', cosm%kpiv
         WRITE(*, *) 'RUN_NGENHALOFIT: kpiv [1/Mpc]:', cosm%kpiv*cosm%h
-        STOP 'RUN_NGENHALOFIT: Error, NGenHalofit assumes pivot scale of 0.05 Mpc^-1 CHECK'
+        STOP 'RUN_NGENHALOFIT: Error, NGenHalofit assumes pivot scale of 0.05 Mpc^-1'
       END IF
 
       ! Needs to be called for As to be correct
@@ -277,7 +279,7 @@ CONTAINS
       CHARACTER(len=256), INTENT(IN) :: dir
       INTEGER :: u
       LOGICAL, PARAMETER :: logk = .TRUE.
-      REAL, PARAMETER :: As_norm = As_norm_NGenHALOFIT
+      REAL, PARAMETER :: As = As_NGenHALOFIT
       CHARACTER(len=256), PARAMETER :: powbase = powbase_NGenHALOFIT
       CHARACTER(len=256), PARAMETER :: MPTbase = MPTbase_NGenHALOFIT
       CHARACTER(len=256), PARAMETER :: linfile = linfile_NGenHALOFIT
@@ -293,7 +295,7 @@ CONTAINS
       WRITE (u, *) 'om_ch20', cosm%Om_c*cosm%h**2
       WRITE (u, *) 'om_bh20', cosm%Om_b*cosm%h**2
       WRITE (u, *) 'om_DE0', 1.-cosm%Om_m
-      WRITE (u, *) 'As', cosm%As/As_norm
+      WRITE (u, *) 'As', cosm%As/As
       WRITE (u, *) 'pindex', cosm%ns
       WRITE (u, *) 'running', cosm%nrun
 

@@ -1,10 +1,13 @@
 MODULE file_info
 
+   USE basic_operations
+
    IMPLICIT NONE
 
    PRIVATE
 
    PUBLIC :: file_length
+   PUBLIC :: file_columns
    PUBLIC :: count_number_of_lines
    PUBLIC :: check_file_exists
    PUBLIC :: file_exists
@@ -13,41 +16,80 @@ CONTAINS
 
    INTEGER FUNCTION file_length(file_name, verbose)
 
-      ! Get the number of lines in the file
-      USE basic_operations
+      ! Get the number of lines in the file 
+      ! TODO: Remove GOTO-ish thing   
       CHARACTER(len=*), INTENT(IN) :: file_name
       LOGICAL, OPTIONAL, INTENT(IN) :: verbose
-      INTEGER :: n
+      INTEGER :: n, u
       LOGICAL :: lexist
 
-      !IF(verbose) WRITE(*,*) 'FILE_LENGTH: File: ', trim(file_name)
       IF (present_and_correct(verbose)) WRITE (*, *) 'FILE_LENGTH: File: ', trim(file_name)
       INQUIRE (file=file_name, exist=lexist)
       IF (.NOT. lexist) THEN
          WRITE (*, *) 'FILE_LENGTH: File: ', trim(file_name)
          STOP 'FILE_LENGTH: Error, file does not exist'
       END IF
-      OPEN (7, file=file_name, status='old')
-
-      ! Newer version that lacks 'data' seems okay
+   
       n = 0
+      OPEN (newunit=u, file=file_name, status='old')
       DO
          n = n+1
-         READ (7, *, end=301)
-      END DO
-
-      ! 301 is just the label to jump to when the end of the file is reached
-301   CLOSE (7)
-
+         READ (u, *, end=301) ! Horrid go to
+      END DO    
+301   CLOSE (u) ! 301 is just the label to jump to when the end of the file is reached
       file_length = n-1
 
-      !IF(verbose) THEN
       IF (present_and_correct(verbose)) THEN
          WRITE (*, *) 'FILE_LENGTH: Length:', file_length
          WRITE (*, *)
       END IF
 
    END FUNCTION file_length
+
+   INTEGER FUNCTION file_columns(infile, verbose)
+
+      ! Count the number of columns in a file
+      ! Based on: https://stackoverflow.com/questions/7314216/reading-data-file-in-fortran-with-known-number-of-lines-but-unknown-number-of-en
+      CHARACTER(len=*) :: infile
+      LOGICAL, OPTIONAL, INTENT(IN) :: verbose
+      INTEGER :: i, error, u
+      !CHARACTER(len=16) :: crap
+      CHARACTER(len=1024) :: line
+      CHARACTER(len=16), ALLOCATABLE :: array(:)
+      LOGICAL :: lexist
+      !INTEGER :: file_rows
+      INTEGER, PARAMETER :: max_columns = 1000 ! Maximum possible number of entries
+
+      ! Check the file exists
+      IF (present_and_correct(verbose)) WRITE (*, *) 'FILE_COLUMNS: File: ', trim(infile)
+      INQUIRE (file=infile, exist=lexist)
+      IF (.NOT. lexist) THEN
+         WRITE (*, *) 'FILE_COLUMNS: File: ', trim(infile)
+         STOP 'FILE_COLUMNS: Error, file does not exist'
+      END IF
+      
+      ! Read in first line as string
+      OPEN(newunit=u, file=infile, status='old')
+      READ(u, '(A)') line
+      CLOSE(u)
+
+      ! Analyse string for how many bits it can be split in to
+      ALLOCATE(array(max_columns))
+      DO i = 1, max_columns       
+         READ(line, *, iostat=error) array(1:i)
+         IF (error .NE. 0) THEN
+            file_columns = i-1
+            EXIT
+         END IF        
+      END DO
+
+      ! Write to screen
+      IF (present_and_correct(verbose)) THEN
+         WRITE (*, *) 'FILE_COLUMNS: Columns:', file_columns
+         WRITE (*, *)
+      END IF
+
+   END FUNCTION file_columns
 
    FUNCTION count_number_of_lines(filename) result(n)
 

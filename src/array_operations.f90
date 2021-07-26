@@ -1,5 +1,7 @@
 MODULE array_operations
 
+   USE basic_operations
+
    IMPLICIT NONE
 
    PRIVATE
@@ -41,6 +43,7 @@ MODULE array_operations
    PUBLIC :: fill_array_log ! TODO: Remove
    PUBLIC :: outside_array_range
    PUBLIC :: sum_logical
+   PUBLIC :: monotonic_array
 
    INTERFACE is_in_array
       MODULE PROCEDURE is_in_array_integer
@@ -114,6 +117,22 @@ MODULE array_operations
 
 CONTAINS
 
+   LOGICAL FUNCTION monotonic_array(x)
+
+      ! Returns true if sequential array entries are monotonically increasing (or equal) from low to high
+      REAL, INTENT(IN) :: x(:)
+      INTEGER :: i
+
+      monotonic_array = .TRUE.
+      DO i = 1, size(x)-1
+         IF (x(i+1) < x(i)) THEN
+            monotonic_array = .FALSE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION monotonic_array
+
    LOGICAL FUNCTION outside_array_range(x, xtab)
 
       ! Assumes xtab is an array of x values going from low to high
@@ -131,8 +150,8 @@ CONTAINS
 
    SUBROUTINE insert_in_array(x, i, a)
 
-      REAL, INTENT(IN) :: x      ! Value to insert
-      INTEGER, INTENT(IN) :: i   ! Position to insert
+      REAL, INTENT(IN) :: x                    ! Value to insert
+      INTEGER, INTENT(IN) :: i                 ! Position to insert
       REAL, ALLOCATABLE, INTENT(INOUT) :: a(:) ! Array in which to insert
       REAL, ALLOCATABLE :: b(:)
       INTEGER :: j, n
@@ -259,7 +278,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:)
 
-      IF(ALLOCATED(x)) DEALLOCATE(x)
+      IF(allocated(x)) DEALLOCATE(x)
 
    END SUBROUTINE if_allocated_deallocate_real_1D
 
@@ -268,7 +287,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :)
 
-      IF(ALLOCATED(x)) DEALLOCATE(x)
+      IF(allocated(x)) DEALLOCATE(x)
 
    END SUBROUTINE if_allocated_deallocate_real_2D
 
@@ -277,7 +296,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       REAL, ALLOCATABLE, INTENT(INOUT) :: x(:, :, :)
 
-      IF(ALLOCATED(x)) DEALLOCATE(x)
+      IF(allocated(x)) DEALLOCATE(x)
 
    END SUBROUTINE if_allocated_deallocate_real_3D
 
@@ -286,7 +305,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       INTEGER, ALLOCATABLE, INTENT(INOUT) :: i(:)
 
-      IF(ALLOCATED(i)) DEALLOCATE(i)
+      IF(allocated(i)) DEALLOCATE(i)
 
    END SUBROUTINE if_allocated_deallocate_integer_1D
 
@@ -295,7 +314,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       LOGICAL, ALLOCATABLE, INTENT(INOUT) :: l(:)
 
-      IF(ALLOCATED(l)) DEALLOCATE(l)
+      IF(allocated(l)) DEALLOCATE(l)
 
    END SUBROUTINE if_allocated_deallocate_logical_1D
 
@@ -304,7 +323,7 @@ CONTAINS
       ! Deallocates an array if it is already allocated
       CHARACTER(len=*), ALLOCATABLE, INTENT(INOUT) :: c(:)
 
-      IF(ALLOCATED(c)) DEALLOCATE(c)
+      IF(allocated(c)) DEALLOCATE(c)
 
    END SUBROUTINE if_allocated_deallocate_character_1D
 
@@ -528,7 +547,6 @@ CONTAINS
 
       ! Returns the location in a(n) of value x
       ! If x is not in array then returns zero
-      USE basic_operations
       REAL, INTENT(IN) :: x    ! Value to check if it is in array
       REAL, INTENT(IN) :: a(:) ! Array to check
       REAL, INTENT(IN) :: eps  ! Difference to tolerate
@@ -591,25 +609,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE array_positions
-
-   ! REAL FUNCTION sum_double(a)
-
-   !    ! Sum using double precision, which is necessary for many array elements
-   !    REAL, INTENT(IN) :: a(:)
-   !    DOUBLE PRECISION :: sum
-   !    INTEGER :: i, n
-
-   !    n = size(a)
-
-   !    sum = 0.d0
-
-   !    DO i = 1, n
-   !       sum = sum+a(i)
-   !    END DO
-
-   !    sum_double = real(sum)
-
-   ! END FUNCTION sum_double
 
    SUBROUTINE amputate_array_real(a, i1, i2)
 
@@ -1102,7 +1101,7 @@ CONTAINS
       nb = size(b)
       nc = na+nb
 
-      IF (ALLOCATED(c)) DEALLOCATE (c)
+      IF (allocated(c)) DEALLOCATE (c)
       ALLOCATE (c(nc))
 
       DO i = 1, na
@@ -1164,7 +1163,6 @@ CONTAINS
       ! Fills array 'arr' in linearly spaced intervals
       ! e.g., 4 values between 0 and 1 would be 0, 1/3, 2/3, and 1
       ! This means that min and max are included in the array
-      USE basic_operations
       REAL, INTENT(IN) :: min ! Minimum value for array
       REAL, INTENT(IN) :: max ! Maximum value for array
       REAL, ALLOCATABLE, INTENT(INOUT) :: arr(:) ! Output array
@@ -1415,7 +1413,7 @@ CONTAINS
       INTEGER, INTENT(OUT) :: m                      ! Number of unique indices
       INTEGER, INTENT(OUT) :: match(n)               ! Array for matching input and unique arrays
       INTEGER :: i, j, p
-      LOGICAL :: increment
+      LOGICAL :: inc
 
       ! First count the number of unique entries
       m = unique_entries(array)
@@ -1426,15 +1424,15 @@ CONTAINS
 
       p = 1
       DO i = 1, n
-         increment = .FALSE.
+         inc = .FALSE.
          DO j = 1, p
             IF (array(i) /= unique(j)) THEN
                unique(p+1) = array(i)
-               increment = .TRUE.
+               inc = .TRUE.
                EXIT
             END IF
          END DO
-         IF (increment) p = p+1
+         IF (inc) p = p+1
          IF (p == m) EXIT ! Added this in haste
       END DO
 
@@ -1510,7 +1508,6 @@ CONTAINS
    LOGICAL FUNCTION regular_spacing(a)
 
       ! Returns true if array a is regularly spaced
-      USE basic_operations
       REAL, INTENT(IN) :: a(:)
       REAL :: amin, amax, b
       INTEGER :: i, n

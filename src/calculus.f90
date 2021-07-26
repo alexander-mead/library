@@ -53,7 +53,7 @@ CONTAINS
 
       DO i = 1, n
 
-         dnew = (f(x+dx/2.)-f(x-dx/2.))/dx !New, using equal sided derivative
+         dnew = (f(x+dx/2.)-f(x-dx/2.))/dx ! New, using equal sided derivative
 
          IF (i >= imin .AND. abs(dnew/dold-1.) < acc) THEN
             EXIT

@@ -1,6 +1,8 @@
 MODULE special_functions
 
+   USE precision
    USE constants
+   USE basic_operations
 
    IMPLICIT NONE
 
@@ -12,20 +14,9 @@ MODULE special_functions
    PUBLIC :: get_factorials
    PUBLIC :: Fibonacci
    PUBLIC :: get_Fibonaccis
+   PUBLIC :: binomial_coefficient
 
    ! Real functions
-   !PUBLIC :: linear_polynomial
-   !PUBLIC :: quadratic_polynomial
-   !PUBLIC :: cubic_polynomial
-   !PUBLIC :: centred_linear_polynomial
-   !PUBLIC :: centred_quadratic_polynomial
-   !PUBLIC :: centred_cubic_polynomial
-   !PUBLIC :: fix_linear
-   !PUBLIC :: fix_quadratic
-   !PUBLIC :: fix_cubic
-   !PUBLIC :: fix_centred_linear
-   !PUBLIC :: fix_centred_quadratic
-   !PUBLIC :: fix_centred_cubic
    PUBLIC :: polynomial
    PUBLIC :: fix_polynomial
    PUBLIC :: centred_polynomial
@@ -35,21 +26,35 @@ MODULE special_functions
    PUBLIC :: Si
    PUBLIC :: Ci
    PUBLIC :: Bessel
+   PUBLIC :: spherical_Bessel
    PUBLIC :: sinc
    PUBLIC :: wk_tophat
    PUBLIC :: wk_tophat_deriv
    PUBLIC :: wk_tophat_dderiv
+   PUBLIC :: cbrt
+   PUBLIC :: Heaviside
+
+   ! Minima testing
+   PUBLIC :: Rosenbrock
+   PUBLIC :: Himmelblau
+
+   ! Probability distributions
    PUBLIC :: Gaussian_distribution
    PUBLIC :: lognormal_distribution
    PUBLIC :: uniform_distribution
    PUBLIC :: Rayleigh_distribution
-   PUBLIC :: Poisson_distribution
    PUBLIC :: exponential_distribution
    PUBLIC :: Lorentzian_distribution
    PUBLIC :: polynomial_distribution
-   PUBLIC :: Rosenbrock
-   PUBLIC :: Himmelblau
-   PUBLIC :: cbrt
+
+   ! Integer probability distributions
+   PUBLIC :: Poisson_distribution
+   PUBLIC :: Bernoulli_distribution
+   PUBLIC :: geometric_distribution
+   PUBLIC :: shifted_geometric_distribution
+   PUBLIC :: Binomial_distribution
+
+   ! Complex functions
    PUBLIC :: complex_number
    PUBLIC :: complex_phase
 
@@ -60,6 +65,15 @@ MODULE special_functions
    PUBLIC :: smooth_blob
    PUBLIC :: sigmoid_tanh
    PUBLIC :: sigmoid_log
+
+   ! Taylor expansion below this
+   REAL, PARAMETER :: dx_sinc = 1e-3
+   REAL, PARAMETER :: dx_tophat = 1e-3
+   REAL, PARAMETER :: dx_Bessel = 1e-3
+
+   ! Numerical approximation parameters
+   REAL, PARAMETER :: x0_SiCi = 4.
+   REAL, PARAMETER :: xbig_Bessel = 1e15
 
    INTERFACE polynomial
       MODULE PROCEDURE linear_polynomial
@@ -92,10 +106,26 @@ MODULE special_functions
 
 CONTAINS
 
+   REAL FUNCTION Heaviside(x, Hzero_opt)
+
+      REAL, INTENT(IN) :: x
+      REAL, OPTIONAL, INTENT(IN) :: Hzero_opt
+      REAL, PARAMETER :: Hzero_def = 0.5
+
+      IF (x == 0.) THEN
+         Heaviside = default_or_optional(Hzero_def, Hzero_opt)
+      ELSE IF (x < 0.) THEN
+         Heaviside = 0.
+      ELSE
+         Heaviside = 1.
+      END IF
+
+   END FUNCTION Heaviside
+
    COMPLEX FUNCTION complex_number(r, theta)
 
       ! Complex number r*e^{i theta} in Fortran format
-      ! Analogy of inbuilt cmplx() function
+      ! Analogy of inbuilt cmplx(x, y) function
       REAL, INTENT(IN) :: r
       REAL, INTENT(IN) :: theta
 
@@ -367,7 +397,6 @@ CONTAINS
       ! f(0)=1 is not provided
       ! f(1)=1, f(2)=2, f(3)=6, f(4)=24, ..., f(n)=n*f(n-1)
       ! TODO: Should this really be INT8 here?    
-      USE precision 
       INTEGER(int8), INTENT(OUT) :: f(:)
       INTEGER, INTENT(IN) :: n
       INTEGER :: i
@@ -391,7 +420,6 @@ CONTAINS
    INTEGER(int8) FUNCTION factorial(n)
 
       ! Calculates the nth factorial number
-      USE precision
       INTEGER, INTENT(IN) :: n
       INTEGER(int8) :: f8(n)
 
@@ -401,11 +429,35 @@ CONTAINS
          factorial = 1
       ELSE
          CALL get_factorials(f8, n)
-         !factorial=INT(f8(n))
          factorial = f8(n)
       END IF
 
    END FUNCTION factorial
+
+   INTEGER FUNCTION multiply_integers(a, b)
+
+      ! Multiply the integers a through to b (inclusive)
+      INTEGER, INTENT(IN) :: a, b
+      INTEGER :: i, m
+
+      m = 1
+      DO i = a, b
+         m = m*i
+      END DO
+      multiply_integers = m
+
+   END FUNCTION multiply_integers
+
+   INTEGER FUNCTION binomial_coefficient(n, k)
+
+      ! Evalues binomial coefficient (n, k): n-choose-k
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: k
+
+      !choose = factorial(n)/(factorial(k)*factorial(n-k)) ! Inefficient
+      binomial_coefficient = multiply_integers(n-k+1, n)/factorial(k)
+
+   END FUNCTION binomial_coefficient
 
    REAL FUNCTION sigmoid_tanh(x)
 
@@ -575,7 +627,7 @@ CONTAINS
       ! sinc function: sin(x)/x
       ! TODO: Is the Taylor expansion here unnecessary?
       REAL, INTENT(IN) :: x
-      REAL, PARAMETER :: dx = 1e-3 ! small |x| below which to use Taylor expansion
+      REAL, PARAMETER :: dx = dx_sinc ! small |x| below which to use Taylor expansion
 
       IF (abs(x) < dx) THEN
          sinc = 1.-(x**2)/6.+(x**4)/120.
@@ -589,7 +641,7 @@ CONTAINS
 
       ! The normlaised Fourier Transform of a spherical top-hat
       REAL, INTENT(IN) :: x
-      REAL, PARAMETER :: dx = 1e-3 ! Taylor expansion for |x|<dx
+      REAL, PARAMETER :: dx = dx_tophat ! Taylor expansion for |x|<dx
 
       ! Taylor expansion used for low x to avoid cancelation problems
       IF (abs(x) < dx) THEN
@@ -604,7 +656,7 @@ CONTAINS
 
       ! The derivative of a normlaised Fourier Transform of a spherical top-hat
       REAL, INTENT(IN) :: x
-      REAL, PARAMETER :: dx = 1e-3 ! Taylor expansion for |x|<dx
+      REAL, PARAMETER :: dx = dx_tophat ! Taylor expansion for |x|<dx
 
       ! Taylor expansion used for low x to avoid cancelation problems
       IF (abs(x) < dx) THEN
@@ -619,7 +671,7 @@ CONTAINS
 
       ! The second derivative of a normlaised Fourier Transform of a spherical top-hat
       REAL, INTENT(IN) :: x
-      REAL, PARAMETER :: dx = 1e-3 ! Taylor expansion for |x|<dx
+      REAL, PARAMETER :: dx = dx_tophat ! Taylor expansion for |x|<dx
 
       ! Taylor expansion used for low x to avoid cancelation problems
       IF (abs(x) < dx) THEN
@@ -726,10 +778,9 @@ CONTAINS
    REAL FUNCTION Si(x)
 
       ! Returns the 'sine integral' function: Si(x)=int_0^x sin(t)/t dt
-      USE precision
       REAL, INTENT(IN) :: x
       REAL :: x2, y, f, g, si8
-      REAL, PARAMETER :: x0 = 4. ! Transition between two different approximations
+      REAL, PARAMETER :: x0 = x0_SiCi ! Transition between two different approximations
 
       ! Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
       IF (abs(x) <= x0) THEN
@@ -780,10 +831,9 @@ CONTAINS
    REAL FUNCTION Ci(x)
 
       ! Returns the 'cosine integral' function Ci(x): -int_x^inf cos(t)/t dt
-      USE precision
       REAL, INTENT(IN) :: x
       REAL :: x2, y, f, g, ci8
-      REAL, PARAMETER :: x0 = 4. ! Transition between two different approximations
+      REAL, PARAMETER :: x0 = x0_SiCi ! Transition between two different approximations
 
       ! Expansions for high and low x thieved from Wikipedia, two different expansions for above and below 4.
       IF (abs(x) <= x0) THEN
@@ -835,9 +885,9 @@ CONTAINS
       ! Wraps the Fortran intrinsic functions
       INTEGER, INTENT(IN) :: n
       REAL, INTENT(IN) :: x  
-      REAL, PARAMETER :: xlarge = 1e15 ! Set to zero for large values
+      REAL, PARAMETER :: xbig = xbig_Bessel ! Set to zero for large values
 
-      IF (x > xlarge) THEN
+      IF (x > xbig) THEN
 
          ! To stop it going mental for very large values of x
          Bessel = 0.
@@ -869,7 +919,7 @@ CONTAINS
       ! Limits from https://www.wolframalpha.com/input/?i=series+expand+j_0%28x%29
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
-      REAL, PARAMETER :: dx = 1e-3
+      REAL, PARAMETER :: dx = dx_Bessel
 
       IF (abs(x) < dx) THEN
          IF (n == 0) THEN
@@ -882,7 +932,7 @@ CONTAINS
             spherical_Bessel = x**3/105.-x**5/1890.
          ELSE
             WRITE(*, *) 'SPHERICAL_BESSEL: n:', n
-            STOP 'SPHERICAL_BESSEL: Error, value of n not supported'
+            STOP 'SPHERICAL_BESSEL: Error, value of n not currently supported'
          END IF
       ELSE
          IF (n == 0) THEN
@@ -895,7 +945,7 @@ CONTAINS
             spherical_Bessel = (15./x**3-6./x)*sin(x)/x-(15./x**2-1.)*cos(x)/x
          ELSE
             WRITE(*, *) 'SPHERICAL_BESSEL: n:', n
-            STOP 'SPHERICAL_BESSEL: Error, value of n not supported'
+            STOP 'SPHERICAL_BESSEL: Error, value of n not currently supported'
          END IF
       END IF
 
@@ -973,6 +1023,56 @@ CONTAINS
       Poisson_distribution = exp(-nbar)*(nbar**n)/int(factorial(n))
 
    END FUNCTION Poisson_distribution
+
+   REAL FUNCTION Bernoulli_distribution(k, p)
+
+      ! One trial with probability of success: p
+      INTEGER, INTENT(IN) :: k ! 0 or 1 only
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+
+      Bernoulli_distribution = (p**k)*(1.-p)**(1-k)
+      !IF (k == 0) THEN
+      !   Bernoulli_distribution = 1.-p
+      !ELSE IF (k == 1) THEN
+      !   Bernoulli_distribution = p
+      !ELSE
+      !   STOP 'BERNOULLI_DISTRIBUTION: Error, k can only be zero or one'
+      !END IF
+
+   END FUNCTION Bernoulli_distribution
+
+   REAL FUNCTION geometric_distribution(k, p)
+
+      ! Probability for number of failures until the first success
+      ! Each of k trials is independent and has chance of success k
+      INTEGER, INTENT(IN) :: k ! Must be 0 or greater
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+
+      geometric_distribution = p*(1.-p)**k
+
+   END FUNCTION geometric_distribution
+
+   REAL FUNCTION shifted_geometric_distribution(k, p)
+
+      ! Probability for number of trials until the first success
+      ! Each of k trials is independent and has chance of success k
+      INTEGER, INTENT(IN) :: k ! Must be 1 or greater
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+
+      !shifted_geometric_distribution = p*(1.-p)**(k-1)
+      shifted_geometric_distribution = geometric_distribution(k-1, p)
+
+   END FUNCTION shifted_geometric_distribution
+
+   REAL FUNCTION Binomial_distribution(k, n, p)
+
+      INTEGER, INTENT(IN) :: k
+      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: p
+
+      Binomial_distribution = binomial_coefficient(n, k)*(p**k)*(1.-p)**(n-k)
+
+   END FUNCTION Binomial_distribution
 
    REAL FUNCTION exponential_distribution(x, mean)
 

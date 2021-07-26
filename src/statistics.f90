@@ -1,6 +1,7 @@
 MODULE statistics
 
    USE basic_operations
+   USE array_operations
    USE sorting
 
    IMPLICIT NONE
@@ -13,11 +14,13 @@ MODULE statistics
    PUBLIC :: standard_deviation
    PUBLIC :: root_mean_square
    PUBLIC :: histogram
+   PUBLIC :: advanced_histogram
    PUBLIC :: calculate_confidence
    PUBLIC :: parameter_probability
    PUBLIC :: percentile
    PUBLIC :: percentiles
 
+   ! Parameters
    INTEGER, PARAMETER :: percentile_sort = isort_bubble
 
 CONTAINS
@@ -26,8 +29,8 @@ CONTAINS
   
       ! For input distribution or measuments x(n) calculates the x value above which a fraction 'f' of x(n) lie
       ! Can be used to calculate interquartile ranges and such things
-      REAL, INTENT(IN) :: f(:)   
-      REAL, INTENT(IN) :: x(:)   
+      REAL, INTENT(IN) :: x(:)
+      REAL, INTENT(IN) :: f(:)
       REAL :: percentiles(size(f))
       REAL, ALLOCATABLE :: y(:)
       INTEGER :: i1, i2, nx, j
@@ -39,8 +42,8 @@ CONTAINS
       nx = size(y)
 
       DO j = 1, size(f)
-         IF(.NOT. between(f(j), 0., 1.)) THEN
-            STOP 'PERCENTILE: Error, f must be between 0 and 1'
+         IF (.NOT. between(f(j), 0., 1.)) THEN
+            ERROR STOP 'PERCENTILE: Error, f must be between 0 and 1'
          ELSE IF (f(j) == 0.) THEN
             percentiles(j) = minval(x)
          ELSE IF (f(j) == 1.) THEN
@@ -66,8 +69,8 @@ CONTAINS
       REAL :: in
       INTEGER, PARAMETER :: isort = percentile_sort
 
-      IF(.NOT. between(f, 0., 1.)) THEN
-         STOP 'PERCENTILE: Error, f must be between 0 and 1'
+      IF (.NOT. between(f, 0., 1.)) THEN
+         ERROR STOP 'PERCENTILE: Error, f must be between 0 and 1'
       ELSE IF (f == 0.) THEN
          percentile = minval(x)
       ELSE IF (f == 1.) THEN
@@ -137,30 +140,29 @@ CONTAINS
    SUBROUTINE histogram(xmin, xmax, x, hist, n, data)
 
       USE table_integer
-      USE array_operations
-      REAL, INTENT(IN) :: xmin     ! Minimum x value
-      REAL, INTENT(IN) :: xmax     ! Maximum x value
+      REAL, INTENT(IN) :: xmin ! Minimum x value
+      REAL, INTENT(IN) :: xmax ! Maximum x value
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:)       ! Output array of bin edges, size n+1
       INTEGER, ALLOCATABLE, INTENT(OUT) :: hist(:) ! Output integer array of bin counts, size n
-      INTEGER, INTENT(IN) :: n     ! Number of bins
-      REAL, INTENT(IN) :: data(:)  ! Data to be binned
+      INTEGER, INTENT(IN) :: n    ! Number of bins
+      REAL, INTENT(IN) :: data(:) ! Data to be binned
       INTEGER :: i, j, m
 
       m = size(data)
 
       WRITE (*, *) 'HISTOGRAM: Assiging arrays'
 
-      !Fill the table for the xrange and allocate the histogram array
+      ! Fill the table for the xrange and allocate the histogram array
       CALL fill_array(xmin, xmax, x, n+1)
 
-      !Set the histogram to zero
+      ! Set the histogram to zero
       IF (ALLOCATED(hist)) DEALLOCATE (hist)
       ALLOCATE (hist(n))
       hist = 0
 
       WRITE (*, *) 'HISTOGRAM: Constructing histogram'
 
-      !Make the histogram from the data
+      ! Make the histogram from the data
       DO i = 1, m
          IF (data(i) < xmin .OR. data(i) > xmax) THEN
             CYCLE
@@ -176,6 +178,37 @@ CONTAINS
       WRITE (*, *)
 
    END SUBROUTINE histogram
+
+   SUBROUTINE advanced_histogram(x_data, y_data, w_data, x_bins, y_bins, w_bins)
+
+      USE table_integer
+      REAL, INTENT(IN) :: x_data(:) ! x values for data (can be unordered)
+      REAL, INTENT(IN) :: y_data(:) ! y values for data (can be unordered)
+      REAL, INTENT(IN) :: w_data(:) ! weight for data
+      REAL, INTENT(IN) :: x_bins(:) ! Ordered array of bin edges
+      REAL, ALLOCATABLE, INTENT(OUT) :: y_bins(:) ! Output histogram heights
+      REAL, ALLOCATABLE, INTENT(OUT) :: w_bins(:) ! Output sum of weights entering histogram
+      INTEGER :: i_data, i_bins, n_data, n_bins
+      INTEGER, PARAMETER :: ifind = ifind_split
+
+      n_data = size(x_data)
+      IF (n_data /= size(y_data)) STOP 'ADVANCED_HISTOGRAM: Error, x and y data should be the same size'
+      IF (n_data /= size(w_data)) STOP 'ADVANCED_HISTOGRAM: Error, x and data weights should be the same size'
+
+      n_bins = size(x_bins)-1
+      ALLOCATE(y_bins(n_bins), w_bins(n_bins))
+      y_bins = 0.
+      w_bins = 0.
+
+      DO i_data = 1, n_data
+         i_bins = find_table_integer(x_data(i_data), x_bins, ifind)
+         IF (i_bins > 0 .AND. i_bins <= n_bins) THEN
+            y_bins(i_bins) = y_bins(i_bins)+y_data(i_data)*w_data(i_data)
+            w_bins(i_bins) = w_bins(i_bins)+w_data(i_data)
+         END IF
+      END DO
+
+   END SUBROUTINE advanced_histogram
 
    SUBROUTINE cumulative_distribution(x, p, c)
 
@@ -210,9 +243,9 @@ CONTAINS
       REAL :: ans, ci
       REAL, ALLOCATABLE :: c(:)
       INTEGER :: i, n
-      INTEGER, PARAMETER :: iorder=3
-      INTEGER, PARAMETER :: ifind=3
-      INTEGER, PARAMETER :: imeth=2
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = 3
+      INTEGER, PARAMETER :: imeth = 2
 
       n = size(x)
       IF (n /= size(p)) STOP 'CALCULATE_CONFIDENCE: Error, x and p should be same size'
@@ -220,15 +253,15 @@ CONTAINS
 
       CALL cumulative_distribution(x, p, c)
 
-      DO i=1,4
+      DO i = 1, 4
 
-         IF(i==1) THEN
+         IF (i == 1) THEN
             ci = 0.5*(1.-erf(2./sqrt(2.))) ! ~0.025
-         ELSE IF(i==2) THEN
+         ELSE IF (i == 2) THEN
             ci = 1.-ci ! ~0.975
-         ELSE IF(i==3) THEN
+         ELSE IF(i == 3) THEN
             ci = 0.5*(1.-erf(1./sqrt(2.))) ! ~0.16
-         ELSE IF(i==4) THEN
+         ELSE IF(i == 4) THEN
             ci = 1.-ci ! ~0.84
          ELSE
             STOP 'CALCULATE_CONFIDENCE: Error, something went wrong'
@@ -237,9 +270,9 @@ CONTAINS
          ans = find(ci, c, x, n, iorder, ifind, imeth)
 
          IF(i==1) THEN
-            two_sigma(1)=ans
+            two_sigma(1) = ans
          ELSE IF(i==2) THEN
-            two_sigma(2)=ans
+            two_sigma(2) = ans
          ELSE IF(i==3) THEN
             one_sigma(1) = ans
          ELSE IF(i==4) THEN
