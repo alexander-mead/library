@@ -9176,12 +9176,13 @@ CONTAINS
             alpha = p2
             rho = (r**(-alpha))*exp(-r0/r)
          ELSE IF (irho == irho_NFW_hole) THEN
-            ! Modified NFW with central exponential hole
+            ! Modified cored NFW with central exponential hole
             r0 = p1
             rh = p2
             rho = (1./((0.75+r/rh)*(1.+r/rh)**2))*exp(-r0/r)
          ELSE IF (irho == irho_NFW_mod) THEN
             ! Modified NFW from Padmanabhan & Refregier (2017; 1607.01021)
+            ! NOTE: This is exactly the cored NFW with rc/rh = 0.75
             rh = p1
             rho = (1./((0.75+r/rh)*(1.+r/rh)**2))
          ELSE IF (irho == irho_shell) THEN
