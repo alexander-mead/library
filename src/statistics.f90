@@ -9,6 +9,9 @@ MODULE statistics
    PRIVATE
 
    PUBLIC :: mean
+   PUBLIC :: geometric_mean
+   PUBLIC :: harmonic_mean
+   PUBLIC :: polynomial_mean
    PUBLIC :: weighted_mean
    PUBLIC :: variance
    PUBLIC :: standard_deviation
@@ -95,13 +98,39 @@ CONTAINS
 
    END FUNCTION mean
 
+   REAL FUNCTION geometric_mean(x)
+
+      REAL, INTENT(IN) :: x(:)
+
+      !geometric_mean = product(x)**(1./size(x)) ! Probably insane to do this
+      geometric_mean = exp(mean(log(x)))
+
+   END FUNCTION geometric_mean
+
+   REAL FUNCTION harmonic_mean(x)
+
+      REAL, INTENT(IN) :: x(:)
+
+      !harmonic_mean = 1./mean(1./x)
+      harmonic_mean = polynomial_mean(x, -1)
+
+   END FUNCTION harmonic_mean
+
+   REAL FUNCTION polynomial_mean(x, n)
+
+      REAL, INTENT(IN) :: x(:)
+      INTEGER, INTENT(IN) :: n
+
+      polynomial_mean = mean(x**n)**n
+
+   END FUNCTION polynomial_mean
+
    REAL FUNCTION weighted_mean(x, w)
 
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: w(:)
 
       IF (size(x) .NE. size(w)) STOP 'WEIGHTED_MEAN: Error, data and weight arrays must be the same size'
-
       weighted_mean = sum(w*x)/sum(w)
 
    END FUNCTION weighted_mean
@@ -116,6 +145,7 @@ CONTAINS
       REAL, INTENT(IN) :: x(:)
 
       variance = mean((x-mean(x))**2)
+      !variance = mean(x**2)-mean(x)**2 ! Could also use this
 
    END FUNCTION variance
 
