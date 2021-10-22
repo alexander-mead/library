@@ -4012,13 +4012,9 @@ CONTAINS
 
          ! If all, cdm, gas and stars exist then activate the quick-matter mode
          IF (cosm%f_nu == 0.) THEN
-            IF ((i_all /= 0) .AND. (i_cdm /= 0) .AND. (i_gas /= 0) .AND. (i_sta /= 0)) THEN
-               quick_matter = .TRUE.
-            END IF
+            IF ((i_all /= 0) .AND. (i_cdm /= 0) .AND. (i_gas /= 0) .AND. (i_sta /= 0)) quick_matter = .TRUE.
          ELSE 
-            IF ((i_all /= 0) .AND. (i_cdm /= 0) .AND. (i_gas /= 0) .AND. (i_sta /= 0) .AND. (i_neu /= 0)) THEN
-               quick_matter = .TRUE.
-            END IF
+            IF ((i_all /= 0) .AND. (i_cdm /= 0) .AND. (i_gas /= 0) .AND. (i_sta /= 0) .AND. (i_neu /= 0)) quick_matter = .TRUE.
          END IF
 
       END IF
@@ -4048,10 +4044,9 @@ CONTAINS
 
       ! If quick-matter mode is active then create the total matter window by summing contributions
       IF (use_quick_matter .AND. quick_matter) THEN       
-            wk(:, i_all) = wk(:, i_cdm)+wk(:, i_gas)+wk(:, i_sta)
-         IF(cosm%f_nu /= 0.) THEN
-            wk(:, i_all) = wk(:, i_cdm)+wk(:,i_neu)
-         END IF
+         wk(:, i_all) = wk(:, i_cdm)+wk(:, i_gas)+wk(:, i_sta)
+         ! NOTE: Previously there was a bug in line below. RHS was wk(:, i_cdm)+wk(:, i_neu). Thanks Xiao Feng for catching
+         IF (cosm%f_nu /= 0.) wk(:, i_all) = wk(:, i_all)+wk(:, i_neu)
       END IF
 
    END SUBROUTINE init_windows
