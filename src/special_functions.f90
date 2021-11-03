@@ -49,6 +49,9 @@ MODULE special_functions
    PUBLIC :: Lorentzian_distribution
    PUBLIC :: polynomial_distribution
 
+   ! Cumulative distributions
+   PUBLIC :: Gaussian_cumulative
+
    ! Integer probability distributions
    PUBLIC :: Poisson_distribution
    PUBLIC :: Bernoulli_distribution
@@ -991,6 +994,20 @@ CONTAINS
 
    END FUNCTION Gaussian_distribution
 
+   REAL FUNCTION Gaussian_cumulative(x, mu, sigma)
+
+      ! Returns the cumulative Gaussian up to x
+      ! C(-inf) = 0, C(mu) = 0.5, C(inf) = 1.
+      REAL, INTENT(IN) :: x     ! [-inf:inf]
+      REAL, INTENT(IN) :: mu    ! Mean value
+      REAL, INTENT(IN) :: sigma ! Root-variance
+      REAL :: y
+
+      y = (x-mu)/(sqrt(2.)*sigma)
+      Gaussian_cumulative = 0.5*(1.+erf(y))
+
+   END FUNCTION Gaussian_cumulative
+
    REAL FUNCTION lognormal_distribution(x, mean, sd)
 
       ! Returns integral-normalised lognormal distribution
@@ -1010,7 +1027,7 @@ CONTAINS
 
    REAL FUNCTION uniform_distribution(x, x1, x2)
 
-      ! Returns integral-normalised one-dimensional top-hat function between x1 and x2
+      ! Returns integral-normalised one-dimensional top-hat function between x1 and x2 with x1 < x2
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: x1 ! Lower limit
       REAL, INTENT(IN) :: x2 ! Upper limit
