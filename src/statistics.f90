@@ -11,7 +11,7 @@ MODULE statistics
    PUBLIC :: mean
    PUBLIC :: geometric_mean
    PUBLIC :: harmonic_mean
-   PUBLIC :: polynomial_mean
+   PUBLIC :: power_mean
    PUBLIC :: weighted_mean
    PUBLIC :: variance
    PUBLIC :: standard_deviation
@@ -102,7 +102,6 @@ CONTAINS
 
       REAL, INTENT(IN) :: x(:)
 
-      !geometric_mean = product(x)**(1./size(x)) ! Probably insane to do this
       geometric_mean = exp(mean(log(x)))
 
    END FUNCTION geometric_mean
@@ -111,19 +110,18 @@ CONTAINS
 
       REAL, INTENT(IN) :: x(:)
 
-      !harmonic_mean = 1./mean(1./x)
-      harmonic_mean = polynomial_mean(x, -1)
+      harmonic_mean = 1./mean(1./x)
 
    END FUNCTION harmonic_mean
 
-   REAL FUNCTION polynomial_mean(x, n)
+   REAL FUNCTION power_mean(x, m)
 
       REAL, INTENT(IN) :: x(:)
-      INTEGER, INTENT(IN) :: n
+      REAL, INTENT(IN) :: m
 
-      polynomial_mean = mean(x**n)**n
+      power_mean = mean(x**m)**(1./m)
 
-   END FUNCTION polynomial_mean
+   END FUNCTION power_mean
 
    REAL FUNCTION weighted_mean(x, w)
 
