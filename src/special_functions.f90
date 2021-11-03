@@ -15,6 +15,8 @@ MODULE special_functions
    PUBLIC :: Fibonacci
    PUBLIC :: get_Fibonaccis
    PUBLIC :: binomial_coefficient
+   PUBLIC :: permutations
+   PUBLIC :: combinations
 
    ! Real functions
    PUBLIC :: polynomial
@@ -437,6 +439,7 @@ CONTAINS
    INTEGER FUNCTION multiply_integers(a, b)
 
       ! Multiply the integers a through to b (inclusive)
+      ! Assumes that a <= b; if a = b then function evaluates to a
       INTEGER, INTENT(IN) :: a, b
       INTEGER :: i, m
 
@@ -448,14 +451,36 @@ CONTAINS
 
    END FUNCTION multiply_integers
 
-   INTEGER FUNCTION binomial_coefficient(n, k)
+   INTEGER FUNCTION permutations(n, k)
 
-      ! Evalues binomial coefficient (n, k): n-choose-k
+      ! Number of permutations of k objects chosen from n without replacement
+      ! Sometimes written nPk; order of objects is important
+      ! Note that if replacement result would be n^k
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: k
 
-      !choose = factorial(n)/(factorial(k)*factorial(n-k)) ! Inefficient
-      binomial_coefficient = multiply_integers(n-k+1, n)/factorial(k)
+      permutations = multiply_integers(n-k+1, n)
+
+   END FUNCTION permutations
+
+   INTEGER FUNCTION combinations(n, k)
+
+      ! Number of combinations of k objects chosen from n without replacement
+      ! Sometimes written nCk; ordering of the objects is *not* important
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: k
+
+      combinations =  permutations(n, k)/factorial(k)
+
+   END FUNCTION combinations
+
+   INTEGER FUNCTION binomial_coefficient(n, k)
+
+      ! Evalues binomial coefficient: (n, k); n-choose-k; nCk
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: k
+
+      binomial_coefficient = combinations(n, k)
 
    END FUNCTION binomial_coefficient
 
