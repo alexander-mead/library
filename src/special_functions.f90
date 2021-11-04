@@ -8,7 +8,7 @@ MODULE special_functions
 
    PRIVATE
 
-   ! Integer functions
+   ! Integer special functions
    PUBLIC :: triangle_number
    PUBLIC :: factorial
    PUBLIC :: get_factorials
@@ -18,7 +18,7 @@ MODULE special_functions
    PUBLIC :: permutations
    PUBLIC :: combinations
 
-   ! Real functions
+   ! Real special functions
    PUBLIC :: polynomial
    PUBLIC :: fix_polynomial
    PUBLIC :: centred_polynomial
@@ -36,11 +36,23 @@ MODULE special_functions
    PUBLIC :: cbrt
    PUBLIC :: Heaviside
 
+   ! Complex special functions
+   PUBLIC :: complex_number
+   PUBLIC :: complex_phase
+
+   ! Apodisation and sigmoids
+   PUBLIC :: apodise
+   PUBLIC :: smooth_apodise
+   PUBLIC :: blob
+   PUBLIC :: smooth_blob
+   PUBLIC :: sigmoid_tanh
+   PUBLIC :: sigmoid_log
+
    ! Minima testing
    PUBLIC :: Rosenbrock
    PUBLIC :: Himmelblau
 
-   ! Probability distributions
+   ! Continuous probability distributions
    PUBLIC :: Gaussian_distribution
    PUBLIC :: lognormal_distribution
    PUBLIC :: uniform_distribution
@@ -51,7 +63,7 @@ MODULE special_functions
    PUBLIC :: gamma_distribution
    PUBLIC :: chi2_distribution
 
-   ! Cumulative distributions
+   ! Cumulative continuous distributions
    PUBLIC :: Gaussian_cumulative
 
    ! Integer probability distributions
@@ -63,18 +75,6 @@ MODULE special_functions
    PUBLIC :: negative_binomial_distribution
    PUBLIC :: twopoint_distribution
    PUBLIC :: uniform_integer_distribution
-
-   ! Complex functions
-   PUBLIC :: complex_number
-   PUBLIC :: complex_phase
-
-   ! Silly functions
-   PUBLIC :: apodise
-   PUBLIC :: smooth_apodise
-   PUBLIC :: blob
-   PUBLIC :: smooth_blob
-   PUBLIC :: sigmoid_tanh
-   PUBLIC :: sigmoid_log
 
    ! Taylor expansion below this
    REAL, PARAMETER :: dx_sinc = 1e-3
@@ -116,62 +116,155 @@ MODULE special_functions
 
 CONTAINS
 
-   REAL FUNCTION Heaviside(x, Hzero_opt)
+   !!! Integer special functions !!!
 
-      REAL, INTENT(IN) :: x
-      REAL, OPTIONAL, INTENT(IN) :: Hzero_opt
-      REAL, PARAMETER :: Hzero_def = 0.5
+   INTEGER FUNCTION triangle_number(n)
 
-      IF (x == 0.) THEN
-         Heaviside = default_or_optional(Hzero_def, Hzero_opt)
-      ELSE IF (x < 0.) THEN
-         Heaviside = 0.
+      ! Calculates the nth triangle number
+      ! T(1) = 1, T(2) = 3, T(3) = 6, T(4) = 10, ..., T(n)=(1/2)*n*(n+1)
+      INTEGER, INTENT(IN) :: n
+
+      triangle_number = n*(n+1)/2
+
+   END FUNCTION triangle_number
+
+   SUBROUTINE get_Fibonaccis(F, n)
+
+      ! Provides a sequence of the first n Fibonacci numbers
+      ! F(0)=0 is not provided
+      ! F(1)=1; F(2)=1; F(3)=2; F(4)=3; ...; F(n)=F(n-1)+F(n-2)
+      INTEGER, INTENT(OUT) :: F(:)
+      INTEGER, INTENT(IN) :: n   
+      INTEGER :: i
+
+      IF (size(F) /= n) STOP 'GET_FIBONACCIS: Error, F should be of size n'
+
+      IF (n <= 0) THEN
+         STOP 'GET_FIBONACCIS: Error, this cannot be called for n<=0'
       ELSE
-         Heaviside = 1.
+         DO i = 1, n
+            IF (i == 1 .OR. i == 2) THEN
+               F(i) = 1
+            ELSE
+               F(i) = F(i-1)+F(i-2)
+            END IF
+         END DO
       END IF
 
-   END FUNCTION Heaviside
+   END SUBROUTINE get_Fibonaccis
 
-   COMPLEX FUNCTION complex_number(r, theta)
+   INTEGER FUNCTION Fibonacci(n)
 
-      ! Complex number r*e^{i theta} in Fortran format
-      ! Analogy of inbuilt cmplx(x, y) function
-      REAL, INTENT(IN) :: r
-      REAL, INTENT(IN) :: theta
+      ! Returns the nth Fibonacci number
+      ! F(0)=0, F(1)=1, F(2)=1, F(3)=2, F(4)=3, ..., F(n)=F(n-1)+F(n-2)
+      INTEGER, INTENT(IN) :: n
+      INTEGER :: F(n)
 
-      complex_number = r*cos(theta)+(0., 1.)*sin(theta)
+      IF (n < 0) THEN
+         STOP 'FIBONACCI: Error, Fibonacci numbers undefined for n<0'
+      ELSE IF (n == 0) THEN
+         Fibonacci = 0
+      ELSE
+         CALL get_Fibonaccis(F, n)
+         Fibonacci = F(n)
+      END IF
 
-   END FUNCTION complex_number
+   END FUNCTION Fibonacci
 
-   REAL FUNCTION complex_phase(z)
-            
-      ! Phase of complex number z in radians
-      ! Result lies in the range -pi to pi
-      ! Commented-out bit would return result in 0 to 2pi
-      COMPLEX, INTENT(IN) :: z
+   SUBROUTINE get_factorials(f, n)
 
-      complex_phase = atan2(aimag(z), real(z))
-      !IF (complex_phase < 0.) complex_phase = twopi-complex_phase
+      ! Provides a sequence of factorial numbers up to n
+      ! f(0)=1 is not provided
+      ! f(1)=1, f(2)=2, f(3)=6, f(4)=24, ..., f(n)=n*f(n-1)
+      ! TODO: Should this really be INT8 here?    
+      INTEGER(int8), INTENT(OUT) :: f(:)
+      INTEGER, INTENT(IN) :: n
+      INTEGER :: i
 
-   END FUNCTION complex_phase
+      IF (size(f) /= n) STOP 'GET_FIBONACCIS: Error, F should be of size n'
 
-   ELEMENTAL REAL FUNCTION cbrt_real(x)
+      IF (n <= 0) THEN
+         STOP 'GET_FACTORIALS: Error, this cannot be called for n<=0'
+      ELSE
+         DO i = 1, n
+            IF (i == 1) THEN
+               f(i) = 1
+            ELSE
+               f(i) = i*f(i-1)
+            END IF
+         END DO
+      END IF
 
-      ! Cube root, analogy of sqrt()
-      REAL, INTENT(IN) :: x
+   END SUBROUTINE get_factorials
 
-      cbrt_real = x**(1./3.)
+   INTEGER(int8) FUNCTION factorial(n)
 
-   END FUNCTION cbrt_real
+      ! Calculates the nth factorial number
+      INTEGER, INTENT(IN) :: n
+      INTEGER(int8) :: f8(n)
 
-   ELEMENTAL REAL FUNCTION cbrt_int(x)
+      IF (n < 0) THEN
+         STOP 'FACTORIAL: Error, factorials not defined for n<0'
+      ELSE IF (n == 0) THEN
+         factorial = 1
+      ELSE
+         CALL get_factorials(f8, n)
+         factorial = f8(n)
+      END IF
 
-      ! Cube root, analogy of sqrt()
-      INTEGER, INTENT(IN) :: x
+   END FUNCTION factorial
 
-      cbrt_int = x**(1./3.)
+   INTEGER FUNCTION multiply_integers(a, b)
 
-   END FUNCTION cbrt_int
+      ! Multiply the integers a through to b (inclusive), useful for factorials
+      ! Assumes that a <= b; if a = b then function evaluates to a
+      INTEGER, INTENT(IN) :: a, b
+      INTEGER :: i, m
+
+      m = 1
+      DO i = a, b
+         m = m*i
+      END DO
+      multiply_integers = m
+
+   END FUNCTION multiply_integers
+
+   INTEGER FUNCTION permutations(n, k)
+
+      ! Number of permutations of k objects chosen from n without replacement
+      ! Sometimes written nPk; order of objects is important
+      ! Note that if replacement result would be n^k
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: k
+
+      permutations = multiply_integers(n-k+1, n)
+
+   END FUNCTION permutations
+
+   INTEGER FUNCTION combinations(n, k)
+
+      ! Number of combinations of k objects chosen from n without replacement
+      ! Sometimes written nCk; ordering of the objects is *not* important
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: k
+
+      combinations =  permutations(n, k)/factorial(k)
+
+   END FUNCTION combinations
+
+   INTEGER FUNCTION binomial_coefficient(n, k)
+
+      ! Evalues binomial coefficient: (n, k); n-choose-k; nCk
+      INTEGER, INTENT(IN) :: n
+      INTEGER, INTENT(IN) :: k
+
+      binomial_coefficient = combinations(n, k)
+
+   END FUNCTION binomial_coefficient
+
+   !!! !!!
+
+   !!! Real special functions !!!
 
    ELEMENTAL REAL FUNCTION linear_polynomial(x, a1, a0)
 
@@ -348,172 +441,39 @@ CONTAINS
 
    END SUBROUTINE fix_centred_cubic_polynomial
 
-   INTEGER FUNCTION triangle_number(n)
+   ELEMENTAL REAL FUNCTION cbrt_real(x)
 
-      ! Calculates the nth triangle number
-      ! T(1) = 1, T(2) = 3, T(3) = 6, T(4) = 10, ..., T(n)=(1/2)*n*(n+1)
-      INTEGER, INTENT(IN) :: n
-
-      triangle_number = n*(n+1)/2
-
-   END FUNCTION triangle_number
-
-   SUBROUTINE get_Fibonaccis(F, n)
-
-      ! Provides a sequence of the first n Fibonacci numbers
-      ! F(0)=0 is not provided
-      ! F(1)=1; F(2)=1; F(3)=2; F(4)=3; ...; F(n)=F(n-1)+F(n-2)
-      INTEGER, INTENT(OUT) :: F(:)
-      INTEGER, INTENT(IN) :: n   
-      INTEGER :: i
-
-      IF (size(F) /= n) STOP 'GET_FIBONACCIS: Error, F should be of size n'
-
-      IF (n <= 0) THEN
-         STOP 'GET_FIBONACCIS: Error, this cannot be called for n<=0'
-      ELSE
-         DO i = 1, n
-            IF (i == 1 .OR. i == 2) THEN
-               F(i) = 1
-            ELSE
-               F(i) = F(i-1)+F(i-2)
-            END IF
-         END DO
-      END IF
-
-   END SUBROUTINE get_Fibonaccis
-
-   INTEGER FUNCTION Fibonacci(n)
-
-      ! Returns the nth Fibonacci number
-      ! F(0)=0, F(1)=1, F(2)=1, F(3)=2, F(4)=3, ..., F(n)=F(n-1)+F(n-2)
-      INTEGER, INTENT(IN) :: n
-      INTEGER :: F(n)
-
-      IF (n < 0) THEN
-         STOP 'FIBONACCI: Error, Fibonacci numbers undefined for n<0'
-      ELSE IF (n == 0) THEN
-         Fibonacci = 0
-      ELSE
-         CALL get_Fibonaccis(F, n)
-         Fibonacci = F(n)
-      END IF
-
-   END FUNCTION Fibonacci
-
-   SUBROUTINE get_factorials(f, n)
-
-      ! Provides a sequence of factorial numbers up to n
-      ! f(0)=1 is not provided
-      ! f(1)=1, f(2)=2, f(3)=6, f(4)=24, ..., f(n)=n*f(n-1)
-      ! TODO: Should this really be INT8 here?    
-      INTEGER(int8), INTENT(OUT) :: f(:)
-      INTEGER, INTENT(IN) :: n
-      INTEGER :: i
-
-      IF (size(f) /= n) STOP 'GET_FIBONACCIS: Error, F should be of size n'
-
-      IF (n <= 0) THEN
-         STOP 'GET_FACTORIALS: Error, this cannot be called for n<=0'
-      ELSE
-         DO i = 1, n
-            IF (i == 1) THEN
-               f(i) = 1
-            ELSE
-               f(i) = i*f(i-1)
-            END IF
-         END DO
-      END IF
-
-   END SUBROUTINE get_factorials
-
-   INTEGER(int8) FUNCTION factorial(n)
-
-      ! Calculates the nth factorial number
-      INTEGER, INTENT(IN) :: n
-      INTEGER(int8) :: f8(n)
-
-      IF (n < 0) THEN
-         STOP 'FACTORIAL: Error, factorials not defined for n<0'
-      ELSE IF (n == 0) THEN
-         factorial = 1
-      ELSE
-         CALL get_factorials(f8, n)
-         factorial = f8(n)
-      END IF
-
-   END FUNCTION factorial
-
-   INTEGER FUNCTION multiply_integers(a, b)
-
-      ! Multiply the integers a through to b (inclusive)
-      ! Assumes that a <= b; if a = b then function evaluates to a
-      INTEGER, INTENT(IN) :: a, b
-      INTEGER :: i, m
-
-      m = 1
-      DO i = a, b
-         m = m*i
-      END DO
-      multiply_integers = m
-
-   END FUNCTION multiply_integers
-
-   INTEGER FUNCTION permutations(n, k)
-
-      ! Number of permutations of k objects chosen from n without replacement
-      ! Sometimes written nPk; order of objects is important
-      ! Note that if replacement result would be n^k
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: k
-
-      permutations = multiply_integers(n-k+1, n)
-
-   END FUNCTION permutations
-
-   INTEGER FUNCTION combinations(n, k)
-
-      ! Number of combinations of k objects chosen from n without replacement
-      ! Sometimes written nCk; ordering of the objects is *not* important
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: k
-
-      combinations =  permutations(n, k)/factorial(k)
-
-   END FUNCTION combinations
-
-   INTEGER FUNCTION binomial_coefficient(n, k)
-
-      ! Evalues binomial coefficient: (n, k); n-choose-k; nCk
-      INTEGER, INTENT(IN) :: n
-      INTEGER, INTENT(IN) :: k
-
-      binomial_coefficient = combinations(n, k)
-
-   END FUNCTION binomial_coefficient
-
-   REAL FUNCTION sigmoid_tanh(x)
-
-      ! A function that smoothly transitions from 0 to 1 around x
+      ! Cube root, analogy of sqrt()
       REAL, INTENT(IN) :: x
 
-      sigmoid_tanh = 0.5*(1.+tanh(x))
+      cbrt_real = x**(1./3.)
 
-   END FUNCTION sigmoid_tanh
+   END FUNCTION cbrt_real
 
-   REAL FUNCTION sigmoid_log(x, a)
+   ELEMENTAL REAL FUNCTION cbrt_int(x)
 
-      ! A function that smoothly transitions from 0 to 1 around x
+      ! Cube root, analogy of sqrt()
+      INTEGER, INTENT(IN) :: x
+
+      cbrt_int = x**(1./3.)
+
+   END FUNCTION cbrt_int
+
+   REAL FUNCTION Heaviside(x, Hzero_opt)
+
       REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: a
-      REAL :: xp, xm
+      REAL, OPTIONAL, INTENT(IN) :: Hzero_opt
+      REAL, PARAMETER :: Hzero_def = 0.5
 
-      xp = x**a
-      xm = x**(-a)
+      IF (x == 0.) THEN
+         Heaviside = default_or_optional(Hzero_def, Hzero_opt)
+      ELSE IF (x < 0.) THEN
+         Heaviside = 0.
+      ELSE
+         Heaviside = 1.
+      END IF
 
-      sigmoid_log = 0.5*(1.+(xp-xm)/(xp+xm))
-
-   END FUNCTION sigmoid_log
+   END FUNCTION Heaviside
 
    REAL FUNCTION Legendre_polynomial(n, x)
 
@@ -715,99 +675,6 @@ CONTAINS
 
    END FUNCTION wk_tophat_dderiv
 
-   REAL FUNCTION apodise(x, x1, x2, n)
-
-      ! Apodises a function between x1 and x2
-      ! Goes to one smoothly at x1
-      ! Goes to zero linearly at x2, so the gradient change is discontinous
-      ! n govenrns the severity of the transition
-      REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: x1
-      REAL, INTENT(IN) :: x2
-      REAL, INTENT(IN) :: n
-
-      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
-
-      IF (x < x1) THEN
-         apodise = 1.
-      ELSE IF (x > x2) THEN
-         apodise = 0.
-      ELSE
-         apodise = cos((pi/2.)*(x-x1)/(x2-x1))
-         apodise = apodise**n
-      END IF
-
-   END FUNCTION apodise
-
-   REAL FUNCTION smooth_apodise(x, x1, x2, n)
-
-      ! Apodises a function between x1 and x2
-      ! Goes to one smoothly at x1 and zero smoothly at x2
-      ! n govenrns the severity of the transition
-      REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: x1
-      REAL, INTENT(IN) :: x2
-      REAL, INTENT(IN) :: n
-
-      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
-
-      IF (x < x1) THEN
-         smooth_apodise = 1.
-      ELSE IF (x > x2) THEN
-         smooth_apodise = 0.
-      ELSE
-         smooth_apodise = 0.5*(1.+cos(pi*(x-x1)/(x2-x1)))
-         smooth_apodise = smooth_apodise**n
-      END IF
-
-   END FUNCTION smooth_apodise
-
-   REAL FUNCTION blob(x, x1, x2, n)
-
-      ! Makes a blob between x1 and x2, with zero elsewhere
-      ! Blob goes to zero linearly at x1 and x2, so the gradient change is discontinous
-      ! n governs the severity (blobiness) of the blob
-      REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: x1
-      REAL, INTENT(IN) :: x2
-      REAL, INTENT(IN) :: n
-
-      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
-
-      IF (x < x1) THEN
-         blob = 0.
-      ELSE IF (x > x2) THEN
-         blob = 0.
-      ELSE
-         blob = sin(pi*(x-x1)/(x2-x1))
-         blob = blob**n
-      END IF
-
-   END FUNCTION blob
-
-   REAL FUNCTION smooth_blob(x, x1, x2, n)
-
-      ! Makes a blob between x1 and x2, with zero elsewhere
-      ! Blob goes to zero smoothly at x1 and x2
-      ! n governs the severity (blobiness) of the blob
-      REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: x1
-      REAL, INTENT(IN) :: x2
-      REAL, INTENT(IN) :: n
-
-      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
-
-      IF (x < x1) THEN
-         smooth_blob = 0.
-      ELSE IF (x > x2) THEN
-         smooth_blob = 0.
-      ELSE
-         smooth_blob = (1.+cos(twopi*(x-x1)/(x2-x1)))/2.
-         smooth_blob = (1.-smooth_blob)**n
-      END IF
-
-   END FUNCTION smooth_blob
-
    REAL FUNCTION Si(x)
 
       ! Returns the 'sine integral' function: Si(x)=int_0^x sin(t)/t dt
@@ -984,6 +851,181 @@ CONTAINS
 
    END FUNCTION spherical_Bessel
 
+   !!! !!!
+
+   !!! Complex special functions !!!
+
+   COMPLEX FUNCTION complex_number(r, theta)
+
+      ! Complex number r*e^{i theta} in Fortran format
+      ! Analogy of inbuilt cmplx(x, y) function
+      REAL, INTENT(IN) :: r
+      REAL, INTENT(IN) :: theta
+
+      complex_number = r*cos(theta)+(0., 1.)*sin(theta)
+
+   END FUNCTION complex_number
+
+   REAL FUNCTION complex_phase(z)
+            
+      ! Phase of complex number z in radians
+      ! Result lies in the range -pi to pi
+      ! Commented-out bit 
+      COMPLEX, INTENT(IN) :: z
+
+      complex_phase = atan2(aimag(z), real(z))
+      !IF (complex_phase < 0.) complex_phase = twopi-complex_phase ! Returns result in 0 to 2pi
+
+   END FUNCTION complex_phase
+
+   !!! !!!
+
+   !!! Sigmoids and apodisation !!!
+
+   REAL FUNCTION sigmoid_tanh(x)
+
+      ! A function that smoothly transitions from 0 to 1 around x
+      REAL, INTENT(IN) :: x
+
+      sigmoid_tanh = 0.5*(1.+tanh(x))
+
+   END FUNCTION sigmoid_tanh
+
+   REAL FUNCTION sigmoid_log(x, a)
+
+      ! A function that smoothly transitions from 0 to 1 around x
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: a
+      REAL :: xp, xm
+
+      xp = x**a
+      xm = x**(-a)
+
+      sigmoid_log = 0.5*(1.+(xp-xm)/(xp+xm))
+
+   END FUNCTION sigmoid_log
+
+   REAL FUNCTION apodise(x, x1, x2, n)
+
+      ! Apodises a function between x1 and x2
+      ! Goes to one smoothly at x1
+      ! Goes to zero linearly at x2, so the gradient change is discontinous
+      ! n govenrns the severity of the transition
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: n
+
+      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
+
+      IF (x < x1) THEN
+         apodise = 1.
+      ELSE IF (x > x2) THEN
+         apodise = 0.
+      ELSE
+         apodise = cos((pi/2.)*(x-x1)/(x2-x1))
+         apodise = apodise**n
+      END IF
+
+   END FUNCTION apodise
+
+   REAL FUNCTION smooth_apodise(x, x1, x2, n)
+
+      ! Apodises a function between x1 and x2
+      ! Goes to one smoothly at x1 and zero smoothly at x2
+      ! n govenrns the severity of the transition
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: n
+
+      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
+
+      IF (x < x1) THEN
+         smooth_apodise = 1.
+      ELSE IF (x > x2) THEN
+         smooth_apodise = 0.
+      ELSE
+         smooth_apodise = 0.5*(1.+cos(pi*(x-x1)/(x2-x1)))
+         smooth_apodise = smooth_apodise**n
+      END IF
+
+   END FUNCTION smooth_apodise
+
+   REAL FUNCTION blob(x, x1, x2, n)
+
+      ! Makes a blob between x1 and x2, with zero elsewhere
+      ! Blob goes to zero linearly at x1 and x2, so the gradient change is discontinous
+      ! n governs the severity (blobiness) of the blob
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: n
+
+      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
+
+      IF (x < x1) THEN
+         blob = 0.
+      ELSE IF (x > x2) THEN
+         blob = 0.
+      ELSE
+         blob = sin(pi*(x-x1)/(x2-x1))
+         blob = blob**n
+      END IF
+
+   END FUNCTION blob
+
+   REAL FUNCTION smooth_blob(x, x1, x2, n)
+
+      ! Makes a blob between x1 and x2, with zero elsewhere
+      ! Blob goes to zero smoothly at x1 and x2
+      ! n governs the severity (blobiness) of the blob
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: x1
+      REAL, INTENT(IN) :: x2
+      REAL, INTENT(IN) :: n
+
+      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
+
+      IF (x < x1) THEN
+         smooth_blob = 0.
+      ELSE IF (x > x2) THEN
+         smooth_blob = 0.
+      ELSE
+         smooth_blob = (1.+cos(twopi*(x-x1)/(x2-x1)))/2.
+         smooth_blob = (1.-smooth_blob)**n
+      END IF
+
+   END FUNCTION smooth_blob
+
+   !!! !!!
+
+   !!! Functions for testing minima finding !!!
+
+   REAL FUNCTION Rosenbrock(x, y)
+
+      ! https://en.wikipedia.org/wiki/Rosenbrock_function
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: y
+
+      Rosenbrock = (1.-x)**2+100.*(y-x**2)**2
+
+   END FUNCTION Rosenbrock
+
+   REAL FUNCTION Himmelblau(x, y)
+   
+      ! https://en.wikipedia.org/wiki/Himmelblau%27s_function
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: y
+
+      Himmelblau = (x**2+y-11.)**2+(x+y**2-7.)**2
+
+   END FUNCTION Himmelblau
+
+   !!! !!!
+
+   !!! Continuous probability distributions !!!
+
    REAL FUNCTION Gaussian_distribution(x, mu, sigma)
 
       ! Returns the integral-normalised Gaussian
@@ -998,20 +1040,6 @@ CONTAINS
       Gaussian_distribution = f1/f2
 
    END FUNCTION Gaussian_distribution
-
-   REAL FUNCTION Gaussian_cumulative(x, mu, sigma)
-
-      ! Returns the cumulative Gaussian up to x
-      ! C(-inf) = 0, C(mu) = 0.5, C(inf) = 1.
-      REAL, INTENT(IN) :: x     ! [-inf:inf]
-      REAL, INTENT(IN) :: mu    ! Mean value
-      REAL, INTENT(IN) :: sigma ! Root-variance
-      REAL :: y
-
-      y = (x-mu)/(sqrt(2.)*sigma)
-      Gaussian_cumulative = 0.5*(1.+erf(y))
-
-   END FUNCTION Gaussian_cumulative
 
    REAL FUNCTION lognormal_distribution(x, mean, sd)
 
@@ -1115,6 +1143,28 @@ CONTAINS
       END IF
 
    END FUNCTION polynomial_distribution
+
+   !!! !!!
+
+   !!! Cumulative probability distributions !!!
+
+   REAL FUNCTION Gaussian_cumulative(x, mu, sigma)
+
+      ! Returns the cumulative Gaussian up to x
+      ! C(-inf) = 0, C(mu) = 0.5, C(inf) = 1.
+      REAL, INTENT(IN) :: x     ! [-inf:inf]
+      REAL, INTENT(IN) :: mu    ! Mean value
+      REAL, INTENT(IN) :: sigma ! Root-variance
+      REAL :: y
+
+      y = (x-mu)/(sqrt(2.)*sigma)
+      Gaussian_cumulative = 0.5*(1.+erf(y))
+
+   END FUNCTION Gaussian_cumulative
+
+   !!! !!!
+
+   !!! Discrete probability distributions !!!
 
    REAL FUNCTION Poisson_distribution(n, nbar)
 
@@ -1241,24 +1291,6 @@ CONTAINS
 
    END FUNCTION negative_binomial_distribution
 
-   REAL FUNCTION Rosenbrock(x, y)
-
-      ! https://en.wikipedia.org/wiki/Rosenbrock_function
-      REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: y
-
-      Rosenbrock = (1.-x)**2+100.*(y-x**2)**2
-
-   END FUNCTION Rosenbrock
-
-   REAL FUNCTION Himmelblau(x, y)
-   
-      ! https://en.wikipedia.org/wiki/Himmelblau%27s_function
-      REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: y
-
-      Himmelblau = (x**2+y-11.)**2+(x+y**2-7.)**2
-
-   END FUNCTION Himmelblau
+   !!! !!!
 
 END MODULE special_functions
