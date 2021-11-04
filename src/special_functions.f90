@@ -48,6 +48,8 @@ MODULE special_functions
    PUBLIC :: exponential_distribution
    PUBLIC :: Lorentzian_distribution
    PUBLIC :: polynomial_distribution
+   PUBLIC :: gamma_distribution
+   PUBLIC :: chi2_distribution
 
    ! Cumulative distributions
    PUBLIC :: Gaussian_cumulative
@@ -57,7 +59,8 @@ MODULE special_functions
    PUBLIC :: Bernoulli_distribution
    PUBLIC :: geometric_distribution
    PUBLIC :: shifted_geometric_distribution
-   PUBLIC :: Binomial_distribution
+   PUBLIC :: binomial_distribution
+   PUBLIC :: negative_binomial_distribution
 
    ! Complex functions
    PUBLIC :: complex_number
@@ -1012,8 +1015,8 @@ CONTAINS
 
       ! Returns integral-normalised lognormal distribution
       REAL, INTENT(IN) :: x    ! x [0,inf]
-      REAL, INTENT(IN) :: mean ! Mean value of x
-      REAL, INTENT(IN) :: sd   ! Standard deviation of x
+      REAL, INTENT(IN) :: mean ! Mean value of x (note that this is not mu)
+      REAL, INTENT(IN) :: sd   ! Standard deviation of x (note that this is not sigma)
       REAL :: mu, sigma
 
       IF (mean <= 0.) STOP 'LOGNORMAL_DISTRIBUTION: Error, mean cannot be less than or equal to zero'
@@ -1029,8 +1032,7 @@ CONTAINS
 
       ! Returns integral-normalised one-dimensional top-hat function between x1 and x2 with x1 < x2
       REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: x1 ! Lower limit
-      REAL, INTENT(IN) :: x2 ! Upper limit
+      REAL, INTENT(IN) :: x1, x2 ! Lower and upper limits
 
       IF (x < x1 .OR. x > x2) THEN
          uniform_distribution = 0.
@@ -1056,75 +1058,36 @@ CONTAINS
 
    END FUNCTION Rayleigh_distribution
 
-   REAL FUNCTION Poisson_distribution(n, nbar)
-
-      ! Normalised discrete Poisson probability distribution
-      INTEGER, INTENT(IN) :: n ! Number of events to evaluate P_n at, n>=0
-      REAL, INTENT(IN) :: nbar ! Mean number of events >0
-
-      Poisson_distribution = exp(-nbar)*(nbar**n)/int(factorial(n))
-
-   END FUNCTION Poisson_distribution
-
-   REAL FUNCTION Bernoulli_distribution(k, p)
-
-      ! One trial with probability of success: p
-      INTEGER, INTENT(IN) :: k ! 0 or 1 only
-      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
-
-      Bernoulli_distribution = (p**k)*(1.-p)**(1-k)
-      !IF (k == 0) THEN
-      !   Bernoulli_distribution = 1.-p
-      !ELSE IF (k == 1) THEN
-      !   Bernoulli_distribution = p
-      !ELSE
-      !   STOP 'BERNOULLI_DISTRIBUTION: Error, k can only be zero or one'
-      !END IF
-
-   END FUNCTION Bernoulli_distribution
-
-   REAL FUNCTION geometric_distribution(k, p)
-
-      ! Probability for number of failures until the first success
-      ! Each of k trials is independent and has chance of success k
-      INTEGER, INTENT(IN) :: k ! Must be 0 or greater
-      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
-
-      geometric_distribution = p*(1.-p)**k
-
-   END FUNCTION geometric_distribution
-
-   REAL FUNCTION shifted_geometric_distribution(k, p)
-
-      ! Probability for number of trials until the first success
-      ! Each of k trials is independent and has chance of success k
-      INTEGER, INTENT(IN) :: k ! Must be 1 or greater
-      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
-
-      !shifted_geometric_distribution = p*(1.-p)**(k-1)
-      shifted_geometric_distribution = geometric_distribution(k-1, p)
-
-   END FUNCTION shifted_geometric_distribution
-
-   REAL FUNCTION Binomial_distribution(k, n, p)
-
-      INTEGER, INTENT(IN) :: k
-      INTEGER, INTENT(IN) :: n
-      REAL, INTENT(IN) :: p
-
-      Binomial_distribution = binomial_coefficient(n, k)*(p**k)*(1.-p)**(n-k)
-
-   END FUNCTION Binomial_distribution
-
    REAL FUNCTION exponential_distribution(x, mean)
 
       ! Returns integral-normalised exponential distribution
+      ! Usually defined with parameter lambda = 1/mean
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: mean
 
       exponential_distribution = exp(-x/mean)/mean
 
    END FUNCTION exponential_distribution
+
+   REAL FUNCTION gamma_distribution(x, lambda, r)
+
+      ! Exponential distribution is a special case with r=1
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: lambda
+      REAL, INTENT(IN) :: r
+
+      gamma_distribution = lambda*(lambda*x)**(r-1)*exp(-lambda*x)/Gamma(r)
+
+   END FUNCTION gamma_distribution
+
+   REAL FUNCTION chi2_distribution(x, n)
+
+      REAL, INTENT(IN) :: x
+      INTEGER, INTENT(IN) :: n
+
+      chi2_distribution = gamma_distribution(x, 0.5, n/2.)
+
+   END FUNCTION chi2_distribution
 
    REAL FUNCTION Lorentzian_distribution(x)
 
@@ -1150,6 +1113,99 @@ CONTAINS
       END IF
 
    END FUNCTION polynomial_distribution
+
+   REAL FUNCTION Poisson_distribution(n, nbar)
+
+      ! Normalised discrete Poisson probability distribution
+      INTEGER, INTENT(IN) :: n ! Number of events to evaluate P_n at, n>=0
+      REAL, INTENT(IN) :: nbar ! Mean number of events >0
+
+      IF (n >= 0) THEN
+         Poisson_distribution = exp(-nbar)*(nbar**n)/factorial(n)
+      ELSE
+         Poisson_distribution = 0.
+      END IF
+
+   END FUNCTION Poisson_distribution
+
+   REAL FUNCTION Bernoulli_distribution(k, p)
+
+      ! One trial with probability of success: p
+      ! Special case of binomial with one trial
+      INTEGER, INTENT(IN) :: k ! 0 or 1 only
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+
+      IF (k == 0 .OR. k == 1) THEN
+         !Bernoulli_distribution = (p**k)*(1.-p)**(1-k)
+         Bernoulli_distribution = p*k+(1.-p)*(1-k) ! Probably easier to evaluate
+      ELSE
+         Bernoulli_distribution = 0.
+      END IF
+
+   END FUNCTION Bernoulli_distribution
+
+   REAL FUNCTION binomial_distribution(k, n, p)
+
+      ! Probability distribution for the number of successes in n trials
+      ! each with probability of success p.
+      INTEGER, INTENT(IN) :: k ! Number of successes
+      INTEGER, INTENT(IN) :: n ! Total number of trials
+      REAL, INTENT(IN) :: p    ! Probability for success of each trial
+
+      IF (0 <= k .AND. k <= n) THEN
+         binomial_distribution = binomial_coefficient(n, k)*(p**k)*(1.-p)**(n-k)
+      ELSE
+         binomial_distribution = 0.
+      END IF
+
+   END FUNCTION binomial_distribution
+
+   REAL FUNCTION geometric_distribution(k, p)
+
+      ! Probability for number of failures until the first success in a binomial process
+      ! Each of k trials is independent and has chance of success k
+      INTEGER, INTENT(IN) :: k ! Must be 0 or greater
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+
+      IF (k >= 0) THEN
+         geometric_distribution = p*(1.-p)**k
+      ELSE
+         geometric_distribution = 0.
+      END IF
+
+   END FUNCTION geometric_distribution
+
+   REAL FUNCTION shifted_geometric_distribution(k, p)
+
+      ! Probability for number of trials until the first success in a binomial process
+      ! Each of k trials is independent and has chance of success k
+      ! Similar to the geometric distribution (which counts the preceeding failures)
+      INTEGER, INTENT(IN) :: k ! Must be 1 or greater (at least one trial needed for success)
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+
+      IF (k >= 1) THEN
+         !shifted_geometric_distribution = p*(1.-p)**(k-1)
+         shifted_geometric_distribution = geometric_distribution(k-1, p)
+      ELSE
+         shifted_geometric_distribution = 0.
+      END IF
+
+   END FUNCTION shifted_geometric_distribution
+
+   REAL FUNCTION negative_binomial_distribution(k, r, p)
+
+      ! Probability for the number of failures before the rth success in a binomial process
+      INTEGER, INTENT(IN) :: k ! Must be 1 or greater (at least one trial needed for success)
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+      INTEGER, INTENT(IN) :: r ! rth success that we are interested in
+
+      IF (k >= 1) THEN
+         negative_binomial_distribution = binomial_coefficient(r+k-1, k)*(p**r)*(1.-p)**k
+      ELSE
+         negative_binomial_distribution = 0.
+      END IF
+
+   END FUNCTION negative_binomial_distribution
 
    REAL FUNCTION Rosenbrock(x, y)
 
