@@ -52,6 +52,16 @@ MODULE special_functions
    PUBLIC :: Rosenbrock
    PUBLIC :: Himmelblau
 
+   ! Discrete probability distributions
+   PUBLIC :: Poisson_distribution
+   PUBLIC :: Bernoulli_distribution
+   PUBLIC :: geometric_distribution
+   PUBLIC :: shifted_geometric_distribution
+   PUBLIC :: binomial_distribution
+   PUBLIC :: negative_binomial_distribution
+   PUBLIC :: twopoint_distribution
+   PUBLIC :: uniform_integer_distribution
+
    ! Continuous probability distributions
    PUBLIC :: Gaussian_distribution
    PUBLIC :: lognormal_distribution
@@ -65,16 +75,6 @@ MODULE special_functions
 
    ! Cumulative continuous distributions
    PUBLIC :: Gaussian_cumulative
-
-   ! Integer probability distributions
-   PUBLIC :: Poisson_distribution
-   PUBLIC :: Bernoulli_distribution
-   PUBLIC :: geometric_distribution
-   PUBLIC :: shifted_geometric_distribution
-   PUBLIC :: binomial_distribution
-   PUBLIC :: negative_binomial_distribution
-   PUBLIC :: twopoint_distribution
-   PUBLIC :: uniform_integer_distribution
 
    ! Taylor expansion below this
    REAL, PARAMETER :: dx_sinc = 1e-3
@@ -1024,6 +1024,135 @@ CONTAINS
 
    !!! !!!
 
+   !!! Discrete probability distributions !!!
+
+   REAL FUNCTION Poisson_distribution(n, nbar)
+
+      ! Normalised discrete Poisson probability distribution
+      INTEGER, INTENT(IN) :: n ! Number of events to evaluate P_n at, n>=0
+      REAL, INTENT(IN) :: nbar ! Mean number of events >0
+
+      IF (0 <= n) THEN
+         Poisson_distribution = exp(-nbar)*(nbar**n)/factorial(n)
+      ELSE
+         Poisson_distribution = 0.
+      END IF
+
+   END FUNCTION Poisson_distribution
+
+   REAL FUNCTION uniform_integer_distribution(k, a, b)
+
+      ! Uniform probability of getting an integer between a, b (inclusive)
+      INTEGER, INTENT(IN) :: k    ! Value
+      INTEGER, INTENT(IN) :: a, b ! Range of possible values
+      REAL :: p
+
+      IF (a <= k .OR. k <= b) THEN
+         uniform_integer_distribution = 1./(1+b-a)
+      ELSE
+         uniform_integer_distribution = 0.
+      END IF
+
+   END FUNCTION uniform_integer_distribution
+
+   REAL FUNCTION Bernoulli_distribution(k, p)
+
+      ! One trial with probability of success: p
+      ! Special case of binomial with one trial
+      INTEGER, INTENT(IN) :: k ! 0 or 1 only
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+
+      IF (k == 0 .OR. k == 1) THEN
+         !Bernoulli_distribution = (p**k)*(1.-p)**(1-k)
+         Bernoulli_distribution = p*k+(1.-p)*(1-k) ! Probably easier to evaluate
+      ELSE
+         Bernoulli_distribution = 0.
+      END IF
+
+   END FUNCTION Bernoulli_distribution
+
+   REAL FUNCTION twopoint_distribution(k, a, b, p)
+
+      ! One trial with probability p of getting 'a' and otherwise 'b'
+      INTEGER, INTENT(IN) :: k    ! Value
+      INTEGER, INTENT(IN) :: a, b ! Possible values
+      REAL, INTENT(IN) :: p       ! Probability of getting result 'a'
+
+      IF (k == a) THEN
+         twopoint_distribution = p
+      ELSE IF (k == b) THEN
+         twopoint_distribution = 1.-p
+      ELSE
+         twopoint_distribution = 0.
+      END IF
+
+   END FUNCTION twopoint_distribution
+
+   REAL FUNCTION binomial_distribution(k, n, p)
+
+      ! Probability distribution for the number of successes in n trials
+      ! each with probability of success p.
+      INTEGER, INTENT(IN) :: k ! Number of successes
+      INTEGER, INTENT(IN) :: n ! Total number of trials
+      REAL, INTENT(IN) :: p    ! Probability for success of each trial
+
+      IF (0 <= k .AND. k <= n) THEN
+         binomial_distribution = binomial_coefficient(n, k)*(p**k)*(1.-p)**(n-k)
+      ELSE
+         binomial_distribution = 0.
+      END IF
+
+   END FUNCTION binomial_distribution
+
+   REAL FUNCTION geometric_distribution(k, p)
+
+      ! Probability for number of failures until the first success in a binomial process
+      ! Each of k trials is independent and has chance of success k
+      INTEGER, INTENT(IN) :: k ! Must be 0 or greater
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+
+      IF (0 <= k) THEN
+         geometric_distribution = p*(1.-p)**k
+      ELSE
+         geometric_distribution = 0.
+      END IF
+
+   END FUNCTION geometric_distribution
+
+   REAL FUNCTION shifted_geometric_distribution(k, p)
+
+      ! Probability for number of trials until the first success in a binomial process
+      ! Each of k trials is independent and has chance of success k
+      ! Similar to the geometric distribution (which counts the preceeding failures)
+      INTEGER, INTENT(IN) :: k ! Must be 1 or greater (at least one trial needed for success)
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+
+      IF (1 <= k) THEN
+         !shifted_geometric_distribution = p*(1.-p)**(k-1)
+         shifted_geometric_distribution = geometric_distribution(k-1, p)
+      ELSE
+         shifted_geometric_distribution = 0.
+      END IF
+
+   END FUNCTION shifted_geometric_distribution
+
+   REAL FUNCTION negative_binomial_distribution(k, r, p)
+
+      ! Probability for the number of failures before the rth success in a binomial process
+      INTEGER, INTENT(IN) :: k ! Must be 1 or greater (at least one trial needed for success)
+      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
+      INTEGER, INTENT(IN) :: r ! rth success that we are interested in
+
+      IF (1 <= k) THEN
+         negative_binomial_distribution = binomial_coefficient(r+k-1, k)*(p**r)*(1.-p)**k
+      ELSE
+         negative_binomial_distribution = 0.
+      END IF
+
+   END FUNCTION negative_binomial_distribution
+
+   !!! !!!
+
    !!! Continuous probability distributions !!!
 
    REAL FUNCTION Gaussian_distribution(x, mu, sigma)
@@ -1161,135 +1290,6 @@ CONTAINS
       Gaussian_cumulative = 0.5*(1.+erf(y))
 
    END FUNCTION Gaussian_cumulative
-
-   !!! !!!
-
-   !!! Discrete probability distributions !!!
-
-   REAL FUNCTION Poisson_distribution(n, nbar)
-
-      ! Normalised discrete Poisson probability distribution
-      INTEGER, INTENT(IN) :: n ! Number of events to evaluate P_n at, n>=0
-      REAL, INTENT(IN) :: nbar ! Mean number of events >0
-
-      IF (n >= 0) THEN
-         Poisson_distribution = exp(-nbar)*(nbar**n)/factorial(n)
-      ELSE
-         Poisson_distribution = 0.
-      END IF
-
-   END FUNCTION Poisson_distribution
-
-   REAL FUNCTION uniform_integer_distribution(k, a, b)
-
-      ! Uniform probability of getting an integer between a, b (inclusive)
-      INTEGER, INTENT(IN) :: k    ! Value
-      INTEGER, INTENT(IN) :: a, b ! Range of possible values
-      REAL :: p
-
-      IF (a <= k .OR. k <= b) THEN
-         uniform_integer_distribution = 1./(1+b-a)
-      ELSE
-         uniform_integer_distribution = 0.
-      END IF
-
-   END FUNCTION uniform_integer_distribution
-
-   REAL FUNCTION Bernoulli_distribution(k, p)
-
-      ! One trial with probability of success: p
-      ! Special case of binomial with one trial
-      INTEGER, INTENT(IN) :: k ! 0 or 1 only
-      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
-
-      IF (k == 0 .OR. k == 1) THEN
-         !Bernoulli_distribution = (p**k)*(1.-p)**(1-k)
-         Bernoulli_distribution = p*k+(1.-p)*(1-k) ! Probably easier to evaluate
-      ELSE
-         Bernoulli_distribution = 0.
-      END IF
-
-   END FUNCTION Bernoulli_distribution
-
-   REAL FUNCTION twopoint_distribution(k, a, b, p)
-
-      ! One trial with probability p of getting 'a' and otherwise 'b'
-      INTEGER, INTENT(IN) :: k    ! Value
-      INTEGER, INTENT(IN) :: a, b ! Possible values
-      REAL, INTENT(IN) :: p       ! Probability of getting result 'a'
-
-      IF (k == a) THEN
-         twopoint_distribution = p
-      ELSE IF (k == b) THEN
-         twopoint_distribution = 1.-p
-      ELSE
-         twopoint_distribution = 0.
-      END IF
-
-   END FUNCTION twopoint_distribution
-
-   REAL FUNCTION binomial_distribution(k, n, p)
-
-      ! Probability distribution for the number of successes in n trials
-      ! each with probability of success p.
-      INTEGER, INTENT(IN) :: k ! Number of successes
-      INTEGER, INTENT(IN) :: n ! Total number of trials
-      REAL, INTENT(IN) :: p    ! Probability for success of each trial
-
-      IF (0 <= k .AND. k <= n) THEN
-         binomial_distribution = binomial_coefficient(n, k)*(p**k)*(1.-p)**(n-k)
-      ELSE
-         binomial_distribution = 0.
-      END IF
-
-   END FUNCTION binomial_distribution
-
-   REAL FUNCTION geometric_distribution(k, p)
-
-      ! Probability for number of failures until the first success in a binomial process
-      ! Each of k trials is independent and has chance of success k
-      INTEGER, INTENT(IN) :: k ! Must be 0 or greater
-      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
-
-      IF (k >= 0) THEN
-         geometric_distribution = p*(1.-p)**k
-      ELSE
-         geometric_distribution = 0.
-      END IF
-
-   END FUNCTION geometric_distribution
-
-   REAL FUNCTION shifted_geometric_distribution(k, p)
-
-      ! Probability for number of trials until the first success in a binomial process
-      ! Each of k trials is independent and has chance of success k
-      ! Similar to the geometric distribution (which counts the preceeding failures)
-      INTEGER, INTENT(IN) :: k ! Must be 1 or greater (at least one trial needed for success)
-      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
-
-      IF (k >= 1) THEN
-         !shifted_geometric_distribution = p*(1.-p)**(k-1)
-         shifted_geometric_distribution = geometric_distribution(k-1, p)
-      ELSE
-         shifted_geometric_distribution = 0.
-      END IF
-
-   END FUNCTION shifted_geometric_distribution
-
-   REAL FUNCTION negative_binomial_distribution(k, r, p)
-
-      ! Probability for the number of failures before the rth success in a binomial process
-      INTEGER, INTENT(IN) :: k ! Must be 1 or greater (at least one trial needed for success)
-      REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
-      INTEGER, INTENT(IN) :: r ! rth success that we are interested in
-
-      IF (k >= 1) THEN
-         negative_binomial_distribution = binomial_coefficient(r+k-1, k)*(p**r)*(1.-p)**k
-      ELSE
-         negative_binomial_distribution = 0.
-      END IF
-
-   END FUNCTION negative_binomial_distribution
 
    !!! !!!
 
