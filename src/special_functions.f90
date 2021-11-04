@@ -61,6 +61,8 @@ MODULE special_functions
    PUBLIC :: shifted_geometric_distribution
    PUBLIC :: binomial_distribution
    PUBLIC :: negative_binomial_distribution
+   PUBLIC :: twopoint_distribution
+   PUBLIC :: uniform_integer_distribution
 
    ! Complex functions
    PUBLIC :: complex_number
@@ -1128,6 +1130,21 @@ CONTAINS
 
    END FUNCTION Poisson_distribution
 
+   REAL FUNCTION uniform_integer_distribution(k, a, b)
+
+      ! Uniform probability of getting an integer between a, b (inclusive)
+      INTEGER, INTENT(IN) :: k    ! Value
+      INTEGER, INTENT(IN) :: a, b ! Range of possible values
+      REAL :: p
+
+      IF (a <= k .OR. k <= b) THEN
+         uniform_integer_distribution = 1./(1+b-a)
+      ELSE
+         uniform_integer_distribution = 0.
+      END IF
+
+   END FUNCTION uniform_integer_distribution
+
    REAL FUNCTION Bernoulli_distribution(k, p)
 
       ! One trial with probability of success: p
@@ -1143,6 +1160,23 @@ CONTAINS
       END IF
 
    END FUNCTION Bernoulli_distribution
+
+   REAL FUNCTION twopoint_distribution(k, a, b, p)
+
+      ! One trial with probability p of getting 'a' and otherwise 'b'
+      INTEGER, INTENT(IN) :: k    ! Value
+      INTEGER, INTENT(IN) :: a, b ! Possible values
+      REAL, INTENT(IN) :: p       ! Probability of getting result 'a'
+
+      IF (k == a) THEN
+         twopoint_distribution = p
+      ELSE IF (k == b) THEN
+         twopoint_distribution = 1.-p
+      ELSE
+         twopoint_distribution = 0.
+      END IF
+
+   END FUNCTION twopoint_distribution
 
    REAL FUNCTION binomial_distribution(k, n, p)
 
