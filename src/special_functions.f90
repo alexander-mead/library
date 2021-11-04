@@ -137,10 +137,10 @@ CONTAINS
       INTEGER, INTENT(IN) :: n   
       INTEGER :: i
 
-      IF (size(F) /= n) STOP 'GET_FIBONACCIS: Error, F should be of size n'
+      IF (size(F) /= n) ERROR STOP 'GET_FIBONACCIS: Error, F should be of size n'
 
       IF (n <= 0) THEN
-         STOP 'GET_FIBONACCIS: Error, this cannot be called for n<=0'
+         ERROR STOP 'GET_FIBONACCIS: Error, this cannot be called for n<=0'
       ELSE
          DO i = 1, n
             IF (i == 1 .OR. i == 2) THEN
@@ -161,7 +161,7 @@ CONTAINS
       INTEGER :: F(n)
 
       IF (n < 0) THEN
-         STOP 'FIBONACCI: Error, Fibonacci numbers undefined for n<0'
+         ERROR STOP 'FIBONACCI: Error, Fibonacci numbers undefined for n<0'
       ELSE IF (n == 0) THEN
          Fibonacci = 0
       ELSE
@@ -181,10 +181,10 @@ CONTAINS
       INTEGER, INTENT(IN) :: n
       INTEGER :: i
 
-      IF (size(f) /= n) STOP 'GET_FIBONACCIS: Error, F should be of size n'
+      IF (size(f) /= n) ERROR STOP 'GET_FIBONACCIS: Error, F should be of size n'
 
       IF (n <= 0) THEN
-         STOP 'GET_FACTORIALS: Error, this cannot be called for n<=0'
+         ERROR STOP 'GET_FACTORIALS: Error, this cannot be called for n<=0'
       ELSE
          DO i = 1, n
             IF (i == 1) THEN
@@ -199,12 +199,13 @@ CONTAINS
 
    INTEGER(int8) FUNCTION factorial(n)
 
-      ! Calculates the nth factorial number
+      ! Calculates the nth factorial number'
+      ! Could we use the gamma function here: Gamma(n) = (n-1)! ?
       INTEGER, INTENT(IN) :: n
       INTEGER(int8) :: f8(n)
 
       IF (n < 0) THEN
-         STOP 'FACTORIAL: Error, factorials not defined for n<0'
+         ERROR STOP 'FACTORIAL: Error, factorials not defined for n<0'
       ELSE IF (n == 0) THEN
          factorial = 1
       ELSE
@@ -492,7 +493,7 @@ CONTAINS
       ELSE IF (n == 4) THEN
          Legendre_polynomial = (35.*x**4-30.*x**2+3.)/8.
       ELSE
-         STOP 'LEGENDRE_POLYNOMIAL: polynomial of this order not stored'
+         ERROR STOP 'LEGENDRE_POLYNOMIAL: polynomial of this order not stored'
       END IF
 
    END FUNCTION Legendre_polynomial
@@ -507,7 +508,7 @@ CONTAINS
       INTEGER :: i, j, n
 
       n = size(xv)
-      IF (n /= size(yv)) STOP 'LAGRANGE_POLYNOMIAL: Error, xv and yv should have the same size'
+      IF (n /= size(yv)) ERROR STOP 'LAGRANGE_POLYNOMIAL: Error, xv and yv should have the same size'
       n = n-1
 
       IF (n == 0) THEN
@@ -696,7 +697,7 @@ CONTAINS
 
          Si = real(si8)
 
-      ELSE IF (abs(x) > x0) THEN
+      ELSE
 
          y = 1.d0/(x*x)
 
@@ -719,10 +720,6 @@ CONTAINS
                +y*(1.17164723371736605d13+y*(4.01839087307656620d13+y*(3.99653257887490811d13))))))))))
 
          Si = real(pi/2.d0-f*cos(x)-g*sin(x))
-
-      ELSE
-
-         STOP 'SI: Something went very wrong'
 
       END IF
 
@@ -748,7 +745,7 @@ CONTAINS
 
          Ci = real(ci8)
 
-      ELSE IF (abs(x) > x0) THEN
+      ELSE
 
          y = 1./(x*x)
 
@@ -771,10 +768,6 @@ CONTAINS
 
          Ci = real(f*sin(x)-g*cos(x))
 
-      ELSE
-
-         STOP 'CI: Something went very wrong'
-
       END IF
 
    END FUNCTION Ci
@@ -796,7 +789,7 @@ CONTAINS
 
          IF (n < 0) THEN
             WRITE(*,*) 'BESSEL: Order:', n
-            STOP 'BESSEL: cannot call for negative n'
+            ERROR STOP 'BESSEL: cannot call for negative n'
          END IF
 
          IF (n == 0) THEN
@@ -832,7 +825,7 @@ CONTAINS
             spherical_Bessel = x**3/105.-x**5/1890.
          ELSE
             WRITE(*, *) 'SPHERICAL_BESSEL: n:', n
-            STOP 'SPHERICAL_BESSEL: Error, value of n not currently supported'
+            ERROR STOP 'SPHERICAL_BESSEL: Error, this value of n not currently supported'
          END IF
       ELSE
          IF (n == 0) THEN
@@ -845,7 +838,7 @@ CONTAINS
             spherical_Bessel = (15./x**3-6./x)*sin(x)/x-(15./x**2-1.)*cos(x)/x
          ELSE
             WRITE(*, *) 'SPHERICAL_BESSEL: n:', n
-            STOP 'SPHERICAL_BESSEL: Error, value of n not currently supported'
+            ERROR STOP 'SPHERICAL_BESSEL: Error, this value of n not currently supported'
          END IF
       END IF
 
@@ -916,7 +909,7 @@ CONTAINS
       REAL, INTENT(IN) :: x2
       REAL, INTENT(IN) :: n
 
-      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
+      IF (n <= 0.) ERROR STOP 'APODISE: Error, n must be greater than zero'
 
       IF (x < x1) THEN
          apodise = 1.
@@ -939,7 +932,7 @@ CONTAINS
       REAL, INTENT(IN) :: x2
       REAL, INTENT(IN) :: n
 
-      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
+      IF (n <= 0.) ERROR STOP 'SMOOTH_APODISE: Error, n must be greater than zero'
 
       IF (x < x1) THEN
          smooth_apodise = 1.
@@ -962,7 +955,7 @@ CONTAINS
       REAL, INTENT(IN) :: x2
       REAL, INTENT(IN) :: n
 
-      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
+      IF (n <= 0.) ERROR STOP 'BLOB: Error, n must be greater than zero'
 
       IF (x < x1) THEN
          blob = 0.
@@ -985,7 +978,7 @@ CONTAINS
       REAL, INTENT(IN) :: x2
       REAL, INTENT(IN) :: n
 
-      IF (n <= 0.) STOP 'APODISE: Error, n must be greater than zero'
+      IF (n <= 0.) ERROR STOP 'SMOOTH_BLOB: Error, n must be greater than zero'
 
       IF (x < x1) THEN
          smooth_blob = 0.
@@ -1047,7 +1040,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: a, b ! Range of possible values
       REAL :: p
 
-      IF (a <= k .OR. k <= b) THEN
+      IF (a <= k .AND. k <= b) THEN
          uniform_integer_distribution = 1./(1+b-a)
       ELSE
          uniform_integer_distribution = 0.
@@ -1178,8 +1171,8 @@ CONTAINS
       REAL, INTENT(IN) :: sd   ! Standard deviation of x (note that this is not sigma)
       REAL :: mu, sigma
 
-      IF (mean <= 0.) STOP 'LOGNORMAL_DISTRIBUTION: Error, mean cannot be less than or equal to zero'
-      IF (sd < 0.)    STOP 'LOGNORMAL_DISTRIBUTION: Error, standard deviation cannot be less than zero'
+      IF (mean <= 0.) ERROR STOP 'LOGNORMAL_DISTRIBUTION: Error, mean cannot be less than or equal to zero'
+      IF (sd < 0.)    ERROR STOP 'LOGNORMAL_DISTRIBUTION: Error, standard deviation cannot be less than zero'
 
       mu = log(mean/sqrt(1.+(sd/mean)**2))
       sigma = sqrt(log(1.+(sd/mean)**2))
@@ -1193,10 +1186,10 @@ CONTAINS
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: x1, x2 ! Lower and upper limits
 
-      IF (x < x1 .OR. x > x2) THEN
-         uniform_distribution = 0.
-      ELSE
+      IF (x1 <= x .AND. x <= x2) THEN
          uniform_distribution = 1./(x2-x1)
+      ELSE
+         uniform_distribution = 0.
       END IF
 
    END FUNCTION uniform_distribution
@@ -1207,10 +1200,10 @@ CONTAINS
       REAL, INTENT(IN) :: x     ! [0:inf]
       REAL, INTENT(IN) :: sigma ! Sigma parameter (*not* root-variance for this distribution)
 
-      IF (sigma <= 0.) STOP 'RAYLEIGH_DISTRIBUTION: Error, sigma cannot be less than or equal to zero'
+      IF (sigma <= 0.) ERROR STOP 'RAYLEIGH_DISTRIBUTION: Error, sigma cannot be less than or equal to zero'
 
       IF (x < 0.) THEN
-         STOP 'RAYLEIGH_DISTRIBUTION: Error, x cannot be less than zero'
+         ERROR STOP 'RAYLEIGH_DISTRIBUTION: Error, x cannot be less than zero'
       ELSE
          Rayleigh_distribution = x*exp(-(x**2)/(2.*(sigma**2)))/(sigma**2)
       END IF
@@ -1221,10 +1214,15 @@ CONTAINS
 
       ! Returns integral-normalised exponential distribution
       ! Usually defined with parameter lambda = 1/mean
+      ! Special case of gamma distribution with gamma(lambda=1/mean, r=1)
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: mean
 
-      exponential_distribution = exp(-x/mean)/mean
+      IF (x < 0.) THEN
+         ERROR STOP 'EXPONENTIAL_DISTRIBUTION: Error, x cannot be less than zero'
+      ELSE
+         exponential_distribution = exp(-x/mean)/mean
+      END IF
 
    END FUNCTION exponential_distribution
 
@@ -1235,7 +1233,11 @@ CONTAINS
       REAL, INTENT(IN) :: lambda
       REAL, INTENT(IN) :: r
 
-      gamma_distribution = lambda*(lambda*x)**(r-1)*exp(-lambda*x)/Gamma(r)
+      IF (x < 0.) THEN
+         ERROR STOP 'GAMMA_DISTRIBUTION: Error, x cannot be less than zero'
+      ELSE
+         gamma_distribution = lambda*(lambda*x)**(r-1)*exp(-lambda*x)/Gamma(r)
+      END IF
 
    END FUNCTION gamma_distribution
 
@@ -1263,12 +1265,12 @@ CONTAINS
       REAL, INTENT(IN) :: x ! x[0->1]
       REAL, INTENT(IN) :: n ! Polynomail order [n>-1]
 
-      IF (n < -1) STOP 'POLYNOMIAL_DISTRIBUTION: Error, index is less than -1'
+      IF (n < -1) ERROR STOP 'POLYNOMIAL_DISTRIBUTION: Error, index is less than -1'
 
-      IF (x < 0. .OR. x > 1.) THEN
-         STOP 'POLYNOMIAL_DISTRIBUTION: Error, x is outside range 0 to 1'
-      ELSE
+      IF (0. <= x .AND. x <= 1.) THEN
          polynomial_distribution = (n+1.)*x**n
+      ELSE
+         polynomial_distribution = 0.
       END IF
 
    END FUNCTION polynomial_distribution
