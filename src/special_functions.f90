@@ -478,7 +478,7 @@ CONTAINS
 
    REAL FUNCTION Legendre_polynomial(n, x)
 
-      ! Returns the nth order Legendre polynomail: P_n(x)
+      ! Returns the nth order Legendre polynomial: P_n(x)
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
 
@@ -1263,7 +1263,7 @@ CONTAINS
 
       ! Returns integral-normalised polynomial distribution
       REAL, INTENT(IN) :: x ! x[0->1]
-      REAL, INTENT(IN) :: n ! Polynomail order [n>-1]
+      REAL, INTENT(IN) :: n ! Polynomial order [n>-1]
 
       IF (n < -1) ERROR STOP 'POLYNOMIAL_DISTRIBUTION: Error, index is less than -1'
 

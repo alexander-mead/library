@@ -832,7 +832,7 @@ CONTAINS
 
       ! iinterp = 1 => Use polynomials for interpolation
 
-      IF (iinterp .NE. 1) STOP 'FIND_3D: No Lagrange polynomials for you, only regular polynomails, iinterp=1'
+      IF (iinterp .NE. 1) STOP 'FIND_3D: No Lagrange polynomials for you, only regular polynomials, iinterp=1'
 
       IF (xin(1) > xin(nx)) STOP 'FIND_3D: x array in wrong order'
       IF (yin(1) > yin(ny)) STOP 'FIND_3D: y array in wrong order'

@@ -335,7 +335,7 @@ CONTAINS
 
    REAL FUNCTION random_polynomial(n)
 
-      ! Generate a polynomailly distributed number [x:0->1]
+      ! Generate a polynomially distributed number [x:0->1]
       REAL, INTENT(IN) :: n ! Order for the polynomial [-1:inf]
 
       !IF (n <= -1) STOP 'RANDOM_POLYNOMIAL: Error, n is less than or equal to -1'
