@@ -72,6 +72,7 @@ MODULE special_functions
    PUBLIC :: polynomial_distribution
    PUBLIC :: gamma_distribution
    PUBLIC :: chi2_distribution
+   PUBLIC :: studentt_distribution
 
    ! Cumulative continuous distributions
    PUBLIC :: Gaussian_cumulative
@@ -1274,6 +1275,18 @@ CONTAINS
       END IF
 
    END FUNCTION polynomial_distribution
+
+   REAL FUNCTION studentt_distribution(t, nu)
+
+      ! Student-t distribution
+      REAL, INTENT(IN) :: t
+      REAL, INTENT(IN) :: nu
+      REAL :: fac
+
+      fac = Gamma((nu+1)/2.)/(sqrt(nu*pi)*Gamma(nu/2.))
+      studentt_distribution = fac*(1.+t**2/nu)**(-(nu+1)/2.)
+
+   END FUNCTION studentt_distribution
 
    !!! !!!
 
