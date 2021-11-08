@@ -10,9 +10,9 @@ MODULE random_numbers
    PUBLIC :: random_generator_seed
 
    ! Integer distributions
-   PUBLIC :: random_integer
+   PUBLIC :: random_uniform_integer
    PUBLIC :: random_sign
-   PUBLIC :: dice
+   PUBLIC :: random_dice_roll
    PUBLIC :: random_Bernoulli
    PUBLIC :: random_twopoint
    PUBLIC :: random_binomial
@@ -42,6 +42,8 @@ MODULE random_numbers
    END INTERFACE random_twopoint
 
 CONTAINS
+
+   !!! Seeding !!!
 
    ! SUBROUTINE RNG_set(seed, verbose)
 
@@ -110,31 +112,34 @@ CONTAINS
 
    END SUBROUTINE random_generator_seed
 
-   INTEGER FUNCTION random_integer(i1, i2)
+   !!! !!!
+
+   !!! Draws from discrete probability distributions !!!
+
+   INTEGER FUNCTION random_uniform_integer(i1, i2)
 
       ! Picks an integer with uniform random probability between i1 and i2 spaced with 1
-      INTEGER, INTENT(IN) :: i1 ! Lower bound
-      INTEGER, INTENT(IN) :: i2 ! Upper bound
+      INTEGER, INTENT(IN) :: i1 ! Lower bound (included)
+      INTEGER, INTENT(IN) :: i2 ! Upper bound (included)
       INTEGER, PARAMETER :: seed = 0
 
-      random_integer = i1-1+ceiling(random_unit()*real(1+i2-i1))
-      IF (random_integer == i1-1) random_integer = i1
+      random_uniform_integer = i1-1+ceiling(random_unit()*real(1+i2-i1))
+      IF (random_uniform_integer == i1-1) random_uniform_integer = i1
 
-   END FUNCTION random_integer
+   END FUNCTION random_uniform_integer
 
-   INTEGER FUNCTION dice(ndice, dmin_opt, dmax_opt)
+   INTEGER FUNCTION random_dice_roll(ndice, dmin_opt, dmax_opt)
 
       ! Get a total for rolling ndice
       INTEGER, INTENT(IN) :: ndice               ! Number of dice to roll   
       INTEGER, OPTIONAL, INTENT(IN) :: dmin_opt  ! Minimum value on di
-      INTEGER, OPTIONAL, INTENT(IN) :: dmax_opt  ! Maximum value on di (assumes all integers on di between dmin and dmax)    
-      INTEGER :: i
-      INTEGER :: dmin, dmax
+      INTEGER, OPTIONAL, INTENT(IN) :: dmax_opt  ! Maximum value on di (assumes all integers on di between dmin and dmax)
+      INTEGER :: i, dmin, dmax, dice
       INTEGER, PARAMETER :: dmin_def = 1
       INTEGER, PARAMETER :: dmax_def = 6
 
       ! Check number of dice
-      IF (ndice < 0) STOP 'DICE: Error, number of rolls must be positive'
+      IF (ndice <= 0) STOP 'DICE: Error, number of rolls must be positive'
 
       ! Default or optional values for the minimum and maximum on the di
       ! Note that all contiguous integers are taken between dmin and dmax
@@ -144,10 +149,11 @@ CONTAINS
       ! Roll the dice and sum the score
       dice = 0
       DO i = 1, ndice
-         dice = dice+random_integer(dmin, dmax)
+         dice = dice+random_uniform_integer(dmin, dmax)
       END DO
+      random_dice_roll = dice
 
-   END FUNCTION dice
+   END FUNCTION random_dice_roll
 
    REAL FUNCTION random_twopoint_real(a, b, p)
 
@@ -187,7 +193,7 @@ CONTAINS
       ! PDF: P_k = p^k (1-p)^(1-k) with k = 0, 1
       REAL, INTENT(IN) :: p ! Should be between 0 and 1
 
-      random_Bernoulli=random_twopoint(1, 0, p)
+      random_Bernoulli = random_twopoint(1, 0, p)
 
    END FUNCTION random_Bernoulli
 
@@ -223,8 +229,7 @@ CONTAINS
 
       L = exp(-mean)
 
-      k = 0
-      p = 1.
+      k = 0; p = 1.
       DO
          p = p*random_unit()
          IF (p < L) THEN
@@ -238,19 +243,24 @@ CONTAINS
 
    END FUNCTION random_Poisson
 
+   !!! !!!
+
+   !!! Draws from continuous probability distributions !!!
+
    REAL FUNCTION random_unit()
 
-      ! Produces a uniform-random number between 0 and 1
-
+      ! Produces a uniform-random number between 0 <= x < 1
+      ! Note that a result of unity is not possible, while zero is
+      ! TODO: Probably much more efficient to draw array of random numbers
       CALL random_number(random_unit)
 
    END FUNCTION random_unit
 
    REAL FUNCTION random_uniform(x1, x2)
 
-      ! Produces a uniform random number between x1 and x2
-      REAL, INTENT(IN) :: x1 ! Lower bound
-      REAL, INTENT(IN) :: x2 ! Upper bound
+      ! Produces a uniform random number between x1 <= x < x2
+      REAL, INTENT(IN) :: x1 ! Lower bound (included)
+      REAL, INTENT(IN) :: x2 ! Upper bound (not included)
 
       random_uniform = x1+(x2-x1)*random_unit()
 
@@ -259,6 +269,7 @@ CONTAINS
    REAL FUNCTION random_Rayleigh(sigma)
 
       ! Produces a Rayleigh-distributed random number
+      ! TODO: Choose 'small' properly or could do random_uniform(1., 0.) to avoid 0 explicitly
       USE constants
       REAL, INTENT(IN) :: sigma        ! Sigma parameter (*not* standard deviation of the distribution)
       REAL, PARAMETER :: small = 1e-10 ! To avoid ever getting a log(0) call
@@ -280,7 +291,7 @@ CONTAINS
    FUNCTION random_Gaussian_pair(mean, sigma)
 
       ! Gets a pair of independent Gaussian random numbers
-      ! This uses the Box-Muller method (https://en.wikipedia.org/wiki/Box-Muller_transform)
+      ! Uses the Box-Muller method (https://en.wikipedia.org/wiki/Box-Muller_transform)
       USE constants
       REAL :: random_Gaussian_pair(2)
       REAL, INTENT(IN) :: mean  ! Mean of the distribution
@@ -326,6 +337,7 @@ CONTAINS
    REAL FUNCTION random_exponential(mean)
 
       ! Produces a exponentially-distributed random number
+      ! TODO: Choose small correctly, or could do random_uniform(1., 0.) to avoid 0 explicitly
       REAL, INTENT(IN) :: mean         ! Mean of the distribution
       REAL, PARAMETER :: small = 1e-10 ! Needed because problems here if log(0) is ever called
 
@@ -349,19 +361,6 @@ CONTAINS
       random_spherical_theta = acos(random_uniform(-1., 1.))
 
    END FUNCTION random_spherical_theta
-
-   COMPLEX FUNCTION random_complex_unit()
-
-      ! Get a complex phase with theta between 0 and 2pi
-      ! Generates a unit amplitude complex number with random phase
-      ! TODO: Is 0 actually counted twice because 0 and 2pi are identical?
-      USE constants
-      REAL :: theta
-
-      theta = random_uniform(0., twopi)
-      random_complex_unit = cmplx(cos(theta), sin(theta))
-
-   END FUNCTION random_complex_unit
 
    REAL FUNCTION accept_reject(func, x1, x2, fmax)
 
@@ -401,5 +400,24 @@ CONTAINS
       END DO
 
    END FUNCTION accept_reject
+
+   !!! !!!
+
+   !!! Draw from complex probability distributions !!!
+
+   COMPLEX FUNCTION random_complex_unit()
+
+      ! Get a complex phase with theta between 0 and 2pi
+      ! Generates a unit amplitude complex number with random phase
+      ! TODO: Is 0 actually counted twice because 0 and 2pi are identical?
+      USE constants
+      REAL :: theta
+
+      theta = random_uniform(0., twopi)
+      random_complex_unit = cmplx(cos(theta), sin(theta))
+
+   END FUNCTION random_complex_unit
+
+   !!! !!!
 
 END MODULE random_numbers
