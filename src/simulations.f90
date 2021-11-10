@@ -1001,7 +1001,7 @@ CONTAINS
       IF (present_and_correct(verbose)) WRITE (*, *) 'RANDOM_ROTATION: Applying random rotation'
 
       ! Choose random rotation
-      type = random_integer(1, 6)
+      type = random_uniform_integer(1, 6)
 
       ! Apply random rotation
       IF (type == 1) THEN
