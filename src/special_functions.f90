@@ -73,6 +73,7 @@ MODULE special_functions
    PUBLIC :: gamma_distribution
    PUBLIC :: chi2_distribution
    PUBLIC :: studentt_distribution
+   PUBLIC :: beta_distribution
 
    ! Cumulative continuous distributions
    PUBLIC :: Gaussian_cumulative
@@ -1287,6 +1288,17 @@ CONTAINS
       studentt_distribution = fac*(1.+t**2/nu)**(-(nu+1)/2.)
 
    END FUNCTION studentt_distribution
+
+   REAL FUNCTION beta_distribution(x, alpha, beta)
+
+      REAL, INTENT(IN) :: x
+      REAL, INTENT(IN) :: alpha, beta
+      REAL :: A
+
+      A = Gamma(alpha+beta)/(Gamma(alpha)*Gamma(beta))
+      beta_distribution = A*x**(alpha-1.)*(1.-x)**(beta-1.)
+
+   END FUNCTION beta_distribution
 
    !!! !!!
 
