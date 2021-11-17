@@ -8,6 +8,10 @@ MODULE statistics
 
    PRIVATE
 
+   ! Sample statistics
+   PUBLIC :: percentile
+   PUBLIC :: percentiles
+   PUBLIC :: median
    PUBLIC :: mean
    PUBLIC :: geometric_mean
    PUBLIC :: harmonic_mean
@@ -16,22 +20,33 @@ MODULE statistics
    PUBLIC :: variance
    PUBLIC :: standard_deviation
    PUBLIC :: root_mean_square
+   PUBLIC :: moment
+   PUBLIC :: central_moment
+   PUBLIC :: dimensionless_central_moment
+   PUBLIC :: skewness
+   PUBLIC :: kurtosis
+   PUBLIC :: excess_kurtosis
+   PUBLIC :: covariance
+   PUBLIC :: correlation
+
+   ! Other things
    PUBLIC :: histogram
    PUBLIC :: advanced_histogram
    PUBLIC :: calculate_confidence
    PUBLIC :: parameter_probability
-   PUBLIC :: percentile
-   PUBLIC :: percentiles
 
    ! Parameters
    INTEGER, PARAMETER :: percentile_sort = isort_bubble
+   INTEGER, PARAMETER :: median_sort = isort_bubble
 
 CONTAINS
+
+   !!! Sample statistics !!!
 
    FUNCTION percentiles(x, f) 
   
       ! For input distribution or measuments x(n) calculates the x value above which a fraction 'f' of x(n) lie
-      ! Can be used to calculate interquartile ranges and such things
+      ! Can be used to calculate medians, interquartile ranges and such things
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: f(:)
       REAL :: percentiles(size(f))
@@ -64,7 +79,7 @@ CONTAINS
    REAL FUNCTION percentile(x, f)
   
       ! For input distribution or measuments x(n) calculates the x value above which a fraction 'f' of x(n) lie
-      ! Can be used to calculate interquartile ranges and such things
+      ! Can be used to calculate medians, interquartile ranges and such things
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: f
       REAL, ALLOCATABLE :: y(:)
@@ -90,6 +105,26 @@ CONTAINS
 
    END FUNCTION percentile
 
+   REAL FUNCTION median(x)
+
+      ! Median of set of numbers 'x'
+      ! Note that no linear interpolation is done on x coordinate (unlike percentiles)
+      REAL, INTENT(IN) :: x(:)
+      REAL, ALLOCATABLE :: y(:)
+      INTEGER :: n
+      INTEGER, PARAMETER :: isort = median_sort
+
+      y = x
+      CALL sort(y, isort)
+      n = size(y)
+      IF (odd(n)) THEN
+         median = y((n+1)/2)
+      ELSE
+         median = 0.5*(y(n/2)+y(n/2+1))
+      END IF
+
+   END FUNCTION median
+
    REAL FUNCTION mean(x)
 
       REAL, INTENT(IN) :: x(:)
@@ -114,12 +149,12 @@ CONTAINS
 
    END FUNCTION harmonic_mean
 
-   REAL FUNCTION power_mean(x, m)
+   REAL FUNCTION power_mean(x, p)
 
       REAL, INTENT(IN) :: x(:)
-      REAL, INTENT(IN) :: m
+      REAL, INTENT(IN) :: p
 
-      power_mean = mean(x**m)**(1./m)
+      power_mean = mean(x**p)**(1./p)
 
    END FUNCTION power_mean
 
@@ -128,7 +163,7 @@ CONTAINS
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: w(:)
 
-      IF (size(x) .NE. size(w)) STOP 'WEIGHTED_MEAN: Error, data and weight arrays must be the same size'
+      IF (size(x) /= size(w)) STOP 'WEIGHTED_MEAN: Error, data and weight arrays must be the same size'
       weighted_mean = sum(w*x)/sum(w)
 
    END FUNCTION weighted_mean
@@ -164,6 +199,78 @@ CONTAINS
       root_mean_square = sqrt(mean(x**2))
 
    END FUNCTION root_mean_square
+
+   REAL FUNCTION moment(x, r)
+
+      REAL, INTENT(IN) :: x(:)
+      INTEGER, INTENT(IN) :: r
+
+      moment = mean(x**r)
+
+   END FUNCTION moment
+
+   REAL FUNCTION central_moment(x, r)
+
+      REAL, INTENT(IN) :: x(:)
+      INTEGER, INTENT(IN) :: r
+
+      central_moment = moment(x-mean(x), r)
+
+   END FUNCTION central_moment
+
+   REAL FUNCTION dimensionless_central_moment(x, r)
+
+      REAL, INTENT(IN) :: x(:)
+      INTEGER, INTENT(IN) :: r
+
+      dimensionless_central_moment = central_moment(x, r)/standard_deviation(x)**r
+
+   END FUNCTION dimensionless_central_moment
+
+   REAL FUNCTION skewness(x)
+
+      REAL, INTENT(IN) :: x(:)
+
+      skewness = dimensionless_central_moment(x, 3)
+
+   END FUNCTION skewness
+
+   REAL FUNCTION kurtosis(x)
+
+      REAL, INTENT(IN) :: x(:)
+
+      kurtosis = dimensionless_central_moment(x, 4)
+
+   END FUNCTION kurtosis
+
+   REAL FUNCTION excess_kurtosis(x)
+
+      REAL, INTENT(IN) :: x(:)
+
+      excess_kurtosis = kurtosis(x)-3.
+
+   END FUNCTION excess_kurtosis
+
+   REAL FUNCTION covariance(x, y)
+
+      REAL, INTENT(IN) :: x(:), y(:)
+
+      IF (size(x) /= size(y)) STOP 'COVARIANCE: Error, x and y arrays must be the same size'
+      covariance = mean((x-mean(x))*(y-mean(y)))
+
+   END FUNCTION covariance
+
+   REAL FUNCTION correlation(x, y)
+
+      REAL, INTENT(IN) :: x(:), y(:)
+
+      correlation = covariance(x, y)/(standard_deviation(x)*standard_deviation(y))
+
+   END FUNCTION correlation
+
+   !!! !!!
+
+   !!! ??? !!!
 
    SUBROUTINE histogram(xmin, xmax, x, hist, n, data)
 
@@ -345,5 +452,7 @@ CONTAINS
       parameter_probability=exp(-chi2/2.)
 
    END FUNCTION parameter_probability
+
+   !!! !!!
 
 END MODULE statistics
