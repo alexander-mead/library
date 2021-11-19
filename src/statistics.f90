@@ -79,7 +79,8 @@ CONTAINS
    REAL FUNCTION percentile(x, f)
   
       ! For input distribution or measuments x(n) calculates the x value above which a fraction 'f' of x(n) lie
-      ! Can be used to calculate medians, interquartile ranges and such things
+      ! Can be used to calculate median, interquartile ranges and such things
+      ! TODO: Check that 'floor' and 'ceiling' give expected results when f=0.5 and n = odd, even
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: f
       REAL, ALLOCATABLE :: y(:)
@@ -108,7 +109,8 @@ CONTAINS
    REAL FUNCTION median(x)
 
       ! Median of set of numbers 'x'
-      ! Note that no linear interpolation is done on x coordinate (unlike percentiles)
+      ! If odd the central value is taken when 'x' are ordered
+      ! If even the arithmetic mean of the two central values is taken
       REAL, INTENT(IN) :: x(:)
       REAL, ALLOCATABLE :: y(:)
       INTEGER :: n
