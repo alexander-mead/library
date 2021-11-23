@@ -16,6 +16,10 @@ MODULE random_numbers
    PUBLIC :: random_Bernoulli
    PUBLIC :: random_twopoint
    PUBLIC :: random_binomial
+   PUBLIC :: random_negative_binomial
+   PUBLIC :: random_multinomial
+   PUBLIC :: random_geometric
+   PUBLIC :: random_hypergeometric
    PUBLIC :: random_Poisson
 
    ! Real number distributions
@@ -131,6 +135,7 @@ CONTAINS
    INTEGER FUNCTION random_dice_roll(ndice, dmin_opt, dmax_opt)
 
       ! Get a total for rolling ndice
+      ! TODO: Replace with random_multinomial?
       INTEGER, INTENT(IN) :: ndice               ! Number of dice to roll   
       INTEGER, OPTIONAL, INTENT(IN) :: dmin_opt  ! Minimum value on di
       INTEGER, OPTIONAL, INTENT(IN) :: dmax_opt  ! Maximum value on di (assumes all integers on di between dmin and dmax)
@@ -163,7 +168,7 @@ CONTAINS
       REAL :: r
 
       r = random_unit()
-      IF (r <= p) THEN
+      IF (r < p) THEN
          random_twopoint_real = a
       ELSE
          random_twopoint_real = b
@@ -173,13 +178,13 @@ CONTAINS
 
    INTEGER FUNCTION random_twopoint_integer(a, b, p)
 
-      ! Pick 'a' with probability '1-p' and 'b' with probability 'p'
+      ! Pick 'a' with probability 'p' and 'b' with probability '1-p'
       INTEGER, INTENT(IN) :: a, b
       REAL, INTENT(IN) :: p
       REAL :: r
 
       r = random_unit()
-      IF (r <= p) THEN
+      IF (r < p) THEN
          random_twopoint_integer = a
       ELSE
          random_twopoint_integer = b
@@ -189,8 +194,8 @@ CONTAINS
 
    INTEGER FUNCTION random_Bernoulli(p)
 
-      ! Unity with probability p, otherwise zero
-      ! PDF: P_k = p^k (1-p)^(1-k) with k = 0, 1
+      ! Random 'success' (1) with probability p, otherwise 'failure' (0)
+      ! Usually: 1 = 'success'; 0 = 'failure'
       REAL, INTENT(IN) :: p ! Should be between 0 and 1
 
       random_Bernoulli = random_twopoint(1, 0, p)
@@ -204,12 +209,13 @@ CONTAINS
 
    END FUNCTION random_sign
 
-   INTEGER FUNCTION random_binomial(n, p)
+   INTEGER FUNCTION random_binomial(p, n)
 
-      ! Generates a random number from a Binomial distribution with n trials, each with probability of success p
+      ! Random number of successes from a Binomial process with n trials,
+      ! Each individual trial has a probability of success p
       ! Note that random_Binomial will always be between [0, n]; closer to n with higher p
-      INTEGER, INTENT(IN) :: n ! Number of trials
       REAL, INTENT(IN) :: p    ! Probability of success of each trial
+      INTEGER, INTENT(IN) :: n ! Number of trials
       INTEGER :: sum, i
 
       sum = 0
@@ -219,6 +225,127 @@ CONTAINS
       random_binomial = sum
 
    END FUNCTION random_binomial
+
+   INTEGER FUNCTION random_negative_binomial(p, r)
+
+      ! Random number of failures before the rth success in a binomial process
+      REAL, INTENT(IN) :: p    ! Probability of success of each trial
+      INTEGER, INTENT(IN) :: r ! Number of successes to count failures before
+      INTEGER :: successes, failures, trials
+
+      successes = 0; trials = 0
+      DO
+         trials = trials+1 ! Total number of trials
+         successes = successes+random_Bernoulli(p) ! Total number of successes
+         IF (successes == r) THEN
+            failures = trials-successes
+            EXIT
+         END IF
+      END DO
+      random_negative_binomial = failures
+
+   END FUNCTION random_negative_binomial
+
+   INTEGER FUNCTION random_single_multinomial(k, p)
+
+      ! Generates a random result from a single trial of a multinomial process
+      ! e.g., standard dice would have k(6) = 1, 2, ..., 6; p(6) = 1/6
+      INTEGER, INTENT(IN) :: k(:) ! Possible results for each trail
+      REAL, INTENT(IN) :: p(:)    ! Probability of each result (should sum to unity)
+      REAL :: prob, r
+      INTEGER :: i, n
+
+      r = random_unit()
+      prob = 0.
+      n = size(k)
+      random_single_multinomial = k(n)
+      DO i = 1, n-1
+         prob = prob+p(i)
+         IF (r < prob) THEN
+            random_single_multinomial = k(i)
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION random_single_multinomial
+
+   INTEGER FUNCTION random_multinomial(k, p, n)
+
+      ! Generates a random number from a multinomial distribution with n trials, 
+      ! Each trial produces random k(:) with probability of success p(:)
+      ! TODO: Could have size(p) = size(k)-1 and last p fixed
+      INTEGER, INTENT(IN) :: k(:) ! Possible results for each trial
+      REAL, INTENT(IN) :: p(:)    ! Probability of each result (should sum to unity)
+      INTEGER, INTENT(IN) :: n    ! Number of trials
+      INTEGER :: sum, i
+
+      sum = 0
+      DO i = 1, n
+         sum = sum+random_single_multinomial(k, p)
+      END DO
+      random_multinomial = sum
+
+   END FUNCTION random_multinomial
+
+   INTEGER FUNCTION random_geometric(p)
+
+      ! Random number of failures before the first success in a binomial process
+      REAL, INTENT(IN) :: p
+      INTEGER :: r, failures
+
+      failures = 0 ! Number of failures
+      DO
+         r = random_Bernoulli(p)
+         IF (r == 1) THEN
+            EXIT ! Trial was a success, so exit
+         ELSE
+            failures = failures+1 ! Add one failure
+         END IF
+      END DO
+      random_geometric = failures
+
+   END FUNCTION random_geometric
+
+   INTEGER FUNCTION random_shifted_geometric(p)
+
+      ! Random number of trials until the first success in a binomial process
+      ! Very closely related to the geometric distribution
+      ! Note that this must be at least 1 (if the first go is a success)
+      REAL, INTENT(IN) :: p
+
+      random_shifted_geometric = random_geometric(p)+1
+
+   END FUNCTION random_shifted_geometric
+
+   INTEGER FUNCTION random_hypergeometric(N, M, t)
+
+      ! Random hypergeometric distributed number
+      ! Probability of picking X objects, without replacement, of a specific type from a set
+      ! Originally the set contains 'N' objects with 'M' (M <= N) specific objects
+      INTEGER, INTENT(IN) :: N ! Original number of objects to pick from
+      INTEGER, INTENT(IN) :: M ! Original number of objects of interest (m < n)
+      INTEGER, INTENT(IN) :: t ! Number of trials
+      INTEGER :: picked_M, picked_N, num_M, num_N
+      REAL :: prob_M
+      INTEGER :: i, r
+
+      ! Loop over trials
+      num_M = M; num_N = N
+      picked_M = 0; picked_N = 0
+      DO i = 1, t
+         prob_M = num_M/float(num_N+num_M)
+         r = random_Bernoulli(prob_M)
+         IF (r == 1) THEN
+            picked_M = picked_M+1
+            num_M = num_M-1
+         ELSE
+            picked_N = picked_N+1
+            num_N = num_N-1
+         END IF
+      END DO
+      random_hypergeometric = picked_M
+
+   END FUNCTION random_hypergeometric
 
    INTEGER FUNCTION random_Poisson(mean)
 
