@@ -1113,7 +1113,7 @@ CONTAINS
 
    REAL FUNCTION geometric_distribution(k, p)
 
-      ! Probability for number of failures until the first success in a binomial process
+      ! Probability for number of failures preceeding the first success in a binomial process
       ! Each trial is independent and has chance of success p
       INTEGER, INTENT(IN) :: k ! Must be 0 or greater
       REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
@@ -1128,7 +1128,7 @@ CONTAINS
 
    REAL FUNCTION shifted_geometric_distribution(k, p)
 
-      ! Probability for number of trials until the first success in a binomial process
+      ! Probability for number of trials until up to and including the first success in a binomial process
       ! Each trial is independent and has chance of success p
       ! Very similar to the geometric distribution (which counts only the preceeding failures)
       INTEGER, INTENT(IN) :: k ! Must be 1 or greater (at least one trial needed for success)
