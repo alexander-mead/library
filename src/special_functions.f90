@@ -235,6 +235,35 @@ CONTAINS
 
    END FUNCTION multiply_integers
 
+   INTEGER FUNCTION falling_factorial(x, n)
+
+      ! x(x-1)(x-2)...(x-n+1)
+      ! x >= n here
+      INTEGER, INTENT(IN) :: x
+      INTEGER, INTENT(IN) :: n
+
+      IF (n == 0) THEN
+         falling_factorial = 1
+      ELSE
+         falling_factorial = multiply_integers(x-n+1, x)
+      END IF
+
+   END FUNCTION falling_factorial
+
+   INTEGER FUNCTION rising_factorial(x, n)
+
+      ! x(x+1)(x+2)...(x+n-1)
+      INTEGER, INTENT(IN) :: x
+      INTEGER, INTENT(IN) :: n
+
+      IF (n == 0) THEN
+         rising_factorial = 1
+      ELSE
+         rising_factorial = multiply_integers(x, x+n-1)
+      END IF
+
+   END FUNCTION rising_factorial
+
    INTEGER FUNCTION permutations(n, k)
 
       ! Number of permutations of k objects chosen from n without replacement
@@ -261,10 +290,15 @@ CONTAINS
    INTEGER FUNCTION binomial_coefficient(n, k)
 
       ! Evalues binomial coefficient: (n, k); n-choose-k; nCk
+      ! Note symmetry (n, k) = (n, n-k)
       INTEGER, INTENT(IN) :: n
       INTEGER, INTENT(IN) :: k
 
-      binomial_coefficient = combinations(n, k)
+      IF (n-k > k) THEN
+         binomial_coefficient = combinations(n, n-k)
+      ELSE
+         binomial_coefficient = combinations(n, k)
+      END IF
 
    END FUNCTION binomial_coefficient
 
@@ -1138,14 +1172,23 @@ CONTAINS
 
    END FUNCTION shifted_geometric_distribution
 
-   ! REAL FUNCTION hypergeometric_distribution(k, N, M, t)
+   REAL FUNCTION hypergeometric_distribution(k, N, M, t)
 
-   !    INTEGER, INTENT(IN) :: k ! Must be 0 or greater
-   !    INTEGER, INTENT(IN) :: N ! Original number of objects to pick from
-   !    INTEGER, INTENT(IN) :: M ! Original number of objects of interest (m < n)
-   !    INTEGER, INTENT(IN) :: t ! Number of trials
+      ! Probability of picking 'k' objects in 't' trials, without replacement, of a specific type from a set
+      ! Originally the set contains 'N' objects with 'M' (M <= N) specific objects
+      ! TODO: This calculation is probably horribly ineffeicient, see notes for possible efficiencies
+      INTEGER, INTENT(IN) :: k ! Must be 0 or greater
+      INTEGER, INTENT(IN) :: N ! Original number of objects to pick from
+      INTEGER, INTENT(IN) :: M ! Original number of objects of interest (m < n)
+      INTEGER, INTENT(IN) :: t ! Number of trials
+      INTEGER :: c1, c2, c3
 
-   ! END FUNCTION hypergeometric_distribution
+      c1 = binomial_coefficient(M, k)
+      c2 = binomial_coefficient(N-M, t-k)
+      c3 = binomial_coefficient(N, t)
+      hypergeometric_distribution = float(c1*c2/c3)
+
+   END FUNCTION hypergeometric_distribution
 
    REAL FUNCTION Poisson_distribution(n, nbar)
 
