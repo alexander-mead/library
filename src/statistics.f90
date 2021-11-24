@@ -153,6 +153,9 @@ CONTAINS
 
    REAL FUNCTION power_mean(x, p)
 
+      ! Powered mean of data 'x'
+      ! p = 1: Standard mean
+      ! p = -1: Harmonic mean
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: p
 
@@ -162,6 +165,7 @@ CONTAINS
 
    REAL FUNCTION weighted_mean(x, w)
 
+      ! Often w = 1/sigma^2 for each x; higher variance lower weight
       REAL, INTENT(IN) :: x(:)
       REAL, INTENT(IN) :: w(:)
 
@@ -173,7 +177,7 @@ CONTAINS
    REAL FUNCTION variance(x)
 
       ! Note that depending on the application one might want to use n-1 here
-      ! Difference is between sample variance and population varaince
+      ! Difference is between calculating sample variance and population varaince
       ! See https://en.wikipedia.org/wiki/Bessel%27s_correction
       ! Sample is simply the variance of your sample 1/N
       ! However, if you are estimating the population variance then you need 1/(N-1)
