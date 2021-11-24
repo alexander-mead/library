@@ -53,7 +53,7 @@ MODULE special_functions
    PUBLIC :: Himmelblau
 
    ! Discrete probability distributions
-   ! TODO: Add hypergeometric and multinomial
+   ! TODO: Add multinomial
    PUBLIC :: uniform_integer_distribution
    PUBLIC :: twopoint_distribution
    PUBLIC :: Bernoulli_distribution
@@ -62,7 +62,7 @@ MODULE special_functions
    !PUBLIC :: multinomial_disitribuion
    PUBLIC :: geometric_distribution
    PUBLIC :: shifted_geometric_distribution
-   !PUBLIC :: hypergeometric_distribution
+   PUBLIC :: hypergeometric_distribution
    PUBLIC :: Poisson_distribution
 
    ! Continuous probability distributions
@@ -77,6 +77,7 @@ MODULE special_functions
    PUBLIC :: chi2_distribution
    PUBLIC :: studentt_distribution
    PUBLIC :: beta_distribution
+   PUBLIC :: cauchy_distribution
 
    ! Cumulative continuous distributions
    PUBLIC :: Gaussian_cumulative
@@ -1357,6 +1358,14 @@ CONTAINS
       beta_distribution = A*x**(alpha-1.)*(1.-x)**(beta-1.)
 
    END FUNCTION beta_distribution
+
+   REAL FUNCTION Cauchy_distribution(x)
+
+      REAL, INTENT(IN) :: x
+
+      Cauchy_distribution = (1./pi)*(1./(1.+x**2))
+
+   END FUNCTION Cauchy_distribution
 
    !!! !!!
 
