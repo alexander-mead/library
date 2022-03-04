@@ -225,6 +225,7 @@ CONTAINS
 
       ! Multiply the integers a through to b (inclusive), useful for factorials
       ! Assumes that a <= b; if a = b then function evaluates to a
+      ! Note that B^M_A = B!/(A-1)!
       INTEGER, INTENT(IN) :: a, b
       INTEGER :: i, m
 
@@ -917,24 +918,26 @@ CONTAINS
 
    REAL FUNCTION sigmoid_tanh(x)
 
-      ! A function that smoothly transitions from 0 to 1 around x
+      ! A function that smoothly transitions from 0 to 1 around x=0
       REAL, INTENT(IN) :: x
 
       sigmoid_tanh = 0.5*(1.+tanh(x))
+      !sigmoid_tanh = exp(x)/(exp(x)+exp(-x))
+      !sigmoid_tanh = 1./(1.+exp(-2.*x))
 
    END FUNCTION sigmoid_tanh
 
-   REAL FUNCTION sigmoid_log(x, a)
+   REAL FUNCTION sigmoid_log(x, n)
 
-      ! A function that smoothly transitions from 0 to 1 around x
+      ! A function that smoothly transitions from 0 to 1 around x=0
       REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: a
+      REAL, INTENT(IN) :: n
       REAL :: xp, xm
 
-      xp = x**a
-      xm = x**(-a)
-
-      sigmoid_log = 0.5*(1.+(xp-xm)/(xp+xm))
+      xp = x**n; xm = x**(-n)
+      !sigmoid_log = 0.5*(1.+(xp-xm)/(xp+xm))
+      sigmoid_log = xp/(xp+xm)
+      !sigmoid_log = 1./(1.+x**(-2*n)) ! Could also do this
 
    END FUNCTION sigmoid_log
 
