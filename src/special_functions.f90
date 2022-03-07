@@ -35,6 +35,7 @@ MODULE special_functions
    PUBLIC :: wk_tophat_dderiv
    PUBLIC :: cbrt
    PUBLIC :: Heaviside
+   PUBLIC :: tophat
 
    ! Complex special functions
    PUBLIC :: complex_number
@@ -73,7 +74,7 @@ MODULE special_functions
    PUBLIC :: exponential_distribution
    PUBLIC :: Lorentzian_distribution
    PUBLIC :: polynomial_distribution
-   PUBLIC :: gamma_distribution
+   PUBLIC :: Gamma_distribution
    PUBLIC :: chi2_distribution
    PUBLIC :: studentt_distribution
    PUBLIC :: beta_distribution
@@ -503,6 +504,7 @@ CONTAINS
 
    REAL FUNCTION Heaviside(x, Hzero_opt)
 
+      ! Heaviside function: 0 for x<0; 1 for x>0 and choice for x=0
       REAL, INTENT(IN) :: x
       REAL, OPTIONAL, INTENT(IN) :: Hzero_opt
       REAL, PARAMETER :: Hzero_def = 0.5
@@ -516,6 +518,16 @@ CONTAINS
       END IF
 
    END FUNCTION Heaviside
+
+   REAL FUNCTION tophat(x, dx, tzero_opt)
+
+      ! Tophat function
+      REAL, INTENT(IN) :: x, dx
+      REAL, OPTIONAL, INTENT(IN) :: tzero_opt
+
+      tophat = Heaviside(x, tzero_opt)*Heaviside(dx-x, tzero_opt)
+
+   END FUNCTION tophat
 
    REAL FUNCTION Legendre_polynomial(n, x)
 
@@ -1290,7 +1302,7 @@ CONTAINS
 
    END FUNCTION exponential_distribution
 
-   REAL FUNCTION gamma_distribution(x, lambda, r)
+   REAL FUNCTION Gamma_distribution(x, lambda, r)
 
       ! Exponential distribution is a special case with r=1
       REAL, INTENT(IN) :: x
@@ -1300,17 +1312,17 @@ CONTAINS
       IF (x < 0.) THEN
          ERROR STOP 'GAMMA_DISTRIBUTION: Error, x cannot be less than zero'
       ELSE
-         gamma_distribution = lambda*(lambda*x)**(r-1)*exp(-lambda*x)/Gamma(r)
+         Gamma_distribution = lambda*(lambda*x)**(r-1)*exp(-lambda*x)/Gamma(r)
       END IF
 
-   END FUNCTION gamma_distribution
+   END FUNCTION Gamma_distribution
 
    REAL FUNCTION chi2_distribution(x, n)
 
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
 
-      chi2_distribution = gamma_distribution(x, 0.5, n/2.)
+      chi2_distribution = Gamma_distribution(x, 0.5, n/2.)
 
    END FUNCTION chi2_distribution
 
@@ -1341,7 +1353,7 @@ CONTAINS
 
    REAL FUNCTION studentt_distribution(t, nu)
 
-      ! Student-t distribution
+      ! Student-t probability distribution
       REAL, INTENT(IN) :: t
       REAL, INTENT(IN) :: nu
       REAL :: fac
@@ -1353,12 +1365,17 @@ CONTAINS
 
    REAL FUNCTION beta_distribution(x, alpha, beta)
 
-      REAL, INTENT(IN) :: x
+      ! beta probability distribution
+      REAL, INTENT(IN) :: x ! x[0->1]
       REAL, INTENT(IN) :: alpha, beta
-      REAL :: A
+      REAL :: B
 
-      A = Gamma(alpha+beta)/(Gamma(alpha)*Gamma(beta))
-      beta_distribution = A*x**(alpha-1.)*(1.-x)**(beta-1.)
+      IF (0. <= x .AND. x <= 1.) THEN
+         B = Gamma(alpha+beta)/(Gamma(alpha)*Gamma(beta))
+         beta_distribution = B*x**(alpha-1.)*(1.-x)**(beta-1.)
+      ELSE
+         beta_distribution = 0.
+      END IF
 
    END FUNCTION beta_distribution
 

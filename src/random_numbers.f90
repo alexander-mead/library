@@ -33,6 +33,8 @@ MODULE random_numbers
    PUBLIC :: random_exponential
    PUBLIC :: random_polynomial
    PUBLIC :: random_spherical_theta
+   !PUBLIC :: random_Gamma
+   !PUBLIC :: random_beta
 
    ! Complex number disitrubutions
    PUBLIC :: random_complex_unit
