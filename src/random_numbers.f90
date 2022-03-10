@@ -23,6 +23,7 @@ MODULE random_numbers
    PUBLIC :: random_Poisson
 
    ! Real number distributions
+   ! TODO: Add Gamma and Beta
    PUBLIC :: random_unit
    PUBLIC :: random_uniform
    PUBLIC :: random_Rayleigh

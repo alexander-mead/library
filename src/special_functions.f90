@@ -36,6 +36,7 @@ MODULE special_functions
    PUBLIC :: cbrt
    PUBLIC :: Heaviside
    PUBLIC :: tophat
+   PUBLIC :: Beta_function
 
    ! Complex special functions
    PUBLIC :: complex_number
@@ -388,7 +389,7 @@ CONTAINS
 
       ! Given xi, yi i=1,2 fixes a line between these points
       REAL, INTENT(OUT) :: a1
-      REAL, INTENT(OUT) :: a0 
+      REAL, INTENT(OUT) :: a0
       REAL, INTENT(IN) :: x(2)
       REAL, INTENT(IN) :: y(2)
 
@@ -528,6 +529,14 @@ CONTAINS
       tophat = Heaviside(x, tzero_opt)*Heaviside(dx-x, tzero_opt)
 
    END FUNCTION tophat
+
+   REAL FUNCTION Beta_function(x, y)
+
+      REAL, INTENT(IN) :: x, y
+
+      Beta_function = Gamma(x)*Gamma(y)/Gamma(x+y)
+
+   END FUNCTION Beta_function
 
    REAL FUNCTION Legendre_polynomial(n, x)
 
