@@ -6557,17 +6557,19 @@ CONTAINS
    REAL FUNCTION multiplicity_function(m, hmod, cosm)
 
       ! Returns the dimensionless multiplicity function: M^2n(M)/rho; n(M) = dn/dM sometimes
+      ! BUG: Should this be nu/6 here, since dsigma = d ln(sigma^2)/d ln(R) with sigma^2 !?
       REAL, INTENT(IN) :: m                  ! Halo mass [Msun/h]
       TYPE(halomod), INTENT(INOUT) :: hmod   ! Halo model
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
       REAL :: nu, dnu_dlnm, R
 
+      ERROR STOP 'MULTIPLICITY_FUNCTION: Check factor of 3 vs. 6 in nu/3 here. dln(sig) vs. dln(sig^2)?'
       IF(m == 0.) THEN
          multiplicity_function = 0.
       ELSE
          nu = nu_M(m, hmod, cosm)
          R = Lagrangian_radius(m, cosm)
-         dnu_dlnm = -(nu/3.)*dsigma(R, hmod%a, flag_matter, cosm)
+         dnu_dlnm = -(nu/3.)*dsigma(R, hmod%a, flag_matter, cosm) ! nu/3 vs nu/6 ?
          multiplicity_function = g_nu(nu, hmod)*dnu_dlnm
       END IF
 
