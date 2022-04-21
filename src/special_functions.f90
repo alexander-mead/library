@@ -47,6 +47,7 @@ MODULE special_functions
    PUBLIC :: smooth_apodise
    PUBLIC :: blob
    PUBLIC :: smooth_blob
+   PUBLIC :: sigmoid_exp
    PUBLIC :: sigmoid_tanh
    PUBLIC :: sigmoid_log
 
@@ -937,9 +938,19 @@ CONTAINS
 
    !!! Sigmoids and apodisation !!!
 
+   REAL FUNCTION sigmoid_exp(x)
+
+      ! Smoothly transitions from 0 to 1 around x=0; often sigma(x)
+      ! Note that 2*sigma(x)-1 = tanh(x/2)
+      REAL, INTENT(IN) :: x
+
+      sigmoid_exp = 1./(1.+exp(-x))
+
+   END FUNCTION sigmoid_exp
+
    REAL FUNCTION sigmoid_tanh(x)
 
-      ! A function that smoothly transitions from 0 to 1 around x=0
+      ! Smoothly transitions from 0 to 1 around x=0
       REAL, INTENT(IN) :: x
 
       sigmoid_tanh = 0.5*(1.+tanh(x))
@@ -950,9 +961,9 @@ CONTAINS
 
    REAL FUNCTION sigmoid_log(x, n)
 
-      ! A function that smoothly transitions from 0 to 1 around x=0
+      ! Smoothly transitions from 0 to 1 around x=0
       REAL, INTENT(IN) :: x
-      REAL, INTENT(IN) :: n
+      REAL, INTENT(IN) :: n ! Governs the strength of the transition
       REAL :: xp, xm
 
       xp = x**n; xm = x**(-n)
