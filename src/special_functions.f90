@@ -62,7 +62,8 @@ MODULE special_functions
    PUBLIC :: Bernoulli_distribution
    PUBLIC :: binomial_distribution
    PUBLIC :: negative_binomial_distribution
-   !PUBLIC :: multinomial_disitribuion
+   PUBLIC :: catagorical_distribution
+   PUBLIC :: multinomial_distribution
    PUBLIC :: geometric_distribution
    PUBLIC :: shifted_geometric_distribution
    PUBLIC :: hypergeometric_distribution
@@ -129,7 +130,7 @@ CONTAINS
 
    INTEGER FUNCTION triangle_number(n)
 
-      ! Calculates the nth triangle number
+      ! Calculates the n-th triangle number
       ! T(1) = 1, T(2) = 3, T(3) = 6, T(4) = 10, ..., T(n)=(1/2)*n*(n+1)
       INTEGER, INTENT(IN) :: n
 
@@ -164,7 +165,7 @@ CONTAINS
 
    INTEGER FUNCTION Fibonacci(n)
 
-      ! Returns the nth Fibonacci number
+      ! Returns the n-th Fibonacci number
       ! F(0)=0, F(1)=1, F(2)=1, F(3)=2, F(4)=3, ..., F(n)=F(n-1)+F(n-2)
       INTEGER, INTENT(IN) :: n
       INTEGER :: F(n)
@@ -208,7 +209,7 @@ CONTAINS
 
    INTEGER(int8) FUNCTION factorial(n)
 
-      ! Calculates the nth factorial number'
+      ! Calculates the n-th factorial number'
       ! Could we use the gamma function here: Gamma(n) = (n-1)! ?
       INTEGER, INTENT(IN) :: n
       INTEGER(int8) :: f8(n)
@@ -541,7 +542,7 @@ CONTAINS
 
    REAL FUNCTION Legendre_polynomial(n, x)
 
-      ! Returns the nth order Legendre polynomial: P_n(x)
+      ! Returns the n-th order Legendre polynomial: P_n(x)
       REAL, INTENT(IN) :: x
       INTEGER, INTENT(IN) :: n
 
@@ -563,7 +564,7 @@ CONTAINS
 
    REAL FUNCTION Lagrange_polynomial(x, xv, yv)
 
-      ! Computes the result of the nth order Lagrange polynomial at point x, L(x)
+      ! Computes the result of the n-th order Lagrange polynomial at point x, L(x)
       REAL, INTENT(IN) :: x
       REAL, INTENT(IN) :: xv(:)
       REAL, INTENT(IN) :: yv(:)
@@ -1096,7 +1097,7 @@ CONTAINS
 
    REAL FUNCTION uniform_integer_distribution(k, a, b)
 
-      ! Uniform probability of getting an integer between a, b (inclusive)
+      ! Uniform probability of getting each integer between a, b (inclusive)
       INTEGER, INTENT(IN) :: k    ! Value
       INTEGER, INTENT(IN) :: a, b ! Range of possible values
 
@@ -1110,8 +1111,9 @@ CONTAINS
 
    REAL FUNCTION Bernoulli_distribution(k, p)
 
-      ! One trial with probability of success: p
-      ! Special case of binomial with one trial
+      ! Number of successes in a Bernoulli process, either 0 or 1
+      ! Single trial with probability of success p
+      ! A special case of binomial with one trial
       INTEGER, INTENT(IN) :: k ! 0 or 1 only
       REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
 
@@ -1126,7 +1128,8 @@ CONTAINS
 
    REAL FUNCTION twopoint_distribution(k, a, b, p)
 
-      ! One trial with probability p of getting 'a' and otherwise 'b'
+      ! Single trial with probability p of getting 'a' and otherwise 'b'
+      ! If a=1 and b=0 this is the Bernoulli distribution
       INTEGER, INTENT(IN) :: k    ! Value
       INTEGER, INTENT(IN) :: a, b ! Possible values
       REAL, INTENT(IN) :: p       ! Probability of getting result 'a'
@@ -1159,10 +1162,10 @@ CONTAINS
 
    REAL FUNCTION negative_binomial_distribution(k, p, r)
 
-      ! Probability for the number of failures before the rth success in a binomial process
+      ! Probability for the number of failures before the r-th success in a binomial process
       INTEGER, INTENT(IN) :: k ! Must be 1 or greater (at least one trial needed for success)
       REAL, INTENT(IN) :: p    ! Must be between 0 and 1.
-      INTEGER, INTENT(IN) :: r ! rth success that we are interested in
+      INTEGER, INTENT(IN) :: r ! r-th success that we are interested in
 
       IF (1 <= k) THEN
          negative_binomial_distribution = binomial_coefficient(r+k-1, k)*(p**r)*(1.-p)**k
@@ -1171,15 +1174,6 @@ CONTAINS
       END IF
 
    END FUNCTION negative_binomial_distribution
-
-   ! REAL FUNCTION multinomial_distribution(k, ks, ps, n)
-
-   !    INTEGER, INTENT(IN) :: k     ! Total score
-   !    INTEGER, INTENT(IN) :: ks(:) ! Possible values for each multinomial trial
-   !    REAL, INTENT(IN) :: ps(:)    ! Probability of each value occurring
-   !    INTEGER, INTENT(IN) :: n     ! Number of trials
-
-   ! END FUNCTION multinomial_distribution
 
    REAL FUNCTION geometric_distribution(k, p)
 
@@ -1225,6 +1219,35 @@ CONTAINS
       hypergeometric_distribution = float(c1*c2/c3)
 
    END FUNCTION hypergeometric_distribution
+
+   REAL FUNCTION catagorical_distribution(k, ps)
+
+      ! A single trial that leads to a success in one of n catagories
+      INTEGER, INTENT(IN) :: k  ! Catagory in which the success occurs
+      REAL, INTENT(IN) :: ps(:) ! Probability of each catagory success (should sum to unity)
+
+      catagorical_distribution = ps(k)
+
+   END FUNCTION catagorical_distribution
+
+   REAL FUNCTION multinomial_distribution(ks, ps)
+
+      ! n independet trials each of which leads to a success in one of k catagories
+      ! Multinomial distribution is the probability of any particular combination of
+      ! numbers of successes for the various catagories
+      INTEGER, INTENT(IN) :: ks(:) ! Number of successes in each catagory (can be zero)
+      REAL, INTENT(IN) :: ps(:)    ! Probability of success in each catagory (should sum to unity)
+      REAL :: result
+      INTEGER :: i, n
+
+      n = sum(ks)
+      result = factorial(n)
+      DO i = 1, SIZE(ks)
+         result = result*ps(i)**ks(i)/factorial(ks(i))
+      END DO
+      multinomial_distribution = result
+
+   END FUNCTION multinomial_distribution
 
    REAL FUNCTION Poisson_distribution(n, nbar)
 
