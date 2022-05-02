@@ -62,7 +62,7 @@ MODULE special_functions
    PUBLIC :: Bernoulli_distribution
    PUBLIC :: binomial_distribution
    PUBLIC :: negative_binomial_distribution
-   PUBLIC :: catagorical_distribution
+   PUBLIC :: categorical_distribution
    PUBLIC :: multinomial_distribution
    PUBLIC :: geometric_distribution
    PUBLIC :: shifted_geometric_distribution
@@ -1220,30 +1220,31 @@ CONTAINS
 
    END FUNCTION hypergeometric_distribution
 
-   REAL FUNCTION catagorical_distribution(k, ps)
+   REAL FUNCTION categorical_distribution(k, p)
 
-      ! A single trial that leads to a success in one of n catagories
-      INTEGER, INTENT(IN) :: k  ! Catagory in which the success occurs
-      REAL, INTENT(IN) :: ps(:) ! Probability of each catagory success (should sum to unity)
+      ! A single trial that leads to a success in one of n categories
+      ! Also called the multinoulli or generalized Bernoulli distribution
+      INTEGER, INTENT(IN) :: k ! Category in which the success occurs (integer <= size(p))
+      REAL, INTENT(IN) :: p(:) ! Probability of each category success (should sum to unity)
 
-      catagorical_distribution = ps(k)
+      categorical_distribution = p(k)
 
-   END FUNCTION catagorical_distribution
+   END FUNCTION categorical_distribution
 
-   REAL FUNCTION multinomial_distribution(ks, ps)
+   REAL FUNCTION multinomial_distribution(k, p)
 
-      ! n independet trials each of which leads to a success in one of k catagories
+      ! n independet trials each of which leads to a success in one of k categories
       ! Multinomial distribution is the probability of any particular combination of
-      ! numbers of successes for the various catagories
-      INTEGER, INTENT(IN) :: ks(:) ! Number of successes in each catagory (can be zero)
-      REAL, INTENT(IN) :: ps(:)    ! Probability of success in each catagory (should sum to unity)
+      ! numbers of successes for the various categories
+      INTEGER, INTENT(IN) :: k(:) ! Number of successes in each category (can be zero)
+      REAL, INTENT(IN) :: p(:)    ! Probability of success in each category (should sum to unity)
       REAL :: result
       INTEGER :: i, n
 
-      n = sum(ks)
+      n = sum(k)
       result = factorial(n)
-      DO i = 1, SIZE(ks)
-         result = result*ps(i)**ks(i)/factorial(ks(i))
+      DO i = 1, size(k)
+         result = result*p(i)**k(i)/factorial(k(i))
       END DO
       multinomial_distribution = result
 

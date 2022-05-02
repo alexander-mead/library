@@ -17,6 +17,7 @@ MODULE random_numbers
    PUBLIC :: random_twopoint
    PUBLIC :: random_binomial
    PUBLIC :: random_negative_binomial
+   PUBLIC :: random_categorical
    PUBLIC :: random_multinomial
    PUBLIC :: random_geometric
    PUBLIC :: random_hypergeometric
@@ -249,44 +250,41 @@ CONTAINS
 
    END FUNCTION random_negative_binomial
 
-   INTEGER FUNCTION random_single_multinomial(k, p)
+   INTEGER FUNCTION random_categorical(p)
 
       ! Generates a random result from a single trial of a multinomial process
-      ! e.g., standard dice would have k(6) = 1, 2, ..., 6; p(6) = 1/6
-      INTEGER, INTENT(IN) :: k(:) ! Possible results for each trail
-      REAL, INTENT(IN) :: p(:)    ! Probability of each result (should sum to unity)
+      ! e.g., standard dice would have i = [1, 2, ..., 6]; p_i = 1/6
+      REAL, INTENT(IN) :: p(:) ! Probability of each result (should sum to unity)
       REAL :: prob, r
       INTEGER :: i, n
 
       r = random_unit()
       prob = 0.
-      n = size(k)
-      random_single_multinomial = k(n)
-      DO i = 1, n-1
+      DO i = 1, size(p)
          prob = prob+p(i)
          IF (r < prob) THEN
-            random_single_multinomial = k(i)
+            random_categorical = i ! Success occurred in catagory i
             EXIT
          END IF
       END DO
 
-   END FUNCTION random_single_multinomial
+   END FUNCTION random_categorical
 
-   INTEGER FUNCTION random_multinomial(k, p, n)
+   FUNCTION random_multinomial(p, n) RESULT(successes)
 
-      ! Generates a random number from a multinomial distribution with n trials, 
-      ! Each trial produces random k(:) with probability of success p(:)
+      ! Generates a random number of successes in each category from a multinomial distribution with n trials
+      ! Each trial produces one success in category i with probability of success p(i)
       ! TODO: Could have size(p) = size(k)-1 and last p fixed
-      INTEGER, INTENT(IN) :: k(:) ! Possible results for each trial
-      REAL, INTENT(IN) :: p(:)    ! Probability of each result (should sum to unity)
-      INTEGER, INTENT(IN) :: n    ! Number of trials
-      INTEGER :: sum, i
+      REAL, INTENT(IN) :: p(:) ! Probability of success for each result (should sum to unity)
+      INTEGER, INTENT(IN) :: n ! Number of trials
+      INTEGER :: successes(size(p))
+      INTEGER :: i, j
 
-      sum = 0
+      successes = 0
       DO i = 1, n
-         sum = sum+random_single_multinomial(k, p)
+         j = random_categorical(p)
+         successes(j) = successes(j)+1 
       END DO
-      random_multinomial = sum
 
    END FUNCTION random_multinomial
 
