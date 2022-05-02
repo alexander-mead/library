@@ -253,8 +253,9 @@ CONTAINS
    INTEGER FUNCTION random_categorical(p)
 
       ! Generates a random result from a single trial of a multinomial process
+      ! Result is the index of the category in which the 'success' occurred
       ! e.g., standard dice would have i = [1, 2, ..., 6]; p_i = 1/6
-      REAL, INTENT(IN) :: p(:) ! Probability of each result (should sum to unity)
+      REAL, INTENT(IN) :: p(:) ! Probability of success for each category (should sum to unity)
       REAL :: prob, r
       INTEGER :: i, n
 
@@ -275,15 +276,15 @@ CONTAINS
       ! Generates a random number of successes in each category from a multinomial distribution with n trials
       ! Each trial produces one success in category i with probability of success p(i)
       ! TODO: Could have size(p) = size(k)-1 and last p fixed
-      REAL, INTENT(IN) :: p(:) ! Probability of success for each result (should sum to unity)
+      REAL, INTENT(IN) :: p(:) ! Probability of success for each category (should sum to unity)
       INTEGER, INTENT(IN) :: n ! Number of trials
-      INTEGER :: successes(size(p))
+      INTEGER :: successes(size(p)) ! Result
       INTEGER :: i, j
 
       successes = 0
       DO i = 1, n
          j = random_categorical(p)
-         successes(j) = successes(j)+1 
+         CALL increment(successes(j), 1)
       END DO
 
    END FUNCTION random_multinomial
@@ -300,7 +301,7 @@ CONTAINS
          IF (r == 1) THEN
             EXIT ! Trial was a success, so exit
          ELSE
-            failures = failures+1 ! Add one failure
+            CALL increment(failures, 1)
          END IF
       END DO
       random_geometric = failures
@@ -337,11 +338,11 @@ CONTAINS
          prob_M = num_M/float(num_N+num_M)
          r = random_Bernoulli(prob_M)
          IF (r == 1) THEN
-            picked_M = picked_M+1
-            num_M = num_M-1
+            CALL increment(picked_M, 1)
+            CALL increment(num_M, -1)
          ELSE
-            picked_N = picked_N+1
-            num_N = num_N-1
+            CALL increment(picked_N, 1)
+            CALL increment(num_N, -1)
          END IF
       END DO
       random_hypergeometric = picked_M
@@ -363,7 +364,7 @@ CONTAINS
          IF (p < L) THEN
             EXIT
          ELSE
-            k = k+1
+            CALL increment(k, 1)
          END IF
       END DO
 
