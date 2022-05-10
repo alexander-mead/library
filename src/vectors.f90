@@ -12,6 +12,7 @@ MODULE vectors
    PUBLIC :: cross_product
    PUBLIC :: unit
    PUBLIC :: modulus
+   PUBLIC :: modulus_squared
    PUBLIC :: rotate_vector
    PUBLIC :: rotate_vector_fast
 
@@ -20,7 +21,7 @@ MODULE vectors
    PUBLIC :: determinant
    PUBLIC :: matrix_multiply
    PUBLIC :: matrix_vector
-   PUBLIC :: rotation
+   PUBLIC :: rotation_matrix
    PUBLIC :: symmetrize_matrix
    PUBLIC :: antisymmetrize_matrix
    PUBLIC :: write_matrix
@@ -71,7 +72,7 @@ CONTAINS
       INTEGER :: n
 
       n = size(A, 1)
-      IF (n /= size(A,2)) STOP 'DETERMINANT: Error, determinant only defined for square matrices'
+      IF (n /= size(A, 2)) STOP 'DETERMINANT: Error, determinant only defined for square matrices'
       IF (n == 1) THEN
          determinant = A(1, 1) ! NOTE: Can be negative, should not have abs
       ELSE IF (n == 2) THEN
@@ -94,7 +95,7 @@ CONTAINS
 
    REAL FUNCTION determinant_3(A)
 
-      ! TODO: Surely this can be much neater
+      ! TODO: Surely this can be neater
       REAL, INTENT(IN) :: A(3, 3)
       REAL :: B(2, 2), M
       INTEGER :: i
@@ -169,6 +170,16 @@ CONTAINS
 !!$
 !!$  END FUNCTION dot_product
 
+   REAL FUNCTION modulus_squared(x)
+
+      ! Returns the modulus of vector 'x'
+      REAL, INTENT(IN) :: x(:)
+
+      modulus_squared = dot_product(x, x)
+      !modulus_squared = sum(x**2)
+
+   END FUNCTION modulus_squared
+
    FUNCTION cross_product(x, y)
 
       ! Computes the cross produce of 3-vectors x and y
@@ -182,13 +193,13 @@ CONTAINS
 
    END FUNCTION cross_product
 
-   FUNCTION rotation(u, t)
+   FUNCTION rotation_matrix(u, t) RESULT(rotation)
 
       ! Creates a rotation matrix for rotation about vector 'u' by angle 't'
       ! u must be a unit vector
-      REAL :: rotation(3, 3)
       REAL, INTENT(IN) :: u(3)
       REAL, INTENT(IN) :: t
+      REAL :: rotation(3, 3)
       REAL :: s, c
 
       ! Pre-compute sine and cosine for speed
@@ -207,7 +218,7 @@ CONTAINS
       rotation(3, 2) = u(3)*u(2)*(1.-c)+u(1)*s
       rotation(3, 3) = c+(1.-c)*u(3)**2.
 
-   END FUNCTION rotation
+   END FUNCTION rotation_matrix
 
    FUNCTION matrix_multiply(A, B) result(C)
 
@@ -231,8 +242,6 @@ CONTAINS
             END DO
          END DO
       END DO
-
-      !matrix_multiply = C
 
    END FUNCTION matrix_multiply
 
@@ -290,13 +299,7 @@ CONTAINS
       REAL, INTENT(IN) :: theta
       REAL :: R(3, 3)
 
-      ! Get the rotation matrix
-      ! Infact, I think you do not need the whole matrix to do this
-      ! Look up Rodriguez Formula in case this is important
-      ! Probably it is faster
-      R = rotation(k, theta)
-
-      ! Perform the rotation
+      R = rotation_matrix(k, theta)
       rotate_vector = matrix_vector(R, v)
 
    END FUNCTION rotate_vector

@@ -1,5 +1,9 @@
 MODULE orbits
 
+   ! TODO: Shift everything to 3D
+   ! TODO: Add inclination and longitude of ascending node
+   ! TODO: Add eccentric and mean anomalies
+
    USE constants
    USE vectors
 
@@ -28,6 +32,8 @@ MODULE orbits
 
 CONTAINS
 
+   !!! Misc !!!
+
    REAL FUNCTION Kepler_period(a, M)
 
       ! Period of an orbit [yr]
@@ -50,6 +56,8 @@ CONTAINS
 !!$
 !!$  END FUNCTION radius_theta
 
+   !!! Calculate orbit properties from orbital elements !!!
+
    REAL FUNCTION orbit_radius(a, e, n)
 
       ! Calculate orbit x,y,z [au]
@@ -59,19 +67,19 @@ CONTAINS
       REAL :: l
 
       l = a*(1.-e**2) ! Semi-latus rectum
-
       orbit_radius = l/(1.+e*cos(n))
 
    END FUNCTION orbit_radius
 
-   FUNCTION orbit_position(a, e, n, w)
+   FUNCTION orbit_position(a, e, n, w) RESULT(position)
 
-      ! Orbit posititon x,y,z [au]
-      REAL :: orbit_position(3)
+      ! Planar orbit posititon x,y,z [au]
+      ! TODO: Generalise to 3D
       REAL, INTENT(IN) :: a ! Semi-major axis [au]
       REAL, INTENT(IN) :: e ! Eccentricity
       REAL, INTENT(IN) :: n ! True anomaly [rad]
       REAL, INTENT(IN) :: w ! Argument of periapsis [rad]
+      REAL :: position(3)
       REAL :: l, t
 
       IF (a < 0. .AND. e < 1.) STOP 'ORBIT_POSITION: Error, if a<0 then e>1 must be enforced'
@@ -80,21 +88,22 @@ CONTAINS
       t = n+w         ! Polar angle
       l = a*(1.-e**2) ! Semi-latus rectum
 
-      orbit_position(1) = cos(t)*orbit_radius(a, e, n)
-      orbit_position(2) = sin(t)*orbit_radius(a, e, n)
-      orbit_position(3) = 0.
+      position(1) = cos(t)*orbit_radius(a, e, n)
+      position(2) = sin(t)*orbit_radius(a, e, n)
+      position(3) = 0.
 
    END FUNCTION orbit_position
 
-   FUNCTION orbit_velocity(a, e, n, w, M)
+   FUNCTION orbit_velocity(a, e, n, w, M) RESULT(velocity)
 
-      ! Orbit velocity vx,vy,vz [2piau/yr]
-      REAL :: orbit_velocity(3)
+      ! Planar orbit velocity vx,vy,vz [2piau/yr]
+      ! TODO: Generalise to 3D
       REAL, INTENT(IN) :: a ! Semi-major axis [au]
       REAL, INTENT(IN) :: e ! Eccentricity
       REAL, INTENT(IN) :: n ! True anomaly [rad]
       REAL, INTENT(IN) :: w ! Argument of periapsis [rad]
       REAL, INTENT(IN) :: M ! Central mass [Msun]
+      REAL :: velocity(3)
       REAL :: t, l, h
 
       IF (a < 0. .AND. e < 1.) STOP 'ORBIT_VELOCITY: Error, if a<0 then e>1 must be enforced'
@@ -102,15 +111,19 @@ CONTAINS
 
       t = n+w               ! Polar angle
       l = a*(1.-e**2)       ! Semi-latus rectum
-      h = sqrt(G_orbit*M*l) ! Reduced angular momentum
+      h = sqrt(G_orbit*M*l) ! Reduced angular momentum modulus
 
-      orbit_velocity(1) = -sin(t)-e*(sin(t)*cos(n)-sin(n)*cos(t))
-      orbit_velocity(2) = cos(t)+e*(cos(t)*cos(n)+sin(t)*sin(n))
-      orbit_velocity(3) = 0.
+      velocity(1) = -sin(t)-e*(sin(t)*cos(n)-sin(n)*cos(t))
+      velocity(2) = cos(t)+e*(cos(t)*cos(n)+sin(t)*sin(n))
+      velocity(3) = 0.
 
-      orbit_velocity = orbit_velocity*h/l
+      velocity = velocity*h/l
 
    END FUNCTION orbit_velocity
+
+   !!! !!!
+
+   !!! Calculate orbital elements from position, velocity and mass !!!
 
    REAL FUNCTION reduced_energy(x, v, M)
 
@@ -124,7 +137,7 @@ CONTAINS
 
    END FUNCTION reduced_energy
 
-   REAL FUNCTION reduced_angular_momentum(x, v)
+   FUNCTION reduced_angular_momentum(x, v) RESULT(h)
 
       ! Conserved reduced angular momentum vector
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
@@ -132,21 +145,20 @@ CONTAINS
       REAL :: h(3)
 
       h = cross_product(x, v)
-      reduced_angular_momentum = modulus(h)
 
    END FUNCTION reduced_angular_momentum
 
-   FUNCTION Laplace_Runge_Lenz(x, v, M)
+   FUNCTION Laplace_Runge_Lenz(x, v, M) RESULT(LRL)
 
       ! Conserved Laplace-Runge-Lenz vector
-      REAL :: Laplace_Runge_Lenz(3)
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity [2piau/yr]
       REAL, INTENT(IN) :: M    ! Central mass [Msun]
+      REAL :: LRL(3)
       REAL :: h(3)
 
-      h = cross_product(x, v)
-      Laplace_Runge_Lenz = cross_product(v, h)/(G_orbit*M)-x/modulus(x)
+      h = reduced_angular_momentum(x, v)
+      LRL = cross_product(v, h)/(G_orbit*M)-x/modulus(x)
 
    END FUNCTION Laplace_Runge_Lenz
 
@@ -156,10 +168,10 @@ CONTAINS
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity []
       REAL, INTENT(IN) :: M    ! Central mass [Msun]
-      REAL :: h
+      REAL :: h(3)
 
       h = reduced_angular_momentum(x, v)
-      semi_latus_rectum = h**2/(G_orbit*M)
+      semi_latus_rectum = dot_product(h, h)/(G_orbit*M)
 
    END FUNCTION semi_latus_rectum
 
@@ -198,7 +210,6 @@ CONTAINS
       REAL :: e(3)
 
       e = Laplace_Runge_Lenz(x, v, M)
-
       eccentricity = modulus(e)
 
    END FUNCTION eccentricity
@@ -206,7 +217,7 @@ CONTAINS
    REAL FUNCTION polar_angle(x)
 
       ! Plane-polar orbit angle [rad]
-      ! Assumes orbit is in the x-y plane
+      ! TODO: Assumes orbit is in the x-y plane
       ! Gives result from 0 to 2pi
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
 
@@ -218,7 +229,7 @@ CONTAINS
    REAL FUNCTION true_anomaly(x, v, M)
 
       ! Orbital true anomaly [rad]
-      ! Assumes orbit is in the x-y plane
+      ! TODO: Assumes orbit is in the x-y plane
       ! Gives result from 0 to 2pi
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity [2piau/yr]
@@ -232,7 +243,7 @@ CONTAINS
    REAL FUNCTION argument_of_periapsis(x, v, M)
 
       ! Orbit argument of periapsis [rad]
-      ! Assumes orbit is in the x-y plane
+      ! TODO: Assumes orbit is in the x-y plane
       ! Gives result from 0 to 2pi
       REAL, INTENT(IN) :: x(3) ! Orbit position [au]
       REAL, INTENT(IN) :: v(3) ! Orbit velocity [2piau/yr]
@@ -240,10 +251,25 @@ CONTAINS
       REAL :: e(3)
 
       e = Laplace_Runge_Lenz(x, v, M)
-
-      argument_of_periapsis = atan2(e(2), e(1))
-      argument_of_periapsis = shift_angle_to_circle(argument_of_periapsis)
+      IF (modulus(e) == 0.) THEN
+         argument_of_periapsis = 0. ! Reference direction is then \hat{x}
+      ELSE
+         argument_of_periapsis = atan2(e(2), e(1))
+         argument_of_periapsis = shift_angle_to_circle(argument_of_periapsis)
+      END IF
 
    END FUNCTION argument_of_periapsis
+
+   REAL FUNCTION inclination(x, v)
+
+      REAL, INTENT(IN) :: x(3), v(3)
+      REAL :: h(3)
+
+      h = reduced_angular_momentum(x, v)
+      inclination = acos(dot_product(h, zhat))
+   
+   END FUNCTION inclination
+
+   !!! !!!
 
 END MODULE orbits
