@@ -8886,8 +8886,8 @@ CONTAINS
 
       ! Integrates between a and b until desired accuracy is reached
       ! Stores information to reduce function calls
-      REAL, INTENT(IN) :: a ! Integration lower limit for first arguement in 'f'
-      REAL, INTENT(IN) :: b ! Integration upper limit for first arguement in 'f'
+      REAL, INTENT(IN) :: a ! Integration lower limit for first argument in 'f'
+      REAL, INTENT(IN) :: b ! Integration upper limit for first argument in 'f'
       REAL, EXTERNAL :: f
       REAL, INTENT(IN) :: y ! Second argument in 'f'
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
