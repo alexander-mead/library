@@ -585,25 +585,25 @@ MODULE HMx
    REAL, PARAMETER :: eps_PBS = 1e-3         ! Values about nu to take for numerical derivative
 
    ! Non-linear halo bias
-   INTEGER, PARAMETER :: bnl_method_a = 1           ! Assign B_NL based on scale factor
-   INTEGER, PARAMETER :: bnl_method_sig8 = 2        ! Assign B_NL based on sigma_8
-   INTEGER, PARAMETER :: bnl_method_rescale = 3     ! Assign B_NL based on AW10 rescaling
-   INTEGER, PARAMETER :: bnl_method = bnl_method_rescale  ! Choose method to assign the Multidark measured B_NL
-   LOGICAL, PARAMETER :: fixed_bnl = .FALSE.        ! Is the non-linear bias correction taken at fixed z = 0?
-   LOGICAL, PARAMETER :: add_I_11 = .TRUE.          ! Add integral below numin, numin in halo model calculation
-   LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE. ! Add integral below numin in halo model calculation
-   REAL, PARAMETER :: kmin_bnl = 8e-2               ! Below this wavenumber force B_NL to zero
-   REAL, PARAMETER :: numin_bnl = 0.                ! Below this halo mass force  B_NL to zero
-   REAL, PARAMETER :: numax_bnl = 10.               ! Above this halo mass force  B_NL to zero
-   LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.    ! Attempt to manually include damping from halo exclusion
-   LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.  ! Force a minimum value for B_NL
-   REAL, PARAMETER :: min_bnl = -1.                 ! Minimum value for B_NL (could be below -1; cross spectra can be negative)
-   INTEGER, PARAMETER :: iorder_bnl = 1             ! 1 - Linear interpolation
-   INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin  ! Linear extrapolation
-   LOGICAL, PARAMETER :: store_bnl = .FALSE.        ! Storage interpolator mode?
-   REAL, PARAMETER :: bnl_rescale_R1 = 1.           ! Minimum R for rescaling [Mpc/h]
-   REAL, PARAMETER :: bnl_rescale_R2 = 10.          ! Maximum R for rescaling [Mpc/h]
-   INTEGER, PARAMETER :: icos_bnl_rescale = 37      ! 37 - Multidark
+   INTEGER, PARAMETER :: bnl_method_a = 1                ! Assign B_NL based on scale factor
+   INTEGER, PARAMETER :: bnl_method_sig8 = 2             ! Assign B_NL based on sigma_8
+   INTEGER, PARAMETER :: bnl_method_rescale = 3          ! Assign B_NL based on AW10 rescaling
+   INTEGER, PARAMETER :: bnl_method = bnl_method_rescale ! Choose method to assign the Multidark measured B_NL
+   LOGICAL, PARAMETER :: fixed_bnl = .FALSE.             ! Is the non-linear bias correction taken at fixed z = 0?
+   LOGICAL, PARAMETER :: add_I_11 = .TRUE.               ! Add integral below numin, numin in halo model calculation
+   LOGICAL, PARAMETER :: add_I_12_and_I_21 = .TRUE.      ! Add integral below numin in halo model calculation
+   REAL, PARAMETER :: kmin_bnl = 8e-2                    ! Below this wavenumber force B_NL to zero
+   REAL, PARAMETER :: numin_bnl = 0.                     ! Below this halo mass force  B_NL to zero
+   REAL, PARAMETER :: numax_bnl = 10.                    ! Above this halo mass force  B_NL to zero
+   LOGICAL, PARAMETER :: exclusion_bnl = .FALSE.         ! Attempt to manually include damping from halo exclusion
+   LOGICAL, PARAMETER :: fix_minimum_bnl = .FALSE.       ! Force a minimum value for B_NL
+   REAL, PARAMETER :: min_bnl = -1.                      ! Minimum value for B_NL (could be below -1; cross spectra can be negative)
+   INTEGER, PARAMETER :: iorder_bnl = 1                  ! 1 - Linear interpolation
+   INTEGER, PARAMETER :: iextrap_bnl = iextrap_lin       ! Linear extrapolation
+   LOGICAL, PARAMETER :: store_bnl = .FALSE.             ! Storage interpolator mode?
+   REAL, PARAMETER :: bnl_rescale_R1 = 1.                ! Minimum R for rescaling [Mpc/h]
+   REAL, PARAMETER :: bnl_rescale_R2 = 10.               ! Maximum R for rescaling [Mpc/h]
+   INTEGER, PARAMETER :: icos_bnl_rescale = 37           ! 37 - Multidark
 
    ! HALOFIT (can be used as two-halo term)
    INTEGER, PARAMETER :: HALOFIT_twohalo = HALOFIT_Takahashi
@@ -2144,6 +2144,7 @@ CONTAINS
          ! 123 - Extended mass range
          ! 124 - Baryon response model and extended mass range
          ! 125 - Unfitted with extended mass range
+         !hmod%ks = 0.0561778 ! TODO: This fixes the low-k problem with the HMcode-2020 baryon feedback models
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
