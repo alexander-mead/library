@@ -979,6 +979,8 @@ CONTAINS
       names(138) = 'Diemer & Joyce (2019) concentration-mass relation'
       names(139) = 'Seljak (2000) concentration-mass relation'
       names(140) = 'HMx with non-linear halo bias'
+      names(141) = 'HMcode (2020) baryon model with low-k fix'
+      names(142) = 'HMcode (2020) unfitted with low-k fix'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2133,7 +2135,7 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = iDv_Mead
-      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 123, 124, 125])) THEN
+      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 123, 124, 125, 141, 142])) THEN
          ! HMcode (2020)
          !  77 - Unfitted
          !  78 - Fitted to Cosmic Emu for k<1
@@ -2144,7 +2146,8 @@ CONTAINS
          ! 123 - Extended mass range
          ! 124 - Baryon response model and extended mass range
          ! 125 - Unfitted with extended mass range
-         !hmod%ks = 0.0561778 ! TODO: This fixes the low-k problem with the HMcode-2020 baryon feedback models
+         ! 141 - Baryon model with low-k fix
+         ! 142 - Unfitted with low-k fix
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
@@ -2192,7 +2195,7 @@ CONTAINS
             hmod%As = 5.1958429
          END IF
          IF (ihm == 102) THEN
-            ! 102 - HMcode baryon recipe
+            ! 102 - HMcode baryon recipe numerator
             hmod%DMONLY_baryon_recipe = .TRUE.
             hmod%As = 3.08320
             hmod%mbar = 10**13.61510
@@ -2205,9 +2208,10 @@ CONTAINS
             hmod%sbar_T = -0.0050202
             hmod%sbarz_T = -0.12670
          END IF
-         IF (ihm == 103 .OR. ihm == 124) THEN
+         IF (ihm == 103 .OR. ihm == 124 .OR. ihm == 141) THEN
             ! 103 - HMcode response baryon recipe
             ! 124 - As above but with extended mass range
+            ! 141 - HMcode response baryon recipe with low-k fix
             hmod%DMONLY_baryon_recipe = .TRUE.
             IF (ihm == 103) THEN
                hmod%response_baseline = HMcode2020
@@ -2215,6 +2219,9 @@ CONTAINS
             ELSE IF (ihm == 124) THEN
                hmod%response_baseline = HMcode2020_CAMB
                hmod%response_denominator = 125
+            ELSE IF (ihm == 141) THEN
+               hmod%response_baseline = HMcode2020
+               hmod%response_denominator = 142
             ELSE
                ERROR STOP 'Something went wrong'
             END IF
@@ -2230,6 +2237,7 @@ CONTAINS
             hmod%mbar_T = 1.81
             hmod%mbarz = -0.108
             hmod%mbarz_T = 0.195
+            IF (ihm == 141) hmod%ks = 0.0561778
          END IF
          IF (ihm == 104) THEN
             ! 104 - HMx response baryon model
@@ -2248,6 +2256,9 @@ CONTAINS
             hmod%Astar = 0.0231
             hmod%M0z = -0.254
             hmod%Astarz = 1.076
+         ELSE IF (ihm == 142) THEN
+            ! 142 - Uniftted but with low-k fix
+            hmod%ks = 0.0561778
          END IF
       ELSE IF (ihm == 80) THEN
          ! Jenkins mass function (defined for FoF 0.2 haloes)
