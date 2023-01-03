@@ -981,6 +981,7 @@ CONTAINS
       names(140) = 'HMx with non-linear halo bias'
       names(141) = 'HMcode (2020) baryon model with low-k fix'
       names(142) = 'HMcode (2020) unfitted with low-k fix'
+      names(143) = 'HMcode (2020) baryon model without response'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2135,7 +2136,7 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = iDv_Mead
-      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 123, 124, 125, 141, 142])) THEN
+      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 123, 124, 125, 141, 142, 143])) THEN
          ! HMcode (2020)
          !  77 - Unfitted
          !  78 - Fitted to Cosmic Emu for k<1
@@ -2148,6 +2149,7 @@ CONTAINS
          ! 125 - Unfitted with extended mass range
          ! 141 - Baryon model with low-k fix
          ! 142 - Unfitted with low-k fix
+         ! 143 - Bayon model without response
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
@@ -2208,10 +2210,12 @@ CONTAINS
             hmod%sbar_T = -0.0050202
             hmod%sbarz_T = -0.12670
          END IF
-         IF (ihm == 103 .OR. ihm == 124 .OR. ihm == 141) THEN
+         !IF (ihm == 103 .OR. ihm == 124 .OR. ihm == 141) THEN
+         IF (is_in_array(ihm, [103, 124, 141, 143])) THEN
             ! 103 - HMcode response baryon recipe
             ! 124 - As above but with extended mass range
             ! 141 - HMcode response baryon recipe with low-k fix
+            ! 143 - HMcode-2020 without response
             hmod%DMONLY_baryon_recipe = .TRUE.
             IF (ihm == 103) THEN
                hmod%response_baseline = HMcode2020
@@ -2222,8 +2226,6 @@ CONTAINS
             ELSE IF (ihm == 141) THEN
                hmod%response_baseline = HMcode2020
                hmod%response_denominator = 142
-            ELSE
-               ERROR STOP 'Something went wrong'
             END IF
             hmod%As = 3.44
             hmod%As_T = -0.496
@@ -4670,7 +4672,7 @@ CONTAINS
             ERROR STOP 'P_1H: i1hdamp not specified correctly'
          END IF
 
-         ! Renormalise the one-halo term if that is desirous
+         ! Renormalise the one-halo term if that is desired
          IF(hmod%DMONLY_baryon_recipe .AND. renormalise_onehalo) THEN
             p_1h = p_1h*hmod%Rh/hmod%Rhh
          END IF
