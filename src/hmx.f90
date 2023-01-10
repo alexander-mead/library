@@ -2172,7 +2172,7 @@ CONTAINS
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
          !hmod%safe_negative = .TRUE. ! Reduce full power to standard sum if one- or two-halo term is negative
-         IF (is_in_array(ihm, [123, 124, 125, 145])) THEN
+         IF (is_in_array(ihm, [123, 124, 125, 144, 145])) THEN
             ! CAMB mass ranges
             hmod%mmin = 1e0  ! Reduced lower-mass limit
             hmod%mmax = 1e18 ! Increased upper-mass limit
