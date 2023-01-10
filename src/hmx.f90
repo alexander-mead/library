@@ -109,6 +109,8 @@ MODULE HMx
    PUBLIC :: HMcode2020_CAMB
    PUBLIC :: HMcode2020_feedback
    PUBLIC :: HMcode2020_feedback_CAMB
+   PUBLIC :: HMcode2020_feedback_lowkfix
+   PUBLIC :: HMcode2020_feedback_CAMB_lowkfix
 
    ! HMx versions
    PUBLIC :: HMx2020_matter_w_temp_scaling
@@ -815,6 +817,8 @@ MODULE HMx
    INTEGER, PARAMETER :: HMcode2020_CAMB = 123
    INTEGER, PARAMETER :: HMcode2020_feedback = 103
    INTEGER, PARAMETER :: HMcode2020_feedback_CAMB = 124
+   INTEGER, PARAMETER :: HMcode2020_feedback_lowkfix = 141
+   INTEGER, PARAMETER :: HMcode2020_feedback_CAMB_lowkfix = 144
 
    ! HMx versions
    INTEGER, PARAMETER :: HMx2020_matter_w_temp_scaling = 60
@@ -982,6 +986,8 @@ CONTAINS
       names(141) = 'HMcode (2020) baryon model with low-k fix'
       names(142) = 'HMcode (2020) unfitted with low-k fix'
       names(143) = 'HMcode (2020) baryon model without response'
+      names(144) = 'HMcode (2020) baryon model with low-k fix and extended mass range'
+      names(145) = 'HMcode (2020) unfitted with extended mass range and lowk fix'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2136,7 +2142,7 @@ CONTAINS
       ELSE IF (ihm == 76) THEN
          ! Standard but with Dv from Mead (2017) fit
          hmod%iDv = iDv_Mead
-      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 123, 124, 125, 141, 142, 143])) THEN
+      ELSE IF (is_in_array(ihm, [77, 78, 79, 102, 103, 104, 123, 124, 125, 141, 142, 143, 144, 145])) THEN
          ! HMcode (2020)
          !  77 - Unfitted
          !  78 - Fitted to Cosmic Emu for k<1
@@ -2150,6 +2156,8 @@ CONTAINS
          ! 141 - Baryon model with low-k fix
          ! 142 - Unfitted with low-k fix
          ! 143 - Bayon model without response
+         ! 144 - Low-k fix and extended mass range
+         ! 145 - Unfitted with extended mass range and low-k fix
          hmod%ip2h = 3    ! 3 - Linear two-halo term with damped wiggles
          hmod%i1hdamp = 3 ! 3 - k^4 at large scales for one-halo term
          hmod%itrans = 1  ! 1 - HMcode alpha-neff smoothing
@@ -2164,7 +2172,8 @@ CONTAINS
          hmod%flag_sigma = flag_ucold ! Cold un-normalised produces better massive-neutrino results
          hmod%DMONLY_neutrino_halo_mass_correction = .TRUE. ! Correct haloes for missing neutrino mass
          !hmod%safe_negative = .TRUE. ! Reduce full power to standard sum if one- or two-halo term is negative
-         IF (ihm == 123 .OR. ihm == 124 .OR. ihm == 125) THEN
+         IF (is_in_array(ihm, [123, 124, 125, 145])) THEN
+            ! CAMB mass ranges
             hmod%mmin = 1e0  ! Reduced lower-mass limit
             hmod%mmax = 1e18 ! Increased upper-mass limit
             hmod%n = 257     ! Increase number of points in mass
@@ -2210,12 +2219,12 @@ CONTAINS
             hmod%sbar_T = -0.0050202
             hmod%sbarz_T = -0.12670
          END IF
-         !IF (ihm == 103 .OR. ihm == 124 .OR. ihm == 141) THEN
-         IF (is_in_array(ihm, [103, 124, 141, 143])) THEN
+         IF (is_in_array(ihm, [103, 124, 141, 143, 144])) THEN
             ! 103 - HMcode response baryon recipe
             ! 124 - As above but with extended mass range
-            ! 141 - HMcode response baryon recipe with low-k fix
+            ! 141 - HMcode-2020 response baryon recipe with low-k fix
             ! 143 - HMcode-2020 without response
+            ! 144 - HMcode-2020 response  baryon recipe with low-k fix and extended mass range
             hmod%DMONLY_baryon_recipe = .TRUE.
             IF (ihm == 103) THEN
                hmod%response_baseline = HMcode2020
@@ -2226,6 +2235,9 @@ CONTAINS
             ELSE IF (ihm == 141) THEN
                hmod%response_baseline = HMcode2020
                hmod%response_denominator = 142
+            ELSE IF (ihm == 144) THEN
+               hmod%response_baseline = HMcode2020_CAMB
+               hmod%response_denominator = 145
             END IF
             hmod%As = 3.44
             hmod%As_T = -0.496
@@ -2239,7 +2251,7 @@ CONTAINS
             hmod%mbar_T = 1.81
             hmod%mbarz = -0.108
             hmod%mbarz_T = 0.195
-            IF (ihm == 141) hmod%ks = 0.0561778
+            IF (is_in_array(ihm, [141, 144])) hmod%ks = 0.0561778
          END IF
          IF (ihm == 104) THEN
             ! 104 - HMx response baryon model
@@ -2258,8 +2270,9 @@ CONTAINS
             hmod%Astar = 0.0231
             hmod%M0z = -0.254
             hmod%Astarz = 1.076
-         ELSE IF (ihm == 142) THEN
+         ELSE IF (is_in_array(ihm, [142, 145])) THEN
             ! 142 - Uniftted but with low-k fix
+            ! 145 - Unfitted but with low-k fix and extended mass range
             hmod%ks = 0.0561778
          END IF
       ELSE IF (ihm == 80) THEN
@@ -3514,7 +3527,9 @@ CONTAINS
          HMcode2020, &
          HMcode2020_CAMB, &
          HMcode2020_feedback, &
-         HMcode2020_feedback_CAMB &
+         HMcode2020_feedback_CAMB, &
+         HMcode2020_feedback_lowkfix, &
+         HMcode2020_feedback_CAMB_lowkfix &
          ])) THEN
             is_HMcode = .TRUE.
          ELSE
