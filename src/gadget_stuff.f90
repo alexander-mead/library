@@ -217,7 +217,7 @@ CONTAINS
       INTEGER :: i
       LOGICAL :: lexist
 
-      STOP 'READ_CATALOGUE: need to change this for single/double precision'
+      !STOP 'READ_CATALOGUE: need to change this for single/double precision'
 
       WRITE (*, *) 'READ_CATALOGUE: Reading in catalogue: ', trim(infile)
       INQUIRE (file=infile, exist=lexist)
@@ -261,24 +261,23 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN) :: outfile
       INTEGER :: i, n
 
-      STOP 'WRITE_CATALOGUE: Need to change this for single/double precision'
-      STOP 'WRITE_CATALOGUE: Add checks that sizes of catalogue entries are all the same size'
+      !STOP 'WRITE_CATALOGUE: Need to change this for single/double precision'
+      !STOP 'WRITE_CATALOGUE: Add checks that sizes of catalogue entries are all the same size'
 
-      IF(size(x,1) /= 3 .OR. size(v,1) /= 3 ) STOP 'WRITE_CATALOGUE: Error, input x, v arrays should be 3D'
-      n = size(x,2)
-      IF (n /= size(x,2) .OR. n /= size(v,2)) THEN
-         STOP 'WRITE_CATALOGUE: Error, x, v, id do not have the same number of entries'
-      END IF
+      ! IF(size(x, 1) /= 3 .OR. size(v, 1) /= 3 ) STOP 'WRITE_CATALOGUE: Error, input x, v arrays should be 3D'
+      ! n = size(x, 2)
+      ! IF (n /= size(x, 2) .OR. n /= size(v, 2)) THEN
+      !    STOP 'WRITE_CATALOGUE: Error, x, v, id do not have the same number of entries'
+      ! END IF
+      n = size(m)
 
-      WRITE (*, *) 'WRITE_CATALOGUE: Outputting catalogue'
-
+      WRITE (*, *) 'WRITE_CATALOGUE: Outputting catalogue: ', trim(outfile)
       OPEN (7, file=outfile)
       DO i = 1, n
          WRITE (7, *) x(1, i), x(2, i), x(3, i), v(1, i), v(2, i), v(3, i), &
             m(i), npart(i), disp(i), c(i), env(i), Dv(i), rmax(i), avg_r(i), rms_r(i)
       END DO
       CLOSE (7)
-
       WRITE (*, *) 'WRITE_CATALOGUE: Finished writing catalogue file'
       WRITE (*, *)
 
