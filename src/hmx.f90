@@ -642,7 +642,7 @@ MODULE HMx
    INTEGER, PARAMETER :: irho_iso = 1           ! Isothermal
    INTEGER, PARAMETER :: irho_tophat = 2        ! Spherical top hat
    INTEGER, PARAMETER :: irho_M99 = 3           ! Moore et al. (1999; ) matter density
-   INTEGER, PARAMETER :: irho_Hernquest = 4     ! Hernquist (????; ) matter density
+   INTEGER, PARAMETER :: irho_Hernquest = 4     ! Hernquist (1990; ) matter density
    INTEGER, PARAMETER :: irho_NFW = 5           ! Navarro, Frenk & White (1997; NFW; ) matter density
    INTEGER, PARAMETER :: irho_beta = 6          ! Cored isothermal beta profile
    INTEGER, PARAMETER :: irho_star_F14 = 7      ! Star density from Fedeli (2014; )
