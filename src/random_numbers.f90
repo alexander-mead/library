@@ -257,7 +257,7 @@ CONTAINS
       ! e.g., standard dice would have i = [1, 2, ..., 6]; p_i = 1/6
       REAL, INTENT(IN) :: p(:) ! Probability of success for each category (should sum to unity)
       REAL :: prob, r
-      INTEGER :: i, n
+      INTEGER :: i
 
       r = random_unit()
       prob = 0.
