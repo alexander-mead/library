@@ -123,7 +123,7 @@ CONTAINS
       ALLOCATE(x(3, n))
       x = x_in
       DEALLOCATE(x_in)
-      
+
       ! Convert precision
       ALLOCATE(v(3, n))
       v = v_in
@@ -201,9 +201,9 @@ CONTAINS
    SUBROUTINE read_catalogue(x, v, m, npart, disp, c, env, Dv, rmax, avg_r, rms_r, n, infile)
 
       USE file_info
-      REAL(sp), ALLOCATABLE, INTENT(OUT) :: x(:, :)
-      REAL(sp), ALLOCATABLE, INTENT(OUT) :: v(:, :)
-      REAL(sp), ALLOCATABLE, INTENT(OUT) :: m(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: v(:, :)
+      REAL, ALLOCATABLE, INTENT(OUT) :: m(:)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: npart(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: disp(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: c(:)
