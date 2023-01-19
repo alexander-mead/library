@@ -74,6 +74,7 @@ _OBJ = \
 	root_finding.o \
 	statistics.o \
 	minimization.o \
+	tipsy_stuff.o \
 	gadget_stuff.o \
 	camb_stuff.o \
 	multidark_stuff.o \
