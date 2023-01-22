@@ -1844,10 +1844,9 @@ CONTAINS
 
    END FUNCTION shot_noise_k
 
-   !SUBROUTINE adaptive_density(xc,yc,Lsub,z1,z2,m,r,x,w,n,L,nbar,outfile)
    SUBROUTINE write_adaptive_field(xc, yc, Lsub, z1, z2, m, r, x, w, n, L, outfile)
 
-      ! Makes a pretty picture of a density field but uses adaptive meshes to make it nice
+      ! Makes a pretty picture of a density field using adaptive meshes to make it nice
       USE string_operations
       REAL, INTENT(IN) :: xc, yc ! Coordinates of image centre [Mpc/h]
       REAL, INTENT(IN) :: Lsub ! Size of image [Mpc/h]
