@@ -211,7 +211,7 @@ MODULE minimization
 
    END SUBROUTINE Nelder_Mead
 
-   FUNCTION Nelder_Mead_centroid(x) result(centroid)
+   FUNCTION Nelder_Mead_centroid(x) RESULT(centroid)
 
       ! Calculate the centroid of all points except the worst point, which is n+1
       ! x Should be x(n+1, n)
@@ -259,7 +259,7 @@ MODULE minimization
       CALL index(f, j, isort)
       CALL reindex(f, j)
       DO i = 1, n
-         CALL reindex(x(:,i), j)
+         CALL reindex(x(:, i), j)
       END DO
 
    END SUBROUTINE Nelder_Mead_sort
