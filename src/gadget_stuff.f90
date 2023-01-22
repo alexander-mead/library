@@ -217,8 +217,6 @@ CONTAINS
       INTEGER :: i
       LOGICAL :: lexist
 
-      !STOP 'READ_CATALOGUE: need to change this for single/double precision'
-
       WRITE (*, *) 'READ_CATALOGUE: Reading in catalogue: ', trim(infile)
       INQUIRE (file=infile, exist=lexist)
       IF (.NOT. lexist) STOP 'READ_CATALOGUE: Error, input file does not exist'
@@ -234,12 +232,12 @@ CONTAINS
       END DO
       CLOSE (7)
 
-      WRITE (*, *) 'READ_CATALOGUE: Min x [Mpc/h]    :', minval(x)
-      WRITE (*, *) 'READ_CATALOGUE: Max x [Mpc/h]    :', maxval(x)
-      WRITE (*, *) 'READ_CATALOGUE: Min v [km/s]     :', minval(v)
-      WRITE (*, *) 'READ_CATALOGUE: Max v [km/s]     :', maxval(v)
-      WRITE (*, *) 'READ_CATALOGUE: Min mass [Msun/h]:', minval(m)
-      WRITE (*, *) 'READ_CATALOGUE: Max mass [Msun/h]:', maxval(m)
+      WRITE (*, *) 'READ_CATALOGUE: Min x [Mpc/h]:', minval(x)
+      WRITE (*, *) 'READ_CATALOGUE: Max x [Mpc/h]:', maxval(x)
+      WRITE (*, *) 'READ_CATALOGUE: Min v [km/s]:', minval(v)
+      WRITE (*, *) 'READ_CATALOGUE: Max v [km/s]:', maxval(v)
+      WRITE (*, *) 'READ_CATALOGUE: Min mass [log10(Msun/h)]:', log10(minval(m))
+      WRITE (*, *) 'READ_CATALOGUE: Max mass [log10(Msun/h)]:', log10(maxval(m))
       WRITE (*, *) 'READ_CATALOGUE: Finished reading catalogue file'
       WRITE (*, *)
 
