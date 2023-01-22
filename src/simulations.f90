@@ -2210,18 +2210,22 @@ CONTAINS
 
    END SUBROUTINE write_adaptive_field
 
-   SUBROUTINE make_HOD(xh, nph, rv, rs, irho, L, x, np)
+   SUBROUTINE make_HOD(xh, vh, nph, rv, rs, irho, L, x, v, id, np)
 
       ! Make an HOD realisation
       ! TODO: Could speed up for NFW by not regenerating the iversion/interpolation halo unless rv, rs change
-      REAL, ALLOCATABLE, INTENT(IN) :: xh(:, :) ! Halo position array [Mpc/h]
-      INTEGER, INTENT(IN) :: nph(:)             ! Number of particles in each halo
-      REAL, INTENT(IN) :: rv(:)                 ! Halo virial radii [Mpc/h]
-      REAL, INTENT(IN) :: rs(:)                 ! Halo scale radii [Mpc/h]
-      INTEGER, INTENT(IN) :: irho               ! Halo profile specifier
-      REAL, INTENT(IN) :: L                     ! Simulation box size [Mpc/h]
-      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :) ! HOD particle position array [Mpc/h]
-      INTEGER, INTENT(OUT) :: np                ! Total number of HOD particles generated  
+      ! TODO: Could add halo particle virial velocities
+      REAL, ALLOCATABLE, INTENT(IN) :: xh(:, :)  ! Halo position array [Mpc/h]
+      REAL, ALLOCATABLE, INTENT(IN) :: vh(:, :)  ! Halo velocity array [km/s]
+      INTEGER, INTENT(IN) :: nph(:)              ! Number of particles in each halo
+      REAL, INTENT(IN) :: rv(:)                  ! Halo virial radii [Mpc/h]
+      REAL, INTENT(IN) :: rs(:)                  ! Halo scale radii [Mpc/h]
+      INTEGER, INTENT(IN) :: irho                ! Halo profile specifier
+      REAL, INTENT(IN) :: L                      ! Simulation box size [Mpc/h]
+      REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)  ! HOD particle position array [Mpc/h]
+      REAL, ALLOCATABLE, INTENT(OUT) :: v(:, :)  ! HOD particle velocity array [Mpc/h]
+      INTEGER, ALLOCATABLE, INTENT(OUT) :: id(:) ! Particle IDs (contain halo ID)
+      INTEGER, INTENT(OUT) :: np                 ! Total number of HOD particles generated  
       INTEGER :: i, j, k
       INTEGER :: nh
       REAL, ALLOCATABLE :: xi(:, :)
@@ -2233,17 +2237,19 @@ CONTAINS
 
       ! Calculate total number of particles to generate
       np = SUM(nph)
-      ALLOCATE (x(3, np))
+      ALLOCATE (x(3, np), v(3, np), id(np))
 
       ! Generate the particles
-      k = 0
+      k = 0 ! Total particle counter
       DO i = 1, nh
          IF (nph(i) > 0) THEN
             ALLOCATE(xi(3, nph(i)))
             CALL random_halo_particles(xi, rv(i), rs(i), irho)
-            DO j = 1, nph(i)
-               k = k + 1
+            DO j = 1, nph(i) ! Loop over halo particles
+               k = k+1 ! Incriment total particle counter
                x(:, k) = xh(:, i)+xi(:, j)
+               v(:, k) = vh(:, i)
+               id(k) = i
             END DO
             DEALLOCATE(xi)
          END IF
