@@ -64,6 +64,7 @@ MODULE array_operations
       MODULE PROCEDURE reverse_array_1D
       MODULE PROCEDURE reverse_array_2D
       MODULE PROCEDURE reverse_array_3D
+      MODULE PROCEDURE reverse_array_int_1D
    END INTERFACE reverse_array
 
    INTERFACE splay
@@ -719,14 +720,27 @@ CONTAINS
       REAL, ALLOCATABLE :: hold(:)
 
       n = size(a)
-
       hold = a
-
       DO i = 1, n
          a(i) = hold(n-i+1)
       END DO
 
    END SUBROUTINE reverse_array_1D
+
+   SUBROUTINE reverse_array_int_1D(a)
+
+      ! Reverses the contents of array
+      INTEGER, INTENT(INOUT) :: a(:)
+      INTEGER :: i, n
+      INTEGER, ALLOCATABLE :: hold(:)
+
+      n = size(a)
+      hold = a
+      DO i = 1, n
+         a(i) = hold(n-i+1)
+      END DO
+
+   END SUBROUTINE reverse_array_int_1D
 
    SUBROUTINE reverse_array_2D(a, dim)
 
