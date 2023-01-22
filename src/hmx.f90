@@ -54,6 +54,7 @@ MODULE HMx
    PUBLIC :: g_nu
    PUBLIC :: nu_M
    PUBLIC :: virial_radius
+   PUBLIC :: concentration
    PUBLIC :: convert_mass_definitions
    PUBLIC :: win
    PUBLIC :: UPP              ! TODO: Retire
@@ -6776,6 +6777,18 @@ CONTAINS
       virial_radius = cbrt(3.*m/(4.*pi*comoving_matter_density(cosm)*Delta_v(m, hmod, cosm)))
 
    END FUNCTION virial_radius
+
+   REAL FUNCTION concentration(m, hmod)
+
+      REAL, INTENT(IN) :: m
+      TYPE(halomod), INTENT(INOUT) :: hmod
+      INTEGER, PARAMETER :: iorder = 3
+      INTEGER, PARAMETER :: ifind = ifind_split
+      INTEGER, PARAMETER :: iinterp = iinterp_Lagrange
+
+      concentration = find(log(m), hmod%log_m, hmod%c, hmod%n, iorder, ifind, iinterp)
+
+   END FUNCTION concentration
 
    REAL FUNCTION effective_index(flag_sigma, hmod, cosm)
 
