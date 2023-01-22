@@ -1,5 +1,11 @@
 MODULE tipsy_stuff
 
+   IMPLICIT NONE
+
+   PRIVATE
+
+   PUBLIC :: read_tipsy
+
    CONTAINS
 
    SUBROUTINE read_tipsy(filename, x, v, m, n, a)
