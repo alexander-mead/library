@@ -260,7 +260,7 @@ CONTAINS
       INTEGER :: i
 
       r = random_unit()
-      prob = 0.
+      prob = 0.; random_categorical = 0
       DO i = 1, size(p)
          prob = prob+p(i)
          IF (r < prob) THEN
@@ -268,6 +268,7 @@ CONTAINS
             EXIT
          END IF
       END DO
+      IF (random_categorical == 0) STOP 'RANDOM_CATEGORIAL: Erros, categorical variable not assigned'
 
    END FUNCTION random_categorical
 
