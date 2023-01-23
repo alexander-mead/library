@@ -100,7 +100,11 @@ CONTAINS
 
       WRITE (*, *) 'READ_GADGET: Particle number:', n
       WRITE (*, *) 'READ_GADGET: Which is:', nint(n**(1./3.)), 'cubed.'
-      WRITE (*, *) 'READ_GADGET: Particle mass log10([M_sun/h]):', log10(m)
+      IF (m == 0.) THEN
+         WRITE (*, *) 'READ_GADGET: Particle mass [M_sun/h]:', m
+      ELSE
+         WRITE (*, *) 'READ_GADGET: Particle mass [log10(M_sun/h)]:', log10(m)
+      END IF
       WRITE (*, *) 'READ_GADGET: Box size [Mpc/h]:', L
       WRITE (*, *) 'READ_GADGET: a:', a
       WRITE (*, *) 'READ_GADGET: z:', z
@@ -181,7 +185,11 @@ CONTAINS
       WRITE (*, *) 'WRITE_GADGET: Box size [Mpc/h]:', L
       WRITE (*, *) 'WRITE_GADGET: a:', a
       WRITE (*, *) 'WRITE_GADGET: z:', z
-      WRITE (*, *) 'WRITE_GADGET: Particle mass log10([Msun/h]):', log10(m)
+      IF (m == 0.) THEN
+         WRITE (*, *) 'WRITE_GADGET: Particle mass [Msun/h]:', m
+      ELSE
+         WRITE (*, *) 'WRITE_GADGET: Particle mass [log10(Msun/h)]:', log10(m)
+      END IF
       WRITE (*, *) 'WRITE_GADGET: Om_m:', Om_m
       WRITE (*, *) 'WRITE_GADGET: Om_v:', Om_v
       WRITE (*, *) 'WRITE_GADGET: h:', h

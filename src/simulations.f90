@@ -36,6 +36,7 @@ MODULE simulations
    PUBLIC :: generate_randoms
    PUBLIC :: generate_poor_glass
    PUBLIC :: generate_grid
+   PUBLIC :: generate_offset_grid
 
    PUBLIC :: sparse_sample
 
@@ -753,8 +754,9 @@ CONTAINS
 
       ! Generate a grid of positions in a cube of size L^3
       ! These positions will be the locations of cube centres that tessalate the volume
+      ! Note that this grid is 'offset' from the point of view of Gadget and N-GenIC
       REAL, INTENT(OUT) :: x(:, :)
-      REAL, INTENT(IN) :: L    
+      REAL, INTENT(IN) :: L
       INTEGER :: ix, iy, iz, i, m, n
       INTEGER, PARAMETER :: dim = 3
 
@@ -791,6 +793,27 @@ CONTAINS
       WRITE (*, *)
 
    END SUBROUTINE generate_grid
+
+   SUBROUTINE generate_offset_grid(x, L)
+
+      ! Generate a grid of positions in a cube of size L^3
+      ! These positions will be the locations of cube vertices that tessalate the volume
+      ! Note that this 'offset' grid is the default Gadget grid
+      REAL, INTENT(OUT) :: x(:, :)
+      REAL, INTENT(IN) :: L
+      INTEGER :: n, m
+      REAL :: dx
+
+      ! Generate a normal grid
+      CALL generate_grid(x, L)
+
+      ! Displace paraticles by offset of half a mesh cell
+      n = size(x, 2)
+      m = nint(n**(1./3.))
+      dx = L/real(m)
+      x = x-dx/2.
+
+   END SUBROUTINE generate_offset_grid
 
    SUBROUTINE generate_poor_glass(x, L)
 
