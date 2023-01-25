@@ -3178,12 +3178,14 @@ CONTAINS
          
          WRITE (*, *) dashes
 
+         ! HI
          WRITE (*, *) 'HALOMODEL: HI model'
          WRITE (*, *) dashes
          WRITE (*, fmt=fmt) 'log10(M_HI_min) [Msun/h]:', log10(hmod%HImin)
          WRITE (*, fmt=fmt) 'log10(M_HI_max) [Msun/h]:', log10(hmod%HImax)
          WRITE (*, *) dashes
 
+         ! Miscellaneous
          IF ((hmod%halo_DMONLY == 5) .OR. hmod%conc_scatter) THEN
             WRITE (*, *) 'HALOMODEL: Misc'
             WRITE (*, *) dashes
@@ -3192,6 +3194,9 @@ CONTAINS
             WRITE (*, *) dashes
             WRITE (*, *)
          END IF
+
+         ! Final white space
+         WRITE (*, *)
 
       END IF
 
