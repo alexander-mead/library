@@ -1294,6 +1294,7 @@ CONTAINS
    SUBROUTINE CIC_2D(x, n, L, w, d, m, all, periodic, verbose)
 
       ! Cloud-in-cell binning routine
+      ! TODO: Note that this does not treat aperiodicity correctly
       INTEGER, INTENT(IN) :: n, m     ! Total number of particles in area
       REAL, INTENT(IN) :: x(2, n)     ! 2D particle positions     
       REAL, INTENT(IN) :: L           ! Area side length
@@ -1318,6 +1319,7 @@ CONTAINS
       eps = 0.
       d = 0.
 
+      ! Loop over particles
       DO i = 1, n
 
          ! Get the cell interger coordinates
@@ -1352,6 +1354,7 @@ CONTAINS
          END DO
 
          ! Find which other cell needs a contribution
+         ! TODO: Note that this does not treat aperiodicity correctly
          DO j = 1, dim
             IF (dx(j) >= 0.) THEN
                iy(j) = ix(j)+1
@@ -1890,12 +1893,13 @@ CONTAINS
       REAL, ALLOCATABLE :: count1(:, :), count2(:, :), count3(:, :), count4(:, :), count5(:, :)
       REAL, ALLOCATABLE :: field1(:, :), field2(:, :), field3(:, :), field4(:, :), field5(:, :)
       CHARACTER(len=256) :: base, ext, output
-      LOGICAL :: all, periodic
+      LOGICAL :: periodic
 
-      REAL, PARAMETER :: dc = 4. ! Refinement conditions (particles-per-cell)
-      REAL, PARAMETER :: fcell = 1. ! Smoothing factor over cell sizes (maybe should be set to 1; 0.75 looks okay)
+      REAL, PARAMETER :: dc = 4.           ! Refinement conditions (particles-per-cell)
+      REAL, PARAMETER :: fcell = 1.        ! Smoothing factor over cell sizes (maybe should be set to 1; 0.75 looks okay)
+      LOGICAL, PARAMETER :: all = .FALSE.  ! Should all particles contribute to the binning?
       LOGICAL, PARAMETER :: test = .FALSE. ! Activate test mode
-      INTEGER, PARAMETER :: ibin = 2 ! 2- CIC binnings
+      INTEGER, PARAMETER :: ibin = 2       ! 2- CIC binnings
 
       IF (r > 4) STOP 'WRITE_ADAPTIVE_FIELD: Error, too many refinement leves requested. Maximum is 4'
 
@@ -1984,7 +1988,6 @@ CONTAINS
       WRITE (*, *) 'WRITE_ADAPTIVE_FIELD: Mesh size 3:', m3
       WRITE (*, *) 'WRITE_ADAPTIVE_FIELD: Mesh size 4:', m4
       WRITE (*, *) 'WRITE_ADAPTIVE_FIELD: Mesh size 5:', m5
-      WRITE (*, *)
 
       ! Allocate arrays for particle counts and fields
       ! This is ugly, but I do not think it can be avoided with e.g., field(5,m,m) because m are all different
@@ -1994,12 +1997,10 @@ CONTAINS
       ALLOCATE (field4(m4, m4), count4(m4, m4))
       ALLOCATE (field5(m5, m5), count5(m5, m5))
 
-      all = .TRUE. ! All particles in array y contribute to the binning
-      IF (Lsub == L) THEN
-         periodic = .TRUE. ! Only possibly periodic if the subvolume size is the same as the actual size
-      ELSE
-         periodic = .FALSE.
-      END IF
+      ! Determine periodicity
+      periodic = (Lsub == L)
+      WRITE (*, *) 'WRITE_ADAPTIVE_FIELD: Periodic:', periodic
+      WRITE (*, *)
 
       ! Do binning of particles on each mesh resolution
       CALL particle_bin(y, np, Lsub, ones, count1, m1, ibin, all, periodic, verbose=.TRUE.)
