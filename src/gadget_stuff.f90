@@ -206,15 +206,15 @@ CONTAINS
 
    END SUBROUTINE write_gadget
 
-   SUBROUTINE read_catalogue(x, v, m, npart, disp, c, env, Dv, rmax, avg_r, rms_r, n, infile)
+   SUBROUTINE read_catalogue(x, v, mass, npart, disp, conc, env, Dv, rmax, avg_r, rms_r, n, infile)
 
       USE file_info
       REAL, ALLOCATABLE, INTENT(OUT) :: x(:, :)
       REAL, ALLOCATABLE, INTENT(OUT) :: v(:, :)
-      REAL, ALLOCATABLE, INTENT(OUT) :: m(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: mass(:)
       INTEGER, ALLOCATABLE, INTENT(OUT) :: npart(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: disp(:)
-      REAL, ALLOCATABLE, INTENT(OUT) :: c(:)
+      REAL, ALLOCATABLE, INTENT(OUT) :: conc(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: env(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: Dv(:)
       REAL, ALLOCATABLE, INTENT(OUT) :: rmax(:)
@@ -230,13 +230,14 @@ CONTAINS
       IF (.NOT. lexist) STOP 'READ_CATALOGUE: Error, input file does not exist'
 
       n = file_length(infile, verbose=.FALSE.)
-      ALLOCATE (x(3, n), v(3, n), m(n), npart(n))
-      ALLOCATE (disp(n), c(n), env(n), Dv(n), rmax(n), avg_r(n), rms_r(n))
+      WRITE (*, *) 'READ_CATALOGUE: Number of haloes:', n
+      ALLOCATE (x(3, n), v(3, n), mass(n), npart(n))
+      ALLOCATE (disp(n), conc(n), env(n), Dv(n), rmax(n), avg_r(n), rms_r(n))
 
       OPEN (7, file=infile)
       DO i = 1, n
          READ (7, *) x(1, i), x(2, i), x(3, i), v(1, i), v(2, i), v(3, i), &
-            m(i), npart(i), disp(i), c(i), env(i), Dv(i), rmax(i), avg_r(i), rms_r(i)
+            mass(i), npart(i), disp(i), conc(i), env(i), Dv(i), rmax(i), avg_r(i), rms_r(i)
       END DO
       CLOSE (7)
 
@@ -244,21 +245,23 @@ CONTAINS
       WRITE (*, *) 'READ_CATALOGUE: Max x [Mpc/h]:', maxval(x)
       WRITE (*, *) 'READ_CATALOGUE: Min v [km/s]:', minval(v)
       WRITE (*, *) 'READ_CATALOGUE: Max v [km/s]:', maxval(v)
-      WRITE (*, *) 'READ_CATALOGUE: Min mass [log10(Msun/h)]:', log10(minval(m))
-      WRITE (*, *) 'READ_CATALOGUE: Max mass [log10(Msun/h)]:', log10(maxval(m))
+      WRITE (*, *) 'READ_CATALOGUE: Min number of particles:', minval(npart)
+      WRITE (*, *) 'READ_CATALOGUE: Max number of particles:', maxval(npart)
+      WRITE (*, *) 'READ_CATALOGUE: Min mass [log10(Msun/h)]:', log10(minval(mass))
+      WRITE (*, *) 'READ_CATALOGUE: Max mass [log10(Msun/h)]:', log10(maxval(mass))
       WRITE (*, *) 'READ_CATALOGUE: Finished reading catalogue file'
       WRITE (*, *)
 
    END SUBROUTINE read_catalogue
 
-   SUBROUTINE write_catalogue(x, v, m, npart, disp, c, env, Dv, rmax, avg_r, rms_r, outfile)
+   SUBROUTINE write_catalogue(x, v, mass, npart, disp, conc, env, Dv, rmax, avg_r, rms_r, outfile)
 
       REAL, INTENT(IN) :: x(:, :)
       REAL, INTENT(IN) :: v(:, :)
-      REAL, INTENT(IN) :: m(:)
+      REAL, INTENT(IN) :: mass(:)
       INTEGER, INTENT(IN) :: npart(:)
       REAL, INTENT(IN) :: disp(:)
-      REAL, INTENT(IN) :: c(:)
+      REAL, INTENT(IN) :: conc(:)
       REAL, INTENT(IN) :: env(:)
       REAL, INTENT(IN) :: Dv(:)
       REAL, INTENT(IN) :: rmax(:)
@@ -275,13 +278,13 @@ CONTAINS
       ! IF (n /= size(x, 2) .OR. n /= size(v, 2)) THEN
       !    STOP 'WRITE_CATALOGUE: Error, x, v, id do not have the same number of entries'
       ! END IF
-      n = size(m)
+      n = size(mass)
 
       WRITE (*, *) 'WRITE_CATALOGUE: Outputting catalogue: ', trim(outfile)
       OPEN (7, file=outfile)
       DO i = 1, n
          WRITE (7, *) x(1, i), x(2, i), x(3, i), v(1, i), v(2, i), v(3, i), &
-            m(i), npart(i), disp(i), c(i), env(i), Dv(i), rmax(i), avg_r(i), rms_r(i)
+            mass(i), npart(i), disp(i), conc(i), env(i), Dv(i), rmax(i), avg_r(i), rms_r(i)
       END DO
       CLOSE (7)
       WRITE (*, *) 'WRITE_CATALOGUE: Finished writing catalogue file'
