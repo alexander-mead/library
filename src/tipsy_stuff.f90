@@ -46,6 +46,7 @@ MODULE tipsy_stuff
       v = v*sqrt(a)
       m = m*1e10
       WRITE(*, *) 'READ_TIPSY: Particle mass [log10(M_sun/h)]:', log10(m)
+      WRITE(*, *) 'READ_TIPSY: Done'
       WRITE(*, *)
 
    END SUBROUTINE read_tipsy
