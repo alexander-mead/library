@@ -271,7 +271,7 @@ CONTAINS
       INTEGER :: i, n
 
       n = size(m)
-      IF (n .NE. size(w)) STOP 'HALO_MASS_WEIGHTS: Error, m and w must be the same size'
+      IF (n .NE. size(w)) ERROR STOP 'HALO_MASS_WEIGHTS: Error, m and w must be the same size'
 
       w = 0.
       DO i = 1, n
@@ -293,7 +293,7 @@ CONTAINS
       REAL :: shot
       INTEGER :: n
 
-      IF (size(x, 1) .NE. 3) STOP 'COMPUTE_AND_WRITE_POWER_SPECTRUM: Error, needs to be 3D'
+      IF (size(x, 1) .NE. 3) ERROR STOP 'COMPUTE_AND_WRITE_POWER_SPECTRUM: Error, needs to be 3D'
       n = size(x, 2)
 
       ! Compute the power spectrum from the particle positions
@@ -364,7 +364,7 @@ CONTAINS
       kmin = default_or_optional(kmin_def, kmin_opt)
       kmax = default_or_optional(kmax_def, kmax_opt)
 
-      IF (size(x, 1) .NE. 3) STOP 'POWER_SPECTRUM_PARTICLES: Error, particles must be in 3D'
+      IF (size(x, 1) .NE. 3) ERROR STOP 'POWER_SPECTRUM_PARTICLES: Error, particles must be in 3D'
       n = size(x, 2)
 
       ! Convert the particle positions into a density field
@@ -400,7 +400,7 @@ CONTAINS
 
       ! Number of foldings
       nfold = default_or_optional(nfold_def, nfold_opt)
-      IF (nfold < 0) STOP 'FOLDED_POWER_SPECTRUM_PARTICLES: Error, number of foldings must be zero or positive'
+      IF (nfold < 0) ERROR STOP 'FOLDED_POWER_SPECTRUM_PARTICLES: Error, number of foldings must be zero or positive'
 
       ! Make a copy of the particle array to fold
       ! TODO: Expensive in memory
@@ -456,7 +456,7 @@ CONTAINS
       kmax_def = pi*m/L
 
       ! Check that array sizes make sense
-      IF ((size(x1, 1) .NE. 3) .OR. (size(x2, 1) .NE. 3)) STOP 'CROSS_SPECTRUM_PARTICLES: Error, must be 3D'
+      IF ((size(x1, 1) .NE. 3) .OR. (size(x2, 1) .NE. 3)) ERROR STOP 'CROSS_SPECTRUM_PARTICLES: Error, must be 3D'
       n1 = size(x1, 2)
       n2 = size(x2, 2)
 
@@ -610,7 +610,7 @@ CONTAINS
       INTEGER, PARAMETER :: dim = 3
 
       ! Check array dimensions
-      IF ((size(x, 1) .NE. dim)) STOP 'ZELDOVICH_ICS: Error, x must be three dimensional'
+      IF ((size(x, 1) .NE. dim)) ERROR STOP 'ZELDOVICH_ICS: Error, x must be three dimensional'
 
       ! Make the displacement field
       CALL generate_displacement_fields(f, m, L, k_tab, Pk_tab)
@@ -648,13 +648,13 @@ CONTAINS
       INTEGER, PARAMETER :: dim = 3
 
       ! Check fields are 3D
-      IF (size(x, 1) .NE. dim) STOP 'ZELDOVICH_DISPLACEMENTS: Error, only works in three dimensions'
-      IF (size(s, 1) .NE. dim) STOP 'ZELDOVICH_DISPLACEMENTS: Error, only works in three dimensions'
+      IF (size(x, 1) .NE. dim) ERROR STOP 'ZELDOVICH_DISPLACEMENTS: Error, only works in three dimensions'
+      IF (size(s, 1) .NE. dim) ERROR STOP 'ZELDOVICH_DISPLACEMENTS: Error, only works in three dimensions'
 
       ! Total number of particles
       n = size(x, 2)
       m = size(s, 2)
-      IF ((m .NE. size(s, 3)) .OR. (m .NE. size(s, 4))) STOP 'ZELDOVICH_DISPLACEMENTS: Error, displacement field must be square'
+      IF ((m .NE. size(s, 3)) .OR. (m .NE. size(s, 4))) ERROR STOP 'ZELDOVICH_DISPLACEMENTS: Error, displacement field must be square'
 
       WRITE (*, *) 'ZELDOVICH_DISPLACEMENT: Displacing particles'
 
@@ -687,8 +687,8 @@ CONTAINS
       INTEGER, PARAMETER :: dim = 3
 
       ! Check array dimensions
-      IF ((dim .NE. size(x, 1)) .OR. (dim .NE. size(s, 1))) STOP 'ZELDOVICH_VELOCITY: This only works in three dimensions'
-      IF ((size(s, 2) .NE. size(s, 3)) .OR. (size(s, 2) .NE. size(s, 4))) STOP 'ZELDOVICH_DISPLACEMENTS: Error, displacement field must be square'
+      IF ((dim .NE. size(x, 1)) .OR. (dim .NE. size(s, 1))) ERROR STOP 'ZELDOVICH_VELOCITY: This only works in three dimensions'
+      IF ((size(s, 2) .NE. size(s, 3)) .OR. (size(s, 2) .NE. size(s, 4))) ERROR STOP 'ZELDOVICH_DISPLACEMENTS: Error, displacement field must be square'
 
       ! Array sizes
       n = size(x, 2)
@@ -760,12 +760,12 @@ CONTAINS
       INTEGER :: ix, iy, iz, i, m, n
       INTEGER, PARAMETER :: dim = 3
 
-      IF (size(x, 1) .NE. dim) STOP 'GENERATE_GRID: Error, this only works for a three-dimensional grid'
+      IF (size(x, 1) .NE. dim) ERROR STOP 'GENERATE_GRID: Error, this only works for a three-dimensional grid'
 
       ! Check that the particle number is cubic
       n = size(x, 2)
       m = nint(n**(1./3.))
-      IF (m**3 .NE. n) STOP 'GENERATE_GRID: Error, you need a cubic number of particles for a grid'
+      IF (m**3 .NE. n) ERROR STOP 'GENERATE_GRID: Error, you need a cubic number of particles for a grid'
 
       WRITE (*, *) 'GENERATE_GRID: Generating a grid particle distribution'
       WRITE (*, *) 'GENERATE_GRID: Number of particles (should be a cube number):', n
@@ -825,7 +825,7 @@ CONTAINS
       REAL :: dx
       INTEGER, PARAMETER :: dim = 3
 
-      IF (size(x, 1) .NE. dim) STOP 'GENERATE_POOR_GLASS: Error, this only works in three dimensions'
+      IF (size(x, 1) .NE. dim) ERROR STOP 'GENERATE_POOR_GLASS: Error, this only works in three dimensions'
 
       ! First genrate a grid
       CALL generate_grid(x, L)
@@ -875,7 +875,7 @@ CONTAINS
       keep = 0
       n = 0
 
-      STOP 'SPARSE_SAMPLE: Test this'
+      ERROR STOP 'SPARSE_SAMPLE: Test this'
 
       WRITE (*, *) 'SPARSE_SAMPLE: Sparse sampling'
 
@@ -1048,7 +1048,7 @@ CONTAINS
          IF (present_and_correct(verbose)) WRITE (*, *) 'RANDOM_ROTATION: Doing 321'
          CALL swap_arrays(x(1, :), x(3, :)) ! Swap 1<->3 (123 -> 321)
       ELSE
-         STOP 'RANDOM_ROTATION: Error, something went very wrong'
+         ERROR STOP 'RANDOM_ROTATION: Error, something went very wrong'
       END IF
 
       IF (present_and_correct(verbose)) THEN
@@ -1073,14 +1073,14 @@ CONTAINS
       LOGICAL, INTENT(IN) :: periodic  ! Is the volume periodic?
       LOGICAL, INTENT(IN) :: verbose   ! Verbose?
 
-      IF (periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_2D: Very strange to have periodic and not all particles contribute'
+      IF (periodic .AND. (.NOT. all)) ERROR STOP 'PARTICLE_BIN_2D: Very strange to have periodic and not all particles contribute'
 
       IF (ibin == 1) THEN
          CALL NGP_2D(x, n, L, w, d, m, all, verbose)
       ELSE IF (ibin == 2) THEN
          CALL CIC_2D(x, n, L, w, d, m, all, periodic, verbose)
       ELSE
-         STOP 'PARTICLE_BIN_2D: Error, ibin not specified correctly'
+         ERROR STOP 'PARTICLE_BIN_2D: Error, ibin not specified correctly'
       END IF
 
    END SUBROUTINE particle_bin_2D
@@ -1099,14 +1099,14 @@ CONTAINS
       LOGICAL, INTENT(IN) :: periodic ! Is the volume periodic?
       LOGICAL, INTENT(IN) :: verbose  ! Verbose?
 
-      IF (periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_3D: Very strange to have periodic and not all particles contribute'
+      IF (periodic .AND. (.NOT. all)) ERROR STOP 'PARTICLE_BIN_3D: Very strange to have periodic and not all particles contribute'
 
       IF (ibin == 1) THEN
          CALL NGP_3D(x, n, L, w, d, m, all, verbose)
       ELSE IF (ibin == 2) THEN
          CALL CIC_3D(x, n, L, w, d, m, all, periodic, verbose)
       ELSE
-         STOP 'PARTICLE_BIN_3D: Error, ibin not specified correctly'
+         ERROR STOP 'PARTICLE_BIN_3D: Error, ibin not specified correctly'
       END IF
 
    END SUBROUTINE particle_bin_3D
@@ -1126,7 +1126,7 @@ CONTAINS
       REAL :: number(m, m, m), ones(n)
       INTEGER :: i, j, k, sum
 
-      IF (periodic .AND. (.NOT. all)) STOP 'PARTICLE_BIN_3D: Very strange to have periodic and not all particles contribute'
+      IF (periodic .AND. (.NOT. all)) ERROR STOP 'PARTICLE_BIN_3D: Very strange to have periodic and not all particles contribute'
 
       ! Need an array of ones
       ! TODO: wasteful for memory, could use pointer maybe?
@@ -1140,7 +1140,7 @@ CONTAINS
          CALL CIC_3D(x, n, L, w, d, m, all, periodic, verbose=.TRUE.)
          CALL CIC_3D(x, n, L, ones, number, m, all, periodic, verbose=.TRUE.)
       ELSE
-         STOP 'PARTICLE_BIN_AVERAGE: Error, ibin not specified correctly'
+         ERROR STOP 'PARTICLE_BIN_AVERAGE: Error, ibin not specified correctly'
       END IF
 
       ! Now want to average over all elements in each cell, but need to be wary of cells with zero particles
@@ -1211,7 +1211,7 @@ CONTAINS
                   WRITE (*, *) 'NGP_2D: position:', x(j, i)
                   WRITE (*, *) 'NGP_2D: cell: ', ix(j)
                END DO
-               STOP 'NGP_2D: Error, particle outside boundary'
+               ERROR STOP 'NGP_2D: Error, particle outside boundary'
             ELSE
                CYCLE
             END IF
@@ -1273,7 +1273,7 @@ CONTAINS
                   WRITE (*, *) 'NGP_3D: position:', x(j, i)
                   WRITE (*, *) 'NGP_3D: cell: ', ix(j)
                END DO
-               STOP 'NGP_3D: Error, particle outside boundary'
+               ERROR STOP 'NGP_3D: Error, particle outside boundary'
             ELSE
                CYCLE
             END IF
@@ -1343,7 +1343,7 @@ CONTAINS
                   WRITE (*, *) 'CIC_2D: Position:', x(j, i)
                   WRITE (*, *) 'CIC_2D: Cell: ', ix(j)
                END DO
-               STOP 'CIC_2D: Error, particle outside boundary'
+               ERROR STOP 'CIC_2D: Error, particle outside boundary'
             END IF
 
          END IF
@@ -1398,7 +1398,7 @@ CONTAINS
                ic(1) = iy(1)
                ic(2) = iy(2)
             ELSE
-               STOP 'CIC_2D: Error, something went terribly wrong'
+               ERROR STOP 'CIC_2D: Error, something went terribly wrong'
             END IF
             CALL add_to_array(d, eps*w(i), ic)
          END DO
@@ -1463,7 +1463,7 @@ CONTAINS
                   WRITE (*, *) 'CIC_3D: Position:', x(j, i)
                   WRITE (*, *) 'CIC_3D: Cell: ', ix(j)
                END DO
-               STOP 'CIC_3D: Error, particle outside boundary'
+               ERROR STOP 'CIC_3D: Error, particle outside boundary'
             END IF
 
          END IF
@@ -1545,7 +1545,7 @@ CONTAINS
                ic(2) = iy(2)
                ic(3) = iy(3)
             ELSE
-               STOP 'CIC_3D: Error, something went terribly wrong'
+               ERROR STOP 'CIC_3D: Error, something went terribly wrong'
             END IF
             CALL add_to_array(d, eps*w(i), ic)
          END DO
@@ -1901,7 +1901,7 @@ CONTAINS
       LOGICAL, PARAMETER :: test = .FALSE. ! Activate test mode
       INTEGER, PARAMETER :: ibin = 2       ! 2- CIC binnings
 
-      IF (r > 4) STOP 'WRITE_ADAPTIVE_FIELD: Error, too many refinement leves requested. Maximum is 4'
+      IF (r > 4) ERROR STOP 'WRITE_ADAPTIVE_FIELD: Error, too many refinement leves requested. Maximum is 4'
 
       ! Write information to screen
       WRITE (*, *) 'WRITE_ADAPTIVE_FIELD: Adaptive density field generator'
@@ -2255,7 +2255,7 @@ CONTAINS
 
       nh = size(xh, 2)
       IF((nh .NE. size(nph)) .OR. (nh .NE. size(rv))) THEN
-         STOP 'MAKE_HOD: Error, halo-position array, number of particles and virial radii must all be the same size'
+         ERROR STOP 'MAKE_HOD: Error, halo-position array, number of particles and virial radii must all be the same size'
       END IF
 
       ! Calculate total number of particles to generate
@@ -2297,7 +2297,7 @@ CONTAINS
       REAL :: theta, phi
       INTEGER :: i, n
 
-      IF (size(rr, 1) /= 3) STOP 'RANDOM_HALO_PARTICLES: Error, output array must be shape (3, n)'
+      IF (size(rr, 1) /= 3) ERROR STOP 'RANDOM_HALO_PARTICLES: Error, output array must be shape (3, n)'
       n = size(rr, 2)
       ALLOCATE(r(n))
 
@@ -2315,7 +2315,7 @@ CONTAINS
             ELSE IF (irho == irho_delta) THEN
                r(i) = 0.
             ELSE
-               STOP 'RANDOM_SPHERE: Error, irho specified incorrectly or not supported'
+               ERROR STOP 'RANDOM_SPHERE: Error, irho specified incorrectly or not supported'
             END IF
          END DO
       END IF
@@ -2404,13 +2404,13 @@ CONTAINS
 
       ! Check k dimension
       nk = size(k, 1)
-      IF (size(Pk, 1) /= nk) STOP 'COMBINE_FOLDED_POWER_DATA: Error Pk_fold should have the same first dimension as k_fold'
-      IF (size(sig, 1) /= nk) STOP 'COMBINE_FOLDED_POWER_DATA: Error sig_fold should have the same first dimension as k_fold'
+      IF (size(Pk, 1) /= nk) ERROR STOP 'COMBINE_FOLDED_POWER_DATA: Error Pk_fold should have the same first dimension as k_fold'
+      IF (size(sig, 1) /= nk) ERROR STOP 'COMBINE_FOLDED_POWER_DATA: Error sig_fold should have the same first dimension as k_fold'
 
       ! Check fold dimension
       nf = size(k, 2)
-      IF (size(Pk, 2) /= nf) STOP 'COMBINE_FOLDED_POWER_DATA: Error Pk_fold should have the same second dimension as k_fold'
-      IF (size(sig, 2) /= nf) STOP 'COMBINE_FOLDED_POWER_DATA: Error sig_fold should have the same second dimension as k_fold'
+      IF (size(Pk, 2) /= nf) ERROR STOP 'COMBINE_FOLDED_POWER_DATA: Error Pk_fold should have the same second dimension as k_fold'
+      IF (size(sig, 2) /= nf) ERROR STOP 'COMBINE_FOLDED_POWER_DATA: Error sig_fold should have the same second dimension as k_fold'
       nf = nf-1
 
       ! Create weight array from errors
