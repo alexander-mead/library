@@ -390,6 +390,7 @@ CONTAINS
    SUBROUTINE fix_linear_polynomial(a1, a0, x, y)
 
       ! Given xi, yi i=1,2 fixes a line between these points
+      ! These are the coefficients of a first-order Lagrange polynomial
       REAL, INTENT(OUT) :: a1
       REAL, INTENT(OUT) :: a0
       REAL, INTENT(IN) :: x(2)
@@ -403,6 +404,7 @@ CONTAINS
    SUBROUTINE fix_quadratic_polynomial(a2, a1, a0, x, y)
 
       ! Given xi, yi i=1,2,3 fixes a quadratic between these points
+      ! These are the coefficients of a second-order Lagrange polynomial
       REAL, INTENT(OUT) :: a2
       REAL, INTENT(OUT) :: a1
       REAL, INTENT(OUT) :: a0
@@ -418,6 +420,7 @@ CONTAINS
    SUBROUTINE fix_cubic_polynomial(a3, a2, a1, a0, x, y)
 
       ! Given xi, yi i=1,2,3,4 fixes a cubic between these points
+      ! These are the coefficients of a third-order Lagrange polynomial
       REAL, INTENT(OUT) :: a3
       REAL, INTENT(OUT) :: a2
       REAL, INTENT(OUT) :: a1
