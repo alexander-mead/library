@@ -1020,7 +1020,6 @@ CONTAINS
 
       ! CAMB
       cosm%CAMB_exe = 'camb'
-      !cosm%CAMB_temp_dir = '/Users/Mead/Physics/CAMB_files/tmp/'
       cosm%CAMB_temp_dir = '/tmp/'
 
       IF (icosmo == 1) THEN
