@@ -989,6 +989,7 @@ CONTAINS
       names(143) = 'HMcode (2020) baryon model without response'
       names(144) = 'HMcode (2020) baryon model with low-k fix and extended mass range'
       names(145) = 'HMcode (2020) unfitted with extended mass range and lowk fix'
+      names(146) = 'Sheth, Mo & Tormen (2001) mass function'
 
       IF (verbose) WRITE (*, *) 'ASSIGN_HALOMOD: Assigning halomodel'
 
@@ -2398,6 +2399,8 @@ CONTAINS
       ELSE IF (ihm == 128) THEN
          ! Neglect galaxy-number variance contribution to one-halo term
          hmod%add_variances = .FALSE.
+      ELSE IF (ihm == 146) THEN
+         hmod%imf = imf_SMT
       ELSE
          ERROR STOP 'ASSIGN_HALOMOD: ihm specified incorrectly'
       END IF
