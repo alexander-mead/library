@@ -1080,7 +1080,7 @@ CONTAINS
       ! 1 - HMcode (2015, 2016)
       ! 2 - Same as 1 but with sigma_cold dependence
       ! 3 - HMcode (2020)
-      hmod%ieta = 1
+      hmod%ieta = 0
 
       ! HMcode concentration-mass rescaling
       ! 0 - No
