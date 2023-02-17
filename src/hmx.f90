@@ -2612,7 +2612,7 @@ CONTAINS
       hmod%HMcode_eta = HMcode_eta(hmod, cosm)
       hmod%HMcode_A = HMcode_A(hmod, cosm)
       IF (verbose) THEN
-         WRITE (*, *) 'INIT_HALOMOD: HMcode: k*:', hmod%HMcode_kstar
+         WRITE (*, *) 'INIT_HALOMOD: HMcode: k* [h/Mpc]:', hmod%HMcode_kstar
          WRITE (*, *) 'INIT_HALOMOD: HMcode: fdamp:', hmod%HMcode_fdamp
          WRITE (*, *) 'INIT_HALOMOD: HMcode: kdamp [h/Mpc]:', hmod%HMcode_kdamp
          WRITE (*, *) 'INIT_HALOMOD: HMcode: alpha:', hmod%HMcode_alpha
