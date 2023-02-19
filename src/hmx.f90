@@ -2526,8 +2526,8 @@ CONTAINS
          WRITE (*, *) 'INIT_HALOMOD: Maximum R [Mpc/h]:', real(hmod%rr(hmod%n))
          WRITE (*, *) 'INIT_HALOMOD: Minimum R_v [Mpc/h]:', real(hmod%rv(1))
          WRITE (*, *) 'INIT_HALOMOD: Maximum R_v [Mpc/h]:', real(hmod%rv(hmod%n))
-         WRITE (*, *) 'INIT_HALOMOD: Minimum log10(M) [Msun/h]:', real(log10(hmod%m(1)))
-         WRITE (*, *) 'INIT_HALOMOD: Maximum log10(M) [Msun/h]:', real(log10(hmod%m(hmod%n)))
+         WRITE (*, *) 'INIT_HALOMOD: Minimum M [log10(Msun/h)]:', real(log10(hmod%m(1)))
+         WRITE (*, *) 'INIT_HALOMOD: Maximum M [log10(Msun/h)]:', real(log10(hmod%m(hmod%n)))
       END IF
 
       ! Calculate missing mass things if necessary
@@ -2563,7 +2563,7 @@ CONTAINS
       hmod%mnl = Lagrangian_mass(hmod%rnl, cosm)
       hmod%knl = 1./hmod%rnl ! NOTE: No factors of 2pi here
       IF (verbose) THEN
-         WRITE (*, *) 'INIT_HALOMOD: Non-linear mass [log10(M*) [Msun/h]]:', real(log10(hmod%mnl))
+         WRITE (*, *) 'INIT_HALOMOD: Non-linear mass [log10(Msun/h)]:', real(log10(hmod%mnl))
          WRITE (*, *) 'INIT_HALOMOD: Non-linear halo virial radius [Mpc/h]:', real(virial_radius(hmod%mnl, hmod, cosm))
          WRITE (*, *) 'INIT_HALOMOD: Non-linear Lagrangian radius [Mpc/h]:', real(hmod%rnl)
          WRITE (*, *) 'INIT_HALOMOD: Non-linear wavenumber [h/Mpc]:', real(hmod%knl)
@@ -2583,15 +2583,15 @@ CONTAINS
       hmod%Rh = one_halo_amplitude(hmod, cosm)
       hmod%Mh = hmod%Rh*comoving_matter_density(cosm)
       IF (verbose) THEN
-         WRITE (*, *) 'INIT_HALOMOD: One-halo amplitude [Mpc/h]^3:', hmod%Rh
-         WRITE (*, *) 'INIT_HALOMOD: One-halo amplitude [log10(M) [Msun/h]]:', log10(hmod%Mh)
+         WRITE (*, *) 'INIT_HALOMOD: One-halo amplitude [(Mpc/h)^3]:', hmod%Rh
+         WRITE (*, *) 'INIT_HALOMOD: One-halo amplitude [log10(Msun/h)]:', log10(hmod%Mh)
       END IF
 
       ! Applies if we enforce the amplitude of the one-halo term not to be affected by mass loss
       IF (hmod%DMONLY_baryon_recipe .AND. renormalise_onehalo) THEN
          hmod%Rhh = one_halo_modified_amplitude(hmod, cosm)
          IF (verbose) THEN
-            WRITE (*, *) 'INIT_HALOMOD: One-halo modified amplitude [Mpc/h]^3:', hmod%Rhh
+            WRITE (*, *) 'INIT_HALOMOD: One-halo modified amplitude [(Mpc/h)^3]:', hmod%Rhh
          END IF
       END IF
 
@@ -3057,7 +3057,7 @@ CONTAINS
             IF (hmod%mbar == 0.) THEN
                WRITE (*, fmt=fmt) 'M_bar [Msun/h]:', hmod%mbar
             ELSE
-               WRITE (*, fmt=fmt) 'log10(M_bar) [Msun/h]:', log10(hmod%mbar)
+               WRITE (*, fmt=fmt) 'M_bar [log10(Msun/h)]:', log10(hmod%mbar)
             END IF
             WRITE (*, fmt=fmt) 'm_bar z:', hmod%mbarz
             WRITE (*, fmt=fmt) 'n_bar:', hmod%nbar
@@ -3083,7 +3083,7 @@ CONTAINS
          IF (hmod%HMx_mode == 4) ERROR STOP 'ASSIGN_HALOMOD: Halomodel Theat no longer supported'
          IF (hmod%HMx_mode == 1) THEN
             WRITE (*, fmt=fmt) 'eps:', HMx_eps(hmod, cosm)
-            WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(HMx_M0(hmod, cosm))
+            WRITE (*, fmt=fmt) 'M0 [log10(Msun/h)]:', log10(HMx_M0(hmod, cosm))
             WRITE (*, fmt=fmt) 'beta:', HMx_beta(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'A*:', HMx_Astar(hmod, cosm)
             WRITE (*, *) dashes
@@ -3091,7 +3091,7 @@ CONTAINS
             IF (hmod%M0 == 0.) THEN 
                WRITE (*, fmt=fmt) 'M0 [Msun/h]:', hmod%M0
             ELSE   
-               WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(hmod%M0)
+               WRITE (*, fmt=fmt) 'M0 [log10(Msun/h)]:', log10(hmod%M0)
             END IF
             WRITE (*, fmt=fmt) 'M0 z index:', hmod%M0z
             WRITE (*, fmt=fmt) 'beta:', hmod%beta
@@ -3114,7 +3114,7 @@ CONTAINS
             IF (hmod%M0 == 0.) THEN
                WRITE (*, fmt=fmt) 'M0 [Msun/h]:', hmod%M0
             ELSE
-               WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(hmod%M0)
+               WRITE (*, fmt=fmt) 'M0 [log10(Msun/h)]:', log10(hmod%M0)
             END IF
             WRITE (*, fmt=fmt) 'M0 z index:', hmod%M0z
             WRITE (*, fmt=fmt) 'A*:', hmod%Astar
@@ -3122,14 +3122,14 @@ CONTAINS
             IF (hmod%Twhim == 0.) THEN
                WRITE (*, fmt=fmt) 'T_WHIM [K]:', hmod%Twhim
             ELSE
-               WRITE (*, fmt=fmt) 'log10(T_WHIM) [K]:', log10(hmod%Twhim)
+               WRITE (*, fmt=fmt) 'T_WHIM [log10(K)]:', log10(hmod%Twhim)
             END IF
             WRITE (*, fmt=fmt) 'T_WHIM z index:', hmod%Twhimz
             WRITE (*, fmt=fmt) 'c*:', hmod%cstar
             WRITE (*, fmt=fmt) 'c* mass index:', hmod%cstarp
             WRITE (*, fmt=fmt) 'c* z index:', hmod%cstarz
             WRITE (*, fmt=fmt) 'sigma*:', hmod%sstar
-            WRITE (*, fmt=fmt) 'log10(M*) [Msun/h]:', log10(hmod%Mstar)
+            WRITE (*, fmt=fmt) 'M* [log10(Msun/h)]:', log10(hmod%Mstar)
             WRITE (*, fmt=fmt) 'M* z index:', hmod%Mstarz
             WRITE (*, fmt=fmt) 'f_cold:', hmod%fcold
             WRITE (*, fmt=fmt) 'f_hot:', hmod%fhot
@@ -3141,18 +3141,18 @@ CONTAINS
             WRITE (*, fmt=fmt) 'beta gas:', hmod%gbeta
             WRITE (*, fmt=fmt) 'beta gas z index:', hmod%gbetaz
          ELSE IF (hmod%HMx_mode == 6) THEN         
-            WRITE (*, fmt=fmt) 'log10(T_heat) [K]:', log10(cosm%Theat)
+            WRITE (*, fmt=fmt) 'T_heat [log10(K)]:', log10(cosm%Theat)
             WRITE (*, fmt=fmt) 'alpha:', HMx_alpha(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'beta:', HMx_beta(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'epsilon:', HMx_eps(hmod, cosm)
             WRITE (*, fmt=fmt) 'epsilon2:', HMx_eps2(hmod, cosm)
             WRITE (*, fmt=fmt) 'Gamma:', HMx_Gamma(hmod%Mh, hmod, cosm)
-            WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(HMx_M0(hmod, cosm))
+            WRITE (*, fmt=fmt) 'M0 [log10(Msun/h)]:', log10(HMx_M0(hmod, cosm))
             WRITE (*, fmt=fmt) 'A*:', HMx_Astar(hmod, cosm)
-            WRITE (*, fmt=fmt) 'log10(T_WHIM) [K]:', log10(HMx_Twhim(hmod, cosm))
+            WRITE (*, fmt=fmt) 'T_WHIM [log10(K)]:', log10(HMx_Twhim(hmod, cosm))
             WRITE (*, fmt=fmt) 'c*:', HMx_cstar(hmod%Mh, hmod, cosm)
             WRITE (*, fmt=fmt) 'sigma*:', HMx_sstar(hmod, cosm)
-            WRITE (*, fmt=fmt) 'log10(M*):', log10(HMx_Mstar(hmod, cosm))
+            WRITE (*, fmt=fmt) 'M* [log10(Msun/h)]:', log10(HMx_Mstar(hmod, cosm))
             WRITE (*, fmt=fmt) 'frac cold:', HMx_fcold(hmod, cosm)
             WRITE (*, fmt=fmt) 'frac hot:', HMx_fhot(hmod, cosm)
             WRITE (*, fmt=fmt) 'eta:', HMx_eta(hmod, cosm)
@@ -3166,14 +3166,14 @@ CONTAINS
          ! HOD
          WRITE (*, *) 'HALOMODEL: HOD model'
          WRITE (*, *) dashes
-         WRITE (*, fmt=fmt) 'log10(M_halo_min) [Msun/h]:', log10(hmod%mhalo_min)
-         WRITE (*, fmt=fmt) 'log10(M_halo_max) [Msun/h]:', log10(hmod%mhalo_max)
-         WRITE (*, fmt=fmt) 'log10(M_gal_min) [Msun/h]:', log10(hmod%hod%Mmin)
-         WRITE (*, fmt=fmt) 'log10(M_gal_max) [Msun/h]:', log10(hmod%hod%Mmax)
-         WRITE (*, fmt=fmt) 'log10(Mcen) [Msun/h]:', log10(hmod%hod%Mcen)
+         WRITE (*, fmt=fmt) 'M_halo_min [log10(Msun/h)]:', log10(hmod%mhalo_min)
+         WRITE (*, fmt=fmt) 'M_halo_max [log10(Msun/h)]:', log10(hmod%mhalo_max)
+         WRITE (*, fmt=fmt) 'M_gal_min [log10(Msun/h)]:', log10(hmod%hod%Mmin)
+         WRITE (*, fmt=fmt) 'M_gal_max [log10(Msun/h)]:', log10(hmod%hod%Mmax)
+         WRITE (*, fmt=fmt) 'Mcen [log10(Msun/h)]:', log10(hmod%hod%Mcen)
          WRITE (*, fmt=fmt) 'sigma:', hmod%hod%sigma
-         WRITE (*, fmt=fmt) 'log10(M0) [Msun/h]:', log10(hmod%hod%M0)
-         WRITE (*, fmt=fmt) 'log10(M1) [Msun/h]:', log10(hmod%hod%M1)
+         WRITE (*, fmt=fmt) 'M0 [log10(Msun/h)]:', log10(hmod%hod%M0)
+         WRITE (*, fmt=fmt) 'M1 [log10(Msun/h)]:', log10(hmod%hod%M1)
          WRITE (*, fmt=fmt) 'alpha:', hmod%hod%alpha
          WRITE (*, *) '       Shot-noise in spectra:', hmod%add_shotnoise
          WRITE (*, *) '   Number variance in spctra:', hmod%add_variances
@@ -3184,8 +3184,8 @@ CONTAINS
          ! HI
          WRITE (*, *) 'HALOMODEL: HI model'
          WRITE (*, *) dashes
-         WRITE (*, fmt=fmt) 'log10(M_HI_min) [Msun/h]:', log10(hmod%HImin)
-         WRITE (*, fmt=fmt) 'log10(M_HI_max) [Msun/h]:', log10(hmod%HImax)
+         WRITE (*, fmt=fmt) 'M_HI_min [log10(Msun/h)]:', log10(hmod%HImin)
+         WRITE (*, fmt=fmt) 'M_HI_max [log10(Msun/h)]:', log10(hmod%HImax)
          WRITE (*, *) dashes
 
          ! Miscellaneous
@@ -5472,7 +5472,6 @@ CONTAINS
       IF (hmod%i1hdamp == 0) THEN
          HMcode_kstar = 0.
       ELSE IF (hmod%i1hdamp == 1) THEN
-         !sigv = sigmaV(0., hmod%a, flag_matter, cosm)
          sigv = hmod%sigv
          HMcode_kstar = hmod%ks/sigv
       ELSE IF(hmod%i1hdamp == 2 .OR. hmod%i1hdamp == 4 .OR. hmod%i1hdamp == 5) THEN
@@ -6527,7 +6526,7 @@ CONTAINS
 
    REAL FUNCTION one_halo_amplitude(hmod, cosm)
 
-      ! Calculates the amplitude of the shot-noise plateau of the one-halo term [Mpc/h]^3
+      ! Calculates the amplitude of the shot-noise plateau of the one-halo term [(Mpc/h)^3]
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: integrand(hmod%n), g, m
@@ -6552,7 +6551,7 @@ CONTAINS
 
    REAL FUNCTION one_halo_modified_amplitude(hmod, cosm)
 
-      ! Calculates the amplitude of the shot-noise plateau of the one-halo term [Mpc/h]^3
+      ! Calculates the amplitude of the shot-noise plateau of the one-halo term [(Mpc/h)^3]
       ! TODO: Is this necesarry? How is this different from one_halo_amplitude?
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
