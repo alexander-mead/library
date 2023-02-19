@@ -2589,7 +2589,7 @@ CONTAINS
 
       ! Applies if we enforce the amplitude of the one-halo term not to be affected by mass loss
       IF (hmod%DMONLY_baryon_recipe .AND. renormalise_onehalo) THEN
-         hmod%Rhh = one_halo_modified_amplitude(hmod, cosm)
+         hmod%Rhh = one_halo_amplitude(hmod, cosm, modified_opt=.TRUE.)
          IF (verbose) THEN
             WRITE (*, *) 'INIT_HALOMOD: One-halo modified amplitude [(Mpc/h)^3]:', hmod%Rhh
          END IF
@@ -6524,23 +6524,33 @@ CONTAINS
 
    END FUNCTION rhobar_tracer
 
-   REAL FUNCTION one_halo_amplitude(hmod, cosm)
+   REAL FUNCTION one_halo_amplitude(hmod, cosm, modified_opt)
 
       ! Calculates the amplitude of the shot-noise plateau of the one-halo term [(Mpc/h)^3]
       TYPE(halomod), INTENT(INOUT) :: hmod
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: integrand(hmod%n), g, m
+      LOGICAL, OPTIONAL, INTENT(IN) :: modified_opt
+      REAL :: integrand(hmod%n), g, m, f
       INTEGER :: i
+      LOGICAL :: modified
+      LOGICAL, PARAMETER :: modified_def = .FALSE.
+
+      modified = default_or_optional(modified_def, modified_opt)
+      IF (modified) THEN
+         f = DMONLY_halo_mass_fraction(hmod%hmass, hmod, cosm)**2
+      ELSE
+         f = 1.
+      END IF
 
       IF (hmod%imf == imf_delta) THEN
          ! Special case for delta-function mass function
-         one_halo_amplitude = hmod%hmass
+         one_halo_amplitude = hmod%hmass*f
       ELSE
          ! Calculates the value of the integrand at all nu values!
          DO i = 1, hmod%n
             g = g_nu(hmod%nu(i), hmod)
             m = hmod%m(i)
-            integrand(i) = g*m
+            integrand(i) = g*m*f
          END DO
          one_halo_amplitude = integrate_table(hmod%nu, integrand, 1, hmod%n, 1)
       END IF
@@ -6549,31 +6559,31 @@ CONTAINS
 
    END FUNCTION one_halo_amplitude
 
-   REAL FUNCTION one_halo_modified_amplitude(hmod, cosm)
+   ! REAL FUNCTION one_halo_modified_amplitude(hmod, cosm)
 
-      ! Calculates the amplitude of the shot-noise plateau of the one-halo term [(Mpc/h)^3]
-      ! TODO: Is this necesarry? How is this different from one_halo_amplitude?
-      TYPE(halomod), INTENT(INOUT) :: hmod
-      TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: integrand(hmod%n), g, m
-      INTEGER :: i
+   !    ! Calculates the amplitude of the shot-noise plateau of the one-halo term [(Mpc/h)^3]
+   !    ! TODO: Is this necesarry? How is this different from one_halo_amplitude?
+   !    TYPE(halomod), INTENT(INOUT) :: hmod
+   !    TYPE(cosmology), INTENT(INOUT) :: cosm
+   !    REAL :: integrand(hmod%n), g, m
+   !    INTEGER :: i
 
-      IF (hmod%imf == imf_delta) THEN
-         ! Special case for delta-function mass function
-         one_halo_modified_amplitude = hmod%hmass*DMONLY_halo_mass_fraction(hmod%hmass, hmod, cosm)**2
-      ELSE
-         ! Calculates the value of the integrand at all nu values!
-         DO i = 1, hmod%n
-            g = g_nu(hmod%nu(i), hmod)
-            m = hmod%m(i)
-            integrand(i) = g*m*DMONLY_halo_mass_fraction(m, hmod, cosm)**2
-         END DO
-         one_halo_modified_amplitude = integrate_table(hmod%nu, integrand, 1, hmod%n, 1)
-      END IF
+   !    IF (hmod%imf == imf_delta) THEN
+   !       ! Special case for delta-function mass function
+   !       one_halo_modified_amplitude = hmod%hmass*DMONLY_halo_mass_fraction(hmod%hmass, hmod, cosm)**2
+   !    ELSE
+   !       ! Calculates the value of the integrand at all nu values!
+   !       DO i = 1, hmod%n
+   !          g = g_nu(hmod%nu(i), hmod)
+   !          m = hmod%m(i)
+   !          integrand(i) = g*m*DMONLY_halo_mass_fraction(m, hmod, cosm)**2
+   !       END DO
+   !       one_halo_modified_amplitude = integrate_table(hmod%nu, integrand, 1, hmod%n, 1)
+   !    END IF
 
-      one_halo_modified_amplitude = one_halo_modified_amplitude/comoving_matter_density(cosm)
+   !    one_halo_modified_amplitude = one_halo_modified_amplitude/comoving_matter_density(cosm)
 
-   END FUNCTION one_halo_modified_amplitude
+   ! END FUNCTION one_halo_modified_amplitude
 
    REAL FUNCTION mass_function(m, hmod, cosm)
 

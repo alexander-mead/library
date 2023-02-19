@@ -41,6 +41,7 @@ MODULE basic_operations
    INTERFACE default_or_optional
       MODULE PROCEDURE default_or_optional_real
       MODULE PROCEDURE default_or_optional_integer
+      MODULE PROCEDURE default_or_optional_logical
    END INTERFACE default_or_optional
 
    INTERFACE between
@@ -108,6 +109,19 @@ CONTAINS
       END IF
 
    END FUNCTION default_or_optional_integer
+
+   LOGICAL FUNCTION default_or_optional_logical(x_default, x_optional)
+
+      LOGICAL, INTENT(IN) :: x_default
+      LOGICAL, OPTIONAL, INTENT(IN) :: x_optional
+
+      IF (present(x_optional)) THEN
+         default_or_optional_logical = x_optional
+      ELSE
+         default_or_optional_logical = x_default
+      END IF
+
+   END FUNCTION default_or_optional_logical
 
    RECURSIVE REAL FUNCTION progression(xmin, xmax, i, n, ilog)
 

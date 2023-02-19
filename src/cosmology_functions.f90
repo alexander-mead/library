@@ -5041,7 +5041,7 @@ CONTAINS
       ! delta_c fitting function from Mead (2017; 1606.05345)
       REAL, INTENT(IN) :: a ! scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: lg, bG, Om_m, ai
+      REAL :: lg, bG, Om_m, f_nu, ai
       TYPE(cosmology) :: cosm_LCDM
 
       ! See Appendix A of Mead (2017) for naming convention
@@ -5065,12 +5065,13 @@ CONTAINS
       lg = ungrow(a, cosm_LCDM)
       bG = acc_growth(a, cosm_LCDM)
       Om_m = Omega_m_norad(a, cosm_LCDM)
+      f_nu = cosm%f_nu
       ai = a
  
-      dc_Mead = 1.  
+      dc_Mead = 1.
       dc_Mead = dc_Mead+f_Mead(lg/ai, bG/ai, p10, p11, p12, p13)*log10(Om_m)**a1
       dc_Mead = dc_Mead+f_Mead(lg/ai, bG/ai, p20, p21, p22, p23)
-      dc_Mead = dc_Mead*dc0*(1.-0.041*cosm%f_nu)
+      dc_Mead = dc_Mead*dc0*(1.-0.041*f_nu)
 
    END FUNCTION dc_Mead
 
@@ -5122,7 +5123,7 @@ CONTAINS
       ! Delta_v fitting function from Mead (2017; 1606.05345)
       REAL, INTENT(IN) :: a !scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm
-      REAL :: lg, bG, Om_m, ai
+      REAL :: lg, bG, Om_m, f_nu, ai
       TYPE(cosmology) :: cosm_LCDM
 
       ! See Appendix A of Mead (2017) for naming convention
@@ -5146,12 +5147,13 @@ CONTAINS
       lg = ungrow(a, cosm_LCDM)
       bG = acc_growth(a, cosm_LCDM)
       Om_m = Omega_m_norad(a, cosm_LCDM)
+      f_nu = cosm%f_nu
       ai = a
 
-      Dv_Mead = 1.    
+      Dv_Mead = 1.
       Dv_Mead = Dv_Mead+f_Mead(lg/ai, bG/ai, p30, p31, p32, p33)*log10(Om_m)**a3
       Dv_Mead = Dv_Mead+f_Mead(lg/ai, bG/ai, p40, p41, p42, p43)*log10(Om_m)**a4
-      Dv_Mead = Dv_Mead*Dv0*(1.+0.763*cosm%f_nu)
+      Dv_Mead = Dv_Mead*Dv0*(1.+0.763*f_nu)
 
    END FUNCTION Dv_Mead
 
