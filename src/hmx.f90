@@ -1064,6 +1064,7 @@ CONTAINS
       ! 2 - As in Dolag et al. (2004) but with a 1.5 exponent
       ! 3 - Dolag (2004) with redshift dependence
       ! 4 - Dolag (2004) with redshift dependence and neutrinos removed
+      ! 5 - Dolag (2004) with collapse-redshift dependence
       hmod%iDolag = 1
 
       ! HMcode one-halo term large-scale damping
@@ -5506,7 +5507,6 @@ CONTAINS
       ELSE IF (hmod%i2hdamp == 3) THEN
          ! HMcode (2020)
          sig = sigma(8., hmod%a, flag_ucold, cosm)
-         !sig = sigma(8., hmod%a, flag_matter, cosm)
          HMcode_fdamp = hmod%f0*sig**hmod%f1
       ELSE
          ERROR STOP 'HMcode_FDAMP: i2hdamp defined incorrectly'
@@ -5613,9 +5613,11 @@ CONTAINS
          sig = sigma(8., hmod%a, flag_matter, cosm)
          HMcode_eta = eta0-hmod%eta1*sig
       ELSE IF (hmod%ieta == 2) THEN
+         ! As above but with sigma_cc dependence
          sig = sigma(8., hmod%a, flag_ucold, cosm)
          HMcode_eta = hmod%eta0-hmod%eta1*sig
       ELSE IF (hmod%ieta == 3) THEN
+         ! HMcode-2020
          sig = sigma(8., hmod%a, flag_ucold, cosm)
          HMcode_eta = hmod%eta0*sig**hmod%eta1
       ELSE

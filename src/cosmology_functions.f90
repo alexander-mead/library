@@ -1837,7 +1837,7 @@ CONTAINS
          ELSE IF (neutrino_method == neutrino_Komatsu) THEN
             ! This does not use the 94.1eV approximation
             ! TODO: Should this be a division by neff or by 3?
-            cosm%a_nu = cosm%T_nu/(cosm%m_nu/cosm%neff)*(kB/eV) 
+            cosm%a_nu = cosm%T_nu/(cosm%m_nu/cosm%neff)*(kB/eV)
             cosm%Om_nu = cosm%Om_nu_rad*Komatsu_nu(1./cosm%a_nu)
          ELSE
             STOP 'INIT_COSMOLOGY: Error, neutrino method not recognised'
@@ -1892,7 +1892,7 @@ CONTAINS
       ! TODO: Does it make sense to do this before dark-energy initialisation?
       cosm%Om_c = cosm%Om_m-cosm%Om_b ! Omega_m defined to include CDM, baryons and massive neutrinos
       IF (cosm%m_nu .NE. 0.) cosm%Om_c = cosm%Om_c-cosm%Om_nu
-      cosm%Om = cosm%Om_m+cosm%Om_v+cosm%Om_w    ! Ignore radiation here
+      cosm%Om = cosm%Om_m+cosm%Om_v+cosm%Om_w ! Ignore radiation here
       cosm%Om_k = 1.-cosm%Om
       cosm%k = (cosm%Om-1.)/(Hdist**2)
       IF (cosm%verbose) THEN
@@ -3930,7 +3930,7 @@ CONTAINS
       REAL, INTENT(IN) :: k ! Wavenumber [h/Mpc 
       REAL, INTENT(IN) :: a ! Scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm ! Cosmology
-      REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs, z
+      REAL :: D, Dcb, Dcbnu, pcb, zeq, q, yfs
       REAL :: BigT
       LOGICAL, PARAMETER :: EdS_growth = Tk_cold_EdS_growth
 
@@ -3940,9 +3940,6 @@ CONTAINS
          Tk_cold_EH = 1.
 
       ELSE
-
-         ! Get the redshift
-         z = redshift_a(a)
 
          ! Growth exponent under the assumption that neutrinos are completely unclustered (equation 11)
          pcb = (5.-sqrt(1.+24.*(1.-cosm%f_nu)))/4.
@@ -5121,7 +5118,7 @@ CONTAINS
    REAL FUNCTION Dv_Mead(a, cosm)
 
       ! Delta_v fitting function from Mead (2017; 1606.05345)
-      REAL, INTENT(IN) :: a !scale factor
+      REAL, INTENT(IN) :: a ! scale factor
       TYPE(cosmology), INTENT(INOUT) :: cosm
       REAL :: lg, bG, Om_m, f_nu, ai
       TYPE(cosmology) :: cosm_LCDM
@@ -6547,12 +6544,9 @@ CONTAINS
       wm = wc+wb+wnu
       cosm%h = sqrt(wm/cosm%Om_m)
       cosm%As = exp(lnAs)/1e10
-      cosm%Om_b = wb/cosm%h**2  
+      cosm%Om_b = wb/cosm%h**2
 
-      ! CMB temperature [K]
-      !cosm%T_CMB = 2.7255 
-
-      ! Neutrino mass (only after T_CMB has been set)
+      ! Neutrino mass
       cosm%m_nu = wnu*neutrino_constant(cosm)
 
       ! Normalisation; Ensure kpiv = 0.05/Mpc; NOTE: My units are h/Mpc
